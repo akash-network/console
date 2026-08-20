@@ -6813,7 +6813,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "data": {
                     "properties": {
                       "deposit": {
-                        "description": "Amount to deposit in dollars (e.g. 5.5)",
+                        "deprecated": true,
+                        "description": "Deposit in dollars. Ignored when managed deposits are enabled for your account, in which case the platform sets it automatically; otherwise it is required.",
                         "type": "number",
                       },
                       "sdl": {
@@ -6822,7 +6823,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     },
                     "required": [
                       "sdl",
-                      "deposit",
                     ],
                     "type": "object",
                   },
@@ -7791,6 +7791,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/deposit-deployment": {
       "post": {
+        "deprecated": true,
+        "description": "Deprecated. Managed deployments are funded automatically; this endpoint will be removed in a future release.",
         "operationId": "depositDeployment",
         "requestBody": {
           "content": {

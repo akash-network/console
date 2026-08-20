@@ -4508,12 +4508,12 @@
                       },
                       "deposit": {
                         "type": "number",
-                        "description": "Amount to deposit in dollars (e.g. 5.5)"
+                        "description": "Deposit in dollars. Ignored when managed deposits are enabled for your account, in which case the platform sets it automatically; otherwise it is required.",
+                        "deprecated": true
                       }
                     },
                     "required": [
-                      "sdl",
-                      "deposit"
+                      "sdl"
                     ]
                   }
                 },
@@ -4911,7 +4911,9 @@
     "/v1/deposit-deployment": {
       "post": {
         "summary": "Deposit into a deployment",
+        "description": "Deprecated. Managed deployments are funded automatically; this endpoint will be removed in a future release.",
         "operationId": "depositDeployment",
+        "deprecated": true,
         "tags": [
           "Deployments"
         ],

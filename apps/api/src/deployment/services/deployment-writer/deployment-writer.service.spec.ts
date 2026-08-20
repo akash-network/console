@@ -9,9 +9,11 @@ import type { ManagedSignerService } from "@src/billing/services/managed-signer/
 import type { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { LoggerService } from "@src/core";
+import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
+import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 import type { StaleManagedDeploymentsCleanerService } from "../stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
 import { DeploymentWriterService } from "./deployment-writer.service";
@@ -151,6 +153,37 @@ describe(DeploymentWriterService.name, () => {
       expect(result.dseq).toBeDefined();
       expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalled();
     });
+
+    it("ignores the caller deposit and uses the configured default when managed deposit is enabled", async () => {
+      const { service, rpcMessageService } = setup({ isManagedDepositEnabled: true, defaultDeposit: 1.25 });
+
+      await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
+
+      expect(rpcMessageService.getCreateDeploymentMsg).toHaveBeenCalledWith(expect.objectContaining({ amount: 1_250_000 }));
+    });
+
+    it("creates a deployment without a caller deposit when managed deposit is enabled", async () => {
+      const { service, rpcMessageService } = setup({ isManagedDepositEnabled: true, defaultDeposit: 0.5 });
+
+      await service.create({ userId: "user-1", sdl: "valid-sdl" });
+
+      expect(rpcMessageService.getCreateDeploymentMsg).toHaveBeenCalledWith(expect.objectContaining({ amount: 500000 }));
+    });
+
+    it("throws 400 when managed deposit is disabled and no deposit is provided", async () => {
+      const { service, rpcMessageService } = setup({ isManagedDepositEnabled: false });
+
+      await expect(service.create({ userId: "user-1", sdl: "valid-sdl" })).rejects.toMatchObject({ status: 400 });
+      expect(rpcMessageService.getCreateDeploymentMsg).not.toHaveBeenCalled();
+    });
+
+    it("does not reclaim trial orphans when a missing deposit will reject the create", async () => {
+      const { service, staleDeploymentsCleaner, walletReaderService } = setup({ isManagedDepositEnabled: false });
+      walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, isTrialing: true });
+
+      await expect(service.create({ userId: "user-1", sdl: "valid-sdl" })).rejects.toMatchObject({ status: 400 });
+      expect(staleDeploymentsCleaner.cleanUpForWallet).not.toHaveBeenCalled();
+    });
   });
 
   describe("closeByUserIdAndDseq", () => {
@@ -240,6 +273,24 @@ describe(DeploymentWriterService.name, () => {
       expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledWith("user-1", [depositMsg]);
       expect(result).toBe(updatedDeployment);
     });
+
+    it("logs a deprecation warning when managed deposit is enabled", async () => {
+      const { service, logger } = setup({ isManagedDepositEnabled: true });
+
+      await service.deposit({ userId: "user-1", dseq: "100", amount: 3 });
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "DEPRECATED_DEPOSIT_DEPLOYMENT_ENDPOINT_USED", userId: "user-1", dseq: "100" })
+      );
+    });
+
+    it("does not log a deprecation warning when managed deposit is disabled", async () => {
+      const { service, logger } = setup({ isManagedDepositEnabled: false });
+
+      await service.deposit({ userId: "user-1", dseq: "100", amount: 3 });
+
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
   });
 
   describe("updateByUserIdAndDseq", () => {
@@ -292,7 +343,7 @@ describe(DeploymentWriterService.name, () => {
     });
   });
 
-  function setup() {
+  function setup(input?: { isManagedDepositEnabled?: boolean; defaultDeposit?: number }) {
     const signerService = mock<ManagedSignerService>();
     const rpcMessageService = mock<RpcMessageService>();
     const sdlService = mock<SdlService>();
@@ -304,6 +355,11 @@ describe(DeploymentWriterService.name, () => {
     const walletReaderService = mock<WalletReaderService>();
     const staleDeploymentsCleaner = mock<StaleManagedDeploymentsCleanerService>();
     const logger = mock<LoggerService>();
+    const deploymentConfig: MockProxy<DeploymentConfigService> = mockConfigService<DeploymentConfigService>({
+      DEPLOYMENT_DEFAULT_DEPOSIT: input?.defaultDeposit ?? 0.5
+    });
+    const featureFlagsService = mock<FeatureFlagsService>();
+    featureFlagsService.isEnabled.mockReturnValue(input?.isManagedDepositEnabled ?? false);
 
     walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
     sdlService.generateManifest.mockReturnValue({ ok: true, value: manifestValue } as any);
@@ -319,7 +375,9 @@ describe(DeploymentWriterService.name, () => {
       deploymentReaderService,
       walletReaderService,
       staleDeploymentsCleaner,
-      logger
+      logger,
+      deploymentConfig,
+      featureFlagsService
     );
 
     return {
@@ -332,7 +390,9 @@ describe(DeploymentWriterService.name, () => {
       deploymentReaderService,
       walletReaderService,
       staleDeploymentsCleaner,
-      logger
+      logger,
+      deploymentConfig,
+      featureFlagsService
     };
   }
 });

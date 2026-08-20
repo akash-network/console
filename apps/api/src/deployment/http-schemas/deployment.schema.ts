@@ -88,7 +88,11 @@ export const GetDeploymentParamsSchema = z.object({
 export const CreateDeploymentRequestSchema = z.object({
   data: z.object({
     sdl: z.string(),
-    deposit: z.number().describe("Amount to deposit in dollars (e.g. 5.5)")
+    deposit: z.number().optional().openapi({
+      deprecated: true,
+      description:
+        "Deposit in dollars. Ignored when managed deposits are enabled for your account, in which case the platform sets it automatically; otherwise it is required."
+    })
   })
 });
 
