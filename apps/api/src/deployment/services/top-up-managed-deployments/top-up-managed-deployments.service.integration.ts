@@ -207,10 +207,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(executeDerivedTx).not.toHaveBeenCalled();
     });
 
-    // Owner has a draining deployment and a balance just above the headroom floor.
-    // The deposit is capped at what sits above the floor, leaving the floor available
-    // for the user to create a new deployment.
-    it("leaves the balance headroom untouched when funding a draining deployment", async () => {
+    it("caps the deposit at what sits above the headroom floor so a new deployment can still be created", async () => {
       const { topUpService, executeDerivedTx, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } =
         await setup();
       const { user, address } = await createUserWithWallet();
@@ -228,10 +225,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(depositedAmounts(executeDerivedTx)).toEqual([500000]);
     });
 
-    // Owner's whole balance sits below the headroom floor. Keeping existing deployments
-    // running outranks reserving room for a new one, so the floor is waived and the
-    // deployment is funded from everything that is left.
-    it("waives the headroom when the balance is below it", async () => {
+    it("funds a draining deployment from the whole balance when it sits below the headroom floor", async () => {
       const { topUpService, executeDerivedTx, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } =
         await setup();
       const { user, address } = await createUserWithWallet();
