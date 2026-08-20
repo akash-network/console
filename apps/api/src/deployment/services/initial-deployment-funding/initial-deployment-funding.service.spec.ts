@@ -57,7 +57,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const { service, drainingDeploymentService, rpcMessageService, managedSignerService, walletReloadJobService, instrumentation } = setup();
     const depositMessage = { typeUrl: "/akash.escrow.v1.MsgAccountDeposit", value: {} };
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
-    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
     rpcMessageService.getDepositDeploymentMsg.mockReturnValue(depositMessage as ReturnType<RpcMessageService["getDepositDeploymentMsg"]>);
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
@@ -74,10 +74,32 @@ describe(InitialDeploymentFundingService.name, () => {
     expect(instrumentation.recordDeposit).toHaveBeenCalledWith(500000, "uakt", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
   });
 
+  it("sizes the deposit to the target runway from the same height as the look-ahead check", async () => {
+    const { service, drainingDeploymentService, blockHttpService } = setup();
+    const deployment = createDrainingDeployment();
+    drainingDeploymentService.findLeases.mockResolvedValue([deployment]);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(drainingDeploymentService.calculateAmountToTargetRunway).toHaveBeenCalledWith(deployment, CURRENT_HEIGHT);
+    expect(blockHttpService.getCurrentHeight).toHaveBeenCalledTimes(1);
+  });
+
+  it("deposits only the gap up to the target for a partially funded deployment", async () => {
+    const { service, drainingDeploymentService, rpcMessageService } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(720000);
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(rpcMessageService.getDepositDeploymentMsg).toHaveBeenCalledWith(expect.objectContaining({ amount: 720000 }));
+  });
+
   it("records the deposit and tolerates a wallet reload scheduling failure without failing the job", async () => {
     const { service, drainingDeploymentService, managedSignerService, walletReloadJobService, instrumentation, logger } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
-    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
     managedSignerService.executeDerivedTx.mockResolvedValue({ code: 0, hash: "TESTHASH", rawLog: "[]" });
     walletReloadJobService.scheduleImmediate.mockRejectedValue(new Error("Failed to schedule wallet balance reload check"));
 
@@ -90,7 +112,7 @@ describe(InitialDeploymentFundingService.name, () => {
   it("completes the job when logging the wallet reload scheduling failure itself throws", async () => {
     const { service, drainingDeploymentService, walletReloadJobService, instrumentation, logger } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
-    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
     walletReloadJobService.scheduleImmediate.mockRejectedValue(new Error("Failed to schedule wallet balance reload check"));
     logger.error.mockImplementation(() => {
       throw new Error("logger transport failure");
@@ -104,7 +126,7 @@ describe(InitialDeploymentFundingService.name, () => {
   it("skips funding when auto top-up is disabled for the deployment", async () => {
     const { service, drainingDeploymentService, userWalletRepository, deploymentSettingRepository, managedSignerService, logger } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
-    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
     userWalletRepository.findById.mockResolvedValue(createUserWallet({ id: 1, address: "akash1owner", userId: "user-1" }));
     deploymentSettingRepository.findOneBy.mockResolvedValue(mock<DeploymentSettingsOutput>({ autoTopUpEnabled: false }));
 
@@ -118,7 +140,7 @@ describe(InitialDeploymentFundingService.name, () => {
   it("funds the deployment when auto top-up is explicitly enabled", async () => {
     const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
-    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
     deploymentSettingRepository.findOneBy.mockResolvedValue(mock<DeploymentSettingsOutput>({ autoTopUpEnabled: true }));
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
@@ -129,7 +151,7 @@ describe(InitialDeploymentFundingService.name, () => {
   it("throws and skips the wallet reload when the deposit tx fails on-chain", async () => {
     const { service, drainingDeploymentService, managedSignerService, walletReloadJobService, logger } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
-    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
     managedSignerService.executeDerivedTx.mockResolvedValue({ code: 5, hash: "TESTHASH", rawLog: "insufficient funds" });
 
     await expect(service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" })).rejects.toThrow("insufficient funds");
@@ -141,7 +163,7 @@ describe(InitialDeploymentFundingService.name, () => {
   it("skips terminally when the deposit is rejected because the deployment escrow is closed", async () => {
     const { service, drainingDeploymentService, managedSignerService, chainErrorService, walletReloadJobService, instrumentation } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
-    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
     managedSignerService.executeDerivedTx.mockRejectedValue(new Error("Deployment closed"));
     chainErrorService.isDeploymentClosedError.mockReturnValue(true);
 
@@ -154,7 +176,7 @@ describe(InitialDeploymentFundingService.name, () => {
   it("rethrows deposit errors unrelated to a closed deployment", async () => {
     const { service, drainingDeploymentService, managedSignerService, walletReloadJobService, instrumentation } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
-    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
     managedSignerService.executeDerivedTx.mockRejectedValue(new Error("Bad status on response: 503"));
 
     await expect(service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" })).rejects.toThrow("Bad status on response: 503");
@@ -166,7 +188,7 @@ describe(InitialDeploymentFundingService.name, () => {
   it("skips terminally when the deposit tx lands with a closed account in the raw log", async () => {
     const { service, drainingDeploymentService, managedSignerService, chainErrorService, walletReloadJobService, instrumentation, logger } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
-    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
     managedSignerService.executeDerivedTx.mockResolvedValue({ code: 5, hash: "TESTHASH", rawLog: "account closed" });
     chainErrorService.isDeploymentClosedError.mockReturnValue(true);
 
@@ -180,7 +202,7 @@ describe(InitialDeploymentFundingService.name, () => {
   it("falls back to a descriptive error when the failed deposit tx has no raw log", async () => {
     const { service, drainingDeploymentService, managedSignerService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
-    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
     managedSignerService.executeDerivedTx.mockResolvedValue({ code: 5, hash: "TESTHASH", rawLog: "" });
 
     await expect(service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" })).rejects.toThrow(
@@ -191,7 +213,7 @@ describe(InitialDeploymentFundingService.name, () => {
   it("clamps the deposit to the fresh deployment limit", async () => {
     const { service, drainingDeploymentService, rpcMessageService, cachedBalanceService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
-    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
     cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(200000, 0));
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
@@ -202,7 +224,7 @@ describe(InitialDeploymentFundingService.name, () => {
   it("skips funding when the deployment limit is exhausted", async () => {
     const { service, drainingDeploymentService, managedSignerService, instrumentation, cachedBalanceService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
-    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
     cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(0, 0));
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
@@ -217,7 +239,7 @@ describe(InitialDeploymentFundingService.name, () => {
   it("leaves the balance headroom untouched when sizing the deposit", async () => {
     const { service, drainingDeploymentService, rpcMessageService, cachedBalanceService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
-    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(10_000_000);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(10_000_000);
     cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(10_000_000, 5_000_000));
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
@@ -228,7 +250,7 @@ describe(InitialDeploymentFundingService.name, () => {
   it("funds the full balance when it is at or below the headroom", async () => {
     const { service, drainingDeploymentService, rpcMessageService, cachedBalanceService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
-    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(10_000_000);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(10_000_000);
     cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(4_000_000, 5_000_000));
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
@@ -239,7 +261,7 @@ describe(InitialDeploymentFundingService.name, () => {
   it("funds the full balance when it sits exactly at the headroom", async () => {
     const { service, drainingDeploymentService, rpcMessageService, cachedBalanceService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
-    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(10_000_000);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(10_000_000);
     cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(5_000_000, 5_000_000));
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
@@ -250,7 +272,7 @@ describe(InitialDeploymentFundingService.name, () => {
   it("skips funding when the wallet is not found", async () => {
     const { service, drainingDeploymentService, userWalletRepository, managedSignerService, instrumentation } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
-    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
     userWalletRepository.findById.mockResolvedValue(undefined);
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
@@ -262,7 +284,7 @@ describe(InitialDeploymentFundingService.name, () => {
   it("skips funding when the fee allowance is exhausted", async () => {
     const { service, drainingDeploymentService, managedSignerService, instrumentation } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
-    drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(500000);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
     managedSignerService.ensureFeeGrants.mockResolvedValue(0);
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });

@@ -39,10 +39,13 @@ export class DrainingDeploymentService {
    * fetches draining deployment data, and marks closed deployments.
    * Yields batches of active draining deployments per owner.
    *
+   * The caller passes the block height the whole run is scoped to so the look-ahead window that admits
+   * a deployment and the amount that funds it are derived from the same height.
+   *
    * @yields Object with owner address and array of draining deployments
    */
-  async *findDrainingDeploymentsByOwner(): AsyncGenerator<{ address: string; walletId: number; deployments: DrainingDeployment[] }> {
-    const expectedClosureHeight = await this.#getExpectedClosureHeight();
+  async *findDrainingDeploymentsByOwner(currentHeight: number): AsyncGenerator<{ address: string; walletId: number; deployments: DrainingDeployment[] }> {
+    const expectedClosureHeight = this.#getExpectedClosureHeight(currentHeight);
 
     for await (const { address, walletId, deploymentSettings } of this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively()) {
       const deployments = await this.#resolveActiveDrainingDeployments(deploymentSettings, address, expectedClosureHeight, this.instrumentation);
@@ -58,15 +61,18 @@ export class DrainingDeploymentService {
    * look-ahead window, auto-top-up gate, and closed-marking as the cron sweep.
    * Backs the event-driven immediate funding triggered when credits land.
    */
-  async findDrainingDeploymentsForOwner(address: string, instrumentation: DeploymentTopUpInstrumentation): Promise<DrainingDeployment[]> {
+  async findDrainingDeploymentsForOwner(
+    address: string,
+    instrumentation: DeploymentTopUpInstrumentation,
+    currentHeight: number
+  ): Promise<DrainingDeployment[]> {
     const deploymentSettings = await this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwner(address);
-    const expectedClosureHeight = await this.#getExpectedClosureHeight();
+    const expectedClosureHeight = this.#getExpectedClosureHeight(currentHeight);
 
     return this.#resolveActiveDrainingDeployments(deploymentSettings, address, expectedClosureHeight, instrumentation);
   }
 
-  async #getExpectedClosureHeight(): Promise<number> {
-    const currentHeight = await this.blockHttpService.getCurrentHeight();
+  #getExpectedClosureHeight(currentHeight: number): number {
     return Math.floor(currentHeight + averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H"));
   }
 
@@ -119,13 +125,12 @@ export class DrainingDeploymentService {
   }
 
   /**
-   * Calculates the top-up amount needed for a specific deployment and user.
-   * Looks up the user's wallet and deployment setting, then calculates
-   * the required top-up amount based on the deployment's block rate.
+   * Estimates what a single automatic funding event costs for a specific deployment and user.
+   * Looks up the user's wallet and lease, then reports the steady-state per-event amount.
    *
    * @param dseq - Deployment sequence number
    * @param userId - User ID to look up wallet for
-   * @returns Top-up amount in credits, or 0 if user wallet or deployment not found
+   * @returns Estimated top-up amount in credits, or 0 if user wallet or deployment not found
    */
   async calculateTopUpAmountForDseqAndUserId(dseq: string, userId: string): Promise<number> {
     const userWallet = await this.userWalletRepository.findOneByUserId(userId);
@@ -140,19 +145,51 @@ export class DrainingDeploymentService {
       return 0;
     }
 
-    return this.calculateTopUpAmount(deploymentSetting);
+    return this.calculateSteadyStateTopUpAmount(deploymentSetting);
   }
 
   /**
-   * Calculates the top-up amount needed for a deployment based on its block rate.
-   * The calculation uses the configured auto-top-up interval to determine
-   * how many blocks worth of funds are needed.
+   * Funds a deployment up to the target runway, counting the runway its escrow already covers, so a
+   * deployment never holds more than the target. Funding only triggers once a deployment drops inside
+   * the look-ahead window, so the amount is at least the gap between the window and the target.
+   *
+   * A deployment whose escrow already ran out is in arrears on chain, but the funded-until floor is
+   * `currentHeight` rather than the overdue height: a stale `predictedClosedHeight` far in the past
+   * would otherwise size a huge deposit. Such a deployment reaches slightly less than the target and
+   * the next sweep tops up the remainder.
+   *
+   * @param deployment - Deployment with its block rate and predicted closure height
+   * @param currentHeight - Block height the funding run is scoped to
+   * @returns Top-up amount in credits, or 0 when the deployment already holds the target
+   */
+  calculateAmountToTargetRunway(deployment: Pick<DrainingDeploymentOutput, "blockRate" | "predictedClosedHeight">, currentHeight: number): number {
+    const blockRate = Number(deployment.blockRate);
+    const predictedClosedHeight = Number(deployment.predictedClosedHeight);
+    const isUsable = Number.isFinite(blockRate) && blockRate > 0 && Number.isFinite(predictedClosedHeight);
+
+    if (!isUsable) {
+      return 0;
+    }
+
+    const targetHeight = currentHeight + averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_TARGET_RUNWAY_IN_H");
+    const fundedUntil = Math.max(currentHeight, predictedClosedHeight);
+
+    return Math.max(0, Math.floor(blockRate * (targetHeight - fundedUntil)));
+  }
+
+  /**
+   * The amount a funding event deposits once a deployment is in the funded steady state: it drains from
+   * the target runway down to the look-ahead window before the next event tops it back up to the target.
+   * Reported to users as the estimated per-event cost, so it stays a stable function of configuration
+   * rather than of a deployment's current escrow, which would read as zero right after a top-up.
    *
    * @param deployment - Deployment with block rate information
-   * @returns Top-up amount in credits
+   * @returns Estimated top-up amount in credits
    */
-  async calculateTopUpAmount(deployment: Pick<DrainingDeploymentOutput, "blockRate">): Promise<number> {
-    return Math.floor(deployment.blockRate * (averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_AMOUNT_IN_H")));
+  calculateSteadyStateTopUpAmount(deployment: Pick<DrainingDeploymentOutput, "blockRate">): number {
+    const hoursPerEvent = this.config.get("AUTO_TOP_UP_TARGET_RUNWAY_IN_H") - this.config.get("AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H");
+
+    return Math.floor(Number(deployment.blockRate) * averageBlockCountInAnHour * hoursPerEvent);
   }
 
   /**

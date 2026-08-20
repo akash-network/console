@@ -27,9 +27,9 @@ export const DEPENDENCIES = {
 };
 
 /**
- * Approx. hours of running cost each deployment's escrow is kept funded to (the auto-funding target).
- * ~48h in steady state, governed by the backend auto-top-up config (`AUTO_TOP_UP_AMOUNT_IN_H` sizing +
- * `AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H` trigger, each ~24h). Update if that target changes.
+ * Hours of running cost each deployment's escrow is kept funded to, and the ceiling it never exceeds:
+ * automatic funding tops a deployment up to this target rather than adding to what it already holds.
+ * Mirrors the backend `AUTO_TOP_UP_TARGET_RUNWAY_IN_H`. Update if that target changes.
  */
 const RESERVE_WINDOW_HOURS = 48;
 
