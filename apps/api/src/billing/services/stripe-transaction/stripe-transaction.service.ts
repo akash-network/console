@@ -455,10 +455,11 @@ export class StripeTransactionService {
       return { settled: false, bonusAmount: 0 };
     }
 
-    if (transaction.status === "succeeded") {
+    if (SETTLED_TRANSACTION_STATUSES.has(transaction.status)) {
       this.loggerService.info({
         event: "PAYMENT_ALREADY_PROCESSED",
         transactionId: params.transactionId,
+        status: transaction.status,
         description: params.eventDescription
       });
       return { settled: false, bonusAmount: 0 };

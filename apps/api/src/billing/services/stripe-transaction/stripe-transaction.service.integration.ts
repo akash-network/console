@@ -126,6 +126,30 @@ describe(StripeTransactionService.name, () => {
       expect(domainEventsService.publish).not.toHaveBeenCalled();
     });
 
+    it("does not re-settle a refunded transaction when the success webhook is redelivered", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService, domainEventsService } = setup();
+      const mockUser = createTestUser();
+      const refundedTransaction = generateDatabaseStripeTransaction({ id: "tx-refunded", status: "refunded" });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(refundedTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(refundedTransaction);
+
+      const outcome = await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_refunded",
+          customer: mockUser.stripeCustomerId,
+          amount: 10000,
+          metadata: { internal_transaction_id: refundedTransaction.id, auto_recharge: "true" }
+        })
+      );
+
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(domainEventsService.publish).not.toHaveBeenCalled();
+      expect(outcome.autoRecharge).toBeUndefined();
+    });
+
     it("skips a payment-method validation intent without touching the transaction", async () => {
       const { service, userRepository, stripeTransactionRepository, refillService } = setup();
 
