@@ -141,8 +141,6 @@ describe(TopUpManagedDeploymentsService.name, () => {
       );
     });
 
-    // A draining deployment that still holds 12h of runway is topped up to the 48h target,
-    // so the deposit covers the missing 36h rather than a flat 48h on top of what it holds.
     it("deposits only the runway missing from the target rather than a flat window", async () => {
       const { topUpService, executeDerivedTx, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } =
         await setup();
