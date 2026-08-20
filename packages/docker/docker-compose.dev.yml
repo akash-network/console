@@ -236,3 +236,22 @@ services:
             }
           ]
         }
+
+  mock-gcp-kms:
+    image: ghcr.io/blackwell-systems/gcp-kms-emulator-dual:0.9
+    container_name: mock-gcp-kms
+    ports:
+      - "9090:9090"   # gRPC — what the Node SDK speaks
+    volumes:
+      - ./script/seed-gcp-kms-mock.sh:/script/seed-gcp-kms-mock.sh:ro
+    environment:
+      GCP_KMS_LOG_LEVEL: info
+      # Read by the seeder below, from inside the container.
+      KMS_EMULATOR_REST: http://localhost:8080
+      GCP_KMS_PROJECT_ID: console-dev-mock
+      GCP_KMS_LOCATION: global
+      GCP_KMS_KEY_RING: console-api
+      GCP_KMS_KEY: sdl-secrets
+    post_start:
+      - command: ["sh", "/script/seed-gcp-kms-mock.sh"]
+    restart: unless-stopped
