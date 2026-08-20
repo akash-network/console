@@ -9,3 +9,9 @@ export const SDL_SECRETS_CONTENT_ENCRYPTION = "A256GCM";
  * documented so that promoting a claim is a server-side change instead of a client release.
  */
 export const SDL_SECRETS_REQUIRED_CLAIMS = ["kid", "sub", "exp"] as const;
+
+/**
+ * How far into the future a seal's `exp` may sit. Bounds how long a captured seal stays replayable,
+ * with enough slack above the client's own lifetime to absorb clock skew.
+ */
+export const SDL_SECRETS_MAX_SEAL_LIFETIME_MS = 15 * 60 * 1000;

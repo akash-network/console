@@ -7,6 +7,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { CreateLogger } from "@src/core";
+import { SDL_SECRETS_MAX_SEAL_LIFETIME_MS } from "@src/deployment/config/sdl-secrets.config";
 import type { SdlSecretsKmsClient } from "@src/deployment/providers/kms.provider";
 import type { UserOutput } from "@src/user/repositories";
 import { SdlSecretsUnsealerService } from "./sdl-secrets-unsealer.service";
@@ -42,6 +43,14 @@ describe(SdlSecretsUnsealerService.name, () => {
     const { service, seal } = setup();
 
     await expect(service.open(await seal({ TOKEN: "t" }, { exp: Math.floor(Date.now() / 1000) - 1 }))).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("rejects a seal that expires further out than the maximum seal lifetime", async () => {
+    const { service, seal, kmsClient } = setup();
+    const beyondMaxLifetime = Math.floor((Date.now() + SDL_SECRETS_MAX_SEAL_LIFETIME_MS) / 1000) + 60;
+
+    await expect(service.open(await seal({ TOKEN: "t" }, { exp: beyondMaxLifetime }))).rejects.toMatchObject({ status: 400 });
+    expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
   });
 
   it("rejects a seal carrying no expiry", async () => {

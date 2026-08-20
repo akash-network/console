@@ -5,7 +5,7 @@ import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
-import { SDL_SECRETS_CONTENT_ENCRYPTION, SDL_SECRETS_SEAL_ALGORITHM } from "@src/deployment/config/sdl-secrets.config";
+import { SDL_SECRETS_CONTENT_ENCRYPTION, SDL_SECRETS_MAX_SEAL_LIFETIME_MS, SDL_SECRETS_SEAL_ALGORITHM } from "@src/deployment/config/sdl-secrets.config";
 import type { SdlSecretsKmsTarget } from "@src/deployment/providers/kms.provider";
 import { SDL_SECRETS_KMS_TARGET } from "@src/deployment/providers/kms.provider";
 
@@ -96,8 +96,17 @@ export class SdlSecretsUnsealerService {
       throw this.#reject(403, "SDL_SECRETS_SEAL_SUBJECT_MISMATCH", "Sealed for a different user", { received: header.sub });
     }
 
-    if (typeof header.exp !== "number" || header.exp * 1000 <= Date.now()) {
+    const now = Date.now();
+
+    if (typeof header.exp !== "number" || header.exp * 1000 <= now) {
       throw this.#reject(400, "SDL_SECRETS_SEAL_EXPIRED", "Sealed secrets have expired", { exp: header.exp });
+    }
+
+    if (header.exp * 1000 > now + SDL_SECRETS_MAX_SEAL_LIFETIME_MS) {
+      throw this.#reject(400, "SDL_SECRETS_SEAL_LIFETIME_TOO_LONG", "Sealed secrets expire too far in the future", {
+        exp: header.exp,
+        maxLifetimeMs: SDL_SECRETS_MAX_SEAL_LIFETIME_MS
+      });
     }
   }
 
