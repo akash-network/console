@@ -235,7 +235,7 @@ export const DeploymentDetailLegacy: FC<DeploymentDetailLegacyProps> = ({ dseq }
 
       {deployment && isLeasesLoaded && (
         <>
-          <ReclamationBanner leases={leases} dseq={dseq} />
+          <ReclamationBanner leases={leases} dseq={dseq} className="mt-4" />
 
           <DeploymentSubHeader deployment={deployment} leases={leases} teeTypes={declaredTeeTypes} interconnect={declaredInterconnect} />
 

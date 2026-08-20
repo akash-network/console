@@ -14,6 +14,7 @@ export const DEPENDENCIES = { useLocalNotes, useRedeploy };
 type Props = {
   leases: LeaseDto[] | undefined | null;
   dseq: string;
+  className?: string;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -22,7 +23,7 @@ type Props = {
  * Reclamation is terminal — it can't be cancelled — so the call to action is to redeploy elsewhere
  * before the grace-period deadline. The terminal (already-closed) case is handled by ReclamationCard.
  */
-export const ReclamationBanner: React.FunctionComponent<Props> = ({ leases, dseq, dependencies = DEPENDENCIES }) => {
+export const ReclamationBanner: React.FunctionComponent<Props> = ({ leases, dseq, className, dependencies = DEPENDENCIES }) => {
   const { getDeploymentData } = dependencies.useLocalNotes();
   const redeploy = dependencies.useRedeploy();
   const deploymentData = getDeploymentData(dseq);
@@ -40,7 +41,7 @@ export const ReclamationBanner: React.FunctionComponent<Props> = ({ leases, dseq
   if (reclaimingLeases.length === 0) return null;
 
   return (
-    <Alert variant="warning" className="mt-4">
+    <Alert variant="warning" className={className}>
       <WarningTriangle className="h-4 w-4" />
       <AlertTitle>This deployment is being reclaimed</AlertTitle>
       <AlertDescription>

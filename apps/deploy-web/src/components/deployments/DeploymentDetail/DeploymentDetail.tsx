@@ -165,9 +165,9 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
       {deployment && isLeasesLoaded && (
         <>
           <div className={CAPPED_CONTENT}>
-            <d.ReclamationBanner leases={leases} dseq={dseq} />
-
             <d.DeploymentDetailHeader deployment={deployment} leases={leases} providers={providers || []} />
+
+            <d.ReclamationBanner leases={leases} dseq={dseq} className="mb-6" />
           </div>
 
           <Tabs value={activeTab} onValueChange={value => changeTab(value as Tab)} className="flex flex-1 flex-col">
