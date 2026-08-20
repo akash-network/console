@@ -2,13 +2,13 @@ import { IntlProvider } from "react-intl";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { describe, expect, it } from "vitest";
 
-import { MarketplaceCostTooltip } from "./MarketplaceCostTooltip";
+import { CostBreakdownTooltip } from "./CostBreakdownTooltip";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
-describe(MarketplaceCostTooltip.name, () => {
+describe(CostBreakdownTooltip.name, () => {
   it("surfaces the hourly and daily rate for a CPU-only spec, without repeating the monthly rate or mentioning blocks", async () => {
     const { user, trigger } = setup({ gpuCount: 0 });
 
@@ -36,7 +36,7 @@ describe(MarketplaceCostTooltip.name, () => {
       <TestContainerProvider>
         <IntlProvider locale="en">
           <TooltipProvider>
-            <MarketplaceCostTooltip perBlockValue={0.0001} denom="uakt" gpuCount={input.gpuCount} />
+            <CostBreakdownTooltip perBlockValue={0.0001} denom="uakt" gpuCount={input.gpuCount} />
           </TooltipProvider>
         </IntlProvider>
       </TestContainerProvider>

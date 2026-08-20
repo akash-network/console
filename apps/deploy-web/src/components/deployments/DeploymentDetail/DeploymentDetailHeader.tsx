@@ -8,8 +8,8 @@ import Link from "next/link";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { ConfidentialComputeBadge } from "@src/components/shared/ConfidentialComputeBadge";
+import { CostRate } from "@src/components/shared/CostRate";
 import { GpuInterconnectBadge } from "@src/components/shared/GpuInterconnectBadge";
-import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
 import { TrialDeploymentBadge } from "@src/components/shared/TrialDeploymentBadge";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
@@ -21,8 +21,8 @@ import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { getEscrowDenom } from "@src/utils/deploymentUtils";
-import { hasLiveGpuLease, isLeaseLive } from "@src/utils/leaseUtils";
-import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
+import { isLeaseLive } from "@src/utils/leaseUtils";
+import { roundDecimal } from "@src/utils/mathHelpers";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { countPlacementServices, parseManifestServices, parseServicesByPlacement } from "./DeploymentPlacements/placementModel";
 import { DeploymentStatusBadge } from "./DeploymentStatusBadge";
@@ -35,6 +35,7 @@ export const DEPENDENCIES = {
   useDeclaredTeeTypes,
   useDeclaredGpuInterconnect,
   useLeaseStatus,
+  CostRate,
   CustomTooltip,
   ConfidentialComputeBadge,
   GpuInterconnectBadge,
@@ -60,11 +61,14 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
   const { isTrialing } = d.useWallet();
   const { balance: walletBalance } = d.useWalletBalance();
   const { data: settings } = d.useDeploymentSettingQuery({ dseq: deployment.dseq });
-  const deploymentCost = leases?.reduce((sum, lease) => sum + parseFloat(lease.price.amount), 0) ?? 0;
   const teeTypes = d.useDeclaredTeeTypes(deployment);
   const interconnect = d.useDeclaredGpuInterconnect(deployment);
 
-  const liveLease = leases?.find(isLeaseLive) ?? null;
+  const liveLeases = useMemo(() => leases?.filter(isLeaseLive) ?? [], [leases]);
+  const costPerBlockUDenom = liveLeases.reduce((sum, lease) => sum + parseFloat(lease.price.amount), 0);
+  const liveGpuCount = liveLeases.reduce((sum, lease) => sum + (lease.gpuAmount ?? 0), 0);
+
+  const liveLease = liveLeases[0] ?? null;
   const provider = providers.find(p => p.owner === liveLease?.provider) ?? null;
   const { data: leaseStatus } = d.useLeaseStatus({ provider, lease: liveLease, enabled: !!provider });
 
@@ -75,7 +79,6 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
 
   const name = getDeploymentName(deployment.dseq) || `Deployment #${deployment.dseq}`;
   const denom = getEscrowDenom(deployment);
-  const hasGpu = hasLiveGpuLease(leases);
   const servicesCount = countPlacementServices(leases ?? [], servicesByPlacement, manifestServices);
   const primaryUri = getPrimaryUri(leaseStatus);
   const memory = bytesToShrink(deployment.memoryAmount);
@@ -119,7 +122,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
         <CardContent className="grid grid-cols-4 gap-x-10 gap-y-5 p-6">
           <SummaryItem label="TOTAL SERVICES">{servicesCount}</SummaryItem>
           <SummaryItem label="COST">
-            {deploymentCost ? <PricePerTimeUnit denom={denom} perBlockValue={udenomToDenom(deploymentCost, 10)} showAsHourly={hasGpu} /> : "—"}
+            {costPerBlockUDenom ? <d.CostRate perBlockUDenom={costPerBlockUDenom} denom={denom} gpuCount={liveGpuCount} /> : "—"}
           </SummaryItem>
           <SummaryItem label="BALANCE">{walletBalance ? `$${walletBalance.totalUsd.toFixed(2)}` : "—"}</SummaryItem>
           <SummaryItem
