@@ -3,16 +3,23 @@ import { z } from "zod";
 import { denomToUdenom } from "@src/utils/math";
 
 /**
- * Service account material for Cloud KMS, as the JSON key file Google issues.
- * `servicePath` is an addition to that shape: when present it points the client at a
- * plaintext-gRPC emulator instead of Google's endpoint, which is how local development runs.
+ * Points the client at a plaintext-gRPC emulator instead of Google's endpoint, which is how
+ * local development runs. `servicePath` is an addition to the JSON key file shape Google issues.
  */
-const gcpKmsAuthSchema = z.object({
+const gcpKmsEmulatorAuthSchema = z.object({
   project_id: z.string(),
-  client_email: z.string().email().optional(),
-  private_key: z.string().optional(),
-  servicePath: z.string().url().optional()
+  servicePath: z.string().url()
 });
+
+/** Service account material for Cloud KMS, as the JSON key file Google issues. */
+const gcpKmsServiceAccountAuthSchema = z.object({
+  project_id: z.string(),
+  client_email: z.string().email(),
+  private_key: z.string(),
+  servicePath: z.undefined()
+});
+
+const gcpKmsAuthSchema = z.union([gcpKmsEmulatorAuthSchema, gcpKmsServiceAccountAuthSchema]);
 
 const jsonEnv = <T extends z.ZodTypeAny>(schema: T) =>
   z

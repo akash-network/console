@@ -38,25 +38,21 @@ container.register(KMS_CLIENT, {
   useFactory: instancePerContainerCachingFactory(c => {
     const auth = c.resolve(DeploymentConfigService).get("GCP_KMS_AUTH");
 
-    if (auth.servicePath) {
-      const emulator = new URL(auth.servicePath);
-
+    if ("client_email" in auth) {
       return new KeyManagementServiceClient({
         projectId: auth.project_id,
-        servicePath: emulator.hostname,
-        port: Number(emulator.port),
-        sslCreds: grpc.credentials.createInsecure(),
-        authClient: new OAuth2Client()
+        authClient: new JWT({ email: auth.client_email, key: auth.private_key, scopes: [CLOUD_PLATFORM_SCOPE] })
       });
     }
 
-    if (!auth.client_email || !auth.private_key) {
-      throw new ReferenceError("Cloud KMS service account is incomplete");
-    }
+    const emulator = new URL(auth.servicePath);
 
     return new KeyManagementServiceClient({
       projectId: auth.project_id,
-      authClient: new JWT({ email: auth.client_email, key: auth.private_key, scopes: [CLOUD_PLATFORM_SCOPE] })
+      servicePath: emulator.hostname,
+      port: Number(emulator.port),
+      sslCreds: grpc.credentials.createInsecure(),
+      authClient: new OAuth2Client()
     });
   })
 });

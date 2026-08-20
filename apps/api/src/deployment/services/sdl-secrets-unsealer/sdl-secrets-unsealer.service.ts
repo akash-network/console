@@ -38,6 +38,13 @@ const COMPACT_JWE_PART_COUNT = 5;
 /** Buffer.from silently drops characters outside the alphabet, so a garbled segment would decode to a plausible length. */
 const BASE64URL_SEGMENT = /^[A-Za-z0-9_-]+$/;
 
+/** base64url encodes in quanta of four characters; a leftover of exactly one carries no byte, and Buffer.from discards it as silently as it does a stray character. */
+const BASE64URL_ORPHAN_CHARACTER_REMAINDER = 1;
+
+function isBase64Url(segment: string) {
+  return BASE64URL_SEGMENT.test(segment) && segment.length % 4 !== BASE64URL_ORPHAN_CHARACTER_REMAINDER;
+}
+
 /** A256GCM fixes the initialization vector at 96 bits, and Node accepts any other length without complaint. */
 const CONTENT_ENCRYPTION_IV_BYTES = 12;
 
@@ -72,8 +79,8 @@ export class SdlSecretsUnsealerService {
 
   async open(seal: string): Promise<SdlSecrets> {
     const parts = this.#splitSeal(seal);
-    this.#assertHeaderIsAcceptable(parts.protectedHeader);
     this.#assertSegmentsAreWellFormed(parts);
+    this.#assertHeaderIsAcceptable(parts.protectedHeader);
 
     const contentEncryptionKey = await this.#unwrapContentEncryptionKey(parts.encryptedKey);
     const secrets = this.#decryptSecrets(parts, contentEncryptionKey);
@@ -132,7 +139,10 @@ export class SdlSecretsUnsealerService {
   }
 
   /** Also free, and for the same reason: a seal whose own segments cannot be used must never spend an unwrap. */
-  #assertSegmentsAreWellFormed({ encryptedKey, iv, tag }: SealParts) {
+  #assertSegmentsAreWellFormed({ protectedHeader, encryptedKey, iv, ciphertext, tag }: SealParts) {
+    this.#assertSegmentIsBase64Url(protectedHeader, "SDL_SECRETS_SEAL_HEADER_UNREADABLE", "Sealed secrets carry an unreadable protected header");
+    this.#assertSegmentIsBase64Url(ciphertext, "SDL_SECRETS_SEAL_CIPHERTEXT_INVALID", "Sealed secrets carry a malformed ciphertext");
+
     const wrappedKeyBytes = this.#decodedByteLength(encryptedKey);
 
     if (!SDL_SECRETS_WRAPPED_KEY_BYTES.has(wrappedKeyBytes)) {
@@ -141,6 +151,12 @@ export class SdlSecretsUnsealerService {
 
     this.#assertSegmentDecodesTo(iv, CONTENT_ENCRYPTION_IV_BYTES, "SDL_SECRETS_SEAL_IV_INVALID", "Sealed secrets carry a malformed initialization vector");
     this.#assertSegmentDecodesTo(tag, CONTENT_ENCRYPTION_TAG_BYTES, "SDL_SECRETS_SEAL_TAG_INVALID", "Sealed secrets carry a malformed authentication tag");
+  }
+
+  #assertSegmentIsBase64Url(segment: string, event: string, message: string) {
+    if (!isBase64Url(segment)) {
+      throw this.#reject(400, event, message, {});
+    }
   }
 
   #assertSegmentDecodesTo(segment: string, expectedBytes: number, event: string, message: string) {
@@ -152,7 +168,7 @@ export class SdlSecretsUnsealerService {
   }
 
   #decodedByteLength(segment: string) {
-    return BASE64URL_SEGMENT.test(segment) ? Buffer.from(segment, "base64url").length : 0;
+    return isBase64Url(segment) ? Buffer.from(segment, "base64url").length : 0;
   }
 
   #parseHeader(protectedHeader: string): SealHeader {

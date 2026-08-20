@@ -170,6 +170,42 @@ describe(SdlSecretsUnsealerService.name, () => {
     expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
   });
 
+  it("rejects a seal whose protected header is not base64url without spending an unwrap", async () => {
+    const { service, seal, kmsClient } = setup();
+    const parts = (await seal({ TOKEN: "t" })).split(".");
+    parts[0] = `${parts[0]}!`;
+
+    await expect(service.open(parts.join("."))).rejects.toMatchObject({ status: 400 });
+    expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+  });
+
+  it("rejects a seal whose ciphertext is not base64url without spending an unwrap", async () => {
+    const { service, seal, kmsClient } = setup();
+    const parts = (await seal({ TOKEN: "t" })).split(".");
+    parts[3] = `${parts[3]}!!!!`;
+
+    await expect(service.open(parts.join("."))).rejects.toMatchObject({ status: 400 });
+    expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+  });
+
+  it("rejects a seal whose encrypted key carries one base64url character too many without spending an unwrap", async () => {
+    const { service, seal, kmsClient } = setup();
+    const parts = (await seal({ TOKEN: "t" })).split(".");
+    parts[1] = `${parts[1]}A`;
+
+    await expect(service.open(parts.join("."))).rejects.toMatchObject({ status: 400 });
+    expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+  });
+
+  it("rejects a seal whose initialization vector carries one base64url character too many without spending an unwrap", async () => {
+    const { service, seal, kmsClient } = setup();
+    const parts = (await seal({ TOKEN: "t" })).split(".");
+    parts[2] = `${parts[2]}A`;
+
+    await expect(service.open(parts.join("."))).rejects.toMatchObject({ status: 400 });
+    expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+  });
+
   it("rejects a seal carrying no encrypted key without spending an unwrap", async () => {
     const { service, seal, kmsClient } = setup();
     const parts = (await seal({ TOKEN: "t" })).split(".");
