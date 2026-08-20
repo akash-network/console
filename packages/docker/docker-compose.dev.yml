@@ -248,10 +248,17 @@ services:
       GCP_KMS_LOG_LEVEL: info
       # Read by the seeder below, from inside the container.
       KMS_EMULATOR_REST: http://localhost:8080
+<<<<<<< HEAD
       GCP_KMS_PROJECT_ID: console-dev-mock
       GCP_KMS_LOCATION: global
       GCP_KMS_KEY_RING: console-api
       GCP_KMS_KEY: sdl-secrets
+=======
+      GCP_PROJECT_ID: console-dev-mock
+      KMS_LOCATION: global
+      KMS_KEY_RING: console-api
+      KMS_KEY: sdl-secrets
+>>>>>>> 0c2a2f5bb (feat: adds public jwk route for secrets encryption)
     post_start:
       - command: ["sh", "/script/seed-gcp-kms-mock.sh"]
     restart: unless-stopped
