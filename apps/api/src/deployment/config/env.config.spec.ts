@@ -76,6 +76,20 @@ describe("deployment envSchema", () => {
       expect(result.success).toBe(true);
     });
 
+    it("rejects an infinite target runway", () => {
+      const result = envSchema.safeParse(setup({ AUTO_TOP_UP_TARGET_RUNWAY_IN_H: "Infinity" }));
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues.some(issue => issue.path[0] === "AUTO_TOP_UP_TARGET_RUNWAY_IN_H")).toBe(true);
+    });
+
+    it("rejects an infinite look-ahead window", () => {
+      const result = envSchema.safeParse(setup({ AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: Infinity }));
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues.some(issue => issue.path[0] === "AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H")).toBe(true);
+    });
+
     it("accepts a target runway above the look-ahead window", () => {
       const result = envSchema.safeParse(setup({ AUTO_TOP_UP_TARGET_RUNWAY_IN_H: 36, AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 12 }));
 

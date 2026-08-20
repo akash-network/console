@@ -4,14 +4,14 @@ import { denomToUdenom } from "@src/utils/math";
 
 export const envSchema = z
   .object({
-    AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: z.number({ coerce: true }).nonnegative().optional().default(24),
+    AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: z.number({ coerce: true }).nonnegative().finite().optional().default(24),
     /**
      * Hours of runway automatic funding brings a deployment up to, counting the runway it already holds.
      * Must stay above `AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H`: funding only triggers once a deployment drops
      * inside that window, so the gap between the two is what a single deposit covers. At or below it every
      * deposit sizes to zero and automatic funding stops entirely, hence the schema check below.
      */
-    AUTO_TOP_UP_TARGET_RUNWAY_IN_H: z.number({ coerce: true }).positive().optional().default(48),
+    AUTO_TOP_UP_TARGET_RUNWAY_IN_H: z.number({ coerce: true }).positive().finite().optional().default(48),
     AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN: z.number({ coerce: true }).positive().optional().default(60),
     /**
      * Dollar floor auto-funding leaves in the available deployment allowance so a user with credits left can still
