@@ -262,13 +262,23 @@ export class ManagedSignerService {
    * comparable to the grant's remaining spend limit. Comparing against the real amount rather than a bare `> 0`
    * refuses the request here instead of several seconds later in chain simulation, where the shortfall surfaces
    * as an opaque 402.
+   *
+   * Only positive deposits count. `/v1/tx` takes a caller-supplied batch and the request schema does not
+   * constrain the deposit's sign, so summing raw values would let a negative deposit offset a positive one and
+   * understate what the chain is about to charge against the grant. The chain rejects the negative message and
+   * fails the whole tx anyway; this keeps the sum a true lower bound instead of a bypass of the check.
    */
   #sumDepositsDrawnFromGrant(createDeploymentMessages: { value: MsgCreateDeployment }[]): number {
     const denom = this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM");
 
     return createDeploymentMessages.reduce((total, message) => {
       const deposit = message.value.deposit?.amount;
-      return deposit?.denom === denom ? total + Number(deposit.amount) : total;
+
+      if (deposit?.denom !== denom) {
+        return total;
+      }
+
+      return total + Math.max(0, Number(deposit.amount));
     }, 0);
   }
 

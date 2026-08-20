@@ -136,6 +136,16 @@ describe(ManagedSignerService.name, () => {
       expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalled();
     });
 
+    it("refuses a batch where a negative deposit would otherwise offset a positive one", async () => {
+      const { service, txManagerService } = setupForCreate({ deploymentLimit: 400000 });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000), createDeploymentMessage(-500000)])).rejects.toThrow(
+        "Add credits or turn on auto recharge to continue."
+      );
+
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+    });
+
     it("surfaces the 402 even when scheduling the reload fails", async () => {
       const { service, logger } = setupForCreate({
         deploymentLimit: 400000,
