@@ -101,7 +101,7 @@ describe(ManagedSignerService.name, () => {
       );
 
       expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
-      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ userId: "user-123" });
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ userId: "user-123" }, { triggeredByDeployment: true });
       expect(logger.warn).toHaveBeenCalledWith(
         expect.objectContaining({
           event: "DEPLOYMENT_CREATE_REFUSED_INSUFFICIENT_ALLOWANCE",
@@ -170,7 +170,17 @@ describe(ManagedSignerService.name, () => {
         "Not enough balance to cover the deployment deposit."
       );
 
-      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ userId: "user-123" });
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ userId: "user-123" }, { triggeredByDeployment: true });
+    });
+
+    it("flags the reload as deployment triggered so a first create is not skipped for having no active deployment", async () => {
+      const { service, walletReloadJobService } = setupForCreate({ deploymentLimit: 0 });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow(
+        "Add credits or turn on auto recharge to continue."
+      );
+
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith(expect.anything(), { triggeredByDeployment: true });
     });
 
     it("does not schedule a reload when the broadcast fails for a reason other than balance", async () => {

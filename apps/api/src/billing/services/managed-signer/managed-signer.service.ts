@@ -298,10 +298,14 @@ export class ManagedSignerService {
    * Refills the balance the refused request could not cover, so a user with auto recharge on can retry instead of
    * topping up by hand. Scheduling failures are swallowed: the caller is about to receive a clean 402 and turning
    * that into a 500 would lose the actionable message. The returned flag reports whether auto recharge is on.
+   *
+   * `triggeredByDeployment` is required here: the refused request is a create, so the owner may hold no active
+   * deployment yet. Without it the reload check skips on its indexer-fed active-deployment guard and never charges,
+   * leaving the caller with a 402 promising a top-up that never arrives.
    */
   async #scheduleReloadForInsufficientBalance(userWallet: UserWalletOutput): Promise<boolean> {
     try {
-      return await this.walletReloadJobService.scheduleImmediate({ userId: userWallet.userId });
+      return await this.walletReloadJobService.scheduleImmediate({ userId: userWallet.userId }, { triggeredByDeployment: true });
     } catch (error) {
       this.logger.error({ event: "INSUFFICIENT_BALANCE_RELOAD_SCHEDULE_FAILED", userId: userWallet.userId, error });
       return false;
