@@ -44,13 +44,14 @@ describe(InitialDeploymentFundingService.name, () => {
   });
 
   it("skips funding when the deployment already has more runway than the look-ahead window", async () => {
-    const { service, drainingDeploymentService, managedSignerService, instrumentation } = setup();
+    const { service, drainingDeploymentService, managedSignerService, instrumentation, deploymentSettingRepository } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ predictedClosedHeight: LOOK_AHEAD_HEIGHT + 1 })]);
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
     expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
     expect(instrumentation.recordSkipped).toHaveBeenCalledWith("sufficient_runway", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
+    expect(deploymentSettingRepository.startRuntimeCountdown).not.toHaveBeenCalled();
   });
 
   it("deposits the calculated top-up amount and schedules a wallet reload", async () => {
@@ -291,6 +292,20 @@ describe(InitialDeploymentFundingService.name, () => {
 
     expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
     expect(instrumentation.recordSkipped).toHaveBeenCalledWith("no_fee_allowance", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
+  });
+
+  it("starts the runtime countdown at lease start when the deployment has more runway than the look-ahead window", async () => {
+    const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService, instrumentation } = setup();
+    const runtimeEndsAt = new Date("2026-08-21T12:00:00.000Z");
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ predictedClosedHeight: LOOK_AHEAD_HEIGHT + 1 })]);
+    deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt: null }));
+    deploymentSettingRepository.startRuntimeCountdown.mockResolvedValue(runtimeEndsAt);
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(deploymentSettingRepository.startRuntimeCountdown).toHaveBeenCalledWith("setting-1");
+    expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+    expect(instrumentation.recordSkipped).toHaveBeenCalledWith("sufficient_runway", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
   });
 
   it("starts the runtime countdown at lease start when the deployment has an unanchored runtime limit", async () => {

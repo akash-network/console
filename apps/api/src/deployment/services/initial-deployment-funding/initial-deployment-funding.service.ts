@@ -70,16 +70,6 @@ export class InitialDeploymentFundingService {
     const currentHeight = await this.blockHttpService.getCurrentHeight();
     const lookAheadHeight = currentHeight + averageBlockCountInAnHour * this.deploymentConfig.get("AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H");
 
-    if (deployment.predictedClosedHeight > lookAheadHeight) {
-      this.instrumentation.recordSkipped("sufficient_runway", {
-        dseq,
-        address,
-        predictedClosedHeight: deployment.predictedClosedHeight,
-        lookAheadHeight
-      });
-      return;
-    }
-
     const userWallet = await this.userWalletRepository.findById(walletId);
 
     if (!userWallet) {
@@ -95,6 +85,17 @@ export class InitialDeploymentFundingService {
     }
 
     const runtimeEndsAt = await this.startRuntimeCountdown(deploymentSetting);
+
+    if (deployment.predictedClosedHeight > lookAheadHeight) {
+      this.instrumentation.recordSkipped("sufficient_runway", {
+        dseq,
+        address,
+        predictedClosedHeight: deployment.predictedClosedHeight,
+        lookAheadHeight
+      });
+      return;
+    }
+
     const desiredAmount = this.drainingDeploymentService.calculateAmountToTargetRunway({ ...deployment, runtimeEndsAt }, currentHeight);
 
     if (desiredAmount <= 0 && runtimeEndsAt) {
@@ -162,8 +163,9 @@ export class InitialDeploymentFundingService {
 
   /**
    * A runtime limit counts from lease start, not deployment creation, so bid selection doesn't eat
-   * into the requested hours. The anchor is a set-if-unset, so job retries and the top-up sweep's
-   * late fallback all agree on the deadline the first anchoring wrote.
+   * into the requested hours. The countdown starts before the sufficient-runway skip so a well-funded
+   * new lease still anchors at lease start. The anchor is a set-if-unset, so job retries and the
+   * top-up sweep's late fallback all agree on the deadline the first anchoring wrote.
    */
   private async startRuntimeCountdown(deploymentSetting: DeploymentSettingsOutput | undefined): Promise<Date | null> {
     if (!deploymentSetting?.runtimeLimitHours) {

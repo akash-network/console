@@ -268,6 +268,33 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(Math.abs((setting!.runtimeEndsAt as Date).getTime() - expectedEndsAt)).toBeLessThan(60_000);
     });
 
+    it("does not persist a runtime deadline during a dry run", async () => {
+      const {
+        topUpService,
+        executeDerivedTx,
+        createUserWithWallet,
+        createDeploymentSetting,
+        findSetting,
+        mockLeasesForOwner,
+        mockDeploymentsForOwner,
+        stubGetFreshLimits
+      } = await setup();
+      const { user, address } = await createUserWithWallet();
+      const dseq = "710004";
+
+      await createDeploymentSetting(user.id, dseq, { runtimeLimitHours: 30 });
+
+      mockLeasesForOwner(address, [createActiveLease(address, dseq)]);
+      mockDeploymentsForOwner(address, [createActiveDeployment(address, dseq)]);
+      stubGetFreshLimits({ [address]: 100000000 });
+
+      await topUpService.topUpDeployments({ dryRun: true });
+
+      expect(executeDerivedTx).not.toHaveBeenCalled();
+      const setting = await findSetting(address, dseq);
+      expect(setting?.runtimeEndsAt).toBeNull();
+    });
+
     // Owner has two deployment settings with auto top-up enabled, but both deployments
     // are closed on chain. No transactions should be submitted.
     // Both deployment settings should be marked as closed in the DB.

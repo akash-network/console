@@ -108,6 +108,48 @@ describe(DrainingDeploymentService.name, () => {
         );
       });
     });
+
+    it("does not persist a runtime countdown during a dry run and still returns a calculated deadline", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
+
+      try {
+        const { service, deploymentSettingRepository, currentHeight } = setup();
+        const address = createAkashAddress();
+        const runtimeLimitHours = 12;
+        const setting = createAutoTopUpDeployment({ address, dseq: "3005", runtimeLimitHours, runtimeEndsAt: null });
+
+        deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+          (async function* () {
+            yield { address, walletId: setting.walletId, deploymentSettings: [setting] };
+          })()
+        );
+        vi.spyOn(service, "findLeases").mockResolvedValue([
+          createDrainingDeployment({ dseq: Number(setting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 })
+        ]);
+
+        const callback = vi.fn();
+        for await (const result of service.findDrainingDeploymentsByOwner(currentHeight, { dryRun: true })) {
+          callback(result);
+        }
+
+        expect(deploymentSettingRepository.startRuntimeCountdown).not.toHaveBeenCalled();
+        expect(callback).toHaveBeenCalledTimes(1);
+        expect(callback).toHaveBeenCalledWith(
+          expect.objectContaining({
+            address,
+            deployments: [
+              expect.objectContaining({
+                dseq: setting.dseq,
+                runtimeEndsAt: new Date(Date.now() + runtimeLimitHours * millisecondsInHour)
+              })
+            ]
+          })
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe("findDrainingDeploymentsForOwner", () => {
