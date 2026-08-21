@@ -18,7 +18,7 @@ import { DownloadAttestationEvidence } from "../../DownloadAttestationEvidence";
 import { ReclamationCard } from "../../ReclamationCard/ReclamationCard";
 import { StatusBadge } from "../DeploymentStatusBadge";
 import type { ManifestServiceDetail } from "./placementModel";
-import { getPlacementGpuModels, getPlacementName, getProviderRegion } from "./placementModel";
+import { formatGpuLabel, getPlacementGpuModels, getPlacementName, getProviderRegion } from "./placementModel";
 import { PlacementServiceRow } from "./PlacementServiceRow";
 import type { PlacementStat } from "./PlacementStats";
 import { PlacementStats } from "./PlacementStats";
@@ -172,12 +172,8 @@ function buildPlacementStats(lease: LeaseDto, serviceCount: number, gpuModels: s
     { label: "Storage", value: `${roundDecimal(storage.value, 2)} ${storage.unit}` }
   ];
   if (lease.gpuAmount && lease.gpuAmount > 0) {
-    stats.push({ label: "GPU", value: formatGpu(lease.gpuAmount, gpuModels) });
+    stats.push({ label: "GPU", value: formatGpuLabel(lease.gpuAmount, gpuModels) });
   }
   stats.push({ label: "Services", value: serviceCount });
   return stats;
-}
-
-function formatGpu(gpuAmount: number, gpuModels: string[]): string | number {
-  return gpuModels.length > 0 ? gpuModels.map(model => model.toUpperCase()).join(", ") : gpuAmount;
 }

@@ -5,7 +5,9 @@ import { mock } from "vitest-mock-extended";
 import type { LeaseServiceStatus } from "@src/queries/useLeaseQuery";
 import type { DeploymentGroup } from "@src/types/deployment";
 import {
+  formatGpuLabel,
   formatReplicaCount,
+  getDeploymentGpuModels,
   getPlacementGpuModels,
   getPlacementName,
   getProviderRegion,
@@ -187,6 +189,42 @@ describe("placementModel", () => {
 
     it("returns an empty list when no gpu is requested", () => {
       expect(getPlacementGpuModels(buildGroup({}))).toEqual([]);
+    });
+  });
+
+  describe("getDeploymentGpuModels", () => {
+    it("unions unique models from every group", () => {
+      expect(
+        getDeploymentGpuModels([
+          buildGroup({ gpuAttributes: [{ key: "vendor/nvidia/model/h100", value: "true" }] }),
+          buildGroup({ gpuAttributes: [{ key: "vendor/nvidia/model/h100", value: "true" }] }),
+          buildGroup({ gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }] })
+        ])
+      ).toEqual(["h100", "a100"]);
+    });
+
+    it("returns an empty list when no groups declare a gpu", () => {
+      expect(getDeploymentGpuModels([buildGroup({})])).toEqual([]);
+      expect(getDeploymentGpuModels(undefined)).toEqual([]);
+    });
+  });
+
+  describe("formatGpuLabel", () => {
+    it("formats count and model as in the header design", () => {
+      expect(formatGpuLabel(1, ["h100"])).toBe("1× H100");
+      expect(formatGpuLabel(2, ["h100"])).toBe("2× H100");
+    });
+
+    it("joins multiple models after the count", () => {
+      expect(formatGpuLabel(2, ["h100", "a100"])).toBe("2× H100, A100");
+    });
+
+    it("falls back to the count when no model is declared", () => {
+      expect(formatGpuLabel(1, [])).toBe("1");
+    });
+
+    it("shows an em dash when the deployment has no gpu", () => {
+      expect(formatGpuLabel(0, ["h100"])).toBe("—");
     });
   });
 

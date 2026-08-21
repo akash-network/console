@@ -38,6 +38,17 @@ describe(PlacementCard.name, () => {
     expect(screen.getByText("GPU")).toBeInTheDocument();
   });
 
+  it("shows the gpu count and model when the lease declares one", () => {
+    setup({
+      lease: buildLease({
+        gpuAmount: 1,
+        gpuAttributes: [{ key: "vendor/nvidia/model/h100", value: "true" }]
+      })
+    });
+
+    expect(screen.getByText("1× H100")).toBeInTheDocument();
+  });
+
   it("expands every service when Expand all is clicked", async () => {
     setup({
       leaseStatus: buildStatus(["web", "api"], {
@@ -108,7 +119,13 @@ describe(PlacementCard.name, () => {
     expect(screen.queryByText("Reclaiming")).not.toBeInTheDocument();
   });
 
-  function buildLease(input?: { groupName?: string; state?: string; groupState?: string; gpuAmount?: number }) {
+  function buildLease(input?: {
+    groupName?: string;
+    state?: string;
+    groupState?: string;
+    gpuAmount?: number;
+    gpuAttributes?: { key: string; value: string }[];
+  }) {
     return mock<LeaseDto>({
       id: "1",
       provider: "akash1p",
@@ -122,7 +139,7 @@ describe(PlacementCard.name, () => {
         group_spec: {
           name: input?.groupName ?? "dcloud",
           requirements: { attributes: [] as { key: string; value: string }[] },
-          resources: [] as DeploymentGroup["group_spec"]["resources"]
+          resources: input?.gpuAttributes ? [{ resource: { gpu: { attributes: input.gpuAttributes } } }] : ([] as DeploymentGroup["group_spec"]["resources"])
         }
       } as Partial<DeploymentGroup>)
     });

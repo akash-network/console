@@ -145,6 +145,17 @@ export function getPlacementGpuModels(group: DeploymentGroup | undefined): strin
   return Array.from(new Set(models.filter(Boolean)));
 }
 
+export function getDeploymentGpuModels(groups: DeploymentGroup[] | undefined): string[] {
+  return Array.from(new Set((groups ?? []).flatMap(group => getPlacementGpuModels(group))));
+}
+
+/** `{count}× {MODEL}` (e.g. `1× H100`); the count alone when no model is declared. */
+export function formatGpuLabel(gpuAmount: number, models: string[]): string {
+  if (!gpuAmount) return "—";
+  const names = models.filter(Boolean).map(model => model.toUpperCase());
+  return names.length > 0 ? `${gpuAmount}× ${names.join(", ")}` : String(gpuAmount);
+}
+
 export type ServiceStatusTone = "running" | "pending" | "closed";
 
 export interface ServiceStatusView {

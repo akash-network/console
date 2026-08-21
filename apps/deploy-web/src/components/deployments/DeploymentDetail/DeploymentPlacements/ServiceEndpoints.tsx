@@ -55,7 +55,8 @@ export const PortChips: FC<{ items: PortChip[] }> = ({ items }) => (
           <span className="font-medium">{item.port}</span>
           {item.as !== undefined && <span className="text-muted-foreground"> :{item.as}</span>}
           {item.proto && <span className="text-muted-foreground"> /{item.proto}</span>}
-          <span className={cn("h-1.5 w-1.5 rounded-full", item.available ? "bg-emerald-500" : "bg-muted-foreground/40")} />
+          <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", item.available ? "bg-emerald-500" : "bg-muted-foreground/40")} />
+          <span className="sr-only">{item.available ? "Available" : "Unavailable"}</span>
         </>
       );
 
@@ -84,12 +85,15 @@ export function toPortChips(input: { forwardedPorts?: ForwardedPort[] | null; ip
   const ips = Array.isArray(input.ips) ? input.ips : [];
 
   return [
-    ...forwarded.map(port => ({
-      port: port.port,
-      as: port.externalPort,
-      href: port.host ? `http://${port.host}:${port.externalPort}` : undefined,
-      available: port.available > 0
-    })),
+    ...forwarded.map(port => {
+      const available = port.available > 0;
+      return {
+        port: port.port,
+        as: port.externalPort,
+        href: available && port.host ? `http://${port.host}:${port.externalPort}` : undefined,
+        available
+      };
+    }),
     ...ips.map(ip => ({
       port: ip.Port,
       as: ip.ExternalPort,

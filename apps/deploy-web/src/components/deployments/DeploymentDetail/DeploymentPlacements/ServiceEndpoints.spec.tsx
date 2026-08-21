@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { EndpointLink, PortChip } from "./ServiceEndpoints";
 import { PortChips, ServiceUriLinks, toPortChips, toUriLinks } from "./ServiceEndpoints";
 
 import { render, screen } from "@testing-library/react";
@@ -29,6 +30,12 @@ describe("ServiceEndpoints", () => {
       ]);
     });
 
+    it("omits the href on an unavailable forwarded port even when a host is assigned", () => {
+      expect(toPortChips({ forwardedPorts: [{ host: "provider.io", externalPort: 30000, port: 80, available: 0 }] })).toEqual([
+        { port: 80, as: 30000, href: undefined, available: false }
+      ]);
+    });
+
     it("yields no chips when the lease is closed", () => {
       expect(toPortChips({ forwardedPorts: [{ host: "provider.io", externalPort: 30000, port: 80, available: 1 }], closed: true })).toEqual([]);
     });
@@ -42,26 +49,53 @@ describe("ServiceEndpoints", () => {
 
   describe("ServiceUriLinks", () => {
     it("renders a link per URI pointing at its open target", () => {
-      render(<ServiceUriLinks items={toUriLinks(["a.example.com", "b.example.com"])} />);
+      setup({ items: toUriLinks(["a.example.com", "b.example.com"]) });
 
       expect(screen.getByRole("link", { name: /a\.example\.com/ })).toHaveAttribute("href", "http://a.example.com");
       expect(screen.getByRole("link", { name: /b\.example\.com/ })).toHaveAttribute("href", "http://b.example.com");
     });
+
+    function setup(input: { items: EndpointLink[] }) {
+      return render(<ServiceUriLinks items={input.items} />);
+    }
   });
 
   describe("PortChips", () => {
     it("renders a clickable chip for a forwarded port", () => {
-      render(<PortChips items={toPortChips({ forwardedPorts: [{ host: "provider.io", externalPort: 30000, port: 3000, available: 1 }] })} />);
+      setup({ items: toPortChips({ forwardedPorts: [{ host: "provider.io", externalPort: 30000, port: 3000, available: 1 }] }) });
 
       expect(screen.getByRole("link", { name: /3000/ })).toHaveAttribute("href", "http://provider.io:30000");
       expect(screen.getByText(":30000")).toBeInTheDocument();
     });
 
     it("renders a host-less port as plain text rather than a link", () => {
-      render(<PortChips items={toPortChips({ forwardedPorts: [{ host: "", externalPort: 30000, port: 80, available: 0 }] })} />);
+      setup({ items: toPortChips({ forwardedPorts: [{ host: "", externalPort: 30000, port: 80, available: 0 }] }) });
 
       expect(screen.queryByRole("link")).not.toBeInTheDocument();
       expect(screen.getByText("80")).toBeInTheDocument();
     });
+
+    it("keeps an unavailable hosted port out of the tab order", () => {
+      setup({ items: toPortChips({ forwardedPorts: [{ host: "provider.io", externalPort: 30000, port: 80, available: 0 }] }) });
+
+      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+      expect(screen.getByText("80")).toBeInTheDocument();
+    });
+
+    it("exposes availability to assistive technology", () => {
+      setup({ items: toPortChips({ forwardedPorts: [{ host: "provider.io", externalPort: 30000, port: 3000, available: 1 }] }) });
+
+      expect(screen.getByText("Available")).toBeInTheDocument();
+    });
+
+    it("marks an unavailable port as unavailable to assistive technology", () => {
+      setup({ items: toPortChips({ forwardedPorts: [{ host: "provider.io", externalPort: 30000, port: 80, available: 0 }] }) });
+
+      expect(screen.getByText("Unavailable")).toBeInTheDocument();
+    });
+
+    function setup(input: { items: PortChip[] }) {
+      return render(<PortChips items={input.items} />);
+    }
   });
 });

@@ -132,6 +132,25 @@ describe("DeploymentDetailHeader", () => {
     expect(screen.queryByRole("button", { name: "Redeploy" })).not.toBeInTheDocument();
   });
 
+  it("shows the gpu count and model in the summary", () => {
+    setup({
+      gpuAmount: 1,
+      groups: [
+        mock<DeploymentGroup>({
+          group_spec: { resources: [{ resource: { gpu: { attributes: [{ key: "vendor/nvidia/model/h100", value: "true" }] } } }] }
+        } as Partial<DeploymentGroup>)
+      ]
+    });
+
+    expect(screen.getByText("1× H100")).toBeInTheDocument();
+  });
+
+  it("shows an em dash for gpu when the deployment has none", () => {
+    setup({ gpuAmount: 0 });
+
+    expect(screen.getByText("GPU").parentElement).toHaveTextContent("—");
+  });
+
   function buildPricedLease(input: { state: string; amount: string; gpuAmount: number }) {
     return mock<LeaseDto>({
       id: input.amount,
@@ -160,6 +179,8 @@ describe("DeploymentDetailHeader", () => {
     isTrialing?: boolean;
     storedManifest?: string | null;
     leases?: LeaseDto[];
+    gpuAmount?: number;
+    groups?: DeploymentGroup[];
   }) {
     const hasLeaseStatus = input.hasLeaseStatus ?? true;
     let leaseStatus: LeaseStatusDto | null = null;
@@ -200,9 +221,10 @@ describe("DeploymentDetailHeader", () => {
       dseq: "1786440078202",
       state: "active",
       cpuAmount: 2,
-      gpuAmount: 0,
+      gpuAmount: input.gpuAmount ?? 0,
       memoryAmount: 536870912,
       storageAmount: 536870912,
+      groups: input.groups ?? [],
       escrowAccount: mock<DeploymentDto["escrowAccount"]>({ state: mock<DeploymentDto["escrowAccount"]["state"]>({ funds: [] }) })
     });
 
