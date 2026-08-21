@@ -32,6 +32,7 @@ import {
 } from "@src/dashboard";
 import { deploymentSettingRouter } from "@src/deployment/routes/deployment-setting/deployment-setting.router";
 import { deploymentsRouter } from "@src/deployment/routes/deployments/deployments.router";
+import { getSDLSecretsContextRouter } from "@src/deployment/routes/get-sdl-secrets-context/get-sdl-secrets-context.router";
 import { leasesRouter } from "@src/deployment/routes/leases/leases.router";
 import { gpuRouter } from "@src/gpu";
 import { pricingRouter } from "@src/pricing";
@@ -75,6 +76,7 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   verifyEmailRouter,
   deploymentSettingRouter,
   deploymentsRouter,
+  getSDLSecretsContextRouter,
   leasesRouter,
   apiKeysRouter,
   bidsRouter,
