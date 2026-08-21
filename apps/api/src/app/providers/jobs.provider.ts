@@ -2,6 +2,7 @@ import { container } from "tsyringe";
 
 import { ActivateTrialHandler } from "@src/billing/services/activate-trial/activate-trial.handler";
 import { WalletBalanceReloadCheckHandler } from "@src/billing/services/wallet-balance-reload-check/wallet-balance-reload-check.handler";
+import { WalletCreditsLowCheckHandler } from "@src/billing/services/wallet-credits-low-check/wallet-credits-low-check.handler";
 import type { AppInitializer } from "@src/core/providers/app-initializer";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
@@ -29,6 +30,7 @@ container.register(APP_INITIALIZER, {
         container.resolve(FundDeploymentHandler),
         container.resolve(FundDrainingDeploymentsHandler),
         container.resolve(WalletBalanceReloadCheckHandler),
+        container.resolve(WalletCreditsLowCheckHandler),
         container.resolve(FirstPurchaseBonusGrantedHandler),
         container.resolve(AutoRechargeSucceededHandler),
         container.resolve(ActivateTrialHandler)

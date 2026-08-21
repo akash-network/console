@@ -1,6 +1,5 @@
 import { boolean, numeric, pgTable, serial, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
-// eslint-disable-next-line import-x/no-cycle
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
 export const UserWallets = pgTable("user_wallets", {
@@ -14,6 +13,7 @@ export const UserWallets = pgTable("user_wallets", {
   feeAllowance: allowance("fee_allowance"),
   isTrialing: boolean("trial").default(true),
   activatedAt: timestamp("activated_at", { withTimezone: true }),
+  creditsLowNotifiedAt: timestamp("credits_low_notified_at", { withTimezone: true }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });

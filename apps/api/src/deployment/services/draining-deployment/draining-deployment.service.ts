@@ -329,6 +329,62 @@ export class DrainingDeploymentService {
   }
 
   /**
+   * Weekly auto-top-up burn for an address, in USD.
+   * Caps each runtime-limited deployment at remaining hours (or the unanchored
+   * limit) so a deadline inside the week is not billed as a full seven days.
+   * Not CASL-scoped — the credits-low job calls this with the wallet address.
+   */
+  async calculateWeeklyDeploymentCostForAddress(address: string): Promise<number> {
+    const deploymentSettings = await this.#findAutoTopUpDeploymentSettings(address);
+    if (deploymentSettings.length === 0) {
+      return 0;
+    }
+
+    const currentHeight = await this.blockHttpService.getCurrentHeight();
+    const leases = await this.#findDrainingDeployments(deploymentSettings, address, Number.MAX_SAFE_INTEGER);
+    const settingsByDseq = keyBy(deploymentSettings, s => String(s.dseq));
+
+    const weeklyCost = await this.#accumulateDeploymentCost(leases, ({ dseq, predictedClosedHeight, blockRate }) => {
+      if (!predictedClosedHeight || predictedClosedHeight <= currentHeight || blockRate <= 0) {
+        return 0;
+      }
+
+      const setting = settingsByDseq[String(dseq)];
+      const hours = this.#coverageHoursForDeployment(setting, currentHeight);
+      if (hours <= 0) {
+        return 0;
+      }
+
+      return Math.floor(blockRate * averageBlockCountInAnHour * hours);
+    });
+
+    if (weeklyCost === 0) {
+      return 0;
+    }
+
+    return await this.balancesService.toFiatAmount(weeklyCost);
+  }
+
+  /**
+   * A week of coverage unless the setting has a runtime limit, then remaining
+   * hours (0 if the deadline has passed). An unanchored limit is the remaining hours.
+   */
+  #coverageHoursForDeployment(setting: AutoTopUpDeployment | undefined, currentHeight: number): number {
+    const weekHours = 24 * 7;
+
+    if (setting?.runtimeEndsAt) {
+      const remainingHours = (this.#getRuntimeLimitHeight(setting.runtimeEndsAt, currentHeight) - currentHeight) / averageBlockCountInAnHour;
+      return remainingHours <= 0 ? 0 : Math.min(weekHours, remainingHours);
+    }
+
+    if (setting?.runtimeLimitHours != null) {
+      return Math.min(weekHours, setting.runtimeLimitHours);
+    }
+
+    return weekHours;
+  }
+
+  /**
    * Finds auto top-up deployment settings for a given address.
    * Validates that the user wallet exists and has an address before querying.
    *
