@@ -1,0 +1,135 @@
+import { describe, expect, it } from "vitest";
+
+import { envSchema } from "@src/config/env.config";
+
+describe("envSchema", () => {
+  it("parses a minimal environment with defaults", () => {
+    const config = setup();
+
+    expect(config.INDEXER_ROLE).toBe("sync");
+    expect(config.PORT).toBe(3092);
+    expect(config.SYNC_START_HEIGHT).toBeUndefined();
+  });
+
+  it("treats an empty SYNC_START_HEIGHT as absent", () => {
+    const config = setup({ SYNC_START_HEIGHT: "" });
+
+    expect(config.SYNC_START_HEIGHT).toBeUndefined();
+  });
+
+  it("coerces a numeric SYNC_START_HEIGHT string", () => {
+    const config = setup({ SYNC_START_HEIGHT: "12345" });
+
+    expect(config.SYNC_START_HEIGHT).toBe(12345);
+  });
+
+  it("rejects a PORT above 65535", () => {
+    expect(() => setup({ PORT: "65536" })).toThrow();
+  });
+
+  it("rejects a fractional PORT", () => {
+    expect(() => setup({ PORT: "3092.5" })).toThrow();
+  });
+
+  describe("when INDEXER_ROLE is backfill", () => {
+    it("requires both backfill heights", () => {
+      expect(() => setup({ INDEXER_ROLE: "backfill" })).toThrow(/BACKFILL_FROM_HEIGHT[\s\S]*BACKFILL_TO_HEIGHT/);
+    });
+
+    it("rejects a range where from is above to", () => {
+      expect(() => setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "100", BACKFILL_TO_HEIGHT: "50" })).toThrow(
+        "BACKFILL_FROM_HEIGHT must be <= BACKFILL_TO_HEIGHT"
+      );
+    });
+
+    it("parses a valid range with concurrency and batch size defaults", () => {
+      const config = setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "100", BACKFILL_TO_HEIGHT: "200" });
+
+      expect(config.BACKFILL_FROM_HEIGHT).toBe(100);
+      expect(config.BACKFILL_TO_HEIGHT).toBe(200);
+      expect(config.BACKFILL_CONCURRENCY).toBe(10);
+      expect(config.BACKFILL_BATCH_SIZE).toBe(200);
+    });
+
+    it("defaults BACKFILL_REPLAY to false and treats an empty value as absent", () => {
+      const config = setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "100", BACKFILL_TO_HEIGHT: "200", BACKFILL_REPLAY: "" });
+
+      expect(config.BACKFILL_REPLAY).toBe(false);
+    });
+
+    it("parses BACKFILL_REPLAY=true as a boolean", () => {
+      const config = setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "100", BACKFILL_TO_HEIGHT: "200", BACKFILL_REPLAY: "true" });
+
+      expect(config.BACKFILL_REPLAY).toBe(true);
+    });
+
+    it("rejects a non-boolean BACKFILL_REPLAY", () => {
+      expect(() => setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "100", BACKFILL_TO_HEIGHT: "200", BACKFILL_REPLAY: "yes" })).toThrow();
+    });
+  });
+
+  it("treats an empty ARCHIVE_BUCKET as absent", () => {
+    const config = setup({ ARCHIVE_BUCKET: "" });
+
+    expect(config.ARCHIVE_BUCKET).toBeUndefined();
+  });
+
+  it("parses ARCHIVE_BUCKET when set", () => {
+    const config = setup({ ARCHIVE_BUCKET: "raw-blocks" });
+
+    expect(config.ARCHIVE_BUCKET).toBe("raw-blocks");
+  });
+
+  it("treats an empty ARCHIVE_STORAGE_API_ENDPOINT as absent", () => {
+    const config = setup({ ARCHIVE_STORAGE_API_ENDPOINT: "" });
+
+    expect(config.ARCHIVE_STORAGE_API_ENDPOINT).toBeUndefined();
+  });
+
+  it("rejects a malformed ARCHIVE_STORAGE_API_ENDPOINT", () => {
+    expect(() => setup({ ARCHIVE_STORAGE_API_ENDPOINT: "not a url" })).toThrow();
+  });
+
+  it("does not require backfill heights for other roles", () => {
+    const config = setup({ INDEXER_ROLE: "api", BACKFILL_FROM_HEIGHT: "", BACKFILL_TO_HEIGHT: "" });
+
+    expect(config.BACKFILL_FROM_HEIGHT).toBeUndefined();
+    expect(config.BACKFILL_TO_HEIGHT).toBeUndefined();
+  });
+
+  it("treats an empty GENESIS_FILE as absent", () => {
+    const config = setup({ GENESIS_FILE: "" });
+
+    expect(config.GENESIS_FILE).toBeUndefined();
+  });
+
+  it("parses GENESIS_FILE when set", () => {
+    const config = setup({ GENESIS_FILE: "/tmp/genesis.json" });
+
+    expect(config.GENESIS_FILE).toBe("/tmp/genesis.json");
+  });
+
+  it("treats an empty RECONCILE_SAMPLE_SIZE as absent", () => {
+    const config = setup({ RECONCILE_SAMPLE_SIZE: "" });
+
+    expect(config.RECONCILE_SAMPLE_SIZE).toBeUndefined();
+  });
+
+  it("coerces a numeric RECONCILE_SAMPLE_SIZE string", () => {
+    const config = setup({ RECONCILE_SAMPLE_SIZE: "250" });
+
+    expect(config.RECONCILE_SAMPLE_SIZE).toBe(250);
+  });
+
+  it("rejects a non-positive RECONCILE_SAMPLE_SIZE", () => {
+    expect(() => setup({ RECONCILE_SAMPLE_SIZE: "0" })).toThrow();
+  });
+
+  it("rejects a fractional RECONCILE_SAMPLE_SIZE", () => {
+    expect(() => setup({ RECONCILE_SAMPLE_SIZE: "10.5" })).toThrow();
+  });
+
+  function setup(overrides?: Record<string, string>) {
+    return envSchema.parse({ POSTGRES_DB_URI: "postgres://unit:unit@localhost:5432/unit", ...overrides });
+  }
+});

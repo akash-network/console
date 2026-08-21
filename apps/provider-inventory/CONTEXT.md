@@ -15,7 +15,7 @@ Live cluster state for a provider — nodes, GPUs, storage pools, and their allo
 _Avoid_: provider snapshot, current snapshot
 
 **provider snapshot**:
-The legacy append-only history written by the 15-min poll in `apps/indexer`. Powers daily uptime graphs, dashboards, and the GPU repo. **Not** read by bid screening.
+The legacy append-only history written by the 15-min poll in `apps/indexer`. Powers daily uptime graphs, dashboards, and the GPU repo. **Not** read by bid screening. Ownership of this off-chain history — snapshots, uptime, IP geolocation, and the GPU breakdown derived from inventory — is moving into `apps/provider-inventory` (it is deliberately kept out of the new `apps/chain-indexer`, which owns chain-derived data only); update this entry once that takeover lands.
 _Avoid_: provider inventory
 
 **node**:

@@ -1,0 +1,1194 @@
+{
+  "id": "84b7320f-f0b3-4a20-ae17-b3bcef49c056",
+  "prevId": "3dfcc843-b5bb-4265-8203-9317bb7005b6",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "cosmos.account_balances": {
+      "name": "account_balances",
+      "schema": "cosmos",
+      "columns": {
+        "account_id": {
+          "name": "account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "denom": {
+          "name": "denom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "account_balances_account_id_accounts_id_fk": {
+          "name": "account_balances_account_id_accounts_id_fk",
+          "tableFrom": "account_balances",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "account_balances_account_id_denom_pk": {
+          "name": "account_balances_account_id_denom_pk",
+          "columns": [
+            "account_id",
+            "denom"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.account_txs": {
+      "name": "account_txs",
+      "schema": "cosmos",
+      "columns": {
+        "account_id": {
+          "name": "account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tx_index": {
+          "name": "tx_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "account_tx_role",
+          "typeSchema": "cosmos",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "account_txs_account_id_accounts_id_fk": {
+          "name": "account_txs_account_id_accounts_id_fk",
+          "tableFrom": "account_txs",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "account_txs_account_id_height_tx_index_role_pk": {
+          "name": "account_txs_account_id_height_tx_index_role_pk",
+          "columns": [
+            "account_id",
+            "height",
+            "tx_index",
+            "role"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.accounts": {
+      "name": "accounts",
+      "schema": "cosmos",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_number": {
+          "name": "account_number",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "account_type": {
+          "name": "account_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_module_account": {
+          "name": "is_module_account",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {
+        "accounts_address_idx": {
+          "name": "accounts_address_idx",
+          "columns": [
+            {
+              "expression": "address",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.balance_changes": {
+      "name": "balance_changes",
+      "schema": "cosmos",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "denom": {
+          "name": "denom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "delta": {
+          "name": "delta",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "balance_after": {
+          "name": "balance_after",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "balance_change_reason",
+          "typeSchema": "cosmos",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tx_index": {
+          "name": "tx_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "event_index": {
+          "name": "event_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "counterparty_account_id": {
+          "name": "counterparty_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "balance_changes_account_denom_height_idx": {
+          "name": "balance_changes_account_denom_height_idx",
+          "columns": [
+            {
+              "expression": "account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "denom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "balance_changes_height_event_index_idx": {
+          "name": "balance_changes_height_event_index_idx",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "event_index",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "balance_changes_account_id_accounts_id_fk": {
+          "name": "balance_changes_account_id_accounts_id_fk",
+          "tableFrom": "balance_changes",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "balance_changes_counterparty_account_id_accounts_id_fk": {
+          "name": "balance_changes_counterparty_account_id_accounts_id_fk",
+          "tableFrom": "balance_changes",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "counterparty_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.blocks": {
+      "name": "blocks",
+      "schema": "cosmos",
+      "columns": {
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "datetime": {
+          "name": "datetime",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hash": {
+          "name": "hash",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parent_hash": {
+          "name": "parent_hash",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "proposer_address": {
+          "name": "proposer_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tx_count": {
+          "name": "tx_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.delegations": {
+      "name": "delegations",
+      "schema": "cosmos",
+      "columns": {
+        "delegator_account_id": {
+          "name": "delegator_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "validator_operator_address": {
+          "name": "validator_operator_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shares": {
+          "name": "shares",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "delegations_delegator_account_id_accounts_id_fk": {
+          "name": "delegations_delegator_account_id_accounts_id_fk",
+          "tableFrom": "delegations",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "delegator_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "delegations_delegator_account_id_validator_operator_address_pk": {
+          "name": "delegations_delegator_account_id_validator_operator_address_pk",
+          "columns": [
+            "delegator_account_id",
+            "validator_operator_address"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.indexer_state": {
+      "name": "indexer_state",
+      "schema": "",
+      "columns": {
+        "stream": {
+          "name": "stream",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "last_height": {
+          "name": "last_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.message_types": {
+      "name": "message_types",
+      "schema": "cosmos",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "message_types_type_idx": {
+          "name": "message_types_type_idx",
+          "columns": [
+            {
+              "expression": "type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.messages": {
+      "name": "messages",
+      "schema": "cosmos",
+      "columns": {
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tx_index": {
+          "name": "tx_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "index": {
+          "name": "index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type_id": {
+          "name": "type_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "body": {
+          "name": "body",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "messages_type_id_idx": {
+          "name": "messages_type_id_idx",
+          "columns": [
+            {
+              "expression": "type_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "messages_type_id_message_types_id_fk": {
+          "name": "messages_type_id_message_types_id_fk",
+          "tableFrom": "messages",
+          "tableTo": "message_types",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "type_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "messages_height_tx_index_index_pk": {
+          "name": "messages_height_tx_index_index_pk",
+          "columns": [
+            "height",
+            "tx_index",
+            "index"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.proposal_deposits": {
+      "name": "proposal_deposits",
+      "schema": "cosmos",
+      "columns": {
+        "proposal_id": {
+          "name": "proposal_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "depositor_account_id": {
+          "name": "depositor_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount": {
+          "name": "amount",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "proposal_deposits_depositor_account_id_accounts_id_fk": {
+          "name": "proposal_deposits_depositor_account_id_accounts_id_fk",
+          "tableFrom": "proposal_deposits",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "depositor_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "proposal_deposits_proposal_id_depositor_account_id_height_pk": {
+          "name": "proposal_deposits_proposal_id_depositor_account_id_height_pk",
+          "columns": [
+            "proposal_id",
+            "depositor_account_id",
+            "height"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.proposal_votes": {
+      "name": "proposal_votes",
+      "schema": "cosmos",
+      "columns": {
+        "proposal_id": {
+          "name": "proposal_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "voter_account_id": {
+          "name": "voter_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "options": {
+          "name": "options",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "proposal_votes_voter_account_id_accounts_id_fk": {
+          "name": "proposal_votes_voter_account_id_accounts_id_fk",
+          "tableFrom": "proposal_votes",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "voter_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "proposal_votes_proposal_id_voter_account_id_pk": {
+          "name": "proposal_votes_proposal_id_voter_account_id_pk",
+          "columns": [
+            "proposal_id",
+            "voter_account_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.proposals": {
+      "name": "proposals",
+      "schema": "cosmos",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "proposer_account_id": {
+          "name": "proposer_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "messages": {
+          "name": "messages",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "proposal_status",
+          "typeSchema": "cosmos",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "submit_time": {
+          "name": "submit_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deposit_end_time": {
+          "name": "deposit_end_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "voting_start_time": {
+          "name": "voting_start_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "voting_end_time": {
+          "name": "voting_end_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_deposit": {
+          "name": "total_deposit",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "final_tally_yes": {
+          "name": "final_tally_yes",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "final_tally_abstain": {
+          "name": "final_tally_abstain",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "final_tally_no": {
+          "name": "final_tally_no",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "final_tally_no_with_veto": {
+          "name": "final_tally_no_with_veto",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "submit_height": {
+          "name": "submit_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "proposals_proposer_account_id_accounts_id_fk": {
+          "name": "proposals_proposer_account_id_accounts_id_fk",
+          "tableFrom": "proposals",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "proposer_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.transactions": {
+      "name": "transactions",
+      "schema": "cosmos",
+      "columns": {
+        "height": {
+          "name": "height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "index": {
+          "name": "index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hash": {
+          "name": "hash",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gas_used": {
+          "name": "gas_used",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gas_wanted": {
+          "name": "gas_wanted",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fee": {
+          "name": "fee",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "transactions_hash_idx": {
+          "name": "transactions_hash_idx",
+          "columns": [
+            {
+              "expression": "hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "transactions_height_index_pk": {
+          "name": "transactions_height_index_pk",
+          "columns": [
+            "height",
+            "index"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.unbonding_delegations": {
+      "name": "unbonding_delegations",
+      "schema": "cosmos",
+      "columns": {
+        "delegator_account_id": {
+          "name": "delegator_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "validator_operator_address": {
+          "name": "validator_operator_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creation_height": {
+          "name": "creation_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "completion_time": {
+          "name": "completion_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "initial_balance": {
+          "name": "initial_balance",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "balance": {
+          "name": "balance",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "unbonding_delegations_delegator_account_id_accounts_id_fk": {
+          "name": "unbonding_delegations_delegator_account_id_accounts_id_fk",
+          "tableFrom": "unbonding_delegations",
+          "tableTo": "accounts",
+          "schemaTo": "cosmos",
+          "columnsFrom": [
+            "delegator_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "unbonding_delegations_delegator_account_id_validator_operator_address_creation_height_pk": {
+          "name": "unbonding_delegations_delegator_account_id_validator_operator_address_creation_height_pk",
+          "columns": [
+            "delegator_account_id",
+            "validator_operator_address",
+            "creation_height"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "cosmos.validators": {
+      "name": "validators",
+      "schema": "cosmos",
+      "columns": {
+        "operator_address": {
+          "name": "operator_address",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "account_address": {
+          "name": "account_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hex_address": {
+          "name": "hex_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "moniker": {
+          "name": "moniker",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "identity": {
+          "name": "identity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "website": {
+          "name": "website",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "details": {
+          "name": "details",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "security_contact": {
+          "name": "security_contact",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "commission_rate": {
+          "name": "commission_rate",
+          "type": "numeric(20, 18)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "commission_max_rate": {
+          "name": "commission_max_rate",
+          "type": "numeric(20, 18)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "commission_max_change_rate": {
+          "name": "commission_max_change_rate",
+          "type": "numeric(20, 18)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "min_self_delegation": {
+          "name": "min_self_delegation",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "jailed": {
+          "name": "jailed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "status": {
+          "name": "status",
+          "type": "validator_status",
+          "typeSchema": "cosmos",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tokens": {
+          "name": "tokens",
+          "type": "numeric(38, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "delegator_shares": {
+          "name": "delegator_shares",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unbonding_height": {
+          "name": "unbonding_height",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unbonding_time": {
+          "name": "unbonding_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "cosmos.account_tx_role": {
+      "name": "account_tx_role",
+      "schema": "cosmos",
+      "values": [
+        "signer",
+        "sender",
+        "receiver"
+      ]
+    },
+    "cosmos.balance_change_reason": {
+      "name": "balance_change_reason",
+      "schema": "cosmos",
+      "values": [
+        "genesis",
+        "transfer",
+        "fee",
+        "reward",
+        "commission",
+        "slash",
+        "gov",
+        "ibc",
+        "escrow",
+        "bme",
+        "mint",
+        "burn",
+        "staking"
+      ]
+    },
+    "cosmos.proposal_status": {
+      "name": "proposal_status",
+      "schema": "cosmos",
+      "values": [
+        "deposit_period",
+        "voting_period",
+        "passed",
+        "rejected",
+        "failed"
+      ]
+    },
+    "cosmos.validator_status": {
+      "name": "validator_status",
+      "schema": "cosmos",
+      "values": [
+        "unbonded",
+        "unbonding",
+        "bonded"
+      ]
+    },
+    "cosmos.vote_option": {
+      "name": "vote_option",
+      "schema": "cosmos",
+      "values": [
+        "yes",
+        "abstain",
+        "no",
+        "no_with_veto"
+      ]
+    }
+  },
+  "schemas": {
+    "cosmos": "cosmos"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
