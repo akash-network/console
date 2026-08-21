@@ -24,8 +24,17 @@ describe(ConfigureDeploymentHeader.name, () => {
 
     fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
 
-    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL));
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { runtimeLimitHours: undefined }));
     expect(enqueueSnackbar).not.toHaveBeenCalled();
+  });
+
+  it("forwards the chosen runtime limit with the quote request", async () => {
+    const requestQuotes = vi.fn();
+    setup({ phase: "configuring", requestQuotes, runtimeLimitHours: 6 });
+
+    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
+
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { runtimeLimitHours: 6 }));
   });
 
   it("blocks a trial deployment whose GPU resolves to a blocked selection and surfaces the trial message", async () => {
@@ -57,7 +66,7 @@ describe(ConfigureDeploymentHeader.name, () => {
 
     fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
 
-    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL));
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { runtimeLimitHours: undefined }));
   });
 
   it("does not apply the trial GPU guard for a non-trial user", async () => {
@@ -71,7 +80,7 @@ describe(ConfigureDeploymentHeader.name, () => {
 
     fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
 
-    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL));
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { runtimeLimitHours: undefined }));
   });
 
   it("surfaces SDL validation errors and does not request quotes when the spec is invalid", async () => {
@@ -249,6 +258,7 @@ describe(ConfigureDeploymentHeader.name, () => {
     cancelAndEdit?: () => void;
     isRestricted?: boolean;
     services?: Array<{ profile: { hasGpu?: boolean; gpuModels?: Array<{ vendor: string; name?: string }> } }>;
+    runtimeLimitHours?: number;
   }) {
     const flow = mock<DeploymentFlow>({
       phase: input.phase,
@@ -283,6 +293,7 @@ describe(ConfigureDeploymentHeader.name, () => {
           sdl={input.sdl ?? ""}
           onDeploy={input.onDeploy ?? vi.fn()}
           allPlacementsHaveBids={input.allPlacementsHaveBids ?? false}
+          runtimeLimitHours={input.runtimeLimitHours}
           dependencies={dependencies}
         />
       </Wrapper>

@@ -35,9 +35,17 @@ export const DEPENDENCIES = {
   useTrialGate
 };
 
-type Props = { flow: DeploymentFlow; sdl: string; onDeploy: () => void; allPlacementsHaveBids: boolean; dependencies?: typeof DEPENDENCIES };
+type Props = {
+  flow: DeploymentFlow;
+  sdl: string;
+  onDeploy: () => void;
+  allPlacementsHaveBids: boolean;
+  /** The optional runtime limit chosen in the deployment pane, forwarded with the create request. */
+  runtimeLimitHours?: number;
+  dependencies?: typeof DEPENDENCIES;
+};
 
-export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, onDeploy, allPlacementsHaveBids, dependencies: d = DEPENDENCIES }) => {
+export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, onDeploy, allPlacementsHaveBids, runtimeLimitHours, dependencies: d = DEPENDENCIES }) => {
   const deploymentSummary = d.useDeploymentResourceSummary();
   const showAsHourly = d.useDeploymentHasGpu();
   const { control, handleSubmit, getValues } = useFormContext<SdlBuilderFormValuesType>();
@@ -97,7 +105,7 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, onDeploy, allP
       );
       return;
     }
-    flow.actions.requestQuotes(sdl);
+    flow.actions.requestQuotes(sdl, { runtimeLimitHours });
   });
 
   return (

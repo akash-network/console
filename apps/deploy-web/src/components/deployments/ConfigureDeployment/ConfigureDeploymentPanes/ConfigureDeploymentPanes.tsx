@@ -28,6 +28,8 @@ type Props = {
   onCancelAndEdit: () => void;
   deploymentName: string;
   onDeploymentNameChange: (value: string) => void;
+  runtimeLimitHours: number | undefined;
+  onRuntimeLimitHoursChange: (value: number | undefined) => void;
   /** Rendered in the Configuration column header, e.g. the SDL import/export menu. */
   configurationActions?: ReactNode;
   dependencies?: typeof DEPENDENCIES;
@@ -53,6 +55,8 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
   onCancelAndEdit,
   deploymentName,
   onDeploymentNameChange,
+  runtimeLimitHours,
+  onRuntimeLimitHoursChange,
   configurationActions,
   dependencies: d = DEPENDENCIES
 }) => {
@@ -76,6 +80,8 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
           dseq={dseq}
           deploymentName={deploymentName}
           onDeploymentNameChange={onDeploymentNameChange}
+          runtimeLimitHours={runtimeLimitHours}
+          onRuntimeLimitHoursChange={onRuntimeLimitHoursChange}
         />
         <d.ConfigurationPane selectedServiceId={selectedServiceId} locked={configurationLock} actions={configurationActions} />
         {isLocked && (

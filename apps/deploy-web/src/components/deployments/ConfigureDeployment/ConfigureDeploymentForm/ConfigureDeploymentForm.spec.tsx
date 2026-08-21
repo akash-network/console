@@ -272,7 +272,7 @@ describe(ConfigureDeploymentForm.name, () => {
 
     await userEvent.click(screen.getByRole("button", { name: "change image" }));
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), expect.any(String)));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), expect.any(String), undefined));
   });
 
   it("clears the configure draft once the deployment is deployed", () => {
@@ -298,7 +298,22 @@ describe(ConfigureDeploymentForm.name, () => {
 
     await userEvent.click(screen.getByRole("button", { name: "change image" }));
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), "my-app"));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), "my-app", undefined));
+  });
+
+  it("seeds the runtime limit from the persisted draft and forwards it to the panes and header", () => {
+    const { ConfigureDeploymentPanes, ConfigureDeploymentHeader } = setup({ initialSdl: undefined, persistedRuntimeLimitHours: 6 });
+
+    expect(ConfigureDeploymentPanes).toHaveBeenCalledWith(expect.objectContaining({ runtimeLimitHours: 6 }), expect.anything());
+    expect(ConfigureDeploymentHeader).toHaveBeenCalledWith(expect.objectContaining({ runtimeLimitHours: 6 }), expect.anything());
+  });
+
+  it("persists the runtime limit into the draft alongside the sdl", async () => {
+    const { save } = setup({ initialSdl: undefined, persistedRuntimeLimitHours: 6, Panes: SdlProbePanes });
+
+    await userEvent.click(screen.getByRole("button", { name: "change image" }));
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), expect.any(String), 6));
   });
 
   it("toasts when the flow reports an error, such as the no-providers timeout", () => {
@@ -443,7 +458,7 @@ describe(ConfigureDeploymentForm.name, () => {
       (SdlImportExport as ReturnType<typeof vi.fn>).mock.calls[0][0].onImport(state);
     });
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("node:18"), "my-app"));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("node:18"), "my-app", undefined));
   });
 
   function setup(input: {
@@ -451,6 +466,7 @@ describe(ConfigureDeploymentForm.name, () => {
     initialName?: string;
     Panes?: typeof SdlProbePanes;
     draftId?: string;
+    persistedRuntimeLimitHours?: number;
     deploySucceeded?: boolean;
     flowError?: { message?: string; kind?: FlowErrorKind };
     vm?: boolean;
@@ -463,7 +479,7 @@ describe(ConfigureDeploymentForm.name, () => {
     const SdlImportExport = vi.fn(() => null);
     const enqueueSnackbar = vi.fn();
     const Snackbar = vi.fn(() => null);
-    const save = vi.fn<(sdl: string, name?: string) => void>();
+    const save = vi.fn<(sdl: string, name?: string, runtimeLimitHours?: number) => void>();
     const clear = vi.fn<() => void>();
     const requestQuotes = vi.fn();
     const setDeploymentName = vi.fn();
@@ -480,7 +496,13 @@ describe(ConfigureDeploymentForm.name, () => {
       ) : null
     );
     const useConfigureDraft = vi.fn(() =>
-      mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({ draftId: input.draftId ?? "draft-1", persistedSdl: undefined, save, clear })
+      mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({
+        draftId: input.draftId ?? "draft-1",
+        persistedSdl: undefined,
+        persistedRuntimeLimitHours: input.persistedRuntimeLimitHours,
+        save,
+        clear
+      })
     );
     const useDeploymentName = ((args: { initialName?: string }) => ({ name: args.initialName ?? "", setName: setDeploymentName })) as never;
     // The base flow is created upstream by the DeploymentFlowProvider now, so it arrives as a prop rather than a hook.
