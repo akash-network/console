@@ -115,8 +115,8 @@ export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
 const ServiceDetailRow: FC<{ icon: ReactNode; title: string; children: ReactNode }> = ({ icon, title, children }) => (
   <div className="flex items-center gap-2 border-t px-5 py-4">
     <span className="shrink-0 text-muted-foreground">{icon}</span>
-    <span className="w-32 shrink-0 text-base font-semibold">{title}</span>
-    <div className="min-w-0 flex-1 text-left text-base text-muted-foreground">{children}</div>
+    <span className="w-32 shrink-0 text-sm font-medium">{title}</span>
+    <div className="min-w-0 flex-1 text-left text-sm text-muted-foreground">{children}</div>
   </div>
 );
 

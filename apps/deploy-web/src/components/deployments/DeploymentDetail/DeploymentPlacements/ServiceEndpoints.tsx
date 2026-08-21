@@ -26,18 +26,12 @@ export const ServiceUriLinks: FC<{ items: EndpointLink[] }> = ({ items }) => {
     <span className="inline-flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
       {items.map(item =>
         item.href ? (
-          <Link
-            key={item.text}
-            href={item.href}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex min-w-0 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
+          <Link key={item.text} href={item.href} target="_blank" rel="noreferrer" className="inline-flex min-w-0 items-center gap-1 hover:text-foreground">
             <span className="truncate">{item.text}</span>
             <OpenInWindow className="shrink-0 text-xs" />
           </Link>
         ) : (
-          <span key={item.text} className="truncate text-sm text-muted-foreground">
+          <span key={item.text} className="truncate">
             {item.text}
           </span>
         )

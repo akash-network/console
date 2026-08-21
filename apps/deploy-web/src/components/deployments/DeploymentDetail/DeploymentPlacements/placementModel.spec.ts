@@ -190,6 +190,10 @@ describe("placementModel", () => {
     it("returns an empty list when no gpu is requested", () => {
       expect(getPlacementGpuModels(buildGroup({}))).toEqual([]);
     });
+
+    it("ignores a wildcard model when no gpu type is specified", () => {
+      expect(getPlacementGpuModels(buildGroup({ gpuAttributes: [{ key: "vendor/nvidia/model/*", value: "true" }] }))).toEqual([]);
+    });
   });
 
   describe("getDeploymentGpuModels", () => {
@@ -221,6 +225,7 @@ describe("placementModel", () => {
 
     it("falls back to the count when no model is declared", () => {
       expect(formatGpuLabel(1, [])).toBe("1");
+      expect(formatGpuLabel(1, ["*"])).toBe("1");
     });
 
     it("shows an em dash when the deployment has no gpu", () => {

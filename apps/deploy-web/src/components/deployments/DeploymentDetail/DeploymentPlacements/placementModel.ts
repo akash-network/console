@@ -142,18 +142,22 @@ export function getProviderRegion(
 
 export function getPlacementGpuModels(group: DeploymentGroup | undefined): string[] {
   const models = (group?.group_spec?.resources ?? []).flatMap(resource => getGpusFromAttributes(resource.resource.gpu?.attributes ?? []).map(gpu => gpu.model));
-  return Array.from(new Set(models.filter(Boolean)));
+  return Array.from(new Set(models.filter(isNamedGpuModel)));
 }
 
 export function getDeploymentGpuModels(groups: DeploymentGroup[] | undefined): string[] {
   return Array.from(new Set((groups ?? []).flatMap(group => getPlacementGpuModels(group))));
 }
 
-/** `{count}× {MODEL}` (e.g. `1× H100`); the count alone when no model is declared. */
+/** `{count}× {MODEL}` (e.g. `1× H100`); the count alone when no named model is declared. */
 export function formatGpuLabel(gpuAmount: number, models: string[]): string {
   if (!gpuAmount) return "—";
-  const names = models.filter(Boolean).map(model => model.toUpperCase());
+  const names = models.filter(isNamedGpuModel).map(model => model.toUpperCase());
   return names.length > 0 ? `${gpuAmount}× ${names.join(", ")}` : String(gpuAmount);
+}
+
+function isNamedGpuModel(model: string | undefined): model is string {
+  return !!model && model !== "*";
 }
 
 export type ServiceStatusTone = "running" | "pending" | "closed";
