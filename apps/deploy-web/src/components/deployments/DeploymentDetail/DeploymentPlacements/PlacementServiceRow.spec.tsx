@@ -29,9 +29,22 @@ describe(PlacementServiceRow.name, () => {
     expect(screen.queryByText("Running")).not.toBeInTheDocument();
   });
 
-  it("shows the service URI in the collapsed header", () => {
+  it("keeps the service URL out of the collapsed header", () => {
     setup({ uris: ["shop.example.com"] });
 
+    expect(screen.queryByRole("link", { name: /shop\.example\.com/ })).not.toBeInTheDocument();
+  });
+
+  it("shows the service URL below Image when expanded", async () => {
+    setup({
+      uris: ["shop.example.com"],
+      detail: { image: "nginx:1.25" }
+    });
+
+    await expandService();
+
+    expect(screen.getByText("Image")).toBeInTheDocument();
+    expect(screen.getByText("URL")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /shop\.example\.com/ })).toHaveAttribute("href", "http://shop.example.com");
   });
 
@@ -52,15 +65,17 @@ describe(PlacementServiceRow.name, () => {
     expect(screen.getByRole("link", { name: /80/ })).toHaveAttribute("href", "http://provider.io:30000");
   });
 
-  it("keeps the service collapsed when a URI link is clicked", async () => {
+  it("keeps the row expanded when a URL link is clicked", async () => {
     setup({
       uris: ["app.example.com"],
       forwardedPorts: [{ host: "provider.io", externalPort: 30000, port: 80, available: 1 }]
     });
 
+    await expandService();
     await userEvent.click(screen.getByRole("link", { name: /app\.example\.com/ }));
 
-    expect(screen.queryByText("Ports")).not.toBeInTheDocument();
+    expect(screen.getByText("Ports")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /web/ })).toHaveAttribute("aria-expanded", "true");
   });
 
   it("hides the service URI once the lease is no longer live", () => {

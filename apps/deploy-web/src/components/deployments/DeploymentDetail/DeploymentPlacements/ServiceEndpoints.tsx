@@ -18,7 +18,7 @@ export interface PortChip {
   available: boolean;
 }
 
-/** URI chips for the collapsed service row: hostname + open-in-new-tab, no copy or comma separators. */
+/** URI links: hostname + open-in-new-tab, no copy or comma separators. */
 export const ServiceUriLinks: FC<{ items: EndpointLink[] }> = ({ items }) => {
   if (items.length === 0) return null;
 

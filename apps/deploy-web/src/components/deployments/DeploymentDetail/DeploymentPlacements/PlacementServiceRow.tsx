@@ -2,7 +2,7 @@
 import type { FC, ReactNode } from "react";
 import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
-import { Box, Label, NavArrowDown, NavArrowRight } from "iconoir-react";
+import { Box, Globe, Label, NavArrowDown, NavArrowRight } from "iconoir-react";
 
 import type { ForwardedPort, LeaseServiceStatus, ServiceIp } from "@src/queries/useLeaseQuery";
 import type { LeaseDto } from "@src/types/deployment";
@@ -59,12 +59,11 @@ export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
     </>
   );
 
-  const extras = (
-    <div className="flex min-w-0 flex-1 items-center gap-3">
-      <ServiceUriLinks items={uriLinks} />
-      {replicaLabel ? <span className="ml-auto shrink-0 text-sm text-muted-foreground">{replicaLabel}</span> : null}
+  const extras = replicaLabel ? (
+    <div className="flex min-w-0 flex-1 items-center justify-end">
+      <span className="shrink-0 text-sm text-muted-foreground">{replicaLabel}</span>
     </div>
-  );
+  ) : null;
 
   if (closed) {
     return (
@@ -96,6 +95,11 @@ export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
         {detail?.image ? (
           <ServiceDetailRow icon={<Box className="h-4 w-4" />} title="Image">
             <span className="break-all">{detail.image}</span>
+          </ServiceDetailRow>
+        ) : null}
+        {uriLinks.length > 0 ? (
+          <ServiceDetailRow icon={<Globe className="h-4 w-4" />} title="URL">
+            <ServiceUriLinks items={uriLinks} />
           </ServiceDetailRow>
         ) : null}
         {portChips.length > 0 ? (
