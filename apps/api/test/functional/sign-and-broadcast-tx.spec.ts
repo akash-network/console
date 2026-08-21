@@ -19,6 +19,9 @@ import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-
 import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
+/** Deposit the create-deployment message asks for. The seeded deployment grant must cover it or the create is refused. */
+const DEPLOYMENT_DEPOSIT_UDENOM = 5_000_000;
+
 describe("Tx Sign", () => {
   const registry = container.resolve<Registry>(TYPE_REGISTRY);
   const walletService = new WalletTestingService(app);
@@ -31,7 +34,7 @@ describe("Tx Sign", () => {
   describe("POST /v1/tx", () => {
     it("creates a deployment for a user", async () => {
       const { user, token, wallet } = await setup({
-        deploymentAllowance: 1_000_000
+        deploymentAllowance: DEPLOYMENT_DEPOSIT_UDENOM
       });
 
       const res = await app.request("/v1/tx", {
@@ -43,6 +46,24 @@ describe("Tx Sign", () => {
 
       expect(res.status).toBe(200);
       expect(result).toMatchObject({ data: { code: 0, transactionHash: expect.any(String), hash: expect.any(String) } });
+    });
+
+    it("responds with 402 Payment Required when the deployment allowance cannot cover the deposit", async () => {
+      const { user, token, wallet } = await setup({
+        deploymentAllowance: DEPLOYMENT_DEPOSIT_UDENOM - 1
+      });
+
+      const res = await app.request("/v1/tx", {
+        method: "POST",
+        body: await createMessageForDeployment(user.id, wallet.address),
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` }
+      });
+
+      expect(res.status).toBe(402);
+      expect(await res.json()).toMatchObject({
+        error: "PaymentRequiredError",
+        message: "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue."
+      });
     });
 
     it("creates blockchain transaction", async () => {
@@ -99,7 +120,7 @@ describe("Tx Sign", () => {
       const responseBody = await res.json();
       expect(responseBody).toMatchObject({
         error: "PaymentRequiredError",
-        message: "Insufficient balance"
+        message: "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue."
       });
     });
   });
@@ -154,7 +175,10 @@ describe("Tx Sign", () => {
           },
           groups: manifest.value.groupSpecs,
           hash: await generateManifestVersion(manifest.value.groups),
-          deposit: { amount: { denom: container.resolve(BILLING_CONFIG).DEPLOYMENT_GRANT_DENOM, amount: "5000000" }, sources: [Source.grant] }
+          deposit: {
+            amount: { denom: container.resolve(BILLING_CONFIG).DEPLOYMENT_GRANT_DENOM, amount: DEPLOYMENT_DEPOSIT_UDENOM.toString() },
+            sources: [Source.grant]
+          }
         }
       }
     ];

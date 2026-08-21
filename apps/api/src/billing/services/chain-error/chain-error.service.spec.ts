@@ -184,7 +184,7 @@ describe(ChainErrorService.name, () => {
 
       const appErr = await service.toAppError(err, encodeMessages);
       expect(appErr).toBeInstanceOf(PaymentRequired);
-      expect(appErr.message).toBe("Insufficient balance");
+      expect(appErr.message).toBe("Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue.");
     });
 
     it("returns 402 for insufficient balance error with message prefix", async () => {
@@ -196,7 +196,9 @@ describe(ChainErrorService.name, () => {
 
       const appErr = await service.toAppError(err, messages);
       expect(appErr).toBeInstanceOf(PaymentRequired);
-      expect(appErr.message).toBe("Failed to create deployment: Insufficient balance");
+      expect(appErr.message).toBe(
+        "Failed to create deployment: Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue."
+      );
     });
 
     it("returns 402 for simple insufficient balance message", async () => {
@@ -205,7 +207,7 @@ describe(ChainErrorService.name, () => {
 
       const appErr = await service.toAppError(err, encodeMessages);
       expect(appErr).toBeInstanceOf(PaymentRequired);
-      expect(appErr.message).toBe("Insufficient balance");
+      expect(appErr.message).toBe("Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue.");
     });
 
     it("returns 400 for escrow settlement underflow panic", async () => {

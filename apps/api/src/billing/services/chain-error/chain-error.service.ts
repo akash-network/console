@@ -70,7 +70,7 @@ export class ChainErrorService {
     },
     "insufficient balance": {
       code: 402,
-      message: "Insufficient balance"
+      message: "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue."
     },
     [ESCROW_SETTLEMENT_UNDERFLOW_MESSAGE]: {
       code: 400,
