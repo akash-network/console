@@ -12,7 +12,8 @@ export function createUserWallet({
   isTrialing = faker.helpers.arrayElement([true, false]),
   createdAt = faker.date.past(),
   updatedAt = faker.date.past(),
-  activatedAt = createdAt
+  activatedAt = createdAt,
+  creditsLowNotifiedAt = null
 }: Partial<UserWalletOutput> = {}): UserWalletOutput {
   return {
     id,
@@ -24,7 +25,8 @@ export function createUserWallet({
     creditAmount: deploymentAllowance,
     createdAt,
     updatedAt,
-    activatedAt
+    activatedAt,
+    creditsLowNotifiedAt
   };
 }
 
