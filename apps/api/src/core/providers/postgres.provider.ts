@@ -11,6 +11,7 @@ import { DisposableRegistry } from "@src/core/lib/disposable-registry/disposable
 import type { AppInitializer } from "@src/core/providers/app-initializer";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
 import * as deploymentSchemas from "@src/deployment/model-schemas";
+import * as secretSchemas from "@src/secret/model-schemas";
 import * as userSchemas from "@src/user/model-schemas";
 import type { CoreConfig } from "./config.provider";
 import { CORE_CONFIG } from "./config.provider";
@@ -48,7 +49,7 @@ container.register(APP_INITIALIZER, {
   })
 });
 
-const schema = { ...userSchemas, ...billingSchemas, ...deploymentSchemas, ...authSchemas };
+const schema = { ...userSchemas, ...billingSchemas, ...deploymentSchemas, ...authSchemas, ...secretSchemas };
 const getDrizzleOptions = (config: Pick<CoreConfig, "SQL_LOG_FORMAT">) => ({
   logger: new PostgresLoggerService(container.resolve(LOGGER_FACTORY), { useFormat: config.SQL_LOG_FORMAT === "pretty" }),
   schema
