@@ -12,6 +12,8 @@ import { type UserOutput, UserRepository } from "@src/user/repositories";
 
 type SkipReason = "auto_reload_enabled" | "no_wallet" | "trialing" | "no_email" | "zero_cost" | "sufficient_balance" | "already_notified";
 
+const UNEXPECTED_SKIP_REASONS: ReadonlySet<SkipReason> = new Set(["no_wallet", "no_email"]);
+
 @singleton()
 export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLowCheck> {
   public readonly accepts = WalletCreditsLowCheck;
@@ -118,10 +120,17 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
   }
 
   #skip(reason: SkipReason, userId: UserOutput["id"]): void {
-    this.logger.warn({
+    const payload = {
       event: "CREDITS_LOW_CHECK_SKIPPED",
       userId,
       reason
-    });
+    };
+
+    if (UNEXPECTED_SKIP_REASONS.has(reason)) {
+      this.logger.warn(payload);
+      return;
+    }
+
+    this.logger.info(payload);
   }
 }

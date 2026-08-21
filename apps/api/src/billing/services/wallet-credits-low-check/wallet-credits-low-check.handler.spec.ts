@@ -54,7 +54,8 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     expect(notificationService.createNotification).not.toHaveBeenCalled();
     expect(userWalletRepository.updateById).not.toHaveBeenCalled();
     expect(drainingDeploymentService.calculateWeeklyDeploymentCostForAddress).not.toHaveBeenCalled();
-    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "auto_reload_enabled" }));
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "auto_reload_enabled" }));
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it("does not send when the wallet is trialing", async () => {
@@ -66,7 +67,8 @@ describe(WalletCreditsLowCheckHandler.name, () => {
 
     expect(notificationService.createNotification).not.toHaveBeenCalled();
     expect(userWalletRepository.updateById).not.toHaveBeenCalled();
-    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "trialing" }));
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "trialing" }));
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it("does not send when weekly cost is 0", async () => {
@@ -78,7 +80,8 @@ describe(WalletCreditsLowCheckHandler.name, () => {
 
     expect(notificationService.createNotification).not.toHaveBeenCalled();
     expect(userWalletRepository.updateById).not.toHaveBeenCalled();
-    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "zero_cost" }));
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "zero_cost" }));
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it("does not send when balance is at or above weekly cost", async () => {
@@ -91,7 +94,8 @@ describe(WalletCreditsLowCheckHandler.name, () => {
 
     expect(notificationService.createNotification).not.toHaveBeenCalled();
     expect(userWalletRepository.updateById).not.toHaveBeenCalled();
-    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "sufficient_balance" }));
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "sufficient_balance" }));
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it("does not send when already notified and still low", async () => {
@@ -103,7 +107,8 @@ describe(WalletCreditsLowCheckHandler.name, () => {
 
     expect(notificationService.createNotification).not.toHaveBeenCalled();
     expect(userWalletRepository.updateById).not.toHaveBeenCalled();
-    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "already_notified" }));
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "already_notified" }));
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it("clears creditsLowNotifiedAt when balance recovers", async () => {
