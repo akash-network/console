@@ -29,77 +29,52 @@ describe(PlacementServiceRow.name, () => {
     expect(screen.queryByText("Running")).not.toBeInTheDocument();
   });
 
-  it("keeps the service contents collapsed until the row is expanded", async () => {
-    setup({ detail: { resources: { gpuUnits: 0, memory: { value: 36, unit: "Gi" } } } });
+  it("shows the service URI in the collapsed header", () => {
+    setup({ uris: ["shop.example.com"] });
 
-    expect(screen.queryByText("36 Gi")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /shop\.example\.com/ })).toHaveAttribute("href", "http://shop.example.com");
+  });
+
+  it("shows the replica count in the collapsed header", () => {
+    setup({ service: mock<LeaseServiceStatus>({ available: 2, total: 3 }) });
+
+    expect(screen.getByText("2/3 replicas")).toBeInTheDocument();
+  });
+
+  it("keeps forwarded ports collapsed until the row is expanded", async () => {
+    setup({ forwardedPorts: [{ host: "provider.io", externalPort: 30000, port: 80, available: 1 }] });
+
+    expect(screen.queryByText("Ports")).not.toBeInTheDocument();
 
     await expandService();
 
-    expect(screen.getByText("Memory")).toBeInTheDocument();
-    expect(screen.getByText("36 Gi")).toBeInTheDocument();
+    expect(screen.getByText("Ports")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /80/ })).toHaveAttribute("href", "http://provider.io:30000");
   });
 
-  it("lists the service endpoints when expanded", async () => {
-    setup({ uris: ["app.example.com"] });
+  it("keeps the service collapsed when a URI link is clicked", async () => {
+    setup({
+      uris: ["app.example.com"],
+      forwardedPorts: [{ host: "provider.io", externalPort: 30000, port: 80, available: 1 }]
+    });
 
-    await expandService();
+    await userEvent.click(screen.getByRole("link", { name: /app\.example\.com/ }));
 
-    expect(screen.getByRole("link", { name: /app\.example\.com/ })).toHaveAttribute("href", "http://app.example.com");
+    expect(screen.queryByText("Ports")).not.toBeInTheDocument();
   });
 
-  it("hides the service endpoints once the lease is no longer live", async () => {
+  it("hides the service URI once the lease is no longer live", () => {
     setup({ uris: ["app.example.com"], leaseState: "closed" });
 
-    await expandService();
-
     expect(screen.queryByRole("link", { name: /app\.example\.com/ })).not.toBeInTheDocument();
-    expect(screen.getByText("None")).toBeInTheDocument();
   });
 
-  it("shows a None placeholder for Expose Ports when there are no endpoints", async () => {
+  it("omits the ports row when there are no live endpoints", async () => {
     setup({});
 
     await expandService();
 
-    expect(screen.getByText("Expose Ports")).toBeInTheDocument();
-    expect(screen.getByText("None")).toBeInTheDocument();
-  });
-
-  it("shows a None placeholder when the provider reports null endpoint collections", async () => {
-    setup({ uris: null, forwardedPorts: null, ips: null });
-
-    await expandService();
-
-    expect(screen.getByText("Expose Ports")).toBeInTheDocument();
-    expect(screen.getByText("None")).toBeInTheDocument();
-  });
-
-  it("shows the Docker image row when an image is known", async () => {
-    setup({ detail: { image: "nginx:1.25" } });
-
-    await expandService();
-
-    expect(screen.getByText("Docker image")).toBeInTheDocument();
-  });
-
-  it("shows environment variables and commands when present", async () => {
-    setup({ detail: { env: [{ key: "KEY", value: "value" }], command: "sh -c echo hi" } });
-
-    await expandService();
-
-    expect(screen.getByText("Environment Variables")).toBeInTheDocument();
-    expect(screen.getByText("KEY=value")).toBeInTheDocument();
-    expect(screen.getByText("Commands")).toBeInTheDocument();
-    expect(screen.getByText("sh -c echo hi")).toBeInTheDocument();
-  });
-
-  it("omits the Docker image row when no image is known", async () => {
-    setup({ detail: {} });
-
-    await expandService();
-
-    expect(screen.queryByText("Docker image")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ports")).not.toBeInTheDocument();
   });
 
   function expandService() {

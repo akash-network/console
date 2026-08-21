@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 import type { LeaseServiceStatus } from "@src/queries/useLeaseQuery";
 import type { DeploymentGroup } from "@src/types/deployment";
 import {
+  formatReplicaCount,
   getPlacementGpuModels,
   getPlacementName,
   getProviderRegion,
@@ -213,6 +214,21 @@ describe("placementModel", () => {
 
     it("keeps a lease in the reclamation grace period non-terminal until it is reclaimed", () => {
       expect(getServiceStatus(buildService({ available: 1 }), "reclaiming")).toEqual({ label: "Running", tone: "running" });
+    });
+  });
+
+  describe("formatReplicaCount", () => {
+    it("formats available against total", () => {
+      expect(formatReplicaCount(buildService({ available: 1, total: 1 }))).toBe("1/1 replicas");
+      expect(formatReplicaCount(buildService({ available: 0, total: 3 }))).toBe("0/3 replicas");
+    });
+
+    it("is omitted when lease status has not arrived", () => {
+      expect(formatReplicaCount(undefined)).toBeUndefined();
+    });
+
+    it("is omitted when replica totals are not numeric", () => {
+      expect(formatReplicaCount(mock<LeaseServiceStatus>({ available: 1 }))).toBeUndefined();
     });
   });
 });

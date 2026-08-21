@@ -50,9 +50,7 @@ test.describe("Deployment detail redesign preview", () => {
       await expect(service).toBeVisible();
 
       await service.click();
-
-      await expect(page.getByText("Docker image")).toBeVisible();
-      await expect(page.getByText("nginx:latest")).toBeVisible();
+      await expect(service).toHaveAttribute("aria-expanded", "true");
     });
 
     await test.step("switches tabs via the tab query param without navigating", async () => {

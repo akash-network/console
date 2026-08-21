@@ -168,6 +168,12 @@ export function getServiceStatus(
   return { label: "Starting", tone: "pending" };
 }
 
+/** `{available}/{total} replicas` for the collapsed service row; omitted until lease status has arrived. */
+export function formatReplicaCount(service: Pick<LeaseServiceStatus, "available" | "total"> | undefined): string | undefined {
+  if (!service || typeof service.available !== "number" || typeof service.total !== "number") return undefined;
+  return `${service.available}/${service.total} replicas`;
+}
+
 function parseComputeResources(resources: unknown): ManifestServiceResources | undefined {
   if (!resources || typeof resources !== "object") return undefined;
 
