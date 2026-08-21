@@ -37,6 +37,24 @@ describe(ConfigureDeploymentHeader.name, () => {
     await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { runtimeLimitHours: 6 }));
   });
 
+  it("omits a leftover runtime limit when the feature flag is off", async () => {
+    const requestQuotes = vi.fn();
+    setup({ phase: "configuring", requestQuotes, runtimeLimitHours: 6, isRuntimeLimitEnabled: false });
+
+    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
+
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { runtimeLimitHours: undefined }));
+  });
+
+  it("omits a leftover runtime limit for a trial user", async () => {
+    const requestQuotes = vi.fn();
+    setup({ phase: "configuring", requestQuotes, runtimeLimitHours: 6, isRestricted: true });
+
+    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
+
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { runtimeLimitHours: undefined }));
+  });
+
   it("blocks a trial deployment whose GPU resolves to a blocked selection and surfaces the trial message", async () => {
     const requestQuotes = vi.fn();
     const { enqueueSnackbar } = setup({
@@ -259,6 +277,7 @@ describe(ConfigureDeploymentHeader.name, () => {
     isRestricted?: boolean;
     services?: Array<{ profile: { hasGpu?: boolean; gpuModels?: Array<{ vendor: string; name?: string }> } }>;
     runtimeLimitHours?: number;
+    isRuntimeLimitEnabled?: boolean;
   }) {
     const flow = mock<DeploymentFlow>({
       phase: input.phase,
@@ -284,7 +303,8 @@ describe(ConfigureDeploymentHeader.name, () => {
       PriceValue: ({ value }) => <span data-testid="price">{String(value)}</span>,
       useQuoteExpiry: () => input.expiry ?? null,
       CustomTooltip: ({ children }) => <>{children}</>,
-      useTrialGate: () => ({ isRestricted: input.isRestricted ?? false, isWalletReady: true })
+      useTrialGate: () => ({ isRestricted: input.isRestricted ?? false, isWalletReady: true }),
+      useFlag: () => input.isRuntimeLimitEnabled ?? true
     };
     render(
       <Wrapper placements={input.placements} services={input.services}>

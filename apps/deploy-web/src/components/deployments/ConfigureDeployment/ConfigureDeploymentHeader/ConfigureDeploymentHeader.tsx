@@ -6,6 +6,7 @@ import { Clock, LoaderCircle } from "lucide-react";
 import { useSnackbar } from "notistack";
 
 import { PriceValue } from "@src/components/shared/PriceValue";
+import { useFlag } from "@src/hooks/useFlag";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { hasTrialBlockedGpu } from "@src/utils/deploymentData/v1beta3";
 import { getAvgCostPerMonth, perBlockToHourly } from "@src/utils/priceUtils";
@@ -32,7 +33,8 @@ export const DEPENDENCIES = {
   PriceValue,
   useQuoteExpiry,
   CustomTooltip,
-  useTrialGate
+  useTrialGate,
+  useFlag
 };
 
 type Props = {
@@ -51,6 +53,7 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, onDeploy, allP
   const { control, handleSubmit, getValues } = useFormContext<SdlBuilderFormValuesType>();
   const { enqueueSnackbar } = d.useSnackbar();
   const { isRestricted } = d.useTrialGate();
+  const isRuntimeLimitEnabled = d.useFlag("deployment_runtime_limit");
   const placements = useWatch({ control, name: "placements" });
   const cost = d.useDeploymentCost({ dseq: flow.dseq, sdl, placements, selections: flow.selections });
   const expiry = d.useQuoteExpiry({ dseq: flow.dseq, enabled: flow.phase === "quoting" });
@@ -105,7 +108,12 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, onDeploy, allP
       );
       return;
     }
-    flow.actions.requestQuotes(sdl, { runtimeLimitHours });
+    // The input is hidden when the flag is off or the user is on trial, but a leftover draft
+    // value can still sit in state. Drop it here so a kill-switch or trial session cannot
+    // silently cap funding on a deployment the user can no longer see or clear.
+    flow.actions.requestQuotes(sdl, {
+      runtimeLimitHours: isRuntimeLimitEnabled && !isRestricted ? runtimeLimitHours : undefined
+    });
   });
 
   return (
