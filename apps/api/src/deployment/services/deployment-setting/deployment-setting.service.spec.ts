@@ -90,6 +90,19 @@ describe(DeploymentSettingService.name, () => {
       expect(result).toEqual(expect.objectContaining({ autoTopUpEnabled: false, estimatedTopUpAmount: 0 }));
     });
 
+    it("defaults auto top-up to disabled when the managed wallet has no address yet", async () => {
+      const { service, deploymentSettingRepository, userWalletRepository } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: null }));
+      userWalletRepository.findOneByUserId.mockResolvedValue(createUserWallet({ userId: params.userId, address: null }));
+
+      const result = await service.findOrCreateByUserIdAndDseq(params);
+
+      expect(result).toEqual(expect.objectContaining({ autoTopUpEnabled: false, estimatedTopUpAmount: 0 }));
+    });
+
     it("leaves auto top-up off for a user who explicitly disabled it despite having a managed wallet", async () => {
       const { service, deploymentSettingRepository, userWalletRepository } = setup();
       const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };

@@ -132,12 +132,18 @@ export class DeploymentSettingService {
    * A NULL `autoTopUpEnabled` means the user never made a choice, so it falls back to whether they
    * have a managed wallet to fund from. A stored `true` or `false` is the user's own decision and is
    * returned untouched — an explicit opt-out must never be quietly reversed by the default.
+   *
+   * The wallet must have an address: `UserWalletRepository.getOrCreate` inserts a row before one is
+   * assigned, and the auto top-up queries only match owners whose address is set. Counting an
+   * address-less wallet as enabled would report the toggle on while the cron skipped the deployment.
    */
   private async resolveAutoTopUpEnabled({ autoTopUpEnabled, userId }: Pick<DeploymentSettingsOutput, "autoTopUpEnabled" | "userId">): Promise<boolean> {
     if (autoTopUpEnabled !== null) {
       return autoTopUpEnabled;
     }
 
-    return !!(await this.userWalletRepository.findOneByUserId(userId));
+    const userWallet = await this.userWalletRepository.findOneByUserId(userId);
+
+    return !!userWallet?.address;
   }
 }
