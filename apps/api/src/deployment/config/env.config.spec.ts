@@ -97,6 +97,42 @@ describe("deployment envSchema", () => {
     });
   });
 
+  describe("AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD", () => {
+    it("defaults to 5 when omitted", () => {
+      const result = envSchema.safeParse(setup());
+
+      expect(result.success).toBe(true);
+      expect(result.success && result.data.AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD).toBe(5);
+    });
+
+    it("accepts a zero headroom", () => {
+      const result = envSchema.safeParse(setup({ AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD: 0 }));
+
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects a negative headroom", () => {
+      const result = envSchema.safeParse(setup({ AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD: -5 }));
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues.some(issue => issue.path[0] === "AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD")).toBe(true);
+    });
+
+    it("rejects an infinite headroom, which would waive the floor and spend the whole balance", () => {
+      const result = envSchema.safeParse(setup({ AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD: Infinity }));
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues.some(issue => issue.path[0] === "AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD")).toBe(true);
+    });
+
+    it("rejects a headroom coerced from an infinite string", () => {
+      const result = envSchema.safeParse(setup({ AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD: "Infinity" }));
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues.some(issue => issue.path[0] === "AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD")).toBe(true);
+    });
+  });
+
   function setup(overrides: Record<string, unknown> = {}) {
     return { PROVIDER_PROXY_URL: "https://provider-proxy.example.com", ...overrides };
   }

@@ -18,7 +18,7 @@ export const envSchema = z
      * create a deployment. Whole dollars: `DEPLOYMENT_GRANT_DENOM` is `uact` on real networks, 1:1 with USD.
      * 0 restores the previous drain-to-zero behavior.
      */
-    AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD: z.number({ coerce: true }).nonnegative().optional().default(5),
+    AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD: z.number({ coerce: true }).nonnegative().finite().optional().default(5),
     /**
      * Deposit (in dollars) the platform bootstraps a managed deployment with when the caller no longer supplies one.
      * Must stay at or above the chain's `min_deposits` for the active `DEPLOYMENT_GRANT_DENOM`, or the create tx is rejected
