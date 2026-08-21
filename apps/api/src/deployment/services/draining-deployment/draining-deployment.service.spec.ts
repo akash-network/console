@@ -3,6 +3,7 @@ import "@test/mocks/logger-service.mock";
 import type { AnyAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { addWeeks } from "date-fns";
+import { millisecondsInHour } from "date-fns/constants";
 import { groupBy } from "lodash";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -155,6 +156,95 @@ describe(DrainingDeploymentService.name, () => {
       expect(deploymentSettingRepository.updateManyById).toHaveBeenCalledWith([closedSetting.id], { closed: true });
       expect(sink.recordDeploymentsMarkedClosed).toHaveBeenCalledWith(1);
       expect(instrumentation.recordDeploymentsMarkedClosed).not.toHaveBeenCalled();
+    });
+
+    it("drops a deployment already funded to its runtime deadline and records the skip", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
+
+      try {
+        const { service, deploymentSettingRepository, currentHeight } = setup();
+        const sink = mock<DeploymentTopUpInstrumentation>();
+        const address = createAkashAddress();
+        const runtimeEndsAt = new Date(Date.now() + 2 * millisecondsInHour);
+        const limitedSetting = createAutoTopUpDeployment({ address, dseq: "3001", runtimeLimitHours: 12, runtimeEndsAt });
+        const unlimitedSetting = createAutoTopUpDeployment({ address, dseq: "3002" });
+
+        deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([limitedSetting, unlimitedSetting]);
+        vi.spyOn(service, "findLeases").mockResolvedValue([
+          createDrainingDeployment({
+            dseq: Number(limitedSetting.dseq),
+            owner: address,
+            predictedClosedHeight: currentHeight + averageBlockCountInAnHour * 10
+          }),
+          createDrainingDeployment({ dseq: Number(unlimitedSetting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 })
+        ]);
+
+        const result = await service.findDrainingDeploymentsForOwner(address, sink, currentHeight);
+
+        expect(result).toHaveLength(1);
+        expect(result[0].dseq).toBe(unlimitedSetting.dseq);
+        expect(sink.recordRuntimeLimitReached).toHaveBeenCalledWith({ dseq: limitedSetting.dseq, address, runtimeEndsAt });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("keeps a runtime-limited deployment that still has unfunded runtime", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
+
+      try {
+        const { service, deploymentSettingRepository, currentHeight } = setup();
+        const sink = mock<DeploymentTopUpInstrumentation>();
+        const address = createAkashAddress();
+        const runtimeEndsAt = new Date(Date.now() + 10 * millisecondsInHour);
+        const setting = createAutoTopUpDeployment({ address, dseq: "3003", runtimeLimitHours: 12, runtimeEndsAt });
+
+        deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([setting]);
+        vi.spyOn(service, "findLeases").mockResolvedValue([
+          createDrainingDeployment({
+            dseq: Number(setting.dseq),
+            owner: address,
+            predictedClosedHeight: currentHeight + averageBlockCountInAnHour * 2
+          })
+        ]);
+
+        const result = await service.findDrainingDeploymentsForOwner(address, sink, currentHeight);
+
+        expect(result).toHaveLength(1);
+        expect(result[0]).toMatchObject({ dseq: setting.dseq, runtimeEndsAt });
+        expect(sink.recordRuntimeLimitReached).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("starts the runtime countdown for a limited deployment the initial funding never anchored", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
+
+      try {
+        const { service, deploymentSettingRepository, currentHeight } = setup();
+        const sink = mock<DeploymentTopUpInstrumentation>();
+        const address = createAkashAddress();
+        const anchoredEndsAt = new Date(Date.now() + 12 * millisecondsInHour);
+        const setting = createAutoTopUpDeployment({ address, dseq: "3004", runtimeLimitHours: 12, runtimeEndsAt: null });
+
+        deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([setting]);
+        deploymentSettingRepository.startRuntimeCountdown.mockResolvedValue(anchoredEndsAt);
+        vi.spyOn(service, "findLeases").mockResolvedValue([
+          createDrainingDeployment({ dseq: Number(setting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 })
+        ]);
+
+        const result = await service.findDrainingDeploymentsForOwner(address, sink, currentHeight);
+
+        expect(deploymentSettingRepository.startRuntimeCountdown).toHaveBeenCalledWith(setting.id);
+        expect(result).toHaveLength(1);
+        expect(result[0]).toMatchObject({ dseq: setting.dseq, runtimeEndsAt: anchoredEndsAt });
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("returns an empty array without querying leases when the owner has no auto-top-up deployments", async () => {
@@ -315,6 +405,73 @@ describe(DrainingDeploymentService.name, () => {
       service.calculateAmountToTargetRunway({ blockRate: 50, predictedClosedHeight: currentHeight }, currentHeight);
 
       expect(blockHttpService.getCurrentHeight).not.toHaveBeenCalled();
+    });
+
+    it("clamps the target to a runtime deadline that lands inside the runway target", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
+
+      try {
+        const { service, currentHeight } = setup();
+        const runtimeEndsAt = new Date(Date.now() + 12 * millisecondsInHour);
+
+        const result = service.calculateAmountToTargetRunway({ blockRate: 50, predictedClosedHeight: currentHeight, runtimeEndsAt }, currentHeight);
+
+        expect(result).toBe(Math.floor(50 * averageBlockCountInAnHour * 12));
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("ignores a runtime deadline beyond the runway target", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
+
+      try {
+        const { service, currentHeight } = setup();
+        const runtimeEndsAt = new Date(Date.now() + 100 * millisecondsInHour);
+
+        const result = service.calculateAmountToTargetRunway({ blockRate: 50, predictedClosedHeight: currentHeight, runtimeEndsAt }, currentHeight);
+
+        expect(result).toBe(Math.floor(50 * averageBlockCountInAnHour * 48));
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("returns 0 when the deployment is already funded up to its runtime deadline", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
+
+      try {
+        const { service, currentHeight } = setup();
+        const runtimeEndsAt = new Date(Date.now() + 12 * millisecondsInHour);
+
+        const result = service.calculateAmountToTargetRunway(
+          { blockRate: 50, predictedClosedHeight: currentHeight + averageBlockCountInAnHour * 20, runtimeEndsAt },
+          currentHeight
+        );
+
+        expect(result).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("returns 0 when the runtime deadline has passed", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
+
+      try {
+        const { service, currentHeight } = setup();
+        const runtimeEndsAt = new Date(Date.now() - millisecondsInHour);
+
+        const result = service.calculateAmountToTargetRunway({ blockRate: 50, predictedClosedHeight: currentHeight, runtimeEndsAt }, currentHeight);
+
+        expect(result).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

@@ -164,6 +164,110 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(depositedAmounts(executeDerivedTx)).toEqual([BLOCK_RATE * averageBlockCountInAnHour * (48 - hoursOfRunwayHeld)]);
     });
 
+    it("clamps the deposit of a runtime-limited deployment to its remaining runtime", async () => {
+      const { topUpService, executeDerivedTx, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } =
+        await setup();
+      const { user, address } = await createUserWithWallet();
+      const dseq = "710001";
+      const hoursOfRunwayHeld = 12;
+      const runtimeLimitHours = 30;
+
+      await createDeploymentSetting(user.id, dseq, {
+        runtimeLimitHours,
+        runtimeEndsAt: new Date(Date.now() + runtimeLimitHours * 3600 * 1000)
+      });
+
+      mockLeasesForOwner(address, [createActiveLease(address, dseq)]);
+      mockDeploymentsForOwner(address, [
+        createDeploymentInfoSeed({
+          owner: address,
+          dseq,
+          state: "active",
+          amount: String(averageBlockCountInAnHour * hoursOfRunwayHeld * BLOCK_RATE),
+          denom: DENOM,
+          createdAt: String(CURRENT_HEIGHT)
+        })
+      ]);
+      stubGetFreshLimits({ [address]: 100000000 });
+
+      await topUpService.topUpDeployments({ dryRun: false });
+
+      expect(executeDerivedTx).toHaveBeenCalledOnce();
+      const [deposited] = depositedAmounts(executeDerivedTx);
+      expect(deposited).toBeCloseTo(BLOCK_RATE * averageBlockCountInAnHour * (runtimeLimitHours - hoursOfRunwayHeld), -3);
+      expect(deposited).toBeLessThan(BLOCK_RATE * averageBlockCountInAnHour * (48 - hoursOfRunwayHeld));
+    });
+
+    it("skips a deployment already funded to its runtime deadline without burning a funding claim", async () => {
+      const {
+        topUpService,
+        executeDerivedTx,
+        createUserWithWallet,
+        createDeploymentSetting,
+        findSetting,
+        mockLeasesForOwner,
+        mockDeploymentsForOwner,
+        stubGetFreshLimits
+      } = await setup();
+      const { user, address } = await createUserWithWallet();
+      const dseq = "710002";
+
+      await createDeploymentSetting(user.id, dseq, {
+        runtimeLimitHours: 12,
+        runtimeEndsAt: new Date(Date.now() + 3600 * 1000)
+      });
+
+      mockLeasesForOwner(address, [createActiveLease(address, dseq)]);
+      mockDeploymentsForOwner(address, [
+        createDeploymentInfoSeed({
+          owner: address,
+          dseq,
+          state: "active",
+          amount: String(averageBlockCountInAnHour * 12 * BLOCK_RATE),
+          denom: DENOM,
+          createdAt: String(CURRENT_HEIGHT)
+        })
+      ]);
+      stubGetFreshLimits({ [address]: 100000000 });
+
+      await topUpService.topUpDeployments({ dryRun: false });
+
+      expect(executeDerivedTx).not.toHaveBeenCalled();
+      const setting = await findSetting(address, dseq);
+      expect(setting?.lastFundedAt).toBeNull();
+      expect(setting?.closed).toBe(false);
+    });
+
+    it("anchors the runtime countdown when funding a limited deployment the initial funding never anchored", async () => {
+      const {
+        topUpService,
+        executeDerivedTx,
+        createUserWithWallet,
+        createDeploymentSetting,
+        findSetting,
+        mockLeasesForOwner,
+        mockDeploymentsForOwner,
+        stubGetFreshLimits
+      } = await setup();
+      const { user, address } = await createUserWithWallet();
+      const dseq = "710003";
+      const runtimeLimitHours = 30;
+
+      await createDeploymentSetting(user.id, dseq, { runtimeLimitHours });
+
+      mockLeasesForOwner(address, [createActiveLease(address, dseq)]);
+      mockDeploymentsForOwner(address, [createActiveDeployment(address, dseq)]);
+      stubGetFreshLimits({ [address]: 100000000 });
+
+      await topUpService.topUpDeployments({ dryRun: false });
+
+      expect(executeDerivedTx).toHaveBeenCalledOnce();
+      const setting = await findSetting(address, dseq);
+      const expectedEndsAt = Date.now() + runtimeLimitHours * 3600 * 1000;
+      expect(setting?.runtimeEndsAt).toBeInstanceOf(Date);
+      expect(Math.abs((setting!.runtimeEndsAt as Date).getTime() - expectedEndsAt)).toBeLessThan(60_000);
+    });
+
     // Owner has two deployment settings with auto top-up enabled, but both deployments
     // are closed on chain. No transactions should be submitted.
     // Both deployment settings should be marked as closed in the DB.
@@ -416,14 +520,20 @@ describe(TopUpManagedDeploymentsService.name, () => {
       return { user, wallet, address };
     }
 
-    async function createDeploymentSetting(userId: string, dseq: string, overrides?: { autoTopUpEnabled?: boolean; closed?: boolean }) {
+    async function createDeploymentSetting(
+      userId: string,
+      dseq: string,
+      overrides?: { autoTopUpEnabled?: boolean; closed?: boolean; runtimeLimitHours?: number; runtimeEndsAt?: Date }
+    ) {
       const [setting] = await db
         .insert(deploymentSettingsTable)
         .values({
           userId,
           dseq,
           autoTopUpEnabled: overrides?.autoTopUpEnabled ?? true,
-          closed: overrides?.closed ?? false
+          closed: overrides?.closed ?? false,
+          runtimeLimitHours: overrides?.runtimeLimitHours ?? null,
+          runtimeEndsAt: overrides?.runtimeEndsAt ?? null
         })
         .returning();
 

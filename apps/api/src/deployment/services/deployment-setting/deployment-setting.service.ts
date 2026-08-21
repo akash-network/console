@@ -17,7 +17,11 @@ import { DeploymentConfigService } from "../deployment-config/deployment-config.
 import { DrainingDeploymentService } from "../draining-deployment/draining-deployment.service";
 import { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed-deployments/top-up-managed-deployments-instrumentation.service";
 
-type DeploymentSettingWithEstimatedTopUpAmount = Omit<DeploymentSettingsOutput, "lastFundedAt"> & { estimatedTopUpAmount: number; topUpFrequencyMs: number };
+type DeploymentSettingWithEstimatedTopUpAmount = Omit<DeploymentSettingsOutput, "lastFundedAt" | "runtimeEndsAt"> & {
+  estimatedTopUpAmount: number;
+  topUpFrequencyMs: number;
+  runtimeEndsAt: string | null;
+};
 
 @singleton()
 export class DeploymentSettingService {
@@ -97,7 +101,8 @@ export class DeploymentSettingService {
       return undefined;
     }
 
-    const { lastFundedAt, ...setting } = params;
+    const { lastFundedAt, runtimeEndsAt, ...rest } = params;
+    const setting = { ...rest, runtimeEndsAt: runtimeEndsAt?.toISOString() ?? null };
 
     if (!setting.autoTopUpEnabled) {
       return { ...setting, estimatedTopUpAmount: 0, topUpFrequencyMs: this.topUpFrequencyMs };

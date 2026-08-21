@@ -51,6 +51,8 @@ describe("Deployment Settings", () => {
           updatedAt: expect.any(String),
           estimatedTopUpAmount: expect.any(Number),
           topUpFrequencyMs: expect.any(Number),
+          runtimeLimitHours: null,
+          runtimeEndsAt: null,
           closed: false
         }
       });
@@ -109,6 +111,8 @@ describe("Deployment Settings", () => {
           updatedAt: expect.any(String),
           estimatedTopUpAmount: expect.any(Number),
           topUpFrequencyMs: expect.any(Number),
+          runtimeLimitHours: null,
+          runtimeEndsAt: null,
           closed: false
         }
       });

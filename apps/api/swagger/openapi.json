@@ -2965,6 +2965,17 @@
                         "topUpFrequencyMs": {
                           "type": "number"
                         },
+                        "runtimeLimitHours": {
+                          "type": "integer",
+                          "nullable": true,
+                          "description": "Runtime limit in hours chosen at deployment creation, or null for always-on funding"
+                        },
+                        "runtimeEndsAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time",
+                          "description": "When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set"
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -2981,6 +2992,8 @@
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
+                        "runtimeLimitHours",
+                        "runtimeEndsAt",
                         "createdAt",
                         "updatedAt"
                       ]
@@ -3104,6 +3117,17 @@
                         "topUpFrequencyMs": {
                           "type": "number"
                         },
+                        "runtimeLimitHours": {
+                          "type": "integer",
+                          "nullable": true,
+                          "description": "Runtime limit in hours chosen at deployment creation, or null for always-on funding"
+                        },
+                        "runtimeEndsAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time",
+                          "description": "When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set"
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -3120,6 +3144,8 @@
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
+                        "runtimeLimitHours",
+                        "runtimeEndsAt",
                         "createdAt",
                         "updatedAt"
                       ]
@@ -3235,6 +3261,17 @@
                         "topUpFrequencyMs": {
                           "type": "number"
                         },
+                        "runtimeLimitHours": {
+                          "type": "integer",
+                          "nullable": true,
+                          "description": "Runtime limit in hours chosen at deployment creation, or null for always-on funding"
+                        },
+                        "runtimeEndsAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time",
+                          "description": "When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set"
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -3251,6 +3288,8 @@
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
+                        "runtimeLimitHours",
+                        "runtimeEndsAt",
                         "createdAt",
                         "updatedAt"
                       ]
@@ -3333,6 +3372,17 @@
                         "topUpFrequencyMs": {
                           "type": "number"
                         },
+                        "runtimeLimitHours": {
+                          "type": "integer",
+                          "nullable": true,
+                          "description": "Runtime limit in hours chosen at deployment creation, or null for always-on funding"
+                        },
+                        "runtimeEndsAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time",
+                          "description": "When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set"
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -3349,6 +3399,8 @@
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
+                        "runtimeLimitHours",
+                        "runtimeEndsAt",
                         "createdAt",
                         "updatedAt"
                       ]
@@ -3473,6 +3525,17 @@
                         "topUpFrequencyMs": {
                           "type": "number"
                         },
+                        "runtimeLimitHours": {
+                          "type": "integer",
+                          "nullable": true,
+                          "description": "Runtime limit in hours chosen at deployment creation, or null for always-on funding"
+                        },
+                        "runtimeEndsAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time",
+                          "description": "When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set"
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -3489,6 +3552,8 @@
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
+                        "runtimeLimitHours",
+                        "runtimeEndsAt",
                         "createdAt",
                         "updatedAt"
                       ]
@@ -3604,6 +3669,17 @@
                         "topUpFrequencyMs": {
                           "type": "number"
                         },
+                        "runtimeLimitHours": {
+                          "type": "integer",
+                          "nullable": true,
+                          "description": "Runtime limit in hours chosen at deployment creation, or null for always-on funding"
+                        },
+                        "runtimeEndsAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time",
+                          "description": "When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set"
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -3620,6 +3696,8 @@
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
+                        "runtimeLimitHours",
+                        "runtimeEndsAt",
                         "createdAt",
                         "updatedAt"
                       ]
@@ -4553,6 +4631,12 @@
                         "type": "number",
                         "description": "Deposit in dollars. Ignored when managed deposits are enabled for your account, in which case the platform sets it automatically; otherwise it is required.",
                         "deprecated": true
+                      },
+                      "runtimeLimitHours": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 8760,
+                        "description": "Optional runtime limit in hours, counted from lease start. Automatic funding keeps the deployment running until the limit, then stops so the deployment drains and closes. Omit for always-on funding."
                       }
                     },
                     "required": [

@@ -16,6 +16,7 @@ import {
   GetDeploymentResponse,
   UpdateDeploymentRequest
 } from "@src/deployment/http-schemas/deployment.schema";
+import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { denomToUdenom } from "@src/utils/math";
@@ -36,7 +37,8 @@ export class DeploymentWriterService {
     private readonly staleDeploymentsCleaner: StaleManagedDeploymentsCleanerService,
     private readonly logger: LoggerService,
     private readonly deploymentConfig: DeploymentConfigService,
-    private readonly featureFlagsService: FeatureFlagsService
+    private readonly featureFlagsService: FeatureFlagsService,
+    private readonly deploymentSettingRepository: DeploymentSettingRepository
   ) {}
 
   public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
@@ -62,11 +64,30 @@ export class DeploymentWriterService {
     });
 
     const result = await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, [message]);
+
+    if (input.runtimeLimitHours) {
+      await this.persistRuntimeLimit({ userId: wallet.userId, dseq: dseq.toString(), runtimeLimitHours: input.runtimeLimitHours });
+    }
+
     return {
       dseq: dseq.toString(),
       manifest: manifestToSortedJSON(manifest.groups),
       signTx: result
     };
+  }
+
+  /**
+   * Runs after the create tx so a failed create leaves no settings row for the funding sweep to visit
+   * forever. A persistence failure surfaces as an error rather than best-effort: until switching modes
+   * ships, a silently dropped limit would leave the deployment funded indefinitely with no way back.
+   */
+  private async persistRuntimeLimit(input: { userId: string; dseq: string; runtimeLimitHours: number }): Promise<void> {
+    try {
+      await this.deploymentSettingRepository.upsertRuntimeLimit(input);
+    } catch (error) {
+      this.logger.error({ event: "RUNTIME_LIMIT_PERSISTENCE_FAILED", ...input, error });
+      throw error;
+    }
   }
 
   /**
