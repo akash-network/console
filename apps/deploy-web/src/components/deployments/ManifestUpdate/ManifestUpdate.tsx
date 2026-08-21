@@ -21,7 +21,7 @@ import { TransactionMessageData as TransactionMessageDataOriginal } from "@src/u
 import RemoteDeployUpdate from "../../remote-deploy/update/RemoteDeployUpdate";
 import { SDLEditor } from "../../sdl/SDLEditor/SDLEditor";
 import { ManifestErrorSnackbar } from "../../shared/ManifestErrorSnackbar/ManifestErrorSnackbar";
-import { Title } from "../../shared/Title";
+import { DeploymentTabHeader } from "../DeploymentDetail/DeploymentTabHeader";
 
 export const DEPENDENCIES = {
   Alert,
@@ -34,7 +34,6 @@ export const DEPENDENCIES = {
   RemoteDeployUpdate,
   SDLEditor,
   ManifestErrorSnackbar,
-  Title,
   InfoCircle,
   WarningCircle,
   useWallet: useWalletOriginal,
@@ -197,62 +196,59 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
       ) : (
         <>
           <div>
-            <div className="flex h-[50px] items-center justify-between space-x-2 px-2 py-1">
-              <div className="flex items-center space-x-2">
-                <d.Title subTitle className="!text-base">
-                  Update Deployment
-                </d.Title>
+            <DeploymentTabHeader
+              title="Update Deployment"
+              actions={
+                <div className="flex items-center gap-2">
+                  {onRedeploy && (
+                    <d.Button variant="outline" size="md" className="gap-1" type="button" disabled={isSendingManifest} onClick={onRedeploy}>
+                      <Upload className="text-xs" />
+                      Redeploy
+                    </d.Button>
+                  )}
+                  <d.Button
+                    disabled={
+                      !providerCredentials.details.usable ||
+                      !!parsingError ||
+                      !editedManifest ||
+                      !providers ||
+                      isSendingManifest ||
+                      deployment.state !== "active" ||
+                      isBlockchainDown
+                    }
+                    onClick={() => handleUpdateClick()}
+                    size="md"
+                    type="button"
+                  >
+                    Update Deployment
+                  </d.Button>
+                </div>
+              }
+            >
+              <d.CustomTooltip
+                title={
+                  <div>
+                    Akash Groups are translated into Kubernetes Deployments, this means that only a few fields from the Akash SDL are mutable. For example
+                    image, command, args, env and exposed ports can be modified, but compute resources and placement criteria cannot. (
+                    <d.LinkTo onClick={handleUpdateDocClick}>View doc</d.LinkTo>)
+                  </div>
+                }
+              >
+                <d.InfoCircle className="text-xs text-muted-foreground" />
+              </d.CustomTooltip>
 
+              {!!deploymentVersion && deploymentVersion !== deployment.hash && (
                 <d.CustomTooltip
                   title={
-                    <div>
-                      Akash Groups are translated into Kubernetes Deployments, this means that only a few fields from the Akash SDL are mutable. For example
-                      image, command, args, env and exposed ports can be modified, but compute resources and placement criteria cannot. (
-                      <d.LinkTo onClick={handleUpdateDocClick}>View doc</d.LinkTo>)
-                    </div>
+                    <d.Alert variant="warning">
+                      Your local deployment file version doesn't match the one on-chain. If you click update, you will override the deployed version.
+                    </d.Alert>
                   }
                 >
-                  <d.InfoCircle className="text-xs text-muted-foreground" />
+                  <d.WarningCircle className="text-xs text-warning" />
                 </d.CustomTooltip>
-
-                {!!deploymentVersion && deploymentVersion !== deployment.hash && (
-                  <d.CustomTooltip
-                    title={
-                      <d.Alert variant="warning">
-                        Your local deployment file version doesn't match the one on-chain. If you click update, you will override the deployed version.
-                      </d.Alert>
-                    }
-                  >
-                    <d.WarningCircle className="text-xs text-warning" />
-                  </d.CustomTooltip>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                {onRedeploy && (
-                  <d.Button variant="outline" size="md" className="gap-1" type="button" disabled={isSendingManifest} onClick={onRedeploy}>
-                    <Upload className="text-xs" />
-                    Redeploy
-                  </d.Button>
-                )}
-                <d.Button
-                  disabled={
-                    !providerCredentials.details.usable ||
-                    !!parsingError ||
-                    !editedManifest ||
-                    !providers ||
-                    isSendingManifest ||
-                    deployment.state !== "active" ||
-                    isBlockchainDown
-                  }
-                  onClick={() => handleUpdateClick()}
-                  size="md"
-                  type="button"
-                >
-                  Update Deployment
-                </d.Button>
-              </div>
-            </div>
+              )}
+            </DeploymentTabHeader>
 
             {parsingError && <d.Alert variant="warning">{parsingError}</d.Alert>}
 
