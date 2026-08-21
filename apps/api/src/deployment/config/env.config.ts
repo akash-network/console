@@ -8,8 +8,9 @@ export const envSchema = z
     /**
      * Hours of runway automatic funding brings a deployment up to, counting the runway it already holds.
      * Must stay above `AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H`: funding only triggers once a deployment drops
-     * inside that window, so the gap between the two is what a single deposit covers. At or below it every
-     * deposit sizes to zero and automatic funding stops entirely, hence the schema check below.
+     * inside that window, so the gap between the two is the smallest deposit a triggering deployment can
+     * receive. At or below the window that floor is zero, so a deployment triggering at the edge of the
+     * window is funded nothing and simply re-triggers, hence the schema check below.
      */
     AUTO_TOP_UP_TARGET_RUNWAY_IN_H: z.number({ coerce: true }).positive().finite().optional().default(48),
     AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN: z.number({ coerce: true }).positive().optional().default(60),
@@ -37,7 +38,7 @@ export const envSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["AUTO_TOP_UP_TARGET_RUNWAY_IN_H"],
-        message: `AUTO_TOP_UP_TARGET_RUNWAY_IN_H (${env.AUTO_TOP_UP_TARGET_RUNWAY_IN_H}) must be greater than AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H (${env.AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H}), otherwise automatic funding sizes every deposit to zero`
+        message: `AUTO_TOP_UP_TARGET_RUNWAY_IN_H (${env.AUTO_TOP_UP_TARGET_RUNWAY_IN_H}) must be greater than AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H (${env.AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H}), otherwise a deployment triggering at the edge of the window is sized a zero deposit`
       });
     }
   });
