@@ -131,7 +131,6 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
             {costPerBlockUDenom ? <d.CostRate perBlockUDenom={costPerBlockUDenom} denom={denom} gpuCount={liveGpuCount} /> : "—"}
           </SummaryItem>
           <SummaryItem label="BALANCE">{walletBalance ? `$${walletBalance.totalUsd.toFixed(2)}` : "—"}</SummaryItem>
-          <SummaryItem label="GPU">{formatGpuLabel(deployment.gpuAmount ?? 0, getDeploymentGpuModels(deployment.groups))}</SummaryItem>
           <SummaryItem
             label={
               <span className="inline-flex items-center gap-1">
@@ -151,6 +150,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
               <span className="text-muted-foreground">Off</span>
             )}
           </SummaryItem>
+          <SummaryItem label="GPU">{formatGpuLabel(deployment.gpuAmount ?? 0, getDeploymentGpuModels(deployment.groups))}</SummaryItem>
           <SummaryItem label="vCPU">{roundDecimal(deployment.cpuAmount, 2)}</SummaryItem>
           <SummaryItem label="MEMORY">{`${roundDecimal(memory.value, 2)} ${memory.unit}`}</SummaryItem>
           <SummaryItem label="STORAGE">{`${roundDecimal(storage.value, 2)} ${storage.unit}`}</SummaryItem>

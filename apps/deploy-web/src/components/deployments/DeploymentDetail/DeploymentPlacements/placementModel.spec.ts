@@ -214,13 +214,13 @@ describe("placementModel", () => {
   });
 
   describe("formatGpuLabel", () => {
-    it("formats count and model as in the header design", () => {
-      expect(formatGpuLabel(1, ["h100"])).toBe("1× H100");
-      expect(formatGpuLabel(2, ["h100"])).toBe("2× H100");
+    it("formats the model name when one is declared", () => {
+      expect(formatGpuLabel(1, ["h100"])).toBe("H100");
+      expect(formatGpuLabel(2, ["a100"])).toBe("A100");
     });
 
-    it("joins multiple models after the count", () => {
-      expect(formatGpuLabel(2, ["h100", "a100"])).toBe("2× H100, A100");
+    it("joins multiple models", () => {
+      expect(formatGpuLabel(2, ["h100", "a100"])).toBe("H100, A100");
     });
 
     it("falls back to the count when no model is declared", () => {

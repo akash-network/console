@@ -149,11 +149,11 @@ export function getDeploymentGpuModels(groups: DeploymentGroup[] | undefined): s
   return Array.from(new Set((groups ?? []).flatMap(group => getPlacementGpuModels(group))));
 }
 
-/** `{count}× {MODEL}` (e.g. `1× H100`); the count alone when no named model is declared. */
+/** Named model(s) (e.g. `A100`); the count alone when no named model is declared. */
 export function formatGpuLabel(gpuAmount: number, models: string[]): string {
   if (!gpuAmount) return "—";
   const names = models.filter(isNamedGpuModel).map(model => model.toUpperCase());
-  return names.length > 0 ? `${gpuAmount}× ${names.join(", ")}` : String(gpuAmount);
+  return names.length > 0 ? names.join(", ") : String(gpuAmount);
 }
 
 function isNamedGpuModel(model: string | undefined): model is string {
