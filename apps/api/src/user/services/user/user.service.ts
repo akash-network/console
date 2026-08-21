@@ -10,6 +10,7 @@ import { LoggerService } from "@src/core/providers/logging.provider";
 import { getPostgresError, isUniqueViolation } from "@src/core/repositories/base.repository";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
+import { DataKeyService } from "@src/secret/services/data-key/data-key.service";
 import { UserInput, type UserOutput, UserRepository } from "../../repositories/user/user.repository";
 
 @singleton()
@@ -22,7 +23,8 @@ export class UserService {
     private readonly auth0: Auth0Service,
     private readonly emailVerificationCodeService: EmailVerificationCodeService,
     private readonly walletInitializer: WalletInitializerService,
-    private readonly trialActivationJobService: TrialActivationJobService
+    private readonly trialActivationJobService: TrialActivationJobService,
+    private readonly dataKeyService: DataKeyService
   ) {}
 
   async registerUser(data: RegisterUserInput): Promise<{
@@ -64,6 +66,8 @@ export class UserService {
       this.logger.error({ event: "FAILED_TO_ENSURE_USER_WALLET", id: user.id, error });
     });
 
+    await this.ensureDataKeyBestEffort(user.id);
+
     if (user.emailVerified) {
       await this.trialActivationJobService.schedule(user.id).catch(error => {
         this.logger.error({ event: "FAILED_TO_SCHEDULE_TRIAL_ACTIVATION", id: user.id, error });
@@ -99,6 +103,18 @@ export class UserService {
       githubUsername,
       isNewUser: wasInserted
     } as Awaited<ReturnType<this["registerUser"]>>;
+  }
+
+  /**
+   * Best effort on purpose: signup must not wait on the SDL secrets key service, so a sealing key
+   * still cold when this runs leaves the user without a data key. `register-user` runs on every
+   * login, so the next one creates it — but a key that never warms means no data keys at all, and
+   * this error log is the only signal of that.
+   */
+  private async ensureDataKeyBestEffort(userId: string) {
+    await this.dataKeyService.ensureDataKey(userId).catch(error => {
+      this.logger.error({ event: "FAILED_TO_ENSURE_USER_DATA_KEY", id: userId, error });
+    });
   }
 
   private async upsertUser(userDetails: UpdateUserInput, attempt = 0): Promise<{ user: UserOutput; wasInserted: boolean }> {
