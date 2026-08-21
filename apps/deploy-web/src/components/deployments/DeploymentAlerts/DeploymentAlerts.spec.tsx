@@ -10,35 +10,30 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { buildDeploymentAlert } from "@tests/seeders/deploymentAlert";
 import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 
-describe("DeploymentAlerts", () => {
-  it("should handle form submission with updated alert settings", async () => {
+describe(DeploymentAlertsView.name, () => {
+  it("does not render escrow-balance fields", () => {
+    setup();
+
+    expect(screen.queryByText("Escrow Balance")).not.toBeInTheDocument();
+    expect(screen.queryByRole("spinbutton", { name: /threshold/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: /escrow balance notification channel/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Enabled", { selector: '[name="deploymentBalance.enabled"]' })).not.toBeInTheDocument();
+  });
+
+  it("handles form submission with updated closed-alert settings", async () => {
     const { componentProps } = setup();
 
-    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentBalance.enabled"]' }));
     fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentClosed.enabled"]' }));
-
-    fireEvent.change(screen.getByRole("combobox", { name: /escrow balance notification channel/i }), {
-      target: { value: componentProps.notificationChannels[0].id }
-    });
     fireEvent.change(screen.getByRole("combobox", { name: /deployment close notification channel/i }), {
       target: { value: componentProps.notificationChannels[1].id }
     });
 
-    fireEvent.change(screen.getByRole("spinbutton", { name: /threshold/i }), { target: { value: "100" } });
-
-    const saveButton = screen.getByRole("button", { name: /save changes/i }) as HTMLButtonElement;
-
     await act(async () => {
-      fireEvent.click(saveButton);
+      fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
     });
 
     expect(componentProps.upsert).toHaveBeenCalledWith({
       alerts: {
-        deploymentBalance: expect.objectContaining({
-          enabled: false,
-          notificationChannelId: componentProps.notificationChannels[0].id,
-          threshold: 100
-        }),
         deploymentClosed: expect.objectContaining({
           enabled: false,
           notificationChannelId: componentProps.notificationChannels[1].id
@@ -47,66 +42,10 @@ describe("DeploymentAlerts", () => {
     });
   });
 
-  it("only persists the edited section when the escrow balance has drifted", async () => {
-    const { componentProps, rerender } = setup({ data: undefined, maxBalanceThreshold: 1000 });
-
-    rerender({ maxBalanceThreshold: 500 });
-
-    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentClosed.enabled"]' }));
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
-    });
-
-    expect(componentProps.upsert).toHaveBeenCalledWith({
-      alerts: { deploymentClosed: expect.objectContaining({ enabled: true }) }
-    });
-  });
-
-  it("saves an unrelated edit after the escrow balance drops below the mounted threshold", async () => {
-    const { componentProps, rerender } = setup({ data: undefined, maxBalanceThreshold: 1000 });
-
-    rerender({ maxBalanceThreshold: 100 });
-
-    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentClosed.enabled"]' }));
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
-    });
-
-    expect(componentProps.upsert).toHaveBeenCalledWith({
-      alerts: { deploymentClosed: expect.objectContaining({ enabled: true }) }
-    });
-  });
-
-  it("saves an unrelated edit when a saved threshold now exceeds the dropped balance", async () => {
-    const { componentProps, rerender } = setup({ maxBalanceThreshold: 1000 });
-
-    rerender({ maxBalanceThreshold: 50 });
-
-    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentClosed.enabled"]' }));
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
-    });
-
-    expect(componentProps.upsert).toHaveBeenCalledWith({
-      alerts: { deploymentClosed: expect.objectContaining({ enabled: false }) }
-    });
-  });
-
-  it("does not flag unsaved changes when the escrow balance drops on close", () => {
-    const { componentProps, rerender } = setup({ data: undefined, maxBalanceThreshold: 1000 });
-
-    rerender({ maxBalanceThreshold: 0, disabled: true });
-
-    expect(componentProps.onStateChange).not.toHaveBeenCalledWith({ hasChanges: true });
-  });
-
   it("stops flagging unsaved changes once the deployment is closed", () => {
     const { componentProps, rerender } = setup({ data: undefined });
 
-    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentBalance.enabled"]' }));
+    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentClosed.enabled"]' }));
     expect(componentProps.onStateChange).toHaveBeenCalledWith({ hasChanges: true });
 
     rerender({ disabled: true });
@@ -119,7 +58,7 @@ describe("DeploymentAlerts", () => {
 
     expect((screen.getByRole("button", { name: /save changes/i }) as HTMLButtonElement).disabled).toBe(true);
 
-    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentBalance.enabled"]' }));
+    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentClosed.enabled"]' }));
 
     expect((screen.getByRole("button", { name: /save changes/i }) as HTMLButtonElement).disabled).toBe(false);
   });
@@ -127,16 +66,16 @@ describe("DeploymentAlerts", () => {
   it("disables the save button while a save is in flight", () => {
     setup({ isSaving: true });
 
-    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentBalance.enabled"]' }));
+    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentClosed.enabled"]' }));
 
     expect((screen.getByRole("button", { name: /save changes/i }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("blocks saving an enabled balance alert with no notification channel", async () => {
+  it("blocks saving an enabled closed alert with no notification channel", async () => {
     const { componentProps } = setup({ data: undefined });
 
-    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentBalance.enabled"]' }));
-    fireEvent.change(screen.getByRole("combobox", { name: /escrow balance notification channel/i }), { target: { value: "" } });
+    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentClosed.enabled"]' }));
+    fireEvent.change(screen.getByRole("combobox", { name: /deployment close notification channel/i }), { target: { value: "" } });
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
@@ -145,23 +84,7 @@ describe("DeploymentAlerts", () => {
     expect(componentProps.upsert).not.toHaveBeenCalled();
   });
 
-  it("saves a balance-alert toggle without re-validating an untouched stale threshold", async () => {
-    const { componentProps, rerender } = setup({ maxBalanceThreshold: 1000 });
-
-    rerender({ maxBalanceThreshold: 50 });
-
-    fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentBalance.enabled"]' }));
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
-    });
-
-    expect(componentProps.upsert).toHaveBeenCalledWith({
-      alerts: { deploymentBalance: expect.objectContaining({ enabled: false, threshold: 100 }) }
-    });
-  });
-
-  function setup(input: { data?: ChildrenProps["data"]; maxBalanceThreshold?: number; disabled?: boolean; isSaving?: boolean } = {}) {
+  function setup(input: { data?: ChildrenProps["data"]; disabled?: boolean; isSaving?: boolean } = {}) {
     const channel1Id = faker.string.uuid();
     const channel2Id = faker.string.uuid();
 
@@ -173,30 +96,16 @@ describe("DeploymentAlerts", () => {
           <div>
             <input type="checkbox" {...register("deploymentClosed.enabled")} aria-label="Enabled" disabled={disabled} />
             <select {...register("deploymentClosed.notificationChannelId")} aria-label="Deployment Close Notification Channel" disabled={disabled}>
-              <option value={channel1Id}>Channel 1</option>
-              <option value={channel2Id}>Channel 2</option>
-            </select>
-          </div>
-        );
-      },
-      DeploymentBalanceAlert: ({ disabled }: { disabled?: boolean }) => {
-        const { register } = useFormContext();
-        return (
-          <div>
-            <input type="checkbox" {...register("deploymentBalance.enabled")} aria-label="Enabled" disabled={disabled} />
-            <select {...register("deploymentBalance.notificationChannelId")} aria-label="Escrow Balance Notification Channel" disabled={disabled}>
               <option value="">None</option>
               <option value={channel1Id}>Channel 1</option>
               <option value={channel2Id}>Channel 2</option>
             </select>
-            <input type="number" {...register("deploymentBalance.threshold", { valueAsNumber: true })} aria-label="Threshold" disabled={disabled} />
           </div>
         );
       }
     };
 
     const componentProps: Omit<ChildrenProps & DeploymentAlertsViewProps, "deployment"> = {
-      maxBalanceThreshold: input.maxBalanceThreshold ?? 1000,
       onStateChange: vi.fn(),
       notificationChannels: [buildNotificationChannel({ id: channel1Id }), buildNotificationChannel({ id: channel2Id })],
       upsert: vi.fn(),
@@ -207,13 +116,6 @@ describe("DeploymentAlerts", () => {
           ? input.data
           : buildDeploymentAlert({
               alerts: {
-                deploymentBalance: {
-                  id: faker.string.uuid(),
-                  status: "NORMAL",
-                  notificationChannelId: channel1Id,
-                  threshold: 100,
-                  enabled: true
-                },
                 deploymentClosed: {
                   id: faker.string.uuid(),
                   status: "NORMAL",
@@ -229,15 +131,8 @@ describe("DeploymentAlerts", () => {
 
     const view = render(<DeploymentAlertsView {...componentProps} dependencies={DEPENDENCIES} />);
 
-    const rerender = (next: { maxBalanceThreshold?: number; disabled?: boolean }) =>
-      view.rerender(
-        <DeploymentAlertsView
-          {...componentProps}
-          maxBalanceThreshold={next.maxBalanceThreshold ?? componentProps.maxBalanceThreshold}
-          disabled={next.disabled ?? componentProps.disabled}
-          dependencies={DEPENDENCIES}
-        />
-      );
+    const rerender = (next: { disabled?: boolean }) =>
+      view.rerender(<DeploymentAlertsView {...componentProps} disabled={next.disabled ?? componentProps.disabled} dependencies={DEPENDENCIES} />);
 
     return { componentProps, rerender };
   }

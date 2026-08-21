@@ -1,6 +1,6 @@
 "use client";
 
-import { type FC, useCallback, useEffect, useMemo, useRef } from "react";
+import { type FC, useCallback, useEffect, useMemo } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { LoadingButton } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,33 +16,24 @@ import type {
 import { DeploymentAlertsContainer } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
 import { NotificationChannelsGuard } from "@src/components/alerts/NotificationChannelsGuard/NotificationChannelsGuard";
 import type { NotificationChannelsOutput } from "@src/components/alerts/NotificationChannelsListContainer/NotificationChannelsListContainer";
-import { DeploymentBalanceAlert } from "@src/components/deployments/DeploymentBalanceAlert/DeploymentBalanceAlert";
 import { DeploymentCloseAlert } from "@src/components/deployments/DeploymentCloseAlert/DeploymentCloseAlert";
 import { LoadingBlocker } from "@src/components/layout/LoadingBlocker/LoadingBlocker";
 import { useFlag } from "@src/hooks/useFlag";
 import type { ChangeableComponentProps } from "@src/types/changeable-component-props.type";
 import type { DeploymentDto } from "@src/types/deployment";
-import { ceilDecimal } from "@src/utils/mathHelpers";
 
 const DEPENDENCIES = {
   DeploymentCloseAlert,
-  DeploymentBalanceAlert,
   useFlag
 };
 
 export type Props = ChangeableComponentProps<{
   dependencies?: typeof DEPENDENCIES;
-  maxBalanceThreshold: number;
   notificationChannels: NotificationChannelsOutput;
   disabled?: boolean;
 }>;
 
 const schema = z.object({
-  deploymentBalance: z.object({
-    notificationChannelId: z.string().min(1, "Notification Channel is required"),
-    threshold: z.number().min(0, "Threshold must be greater than 0"),
-    enabled: z.boolean()
-  }),
   deploymentClosed: z.object({
     notificationChannelId: z.string().min(1, "Notification Channel is required"),
     enabled: z.boolean()
@@ -50,11 +41,6 @@ const schema = z.object({
 });
 
 const DEFAULT_VALUES = {
-  deploymentBalance: {
-    notificationChannelId: "",
-    threshold: 0,
-    enabled: false
-  },
   deploymentClosed: {
     notificationChannelId: "",
     enabled: false
@@ -66,24 +52,12 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
   isSaving,
   data,
   upsert,
-  maxBalanceThreshold,
   onStateChange,
   notificationChannels,
   disabled,
   dependencies: d = DEPENDENCIES
 }) => {
   const isDeploymentClosedEnabled = d.useFlag("ui_deployment_closed_alert");
-  const isThresholdDirty = useRef(false);
-  const strictSchema = useMemo(() => {
-    return schema.extend({
-      deploymentBalance: schema.shape.deploymentBalance.extend({
-        threshold: schema.shape.deploymentBalance.shape.threshold.refine(
-          value => !isThresholdDirty.current || value <= maxBalanceThreshold,
-          "Threshold must be less than or equal to the current balance"
-        )
-      })
-    });
-  }, [maxBalanceThreshold]);
 
   const assignDefaults = useCallback(
     (alerts?: DeploymentAlertsOutput["alerts"]) => {
@@ -91,18 +65,14 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
         {},
         DEFAULT_VALUES,
         {
-          deploymentBalance: {
-            notificationChannelId: notificationChannels[0]?.id || "",
-            threshold: ceilDecimal(0.3 * maxBalanceThreshold)
-          },
           deploymentClosed: {
             notificationChannelId: notificationChannels[0]?.id || ""
           }
         },
-        alerts
+        alerts?.deploymentClosed ? { deploymentClosed: alerts.deploymentClosed } : undefined
       );
     },
-    [maxBalanceThreshold, notificationChannels]
+    [notificationChannels]
   );
 
   const providedValues = useMemo(() => {
@@ -112,26 +82,18 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
   const form = useForm({
     defaultValues: providedValues,
     reValidateMode: "onSubmit",
-    resolver: zodResolver(strictSchema)
+    resolver: zodResolver(schema)
   });
 
   const { isDirty, dirtyFields } = form.formState;
-
-  useEffect(() => {
-    isThresholdDirty.current = !!dirtyFields.deploymentBalance?.threshold;
-  }, [dirtyFields.deploymentBalance?.threshold]);
 
   useEffect(() => {
     onStateChange?.({ hasChanges: !disabled && isDirty });
   }, [isDirty, disabled, onStateChange]);
 
   const submit = useCallback(async () => {
-    const { deploymentBalance, deploymentClosed } = form.getValues();
+    const { deploymentClosed } = form.getValues();
     const payload: Partial<FullAlertsInput> = {};
-
-    if (dirtyFields.deploymentBalance) {
-      payload.deploymentBalance = deploymentBalance;
-    }
 
     if (dirtyFields.deploymentClosed) {
       payload.deploymentClosed = deploymentClosed;
@@ -141,7 +103,7 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
     if (nextValues) {
       form.reset(assignDefaults(nextValues.alerts));
     }
-  }, [dirtyFields.deploymentBalance, dirtyFields.deploymentClosed, form, upsert, assignDefaults]);
+  }, [dirtyFields.deploymentClosed, form, upsert, assignDefaults]);
 
   return (
     <FormProvider {...form}>
@@ -154,17 +116,18 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
             </LoadingButton>
           )}
         </div>
-        <div className="grid-col-1 mb-6 grid gap-6 md:grid-cols-2">
-          <d.DeploymentBalanceAlert disabled={isLoading || disabled} />
-          {isDeploymentClosedEnabled && <d.DeploymentCloseAlert disabled={isLoading || disabled} />}
-        </div>
+        {isDeploymentClosedEnabled && (
+          <div className="mb-6">
+            <d.DeploymentCloseAlert disabled={isLoading || disabled} />
+          </div>
+        )}
       </form>
     </FormProvider>
   );
 };
 
 export type ExternalProps = {
-  deployment: Pick<DeploymentDto, "escrowBalance" | "dseq" | "denom" | "state">;
+  deployment: Pick<DeploymentDto, "dseq" | "state">;
 } & Pick<Props, "onStateChange">;
 
 export const DeploymentAlerts: FC<ExternalProps> = ({ deployment, onStateChange }) => {

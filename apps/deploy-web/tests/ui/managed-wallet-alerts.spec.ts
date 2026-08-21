@@ -39,40 +39,13 @@ test.describe("Managed wallet alerts", () => {
       await deploymentDetail.openAlerts();
     });
 
-    await test.step("verify escrow balance alert is NOT enabled by default", async () => {
-      await expect(alertsForm.getEscrowEnabledToggle()).not.toBeChecked();
-      await expect(alertsForm.getEscrowThresholdInput()).toBeVisible();
-      await expect(alertsForm.getEscrowChannelSelect()).toBeVisible();
+    await test.step("does not show the escrow balance alert", async () => {
+      await expect(page.getByLabel("Escrow Balance")).toHaveCount(0);
     });
 
     await test.step("verify deployment close alert is enabled by default", async () => {
       await expect(alertsForm.getCloseEnabledToggle()).toBeChecked();
       await expect(alertsForm.getCloseChannelSelect()).toBeVisible();
-    });
-
-    await test.step("enable escrow balance alert, update threshold, and save", async () => {
-      await alertsForm.getEscrowEnabledToggle().click();
-      await expect(alertsForm.getEscrowEnabledToggle()).toBeChecked();
-
-      const originalValue = await alertsForm.getEscrowThresholdInput().inputValue();
-      const newThreshold = Math.max(0.01, parseFloat(originalValue) * 0.5).toFixed(3);
-
-      await alertsForm.setEscrowThreshold(newThreshold);
-      await alertsForm.saveChanges();
-
-      await expect(alertsForm.getEscrowThresholdInput()).toHaveValue(newThreshold);
-    });
-
-    await test.step("disable escrow balance alert and save", async () => {
-      await alertsForm.getEscrowEnabledToggle().click();
-      await expect(alertsForm.getEscrowEnabledToggle()).not.toBeChecked();
-      await alertsForm.saveChanges();
-    });
-
-    await test.step("re-enable escrow balance alert and save", async () => {
-      await alertsForm.getEscrowEnabledToggle().click();
-      await expect(alertsForm.getEscrowEnabledToggle()).toBeChecked();
-      await alertsForm.saveChanges();
     });
 
     await test.step("verify alerts on global alerts page", async () => {
@@ -82,6 +55,10 @@ test.describe("Managed wallet alerts", () => {
     });
 
     const deploymentAlertRow = await alertsPage.findAlertRowByDseq(dseq!);
+
+    await test.step("has no escrow threshold rows", async () => {
+      await expect(page.getByText("Escrow Threshold")).toHaveCount(0);
+    });
 
     await test.step("toggle alert from alerts list", async () => {
       const toggle = alertsPage.getAlertToggle(deploymentAlertRow);
