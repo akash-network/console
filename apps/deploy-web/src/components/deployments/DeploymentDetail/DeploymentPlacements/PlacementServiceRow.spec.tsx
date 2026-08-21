@@ -22,6 +22,12 @@ describe(PlacementServiceRow.name, () => {
     expect(screen.getByText("Starting")).toBeInTheDocument();
   });
 
+  it("reports loading when lease status has not arrived", () => {
+    setup({ leaseState: "active" });
+
+    expect(screen.getByText("Loading")).toBeInTheDocument();
+  });
+
   it("reports a closed service when the lease has been reclaimed while still active", () => {
     setup({ service: mock<LeaseServiceStatus>({ available: 1 }), leaseState: "active", isReclaimed: true });
 

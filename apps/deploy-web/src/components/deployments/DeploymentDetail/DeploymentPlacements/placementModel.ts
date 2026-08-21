@@ -172,6 +172,8 @@ export interface ServiceStatusView {
  * state. Any lease that is not live — closed, out of funds, or provider-reclaimed even while its `state`
  * still reads "active" — is terminal, so the row stays in sync with the ReclamationCard banner above it
  * and an escrow-drained lease shows "Closed" instead of spinning on "Starting" forever.
+ * Until lease status arrives, the row is "Loading" rather than "Starting", so a refresh of an already
+ * running service does not flash the wrong label.
  */
 export function getServiceStatus(
   service: Pick<LeaseServiceStatus, "available" | "total" | "ready_replicas"> | undefined,
@@ -179,7 +181,8 @@ export function getServiceStatus(
   isReclaimed = false
 ): ServiceStatusView {
   if (!isLeaseLive({ state: leaseState }) || isReclaimed) return { label: "Closed", tone: "closed" };
-  if (service && service.available > 0) return { label: "Running", tone: "running" };
+  if (!service) return { label: "Loading", tone: "pending" };
+  if (service.available > 0) return { label: "Running", tone: "running" };
   return { label: "Starting", tone: "pending" };
 }
 

@@ -240,7 +240,10 @@ describe("placementModel", () => {
 
     it("reports starting when no replica is available yet", () => {
       expect(getServiceStatus(buildService({ available: 0 }), "active")).toEqual({ label: "Starting", tone: "pending" });
-      expect(getServiceStatus(undefined, "active")).toEqual({ label: "Starting", tone: "pending" });
+    });
+
+    it("reports loading until lease status arrives", () => {
+      expect(getServiceStatus(undefined, "active")).toEqual({ label: "Loading", tone: "pending" });
     });
 
     it("reports closed when the lease is closed", () => {
