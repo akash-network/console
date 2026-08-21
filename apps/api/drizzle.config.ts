@@ -9,7 +9,7 @@ if (!POSTGRES_DB_URI) {
 }
 
 export default defineConfig({
-  schema: ["billing", "user", "deployment", "auth"].map(schema => `./src/${schema}/model-schemas`),
+  schema: ["billing", "user", "deployment", "auth", "secret"].map(schema => `./src/${schema}/model-schemas`),
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
