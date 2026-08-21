@@ -1,4 +1,5 @@
 import { TooltipProvider } from "@akashnetwork/ui/components";
+import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -60,6 +61,18 @@ describe(PlacementServiceRow.name, () => {
     expect(screen.getByText("2/3 replicas")).toBeInTheDocument();
   });
 
+  it("hides the replica count when the lease is closed", () => {
+    setup({ service: mock<LeaseServiceStatus>({ available: 2, total: 3 }), leaseState: "closed" });
+
+    expect(screen.queryByText("2/3 replicas")).not.toBeInTheDocument();
+  });
+
+  it("hides the replica count when the lease has been reclaimed", () => {
+    setup({ service: mock<LeaseServiceStatus>({ available: 2, total: 3 }), leaseState: "active", isReclaimed: true });
+
+    expect(screen.queryByText("2/3 replicas")).not.toBeInTheDocument();
+  });
+
   it("keeps forwarded ports collapsed until the row is expanded", async () => {
     setup({ forwardedPorts: [{ host: "provider.io", externalPort: 30000, port: 80, available: 1 }] });
 
@@ -117,10 +130,12 @@ describe(PlacementServiceRow.name, () => {
   });
 
   it("does not show env vars or command", async () => {
+    const envValue = faker.string.alphanumeric(24);
+
     setup({
       detail: {
         image: "nginx:1.25",
-        env: [{ key: "API_KEY", value: "secret" }],
+        env: [{ key: "API_KEY", value: envValue }],
         command: "sh -c echo hi"
       }
     });
@@ -130,6 +145,7 @@ describe(PlacementServiceRow.name, () => {
     expect(screen.queryByText("Env vars")).not.toBeInTheDocument();
     expect(screen.queryByText("Command")).not.toBeInTheDocument();
     expect(screen.queryByText("API_KEY")).not.toBeInTheDocument();
+    expect(screen.queryByText(envValue)).not.toBeInTheDocument();
     expect(screen.queryByText("sh -c echo hi")).not.toBeInTheDocument();
   });
 

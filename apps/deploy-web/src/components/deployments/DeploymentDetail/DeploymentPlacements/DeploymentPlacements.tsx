@@ -37,7 +37,7 @@ export const DeploymentPlacements: FC<DeploymentPlacementsProps> = ({
   const serviceCount = countPlacementServices(leases, servicesByPlacement, manifestServices);
 
   return (
-    <div>
+    <div className="space-y-4">
       <DeploymentTabHeader
         title="Placements"
         actions={

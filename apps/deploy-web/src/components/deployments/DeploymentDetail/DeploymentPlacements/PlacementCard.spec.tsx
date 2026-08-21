@@ -79,6 +79,12 @@ describe(PlacementCard.name, () => {
     expect(screen.queryByRole("button", { name: /expand all/i })).not.toBeInTheDocument();
   });
 
+  it("hides expand all when the lease has been reclaimed while still active", () => {
+    setup({ lease: buildLease({ groupState: "paused" }) });
+
+    expect(screen.queryByRole("button", { name: /expand all/i })).not.toBeInTheDocument();
+  });
+
   it("renders one service row per live service reported by the lease status", () => {
     const PlacementServiceRow = vi.fn(() => <div>service-row</div>);
     setup({ leaseStatus: buildStatus(["web", "api"]), dependencies: { PlacementServiceRow } });

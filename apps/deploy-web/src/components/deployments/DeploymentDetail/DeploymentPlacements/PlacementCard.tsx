@@ -134,7 +134,7 @@ export const PlacementCard: FC<PlacementCardProps> = ({
             <span>Services in this placement</span>
             <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-[11px]">{serviceNames.length}</span>
           </div>
-          {isLeaseActive && serviceNames.length > 0 && (
+          {isLeaseActive && !isReclaimed && serviceNames.length > 0 && (
             <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={toggleAll}>
               {allExpanded ? "Collapse all" : "Expand all"}
             </button>

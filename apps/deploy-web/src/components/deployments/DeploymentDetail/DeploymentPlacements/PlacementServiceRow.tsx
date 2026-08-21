@@ -45,7 +45,7 @@ export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
   const closed = status.tone === "closed";
   const uriLinks = closed ? [] : toUriLinks(uris);
   const portChips = toPortChips({ forwardedPorts, ips, closed });
-  const replicaLabel = formatReplicaCount(service);
+  const replicaLabel = closed ? undefined : formatReplicaCount(service);
 
   function handleOpenChange(next: boolean) {
     if (!isControlled) setUncontrolledOpen(next);
