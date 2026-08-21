@@ -2,6 +2,7 @@
 import type { FC } from "react";
 import { useState } from "react";
 import { MapPin, NavArrowRight, Server } from "iconoir-react";
+import Link from "next/link";
 
 import { useTeeResourceCarveouts } from "@src/hooks/useTeeResourceCarveouts";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
@@ -13,6 +14,7 @@ import { roundDecimal } from "@src/utils/mathHelpers";
 import { providerDisplayName } from "@src/utils/providerUtils";
 import { isProviderReclaimed, isReclaiming } from "@src/utils/reclamationUtils";
 import { bytesToShrink } from "@src/utils/unitUtils";
+import { UrlService } from "@src/utils/urlUtils";
 import { ConfidentialComputeResources } from "../../ConfidentialComputeResources";
 import { DownloadAttestationEvidence } from "../../DownloadAttestationEvidence";
 import { ReclamationCard } from "../../ReclamationCard/ReclamationCard";
@@ -104,11 +106,11 @@ export const PlacementCard: FC<PlacementCardProps> = ({
                 </span>
               )}
               {region && providerName && <NavArrowRight className="h-3 w-3" />}
-              {providerName && (
-                <span className="inline-flex items-center gap-2">
+              {providerName && provider && (
+                <Link href={UrlService.providerDetail(provider.owner)} className="inline-flex items-center gap-2 hover:text-foreground">
                   <Server className="h-3 w-3" />
                   {providerName}
-                </span>
+                </Link>
               )}
             </div>
           )}
@@ -132,7 +134,7 @@ export const PlacementCard: FC<PlacementCardProps> = ({
             <span>Services in this placement</span>
             <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-[11px]">{serviceNames.length}</span>
           </div>
-          {serviceNames.length > 0 && (
+          {isLeaseActive && serviceNames.length > 0 && (
             <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={toggleAll}>
               {allExpanded ? "Collapse all" : "Expand all"}
             </button>

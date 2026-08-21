@@ -22,7 +22,7 @@ describe(PlacementCard.name, () => {
     expect(screen.getByRole("heading", { name: "dcloud" })).toBeInTheDocument();
     expect(screen.getByLabelText("Placement 1")).toBeInTheDocument();
     expect(screen.getByText("us-east")).toBeInTheDocument();
-    expect(screen.getByText("Meridian Cloud")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Meridian Cloud/ })).toHaveAttribute("href", expect.stringContaining("/providers/akash1p"));
   });
 
   it("omits the GPU stat when the lease requests no GPU", () => {
@@ -69,8 +69,14 @@ describe(PlacementCard.name, () => {
   it("hides the region when the provider has not declared one", () => {
     setup({ provider: buildProvider() });
 
-    expect(screen.getByText("Meridian Cloud")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Meridian Cloud/ })).toBeInTheDocument();
     expect(screen.queryByText("us-east")).not.toBeInTheDocument();
+  });
+
+  it("hides expand all when the lease is closed", () => {
+    setup({ lease: buildLease({ state: "closed" }), leaseStatus: null });
+
+    expect(screen.queryByRole("button", { name: /expand all/i })).not.toBeInTheDocument();
   });
 
   it("renders one service row per live service reported by the lease status", () => {

@@ -69,11 +69,21 @@ describe(PlacementServiceRow.name, () => {
     expect(screen.queryByRole("link", { name: /app\.example\.com/ })).not.toBeInTheDocument();
   });
 
-  it("omits the ports row when there are no live endpoints", async () => {
+  it("is not expandable when there are no live endpoints", () => {
     setup({});
 
-    await expandService();
+    expect(screen.queryByRole("button", { name: /web/ })).not.toBeInTheDocument();
+    expect(screen.queryByText("Ports")).not.toBeInTheDocument();
+  });
 
+  it("is not expandable when the lease is closed", () => {
+    setup({
+      leaseState: "closed",
+      forwardedPorts: [{ host: "provider.io", externalPort: 30000, port: 80, available: 1 }]
+    });
+
+    expect(screen.getByText("Closed")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /web/ })).not.toBeInTheDocument();
     expect(screen.queryByText("Ports")).not.toBeInTheDocument();
   });
 

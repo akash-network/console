@@ -41,10 +41,36 @@ export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
   const uriLinks = closed ? [] : toUriLinks(uris);
   const portChips = toPortChips({ forwardedPorts, ips, closed });
   const replicaLabel = formatReplicaCount(service);
+  const expandable = portChips.length > 0;
 
   function handleOpenChange(next: boolean) {
     if (!isControlled) setUncontrolledOpen(next);
     onOpenChange?.(next);
+  }
+
+  const identity = (
+    <>
+      <span className="text-base font-medium">{serviceName}</span>
+      <StatusBadge label={status.label} tone={status.tone} />
+    </>
+  );
+
+  const extras = (
+    <div className="flex min-w-0 flex-1 items-center gap-3">
+      <ServiceUriLinks items={uriLinks} />
+      {replicaLabel ? <span className="ml-auto shrink-0 text-sm text-muted-foreground">{replicaLabel}</span> : null}
+    </div>
+  );
+
+  if (!expandable) {
+    return (
+      <div className="overflow-hidden rounded-lg border">
+        <div className="flex items-center gap-3 p-4">
+          <div className="flex items-center gap-3">{identity}</div>
+          {extras}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -52,24 +78,18 @@ export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
       <div className="flex items-center gap-3 p-4">
         <CollapsibleTrigger className="flex shrink-0 items-center gap-3 text-left">
           {open ? <NavArrowDown className="h-4 w-4 shrink-0" /> : <NavArrowRight className="h-4 w-4 shrink-0" />}
-          <span className="text-base font-medium">{serviceName}</span>
-          <StatusBadge label={status.label} tone={status.tone} />
+          {identity}
         </CollapsibleTrigger>
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <ServiceUriLinks items={uriLinks} />
-          {replicaLabel && <span className="ml-auto shrink-0 text-sm text-muted-foreground">{replicaLabel}</span>}
-        </div>
+        {extras}
       </div>
 
-      {portChips.length > 0 && (
-        <CollapsibleContent>
-          <div className="border-t">
-            <ServiceDetailRow icon={<Label className="h-4 w-4" />} title="Ports">
-              <PortChips items={portChips} />
-            </ServiceDetailRow>
-          </div>
-        </CollapsibleContent>
-      )}
+      <CollapsibleContent>
+        <div className="border-t">
+          <ServiceDetailRow icon={<Label className="h-4 w-4" />} title="Ports">
+            <PortChips items={portChips} />
+          </ServiceDetailRow>
+        </div>
+      </CollapsibleContent>
     </Collapsible>
   );
 };

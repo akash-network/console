@@ -36,8 +36,8 @@ export const DeploymentPlacements: FC<DeploymentPlacementsProps> = ({
   const serviceCount = countPlacementServices(leases, servicesByPlacement, manifestServices);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between py-3 text-xs font-medium text-muted-foreground">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
         <span className="uppercase tracking-wide">Placements</span>
         <span>
           {leases.length} {pluralize("placement", leases.length)} · {serviceCount} {pluralize("service", serviceCount)}
