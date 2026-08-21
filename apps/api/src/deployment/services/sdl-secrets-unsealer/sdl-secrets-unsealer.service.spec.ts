@@ -1,8 +1,8 @@
 import type { protos } from "@google-cloud/kms";
 import crc32c from "fast-crc32c";
 import { grpc } from "google-gax";
-import { CompactEncrypt, importJWK } from "jose";
-import { constants, createHash, generateKeyPairSync, privateDecrypt, randomBytes, randomUUID } from "node:crypto";
+import { compactDecrypt, CompactEncrypt, importJWK } from "jose";
+import { constants, createCipheriv, createHash, generateKeyPairSync, privateDecrypt, publicEncrypt, randomBytes, randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -20,6 +20,10 @@ const SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n';
 
 function sdlHashOf(sdl: string) {
   return createHash("sha256").update(sdl, "utf8").digest("base64url");
+}
+
+function sealClaims(claims?: Record<string, unknown>) {
+  return { alg: "RSA-OAEP-256", enc: "A256GCM", kid: KID, sub: SUBJECT, exp: Math.floor(Date.now() / 1000) + 300, ...claims };
 }
 
 describe(SdlSecretsUnsealerService.name, () => {
@@ -114,6 +118,26 @@ describe(SdlSecretsUnsealerService.name, () => {
 
     await expect(open([stripped, ...rest].join("."))).rejects.toMatchObject({ status: 400 });
     expect(sdlHash).toEqual(sdlHashOf(SDL));
+  });
+
+  it("assembles a seal jose opens, so the decoder's wire format is not private to it", async () => {
+    const { assembleSeal, privateKey, clientSecrets } = setup();
+
+    const { plaintext } = await compactDecrypt(assembleSeal(clientSecrets), privateKey);
+
+    expect(JSON.parse(new TextDecoder().decode(plaintext))).toEqual(clientSecrets);
+  });
+
+  it("opens a seal assembled from the same primitives and AAD convention it decodes with", async () => {
+    const { open, assembleSeal, clientSecrets } = setup();
+
+    await expect(open(assembleSeal(clientSecrets))).resolves.toEqual(clientSecrets);
+  });
+
+  it("opens a hand-assembled seal bound to the SDL it was assembled against", async () => {
+    const { open, assembleSeal, clientSecrets } = setup();
+
+    await expect(open(assembleSeal(clientSecrets, { sdlHash: sdlHashOf(SDL) }))).resolves.toEqual(clientSecrets);
   });
 
   it("does not call KMS when the header is unacceptable", async () => {
@@ -331,12 +355,33 @@ describe(SdlSecretsUnsealerService.name, () => {
     const jwk = { ...publicKey.export({ format: "jwk" }), use: "enc", alg: "RSA-OAEP-256" };
     const clientSecrets = { DB_URL: `postgres://app:${randomUUID()}@db.internal/app`, API_TOKEN: randomBytes(20).toString("hex") };
 
-    const seal = async (secrets: unknown, claims?: Record<string, unknown>) => {
-      const header = { alg: "RSA-OAEP-256", enc: "A256GCM", kid: KID, sub: SUBJECT, exp: Math.floor(Date.now() / 1000) + 300, ...claims };
-
-      return new CompactEncrypt(new TextEncoder().encode(JSON.stringify(secrets)))
-        .setProtectedHeader(header as never)
+    const seal = async (secrets: unknown, claims?: Record<string, unknown>) =>
+      new CompactEncrypt(new TextEncoder().encode(JSON.stringify(secrets)))
+        .setProtectedHeader(sealClaims(claims) as never)
         .encrypt(await importJWK(jwk, "RSA-OAEP-256"));
+
+    /**
+     * Builds a compact JWE from the same stock primitives and AAD convention the service decodes
+     * with. The console only ever opens seals, so there is no production producer to test against;
+     * this is the closest honest reverse direction, and it fails whichever way a base64url,
+     * AAD-encoding or OAEP-digest divergence exists.
+     */
+    const assembleSeal = (secrets: unknown, claims?: Record<string, unknown>) => {
+      const protectedHeader = Buffer.from(JSON.stringify(sealClaims(claims))).toString("base64url");
+      const contentEncryptionKey = randomBytes(32);
+      const encryptedKey = publicEncrypt({ key: publicKey, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" }, contentEncryptionKey);
+      const iv = randomBytes(12);
+      const cipher = createCipheriv("aes-256-gcm", contentEncryptionKey, iv);
+      cipher.setAAD(Buffer.from(protectedHeader, "ascii"));
+      const ciphertext = Buffer.concat([cipher.update(JSON.stringify(secrets), "utf8"), cipher.final()]);
+
+      return [
+        protectedHeader,
+        encryptedKey.toString("base64url"),
+        iv.toString("base64url"),
+        ciphertext.toString("base64url"),
+        cipher.getAuthTag().toString("base64url")
+      ].join(".");
     };
 
     const kmsClient = mock<SdlSecretsKmsClient>();
@@ -360,6 +405,6 @@ describe(SdlSecretsUnsealerService.name, () => {
     const service = new SdlSecretsUnsealerService(kmsTarget, authService, createLogger);
     const open = (seal: string, sdl = SDL) => service.open({ seal, sdl });
 
-    return { open, kmsClient, authService, logger, seal, clientSecrets };
+    return { open, kmsClient, authService, logger, seal, assembleSeal, privateKey, clientSecrets };
   }
 });
