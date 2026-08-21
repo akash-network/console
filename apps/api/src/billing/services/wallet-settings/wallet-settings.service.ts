@@ -133,17 +133,26 @@ export class WalletSettingService {
   }
 
   async #arrangeSchedule(prev?: WalletSettingOutput, next?: WalletSettingOutput) {
-    if (!next?.autoReloadEnabled) {
+    if (!next) {
       return;
     }
 
-    if (!prev?.autoReloadEnabled) {
-      await this.walletReloadJobService.scheduleForWalletSetting(next, { withCleanup: true });
+    if (next.autoReloadEnabled) {
+      if (!prev?.autoReloadEnabled) {
+        await this.walletReloadJobService.scheduleForWalletSetting(next, { withCleanup: true });
+        await this.walletReloadJobService.cancelCreditsLowCheckByUserId(next.userId);
+        await this.userWalletRepository.updateById(next.walletId, { creditsLowNotifiedAt: null });
+        return;
+      }
+
+      if (this.#hasReloadRuleChanged(prev, next)) {
+        await this.walletReloadJobService.scheduleForWalletSetting(next, { withCleanup: true });
+      }
       return;
     }
 
-    if (this.#hasReloadRuleChanged(prev, next)) {
-      await this.walletReloadJobService.scheduleForWalletSetting(next, { withCleanup: true });
+    if (prev?.autoReloadEnabled) {
+      await this.walletReloadJobService.scheduleCreditsLowCheck(next.userId, { withCleanup: true });
     }
   }
 

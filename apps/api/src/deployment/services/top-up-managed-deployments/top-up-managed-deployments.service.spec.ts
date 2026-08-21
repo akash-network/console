@@ -276,6 +276,41 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
     });
 
+    it("schedules a check for a non-draining auto-top-up owner", async () => {
+      const { service, drainingDeploymentService, deploymentSettingRepository, walletReloadService, managedSignerService } = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+
+      drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() => (async function* () {})());
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+        (async function* () {
+          yield { address: owner, walletId, deploymentSettings: [createAutoTopUpDeployment({ address: owner, walletId })] };
+        })()
+      );
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(walletReloadService.scheduleImmediate).toHaveBeenCalledWith({ walletId });
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+    });
+
+    it("does not schedule extra checks for auto-top-up owners on dry run", async () => {
+      const { service, drainingDeploymentService, deploymentSettingRepository, walletReloadService } = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+
+      drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() => (async function* () {})());
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+        (async function* () {
+          yield { address: owner, walletId, deploymentSettings: [createAutoTopUpDeployment({ address: owner, walletId })] };
+        })()
+      );
+
+      await service.topUpDeployments({ dryRun: true });
+
+      expect(walletReloadService.scheduleImmediate).not.toHaveBeenCalled();
+    });
+
     it("should top up draining deployments for the same owner in the same tx", async () => {
       const { service, drainingDeploymentService, cachedBalanceService, managedSignerService } = setup();
       const owner = createAkashAddress();
@@ -938,6 +973,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.claimForFunding.mockImplementation(async (ids: string[]) => ids.map(createFundingClaim));
     deploymentSettingRepository.releaseFundingClaim.mockResolvedValue(undefined);
+    deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() => (async function* () {})());
     const deploymentConfig = mockConfigService<DeploymentConfigService>({ AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN: 60 });
 
     const service = new TopUpManagedDeploymentsService(
