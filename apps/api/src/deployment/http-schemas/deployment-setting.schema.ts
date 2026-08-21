@@ -9,6 +9,12 @@ const DeploymentSettingSchema = z.object({
   autoTopUpEnabled: z.boolean(),
   estimatedTopUpAmount: z.number(),
   topUpFrequencyMs: z.number(),
+  runtimeLimitHours: z.number().int().nullable().openapi({
+    description: "Runtime limit in hours chosen at deployment creation, or null for always-on funding"
+  }),
+  runtimeEndsAt: z.string().datetime().nullable().openapi({
+    description: "When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set"
+  }),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime()
 });

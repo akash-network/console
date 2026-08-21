@@ -82,7 +82,7 @@ describe(InitialDeploymentFundingService.name, () => {
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
-    expect(drainingDeploymentService.calculateAmountToTargetRunway).toHaveBeenCalledWith(deployment, CURRENT_HEIGHT);
+    expect(drainingDeploymentService.calculateAmountToTargetRunway).toHaveBeenCalledWith({ ...deployment, runtimeEndsAt: null }, CURRENT_HEIGHT);
     expect(blockHttpService.getCurrentHeight).toHaveBeenCalledTimes(1);
   });
 
@@ -292,6 +292,65 @@ describe(InitialDeploymentFundingService.name, () => {
     expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
     expect(instrumentation.recordSkipped).toHaveBeenCalledWith("no_fee_allowance", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
   });
+
+  it("starts the runtime countdown at lease start when the deployment has an unanchored runtime limit", async () => {
+    const { service, drainingDeploymentService, deploymentSettingRepository } = setup();
+    const deployment = createDrainingDeployment();
+    const runtimeEndsAt = new Date("2026-08-21T12:00:00.000Z");
+    drainingDeploymentService.findLeases.mockResolvedValue([deployment]);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+    deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt: null }));
+    deploymentSettingRepository.startRuntimeCountdown.mockResolvedValue(runtimeEndsAt);
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(deploymentSettingRepository.startRuntimeCountdown).toHaveBeenCalledWith("setting-1");
+    expect(drainingDeploymentService.calculateAmountToTargetRunway).toHaveBeenCalledWith({ ...deployment, runtimeEndsAt }, CURRENT_HEIGHT);
+  });
+
+  it("reuses an already anchored runtime deadline without rewriting it", async () => {
+    const { service, drainingDeploymentService, deploymentSettingRepository } = setup();
+    const deployment = createDrainingDeployment();
+    const runtimeEndsAt = new Date("2026-08-21T12:00:00.000Z");
+    drainingDeploymentService.findLeases.mockResolvedValue([deployment]);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+    deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt }));
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(deploymentSettingRepository.startRuntimeCountdown).not.toHaveBeenCalled();
+    expect(drainingDeploymentService.calculateAmountToTargetRunway).toHaveBeenCalledWith({ ...deployment, runtimeEndsAt }, CURRENT_HEIGHT);
+  });
+
+  it("skips with runtime_limit_reached when the deployment is already funded to its deadline", async () => {
+    const { service, drainingDeploymentService, deploymentSettingRepository, cachedBalanceService, managedSignerService, instrumentation } = setup();
+    const runtimeEndsAt = new Date("2026-08-21T12:00:00.000Z");
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(0);
+    deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt }));
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(instrumentation.recordSkipped).toHaveBeenCalledWith("runtime_limit_reached", { dseq: "123", address: "akash1owner", runtimeEndsAt });
+    expect(cachedBalanceService.getFresh).not.toHaveBeenCalled();
+    expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+  });
+
+  function createDeploymentSetting(overrides: Partial<DeploymentSettingsOutput> = {}): DeploymentSettingsOutput {
+    return {
+      id: "setting-1",
+      userId: "user-1",
+      dseq: "123",
+      autoTopUpEnabled: true,
+      closed: false,
+      lastFundedAt: null,
+      runtimeLimitHours: null,
+      runtimeEndsAt: null,
+      createdAt: new Date("2026-08-20T00:00:00.000Z").toISOString(),
+      updatedAt: new Date("2026-08-20T00:00:00.000Z").toISOString(),
+      ...overrides
+    };
+  }
 
   function createDrainingDeployment(overrides: Partial<DrainingDeploymentOutput> = {}): DrainingDeploymentOutput {
     return {

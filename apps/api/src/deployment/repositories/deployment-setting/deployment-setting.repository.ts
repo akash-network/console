@@ -30,6 +30,8 @@ export type AutoTopUpDeployment = {
   walletIsTrialing: boolean;
   walletCreatedAt: Date;
   walletActivatedAt: Date | null;
+  runtimeLimitHours: number | null;
+  runtimeEndsAt: Date | null;
 };
 
 @singleton()
@@ -91,7 +93,9 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         isWalletAutoTopUpEnabled: sql<boolean>`coalesce(${WalletSetting.autoReloadEnabled}, false)`,
         walletIsTrialing: sql<boolean>`coalesce(${UserWallets.isTrialing}, true)`,
         walletCreatedAt: UserWallets.createdAt,
-        walletActivatedAt: UserWallets.activatedAt
+        walletActivatedAt: UserWallets.activatedAt,
+        runtimeLimitHours: this.table.runtimeLimitHours,
+        runtimeEndsAt: this.table.runtimeEndsAt
       })
       .from(this.table)
       .leftJoin(Users, eq(this.table.userId, Users.id))
@@ -101,6 +105,39 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .orderBy(desc(this.table.id));
 
     return deployments as AutoTopUpDeployment[];
+  }
+
+  /**
+   * Persists a runtime limit chosen at deployment creation. Upserts on the (dseq, userId) unique so a
+   * concurrent lazy row creation from a settings read cannot drop the limit; the conflict branch only
+   * writes the limit and leaves the row's other fields as the earlier writer set them.
+   */
+  async upsertRuntimeLimit({ userId, dseq, runtimeLimitHours }: { userId: string; dseq: string; runtimeLimitHours: number }): Promise<void> {
+    await this.cursor
+      .insert(this.table)
+      .values({ userId, dseq, autoTopUpEnabled: true, runtimeLimitHours })
+      .onConflictDoUpdate({
+        target: [this.table.dseq, this.table.userId],
+        set: { runtimeLimitHours, updatedAt: sql`now()` }
+      });
+  }
+
+  /**
+   * Anchors a runtime-limited deployment's absolute deadline at now + its limit, keeping an already
+   * anchored deadline via coalesce so concurrent funding passes and job retries agree on one clock.
+   * Returns the row's deadline, or null when the deployment has no runtime limit.
+   */
+  async startRuntimeCountdown(id: string): Promise<Date | null> {
+    const [row] = await this.cursor
+      .update(this.table)
+      .set({
+        runtimeEndsAt: sql`coalesce(${this.table.runtimeEndsAt}, now() + (${this.table.runtimeLimitHours} * interval '1 hour'))`,
+        updatedAt: sql`now()`
+      })
+      .where(and(eq(this.table.id, id), isNotNull(this.table.runtimeLimitHours)))
+      .returning({ runtimeEndsAt: this.table.runtimeEndsAt });
+
+    return row?.runtimeEndsAt ?? null;
   }
 
   /**

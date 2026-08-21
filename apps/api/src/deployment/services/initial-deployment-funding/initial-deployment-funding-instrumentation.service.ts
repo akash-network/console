@@ -6,14 +6,21 @@ import { MetricsService } from "@src/core";
 
 export type FundingFailureReason = "lease_not_visible" | "deposit_tx_failed" | "unknown";
 
-export type FundingSkipReason = "deployment_closed" | "sufficient_runway" | "insufficient_balance" | "no_fee_allowance" | "wallet_not_found";
+export type FundingSkipReason =
+  | "deployment_closed"
+  | "sufficient_runway"
+  | "insufficient_balance"
+  | "no_fee_allowance"
+  | "wallet_not_found"
+  | "runtime_limit_reached";
 
 const SKIP_LOG_LEVEL: Record<FundingSkipReason, "info" | "warn" | "error"> = {
   sufficient_runway: "info",
   deployment_closed: "info",
   insufficient_balance: "warn",
   no_fee_allowance: "warn",
-  wallet_not_found: "error"
+  wallet_not_found: "error",
+  runtime_limit_reached: "info"
 };
 
 export function classifyFailure(error: unknown): FundingFailureReason {

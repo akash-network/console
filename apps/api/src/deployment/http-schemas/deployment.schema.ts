@@ -92,6 +92,10 @@ export const CreateDeploymentRequestSchema = z.object({
       deprecated: true,
       description:
         "Deposit in dollars. Ignored when managed deposits are enabled for your account, in which case the platform sets it automatically; otherwise it is required."
+    }),
+    runtimeLimitHours: z.number().int().min(1).max(8760).optional().openapi({
+      description:
+        "Optional runtime limit in hours, counted from lease start. Automatic funding keeps the deployment running until the limit, then stops so the deployment drains and closes. Omit for always-on funding."
     })
   })
 });

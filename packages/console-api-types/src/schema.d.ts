@@ -1598,6 +1598,13 @@ export interface paths {
                 autoTopUpEnabled: boolean;
                 estimatedTopUpAmount: number;
                 topUpFrequencyMs: number;
+                /** @description Runtime limit in hours chosen at deployment creation, or null for always-on funding */
+                runtimeLimitHours: number | null;
+                /**
+                 * Format: date-time
+                 * @description When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set
+                 */
+                runtimeEndsAt: string | null;
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -1661,6 +1668,13 @@ export interface paths {
                 autoTopUpEnabled: boolean;
                 estimatedTopUpAmount: number;
                 topUpFrequencyMs: number;
+                /** @description Runtime limit in hours chosen at deployment creation, or null for always-on funding */
+                runtimeLimitHours: number | null;
+                /**
+                 * Format: date-time
+                 * @description When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set
+                 */
+                runtimeEndsAt: string | null;
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -1734,6 +1748,13 @@ export interface paths {
                 autoTopUpEnabled: boolean;
                 estimatedTopUpAmount: number;
                 topUpFrequencyMs: number;
+                /** @description Runtime limit in hours chosen at deployment creation, or null for always-on funding */
+                runtimeLimitHours: number | null;
+                /**
+                 * Format: date-time
+                 * @description When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set
+                 */
+                runtimeEndsAt: string | null;
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -1786,6 +1807,13 @@ export interface paths {
                 autoTopUpEnabled: boolean;
                 estimatedTopUpAmount: number;
                 topUpFrequencyMs: number;
+                /** @description Runtime limit in hours chosen at deployment creation, or null for always-on funding */
+                runtimeLimitHours: number | null;
+                /**
+                 * Format: date-time
+                 * @description When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set
+                 */
+                runtimeEndsAt: string | null;
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -1850,6 +1878,13 @@ export interface paths {
                 autoTopUpEnabled: boolean;
                 estimatedTopUpAmount: number;
                 topUpFrequencyMs: number;
+                /** @description Runtime limit in hours chosen at deployment creation, or null for always-on funding */
+                runtimeLimitHours: number | null;
+                /**
+                 * Format: date-time
+                 * @description When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set
+                 */
+                runtimeEndsAt: string | null;
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -1926,6 +1961,13 @@ export interface paths {
                 autoTopUpEnabled: boolean;
                 estimatedTopUpAmount: number;
                 topUpFrequencyMs: number;
+                /** @description Runtime limit in hours chosen at deployment creation, or null for always-on funding */
+                runtimeLimitHours: number | null;
+                /**
+                 * Format: date-time
+                 * @description When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set
+                 */
+                runtimeEndsAt: string | null;
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -1988,7 +2030,11 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Deposit into a deployment */
+    /**
+     * Deposit into a deployment
+     * @deprecated
+     * @description Deprecated. Managed deployments are funded automatically; this endpoint will be removed in a future release.
+     */
     post: operations["depositDeployment"];
     delete?: never;
     options?: never;
@@ -8069,8 +8115,13 @@ export interface operations {
         "application/json": {
           data: {
             sdl: string;
-            /** @description Amount to deposit in dollars (e.g. 5.5) */
-            deposit: number;
+            /**
+             * @deprecated
+             * @description Deposit in dollars. Ignored when managed deposits are enabled for your account, in which case the platform sets it automatically; otherwise it is required.
+             */
+            deposit?: number;
+            /** @description Optional runtime limit in hours, counted from lease start. Automatic funding keeps the deployment running until the limit, then stops so the deployment drains and closes. Omit for always-on funding. */
+            runtimeLimitHours?: number;
           };
         };
       };

@@ -13,6 +13,8 @@ export function createAutoTopUpDeployment(overrides: Partial<AutoTopUpDeployment
     walletIsTrialing: false,
     walletCreatedAt: faker.date.recent(),
     walletActivatedAt: faker.date.recent(),
+    runtimeLimitHours: null,
+    runtimeEndsAt: null,
     ...overrides
   };
 }

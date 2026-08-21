@@ -240,6 +240,13 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
     });
   }
 
+  recordRuntimeLimitReached(details: { dseq: string; address: string; runtimeEndsAt: Date }) {
+    this.logger.info({
+      event: "TOP_UP_RUNTIME_LIMIT_REACHED",
+      ...details
+    });
+  }
+
   recordMasterWalletInsufficientFundsError({
     error,
     ...details

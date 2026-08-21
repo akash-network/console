@@ -8,7 +8,7 @@ import type { DeploymentTopUpInstrumentation, FundingMessageItem } from "./deplo
 
 export type FundDrainingFailureReason = "master_wallet_insufficient_funds" | "deposit_tx_failed" | "unknown";
 
-export type FundDrainingSkipReason = "nothing_to_fund" | "non_positive_amount";
+export type FundDrainingSkipReason = "nothing_to_fund" | "non_positive_amount" | "runtime_limit_reached";
 
 export function classifyFailure(error: unknown): FundDrainingFailureReason {
   if (!(error instanceof Error)) {
@@ -133,6 +133,11 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
   recordInvalidDepositAmount(details: { desiredAmount: number; dseq: string; address: string; blockRate: number }): void {
     this.skips.add(1, { reason: "non_positive_amount" satisfies FundDrainingSkipReason });
     this.emitLog("warn", { event: "FUND_DRAINING_AMOUNT_NON_POSITIVE", ...details });
+  }
+
+  recordRuntimeLimitReached(details: { dseq: string; address: string; runtimeEndsAt: Date }): void {
+    this.skips.add(1, { reason: "runtime_limit_reached" satisfies FundDrainingSkipReason });
+    this.emitLog("info", { event: "FUND_DRAINING_RUNTIME_LIMIT_REACHED", ...details });
   }
 
   recordMessagePreparationError({ deployment, error }: { deployment: DrainingDeployment; error: unknown }): void {

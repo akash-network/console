@@ -13,6 +13,7 @@ import type { UserWalletOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services";
 import { CORE_CONFIG } from "@src/core";
+import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
@@ -121,6 +122,23 @@ describe("Deployments API", () => {
     knownUsers[userId] = user;
     knownApiKeys[userApiKeySecret] = apiKey;
     knownWallets[user.id] = wallets;
+    allWallets.push(...wallets);
+
+    return { user, userApiKeySecret, wallets };
+  }
+
+  /** Persists a real user row so the create path can write FK-bound rows like deployment settings. */
+  async function mockPersistedUser() {
+    const dbUser = await userRepository.create({ userId: faker.string.uuid() });
+    const userApiKeySecret = faker.word.noun();
+    const user = createUser({ id: dbUser.id, userId: dbUser.userId ?? undefined });
+    const apiKey = createApiKey({ userId: dbUser.id });
+    const wallets = [createUserWallet({ userId: dbUser.id, address: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm" })];
+
+    currentUser = user;
+    knownUsers[dbUser.id] = user;
+    knownApiKeys[userApiKeySecret] = apiKey;
+    knownWallets[dbUser.id] = wallets;
     allWallets.push(...wallets);
 
     return { user, userApiKeySecret, wallets };
@@ -558,6 +576,46 @@ describe("Deployments API", () => {
       });
 
       expect(response.status).toBe(201);
+    });
+
+    it("persists the runtime limit when one is requested", async () => {
+      const { userApiKeySecret, user } = await mockPersistedUser();
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
+      const response = await app.request("/v1/deployments", {
+        method: "POST",
+        body: JSON.stringify({
+          data: {
+            sdl: yml,
+            runtimeLimitHours: 6
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(201);
+      const result = (await response.json()) as { data: { dseq: string } };
+
+      const setting = await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id, dseq: result.data.dseq });
+      expect(setting).toMatchObject({ autoTopUpEnabled: true, runtimeLimitHours: 6, runtimeEndsAt: null });
+    });
+
+    it("returns 400 for a non-integer runtime limit", async () => {
+      const { userApiKeySecret } = await mockUser();
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
+      const response = await app.request("/v1/deployments", {
+        method: "POST",
+        body: JSON.stringify({
+          data: {
+            sdl: yml,
+            runtimeLimitHours: 1.5
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
     });
   });
 
