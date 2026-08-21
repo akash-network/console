@@ -9,6 +9,7 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import type { ApiPgDatabase } from "@src/core";
 import { CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
 import { UserRepository } from "@src/user/repositories";
+import { averageBlockCountInAnHour } from "@src/utils/constants";
 import { TopUpManagedDeploymentsService } from "./top-up-managed-deployments.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -23,10 +24,11 @@ const ESCROW_AMOUNT = "50000";
 /** Mirrors the `AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD` default of $5, in the grant denom's micro units. */
 const HEADROOM_UDENOM = 5000000;
 
+type DepositMessage = { value: { deposit?: { amount?: { amount: string } } } };
+
+/** Flattens every deposit message broadcast across all txs into the numeric amounts they carry. */
 function depositedAmounts(executeDerivedTx: { mock: { calls: unknown[][] } }): number[] {
-  return executeDerivedTx.mock.calls
-    .flatMap(call => call[1] as { value: { deposit?: { amount?: { amount: string } } } }[])
-    .map(message => Number(message.value.deposit?.amount?.amount));
+  return executeDerivedTx.mock.calls.flatMap(call => call[1] as DepositMessage[]).map(message => Number(message.value.deposit?.amount?.amount));
 }
 
 /**
@@ -131,6 +133,35 @@ describe(TopUpManagedDeploymentsService.name, () => {
           })
         ])
       );
+    });
+
+    it("deposits only the runway missing from the target rather than a flat window", async () => {
+      const { topUpService, executeDerivedTx, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } =
+        await setup();
+      const { user, address } = await createUserWithWallet();
+      const dseq = "700001";
+      const hoursOfRunwayHeld = 12;
+      const blocksOfRunwayHeld = averageBlockCountInAnHour * hoursOfRunwayHeld;
+
+      await createDeploymentSetting(user.id, dseq);
+
+      mockLeasesForOwner(address, [createActiveLease(address, dseq)]);
+      mockDeploymentsForOwner(address, [
+        createDeploymentInfoSeed({
+          owner: address,
+          dseq,
+          state: "active",
+          amount: String(blocksOfRunwayHeld * BLOCK_RATE),
+          denom: DENOM,
+          createdAt: String(CURRENT_HEIGHT)
+        })
+      ]);
+      stubGetFreshLimits({ [address]: 100000000 });
+
+      await topUpService.topUpDeployments({ dryRun: false });
+
+      expect(executeDerivedTx).toHaveBeenCalledOnce();
+      expect(depositedAmounts(executeDerivedTx)).toEqual([BLOCK_RATE * averageBlockCountInAnHour * (48 - hoursOfRunwayHeld)]);
     });
 
     // Owner has two deployment settings with auto top-up enabled, but both deployments

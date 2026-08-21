@@ -86,7 +86,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
         })()
       );
 
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(desiredAmount);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(desiredAmount);
       cachedBalanceService.get.mockResolvedValue(createMockCachedBalance(() => sufficientAmount));
 
       await service.topUpDeployments({ dryRun: false });
@@ -149,6 +149,40 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(fundDrainingInstrumentation.recordDeposit).not.toHaveBeenCalled();
     });
 
+    it("sizes every owner in the sweep from a single block height", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, blockHttpService } = setup();
+      const deployments = createManyAutoTopUpDeployments(3);
+
+      drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() =>
+        (async function* () {
+          for (const deployment of deployments) {
+            const draining = {
+              ...deployment,
+              ...createDrainingDeployment({
+                dseq: Number(deployment.dseq),
+                owner: deployment.address,
+                predictedClosedHeight: CURRENT_BLOCK_HEIGHT + 1500,
+                denom: DEPLOYMENT_GRANT_DENOM
+              }),
+              dseq: deployment.dseq
+            } as DrainingDeployment;
+            yield { address: deployment.address, walletId: deployment.walletId, deployments: [draining] };
+          }
+        })()
+      );
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
+      cachedBalanceService.get.mockResolvedValue(createMockCachedBalance(() => 1000000));
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(drainingDeploymentService.findDrainingDeploymentsByOwner).toHaveBeenCalledWith(CURRENT_BLOCK_HEIGHT);
+      expect(drainingDeploymentService.calculateAmountToTargetRunway).toHaveBeenCalledTimes(deployments.length);
+      drainingDeploymentService.calculateAmountToTargetRunway.mock.calls.forEach(([, height]) => {
+        expect(height).toBe(CURRENT_BLOCK_HEIGHT);
+      });
+      expect(blockHttpService.getCurrentHeight).toHaveBeenCalledTimes(2);
+    });
+
     it("should handle errors and continue processing", async () => {
       const { service, drainingDeploymentService, cachedBalanceService, managedSignerService } = setup();
       const deployments = createManyAutoTopUpDeployments(2);
@@ -181,7 +215,9 @@ describe(TopUpManagedDeploymentsService.name, () => {
         })()
       );
 
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValueOnce(1000000).mockRejectedValueOnce(new Error("Failed to calculate amount"));
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValueOnce(1000000).mockImplementationOnce(() => {
+        throw new Error("Failed to calculate amount");
+      });
 
       cachedBalanceService.get.mockResolvedValue(createMockCachedBalance(() => 500000));
 
@@ -221,7 +257,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
           }
         })()
       );
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
       cachedBalanceService.get.mockResolvedValue(createMockCachedBalance(() => 500000));
 
       await service.topUpDeployments({ dryRun: true });
@@ -276,7 +312,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
         })()
       );
 
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(desiredAmount);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(desiredAmount);
       cachedBalanceService.get.mockResolvedValue(createMockCachedBalance(() => sufficientAmount));
 
       await service.topUpDeployments({ dryRun: false });
@@ -342,7 +378,9 @@ describe(TopUpManagedDeploymentsService.name, () => {
         })()
       );
 
-      drainingDeploymentService.calculateTopUpAmount.mockRejectedValue(error);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockImplementation(() => {
+        throw error;
+      });
 
       await service.topUpDeployments({ dryRun: false });
 
@@ -367,7 +405,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       chainErrorService.isMasterWalletInsufficientFundsError.mockResolvedValueOnce(true).mockResolvedValue(false);
       managedSignerService.executeDerivedTx.mockRejectedValueOnce(error).mockResolvedValue(mockTx);
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
       drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() =>
         (async function* () {
           const byAddress = deployments.reduce(
@@ -423,7 +461,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
         rawLog: "success"
       });
       managedSignerService.executeDerivedTx.mockRejectedValueOnce(error).mockResolvedValueOnce(mockTx).mockResolvedValueOnce(mockTx);
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
       drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() =>
         (async function* () {
           const byAddress = deployments.reduce(
@@ -480,7 +518,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
           };
         })()
       );
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
       cachedBalanceService.get.mockResolvedValue(createMockCachedBalance(() => 500000));
 
       await service.topUpDeployments({ dryRun: false });
@@ -514,7 +552,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
           };
         })()
       );
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
       cachedBalanceService.get.mockResolvedValue(createMockCachedBalance(() => 500000));
 
       await service.topUpDeployments({ dryRun: false });
@@ -548,7 +586,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
           };
         })()
       );
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
       cachedBalanceService.get.mockResolvedValue(createMockCachedBalance(() => 500000));
 
       await service.topUpDeployments({ dryRun: true });
@@ -574,12 +612,12 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const sufficientAmount = faker.number.int({ min: 1000000, max: 2000000 });
 
       drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([createDrainingFor(owner, walletId), createDrainingFor(owner, walletId)]);
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(faker.number.int({ min: 3500000, max: 4000000 }));
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(faker.number.int({ min: 3500000, max: 4000000 }));
       cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => sufficientAmount));
 
       await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
 
-      expect(drainingDeploymentService.findDrainingDeploymentsForOwner).toHaveBeenCalledWith(owner, fundDrainingInstrumentation);
+      expect(drainingDeploymentService.findDrainingDeploymentsForOwner).toHaveBeenCalledWith(owner, fundDrainingInstrumentation, CURRENT_BLOCK_HEIGHT);
       expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
       expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(walletId, [
         expect.objectContaining({ typeUrl: "/akash.escrow.v1.MsgAccountDeposit" }),
@@ -598,7 +636,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const walletId = faker.number.int({ min: 1000000, max: 9999999 });
 
       drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([createDrainingFor(owner, walletId)]);
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
       cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 500000));
 
       await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
@@ -634,7 +672,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       });
 
       drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(0);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(0);
       cachedBalanceService.getFresh.mockResolvedValue(balance);
 
       await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
@@ -663,7 +701,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const error = new Error("insufficient funds");
 
       drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([createDrainingFor(owner, walletId)]);
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
       cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
       managedSignerService.executeDerivedTx.mockRejectedValue(error);
       chainErrorService.isMasterWalletInsufficientFundsError.mockResolvedValue(true);
@@ -684,7 +722,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const balance = createMockCachedBalance(() => 1000000);
 
       drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([won, claimedByAnotherPass]);
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
       cachedBalanceService.getFresh.mockResolvedValue(balance);
       deploymentSettingRepository.claimForFunding.mockResolvedValue([createFundingClaim(won.id)]);
 
@@ -701,16 +739,16 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, deploymentSettingRepository } = setup();
       const owner = createAkashAddress();
       const walletId = faker.number.int({ min: 1000000, max: 9999999 });
-      const withoutRunwayToBuy = createDrainingFor(owner, walletId);
+      const withAnomalousZeroAmount = createDrainingFor(owner, walletId);
       const fundable = createDrainingFor(owner, walletId);
 
-      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([withoutRunwayToBuy, fundable]);
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValueOnce(0).mockResolvedValue(1000000);
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([withAnomalousZeroAmount, fundable]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValueOnce(0).mockReturnValue(1000000);
       cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
 
       await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
 
-      expect(deploymentSettingRepository.releaseFundingClaim).toHaveBeenCalledWith([createFundingClaim(withoutRunwayToBuy.id)]);
+      expect(deploymentSettingRepository.releaseFundingClaim).toHaveBeenCalledWith([createFundingClaim(withAnomalousZeroAmount.id)]);
       expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(walletId, [
         expect.objectContaining({ value: expect.objectContaining({ id: expect.objectContaining({ xid: expect.stringContaining(`/${fundable.dseq}`) }) }) })
       ]);
@@ -723,7 +761,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const deployment = createDrainingFor(owner, walletId);
 
       drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
       cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
       deploymentSettingRepository.claimForFunding.mockResolvedValue([createFundingClaim(deployment.id)]);
       fundDrainingInstrumentation.recordDeposit.mockImplementation(() => {
@@ -751,7 +789,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const releaseError = new Error("connection terminated");
 
       drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
       cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
       deploymentSettingRepository.claimForFunding.mockResolvedValue([createFundingClaim(deployment.id)]);
       deploymentSettingRepository.releaseFundingClaim.mockRejectedValue(releaseError);
@@ -779,7 +817,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const walletId = faker.number.int({ min: 1000000, max: 9999999 });
 
       drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([createDrainingFor(owner, walletId)]);
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
       cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
       deploymentSettingRepository.claimForFunding.mockResolvedValue([]);
 
@@ -797,7 +835,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const deployment = createDrainingFor(owner, walletId);
 
       drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
       cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
       deploymentSettingRepository.claimForFunding.mockResolvedValue([createFundingClaim(deployment.id)]);
 
@@ -815,7 +853,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const deployment = createDrainingFor(owner, walletId);
 
       drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
       cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
       deploymentSettingRepository.claimForFunding.mockResolvedValue([createFundingClaim(deployment.id)]);
       managedSignerService.executeDerivedTx.mockResolvedValue(mock<IndexedTx>({ code: 11, hash: "tx-hash", rawLog: "out of gas" }));
@@ -834,7 +872,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const deployment = createDrainingFor(owner, walletId);
 
       drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
       cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
       deploymentSettingRepository.claimForFunding.mockResolvedValue([createFundingClaim(deployment.id)]);
       managedSignerService.executeDerivedTx.mockRejectedValue(new Error("broadcast timed out"));
@@ -852,7 +890,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const deployment = createDrainingFor(owner, walletId);
 
       drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
-      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
       cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
       deploymentSettingRepository.claimForFunding.mockResolvedValue([createFundingClaim(deployment.id)]);
       managedSignerService.executeDerivedTx.mockRejectedValue(new Error("insufficient funds"));

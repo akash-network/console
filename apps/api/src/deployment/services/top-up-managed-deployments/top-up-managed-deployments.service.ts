@@ -42,15 +42,21 @@ export class TopUpManagedDeploymentsService {
     private readonly deploymentConfig: DeploymentConfigService
   ) {}
 
+  /**
+   * The whole sweep is sized from a single block height: refetching per owner would make a deployment's
+   * amount depend on where in the run its owner happens to fall, and would let the amount be derived from
+   * a different height than the look-ahead window that admitted the deployment.
+   */
   async topUpDeployments(options: DryRunOptions): Promise<Result<void, unknown[]>> {
-    this.instrumentation.start(await this.blockHttpService.getCurrentHeight(), options);
+    const currentHeight = await this.blockHttpService.getCurrentHeight();
+    this.instrumentation.start(currentHeight, options);
     const errors: unknown[] = [];
 
     try {
-      for await (const owner of this.drainingDeploymentService.findDrainingDeploymentsByOwner()) {
+      for await (const owner of this.drainingDeploymentService.findDrainingDeploymentsByOwner(currentHeight)) {
         try {
           const balance = await this.cachedBalanceService.get(owner.address);
-          await this.#fundOwnerDeployments(owner, options, balance, this.instrumentation);
+          await this.#fundOwnerDeployments(owner, options, balance, this.instrumentation, currentHeight);
         } catch (error: unknown) {
           errors.push(error);
         }
@@ -71,7 +77,8 @@ export class TopUpManagedDeploymentsService {
    * about to drain does not wait up to an hour for the next scheduled pass.
    */
   async topUpDrainingDeploymentsForOwner({ walletId, address }: { walletId: number; address: string }): Promise<void> {
-    const deployments = await this.drainingDeploymentService.findDrainingDeploymentsForOwner(address, this.fundDrainingInstrumentation);
+    const currentHeight = await this.blockHttpService.getCurrentHeight();
+    const deployments = await this.drainingDeploymentService.findDrainingDeploymentsForOwner(address, this.fundDrainingInstrumentation, currentHeight);
 
     if (!deployments.length) {
       this.fundDrainingInstrumentation.recordSkipped({ owner: address, deploymentCount: 0 });
@@ -79,17 +86,18 @@ export class TopUpManagedDeploymentsService {
     }
 
     const balance = await this.cachedBalanceService.getFresh(address);
-    await this.#fundOwnerDeployments({ address, walletId, deployments }, { dryRun: false }, balance, this.fundDrainingInstrumentation);
+    await this.#fundOwnerDeployments({ address, walletId, deployments }, { dryRun: false }, balance, this.fundDrainingInstrumentation, currentHeight);
   }
 
   async #fundOwnerDeployments(
     { address, walletId, deployments }: { address: string; walletId: number; deployments: DrainingDeployment[] },
     options: DryRunOptions,
     balance: CachedBalance,
-    instrumentation: DeploymentTopUpInstrumentation
+    instrumentation: DeploymentTopUpInstrumentation,
+    currentHeight: number
   ): Promise<void> {
     if (options.dryRun) {
-      const messageInputs = await this.collectMessages(deployments, balance, instrumentation);
+      const messageInputs = await this.collectMessages(deployments, balance, instrumentation, currentHeight);
 
       if (!messageInputs.length) {
         instrumentation.recordSkipped({ owner: address, deploymentCount: deployments.length });
@@ -111,7 +119,8 @@ export class TopUpManagedDeploymentsService {
     const messageInputs = await this.collectMessages(
       deployments.filter(deployment => claimedIds.has(deployment.id)),
       balance,
-      instrumentation
+      instrumentation,
+      currentHeight
     );
     const preparedIds = new Set(messageInputs.map(input => input.deployment.id));
 
@@ -172,7 +181,8 @@ export class TopUpManagedDeploymentsService {
   private async collectMessages(
     deployments: DrainingDeployment[],
     balance: CachedBalance,
-    instrumentation: DeploymentTopUpInstrumentation
+    instrumentation: DeploymentTopUpInstrumentation,
+    currentHeight: number
   ): Promise<CollectedMessage[]> {
     const denom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
 
@@ -181,7 +191,7 @@ export class TopUpManagedDeploymentsService {
         instrumentation.recordDeploymentPreparation(deployment.address, deployment.predictedClosedHeight);
 
         try {
-          const desiredAmount = await this.drainingDeploymentService.calculateTopUpAmount(deployment);
+          const desiredAmount = this.drainingDeploymentService.calculateAmountToTargetRunway(deployment, currentHeight);
           if (desiredAmount <= 0) {
             instrumentation.recordInvalidDepositAmount({
               desiredAmount,

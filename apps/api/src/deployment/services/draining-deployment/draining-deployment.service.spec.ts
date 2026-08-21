@@ -82,7 +82,7 @@ describe(DrainingDeploymentService.name, () => {
       );
 
       const callback = vi.fn();
-      for await (const result of service.findDrainingDeploymentsByOwner()) {
+      for await (const result of service.findDrainingDeploymentsByOwner(currentHeight)) {
         callback(result);
       }
 
@@ -111,7 +111,7 @@ describe(DrainingDeploymentService.name, () => {
 
   describe("findDrainingDeploymentsForOwner", () => {
     it("returns the owner's active draining deployments enriched with block rate and predicted close height", async () => {
-      const { service, deploymentSettingRepository } = setup();
+      const { service, deploymentSettingRepository, currentHeight } = setup();
       const address = createAkashAddress();
       const settings = [createAutoTopUpDeployment({ address, dseq: "1001" }), createAutoTopUpDeployment({ address, dseq: "1002" })];
       const leases = settings.map(setting =>
@@ -121,7 +121,7 @@ describe(DrainingDeploymentService.name, () => {
       deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue(settings);
       vi.spyOn(service, "findLeases").mockResolvedValue(leases);
 
-      const result = await service.findDrainingDeploymentsForOwner(address, mock<DeploymentTopUpInstrumentation>());
+      const result = await service.findDrainingDeploymentsForOwner(address, mock<DeploymentTopUpInstrumentation>(), currentHeight);
 
       expect(deploymentSettingRepository.findAutoTopUpDeploymentsByOwner).toHaveBeenCalledWith(address);
       expect(result).toHaveLength(2);
@@ -148,7 +148,7 @@ describe(DrainingDeploymentService.name, () => {
         })
       ]);
 
-      const result = await service.findDrainingDeploymentsForOwner(address, sink);
+      const result = await service.findDrainingDeploymentsForOwner(address, sink, currentHeight);
 
       expect(result).toHaveLength(1);
       expect(result[0].dseq).toBe(activeSetting.dseq);
@@ -158,11 +158,11 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     it("returns an empty array without querying leases when the owner has no auto-top-up deployments", async () => {
-      const { service, deploymentSettingRepository } = setup();
+      const { service, deploymentSettingRepository, currentHeight } = setup();
       const findLeasesSpy = vi.spyOn(service, "findLeases");
       deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([]);
 
-      const result = await service.findDrainingDeploymentsForOwner(createAkashAddress(), mock<DeploymentTopUpInstrumentation>());
+      const result = await service.findDrainingDeploymentsForOwner(createAkashAddress(), mock<DeploymentTopUpInstrumentation>(), currentHeight);
 
       expect(result).toEqual([]);
       expect(findLeasesSpy).not.toHaveBeenCalled();
@@ -229,17 +229,119 @@ describe(DrainingDeploymentService.name, () => {
     });
   });
 
-  describe("calculateTopUpAmount", () => {
-    it("calculates amount for integer block rate", async () => {
-      const { service } = setup();
-      const result = await service.calculateTopUpAmount({ blockRate: 50 });
+  describe("calculateAmountToTargetRunway", () => {
+    it("funds only the gap when the deployment already holds part of the target runway", () => {
+      const { service, currentHeight } = setup();
+
+      const result = service.calculateAmountToTargetRunway(
+        { blockRate: 50, predictedClosedHeight: currentHeight + averageBlockCountInAnHour * 24 },
+        currentHeight
+      );
+
+      expect(result).toBe(50 * averageBlockCountInAnHour * 24);
+      expect(result).toBeLessThan(50 * averageBlockCountInAnHour * 48);
+    });
+
+    it("funds the full target when the escrow runs out right now", () => {
+      const { service, currentHeight } = setup();
+
+      const result = service.calculateAmountToTargetRunway({ blockRate: 50, predictedClosedHeight: currentHeight }, currentHeight);
+
       expect(result).toBe(1440000);
     });
 
-    it("floors decimal block rate", async () => {
-      const { service } = setup();
-      const result = await service.calculateTopUpAmount({ blockRate: 10.7 });
+    it("caps an overdue deployment at the target instead of funding its arrears", () => {
+      const { service, currentHeight } = setup();
+
+      const result = service.calculateAmountToTargetRunway({ blockRate: 50, predictedClosedHeight: currentHeight - 5000 }, currentHeight);
+
+      expect(result).toBe(1440000);
+    });
+
+    it("returns 0 when the deployment already holds more than the target runway", () => {
+      const { service, currentHeight } = setup();
+
+      const result = service.calculateAmountToTargetRunway(
+        { blockRate: 50, predictedClosedHeight: currentHeight + averageBlockCountInAnHour * 72 },
+        currentHeight
+      );
+
+      expect(result).toBe(0);
+    });
+
+    it("returns 0 for a non-positive block rate", () => {
+      const { service, currentHeight } = setup();
+
+      expect(service.calculateAmountToTargetRunway({ blockRate: 0, predictedClosedHeight: currentHeight }, currentHeight)).toBe(0);
+      expect(service.calculateAmountToTargetRunway({ blockRate: -5, predictedClosedHeight: currentHeight }, currentHeight)).toBe(0);
+    });
+
+    it("returns 0 rather than NaN when the predicted close height is missing", () => {
+      const { service, currentHeight } = setup();
+      const withoutPredictedCloseHeight = { blockRate: 50, predictedClosedHeight: undefined } as unknown as Pick<
+        DrainingDeploymentOutput,
+        "blockRate" | "predictedClosedHeight"
+      >;
+
+      const result = service.calculateAmountToTargetRunway(withoutPredictedCloseHeight, currentHeight);
+
+      expect(result).toBe(0);
+      expect(Number.isNaN(result)).toBe(false);
+    });
+
+    it("handles the numeric strings the database fallback returns", () => {
+      const { service, currentHeight } = setup();
+      const fromDatabaseFallback = {
+        blockRate: "50",
+        predictedClosedHeight: String(currentHeight + averageBlockCountInAnHour * 24)
+      } as unknown as Pick<DrainingDeploymentOutput, "blockRate" | "predictedClosedHeight">;
+
+      const result = service.calculateAmountToTargetRunway(fromDatabaseFallback, currentHeight);
+
+      expect(result).toBe(50 * averageBlockCountInAnHour * 24);
+    });
+
+    it("floors a decimal block rate", () => {
+      const { service, currentHeight } = setup();
+
+      const result = service.calculateAmountToTargetRunway({ blockRate: 10.7, predictedClosedHeight: currentHeight }, currentHeight);
+
       expect(result).toBe(308160);
+    });
+
+    it("derives the amount from the given height without querying the chain", () => {
+      const { service, blockHttpService, currentHeight } = setup();
+
+      service.calculateAmountToTargetRunway({ blockRate: 50, predictedClosedHeight: currentHeight }, currentHeight);
+
+      expect(blockHttpService.getCurrentHeight).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("calculateSteadyStateTopUpAmount", () => {
+    it("reports the cost of the hours between the look-ahead window and the target", () => {
+      const { service } = setup();
+
+      const result = service.calculateSteadyStateTopUpAmount({ blockRate: 50 });
+
+      expect(result).toBe(50 * averageBlockCountInAnHour * 24);
+    });
+
+    it("floors a decimal block rate", () => {
+      const { service } = setup();
+
+      expect(service.calculateSteadyStateTopUpAmount({ blockRate: 10.7 })).toBe(154080);
+    });
+
+    it("stays a function of configuration alone, ignoring how much runway is held", () => {
+      const { service, currentHeight } = setup();
+
+      const wellFunded = service.calculateSteadyStateTopUpAmount(
+        createDrainingDeployment({ blockRate: 50, predictedClosedHeight: currentHeight + averageBlockCountInAnHour * 168 })
+      );
+      const draining = service.calculateSteadyStateTopUpAmount(createDrainingDeployment({ blockRate: 50, predictedClosedHeight: currentHeight }));
+
+      expect(wellFunded).toBe(draining);
     });
   });
 
@@ -255,13 +357,13 @@ describe(DrainingDeploymentService.name, () => {
       const { service, userWalletRepository, leaseRepository } = setup();
       userWalletRepository.findOneByUserId.mockResolvedValue(userWallet);
       leaseRepository.findOneByDseqAndOwner.mockResolvedValue(deployment);
-      vi.spyOn(service, "calculateTopUpAmount").mockResolvedValue(expectedTopUpAmount);
+      vi.spyOn(service, "calculateSteadyStateTopUpAmount").mockReturnValue(expectedTopUpAmount);
 
       const amount = await service.calculateTopUpAmountForDseqAndUserId(dseq, userId);
 
       expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(userId);
       expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, address);
-      expect(service.calculateTopUpAmount).toHaveBeenCalledWith(deployment);
+      expect(service.calculateSteadyStateTopUpAmount).toHaveBeenCalledWith(deployment);
       expect(amount).toBe(expectedTopUpAmount);
     });
 
@@ -601,7 +703,7 @@ describe(DrainingDeploymentService.name, () => {
 
     const config = mockConfigService<DeploymentConfigService>({
       AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 24,
-      AUTO_TOP_UP_AMOUNT_IN_H: 48
+      AUTO_TOP_UP_TARGET_RUNWAY_IN_H: 48
     });
 
     const instrumentation = mock<TopUpManagedDeploymentsInstrumentationService>();

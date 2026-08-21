@@ -80,7 +80,7 @@ export class InitialDeploymentFundingService {
       return;
     }
 
-    const desiredAmount = await this.drainingDeploymentService.calculateTopUpAmount(deployment);
+    const desiredAmount = this.drainingDeploymentService.calculateAmountToTargetRunway(deployment, currentHeight);
     const balance = await this.cachedBalanceService.getFresh(address);
     const amount = Math.min(desiredAmount, balance.spendable);
 
