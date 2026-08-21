@@ -24,16 +24,10 @@ const ESCROW_AMOUNT = "50000";
 /** Mirrors the `AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD` default of $5, in the grant denom's micro units. */
 const HEADROOM_UDENOM = 5000000;
 
-function depositedAmounts(executeDerivedTx: { mock: { calls: unknown[][] } }): number[] {
-  return executeDerivedTx.mock.calls
-    .flatMap(call => call[1] as { value: { deposit?: { amount?: { amount: string } } } }[])
-    .map(message => Number(message.value.deposit?.amount?.amount));
-}
-
 type DepositMessage = { value: { deposit?: { amount?: { amount: string } } } };
 
 /** Flattens every deposit message broadcast across all txs into the numeric amounts they carry. */
-function depositAmountsOf(executeDerivedTx: { mock: { calls: unknown[][] } }): number[] {
+function depositedAmounts(executeDerivedTx: { mock: { calls: unknown[][] } }): number[] {
   return executeDerivedTx.mock.calls.flatMap(call => call[1] as DepositMessage[]).map(message => Number(message.value.deposit?.amount?.amount));
 }
 
@@ -167,7 +161,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       await topUpService.topUpDeployments({ dryRun: false });
 
       expect(executeDerivedTx).toHaveBeenCalledOnce();
-      expect(depositAmountsOf(executeDerivedTx)).toEqual([BLOCK_RATE * averageBlockCountInAnHour * (48 - hoursOfRunwayHeld)]);
+      expect(depositedAmounts(executeDerivedTx)).toEqual([BLOCK_RATE * averageBlockCountInAnHour * (48 - hoursOfRunwayHeld)]);
     });
 
     // Owner has two deployment settings with auto top-up enabled, but both deployments
