@@ -37,6 +37,21 @@ export class WalletReloadJobService {
     return false;
   }
 
+  async scheduleCreditsLowCheckIfAutoReloadOff(input: { walletId: number }): Promise<void> {
+    const walletSetting = await this.walletSettingRepository.findOneBy({ walletId: input.walletId });
+
+    if (walletSetting?.autoReloadEnabled) {
+      return;
+    }
+
+    const userId = await this.#resolveUserId(input, walletSetting);
+    if (!userId) {
+      return;
+    }
+
+    await this.scheduleCreditsLowCheck(userId, { withCleanup: true });
+  }
+
   async scheduleForWalletSetting(
     walletSetting: Pick<WalletSettingOutput, "id" | "userId">,
     options?: Pick<EnqueueOptions, "startAfter"> & { withCleanup?: boolean; triggeredByDeployment?: boolean }
@@ -71,7 +86,7 @@ export class WalletReloadJobService {
     await this.jobQueueService.cancelCreatedBy({ name: WalletBalanceReloadCheck.name, singletonKey: `${WalletBalanceReloadCheck.name}.${userId}` });
   }
 
-  async scheduleCreditsLowCheck(userId: string, options?: { withCleanup?: boolean }): Promise<string> {
+  async scheduleCreditsLowCheck(userId: string, options?: { withCleanup?: boolean }): Promise<string | null> {
     if (options?.withCleanup) {
       await this.cancelCreditsLowCheckByUserId(userId);
     }
@@ -81,11 +96,10 @@ export class WalletReloadJobService {
     });
 
     if (!createdJobId) {
-      this.logger.error({
-        event: "JOB_CREATION_FAILED",
+      this.logger.info({
+        event: "CREDITS_LOW_CHECK_ALREADY_QUEUED",
         userId
       });
-      throw new Error("Failed to schedule wallet credits low check");
     }
 
     return createdJobId;

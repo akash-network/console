@@ -119,6 +119,17 @@ describe(WalletReloadJobService.name, () => {
       expect(userWalletRepository.findOneBy).toHaveBeenCalledWith({ id: walletId });
       expectCreditsLowCheckScheduled(jobQueueService, userWallet.userId);
     });
+
+    it("does not throw when a credits-low enqueue collides with an existing singleton", async () => {
+      const { service, walletSettingRepository, jobQueueService, logger } = setup();
+      const userId = faker.string.uuid();
+      walletSettingRepository.findByUserId.mockResolvedValue(generateWalletSetting({ autoReloadEnabled: false, userId }));
+      jobQueueService.enqueue.mockResolvedValue(null);
+
+      await expect(service.scheduleImmediate({ userId })).resolves.toBe(false);
+
+      expect(logger.error).not.toHaveBeenCalled();
+    });
   });
 
   describe("scheduleForWalletSetting", () => {
@@ -222,6 +233,65 @@ describe(WalletReloadJobService.name, () => {
       expect(logger.error).toHaveBeenCalledWith({
         event: "JOB_CREATION_FAILED",
         userId: walletSetting.userId
+      });
+    });
+  });
+
+  describe("scheduleCreditsLowCheckIfAutoReloadOff", () => {
+    it("does not enqueue a reload job when autoReloadEnabled is true", async () => {
+      const { service, walletSettingRepository, jobQueueService } = setup();
+      const walletId = faker.number.int({ min: 1, max: 1000000 });
+      const walletSetting = generateWalletSetting({ walletId, autoReloadEnabled: true });
+      walletSettingRepository.findOneBy.mockResolvedValue(walletSetting);
+      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+
+      await service.scheduleCreditsLowCheckIfAutoReloadOff({ walletId });
+
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(jobQueueService.cancelCreatedBy).not.toHaveBeenCalled();
+    });
+
+    it("enqueues a credits-low check when autoReloadEnabled is false", async () => {
+      const { service, walletSettingRepository, jobQueueService } = setup();
+      const walletId = faker.number.int({ min: 1, max: 1000000 });
+      const walletSetting = generateWalletSetting({ walletId, autoReloadEnabled: false });
+      walletSettingRepository.findOneBy.mockResolvedValue(walletSetting);
+      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+
+      await service.scheduleCreditsLowCheckIfAutoReloadOff({ walletId });
+
+      expectCreditsLowCheckScheduled(jobQueueService, walletSetting.userId);
+      expect(jobQueueService.enqueue).not.toHaveBeenCalledWith(expect.any(WalletBalanceReloadCheck), expect.anything());
+    });
+
+    it("enqueues a credits-low check when wallet setting does not exist", async () => {
+      const { service, walletSettingRepository, userWalletRepository, jobQueueService } = setup();
+      const walletId = faker.number.int({ min: 1, max: 1000000 });
+      const userWallet = createUserWallet({ id: walletId });
+      walletSettingRepository.findOneBy.mockResolvedValue(undefined);
+      userWalletRepository.findOneBy.mockResolvedValue(userWallet);
+      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+
+      await service.scheduleCreditsLowCheckIfAutoReloadOff({ walletId });
+
+      expect(userWalletRepository.findOneBy).toHaveBeenCalledWith({ id: walletId });
+      expectCreditsLowCheckScheduled(jobQueueService, userWallet.userId);
+      expect(jobQueueService.enqueue).not.toHaveBeenCalledWith(expect.any(WalletBalanceReloadCheck), expect.anything());
+    });
+  });
+
+  describe("scheduleCreditsLowCheck", () => {
+    it("returns successfully when enqueue returns null", async () => {
+      const { service, jobQueueService, logger } = setup();
+      const userId = faker.string.uuid();
+      jobQueueService.enqueue.mockResolvedValue(null);
+
+      await expect(service.scheduleCreditsLowCheck(userId)).resolves.toBeNull();
+
+      expect(logger.error).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "CREDITS_LOW_CHECK_ALREADY_QUEUED",
+        userId
       });
     });
   });

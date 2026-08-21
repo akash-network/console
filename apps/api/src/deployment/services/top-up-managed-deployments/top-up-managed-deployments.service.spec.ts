@@ -6,12 +6,17 @@ import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
+import { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-low-check";
+import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
 import { RpcMessageService } from "@src/billing/services";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
-import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
+import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
+import type { JobQueueService } from "@src/core";
+import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { DrainingDeployment, DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
@@ -24,6 +29,7 @@ import type { TopUpManagedDeploymentsInstrumentationService } from "./top-up-man
 import { createAkashAddress } from "@test/seeders";
 import { createAutoTopUpDeployment, createManyAutoTopUpDeployments } from "@test/seeders/auto-top-up-deployment.seeder";
 import { createDrainingDeployment } from "@test/seeders/draining-deployment.seeder";
+import { generateWalletSetting } from "@test/seeders/wallet-setting.seeder";
 
 describe(TopUpManagedDeploymentsService.name, () => {
   const DEPLOYMENT_GRANT_DENOM = "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1";
@@ -276,39 +282,54 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
     });
 
-    it("schedules a check for a non-draining auto-top-up owner", async () => {
-      const { service, drainingDeploymentService, deploymentSettingRepository, walletReloadService, managedSignerService } = setup();
+    it("does not enqueue a reload job for a non-draining owner with Auto Recharge on", async () => {
+      const { service, drainingDeploymentService, deploymentSettingRepository, jobQueueService, walletSettingRepository, managedSignerService } =
+        setupWithWalletReloadJobs();
       const owner = createAkashAddress();
       const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const walletSetting = generateWalletSetting({ walletId, autoReloadEnabled: true });
 
-      drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() => (async function* () {})());
-      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
-        (async function* () {
-          yield { address: owner, walletId, deploymentSettings: [createAutoTopUpDeployment({ address: owner, walletId })] };
-        })()
-      );
+      mockNonDrainingAutoTopUpOwner(drainingDeploymentService, deploymentSettingRepository, owner, walletId);
+      walletSettingRepository.findOneBy.mockResolvedValue(walletSetting);
 
       await service.topUpDeployments({ dryRun: false });
 
-      expect(walletReloadService.scheduleImmediate).toHaveBeenCalledWith({ walletId });
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
       expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
     });
 
-    it("does not schedule extra checks for auto-top-up owners on dry run", async () => {
-      const { service, drainingDeploymentService, deploymentSettingRepository, walletReloadService } = setup();
+    it("enqueues a credits-low check for a non-draining owner with Auto Recharge off", async () => {
+      const { service, drainingDeploymentService, deploymentSettingRepository, jobQueueService, walletSettingRepository } = setupWithWalletReloadJobs();
       const owner = createAkashAddress();
       const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const walletSetting = generateWalletSetting({ walletId, autoReloadEnabled: false });
 
-      drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() => (async function* () {})());
-      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
-        (async function* () {
-          yield { address: owner, walletId, deploymentSettings: [createAutoTopUpDeployment({ address: owner, walletId })] };
-        })()
+      mockNonDrainingAutoTopUpOwner(drainingDeploymentService, deploymentSettingRepository, owner, walletId);
+      walletSettingRepository.findOneBy.mockResolvedValue(walletSetting);
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        expect.any(WalletCreditsLowCheck),
+        expect.objectContaining({
+          singletonKey: `${WalletCreditsLowCheck.name}.${walletSetting.userId}`
+        })
       );
+      expect(jobQueueService.enqueue).not.toHaveBeenCalledWith(expect.any(WalletBalanceReloadCheck), expect.anything());
+    });
+
+    it("does not schedule extra checks for auto-top-up owners on dry run", async () => {
+      const { service, drainingDeploymentService, deploymentSettingRepository, jobQueueService, walletSettingRepository } = setupWithWalletReloadJobs();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const walletSetting = generateWalletSetting({ walletId, autoReloadEnabled: false });
+
+      mockNonDrainingAutoTopUpOwner(drainingDeploymentService, deploymentSettingRepository, owner, walletId);
+      walletSettingRepository.findOneBy.mockResolvedValue(walletSetting);
 
       await service.topUpDeployments({ dryRun: true });
 
-      expect(walletReloadService.scheduleImmediate).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
     it("should top up draining deployments for the same owner in the same tx", async () => {
@@ -946,7 +967,38 @@ describe(TopUpManagedDeploymentsService.name, () => {
     }
   });
 
-  function setup(input?: { currentBlockHeight?: number; feeAllowance?: number }) {
+  function mockNonDrainingAutoTopUpOwner(
+    drainingDeploymentService: ReturnType<typeof mock<DrainingDeploymentService>>,
+    deploymentSettingRepository: ReturnType<typeof mock<DeploymentSettingRepository>>,
+    owner: string,
+    walletId: number
+  ) {
+    drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() => (async function* () {})());
+    deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+      (async function* () {
+        yield { address: owner, walletId, deploymentSettings: [createAutoTopUpDeployment({ address: owner, walletId })] };
+      })()
+    );
+  }
+
+  function setupWithWalletReloadJobs(input?: { currentBlockHeight?: number; feeAllowance?: number }) {
+    const walletSettingRepository = mock<WalletSettingRepository>();
+    const userWalletRepository = mock<UserWalletRepository>();
+    const jobQueueService = mock<JobQueueService>();
+    const logger = mock<LoggerService>();
+    jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+    const walletReloadService = new WalletReloadJobService(walletSettingRepository, userWalletRepository, jobQueueService, logger);
+
+    return {
+      ...setup({ ...input, walletReloadService }),
+      walletSettingRepository,
+      userWalletRepository,
+      jobQueueService,
+      logger
+    };
+  }
+
+  function setup(input?: { currentBlockHeight?: number; feeAllowance?: number; walletReloadService?: WalletReloadJobService }) {
     const currentBlockHeight = input?.currentBlockHeight ?? CURRENT_BLOCK_HEIGHT;
     const feeAllowance = input?.feeAllowance ?? SUFFICIENT_FEE_ALLOWANCE;
 
@@ -969,7 +1021,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     chainErrorService.isMasterWalletInsufficientFundsError.mockResolvedValue(false);
     const instrumentation = mock<TopUpManagedDeploymentsInstrumentationService>();
     const fundDrainingInstrumentation = mock<FundDrainingDeploymentsInstrumentationService>();
-    const walletReloadService = mock<WalletReloadJobService>();
+    const walletReloadService = input?.walletReloadService ?? mock<WalletReloadJobService>();
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.claimForFunding.mockImplementation(async (ids: string[]) => ids.map(createFundingClaim));
     deploymentSettingRepository.releaseFundingClaim.mockResolvedValue(undefined);

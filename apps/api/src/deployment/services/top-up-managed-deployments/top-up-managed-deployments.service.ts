@@ -63,7 +63,7 @@ export class TopUpManagedDeploymentsService {
       }
 
       if (!options.dryRun) {
-        await this.#scheduleImmediateForAutoTopUpOwners(errors);
+        await this.#scheduleCreditsLowChecksForAutoTopUpOwners(errors);
       }
     } catch (error: unknown) {
       errors.push(error);
@@ -156,10 +156,10 @@ export class TopUpManagedDeploymentsService {
     await this.walletReloadService.scheduleImmediate({ walletId });
   }
 
-  async #scheduleImmediateForAutoTopUpOwners(errors: unknown[]): Promise<void> {
+  async #scheduleCreditsLowChecksForAutoTopUpOwners(errors: unknown[]): Promise<void> {
     for await (const owner of this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively()) {
       try {
-        await this.walletReloadService.scheduleImmediate({ walletId: owner.walletId });
+        await this.walletReloadService.scheduleCreditsLowCheckIfAutoReloadOff({ walletId: owner.walletId });
       } catch (error: unknown) {
         errors.push(error);
       }
