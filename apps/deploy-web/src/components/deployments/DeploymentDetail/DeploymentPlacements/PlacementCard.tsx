@@ -151,6 +151,7 @@ export const PlacementCard: FC<PlacementCardProps> = ({
                 service={leaseStatus?.services?.[serviceName]}
                 leaseState={lease.state}
                 isReclaimed={isReclaimed}
+                detail={services[serviceName]}
                 uris={leaseStatus?.services?.[serviceName]?.uris}
                 forwardedPorts={leaseStatus?.forwarded_ports?.[serviceName]}
                 ips={leaseStatus?.ips?.[serviceName]}

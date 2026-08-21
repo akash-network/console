@@ -69,11 +69,47 @@ describe(PlacementServiceRow.name, () => {
     expect(screen.queryByRole("link", { name: /app\.example\.com/ })).not.toBeInTheDocument();
   });
 
-  it("is not expandable when there are no live endpoints", () => {
-    setup({});
+  it("expands a running service even without live endpoints", async () => {
+    setup({ service: mock<LeaseServiceStatus>({ available: 1 }), leaseState: "active" });
 
-    expect(screen.queryByRole("button", { name: /web/ })).not.toBeInTheDocument();
-    expect(screen.queryByText("Ports")).not.toBeInTheDocument();
+    await expandService();
+
+    expect(screen.getByRole("button", { name: /web/ })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("shows image and resources when expanded", async () => {
+    setup({
+      detail: {
+        image: "ghcr.io/acmecorp/llm-gateway:0.9.4",
+        resources: { gpuUnits: 0, cpu: 1, memory: { value: 2, unit: "Gi" }, storage: { value: 10, unit: "Gi" } }
+      }
+    });
+
+    await expandService();
+
+    expect(screen.getByText("Image")).toBeInTheDocument();
+    expect(screen.getByText("ghcr.io/acmecorp/llm-gateway:0.9.4")).toBeInTheDocument();
+    expect(screen.getByText("vCPU")).toBeInTheDocument();
+    expect(screen.getByText("Memory")).toBeInTheDocument();
+    expect(screen.getByText("2 Gi")).toBeInTheDocument();
+    expect(screen.getByText("Storage")).toBeInTheDocument();
+  });
+
+  it("does not show env vars or command", async () => {
+    setup({
+      detail: {
+        image: "nginx:1.25",
+        env: [{ key: "API_KEY", value: "secret" }],
+        command: "sh -c echo hi"
+      }
+    });
+
+    await expandService();
+
+    expect(screen.queryByText("Env vars")).not.toBeInTheDocument();
+    expect(screen.queryByText("Command")).not.toBeInTheDocument();
+    expect(screen.queryByText("API_KEY")).not.toBeInTheDocument();
+    expect(screen.queryByText("sh -c echo hi")).not.toBeInTheDocument();
   });
 
   it("is not expandable when the lease is closed", () => {

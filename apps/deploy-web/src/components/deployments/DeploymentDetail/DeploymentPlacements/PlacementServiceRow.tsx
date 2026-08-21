@@ -2,12 +2,15 @@
 import type { FC, ReactNode } from "react";
 import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
-import { Label, NavArrowDown, NavArrowRight } from "iconoir-react";
+import { Box, Label, NavArrowDown, NavArrowRight } from "iconoir-react";
 
 import type { ForwardedPort, LeaseServiceStatus, ServiceIp } from "@src/queries/useLeaseQuery";
 import type { LeaseDto } from "@src/types/deployment";
 import { StatusBadge } from "../DeploymentStatusBadge";
+import type { ManifestServiceDetail, ManifestServiceResources } from "./placementModel";
 import { formatReplicaCount, getServiceStatus } from "./placementModel";
+import type { PlacementStat } from "./PlacementStats";
+import { PlacementStats } from "./PlacementStats";
 import { PortChips, ServiceUriLinks, toPortChips, toUriLinks } from "./ServiceEndpoints";
 
 export interface PlacementServiceRowProps {
@@ -15,6 +18,7 @@ export interface PlacementServiceRowProps {
   service?: LeaseServiceStatus;
   leaseState: LeaseDto["state"];
   isReclaimed?: boolean;
+  detail?: ManifestServiceDetail;
   uris?: string[] | null;
   forwardedPorts?: ForwardedPort[] | null;
   ips?: ServiceIp[] | null;
@@ -27,6 +31,7 @@ export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
   service,
   leaseState,
   isReclaimed,
+  detail,
   uris,
   forwardedPorts,
   ips,
@@ -41,7 +46,6 @@ export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
   const uriLinks = closed ? [] : toUriLinks(uris);
   const portChips = toPortChips({ forwardedPorts, ips, closed });
   const replicaLabel = formatReplicaCount(service);
-  const expandable = portChips.length > 0;
 
   function handleOpenChange(next: boolean) {
     if (!isControlled) setUncontrolledOpen(next);
@@ -62,7 +66,7 @@ export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
     </div>
   );
 
-  if (!expandable) {
+  if (closed) {
     return (
       <div className="overflow-hidden rounded-lg border">
         <div className="flex items-center gap-3 p-4">
@@ -84,20 +88,46 @@ export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
       </div>
 
       <CollapsibleContent>
-        <div className="border-t">
+        {detail?.resources ? (
+          <div className="border-t px-6 py-3">
+            <PlacementStats stats={buildServiceStats(detail.resources)} variant="spread" />
+          </div>
+        ) : null}
+        {detail?.image ? (
+          <ServiceDetailRow icon={<Box className="h-4 w-4" />} title="Image">
+            <span className="break-all">{detail.image}</span>
+          </ServiceDetailRow>
+        ) : null}
+        {portChips.length > 0 ? (
           <ServiceDetailRow icon={<Label className="h-4 w-4" />} title="Ports">
             <PortChips items={portChips} />
           </ServiceDetailRow>
-        </div>
+        ) : null}
       </CollapsibleContent>
     </Collapsible>
   );
 };
 
 const ServiceDetailRow: FC<{ icon: ReactNode; title: string; children: ReactNode }> = ({ icon, title, children }) => (
-  <div className="flex items-center gap-2 px-5 py-4">
+  <div className="flex items-center gap-2 border-t px-5 py-4">
     <span className="shrink-0 text-muted-foreground">{icon}</span>
     <span className="w-32 shrink-0 text-base font-semibold">{title}</span>
     <div className="min-w-0 flex-1 text-left text-base text-muted-foreground">{children}</div>
   </div>
 );
+
+function buildServiceStats(resources: ManifestServiceResources): PlacementStat[] {
+  const stats: PlacementStat[] = [
+    { label: "vCPU", value: resources.cpu ?? "—" },
+    { label: "Memory", value: formatSize(resources.memory) },
+    { label: "Storage", value: formatSize(resources.storage) }
+  ];
+  if (resources.gpuUnits > 0) {
+    stats.push({ label: "GPU", value: resources.gpuUnits });
+  }
+  return stats;
+}
+
+function formatSize(size: ManifestServiceResources["memory"]): string {
+  return size ? `${size.value} ${size.unit}`.trim() : "—";
+}
