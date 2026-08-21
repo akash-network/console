@@ -5,6 +5,7 @@ import { grpc } from "google-gax";
 import type { InjectionToken } from "tsyringe";
 import { container, instancePerContainerCachingFactory } from "tsyringe";
 
+import { DisposableRegistry } from "@src/core/lib/disposable-registry/disposable-registry";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 
 const CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
@@ -37,23 +38,27 @@ export const SDL_SECRETS_KMS_TARGET: InjectionToken<SdlSecretsKmsTarget> = Symbo
 container.register(KMS_CLIENT, {
   useFactory: instancePerContainerCachingFactory(c => {
     const auth = c.resolve(DeploymentConfigService).get("GCP_KMS_AUTH");
+    let client: KeyManagementServiceClient;
 
     if ("client_email" in auth) {
-      return new KeyManagementServiceClient({
+      client = new KeyManagementServiceClient({
         projectId: auth.project_id,
         authClient: new JWT({ email: auth.client_email, key: auth.private_key, scopes: [CLOUD_PLATFORM_SCOPE] })
       });
+    } else {
+      const kmsServiceUrl = new URL(auth.servicePath);
+      client = new KeyManagementServiceClient({
+        projectId: auth.project_id,
+        servicePath: kmsServiceUrl.hostname,
+        port: Number(kmsServiceUrl.port),
+        sslCreds: grpc.credentials.createInsecure(),
+        authClient: new OAuth2Client()
+      });
     }
 
-    const emulator = new URL(auth.servicePath);
+    c.resolve(DisposableRegistry).register({ dispose: () => client.close() });
 
-    return new KeyManagementServiceClient({
-      projectId: auth.project_id,
-      servicePath: emulator.hostname,
-      port: Number(emulator.port),
-      sslCreds: grpc.credentials.createInsecure(),
-      authClient: new OAuth2Client()
-    });
+    return client;
   })
 });
 
