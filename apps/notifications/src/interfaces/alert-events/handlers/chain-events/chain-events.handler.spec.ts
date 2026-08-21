@@ -50,16 +50,16 @@ describe(ChainEventsHandler.name, () => {
   });
 
   describe("processBlock", () => {
-    it("should log the received block and process balance alerts", async () => {
+    it("processes wallet-balance alerts and does not evaluate deployment escrow-balance alerts", async () => {
       const { controller, deploymentBalanceAlertsService, walletBalanceAlertsService, brokerService } = await setup();
 
       const mockBlock = generateMock(ChainBlockCreatedDto.schema);
       const alertMessage = generateAlertMessage({});
-      deploymentBalanceAlertsService.alertFor.mockImplementation((_, callback) => callback(alertMessage));
+      walletBalanceAlertsService.alertFor.mockImplementation((_, callback) => callback(alertMessage));
 
       await controller.processBlock(mockBlock);
 
-      expect(deploymentBalanceAlertsService.alertFor).toHaveBeenCalledWith(mockBlock, expect.any(Function));
+      expect(deploymentBalanceAlertsService.alertFor).not.toHaveBeenCalled();
       expect(walletBalanceAlertsService.alertFor).toHaveBeenCalledWith(mockBlock, expect.any(Function));
       expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, alertMessage);
     });

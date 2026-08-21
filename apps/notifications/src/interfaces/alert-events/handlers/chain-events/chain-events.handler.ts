@@ -6,7 +6,6 @@ import { ChainBlockCreatedDto } from "@src/modules/alert/dto/chain-block-created
 import { EventClosedDeploymentDto } from "@src/modules/alert/dto/event-closed-deployment.dto";
 import { EventLeaseReclaimStartedDto } from "@src/modules/alert/dto/event-lease-reclaim-started.dto";
 import { ChainAlertService } from "@src/modules/alert/services/chain-alert/chain-alert.service";
-import { DeploymentBalanceAlertsService } from "@src/modules/alert/services/deployment-balance-alerts/deployment-balance-alerts.service";
 import { ReclaimAlertService } from "@src/modules/alert/services/reclaim-alert/reclaim-alert.service";
 import { WalletBalanceAlertsService } from "@src/modules/alert/services/wallet-balance-alerts/wallet-balance-alerts.service";
 
@@ -14,7 +13,6 @@ import { WalletBalanceAlertsService } from "@src/modules/alert/services/wallet-b
 export class ChainEventsHandler {
   constructor(
     private readonly chainMessageAlertService: ChainAlertService,
-    private readonly deploymentBalanceAlertsService: DeploymentBalanceAlertsService,
     private readonly walletBalanceAlertsService: WalletBalanceAlertsService,
     private readonly reclaimAlertService: ReclaimAlertService,
     private readonly brokerService: BrokerService
@@ -25,19 +23,7 @@ export class ChainEventsHandler {
     dto: ChainBlockCreatedDto
   })
   async processBlock(block: ChainBlockCreatedDto): Promise<void> {
-    const results = await Promise.allSettled([
-      this.deploymentBalanceAlertsService.alertFor(block, message => this.brokerService.publish(eventKeyRegistry.createNotification, message)),
-      this.walletBalanceAlertsService.alertFor(block, async message => this.brokerService.publish(eventKeyRegistry.createNotification, message))
-    ]);
-
-    const errors = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
-
-    if (errors.length > 0) {
-      throw new AggregateError(
-        errors.map(e => e.reason),
-        `Failed process block`
-      );
-    }
+    await this.walletBalanceAlertsService.alertFor(block, async message => this.brokerService.publish(eventKeyRegistry.createNotification, message));
   }
 
   @Handler({
