@@ -14,7 +14,7 @@ export const DeploymentSettings = pgTable(
       .references(() => Users.id, { onDelete: "cascade" })
       .notNull(),
     dseq: varchar("dseq").notNull(),
-    autoTopUpEnabled: boolean("auto_top_up_enabled").notNull().default(false),
+    autoTopUpEnabled: boolean("auto_top_up_enabled"),
     closed: boolean("closed").notNull().default(false),
     lastFundedAt: timestamp("last_funded_at"),
     createdAt: timestamp("created_at").defaultNow(),

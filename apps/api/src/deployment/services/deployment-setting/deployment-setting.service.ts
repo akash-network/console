@@ -17,7 +17,11 @@ import { DeploymentConfigService } from "../deployment-config/deployment-config.
 import { DrainingDeploymentService } from "../draining-deployment/draining-deployment.service";
 import { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed-deployments/top-up-managed-deployments-instrumentation.service";
 
-type DeploymentSettingWithEstimatedTopUpAmount = Omit<DeploymentSettingsOutput, "lastFundedAt"> & { estimatedTopUpAmount: number; topUpFrequencyMs: number };
+type DeploymentSettingWithEstimatedTopUpAmount = Omit<DeploymentSettingsOutput, "lastFundedAt" | "autoTopUpEnabled"> & {
+  autoTopUpEnabled: boolean;
+  estimatedTopUpAmount: number;
+  topUpFrequencyMs: number;
+};
 
 @singleton()
 export class DeploymentSettingService {
@@ -43,8 +47,7 @@ export class DeploymentSettingService {
     }
 
     try {
-      const userWallet = await this.userWalletRepository.findOneByUserId(params.userId);
-      return await this.create({ ...params, autoTopUpEnabled: !!userWallet });
+      return await this.createUnconfigured(params);
     } catch (error) {
       if (error instanceof ForbiddenError) {
         return undefined;
@@ -53,22 +56,30 @@ export class DeploymentSettingService {
     }
   }
 
+  /**
+   * Creates a settings row that records no auto top-up decision, so reads keep resolving it from
+   * whether the owner has a managed wallet. Deployment create uses this: the row exists from the
+   * start without the row's existence being mistaken for the user having chosen anything, and
+   * without scheduling a wallet reload the user never asked for.
+   */
+  async createUnconfigured(params: FindDeploymentSettingParams): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
+    return await this.withEstimatedTopUpAmount(await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "create").create(params));
+  }
+
   async create(input: DeploymentSettingsInput): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
     const result = await this.withEstimatedTopUpAmount(await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "create").create(input));
 
-    if (result.autoTopUpEnabled) {
+    if (input.autoTopUpEnabled === true) {
       await this.walletReloadJobService.scheduleImmediate({ userId: result.userId });
     }
 
     return result;
   }
 
-  async upsert(
-    params: FindDeploymentSettingParams,
-    input: Pick<DeploymentSettingsInput, "autoTopUpEnabled">
-  ): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
+  async upsert(params: FindDeploymentSettingParams, input: { autoTopUpEnabled?: boolean }): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
     try {
       const existing = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy(params);
+      const previousAutoTopUpEnabled = existing ? await this.resolveAutoTopUpEnabled(existing) : undefined;
       let setting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "update").updateBy(params, input, { returning: true });
 
       setting =
@@ -78,7 +89,7 @@ export class DeploymentSettingService {
           ...params
         }));
 
-      if (input.autoTopUpEnabled !== undefined && existing?.autoTopUpEnabled !== input.autoTopUpEnabled) {
+      if (input.autoTopUpEnabled !== undefined && previousAutoTopUpEnabled !== input.autoTopUpEnabled) {
         this.instrumentation.recordSettingToggle(input.autoTopUpEnabled);
       }
 
@@ -98,9 +109,10 @@ export class DeploymentSettingService {
     }
 
     const { lastFundedAt, ...setting } = params;
+    const autoTopUpEnabled = await this.resolveAutoTopUpEnabled(setting);
 
-    if (!setting.autoTopUpEnabled) {
-      return { ...setting, estimatedTopUpAmount: 0, topUpFrequencyMs: this.topUpFrequencyMs };
+    if (!autoTopUpEnabled) {
+      return { ...setting, autoTopUpEnabled, estimatedTopUpAmount: 0, topUpFrequencyMs: this.topUpFrequencyMs };
     }
 
     const estimatedTopUpAmount = await this.drainingDeploymentService.calculateTopUpAmountForDseqAndUserId(setting.dseq, setting.userId);
@@ -113,6 +125,19 @@ export class DeploymentSettingService {
       });
     }
 
-    return { ...setting, estimatedTopUpAmount, topUpFrequencyMs: this.topUpFrequencyMs };
+    return { ...setting, autoTopUpEnabled, estimatedTopUpAmount, topUpFrequencyMs: this.topUpFrequencyMs };
+  }
+
+  /**
+   * A NULL `autoTopUpEnabled` means the user never made a choice, so it falls back to whether they
+   * have a managed wallet to fund from. A stored `true` or `false` is the user's own decision and is
+   * returned untouched — an explicit opt-out must never be quietly reversed by the default.
+   */
+  private async resolveAutoTopUpEnabled({ autoTopUpEnabled, userId }: Pick<DeploymentSettingsOutput, "autoTopUpEnabled" | "userId">): Promise<boolean> {
+    if (autoTopUpEnabled !== null) {
+      return autoTopUpEnabled;
+    }
+
+    return !!(await this.userWalletRepository.findOneByUserId(userId));
   }
 }

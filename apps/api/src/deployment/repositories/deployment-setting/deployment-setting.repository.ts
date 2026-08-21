@@ -46,12 +46,22 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return new DeploymentSettingRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
+  /**
+   * Both auto top-up queries already restrict rows to owners that have a managed wallet, so a
+   * NULL `autoTopUpEnabled` — never configured — resolves to the wallet-derived default of enabled
+   * within them. Resolving it in SQL keeps the hourly cron in step with what the API reports:
+   * otherwise a wallet owner would see the toggle on while the cron silently skipped the row.
+   */
+  private isNotExplicitlyDisabled() {
+    return or(eq(this.table.autoTopUpEnabled, true), isNull(this.table.autoTopUpEnabled));
+  }
+
   async *findAutoTopUpDeploymentsByOwnerIteratively(): AsyncGenerator<{
     address: string;
     walletId: number;
     deploymentSettings: AutoTopUpDeployment[];
   }> {
-    const baseClauses = [eq(this.table.autoTopUpEnabled, true), eq(this.table.closed, false)];
+    const baseClauses = [this.isNotExplicitlyDisabled(), eq(this.table.closed, false)];
 
     const distinctOwnersQuery = this.pg
       .selectDistinctOn([UserWallets.address], {
@@ -80,7 +90,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
   }
 
   async findAutoTopUpDeploymentsByOwner(address: string): Promise<AutoTopUpDeployment[]> {
-    const clauses = [eq(this.table.autoTopUpEnabled, true), eq(this.table.closed, false), eq(UserWallets.address, address)];
+    const clauses = [this.isNotExplicitlyDisabled(), eq(this.table.closed, false), eq(UserWallets.address, address)];
 
     const deployments = await this.pg
       .select({

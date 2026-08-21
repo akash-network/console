@@ -104,7 +104,7 @@ export class InitialDeploymentFundingService {
 
     const deploymentSetting = await this.deploymentSettingRepository.findOneBy({ userId: userWallet.userId, dseq });
 
-    if (deploymentSetting && !deploymentSetting.autoTopUpEnabled) {
+    if (deploymentSetting?.autoTopUpEnabled === false) {
       this.logger.info({ event: "INITIAL_FUNDING_SKIPPED", reason: "AUTO_TOP_UP_DISABLED", dseq, address });
       return;
     }
