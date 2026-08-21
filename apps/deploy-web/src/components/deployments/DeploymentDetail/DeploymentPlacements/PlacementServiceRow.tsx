@@ -46,6 +46,7 @@ export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
   const uriLinks = closed ? [] : toUriLinks(uris);
   const portChips = toPortChips({ forwardedPorts, ips, closed });
   const replicaLabel = closed ? undefined : formatReplicaCount(service);
+  const hasDetails = !!(detail?.resources || detail?.image || uriLinks.length > 0 || portChips.length > 0);
 
   function handleOpenChange(next: boolean) {
     if (!isControlled) setUncontrolledOpen(next);
@@ -65,7 +66,7 @@ export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
     </div>
   ) : null;
 
-  if (closed) {
+  if (closed || !hasDetails) {
     return (
       <div className="overflow-hidden rounded-lg border">
         <div className="flex items-center gap-3 p-4">

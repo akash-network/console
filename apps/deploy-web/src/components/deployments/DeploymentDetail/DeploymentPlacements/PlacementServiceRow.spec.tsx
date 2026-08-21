@@ -104,11 +104,19 @@ describe(PlacementServiceRow.name, () => {
   });
 
   it("expands a running service even without live endpoints", async () => {
-    setup({ service: mock<LeaseServiceStatus>({ available: 1 }), leaseState: "active" });
+    setup({ service: mock<LeaseServiceStatus>({ available: 1 }), leaseState: "active", detail: { image: "nginx:1.25" } });
 
     await expandService();
 
     expect(screen.getByRole("button", { name: /web/ })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Image")).toBeInTheDocument();
+  });
+
+  it("is not expandable when there is nothing to show", () => {
+    setup({ service: mock<LeaseServiceStatus>({ available: 1 }), leaseState: "active" });
+
+    expect(screen.getByText("Running")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /web/ })).not.toBeInTheDocument();
   });
 
   it("shows image and resources when expanded", async () => {
