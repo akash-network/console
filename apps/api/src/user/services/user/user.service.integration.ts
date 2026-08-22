@@ -1,5 +1,6 @@
 import { faker } from "@faker-js/faker";
 import type { GetUsers200ResponseOneOfInner } from "auth0";
+import { generateKeyPairSync } from "node:crypto";
 import { container } from "tsyringe";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -10,7 +11,10 @@ import type { TrialActivationJobService } from "@src/billing/services/trial-acti
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import type { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
+import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
+import { DataKeyService } from "@src/secret/services/data-key/data-key.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
@@ -120,6 +124,26 @@ describe(UserService.name, () => {
         emailVerified: input.emailVerified,
         subscribedToNewsletter: input.subscribedToNewsletter
       });
+    });
+
+    it("creates exactly one data key for the registered user", async () => {
+      const { service, dataKeyRepository } = setup();
+
+      const user = await service.registerUser(createRegisterInput());
+
+      expect(await dataKeyRepository.count({ userId: user.id })).toBe(1);
+      expect(await dataKeyRepository.findByUserId(user.id)).toMatchObject({ wrappedByKid: "sdl-secrets.v1", wrappedKey: expect.any(String) });
+    });
+
+    it("registers the user even when data key creation fails", async () => {
+      const dataKeyError = new Error("sealing key unavailable");
+      const { service, dataKeyRepository, logger } = setup({ ensureDataKey: () => Promise.reject(dataKeyError) });
+
+      const user = await service.registerUser(createRegisterInput());
+
+      expect(user.id).toBeDefined();
+      expect(await dataKeyRepository.count({ userId: user.id })).toBe(0);
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "FAILED_TO_ENSURE_USER_DATA_KEY", id: user.id, error: dataKeyError }));
     });
 
     it("logs an error if createDefaultNotificationChannel returns an error", async () => {
@@ -374,7 +398,24 @@ describe(UserService.name, () => {
     });
   });
 
-  function setup(input?: { createDefaultNotificationChannel?: NotificationService["createDefaultChannel"] }) {
+  function createRegisterInput(overrides: Partial<RegisterUserInput> = {}): RegisterUserInput {
+    return {
+      userId: faker.string.uuid(),
+      wantedUsername: `test-user-${faker.string.uuid()}`,
+      email: faker.internet.email(),
+      emailVerified: faker.datatype.boolean(),
+      subscribedToNewsletter: faker.datatype.boolean(),
+      ip: faker.internet.ipv4(),
+      userAgent: faker.string.alphanumeric(32),
+      fingerprint: faker.string.alphanumeric(16),
+      ...overrides
+    };
+  }
+
+  function setup(input?: {
+    createDefaultNotificationChannel?: NotificationService["createDefaultChannel"];
+    ensureDataKey?: DataKeyService["ensureDataKey"];
+  }) {
     const analyticsService = mock<AnalyticsService>();
     const logger = mock<LoggerService>();
     const auth0Service = mock<Auth0Service>();
@@ -382,6 +423,12 @@ describe(UserService.name, () => {
       ensureWallet: vi.fn().mockResolvedValue(createUserWallet())
     });
     const userRepository = container.resolve(UserRepository);
+    const dataKeyRepository = container.resolve(DataKeyRepository);
+    const publicKey = generateKeyPairSync("rsa", { modulusLength: 3072 }).publicKey;
+    const { n, e } = publicKey.export({ format: "jwk" });
+    const sealingKeyService = mock<SdlSecretsSealingKeyService>();
+    sealingKeyService.peekSealingKey.mockReturnValue({ kid: "sdl-secrets.v1", publicKey, jwk: { kty: "RSA", n: n!, e: e!, use: "enc", alg: "RSA-OAEP-256" } });
+    const dataKeyService = new DataKeyService(dataKeyRepository, sealingKeyService, logger);
     const service = new UserService(
       userRepository,
       analyticsService,
@@ -394,9 +441,10 @@ describe(UserService.name, () => {
         sendCode: vi.fn().mockResolvedValue({ codeSentAt: new Date().toISOString() })
       }),
       walletInitializerService,
-      mock<TrialActivationJobService>({ schedule: vi.fn().mockResolvedValue(undefined) })
+      mock<TrialActivationJobService>({ schedule: vi.fn().mockResolvedValue(undefined) }),
+      input?.ensureDataKey ? mock<DataKeyService>({ ensureDataKey: input.ensureDataKey }) : dataKeyService
     );
 
-    return { service, analyticsService, logger, auth0Service, userRepository, walletInitializerService };
+    return { service, analyticsService, logger, auth0Service, userRepository, walletInitializerService, dataKeyRepository };
   }
 });
