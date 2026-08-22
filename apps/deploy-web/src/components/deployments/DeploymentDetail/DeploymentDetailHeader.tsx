@@ -73,6 +73,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
   const costPerBlockUDenom = liveLeases.reduce((sum, lease) => sum + parseFloat(lease.price.amount), 0);
   const liveGpuCount = liveLeases.reduce((sum, lease) => sum + (lease.gpuAmount ?? 0), 0);
 
+  // The detail page never refetches, so the tile's countdown only moves via useTickingNow's minute ticks.
   const runtimeEndsAt = settings?.runtimeEndsAt ?? null;
   const now = useTickingNow(!!runtimeEndsAt);
 
@@ -164,6 +165,16 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
 /**
  * The runtime-limit tile's value: the requested hours, plus how long remains once the countdown is
  * anchored (it anchors when the lease starts, so a not-yet-leased deployment shows only the hours).
+ *
+ * The wall clock is read through the `now` parameter rather than `Date.now()` directly. That keeps the
+ * output deterministic under fake timers in tests and lets callers stay fresh on pages that never refetch
+ * by passing a ticking clock (`useTickingNow`) — without one, the "~Xh left" / "reached" verdict would
+ * freeze at first render.
+ *
+ * @param runtimeLimitHours The limit the user requested, shown as-is (e.g. "12h").
+ * @param runtimeEndsAt When funding stops, ISO-encoded; null while the countdown is unanchored, in which
+ * case only the limit itself is shown.
+ * @param now The instant to measure remaining time against; defaults to the real present.
  */
 export function formatRuntimeLimit(runtimeLimitHours: number, runtimeEndsAt: string | null, now: number = Date.now()): string {
   const limit = `${runtimeLimitHours}h`;
