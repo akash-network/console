@@ -92,7 +92,7 @@ export function toPortChips(input: { forwardedPorts?: ForwardedPort[] | null; ip
       port: ip.Port,
       as: ip.ExternalPort,
       proto: ip.Protocol ? ip.Protocol.toLowerCase() : undefined,
-      href: `http://${ip.IP}:${ip.ExternalPort}`,
+      href: !ip.Protocol || ip.Protocol.toUpperCase() === "TCP" ? `http://${ip.IP}:${ip.ExternalPort}` : undefined,
       available: true
     }))
   ];

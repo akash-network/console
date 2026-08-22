@@ -45,6 +45,12 @@ describe("ServiceEndpoints", () => {
         { port: 80, as: 8080, proto: "tcp", href: "http://1.2.3.4:8080", available: true }
       ]);
     });
+
+    it("omits the href on a UDP leased IP", () => {
+      expect(toPortChips({ ips: [{ IP: "1.2.3.4", ExternalPort: 7777, Port: 7777, Protocol: "UDP" }] })).toEqual([
+        { port: 7777, as: 7777, proto: "udp", href: undefined, available: true }
+      ]);
+    });
   });
 
   describe("ServiceUriLinks", () => {

@@ -35,6 +35,7 @@ export function collectVisitEndpoints(status: LeaseStatusDto | null | undefined)
 
   for (const [serviceName, ips] of Object.entries(status.ips ?? {})) {
     for (const ip of ips) {
+      if (ip.Protocol && ip.Protocol.toUpperCase() !== "TCP") continue;
       add(serviceName, ip.IP, ip.ExternalPort, `http://${ip.IP}:${ip.ExternalPort}`);
     }
   }

@@ -48,11 +48,22 @@ describe("collectVisitEndpoints", () => {
     const result = collectVisitEndpoints(
       buildStatus({
         services: { web: [] },
-        ips: { web: [mock<ServiceIp>({ IP: "1.2.3.4", ExternalPort: 443 })] }
+        ips: { web: [mock<ServiceIp>({ IP: "1.2.3.4", ExternalPort: 443, Protocol: "TCP" })] }
       })
     );
 
     expect(result).toEqual([{ serviceName: "web", host: "1.2.3.4", port: 443, href: "http://1.2.3.4:443" }]);
+  });
+
+  it("skips leased IPs that are not TCP", () => {
+    const result = collectVisitEndpoints(
+      buildStatus({
+        services: { game: [] },
+        ips: { game: [mock<ServiceIp>({ IP: "1.2.3.4", ExternalPort: 7777, Protocol: "UDP" })] }
+      })
+    );
+
+    expect(result).toEqual([]);
   });
 
   it("keeps one row per href when a URI and forwarded port point at the same address", () => {
