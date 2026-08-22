@@ -8,7 +8,7 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
-import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { CachedBalanceService } from "@src/deployment/services/cached-balance/cached-balance.service";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
@@ -70,31 +70,6 @@ export class InitialDeploymentFundingService {
     const currentHeight = await this.blockHttpService.getCurrentHeight();
     const lookAheadHeight = currentHeight + averageBlockCountInAnHour * this.deploymentConfig.get("AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H");
 
-    if (deployment.predictedClosedHeight > lookAheadHeight) {
-      this.instrumentation.recordSkipped("sufficient_runway", {
-        dseq,
-        address,
-        predictedClosedHeight: deployment.predictedClosedHeight,
-        lookAheadHeight
-      });
-      return;
-    }
-
-    const desiredAmount = this.drainingDeploymentService.calculateAmountToTargetRunway(deployment, currentHeight);
-    const balance = await this.cachedBalanceService.getFresh(address);
-    const amount = Math.min(desiredAmount, balance.spendable);
-
-    if (amount <= 0) {
-      this.instrumentation.recordSkipped("insufficient_balance", {
-        dseq,
-        address,
-        desiredAmount,
-        available: balance.available,
-        spendable: balance.spendable
-      });
-      return;
-    }
-
     const userWallet = await this.userWalletRepository.findById(walletId);
 
     if (!userWallet) {
@@ -106,6 +81,39 @@ export class InitialDeploymentFundingService {
 
     if (deploymentSetting && !deploymentSetting.autoTopUpEnabled) {
       this.logger.info({ event: "INITIAL_FUNDING_SKIPPED", reason: "AUTO_TOP_UP_DISABLED", dseq, address });
+      return;
+    }
+
+    const runtimeEndsAt = await this.startRuntimeCountdown(deploymentSetting);
+
+    if (deployment.predictedClosedHeight > lookAheadHeight) {
+      this.instrumentation.recordSkipped("sufficient_runway", {
+        dseq,
+        address,
+        predictedClosedHeight: deployment.predictedClosedHeight,
+        lookAheadHeight
+      });
+      return;
+    }
+
+    const desiredAmount = this.drainingDeploymentService.calculateAmountToTargetRunway({ ...deployment, runtimeEndsAt }, currentHeight);
+
+    if (desiredAmount <= 0 && runtimeEndsAt) {
+      this.instrumentation.recordSkipped("runtime_limit_reached", { dseq, address, runtimeEndsAt });
+      return;
+    }
+
+    const balance = await this.cachedBalanceService.getFresh(address);
+    const amount = Math.min(desiredAmount, balance.spendable);
+
+    if (amount <= 0) {
+      this.instrumentation.recordSkipped("insufficient_balance", {
+        dseq,
+        address,
+        desiredAmount,
+        available: balance.available,
+        spendable: balance.spendable
+      });
       return;
     }
 
@@ -151,6 +159,20 @@ export class InitialDeploymentFundingService {
     this.instrumentation.recordDeposit(amount, denom, { dseq, address, blockRate: deployment.blockRate });
 
     await this.scheduleWalletReload({ walletId, dseq, address });
+  }
+
+  /**
+   * A runtime limit counts from lease start, not deployment creation, so bid selection doesn't eat
+   * into the requested hours. The countdown starts before the sufficient-runway skip so a well-funded
+   * new lease still anchors at lease start. The anchor is a set-if-unset, so job retries and the
+   * top-up sweep's late fallback all agree on the deadline the first anchoring wrote.
+   */
+  private async startRuntimeCountdown(deploymentSetting: DeploymentSettingsOutput | undefined): Promise<Date | null> {
+    if (!deploymentSetting?.runtimeLimitHours) {
+      return null;
+    }
+
+    return deploymentSetting.runtimeEndsAt ?? (await this.deploymentSettingRepository.startRuntimeCountdown(deploymentSetting.id));
   }
 
   /**

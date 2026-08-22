@@ -140,6 +140,8 @@ describe(DeploymentSettingService.name, () => {
       autoTopUpEnabled: false,
       closed: false,
       lastFundedAt: null,
+      runtimeLimitHours: null,
+      runtimeEndsAt: null,
       createdAt: faker.date.past().toISOString(),
       updatedAt: faker.date.past().toISOString(),
       ...overrides
