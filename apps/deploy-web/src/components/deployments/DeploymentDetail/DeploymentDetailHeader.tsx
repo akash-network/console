@@ -1,6 +1,6 @@
 "use client";
 import type { FC, ReactNode } from "react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge, Button, Card, CardContent, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { CheckCircle, EditPencil, InfoCircle } from "iconoir-react";
@@ -71,6 +71,9 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
   const liveLeases = useMemo(() => leases?.filter(isLeaseLive) ?? [], [leases]);
   const costPerBlockUDenom = liveLeases.reduce((sum, lease) => sum + parseFloat(lease.price.amount), 0);
   const liveGpuCount = liveLeases.reduce((sum, lease) => sum + (lease.gpuAmount ?? 0), 0);
+
+  const runtimeEndsAt = settings?.runtimeEndsAt ?? null;
+  const now = useTickingNow(!!runtimeEndsAt);
 
   const storedDeployment = getDeploymentData(deployment.dseq);
   const storedManifest = storedDeployment?.manifest;
@@ -144,7 +147,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
                 </span>
               }
             >
-              {formatRuntimeLimit(settings.runtimeLimitHours, settings.runtimeEndsAt)}
+              {formatRuntimeLimit(settings.runtimeLimitHours, runtimeEndsAt, now)}
             </SummaryItem>
           )}
           <SummaryItem label="GPU">{formatGpuLabel(deployment.gpuAmount ?? 0, getDeploymentGpuModels(deployment.groups))}</SummaryItem>
@@ -161,16 +164,42 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
  * The runtime-limit tile's value: the requested hours, plus how long remains once the countdown is
  * anchored (it anchors when the lease starts, so a not-yet-leased deployment shows only the hours).
  */
-export function formatRuntimeLimit(runtimeLimitHours: number, runtimeEndsAt: string | null): string {
+export function formatRuntimeLimit(runtimeLimitHours: number, runtimeEndsAt: string | null, now: number = Date.now()): string {
   const limit = `${runtimeLimitHours}h`;
   if (!runtimeEndsAt) {
     return limit;
   }
-  const hoursRemaining = (new Date(runtimeEndsAt).getTime() - Date.now()) / (1000 * 60 * 60);
+  const hoursRemaining = (new Date(runtimeEndsAt).getTime() - now) / (1000 * 60 * 60);
   if (hoursRemaining <= 0) {
     return `${limit} · reached`;
   }
   return `${limit} · ~${Math.ceil(hoursRemaining)}h left`;
+}
+
+/** The countdown displays whole hours, so a minute cadence keeps the label honest without per-second churn. */
+const RUNTIME_LIMIT_TICK_INTERVAL_MS = 60_000;
+
+/**
+ * Re-renders on a fixed cadence while `enabled`, so wall-clock-derived labels stay current on pages that never
+ * refetch (the detail page disables refetch-on-focus and has no polling). Returns the time of the latest tick.
+ */
+function useTickingNow(enabled: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(
+    function tickWhileEnabled() {
+      if (!enabled) return;
+      const interval = setInterval(function advanceNow() {
+        setNow(Date.now());
+      }, RUNTIME_LIMIT_TICK_INTERVAL_MS);
+      return function stopTicking() {
+        clearInterval(interval);
+      };
+    },
+    [enabled]
+  );
+
+  return now;
 }
 
 const SummaryItem: FC<{ label: ReactNode; children: ReactNode }> = ({ label, children }) => (

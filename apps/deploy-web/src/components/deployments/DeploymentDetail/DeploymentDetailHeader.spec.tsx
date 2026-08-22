@@ -6,7 +6,7 @@ import type { DeploymentDto, DeploymentGroup, LeaseDto } from "@src/types/deploy
 import type { ApiProviderList } from "@src/types/provider";
 import { DEPENDENCIES, DeploymentDetailHeader, formatRuntimeLimit } from "./DeploymentDetailHeader";
 
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
@@ -75,6 +75,29 @@ describe("DeploymentDetailHeader", () => {
 
     expect(screen.getByText("RUNTIME LIMIT")).toBeInTheDocument();
     expect(screen.getByText("12h")).toBeInTheDocument();
+  });
+
+  it("keeps the remaining-time label ticking as time passes, without any query refetch", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-21T12:00:00.000Z"));
+
+    try {
+      setup({ runtimeLimitHours: 12, runtimeEndsAt: "2026-08-21T14:00:00.000Z" });
+
+      expect(screen.getByText("12h · ~2h left")).toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(61 * 60 * 1000);
+      });
+      expect(screen.getByText("12h · ~1h left")).toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
+      });
+      expect(screen.getByText("12h · reached")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("hides the runtime limit tile when the deployment has none", () => {
