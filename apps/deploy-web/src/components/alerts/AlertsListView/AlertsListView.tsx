@@ -1,6 +1,6 @@
 import type { FC } from "react";
 import React from "react";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import type { components } from "@akashnetwork/console-api-types/notifications";
 import {
   Button,
@@ -67,6 +67,8 @@ export const AlertsListView: FC<Props> = ({
   const isDeploymentDetailRedesignEnabled = d.useFlag("deployment_detail_redesign");
   const deploymentAlertsTab = isDeploymentDetailRedesignEnabled ? "SETTINGS" : "ALERTS";
 
+  const visibleData = useMemo(() => data.filter(alert => alert.type !== "DEPLOYMENT_BALANCE"), [data]);
+
   const extractDseq = useCallback((info: CellContext<Alert, unknown>) => {
     const { params } = info.row.original;
     const dseq = params && "dseq" in params && params.dseq;
@@ -117,9 +119,7 @@ export const AlertsListView: FC<Props> = ({
         const type = info.getValue();
         const params = info.row.original.params;
 
-        if (type === "DEPLOYMENT_BALANCE") {
-          return "Escrow Threshold";
-        } else if (params && "type" in params && params.type === "DEPLOYMENT_CLOSED") {
+        if (params && "type" in params && params.type === "DEPLOYMENT_CLOSED") {
           return "Deployment Close";
         }
 
@@ -187,7 +187,7 @@ export const AlertsListView: FC<Props> = ({
   ];
 
   const table = useReactTable({
-    data,
+    data: visibleData,
     columns,
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
@@ -226,7 +226,7 @@ export const AlertsListView: FC<Props> = ({
     );
   }
 
-  if (!data || data.length === 0) {
+  if (visibleData.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
         <p className="text-gray-500">No alerts found</p>

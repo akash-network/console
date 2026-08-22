@@ -30,15 +30,15 @@ describe(AlertsListView.name, () => {
 
   it("renders table with enabled alert with params", () => {
     const mockAlert = buildAlert({
-      type: "DEPLOYMENT_BALANCE",
+      type: "CHAIN_MESSAGE",
       enabled: true,
-      params: { owner: "owner", dseq: "12345" }
+      params: { dseq: "12345", type: "DEPLOYMENT_CLOSED" }
     });
 
     setup({ data: [mockAlert] });
 
     expect(screen.getByText(mockAlert.deploymentName)).toBeInTheDocument();
-    expect(screen.getByText("Escrow Threshold")).toBeInTheDocument();
+    expect(screen.getByText("Deployment Close")).toBeInTheDocument();
     expect(screen.getByText(capitalize(mockAlert.status))).toBeInTheDocument();
 
     const checkbox = screen.getByRole("checkbox");
@@ -48,8 +48,35 @@ describe(AlertsListView.name, () => {
     expect(screen.getByText("12345")).toBeInTheDocument();
   });
 
+  it("does not render DEPLOYMENT_BALANCE alerts", () => {
+    const hiddenAlert = buildAlert({
+      type: "DEPLOYMENT_BALANCE",
+      params: { owner: "owner", dseq: "12345" }
+    });
+    const visibleAlert = buildAlert({
+      type: "CHAIN_MESSAGE",
+      params: { dseq: "67890", type: "DEPLOYMENT_CLOSED" }
+    });
+
+    setup({ data: [hiddenAlert, visibleAlert] });
+
+    expect(screen.queryByText("Escrow Threshold")).not.toBeInTheDocument();
+    expect(screen.queryByText(hiddenAlert.deploymentName)).not.toBeInTheDocument();
+    expect(screen.getByText(visibleAlert.deploymentName)).toBeInTheDocument();
+    expect(screen.getByText("Deployment Close")).toBeInTheDocument();
+  });
+
+  it("shows empty state when every alert is DEPLOYMENT_BALANCE", () => {
+    setup({
+      data: [buildAlert({ type: "DEPLOYMENT_BALANCE", params: { owner: "owner", dseq: "12345" } })]
+    });
+
+    expect(screen.getByText("No alerts found")).toBeInTheDocument();
+    expect(screen.queryByText("Escrow Threshold")).not.toBeInTheDocument();
+  });
+
   it("links the deployment name to the settings tab when the deployment detail redesign is enabled", () => {
-    const mockAlert = buildAlert({ type: "DEPLOYMENT_BALANCE", params: { owner: "owner", dseq: "12345" } });
+    const mockAlert = buildAlert({ type: "CHAIN_MESSAGE", params: { dseq: "12345", type: "DEPLOYMENT_CLOSED" } });
 
     setup({ data: [mockAlert], isDeploymentDetailRedesignEnabled: true });
 
@@ -57,7 +84,7 @@ describe(AlertsListView.name, () => {
   });
 
   it("links the deployment name to the alerts tab when the deployment detail redesign is disabled", () => {
-    const mockAlert = buildAlert({ type: "DEPLOYMENT_BALANCE", params: { owner: "owner", dseq: "12345" } });
+    const mockAlert = buildAlert({ type: "CHAIN_MESSAGE", params: { dseq: "12345", type: "DEPLOYMENT_CLOSED" } });
 
     setup({ data: [mockAlert], isDeploymentDetailRedesignEnabled: false });
 
@@ -93,7 +120,7 @@ describe(AlertsListView.name, () => {
   });
 
   it("does not render an edit link for non wallet balance alerts", () => {
-    const mockAlert = buildAlert({ type: "DEPLOYMENT_BALANCE", params: { owner: "owner", dseq: "12345" } });
+    const mockAlert = buildAlert({ type: "CHAIN_MESSAGE", params: { dseq: "12345", type: "DEPLOYMENT_CLOSED" } });
 
     setup({ data: [mockAlert] });
 
