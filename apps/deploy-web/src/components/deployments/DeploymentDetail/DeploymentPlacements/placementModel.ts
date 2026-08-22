@@ -160,7 +160,7 @@ function isNamedGpuModel(model: string | undefined): model is string {
   return !!model && model !== "*";
 }
 
-export type ServiceStatusTone = "running" | "pending" | "closed";
+export type ServiceStatusTone = "running" | "pending" | "loading" | "closed";
 
 export interface ServiceStatusView {
   label: string;
@@ -181,7 +181,7 @@ export function getServiceStatus(
   isReclaimed = false
 ): ServiceStatusView {
   if (!isLeaseLive({ state: leaseState }) || isReclaimed) return { label: "Closed", tone: "closed" };
-  if (!service) return { label: "Loading", tone: "pending" };
+  if (!service) return { label: "Loading", tone: "loading" };
   if (service.available > 0) return { label: "Running", tone: "running" };
   return { label: "Starting", tone: "pending" };
 }

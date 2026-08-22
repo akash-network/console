@@ -243,7 +243,7 @@ describe("placementModel", () => {
     });
 
     it("reports loading until lease status arrives", () => {
-      expect(getServiceStatus(undefined, "active")).toEqual({ label: "Loading", tone: "pending" });
+      expect(getServiceStatus(undefined, "active")).toEqual({ label: "Loading", tone: "loading" });
     });
 
     it("reports closed when the lease is closed", () => {

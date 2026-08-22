@@ -26,7 +26,9 @@ describe(PlacementServiceRow.name, () => {
   it("reports loading when lease status has not arrived", () => {
     setup({ leaseState: "active" });
 
-    expect(screen.getByText("Loading")).toBeInTheDocument();
+    const badge = screen.getByText("Loading");
+    expect(badge).toBeInTheDocument();
+    expect(badge.querySelector(".animate-spin")).toBeInTheDocument();
   });
 
   it("reports a closed service when the lease has been reclaimed while still active", () => {
