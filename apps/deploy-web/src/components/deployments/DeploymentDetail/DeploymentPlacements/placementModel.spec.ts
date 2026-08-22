@@ -5,6 +5,9 @@ import { mock } from "vitest-mock-extended";
 import type { LeaseServiceStatus } from "@src/queries/useLeaseQuery";
 import type { DeploymentGroup } from "@src/types/deployment";
 import {
+  formatGpuLabel,
+  formatReplicaCount,
+  getDeploymentGpuModels,
   getPlacementGpuModels,
   getPlacementName,
   getProviderRegion,
@@ -187,6 +190,47 @@ describe("placementModel", () => {
     it("returns an empty list when no gpu is requested", () => {
       expect(getPlacementGpuModels(buildGroup({}))).toEqual([]);
     });
+
+    it("ignores a wildcard model when no gpu type is specified", () => {
+      expect(getPlacementGpuModels(buildGroup({ gpuAttributes: [{ key: "vendor/nvidia/model/*", value: "true" }] }))).toEqual([]);
+    });
+  });
+
+  describe("getDeploymentGpuModels", () => {
+    it("unions unique models from every group", () => {
+      expect(
+        getDeploymentGpuModels([
+          buildGroup({ gpuAttributes: [{ key: "vendor/nvidia/model/h100", value: "true" }] }),
+          buildGroup({ gpuAttributes: [{ key: "vendor/nvidia/model/h100", value: "true" }] }),
+          buildGroup({ gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }] })
+        ])
+      ).toEqual(["h100", "a100"]);
+    });
+
+    it("returns an empty list when no groups declare a gpu", () => {
+      expect(getDeploymentGpuModels([buildGroup({})])).toEqual([]);
+      expect(getDeploymentGpuModels(undefined)).toEqual([]);
+    });
+  });
+
+  describe("formatGpuLabel", () => {
+    it("formats the model name when one is declared", () => {
+      expect(formatGpuLabel(1, ["h100"])).toBe("H100");
+      expect(formatGpuLabel(2, ["a100"])).toBe("A100");
+    });
+
+    it("joins multiple models", () => {
+      expect(formatGpuLabel(2, ["h100", "a100"])).toBe("H100, A100");
+    });
+
+    it("falls back to the count when no model is declared", () => {
+      expect(formatGpuLabel(1, [])).toBe("1");
+      expect(formatGpuLabel(1, ["*"])).toBe("1");
+    });
+
+    it("shows an em dash when the deployment has no gpu", () => {
+      expect(formatGpuLabel(0, ["h100"])).toBe("—");
+    });
   });
 
   describe("getServiceStatus", () => {
@@ -196,7 +240,10 @@ describe("placementModel", () => {
 
     it("reports starting when no replica is available yet", () => {
       expect(getServiceStatus(buildService({ available: 0 }), "active")).toEqual({ label: "Starting", tone: "pending" });
-      expect(getServiceStatus(undefined, "active")).toEqual({ label: "Starting", tone: "pending" });
+    });
+
+    it("reports loading until lease status arrives", () => {
+      expect(getServiceStatus(undefined, "active")).toEqual({ label: "Loading", tone: "loading" });
     });
 
     it("reports closed when the lease is closed", () => {
@@ -213,6 +260,21 @@ describe("placementModel", () => {
 
     it("keeps a lease in the reclamation grace period non-terminal until it is reclaimed", () => {
       expect(getServiceStatus(buildService({ available: 1 }), "reclaiming")).toEqual({ label: "Running", tone: "running" });
+    });
+  });
+
+  describe("formatReplicaCount", () => {
+    it("formats available against total", () => {
+      expect(formatReplicaCount(buildService({ available: 1, total: 1 }))).toBe("1/1 replicas");
+      expect(formatReplicaCount(buildService({ available: 0, total: 3 }))).toBe("0/3 replicas");
+    });
+
+    it("is omitted when lease status has not arrived", () => {
+      expect(formatReplicaCount(undefined)).toBeUndefined();
+    });
+
+    it("is omitted when replica totals are not numeric", () => {
+      expect(formatReplicaCount(mock<LeaseServiceStatus>({ available: 1 }))).toBeUndefined();
     });
   });
 });

@@ -146,7 +146,7 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
   return (
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(submit)}>
-        <div className="my-6 flex items-center text-xl font-semibold">
+        <div className="mb-6 flex items-center text-xl font-semibold">
           <h3 className="mr-6">Configure Alerts</h3>
           {!disabled && (
             <LoadingButton type="submit" loading={isSaving} disabled={!isDirty || isSaving} size="md">

@@ -36,6 +36,7 @@ describe(DeploymentPlacements.name, () => {
     const manifest = yaml.dump({ services: { web: {}, api: {}, worker: {} } });
     setup({ leases: [buildLease("a"), buildLease("b")], deploymentManifest: manifest });
 
+    expect(screen.getByRole("heading", { name: "Placements" })).toBeInTheDocument();
     expect(screen.getByText("2 placements · 3 services")).toBeInTheDocument();
   });
 

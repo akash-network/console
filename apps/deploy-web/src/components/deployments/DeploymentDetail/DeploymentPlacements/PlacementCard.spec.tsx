@@ -1,13 +1,15 @@
+import { TooltipProvider } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { LeaseServiceStatus, LeaseStatusDto } from "@src/queries/useLeaseQuery";
+import type { ForwardedPort, LeaseServiceStatus, LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { DEPENDENCIES, PlacementCard } from "./PlacementCard";
 import type { ManifestServiceDetail } from "./placementModel";
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(PlacementCard.name, () => {
@@ -18,15 +20,69 @@ describe(PlacementCard.name, () => {
     });
 
     expect(screen.getByRole("heading", { name: "dcloud" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Placement 1")).toBeInTheDocument();
     expect(screen.getByText("us-east")).toBeInTheDocument();
-    expect(screen.getByText("Meridian Cloud")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Meridian Cloud/ })).toHaveAttribute("href", expect.stringContaining("/providers/akash1p"));
+  });
+
+  it("omits the GPU stat when the lease requests no GPU", () => {
+    setup();
+
+    expect(screen.getByText("vCPU")).toBeInTheDocument();
+    expect(screen.queryByText("GPU")).not.toBeInTheDocument();
+  });
+
+  it("shows the GPU stat when the lease requests a GPU", () => {
+    setup({ lease: buildLease({ gpuAmount: 1 }) });
+
+    expect(screen.getByText("GPU")).toBeInTheDocument();
+  });
+
+  it("shows the gpu count and model when the lease declares one", () => {
+    setup({
+      lease: buildLease({
+        gpuAmount: 1,
+        gpuAttributes: [{ key: "vendor/nvidia/model/h100", value: "true" }]
+      })
+    });
+
+    expect(screen.getByText("H100")).toBeInTheDocument();
+  });
+
+  it("expands every service when Expand all is clicked", async () => {
+    setup({
+      leaseStatus: buildStatus(["web", "api"], {
+        web: [{ host: "provider.io", externalPort: 30000, port: 80, available: 1 }],
+        api: [{ host: "provider.io", externalPort: 30001, port: 8080, available: 1 }]
+      }),
+      dependencies: { PlacementServiceRow: DEPENDENCIES.PlacementServiceRow }
+    });
+
+    expect(screen.queryByText("Ports")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /expand all/i }));
+
+    expect(screen.getAllByText("Ports")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: /collapse all/i })).toBeInTheDocument();
   });
 
   it("hides the region when the provider has not declared one", () => {
     setup({ provider: buildProvider() });
 
-    expect(screen.getByText("Meridian Cloud")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Meridian Cloud/ })).toBeInTheDocument();
     expect(screen.queryByText("us-east")).not.toBeInTheDocument();
+  });
+
+  it("hides expand all when the lease is closed", () => {
+    setup({ lease: buildLease({ state: "closed" }), leaseStatus: null });
+
+    expect(screen.queryByRole("button", { name: /expand all/i })).not.toBeInTheDocument();
+  });
+
+  it("hides expand all when the lease has been reclaimed while still active", () => {
+    setup({ lease: buildLease({ groupState: "paused" }) });
+
+    expect(screen.queryByRole("button", { name: /expand all/i })).not.toBeInTheDocument();
   });
 
   it("renders one service row per live service reported by the lease status", () => {
@@ -75,13 +131,19 @@ describe(PlacementCard.name, () => {
     expect(screen.queryByText("Reclaiming")).not.toBeInTheDocument();
   });
 
-  function buildLease(input?: { groupName?: string; state?: string; groupState?: string }) {
+  function buildLease(input?: {
+    groupName?: string;
+    state?: string;
+    groupState?: string;
+    gpuAmount?: number;
+    gpuAttributes?: { key: string; value: string }[];
+  }) {
     return mock<LeaseDto>({
       id: "1",
       provider: "akash1p",
       state: input?.state ?? "active",
       cpuAmount: 6,
-      gpuAmount: 0,
+      gpuAmount: input?.gpuAmount ?? 0,
       memoryAmount: 1_000_000,
       storageAmount: 2_000_000,
       group: mock<DeploymentGroup>({
@@ -89,16 +151,16 @@ describe(PlacementCard.name, () => {
         group_spec: {
           name: input?.groupName ?? "dcloud",
           requirements: { attributes: [] as { key: string; value: string }[] },
-          resources: [] as DeploymentGroup["group_spec"]["resources"]
+          resources: input?.gpuAttributes ? [{ resource: { gpu: { attributes: input.gpuAttributes } } }] : ([] as DeploymentGroup["group_spec"]["resources"])
         }
       } as Partial<DeploymentGroup>)
     });
   }
 
-  function buildStatus(serviceNames: string[]) {
+  function buildStatus(serviceNames: string[], forwardedPorts: Record<string, ForwardedPort[]> = {}) {
     return mock<LeaseStatusDto>({
-      services: Object.fromEntries(serviceNames.map(name => [name, mock<LeaseServiceStatus>({ name, available: 1 })])),
-      forwarded_ports: {},
+      services: Object.fromEntries(serviceNames.map(name => [name, mock<LeaseServiceStatus>({ name, available: 1, uris: [] })])),
+      forwarded_ports: forwardedPorts,
       ips: {}
     });
   }
@@ -125,16 +187,18 @@ describe(PlacementCard.name, () => {
     const useTeeResourceCarveouts: typeof DEPENDENCIES.useTeeResourceCarveouts = () => [];
 
     return render(
-      <PlacementCard
-        index={0}
-        lease={input?.lease ?? buildLease()}
-        provider={input?.provider ?? buildProvider()}
-        manifestServices={input?.manifestServices ?? {}}
-        placementServices={input?.placementServices}
-        dseq="123"
-        onClosed={vi.fn()}
-        dependencies={MockComponents(DEPENDENCIES, { useLeaseStatus, useTeeResourceCarveouts, ...input?.dependencies })}
-      />
+      <TooltipProvider>
+        <PlacementCard
+          index={0}
+          lease={input?.lease ?? buildLease()}
+          provider={input?.provider ?? buildProvider()}
+          manifestServices={input?.manifestServices ?? {}}
+          placementServices={input?.placementServices}
+          dseq="123"
+          onClosed={vi.fn()}
+          dependencies={MockComponents(DEPENDENCIES, { useLeaseStatus, useTeeResourceCarveouts, ...input?.dependencies })}
+        />
+      </TooltipProvider>
     );
   }
 });

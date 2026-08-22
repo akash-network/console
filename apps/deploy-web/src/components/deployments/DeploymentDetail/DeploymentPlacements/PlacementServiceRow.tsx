@@ -2,17 +2,16 @@
 import type { FC, ReactNode } from "react";
 import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
-import { Box, Globe, Key, NavArrowDown, NavArrowUp, Terminal } from "iconoir-react";
+import { Box, Globe, Label, NavArrowDown, NavArrowRight } from "iconoir-react";
 
-import { CopyTextToClipboardButton } from "@src/components/shared/CopyTextToClipboardButton";
 import type { ForwardedPort, LeaseServiceStatus, ServiceIp } from "@src/queries/useLeaseQuery";
 import type { LeaseDto } from "@src/types/deployment";
-import type { ManifestEnvVar, ManifestServiceDetail, ManifestServiceResources, ServiceStatusView } from "./placementModel";
-import { getServiceStatus } from "./placementModel";
+import { StatusBadge } from "../DeploymentStatusBadge";
+import type { ManifestServiceDetail, ManifestServiceResources } from "./placementModel";
+import { formatReplicaCount, getServiceStatus } from "./placementModel";
 import type { PlacementStat } from "./PlacementStats";
 import { PlacementStats } from "./PlacementStats";
-import { EndpointLinks, toForwardedPortLinks, toIpLinks, toUriLinks } from "./ServiceEndpoints";
+import { PortChips, ServiceUriLinks, toPortChips, toUriLinks } from "./ServiceEndpoints";
 
 export interface PlacementServiceRowProps {
   serviceName: string;
@@ -23,96 +22,117 @@ export interface PlacementServiceRowProps {
   uris?: string[] | null;
   forwardedPorts?: ForwardedPort[] | null;
   ips?: ServiceIp[] | null;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({ serviceName, service, leaseState, isReclaimed, detail, uris, forwardedPorts, ips }) => {
-  const [open, setOpen] = useState(false);
+export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
+  serviceName,
+  service,
+  leaseState,
+  isReclaimed,
+  detail,
+  uris,
+  forwardedPorts,
+  ips,
+  open: openProp,
+  onOpenChange
+}) => {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? openProp : uncontrolledOpen;
   const status = getServiceStatus(service, leaseState, isReclaimed);
-  const endpoints = status.tone === "closed" ? [] : [...toUriLinks(uris), ...toForwardedPortLinks(forwardedPorts), ...toIpLinks(ips)];
+  const closed = status.tone === "closed";
+  const uriLinks = closed ? [] : toUriLinks(uris);
+  const portChips = toPortChips({ forwardedPorts, ips, closed });
+  const replicaLabel = closed ? undefined : formatReplicaCount(service);
+  const hasDetails = !!(detail?.resources || detail?.image || uriLinks.length > 0 || portChips.length > 0);
+
+  function handleOpenChange(next: boolean) {
+    if (!isControlled) setUncontrolledOpen(next);
+    onOpenChange?.(next);
+  }
+
+  const identity = (
+    <>
+      <span className="text-base font-medium">{serviceName}</span>
+      <StatusBadge label={status.label} tone={status.tone} />
+    </>
+  );
+
+  const extras = replicaLabel ? (
+    <div className="flex min-w-0 flex-1 items-center justify-end">
+      <span className="shrink-0 text-sm text-muted-foreground">{replicaLabel}</span>
+    </div>
+  ) : null;
+
+  if (closed || !hasDetails) {
+    return (
+      <div className="overflow-hidden rounded-lg border">
+        <div className="flex items-center gap-3 p-4">
+          <div className="flex items-center gap-3">{identity}</div>
+          {extras}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="overflow-hidden rounded-lg border">
-      <CollapsibleTrigger className="flex w-full items-center gap-4 p-4 text-left">
-        {open ? <NavArrowUp className="h-4 w-4 shrink-0" /> : <NavArrowDown className="h-4 w-4 shrink-0" />}
-        <span className="text-base font-medium">{serviceName}</span>
-        <ServiceStatusBadge status={status} />
-      </CollapsibleTrigger>
+    <Collapsible open={open} onOpenChange={handleOpenChange} className="overflow-hidden rounded-lg border">
+      <div className="flex items-center gap-3 p-4">
+        <CollapsibleTrigger className="flex shrink-0 items-center gap-3 text-left">
+          {open ? <NavArrowDown className="h-4 w-4 shrink-0" /> : <NavArrowRight className="h-4 w-4 shrink-0" />}
+          {identity}
+        </CollapsibleTrigger>
+        {extras}
+      </div>
 
       <CollapsibleContent>
-        {detail?.resources && (
+        {detail?.resources ? (
           <div className="border-t px-6 py-3">
-            <PlacementStats stats={buildServiceStats(detail.resources)} />
+            <PlacementStats stats={buildServiceStats(detail.resources)} variant="spread" />
           </div>
-        )}
-
-        <div className="border-t">
-          {detail?.image && (
-            <ServiceDetailRow icon={<Box className="h-4 w-4" />} title="Docker image">
-              <span className="inline-flex items-center gap-2">
-                <span className="break-all font-mono">{detail.image}</span>
-                <CopyTextToClipboardButton value={detail.image} />
-              </span>
-            </ServiceDetailRow>
-          )}
-          {detail?.env && detail.env.length > 0 && (
-            <ServiceDetailRow icon={<Key className="h-4 w-4" />} title="Environment Variables">
-              <span className="break-all font-mono">{detail.env.map(formatEnvVar).join(", ")}</span>
-            </ServiceDetailRow>
-          )}
-          {detail?.command && (
-            <ServiceDetailRow icon={<Terminal className="h-4 w-4" />} title="Commands">
-              <span className="break-all font-mono">{detail.command}</span>
-            </ServiceDetailRow>
-          )}
-          <ServiceDetailRow icon={<Globe className="h-4 w-4" />} title="Expose Ports">
-            {endpoints.length > 0 ? <EndpointLinks items={endpoints} /> : "None"}
+        ) : null}
+        {detail?.image ? (
+          <ServiceDetailRow icon={<Box className="h-4 w-4" />} title="Image">
+            <span className="break-all">{detail.image}</span>
           </ServiceDetailRow>
-        </div>
+        ) : null}
+        {uriLinks.length > 0 ? (
+          <ServiceDetailRow icon={<Globe className="h-4 w-4" />} title="URL">
+            <ServiceUriLinks items={uriLinks} />
+          </ServiceDetailRow>
+        ) : null}
+        {portChips.length > 0 ? (
+          <ServiceDetailRow icon={<Label className="h-4 w-4" />} title="Ports">
+            <PortChips items={portChips} />
+          </ServiceDetailRow>
+        ) : null}
       </CollapsibleContent>
     </Collapsible>
   );
 };
 
 const ServiceDetailRow: FC<{ icon: ReactNode; title: string; children: ReactNode }> = ({ icon, title, children }) => (
-  <div className="flex items-center gap-2 border-t px-5 py-4 first:border-t-0">
+  <div className="flex items-center gap-2 border-t px-5 py-4">
     <span className="shrink-0 text-muted-foreground">{icon}</span>
-    <span className="w-60 shrink-0 text-base font-semibold">{title}</span>
-    <div className="min-w-0 flex-1 text-left text-base text-muted-foreground">{children}</div>
+    <span className="w-32 shrink-0 text-sm font-medium">{title}</span>
+    <div className="min-w-0 flex-1 text-left text-sm text-muted-foreground">{children}</div>
   </div>
 );
 
 function buildServiceStats(resources: ManifestServiceResources): PlacementStat[] {
-  return [
-    { label: "GPU", value: resources.gpuUnits > 0 ? resources.gpuUnits : "--" },
-    { label: "vCPU", value: resources.cpu ?? "--" },
+  const stats: PlacementStat[] = [
+    { label: "vCPU", value: resources.cpu ?? "—" },
     { label: "Memory", value: formatSize(resources.memory) },
     { label: "Storage", value: formatSize(resources.storage) }
   ];
+  if (resources.gpuUnits > 0) {
+    stats.push({ label: "GPU", value: resources.gpuUnits });
+  }
+  return stats;
 }
 
 function formatSize(size: ManifestServiceResources["memory"]): string {
-  return size ? `${size.value} ${size.unit}`.trim() : "--";
+  return size ? `${size.value} ${size.unit}`.trim() : "—";
 }
-
-function formatEnvVar(env: ManifestEnvVar): string {
-  return env.value !== undefined ? `${env.key}=${env.value}` : env.key;
-}
-
-const STATUS_DOT_CLASS: Record<ServiceStatusView["tone"], string> = {
-  running: "bg-emerald-500",
-  pending: "bg-amber-500",
-  closed: "bg-destructive"
-};
-
-const STATUS_TEXT_CLASS: Record<ServiceStatusView["tone"], string> = {
-  running: "text-emerald-500",
-  pending: "text-amber-500",
-  closed: "text-destructive"
-};
-
-const ServiceStatusBadge: FC<{ status: ServiceStatusView }> = ({ status }) => (
-  <span className={cn("inline-flex items-center gap-1.5 text-sm font-medium", STATUS_TEXT_CLASS[status.tone])}>
-    <span className={cn("h-2 w-2 rounded-full", STATUS_DOT_CLASS[status.tone])} />
-    {status.label}
-  </span>
-);

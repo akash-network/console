@@ -248,7 +248,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
         <>
           {selectedLease && (
             <>
-              <div className="flex h-[56px] items-center space-x-4 p-2">
+              <div className="flex min-h-[50px] items-center gap-4">
                 <div className="flex items-center">
                   {(leases?.length || 0) > 1 && <LeaseSelect leases={leases || []} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
 

@@ -1,9 +1,9 @@
 "use client";
 import type { FC, ReactNode } from "react";
-import { cn } from "@akashnetwork/ui/utils";
 
 import { useUser } from "@src/hooks/useUser";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
+import { DeploymentTabHeader } from "../DeploymentTabHeader";
 import { DeploymentBillingSection } from "./DeploymentBillingSection";
 import { DeploymentDangerZone } from "./DeploymentDangerZone";
 import { DeploymentNotificationsSection } from "./DeploymentNotificationsSection";
@@ -47,8 +47,8 @@ export const DeploymentSettings: FC<DeploymentSettingsProps> = ({ deployment, le
 };
 
 const SettingsSection: FC<{ title: string; destructive?: boolean; children: ReactNode }> = ({ title, destructive, children }) => (
-  <section className="space-y-3">
-    <h2 className={cn("text-xs font-medium uppercase tracking-wide", destructive ? "text-destructive" : "text-muted-foreground")}>{title}</h2>
+  <section>
+    <DeploymentTabHeader title={title} destructive={destructive} />
     {children}
   </section>
 );

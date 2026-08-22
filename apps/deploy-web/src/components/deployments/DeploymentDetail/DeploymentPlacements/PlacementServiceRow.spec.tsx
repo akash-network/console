@@ -1,4 +1,5 @@
 import { TooltipProvider } from "@akashnetwork/ui/components";
+import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -22,6 +23,14 @@ describe(PlacementServiceRow.name, () => {
     expect(screen.getByText("Starting")).toBeInTheDocument();
   });
 
+  it("reports loading when lease status has not arrived", () => {
+    setup({ leaseState: "active" });
+
+    const badge = screen.getByText("Loading");
+    expect(badge).toBeInTheDocument();
+    expect(badge.querySelector(".animate-spin")).toBeInTheDocument();
+  });
+
   it("reports a closed service when the lease has been reclaimed while still active", () => {
     setup({ service: mock<LeaseServiceStatus>({ available: 1 }), leaseState: "active", isReclaimed: true });
 
@@ -29,77 +38,136 @@ describe(PlacementServiceRow.name, () => {
     expect(screen.queryByText("Running")).not.toBeInTheDocument();
   });
 
-  it("keeps the service contents collapsed until the row is expanded", async () => {
-    setup({ detail: { resources: { gpuUnits: 0, memory: { value: 36, unit: "Gi" } } } });
+  it("keeps the service URL out of the collapsed header", () => {
+    setup({ uris: ["shop.example.com"] });
 
-    expect(screen.queryByText("36 Gi")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /shop\.example\.com/ })).not.toBeInTheDocument();
+  });
+
+  it("shows the service URL below Image when expanded", async () => {
+    setup({
+      uris: ["shop.example.com"],
+      detail: { image: "nginx:1.25" }
+    });
 
     await expandService();
 
-    expect(screen.getByText("Memory")).toBeInTheDocument();
-    expect(screen.getByText("36 Gi")).toBeInTheDocument();
+    expect(screen.getByText("Image")).toBeInTheDocument();
+    expect(screen.getByText("URL")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /shop\.example\.com/ })).toHaveAttribute("href", "http://shop.example.com");
   });
 
-  it("lists the service endpoints when expanded", async () => {
-    setup({ uris: ["app.example.com"] });
+  it("shows the replica count in the collapsed header", () => {
+    setup({ service: mock<LeaseServiceStatus>({ available: 2, total: 3 }) });
+
+    expect(screen.getByText("2/3 replicas")).toBeInTheDocument();
+  });
+
+  it("hides the replica count when the lease is closed", () => {
+    setup({ service: mock<LeaseServiceStatus>({ available: 2, total: 3 }), leaseState: "closed" });
+
+    expect(screen.queryByText("2/3 replicas")).not.toBeInTheDocument();
+  });
+
+  it("hides the replica count when the lease has been reclaimed", () => {
+    setup({ service: mock<LeaseServiceStatus>({ available: 2, total: 3 }), leaseState: "active", isReclaimed: true });
+
+    expect(screen.queryByText("2/3 replicas")).not.toBeInTheDocument();
+  });
+
+  it("keeps forwarded ports collapsed until the row is expanded", async () => {
+    setup({ forwardedPorts: [{ host: "provider.io", externalPort: 30000, port: 80, available: 1 }] });
+
+    expect(screen.queryByText("Ports")).not.toBeInTheDocument();
 
     await expandService();
 
-    expect(screen.getByRole("link", { name: /app\.example\.com/ })).toHaveAttribute("href", "http://app.example.com");
+    expect(screen.getByText("Ports")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /80/ })).toHaveAttribute("href", "http://provider.io:30000");
   });
 
-  it("hides the service endpoints once the lease is no longer live", async () => {
+  it("keeps the row expanded when a URL link is clicked", async () => {
+    setup({
+      uris: ["app.example.com"],
+      forwardedPorts: [{ host: "provider.io", externalPort: 30000, port: 80, available: 1 }]
+    });
+
+    await expandService();
+    await userEvent.click(screen.getByRole("link", { name: /app\.example\.com/ }));
+
+    expect(screen.getByText("Ports")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /web/ })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("hides the service URI once the lease is no longer live", () => {
     setup({ uris: ["app.example.com"], leaseState: "closed" });
 
-    await expandService();
-
     expect(screen.queryByRole("link", { name: /app\.example\.com/ })).not.toBeInTheDocument();
-    expect(screen.getByText("None")).toBeInTheDocument();
   });
 
-  it("shows a None placeholder for Expose Ports when there are no endpoints", async () => {
-    setup({});
+  it("expands a running service even without live endpoints", async () => {
+    setup({ service: mock<LeaseServiceStatus>({ available: 1 }), leaseState: "active", detail: { image: "nginx:1.25" } });
 
     await expandService();
 
-    expect(screen.getByText("Expose Ports")).toBeInTheDocument();
-    expect(screen.getByText("None")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /web/ })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Image")).toBeInTheDocument();
   });
 
-  it("shows a None placeholder when the provider reports null endpoint collections", async () => {
-    setup({ uris: null, forwardedPorts: null, ips: null });
+  it("is not expandable when there is nothing to show", () => {
+    setup({ service: mock<LeaseServiceStatus>({ available: 1 }), leaseState: "active" });
+
+    expect(screen.getByText("Running")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /web/ })).not.toBeInTheDocument();
+  });
+
+  it("shows image and resources when expanded", async () => {
+    setup({
+      detail: {
+        image: "ghcr.io/acmecorp/llm-gateway:0.9.4",
+        resources: { gpuUnits: 0, cpu: 1, memory: { value: 2, unit: "Gi" }, storage: { value: 10, unit: "Gi" } }
+      }
+    });
 
     await expandService();
 
-    expect(screen.getByText("Expose Ports")).toBeInTheDocument();
-    expect(screen.getByText("None")).toBeInTheDocument();
+    expect(screen.getByText("Image")).toBeInTheDocument();
+    expect(screen.getByText("ghcr.io/acmecorp/llm-gateway:0.9.4")).toBeInTheDocument();
+    expect(screen.getByText("vCPU")).toBeInTheDocument();
+    expect(screen.getByText("Memory")).toBeInTheDocument();
+    expect(screen.getByText("2 Gi")).toBeInTheDocument();
+    expect(screen.getByText("Storage")).toBeInTheDocument();
   });
 
-  it("shows the Docker image row when an image is known", async () => {
-    setup({ detail: { image: "nginx:1.25" } });
+  it("does not show env vars or command", async () => {
+    const envValue = faker.string.alphanumeric(24);
+
+    setup({
+      detail: {
+        image: "nginx:1.25",
+        env: [{ key: "API_KEY", value: envValue }],
+        command: "sh -c echo hi"
+      }
+    });
 
     await expandService();
 
-    expect(screen.getByText("Docker image")).toBeInTheDocument();
+    expect(screen.queryByText("Env vars")).not.toBeInTheDocument();
+    expect(screen.queryByText("Command")).not.toBeInTheDocument();
+    expect(screen.queryByText("API_KEY")).not.toBeInTheDocument();
+    expect(screen.queryByText(envValue)).not.toBeInTheDocument();
+    expect(screen.queryByText("sh -c echo hi")).not.toBeInTheDocument();
   });
 
-  it("shows environment variables and commands when present", async () => {
-    setup({ detail: { env: [{ key: "KEY", value: "value" }], command: "sh -c echo hi" } });
+  it("is not expandable when the lease is closed", () => {
+    setup({
+      leaseState: "closed",
+      forwardedPorts: [{ host: "provider.io", externalPort: 30000, port: 80, available: 1 }]
+    });
 
-    await expandService();
-
-    expect(screen.getByText("Environment Variables")).toBeInTheDocument();
-    expect(screen.getByText("KEY=value")).toBeInTheDocument();
-    expect(screen.getByText("Commands")).toBeInTheDocument();
-    expect(screen.getByText("sh -c echo hi")).toBeInTheDocument();
-  });
-
-  it("omits the Docker image row when no image is known", async () => {
-    setup({ detail: {} });
-
-    await expandService();
-
-    expect(screen.queryByText("Docker image")).not.toBeInTheDocument();
+    expect(screen.getByText("Closed")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /web/ })).not.toBeInTheDocument();
+    expect(screen.queryByText("Ports")).not.toBeInTheDocument();
   });
 
   function expandService() {
