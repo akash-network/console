@@ -51,6 +51,11 @@ describe(RuntimeLimitSection.name, () => {
     expect(screen.getByLabelText("Runtime limit in hours")).toBeDisabled();
   });
 
+  it("carries its compact sizing on the input element itself, not just the wrapper div", () => {
+    setup({});
+    expect(screen.getByLabelText("Runtime limit in hours")).toHaveClass("h-9", "text-xs");
+  });
+
   function setup(input: { value?: number; locked?: boolean; isFlagEnabled?: boolean; isRestricted?: boolean }) {
     const onChange = vi.fn();
     const useFlag: typeof DEPENDENCIES.useFlag = () => input.isFlagEnabled ?? true;

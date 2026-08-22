@@ -69,7 +69,7 @@ export const RuntimeLimitSection: FC<Props> = ({ value, onChange, locked = false
         value={value ?? ""}
         onChange={applyRuntimeLimitInput}
         endIcon={<span className="pr-2 text-xs text-muted-foreground">hours</span>}
-        className="h-9 w-full text-xs"
+        inputClassName="h-9 text-xs"
       />
     </fieldset>
   );
