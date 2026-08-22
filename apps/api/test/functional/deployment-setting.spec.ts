@@ -54,6 +54,56 @@ describe("Deployment Settings", () => {
           closed: false
         }
       });
+      const persisted = await deploymentSettingRepository.findOneBy({ userId: user.id, dseq });
+      expect(persisted?.autoTopUpEnabled).toBeNull();
+    });
+
+    it("defaults auto top-up to enabled on a row the user never configured", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+
+      await deploymentSettingRepository.create({ userId: user.id, dseq });
+
+      const response = await app.request(`/v1/deployment-settings/${user.id}/${dseq}`, {
+        headers: {
+          authorization: `Bearer ${token}`
+        }
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ data: { autoTopUpEnabled: true } });
+    });
+
+    it("defaults auto top-up to disabled on an unconfigured row when the user has no managed wallet", async () => {
+      const { token, user } = await setup({ hasManagedWallet: false });
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+
+      await deploymentSettingRepository.create({ userId: user.id, dseq });
+
+      const response = await app.request(`/v1/deployment-settings/${user.id}/${dseq}`, {
+        headers: {
+          authorization: `Bearer ${token}`
+        }
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ data: { autoTopUpEnabled: false, estimatedTopUpAmount: 0 } });
+    });
+
+    it("keeps auto top-up off for a wallet owner who explicitly disabled it", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: false });
+
+      const response = await app.request(`/v1/deployment-settings/${user.id}/${dseq}`, {
+        headers: {
+          authorization: `Bearer ${token}`
+        }
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ data: { autoTopUpEnabled: false, estimatedTopUpAmount: 0 } });
     });
 
     it("returns 404 when accessing other user's deployment settings", async () => {
@@ -332,17 +382,18 @@ describe("Deployment Settings", () => {
     });
   });
 
-  async function setup() {
+  async function setup(input?: { hasManagedWallet?: boolean }) {
     const user = await userRepository.create({ userId: faker.string.uuid() });
     const walletAddress = createAkashAddress();
     const token = faker.string.alphanumeric(40);
+    const hasManagedWallet = input?.hasManagedWallet ?? true;
 
     const wallet = createUserWallet({ userId: user.id, address: walletAddress });
 
     vi.spyOn(userAuthTokenService, "getValidUserId").mockResolvedValue(user.userId);
     vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(userWalletRepository);
-    vi.spyOn(userWalletRepository, "findFirst").mockResolvedValue(wallet);
-    vi.spyOn(userWalletRepository, "findOneByUserId").mockResolvedValue(wallet);
+    vi.spyOn(userWalletRepository, "findFirst").mockResolvedValue(hasManagedWallet ? wallet : undefined);
+    vi.spyOn(userWalletRepository, "findOneByUserId").mockResolvedValue(hasManagedWallet ? wallet : undefined);
     vi.spyOn(leaseRepository, "findOneByDseqAndOwner").mockResolvedValue(createDrainingDeployment());
 
     return { user, token, wallet };

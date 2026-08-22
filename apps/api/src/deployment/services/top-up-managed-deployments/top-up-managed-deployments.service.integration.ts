@@ -216,6 +216,30 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(executeDerivedTx).not.toHaveBeenCalled();
     });
 
+    it("tops up a draining deployment for a wallet owner who never configured auto top-up", async () => {
+      const { topUpService, executeDerivedTx, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } =
+        await setup();
+      const { user, wallet, address } = await createUserWithWallet();
+      const unconfiguredDseq = "800001";
+
+      await createDeploymentSetting(user.id, unconfiguredDseq, { autoTopUpEnabled: null });
+
+      mockLeasesForOwner(address, [createActiveLease(address, unconfiguredDseq)]);
+      mockDeploymentsForOwner(address, [createActiveDeployment(address, unconfiguredDseq)]);
+      stubGetFreshLimits({ [address]: 10000000 });
+
+      await topUpService.topUpDeployments({ dryRun: false });
+
+      expect(executeDerivedTx).toHaveBeenCalledWith(
+        wallet.id,
+        expect.arrayContaining([
+          expect.objectContaining({
+            value: expect.objectContaining({ id: expect.objectContaining({ xid: expect.stringContaining(`/${unconfiguredDseq}`) }) })
+          })
+        ])
+      );
+    });
+
     // Owner has a draining deployment but their wallet's deployment allowance is zero.
     // The CachedBalance.reserveSufficientAmount call throws "Insufficient balance",
     // which the job catches and counts but does not propagate.
@@ -416,13 +440,13 @@ describe(TopUpManagedDeploymentsService.name, () => {
       return { user, wallet, address };
     }
 
-    async function createDeploymentSetting(userId: string, dseq: string, overrides?: { autoTopUpEnabled?: boolean; closed?: boolean }) {
+    async function createDeploymentSetting(userId: string, dseq: string, overrides?: { autoTopUpEnabled?: boolean | null; closed?: boolean }) {
       const [setting] = await db
         .insert(deploymentSettingsTable)
         .values({
           userId,
           dseq,
-          autoTopUpEnabled: overrides?.autoTopUpEnabled ?? true,
+          autoTopUpEnabled: overrides && "autoTopUpEnabled" in overrides ? overrides.autoTopUpEnabled : true,
           closed: overrides?.closed ?? false
         })
         .returning();

@@ -148,6 +148,17 @@ describe(InitialDeploymentFundingService.name, () => {
     expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(1, expect.anything());
   });
 
+  it("funds the deployment when the owner never configured auto top-up", async () => {
+    const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+    deploymentSettingRepository.findOneBy.mockResolvedValue(mock<DeploymentSettingsOutput>({ autoTopUpEnabled: null }));
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(1, expect.anything());
+  });
+
   it("throws and skips the wallet reload when the deposit tx fails on-chain", async () => {
     const { service, drainingDeploymentService, managedSignerService, walletReloadJobService, logger } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);

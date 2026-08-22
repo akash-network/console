@@ -8,6 +8,8 @@ import { POSTGRES_DB, resolveTable } from "@src/core";
 import { UserRepository } from "@src/user/repositories";
 import { DeploymentSettingRepository } from "./deployment-setting.repository";
 
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+
 const COOLDOWN_MINUTES = 60;
 
 describe(DeploymentSettingRepository.name, () => {
@@ -80,12 +82,85 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("findAutoTopUpDeploymentsByOwner", () => {
+    it("includes a deployment whose owner never configured auto top-up", async () => {
+      const { createUserWithWallet, createSettingFor, deploymentSettingRepository } = await setup();
+      const { user, address } = await createUserWithWallet();
+      const setting = await createSettingFor(user.id, { autoTopUpEnabled: null });
+
+      const deployments = await deploymentSettingRepository.findAutoTopUpDeploymentsByOwner(address);
+
+      expect(deployments.map(deployment => deployment.dseq)).toContain(setting.dseq);
+    });
+
+    it("excludes a deployment whose owner explicitly disabled auto top-up", async () => {
+      const { createUserWithWallet, createSettingFor, deploymentSettingRepository } = await setup();
+      const { user, address } = await createUserWithWallet();
+      const setting = await createSettingFor(user.id, { autoTopUpEnabled: false });
+
+      const deployments = await deploymentSettingRepository.findAutoTopUpDeploymentsByOwner(address);
+
+      expect(deployments.map(deployment => deployment.dseq)).not.toContain(setting.dseq);
+    });
+
+    it("excludes an unconfigured deployment that is already marked closed", async () => {
+      const { createUserWithWallet, createSettingFor, deploymentSettingRepository } = await setup();
+      const { user, address } = await createUserWithWallet();
+      const setting = await createSettingFor(user.id, { autoTopUpEnabled: null, closed: true });
+
+      const deployments = await deploymentSettingRepository.findAutoTopUpDeploymentsByOwner(address);
+
+      expect(deployments.map(deployment => deployment.dseq)).not.toContain(setting.dseq);
+    });
+  });
+
+  describe("findAutoTopUpDeploymentsByOwnerIteratively", () => {
+    it("yields unconfigured deployments only for owners that have a managed wallet", async () => {
+      const { userRepository, createUserWithWallet, createSettingFor, deploymentSettingRepository } = await setup();
+      const { user: walletOwner } = await createUserWithWallet();
+      const walletOwnerSetting = await createSettingFor(walletOwner.id, { autoTopUpEnabled: null });
+      const walletLessUser = await userRepository.create({ userId: faker.string.uuid() });
+      const walletLessSetting = await createSettingFor(walletLessUser.id, { autoTopUpEnabled: null });
+
+      const yieldedDseqs: string[] = [];
+      for await (const batch of deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively()) {
+        yieldedDseqs.push(...batch.deploymentSettings.map(deployment => deployment.dseq));
+      }
+
+      expect(yieldedDseqs).toContain(walletOwnerSetting.dseq);
+      expect(yieldedDseqs).not.toContain(walletLessSetting.dseq);
+    });
+  });
+
   async function setup() {
     const userRepository = container.resolve(UserRepository);
     const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const deploymentSettingsTable = resolveTable("DeploymentSettings");
+    const userWalletsTable = resolveTable("UserWallets");
     const user = await userRepository.create({ userId: faker.string.uuid() });
+
+    async function createUserWithWallet() {
+      const owner = await userRepository.create({ userId: faker.string.uuid() });
+      const address = createAkashAddress();
+      await db.insert(userWalletsTable).values({ userId: owner.id, address, deploymentAllowance: "10000000", feeAllowance: "5000000", isTrialing: false });
+
+      return { user: owner, address };
+    }
+
+    async function createSettingFor(userId: string, overrides: { autoTopUpEnabled: boolean | null; closed?: boolean }) {
+      const [setting] = await db
+        .insert(deploymentSettingsTable)
+        .values({
+          userId,
+          dseq: faker.number.int({ min: 100000, max: 999999 }).toString(),
+          autoTopUpEnabled: overrides.autoTopUpEnabled,
+          closed: overrides.closed ?? false
+        })
+        .returning();
+
+      return setting;
+    }
 
     async function createSetting() {
       const setting = await deploymentSettingRepository.create({
@@ -105,6 +180,6 @@ describe(DeploymentSettingRepository.name, () => {
 
     const settingId = await createSetting();
 
-    return { userRepository, deploymentSettingRepository, user, settingId, createSetting, backdateLastFundedAt };
+    return { userRepository, deploymentSettingRepository, user, settingId, createSetting, createUserWithWallet, createSettingFor, backdateLastFundedAt };
   }
 });
