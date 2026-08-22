@@ -13338,6 +13338,108 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/sdl-secrets-context": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "jwk": {
+                      "description": "The JSON Web Key used to encrypt the SDL secrets",
+                      "properties": {
+                        "alg": {
+                          "type": "string",
+                        },
+                        "e": {
+                          "type": "string",
+                        },
+                        "kty": {
+                          "type": "string",
+                        },
+                        "n": {
+                          "type": "string",
+                        },
+                        "use": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "kty",
+                        "n",
+                        "e",
+                        "use",
+                        "alg",
+                      ],
+                      "type": "object",
+                    },
+                    "kid": {
+                      "description": "The key ID of the SDL secrets context",
+                      "type": "string",
+                    },
+                    "requiredClaims": {
+                      "description": "The required claims for the SDL secrets context",
+                      "items": {
+                        "enum": [
+                          "kid",
+                          "sub",
+                          "exp",
+                        ],
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                    "sub": {
+                      "description": "The subject of the SDL secrets context",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "sub",
+                    "kid",
+                    "jwk",
+                    "requiredClaims",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns SDL secrets context",
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "message",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "SDL secrets encryption is unavailable",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Get SDL secrets encryption context",
+        "tags": [
+          "SDL Secrets",
+        ],
+      },
+    },
     "/v1/send-verification-code": {
       "post": {
         "responses": {

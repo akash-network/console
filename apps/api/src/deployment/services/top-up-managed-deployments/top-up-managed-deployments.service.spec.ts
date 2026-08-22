@@ -175,7 +175,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       await service.topUpDeployments({ dryRun: false });
 
-      expect(drainingDeploymentService.findDrainingDeploymentsByOwner).toHaveBeenCalledWith(CURRENT_BLOCK_HEIGHT);
+      expect(drainingDeploymentService.findDrainingDeploymentsByOwner).toHaveBeenCalledWith(CURRENT_BLOCK_HEIGHT, { dryRun: false });
       expect(drainingDeploymentService.calculateAmountToTargetRunway).toHaveBeenCalledTimes(deployments.length);
       drainingDeploymentService.calculateAmountToTargetRunway.mock.calls.forEach(([, height]) => {
         expect(height).toBe(CURRENT_BLOCK_HEIGHT);

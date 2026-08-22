@@ -2,6 +2,39 @@ import { z } from "zod";
 
 import { denomToUdenom } from "@src/utils/math";
 
+/**
+ * Points the client at a plaintext-gRPC emulator instead of Google's endpoint, which is how
+ * local development runs. `servicePath` is an addition to the JSON key file shape Google issues.
+ */
+const gcpKmsEmulatorAuthSchema = z.object({
+  project_id: z.string(),
+  servicePath: z.string().url()
+});
+
+/** Service account material for Cloud KMS, as the JSON key file Google issues. */
+const gcpKmsServiceAccountAuthSchema = z.object({
+  project_id: z.string(),
+  client_email: z.string().email(),
+  private_key: z.string(),
+  servicePath: z.undefined()
+});
+
+const gcpKmsAuthSchema = z.union([gcpKmsEmulatorAuthSchema, gcpKmsServiceAccountAuthSchema]);
+
+const jsonEnv = <T extends z.ZodTypeAny>(schema: T) =>
+  z
+    .string()
+    .min(1)
+    .transform((value, ctx) => {
+      try {
+        return JSON.parse(value);
+      } catch {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "must be valid JSON" });
+        return z.NEVER;
+      }
+    })
+    .pipe(schema);
+
 export const envSchema = z
   .object({
     AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: z.number({ coerce: true }).nonnegative().finite().optional().default(24),
@@ -31,7 +64,12 @@ export const envSchema = z
       .optional()
       .default(0.5),
     PROVIDER_PROXY_URL: z.string().url(),
-    GPU_BOT_WALLET_MNEMONIC: z.string().optional()
+    GPU_BOT_WALLET_MNEMONIC: z.string().optional(),
+    GCP_KMS_AUTH: jsonEnv(gcpKmsAuthSchema),
+    GCP_KMS_LOCATION: z.string().optional().default("global"),
+    GCP_KMS_KEY_RING: z.string().optional().default("console-api"),
+    GCP_KMS_KEY: z.string().optional().default("sdl-secrets"),
+    GCP_KMS_KEY_VERSION: z.string().optional().default("1")
   })
   .superRefine((env, ctx) => {
     if (env.AUTO_TOP_UP_TARGET_RUNWAY_IN_H <= env.AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H) {
@@ -43,4 +81,5 @@ export const envSchema = z
     }
   });
 
+export type GcpKmsAuth = z.infer<typeof gcpKmsAuthSchema>;
 export type DeploymentConfig = z.infer<typeof envSchema>;

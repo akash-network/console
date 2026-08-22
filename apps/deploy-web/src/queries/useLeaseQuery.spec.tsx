@@ -22,7 +22,8 @@ import {
   useAllLeases,
   useDeploymentLeaseList,
   useLeaseExistenceQuery,
-  useLeaseStatus
+  useLeaseStatus,
+  useLeaseStatuses
 } from "./useLeaseQuery";
 
 import { act } from "@testing-library/react";
@@ -571,6 +572,24 @@ describe("useLeaseQuery", () => {
       });
     });
 
+    it("returns null when the provider proxy cannot be reached", async () => {
+      const providerProxy = mock<ProviderProxyService>({
+        request: vi.fn().mockRejectedValue(new TypeError("Failed to fetch"))
+      });
+      const { result } = setupLeaseStatus({
+        lease: mockLease,
+        services: {
+          providerProxy: () => providerProxy
+        }
+      });
+
+      await vi.waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
+
+      expect(result.current.data).toBeNull();
+    });
+
     it("returns null when fetching lease status fails with 404", async () => {
       const providerProxy = mock<ProviderProxyService>({
         request: vi.fn().mockRejectedValue(new AxiosError("Not Found", "404", undefined, undefined, { status: 404 } as any))
@@ -677,6 +696,92 @@ describe("useLeaseQuery", () => {
       const receivedServices = callerSelect.mock.calls[0][0]?.services ?? {};
       expect(receivedServices).toHaveProperty("web");
       expect(receivedServices).not.toHaveProperty("akash-attestation-sidecar");
+    });
+
+    it("fetches status for two live leases in parallel, keyed by gseq", async () => {
+      const provider = buildProvider();
+      const leaseA = { ...mockLease, id: "lease-a", gseq: 1 };
+      const leaseB = { ...mockLease, id: "lease-b", gseq: 2 };
+      const providerProxy = mock<ProviderProxyService>({
+        request: vi.fn().mockImplementation((url: string) => {
+          if (url.includes("/lease/123/1/1/status")) {
+            return Promise.resolve({ data: { services: { web: { name: "web", available: 1, uris: ["web.example"] } }, forwarded_ports: {}, ips: {} } });
+          }
+          if (url.includes("/lease/123/2/1/status")) {
+            return Promise.resolve({ data: { services: { api: { name: "api", available: 1, uris: ["api.example"] } }, forwarded_ports: {}, ips: {} } });
+          }
+          return Promise.resolve({ data: null });
+        })
+      });
+      const dependencies: typeof USE_LEASE_STATUS_DEPENDENCIES = {
+        ...USE_LEASE_STATUS_DEPENDENCIES,
+        useProviderCredentials: () => ({
+          details: { type: "jwt", value: "jwt-token", isExpired: false, usable: true, error: null },
+          ensureToken: vi.fn().mockResolvedValue("jwt-token")
+        })
+      };
+
+      const { result } = setupQuery(
+        () => ({
+          first: useLeaseStatus({ provider, lease: leaseA, dependencies }),
+          second: useLeaseStatus({ provider, lease: leaseB, dependencies })
+        }),
+        { services: { providerProxy: () => providerProxy } }
+      );
+
+      await vi.waitFor(() => {
+        expect(result.current.first.isSuccess).toBe(true);
+        expect(result.current.second.isSuccess).toBe(true);
+      });
+
+      expect(result.current.first.data?.services.web?.uris).toEqual(["web.example"]);
+      expect(result.current.second.data?.services.api?.uris).toEqual(["api.example"]);
+      expect(providerProxy.request).toHaveBeenCalledWith(expect.stringContaining("/lease/123/1/1/status"), expect.anything());
+      expect(providerProxy.request).toHaveBeenCalledWith(expect.stringContaining("/lease/123/2/1/status"), expect.anything());
+    });
+
+    it("useLeaseStatuses fetches every live lease", async () => {
+      const provider = buildProvider();
+      const leaseA = { ...mockLease, id: "lease-a", gseq: 1 };
+      const leaseB = { ...mockLease, id: "lease-b", gseq: 2 };
+      const providerProxy = mock<ProviderProxyService>({
+        request: vi.fn().mockImplementation((url: string) => {
+          if (url.includes("/lease/123/1/1/status")) {
+            return Promise.resolve({ data: { services: { web: { name: "web", available: 1, uris: ["web.example"] } }, forwarded_ports: {}, ips: {} } });
+          }
+          if (url.includes("/lease/123/2/1/status")) {
+            return Promise.resolve({ data: { services: { api: { name: "api", available: 1, uris: ["api.example"] } }, forwarded_ports: {}, ips: {} } });
+          }
+          return Promise.resolve({ data: null });
+        })
+      });
+      const dependencies: typeof USE_LEASE_STATUS_DEPENDENCIES = {
+        ...USE_LEASE_STATUS_DEPENDENCIES,
+        useProviderCredentials: () => ({
+          details: { type: "jwt", value: "jwt-token", isExpired: false, usable: true, error: null },
+          ensureToken: vi.fn().mockResolvedValue("jwt-token")
+        })
+      };
+
+      const { result } = setupQuery(
+        () =>
+          useLeaseStatuses(
+            [
+              { lease: leaseA, provider },
+              { lease: leaseB, provider }
+            ],
+            { dependencies }
+          ),
+        { services: { providerProxy: () => providerProxy } }
+      );
+
+      await vi.waitFor(() => {
+        expect(result.current[0].isSuccess).toBe(true);
+        expect(result.current[1].isSuccess).toBe(true);
+      });
+
+      expect(result.current[0].data?.services.web?.uris).toEqual(["web.example"]);
+      expect(result.current[1].data?.services.api?.uris).toEqual(["api.example"]);
     });
 
     it("coerces the provider's null endpoint collections to empty arrays", async () => {

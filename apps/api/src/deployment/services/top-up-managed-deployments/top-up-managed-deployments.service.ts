@@ -53,7 +53,7 @@ export class TopUpManagedDeploymentsService {
     const errors: unknown[] = [];
 
     try {
-      for await (const owner of this.drainingDeploymentService.findDrainingDeploymentsByOwner(currentHeight)) {
+      for await (const owner of this.drainingDeploymentService.findDrainingDeploymentsByOwner(currentHeight, options)) {
         try {
           const balance = await this.cachedBalanceService.get(owner.address);
           await this.#fundOwnerDeployments(owner, options, balance, this.instrumentation, currentHeight);

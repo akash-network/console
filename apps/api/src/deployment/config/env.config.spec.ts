@@ -134,6 +134,10 @@ describe("deployment envSchema", () => {
   });
 
   function setup(overrides: Record<string, unknown> = {}) {
-    return { PROVIDER_PROXY_URL: "https://provider-proxy.example.com", ...overrides };
+    return {
+      PROVIDER_PROXY_URL: "https://provider-proxy.example.com",
+      GCP_KMS_AUTH: JSON.stringify({ project_id: "console-test", servicePath: "http://localhost:8085" }),
+      ...overrides
+    };
   }
 });

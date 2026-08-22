@@ -1,10 +1,9 @@
 "use client";
 import type { FC, ReactNode } from "react";
 import { useMemo } from "react";
-import { Badge, Button, buttonVariants, Card, CardContent, CustomTooltip } from "@akashnetwork/ui/components";
+import { Badge, Button, Card, CardContent, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { CheckCircle, EditPencil, Globe, InfoCircle } from "iconoir-react";
-import Link from "next/link";
+import { CheckCircle, EditPencil, InfoCircle } from "iconoir-react";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { ConfidentialComputeBadge } from "@src/components/shared/ConfidentialComputeBadge";
@@ -16,15 +15,20 @@ import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnec
 import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
-import type { LeaseStatusDto } from "@src/queries/useLeaseQuery";
-import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { getEscrowDenom } from "@src/utils/deploymentUtils";
 import { isLeaseLive } from "@src/utils/leaseUtils";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { bytesToShrink } from "@src/utils/unitUtils";
-import { countPlacementServices, parseManifestServices, parseServicesByPlacement } from "./DeploymentPlacements/placementModel";
+import {
+  countPlacementServices,
+  formatGpuLabel,
+  getDeploymentGpuModels,
+  parseManifestServices,
+  parseServicesByPlacement
+} from "./DeploymentPlacements/placementModel";
+import { DeploymentVisitControl } from "./DeploymentVisitControl/DeploymentVisitControl";
 import { DeploymentStatusBadge } from "./DeploymentStatusBadge";
 
 export const DEPENDENCIES = {
@@ -34,8 +38,8 @@ export const DEPENDENCIES = {
   useDeploymentSettingQuery,
   useDeclaredTeeTypes,
   useDeclaredGpuInterconnect,
-  useLeaseStatus,
   CostRate,
+  DeploymentVisitControl,
   CustomTooltip,
   ConfidentialComputeBadge,
   GpuInterconnectBadge,
@@ -68,10 +72,6 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
   const costPerBlockUDenom = liveLeases.reduce((sum, lease) => sum + parseFloat(lease.price.amount), 0);
   const liveGpuCount = liveLeases.reduce((sum, lease) => sum + (lease.gpuAmount ?? 0), 0);
 
-  const liveLease = liveLeases[0] ?? null;
-  const provider = providers.find(p => p.owner === liveLease?.provider) ?? null;
-  const { data: leaseStatus } = d.useLeaseStatus({ provider, lease: liveLease, enabled: !!provider });
-
   const storedDeployment = getDeploymentData(deployment.dseq);
   const storedManifest = storedDeployment?.manifest;
   const manifestServices = useMemo(() => parseManifestServices(storedManifest), [storedManifest]);
@@ -80,7 +80,6 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
   const name = getDeploymentName(deployment.dseq) || `Deployment #${deployment.dseq}`;
   const denom = getEscrowDenom(deployment);
   const servicesCount = countPlacementServices(leases ?? [], servicesByPlacement, manifestServices);
-  const primaryUri = getPrimaryUri(leaseStatus);
   const memory = bytesToShrink(deployment.memoryAmount);
   const storage = bytesToShrink(deployment.storageAmount);
 
@@ -105,17 +104,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
             <EditPencil className="h-4 w-4" />
           </Button>
         </div>
-        {primaryUri && (
-          <div className="flex items-center gap-2">
-            <div className="inline-flex max-w-xs items-center gap-2 rounded-md border px-3 py-2 text-sm">
-              <Globe className="shrink-0 text-xs text-muted-foreground" />
-              <span className="truncate">{primaryUri}</span>
-            </div>
-            <Link href={`http://${primaryUri}`} target="_blank" rel="noreferrer" className={cn(buttonVariants({ variant: "default", size: "md" }))}>
-              Visit
-            </Link>
-          </div>
-        )}
+        <d.DeploymentVisitControl leases={leases ?? []} providers={providers} />
       </div>
 
       <Card className="w-full shrink-0 lg:w-auto">
@@ -158,7 +147,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
               {formatRuntimeLimit(settings.runtimeLimitHours, settings.runtimeEndsAt)}
             </SummaryItem>
           )}
-          <SummaryItem label="GPU">{deployment.gpuAmount ? deployment.gpuAmount : "—"}</SummaryItem>
+          <SummaryItem label="GPU">{formatGpuLabel(deployment.gpuAmount ?? 0, getDeploymentGpuModels(deployment.groups))}</SummaryItem>
           <SummaryItem label="vCPU">{roundDecimal(deployment.cpuAmount, 2)}</SummaryItem>
           <SummaryItem label="MEMORY">{`${roundDecimal(memory.value, 2)} ${memory.unit}`}</SummaryItem>
           <SummaryItem label="STORAGE">{`${roundDecimal(storage.value, 2)} ${storage.unit}`}</SummaryItem>
@@ -190,15 +179,3 @@ const SummaryItem: FC<{ label: ReactNode; children: ReactNode }> = ({ label, chi
     <div className="whitespace-nowrap text-sm font-medium">{children}</div>
   </div>
 );
-
-function getPrimaryUri(leaseStatus: LeaseStatusDto | null | undefined): string | undefined {
-  if (!leaseStatus) return undefined;
-
-  const uri = Object.values(leaseStatus.services).flatMap(service => service.uris ?? [])[0];
-  if (uri) return uri;
-
-  const forwarded = Object.values(leaseStatus.forwarded_ports ?? {})
-    .flat()
-    .find(port => port.host);
-  return forwarded ? `${forwarded.host}:${forwarded.externalPort}` : undefined;
-}

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
+import { DeploymentTabHeader } from "../DeploymentTabHeader";
 import { PlacementCard } from "./PlacementCard";
 import { countPlacementServices, getPlacementName, parseManifestServices, parseServicesByPlacement } from "./placementModel";
 
@@ -36,26 +37,30 @@ export const DeploymentPlacements: FC<DeploymentPlacementsProps> = ({
   const serviceCount = countPlacementServices(leases, servicesByPlacement, manifestServices);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between py-3 text-xs font-medium text-muted-foreground">
-        <span className="uppercase tracking-wide">Placements</span>
-        <span>
-          {leases.length} {pluralize("placement", leases.length)} · {serviceCount} {pluralize("service", serviceCount)}
-        </span>
-      </div>
+    <div>
+      <DeploymentTabHeader
+        title="Placements"
+        actions={
+          <span className="text-sm text-muted-foreground">
+            {leases.length} {pluralize("placement", leases.length)} · {serviceCount} {pluralize("service", serviceCount)}
+          </span>
+        }
+      />
 
-      {leases.map((lease, index) => (
-        <d.PlacementCard
-          key={lease.id}
-          index={index}
-          lease={lease}
-          provider={providers.find(provider => provider.owner === lease.provider)}
-          manifestServices={manifestServices}
-          placementServices={servicesByPlacement[getPlacementName(lease.group, index)]}
-          dseq={dseq}
-          onClosed={onClosed}
-        />
-      ))}
+      <div className="space-y-4">
+        {leases.map((lease, index) => (
+          <d.PlacementCard
+            key={lease.id}
+            index={index}
+            lease={lease}
+            provider={providers.find(provider => provider.owner === lease.provider)}
+            manifestServices={manifestServices}
+            placementServices={servicesByPlacement[getPlacementName(lease.group, index)]}
+            dseq={dseq}
+            onClosed={onClosed}
+          />
+        ))}
+      </div>
     </div>
   );
 };

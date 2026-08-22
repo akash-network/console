@@ -7,6 +7,7 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { LoggerService } from "@src/core";
+import type { DryRunOptions } from "@src/core/types/console";
 import { AutoTopUpDeployment, DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DrainingDeploymentOutput, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { DrainingDeployment } from "@src/deployment/types/draining-deployment";
@@ -42,14 +43,25 @@ export class DrainingDeploymentService {
    *
    * The caller passes the block height the whole run is scoped to so the look-ahead window that admits
    * a deployment and the amount that funds it are derived from the same height.
+   * A dry run still sizes deposits against a runtime deadline but does not persist one.
    *
    * @yields Object with owner address and array of draining deployments
    */
-  async *findDrainingDeploymentsByOwner(currentHeight: number): AsyncGenerator<{ address: string; walletId: number; deployments: DrainingDeployment[] }> {
+  async *findDrainingDeploymentsByOwner(
+    currentHeight: number,
+    options: DryRunOptions = { dryRun: false }
+  ): AsyncGenerator<{ address: string; walletId: number; deployments: DrainingDeployment[] }> {
     const expectedClosureHeight = this.#getExpectedClosureHeight(currentHeight);
 
     for await (const { address, walletId, deploymentSettings } of this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively()) {
-      const deployments = await this.#resolveActiveDrainingDeployments(deploymentSettings, address, expectedClosureHeight, currentHeight, this.instrumentation);
+      const deployments = await this.#resolveActiveDrainingDeployments(
+        deploymentSettings,
+        address,
+        expectedClosureHeight,
+        currentHeight,
+        this.instrumentation,
+        options.dryRun
+      );
 
       if (deployments.length) {
         yield { address, walletId, deployments };
@@ -70,7 +82,7 @@ export class DrainingDeploymentService {
     const deploymentSettings = await this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwner(address);
     const expectedClosureHeight = this.#getExpectedClosureHeight(currentHeight);
 
-    return this.#resolveActiveDrainingDeployments(deploymentSettings, address, expectedClosureHeight, currentHeight, instrumentation);
+    return this.#resolveActiveDrainingDeployments(deploymentSettings, address, expectedClosureHeight, currentHeight, instrumentation, false);
   }
 
   #getExpectedClosureHeight(currentHeight: number): number {
@@ -82,7 +94,8 @@ export class DrainingDeploymentService {
     address: string,
     expectedClosureHeight: number,
     currentHeight: number,
-    instrumentation: DeploymentTopUpInstrumentation
+    instrumentation: DeploymentTopUpInstrumentation,
+    dryRun: boolean
   ): Promise<DrainingDeployment[]> {
     if (deploymentSettings.length === 0) {
       return [];
@@ -123,7 +136,7 @@ export class DrainingDeploymentService {
       instrumentation.recordDeploymentsMarkedClosed(missingIds.length);
     }
 
-    return await this.#dropDeploymentsFundedToRuntimeLimit(active, currentHeight, instrumentation);
+    return await this.#dropDeploymentsFundedToRuntimeLimit(active, currentHeight, instrumentation, dryRun);
   }
 
   /**
@@ -131,12 +144,13 @@ export class DrainingDeploymentService {
    * so they drain and close on chain instead of burning claim churn and non-positive-amount telemetry
    * on every sweep of their final window. Deployments the initial-funding job never anchored (it
    * failed or raced) get their countdown started here, inside the look-ahead window — late, which
-   * only errs toward extra runtime.
+   * only errs toward extra runtime. A dry run uses an in-memory deadline and does not persist one.
    */
   async #dropDeploymentsFundedToRuntimeLimit(
     deployments: DrainingDeployment[],
     currentHeight: number,
-    instrumentation: DeploymentTopUpInstrumentation
+    instrumentation: DeploymentTopUpInstrumentation,
+    dryRun: boolean
   ): Promise<DrainingDeployment[]> {
     const fundable: DrainingDeployment[] = [];
 
@@ -146,7 +160,11 @@ export class DrainingDeploymentService {
         continue;
       }
 
-      const runtimeEndsAt = deployment.runtimeEndsAt ?? (await this.deploymentSettingRepository.startRuntimeCountdown(deployment.id));
+      const runtimeEndsAt =
+        deployment.runtimeEndsAt ??
+        (dryRun
+          ? new Date(Date.now() + deployment.runtimeLimitHours * millisecondsInHour)
+          : await this.deploymentSettingRepository.startRuntimeCountdown(deployment.id));
 
       if (!runtimeEndsAt) {
         fundable.push(deployment);

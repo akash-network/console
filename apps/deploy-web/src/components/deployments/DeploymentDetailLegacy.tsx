@@ -273,7 +273,7 @@ export const DeploymentDetailLegacy: FC<DeploymentDetailLegacyProps> = ({ dseq }
             {activeTab === "EVENTS" && <DeploymentLogs leases={leases} selectedLogsMode="events" />}
             {activeTab === "SHELL" && <DeploymentLeaseShell leases={leases} />}
             {isAlertsEnabled && (
-              <div className={cn({ hidden: activeTab !== "ALERTS" })}>
+              <div className={cn("pt-6", { hidden: activeTab !== "ALERTS" })}>
                 <DeploymentAlerts deployment={deployment} onStateChange={recordAlertsChange} />
               </div>
             )}

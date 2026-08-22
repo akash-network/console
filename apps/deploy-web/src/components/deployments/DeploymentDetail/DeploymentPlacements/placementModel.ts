@@ -142,10 +142,25 @@ export function getProviderRegion(
 
 export function getPlacementGpuModels(group: DeploymentGroup | undefined): string[] {
   const models = (group?.group_spec?.resources ?? []).flatMap(resource => getGpusFromAttributes(resource.resource.gpu?.attributes ?? []).map(gpu => gpu.model));
-  return Array.from(new Set(models.filter(Boolean)));
+  return Array.from(new Set(models.filter(isNamedGpuModel)));
 }
 
-export type ServiceStatusTone = "running" | "pending" | "closed";
+export function getDeploymentGpuModels(groups: DeploymentGroup[] | undefined): string[] {
+  return Array.from(new Set((groups ?? []).flatMap(group => getPlacementGpuModels(group))));
+}
+
+/** Named model(s) (e.g. `A100`); the count alone when no named model is declared. */
+export function formatGpuLabel(gpuAmount: number, models: string[]): string {
+  if (!gpuAmount) return "—";
+  const names = models.filter(isNamedGpuModel).map(model => model.toUpperCase());
+  return names.length > 0 ? names.join(", ") : String(gpuAmount);
+}
+
+function isNamedGpuModel(model: string | undefined): model is string {
+  return !!model && model !== "*";
+}
+
+export type ServiceStatusTone = "running" | "pending" | "loading" | "closed";
 
 export interface ServiceStatusView {
   label: string;
@@ -157,6 +172,8 @@ export interface ServiceStatusView {
  * state. Any lease that is not live — closed, out of funds, or provider-reclaimed even while its `state`
  * still reads "active" — is terminal, so the row stays in sync with the ReclamationCard banner above it
  * and an escrow-drained lease shows "Closed" instead of spinning on "Starting" forever.
+ * Until lease status arrives, the row is "Loading" rather than "Starting", so a refresh of an already
+ * running service does not flash the wrong label.
  */
 export function getServiceStatus(
   service: Pick<LeaseServiceStatus, "available" | "total" | "ready_replicas"> | undefined,
@@ -164,8 +181,15 @@ export function getServiceStatus(
   isReclaimed = false
 ): ServiceStatusView {
   if (!isLeaseLive({ state: leaseState }) || isReclaimed) return { label: "Closed", tone: "closed" };
-  if (service && service.available > 0) return { label: "Running", tone: "running" };
+  if (!service) return { label: "Loading", tone: "loading" };
+  if (service.available > 0) return { label: "Running", tone: "running" };
   return { label: "Starting", tone: "pending" };
+}
+
+/** `{available}/{total} replicas` for the collapsed service row; omitted until lease status has arrived. */
+export function formatReplicaCount(service: Pick<LeaseServiceStatus, "available" | "total"> | undefined): string | undefined {
+  if (!service || typeof service.available !== "number" || typeof service.total !== "number") return undefined;
+  return `${service.available}/${service.total} replicas`;
 }
 
 function parseComputeResources(resources: unknown): ManifestServiceResources | undefined {

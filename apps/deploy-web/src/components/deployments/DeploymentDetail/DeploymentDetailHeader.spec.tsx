@@ -2,7 +2,6 @@ import yaml from "js-yaml";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { LeaseServiceStatus, LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import type { DeploymentDto, DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { DEPENDENCIES, DeploymentDetailHeader, formatRuntimeLimit } from "./DeploymentDetailHeader";
@@ -18,8 +17,7 @@ describe("DeploymentDetailHeader", () => {
         services: { web: {}, api: {}, worker: {} },
         deployment: { web: { "dcloud-us": {} }, api: { "dcloud-us": {} }, worker: { "dcloud-eu": {} } }
       }),
-      leases: [buildLeaseInPlacement("1", "dcloud-us"), buildLeaseInPlacement("2", "dcloud-eu")],
-      serviceUris: { web: [] }
+      leases: [buildLeaseInPlacement("1", "dcloud-us"), buildLeaseInPlacement("2", "dcloud-eu")]
     });
 
     expect(screen.getByText("3")).toBeInTheDocument();
@@ -85,17 +83,13 @@ describe("DeploymentDetailHeader", () => {
     expect(screen.queryByText("RUNTIME LIMIT")).not.toBeInTheDocument();
   });
 
-  it("links to the service URI with a Visit action", () => {
-    setup({ serviceUris: { web: ["my-app.akash.app"] } });
+  it("passes every lease and provider to the visit control", () => {
+    const DeploymentVisitControl = vi.fn(() => <div>visit</div>);
+    const leases = [buildLeaseInPlacement("1", "dcloud-us"), buildLeaseInPlacement("2", "dcloud-eu")];
+    const providers = [mock<ApiProviderList>({ owner: "akash1provider" })];
+    setup({ leases, providers, dependencies: { DeploymentVisitControl } });
 
-    const visit = screen.getByRole("link", { name: "Visit" });
-    expect(visit).toHaveAttribute("href", "http://my-app.akash.app");
-  });
-
-  it("hides the Visit action when the lease has no status yet", () => {
-    setup({ hasLeaseStatus: false });
-
-    expect(screen.queryByRole("link", { name: "Visit" })).not.toBeInTheDocument();
+    expect(DeploymentVisitControl).toHaveBeenCalledWith(expect.objectContaining({ leases, providers }), {});
   });
 
   it("shows the trial badge when the wallet is trialing", () => {
@@ -145,6 +139,25 @@ describe("DeploymentDetailHeader", () => {
     expect(screen.queryByRole("button", { name: "Redeploy" })).not.toBeInTheDocument();
   });
 
+  it("shows the gpu count and model in the summary", () => {
+    setup({
+      gpuAmount: 1,
+      groups: [
+        mock<DeploymentGroup>({
+          group_spec: { resources: [{ resource: { gpu: { attributes: [{ key: "vendor/nvidia/model/h100", value: "true" }] } } }] }
+        } as Partial<DeploymentGroup>)
+      ]
+    });
+
+    expect(screen.getByText("H100")).toBeInTheDocument();
+  });
+
+  it("shows an em dash for gpu when the deployment has none", () => {
+    setup({ gpuAmount: 0 });
+
+    expect(screen.getByText("GPU").parentElement).toHaveTextContent("—");
+  });
+
   function buildPricedLease(input: { state: string; amount: string; gpuAmount: number }) {
     return mock<LeaseDto>({
       id: input.amount,
@@ -166,30 +179,18 @@ describe("DeploymentDetailHeader", () => {
   }
 
   function setup(input: {
-    serviceUris?: Record<string, string[]>;
     autoTopUpEnabled?: boolean;
     runtimeLimitHours?: number | null;
     runtimeEndsAt?: string | null;
-    hasLeaseStatus?: boolean;
     name?: string | null;
     isTrialing?: boolean;
     storedManifest?: string | null;
     leases?: LeaseDto[];
+    providers?: ApiProviderList[];
+    gpuAmount?: number;
+    groups?: DeploymentGroup[];
+    dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
-    const hasLeaseStatus = input.hasLeaseStatus ?? true;
-    let leaseStatus: LeaseStatusDto | null = null;
-    if (hasLeaseStatus) {
-      leaseStatus = mock<LeaseStatusDto>();
-      leaseStatus.forwarded_ports = {};
-      leaseStatus.services = Object.fromEntries(
-        Object.entries(input.serviceUris ?? { web: [] }).map(([name, uris]) => {
-          const service = mock<LeaseServiceStatus>();
-          service.uris = uris;
-          return [name, service];
-        })
-      );
-    }
-
     const changeDeploymentName = vi.fn();
     const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () =>
       mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>({
@@ -212,16 +213,17 @@ describe("DeploymentDetailHeader", () => {
           runtimeEndsAt: input.runtimeEndsAt ?? null
         })
       });
-    const useLeaseStatus: typeof DEPENDENCIES.useLeaseStatus = () => mock<ReturnType<typeof DEPENDENCIES.useLeaseStatus>>({ data: leaseStatus });
     const CostRate = vi.fn(() => <div>cost-rate</div>);
+    const DeploymentVisitControl = vi.fn(() => <div>visit</div>);
 
     const deployment = mock<DeploymentDto>({
       dseq: "1786440078202",
       state: "active",
       cpuAmount: 2,
-      gpuAmount: 0,
+      gpuAmount: input.gpuAmount ?? 0,
       memoryAmount: 536870912,
       storageAmount: 536870912,
+      groups: input.groups ?? [],
       escrowAccount: mock<DeploymentDto["escrowAccount"]>({ state: mock<DeploymentDto["escrowAccount"]["state"]>({ funds: [] }) })
     });
 
@@ -229,7 +231,7 @@ describe("DeploymentDetailHeader", () => {
       <DeploymentDetailHeader
         deployment={deployment}
         leases={input.leases ?? [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: "active" })]}
-        providers={[mock<ApiProviderList>({ owner: "akash1provider" })]}
+        providers={input.providers ?? [mock<ApiProviderList>({ owner: "akash1provider" })]}
         dependencies={MockComponents(DEPENDENCIES, {
           useLocalNotes,
           useWallet,
@@ -237,11 +239,12 @@ describe("DeploymentDetailHeader", () => {
           useDeploymentSettingQuery,
           useDeclaredTeeTypes,
           useDeclaredGpuInterconnect,
-          useLeaseStatus,
           TrialDeploymentBadge,
           ConfidentialComputeBadge,
           GpuInterconnectBadge,
-          CostRate
+          CostRate,
+          DeploymentVisitControl,
+          ...input.dependencies
         })}
       />
     );
