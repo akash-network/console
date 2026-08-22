@@ -10,4 +10,5 @@ export type FeatureFlag =
   | "ui_agent_mode_deploy"
   | "hackathons"
   | "deployment_detail_redesign"
-  | "deployment_detail_preview";
+  | "deployment_detail_preview"
+  | "deployment_runtime_limit";

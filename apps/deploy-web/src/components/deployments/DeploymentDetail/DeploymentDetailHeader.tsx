@@ -133,6 +133,20 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
               <span className="text-muted-foreground">Off</span>
             )}
           </SummaryItem>
+          {!!settings?.runtimeLimitHours && (
+            <SummaryItem
+              label={
+                <span className="inline-flex items-center gap-1">
+                  RUNTIME LIMIT
+                  <d.CustomTooltip title="This deployment stops being funded once its runtime limit is reached, then closes as its remaining funds drain.">
+                    <InfoCircle width={12} height={12} className="text-muted-foreground" />
+                  </d.CustomTooltip>
+                </span>
+              }
+            >
+              {formatRuntimeLimit(settings.runtimeLimitHours, settings.runtimeEndsAt)}
+            </SummaryItem>
+          )}
           <SummaryItem label="GPU">{formatGpuLabel(deployment.gpuAmount ?? 0, getDeploymentGpuModels(deployment.groups))}</SummaryItem>
           <SummaryItem label="vCPU">{roundDecimal(deployment.cpuAmount, 2)}</SummaryItem>
           <SummaryItem label="MEMORY">{`${roundDecimal(memory.value, 2)} ${memory.unit}`}</SummaryItem>
@@ -142,6 +156,22 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
     </div>
   );
 };
+
+/**
+ * The runtime-limit tile's value: the requested hours, plus how long remains once the countdown is
+ * anchored (it anchors when the lease starts, so a not-yet-leased deployment shows only the hours).
+ */
+export function formatRuntimeLimit(runtimeLimitHours: number, runtimeEndsAt: string | null): string {
+  const limit = `${runtimeLimitHours}h`;
+  if (!runtimeEndsAt) {
+    return limit;
+  }
+  const hoursRemaining = (new Date(runtimeEndsAt).getTime() - Date.now()) / (1000 * 60 * 60);
+  if (hoursRemaining <= 0) {
+    return `${limit} · reached`;
+  }
+  return `${limit} · ~${Math.ceil(hoursRemaining)}h left`;
+}
 
 const SummaryItem: FC<{ label: ReactNode; children: ReactNode }> = ({ label, children }) => (
   <div className="space-y-1.5">

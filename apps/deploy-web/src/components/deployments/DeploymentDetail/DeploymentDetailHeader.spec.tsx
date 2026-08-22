@@ -4,7 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { DeploymentDto, DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
-import { DEPENDENCIES, DeploymentDetailHeader } from "./DeploymentDetailHeader";
+import { DEPENDENCIES, DeploymentDetailHeader, formatRuntimeLimit } from "./DeploymentDetailHeader";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -68,6 +68,19 @@ describe("DeploymentDetailHeader", () => {
     setup({ autoTopUpEnabled: false });
 
     expect(screen.getByText("Off")).toBeInTheDocument();
+  });
+
+  it("shows the runtime limit tile when the deployment has one", () => {
+    setup({ runtimeLimitHours: 12 });
+
+    expect(screen.getByText("RUNTIME LIMIT")).toBeInTheDocument();
+    expect(screen.getByText("12h")).toBeInTheDocument();
+  });
+
+  it("hides the runtime limit tile when the deployment has none", () => {
+    setup({});
+
+    expect(screen.queryByText("RUNTIME LIMIT")).not.toBeInTheDocument();
   });
 
   it("passes every lease and provider to the visit control", () => {
@@ -167,6 +180,8 @@ describe("DeploymentDetailHeader", () => {
 
   function setup(input: {
     autoTopUpEnabled?: boolean;
+    runtimeLimitHours?: number | null;
+    runtimeEndsAt?: string | null;
     name?: string | null;
     isTrialing?: boolean;
     storedManifest?: string | null;
@@ -192,7 +207,11 @@ describe("DeploymentDetailHeader", () => {
     const useWalletBalance: typeof DEPENDENCIES.useWalletBalance = () => mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>({ balance: null });
     const useDeploymentSettingQuery: typeof DEPENDENCIES.useDeploymentSettingQuery = () =>
       mock<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>>({
-        data: mock<NonNullable<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>["data"]>>({ autoTopUpEnabled: input.autoTopUpEnabled ?? false })
+        data: mock<NonNullable<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>["data"]>>({
+          autoTopUpEnabled: input.autoTopUpEnabled ?? false,
+          runtimeLimitHours: input.runtimeLimitHours ?? null,
+          runtimeEndsAt: input.runtimeEndsAt ?? null
+        })
       });
     const CostRate = vi.fn(() => <div>cost-rate</div>);
     const DeploymentVisitControl = vi.fn(() => <div>visit</div>);
@@ -232,4 +251,32 @@ describe("DeploymentDetailHeader", () => {
 
     return { changeDeploymentName, CostRate };
   }
+});
+
+describe(formatRuntimeLimit.name, () => {
+  it("shows only the limit before the countdown is anchored", () => {
+    expect(formatRuntimeLimit(12, null)).toBe("12h");
+  });
+
+  it("shows the remaining time while the countdown runs", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-21T12:00:00.000Z"));
+
+    try {
+      expect(formatRuntimeLimit(12, "2026-08-21T17:00:00.000Z")).toBe("12h · ~5h left");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("marks the limit as reached once the deadline passes", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-21T12:00:00.000Z"));
+
+    try {
+      expect(formatRuntimeLimit(12, "2026-08-21T11:00:00.000Z")).toBe("12h · reached");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

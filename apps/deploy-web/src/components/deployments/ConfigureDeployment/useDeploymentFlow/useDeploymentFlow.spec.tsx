@@ -38,6 +38,15 @@ describe(useDeploymentFlow.name, () => {
     expect(replace).toHaveBeenCalledWith("/new-deployment/configure/999?bid-strategy=select", undefined, { shallow: true });
   });
 
+  it("requestQuotes forwards the runtime limit to the create request", () => {
+    const createMutate = vi.fn();
+    const { result } = setup({ createMutate });
+
+    act(() => result.current.actions.requestQuotes("sdl-content", { runtimeLimitHours: 6 }));
+
+    expect(createMutate).toHaveBeenCalledWith({ data: { sdl: "sdl-content", deposit: expect.any(Number), runtimeLimitHours: 6 } }, expect.any(Object));
+  });
+
   it("mirrors the strategy current when a create resolves, not the one it was fired with", () => {
     const replace = vi.fn();
     let resolveCreate: ((result: { data: { dseq: string; manifest: string } }) => void) | undefined;

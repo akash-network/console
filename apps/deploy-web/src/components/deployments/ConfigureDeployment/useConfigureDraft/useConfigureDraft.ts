@@ -31,6 +31,7 @@ export const DEPENDENCIES = {
 interface StoredDraft {
   sdl: string;
   name?: string;
+  runtimeLimitHours?: number;
   updatedAt: number;
 }
 
@@ -41,8 +42,10 @@ export interface ConfigureDraft {
   persistedSdl: string | undefined;
   /** The persisted deployment name for the active draft, or undefined when none was saved. */
   persistedName: string | undefined;
-  /** Persists `sdl` (and the optional deployment `name`) as the working draft, then evicts the oldest drafts past the cap. */
-  save(sdl: string, name?: string): void;
+  /** The persisted runtime limit in hours, or undefined when none was saved. */
+  persistedRuntimeLimitHours: number | undefined;
+  /** Persists `sdl` (and the optional deployment `name` and `runtimeLimitHours`) as the working draft, then evicts the oldest drafts past the cap. */
+  save(sdl: string, name?: string, runtimeLimitHours?: number): void;
   /** Removes the persisted draft. */
   clear(): void;
 }
@@ -65,6 +68,7 @@ export function useConfigureDraft(intent: DeploymentIntent, dependencies: typeof
   const storedDraft = useMemo(() => readStoredDraft(storage, draftId), [storage, draftId]);
   const persistedSdl = typeof storedDraft?.sdl === "string" ? storedDraft.sdl : undefined;
   const persistedName = typeof storedDraft?.name === "string" ? storedDraft.name : undefined;
+  const persistedRuntimeLimitHours = typeof storedDraft?.runtimeLimitHours === "number" ? storedDraft.runtimeLimitHours : undefined;
 
   const persistedToUrlRef = useRef<string>();
   useEffect(
@@ -83,10 +87,11 @@ export function useConfigureDraft(intent: DeploymentIntent, dependencies: typeof
       draftId,
       persistedSdl,
       persistedName,
-      save: (sdl: string, name?: string) => saveDraft(storage, draftId, sdl, name),
+      persistedRuntimeLimitHours,
+      save: (sdl: string, name?: string, runtimeLimitHours?: number) => saveDraft(storage, draftId, sdl, name, runtimeLimitHours),
       clear: () => clearDraft(storage, draftId)
     }),
-    [draftId, persistedSdl, persistedName, storage]
+    [draftId, persistedSdl, persistedName, persistedRuntimeLimitHours, storage]
   );
 }
 
@@ -125,12 +130,12 @@ function readStoredDraft(storage: Storage | undefined, draftId: string | undefin
   }
 }
 
-function saveDraft(storage: Storage | undefined, draftId: string | undefined, sdl: string, name?: string): void {
+function saveDraft(storage: Storage | undefined, draftId: string | undefined, sdl: string, name?: string, runtimeLimitHours?: number): void {
   if (!storage || !draftId) {
     return;
   }
   try {
-    const entry: StoredDraft = { sdl, name, updatedAt: Date.now() };
+    const entry: StoredDraft = { sdl, name, runtimeLimitHours, updatedAt: Date.now() };
     storage.setItem(keyOf(draftId), JSON.stringify(entry));
     evictStaleDrafts(storage);
   } catch {
