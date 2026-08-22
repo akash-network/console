@@ -1,6 +1,6 @@
 import { isHttpError, type LeaseListParams } from "@akashnetwork/http-sdk";
 import type { UseQueryOptions } from "@tanstack/react-query";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosInstance } from "axios";
 import mapValues from "lodash/mapValues";
 
@@ -120,25 +120,16 @@ export function useLeaseStatus(
   const fetchProviderUrl = d.useScopedFetchProviderUrl(provider);
 
   return useQuery({
-    queryKey: QueryKeys.getLeaseStatusKey(lease?.dseq || "", lease?.gseq || NaN, lease?.oseq || NaN),
-    queryFn: async () => {
-      if (!lease || !isLeaseLive(lease) || !providerCredentials.details.usable) return null;
-
-      const token = await providerCredentials.ensureToken();
-      const response = await fetchProviderUrl<LeaseStatusResponse>(`/lease/${lease.dseq}/${lease.gseq}/${lease.oseq}/status`, {
-        method: "GET",
-        credentials: { type: "jwt", value: token }
-      }).catch(error => {
-        if (isHttpError(error) && error.response?.status === 404) {
-          return { data: null };
-        }
-        throw error;
-      });
-
-      return response.data ? normalizeLeaseStatus(response.data) : null;
-    },
+    queryKey: leaseStatusQueryKey(lease),
+    queryFn: () =>
+      fetchLeaseStatus({
+        lease,
+        provider,
+        ensureToken: providerCredentials.ensureToken,
+        request: (url, requestOptions) => fetchProviderUrl(url, requestOptions)
+      }),
     ...options,
-    enabled: options.enabled !== false && providerCredentials.details.usable,
+    enabled: options.enabled !== false && !!provider?.hostUri && providerCredentials.details.usable,
     // Defensive: the attestation sidecar is a pod container under the current provider design and
     // never appears as a lease-status service, so this is a passthrough today. It keeps the sidecar
     // out of every consumer (status list, logs/shell selectors) at one chokepoint if that changes.
@@ -152,6 +143,71 @@ export const USE_LEASE_STATUS_DEPENDENCIES = {
   useScopedFetchProviderUrl,
   useProviderCredentials
 };
+
+export function useLeaseStatuses(
+  items: { lease: LeaseDto; provider?: ApiProviderList | null }[],
+  params: { dependencies?: typeof USE_LEASE_STATUS_DEPENDENCIES } & Omit<UseQueryOptions<LeaseStatusDto | null>, "queryKey" | "queryFn"> = {}
+) {
+  const { dependencies: d = USE_LEASE_STATUS_DEPENDENCIES, select: callerSelect, ...options } = params;
+  const providerCredentials = d.useProviderCredentials();
+  const { providerProxy } = useServices();
+
+  return useQueries({
+    queries: items.map(({ lease, provider }) => ({
+      queryKey: leaseStatusQueryKey(lease),
+      queryFn: () => {
+        if (!provider) return null;
+        return fetchLeaseStatus({
+          lease,
+          provider,
+          ensureToken: providerCredentials.ensureToken,
+          request: (url, requestOptions) => providerProxy.request(url, { ...requestOptions, providerIdentity: provider })
+        });
+      },
+      ...options,
+      enabled: options.enabled !== false && !!provider?.hostUri && providerCredentials.details.usable,
+      select: (data: LeaseStatusDto | null) => {
+        const filtered = data ? omitAttestationSidecar(data) : data;
+        return callerSelect ? callerSelect(filtered) : filtered;
+      }
+    }))
+  });
+}
+
+function leaseStatusQueryKey(lease?: LeaseDto | null) {
+  return QueryKeys.getLeaseStatusKey(lease?.dseq || "", lease?.gseq ?? 0, lease?.oseq ?? 0);
+}
+
+function isLeaseStatusUnavailable(error: unknown): boolean {
+  if (isHttpError(error) && (!error.response || error.response.status === 404 || error.code === "ERR_NETWORK")) {
+    return true;
+  }
+
+  return error instanceof TypeError && /failed to fetch/i.test(error.message);
+}
+
+async function fetchLeaseStatus(input: {
+  lease?: LeaseDto | null;
+  provider?: ApiProviderList | null;
+  ensureToken: () => Promise<string>;
+  request: (url: string, options: { method: "GET"; credentials: { type: "jwt"; value: string } }) => Promise<{ data: LeaseStatusResponse | null }>;
+}): Promise<LeaseStatusDto | null> {
+  const { lease, provider, ensureToken, request } = input;
+  if (!lease || !provider || !isLeaseLive(lease)) return null;
+
+  const token = await ensureToken();
+  const response = await request(`/lease/${lease.dseq}/${lease.gseq}/${lease.oseq}/status`, {
+    method: "GET",
+    credentials: { type: "jwt", value: token }
+  }).catch(error => {
+    if (isLeaseStatusUnavailable(error)) {
+      return { data: null };
+    }
+    throw error;
+  });
+
+  return response.data ? normalizeLeaseStatus(response.data) : null;
+}
 
 export interface ForwardedPort {
   host: string;

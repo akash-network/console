@@ -9,6 +9,7 @@ interface Props {
   value: string;
   message?: string;
   icon?: ForwardRefExoticComponent<Omit<SVGProps<SVGSVGElement>, "ref"> & RefAttributes<SVGSVGElement>>;
+  "aria-label"?: string;
 }
 
 const defaultProps = {
@@ -26,7 +27,14 @@ export const CopyTextToClipboardButton: React.FunctionComponent<Props> = props =
   }, [actualProps.value, enqueueSnackbar]);
 
   return (
-    <Button onClick={onClick} size="icon" className="h-8 w-8 rounded-full" variant="ghost">
+    <Button
+      type="button"
+      onClick={onClick}
+      size="icon"
+      className="h-8 w-8 rounded-full"
+      variant="ghost"
+      aria-label={props["aria-label"] ?? "Copy to clipboard"}
+    >
       <actualProps.icon className="text-xs text-muted-foreground" />
     </Button>
   );
