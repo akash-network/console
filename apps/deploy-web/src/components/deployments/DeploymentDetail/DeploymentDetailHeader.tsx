@@ -1,6 +1,6 @@
 "use client";
 import type { FC, ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Badge, Button, Card, CardContent, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { CheckCircle, EditPencil, InfoCircle } from "iconoir-react";
@@ -13,6 +13,7 @@ import { TrialDeploymentBadge } from "@src/components/shared/TrialDeploymentBadg
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
 import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
+import { useTickingNow } from "@src/hooks/useTickingNow";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
@@ -174,32 +175,6 @@ export function formatRuntimeLimit(runtimeLimitHours: number, runtimeEndsAt: str
     return `${limit} · reached`;
   }
   return `${limit} · ~${Math.ceil(hoursRemaining)}h left`;
-}
-
-/** The countdown displays whole hours, so a minute cadence keeps the label honest without per-second churn. */
-const RUNTIME_LIMIT_TICK_INTERVAL_MS = 60_000;
-
-/**
- * Re-renders on a fixed cadence while `enabled`, so wall-clock-derived labels stay current on pages that never
- * refetch (the detail page disables refetch-on-focus and has no polling). Returns the time of the latest tick.
- */
-function useTickingNow(enabled: boolean): number {
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(
-    function tickWhileEnabled() {
-      if (!enabled) return;
-      const interval = setInterval(function advanceNow() {
-        setNow(Date.now());
-      }, RUNTIME_LIMIT_TICK_INTERVAL_MS);
-      return function stopTicking() {
-        clearInterval(interval);
-      };
-    },
-    [enabled]
-  );
-
-  return now;
 }
 
 const SummaryItem: FC<{ label: ReactNode; children: ReactNode }> = ({ label, children }) => (
