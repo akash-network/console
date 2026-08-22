@@ -40,3 +40,11 @@ export const SDL_SECRETS_REQUIRED_CLAIMS = ["kid", "sub", "exp"] as const;
  * with enough slack above the client's own lifetime to absorb clock skew.
  */
 export const SDL_SECRETS_MAX_SEAL_LIFETIME_MS = 15 * 60 * 1000;
+
+/**
+ * The only message a client gets when anything about the sealing key goes wrong. Deliberately says
+ * nothing: the error handler echoes `message` for every `http-errors` instance regardless of
+ * `expose`, so a specific message would tell a caller whether this instance can reach Cloud KMS,
+ * holds a verified key, or has warmed its cache yet.
+ */
+export const SDL_SECRETS_UNAVAILABLE_ERROR_MESSAGE = "Service temporarily unavailable";
