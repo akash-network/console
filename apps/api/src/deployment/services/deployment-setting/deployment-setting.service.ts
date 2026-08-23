@@ -8,6 +8,7 @@ import { AuthService } from "@src/auth/services/auth.service";
 import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
+import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FindDeploymentSettingParams } from "@src/deployment/http-schemas/deployment-setting.schema";
 import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/deployment/http-schemas/runtime-limit";
@@ -76,8 +77,7 @@ export class DeploymentSettingService {
 
   async upsert(params: FindDeploymentSettingParams, input: DeploymentSettingChange): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
     try {
-      const existing = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy(params);
-      const setting = await this.#writeRequestedSetting(params, input, existing);
+      const { setting, existing } = await this.#writeReconcilingConcurrentCreate(params, input);
 
       if (input.autoTopUpEnabled !== undefined && existing?.autoTopUpEnabled !== input.autoTopUpEnabled) {
         this.instrumentation.recordSettingToggle(input.autoTopUpEnabled);
@@ -87,6 +87,33 @@ export class DeploymentSettingService {
     } catch (error) {
       assert(!(error instanceof ForbiddenError), 404, "Deployment setting not found");
       throw error;
+    }
+  }
+
+  /**
+   * A row can appear between the read and the write: a settings read creates one lazily, and a second
+   * request for the same deployment takes the same no-row-yet branch. The (dseq, userId) unique catches
+   * whichever insert loses, and re-reading lets the request run again as an update, landing where it
+   * would have had it arrived a moment later instead of surfacing the driver error as a 500. One retry
+   * is enough, since the row that broke the first attempt cannot be created a second time.
+   */
+  async #writeReconcilingConcurrentCreate(
+    params: FindDeploymentSettingParams,
+    input: DeploymentSettingChange
+  ): Promise<{ setting: DeploymentSettingsOutput; existing: DeploymentSettingsOutput | undefined }> {
+    const existing = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy(params);
+
+    try {
+      return { setting: await this.#writeRequestedSetting(params, input, existing), existing };
+    } catch (error) {
+      if (existing || !isUniqueViolation(error)) {
+        throw error;
+      }
+
+      const concurrent = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy(params);
+      assert(concurrent, 409, "Deployment setting changed concurrently, please retry");
+
+      return { setting: await this.#writeRequestedSetting(params, input, concurrent), existing: concurrent };
     }
   }
 

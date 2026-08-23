@@ -2,6 +2,7 @@ import "@test/mocks/logger-service.mock";
 
 import { ForbiddenError } from "@casl/ability";
 import { faker } from "@faker-js/faker";
+import { PostgresError } from "postgres";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -258,6 +259,49 @@ describe(DeploymentSettingService.name, () => {
       await expect(service.upsert(params, { runtimeLimitHours: 24 })).rejects.toMatchObject({ status: 409 });
     });
 
+    it("raises the limit against a row created while the first insert was in flight", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      const concurrent = createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: true });
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValueOnce(undefined).mockResolvedValueOnce(concurrent);
+      deploymentSettingRepository.create.mockRejectedValue(createUniqueViolation());
+      deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue({ ...concurrent, runtimeLimitHours: 12 });
+
+      const result = await service.upsert(params, { runtimeLimitHours: 12 });
+
+      expect(deploymentSettingRepository.applyRuntimeLimit).toHaveBeenCalledWith({ ...params, runtimeLimitHours: 12, maxIncrementHours: 48 });
+      expect(result).toEqual(expect.objectContaining({ runtimeLimitHours: 12 }));
+    });
+
+    it("patches the row created while the first insert was in flight", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      const concurrent = createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: false });
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValueOnce(undefined).mockResolvedValueOnce(concurrent);
+      deploymentSettingRepository.updateBy.mockResolvedValueOnce(undefined).mockResolvedValueOnce({ ...concurrent, autoTopUpEnabled: true } as never);
+      deploymentSettingRepository.create.mockRejectedValue(createUniqueViolation());
+
+      const result = await service.upsert(params, { autoTopUpEnabled: true });
+
+      expect(deploymentSettingRepository.create).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(expect.objectContaining({ autoTopUpEnabled: true }));
+    });
+
+    it("returns 409 when the row behind the insert conflict is already gone", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
+      deploymentSettingRepository.create.mockRejectedValue(createUniqueViolation());
+
+      await expect(service.upsert(params, { runtimeLimitHours: 12 })).rejects.toMatchObject({ status: 409 });
+    });
+
     it("leaves the runtime limit untouched for an autoTopUpEnabled-only update", async () => {
       const { service, deploymentSettingRepository } = setup();
       const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
@@ -465,6 +509,18 @@ describe(DeploymentSettingService.name, () => {
       expect(domainEvents.publish).not.toHaveBeenCalled();
     });
   });
+
+  /** Mirrors how drizzle surfaces a unique violation: a wrapper error carrying the driver error as its cause. */
+  function createUniqueViolation() {
+    const driverError = Object.assign(Object.create(PostgresError.prototype), {
+      name: "PostgresError",
+      code: "23505",
+      constraint_name: "dseq_user_id_idx",
+      message: 'duplicate key value violates unique constraint "dseq_user_id_idx"'
+    });
+
+    return new Error("Failed query: insert into deployment_settings", { cause: driverError });
+  }
 
   function createDeploymentSettingsOutput(overrides: Partial<DeploymentSettingsOutput> = {}): DeploymentSettingsOutput {
     return {
