@@ -2672,6 +2672,18 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           "204": {
             "description": "User created successfully",
           },
+          "400": {
+            "description": "Auth0 rejected the email or password",
+          },
+          "422": {
+            "description": "Account could not be created",
+          },
+          "429": {
+            "description": "Too many attempts",
+          },
+          "502": {
+            "description": "Auth0 is unavailable",
+          },
         },
         "security": [],
         "summary": "Creates a new user without sending a verification email",

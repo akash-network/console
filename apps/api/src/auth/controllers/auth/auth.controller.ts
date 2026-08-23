@@ -1,4 +1,3 @@
-import { ResponseError } from "auth0";
 import createError from "http-errors";
 import { singleton } from "tsyringe";
 
@@ -8,8 +7,15 @@ import type { SignupInput } from "@src/auth/routes/signup/signup.router";
 import type { VerifyEmailCodeRequest } from "@src/auth/routes/verify-email-code/verify-email-code.router";
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import { AUTH0_DB_CONNECTION, Auth0Service } from "@src/auth/services/auth0/auth0.service";
+import { extractAuth0ErrorMessage, isAuth0ApiError } from "@src/auth/services/auth0/auth0-error";
 import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import { UserService } from "@src/user/services/user/user.service";
+
+/** Deliberately vague so a failed signup cannot be used to confirm whether an email is already registered. */
+const ACCOUNT_UNAVAILABLE_MESSAGE = "Unable to create account. Please try again or use a different email.";
+
+/** Auth0 being down is not the caller's fault, and its internal message is not useful to them. */
+const AUTH_PROVIDER_UNAVAILABLE_MESSAGE = "Unable to create the account right now. Please try again.";
 
 @singleton()
 export class AuthController {
@@ -28,24 +34,19 @@ export class AuthController {
         connection: AUTH0_DB_CONNECTION
       });
     } catch (error) {
-      if (error instanceof ResponseError) {
-        if (error.statusCode === 409) {
-          throw createError(422, "Unable to create account. Please try again or use a different email.");
-        }
-
-        throw createError(error.statusCode, this.extractAuth0Message(error));
+      if (!isAuth0ApiError(error)) {
+        throw error;
       }
 
-      throw error;
-    }
-  }
+      if (error.statusCode === 409) {
+        throw createError(422, ACCOUNT_UNAVAILABLE_MESSAGE);
+      }
 
-  private extractAuth0Message(error: ResponseError): string {
-    try {
-      const body = JSON.parse(error.body);
-      return body.message || error.message;
-    } catch {
-      return error.message;
+      if (error.statusCode >= 500) {
+        throw createError(502, AUTH_PROVIDER_UNAVAILABLE_MESSAGE);
+      }
+
+      throw createError(error.statusCode, extractAuth0ErrorMessage(error));
     }
   }
 

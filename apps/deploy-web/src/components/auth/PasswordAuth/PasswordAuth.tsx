@@ -50,6 +50,7 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const { navigateBack } = d.useReturnTo({ defaultReturnTo: "/" });
   const [email, setEmail] = useState("");
   const turnstileRef = useRef<TurnstileRef | null>(null);
+  const isAuthInFlight = useRef(false);
 
   const signInOrSignUp = useMutation({
     async mutationFn(input: Tagged<"signin", SignInFormValues> | Tagged<"signup", SignUpFormValues>) {
@@ -69,6 +70,19 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
       navigateBack();
     }
   });
+
+  const submitCredentials = useCallback(
+    (input: Tagged<"signin", SignInFormValues> | Tagged<"signup", SignUpFormValues>) => {
+      if (isAuthInFlight.current) return;
+      isAuthInFlight.current = true;
+      signInOrSignUp.mutate(input, {
+        onSettled: () => {
+          isAuthInFlight.current = false;
+        }
+      });
+    },
+    [signInOrSignUp]
+  );
 
   const forgotPassword = useMutation({
     async mutationFn(input: { email: string }) {
@@ -175,13 +189,13 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
                 isLoading={signInOrSignUp.isPending}
                 defaultEmail={email}
                 onEmailChange={setEmail}
-                onSubmit={value => signInOrSignUp.mutate({ type: "signin", value })}
+                onSubmit={value => submitCredentials({ type: "signin", value })}
                 onForgotPasswordClick={() => setActiveView("forgot-password")}
               />
             </d.TabsContent>
 
             <d.TabsContent value="signup" className="mt-0">
-              <d.SignUpForm isLoading={signInOrSignUp.isPending} onSubmit={value => signInOrSignUp.mutate({ type: "signup", value })} />
+              <d.SignUpForm isLoading={signInOrSignUp.isPending} onSubmit={value => submitCredentials({ type: "signup", value })} />
             </d.TabsContent>
           </d.Tabs>
         )}

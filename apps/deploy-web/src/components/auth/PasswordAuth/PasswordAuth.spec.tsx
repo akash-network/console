@@ -124,6 +124,30 @@ describe(PasswordAuth.name, () => {
       });
     });
 
+    it("ignores a second submit while the first is still in flight", async () => {
+      const SignUpFormMock = vi.fn(ComponentMock as typeof SignUpForm);
+      const { authService } = setup({
+        searchParams: { tab: "signup" },
+        dependencies: { SignUpForm: SignUpFormMock }
+      });
+      authService.signup.mockReturnValue(new Promise(() => {}));
+      const credentials: SignUpFormValues = {
+        email: "test@example.com",
+        password: "password123",
+        termsAndConditions: true
+      };
+
+      act(() => {
+        SignUpFormMock.mock.lastCall![0].onSubmit(credentials);
+        SignUpFormMock.mock.lastCall![0].onSubmit(credentials);
+      });
+
+      await vi.waitFor(() => {
+        expect(authService.signup).toHaveBeenCalled();
+      });
+      expect(authService.signup).toHaveBeenCalledTimes(1);
+    });
+
     it("renders RemoteApiError when sign-up fails", async () => {
       const SignUpFormMock = vi.fn(ComponentMock as typeof SignUpForm);
       const RemoteApiErrorMock = vi.fn(({ error }) => error && <div>Unexpected error</div>);

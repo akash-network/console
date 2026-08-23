@@ -1,4 +1,5 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
+import type { AxiosRequestConfig } from "axios";
 import type { Result } from "ts-results";
 import { describe, expect, it, vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
@@ -136,6 +137,24 @@ describe(SessionService.name, () => {
       );
       expect(externalHttpClient.post).not.toHaveBeenCalled();
       expect(externalHttpClient.get).not.toHaveBeenCalled();
+    });
+
+    it("returns signup_failed instead of throwing when the console api is failing", async () => {
+      const { service, consoleApiHttpClient, externalHttpClient } = setup();
+
+      consoleApiHttpClient.post.mockImplementationOnce(respectValidateStatus({ status: 500, data: { message: "Internal server error" }, headers: {} }));
+
+      const result = await service.signUp({ email: "user@example.com", password: "StrongPassword123!" });
+
+      expect(result.ok).toBe(false);
+      const error = expectErr(result);
+      expect(error).toEqual(
+        expect.objectContaining({
+          message: "Signup is temporarily unavailable. Please try again in a moment.",
+          code: "signup_failed"
+        })
+      );
+      expect(externalHttpClient.post).not.toHaveBeenCalled();
     });
 
     it("returns user_exists when user already exists and sign-in fails", async () => {
@@ -631,6 +650,19 @@ function createHttpClientMock(): MockProxy<HttpClient> {
     post: vi.fn(),
     get: vi.fn()
   } as unknown as HttpClient);
+}
+
+/**
+ * Axios rejects rather than resolves when `validateStatus` refuses a status, so a mock that always resolves
+ * cannot tell a tolerated status from a rejected one. This reproduces that branch.
+ */
+function respectValidateStatus(response: { status: number; data: unknown; headers: Record<string, string> }) {
+  return async (_url: string, _data?: unknown, config?: AxiosRequestConfig) => {
+    if (config?.validateStatus && !config.validateStatus(response.status)) {
+      throw Object.assign(new Error(`Request failed with status code ${response.status}`), { response });
+    }
+    return response;
+  };
 }
 
 function createIdToken(payload: Record<string, unknown>) {

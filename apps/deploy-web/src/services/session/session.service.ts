@@ -89,9 +89,17 @@ export class SessionService {
         password: input.password
       },
       {
-        validateStatus: notServerError
+        validateStatus: acceptAnyStatus
       }
     );
+
+    if (signupResponse.status >= 500) {
+      return Err({
+        message: "Signup is temporarily unavailable. Please try again in a moment.",
+        code: "signup_failed",
+        cause: extractResponseDetails(signupResponse)
+      });
+    }
 
     const isUserExists = signupResponse.status === 422;
     if (signupResponse.status >= 400 && !isUserExists) {
@@ -401,6 +409,11 @@ export interface OauthConfig {
 
 function notServerError(status: number) {
   return status >= 200 && status < 500;
+}
+
+/** Signup reports a failing API as a readable error, so a 5xx has to resolve like any other status instead of throwing. */
+function acceptAnyStatus() {
+  return true;
 }
 
 /** Auth0's `x-ratelimit-reset` is a Unix epoch timestamp; consumers want "seconds until retry". */
