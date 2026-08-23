@@ -77,7 +77,9 @@ export const ReviewAndDeployModal: FC<Props> = ({
    * auto-funded. Gating the submitted value too, not just the control, keeps a draft saved while the flag
    * was on from silently applying a limit after it is turned off.
    */
-  const isRuntimeLimitOffered = d.useFlag("deployment_runtime_limit") && !d.useTrialGate().isRestricted;
+  const isRuntimeLimitEnabled = d.useFlag("deployment_runtime_limit");
+  const { isRestricted } = d.useTrialGate();
+  const isRuntimeLimitOffered = isRuntimeLimitEnabled && !isRestricted;
   const effectiveRuntimeLimitHours = isRuntimeLimitOffered ? runtimeLimitHours : undefined;
   /** Only deployable once every placement is selected and still has a live (priced) bid — a closed/stale bid leaves a row unpriced and would fail at create-lease. */
   const canConfirm = totalCount > 0 && rows.length === totalCount && pricedCount === totalCount;
