@@ -56,7 +56,7 @@ export function AddCreditsTabs({ initialTab = "purchase", onDone, onRedeemed, on
 
   return (
     <d.Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-      <d.TabsList className="grid w-full grid-cols-2 border-0 bg-muted">
+      <d.TabsList className="grid w-full grid-cols-2">
         <d.TabsTrigger value="purchase" disabled={isProcessing && activeTab !== "purchase"}>
           Purchase credits
         </d.TabsTrigger>
