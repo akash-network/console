@@ -3075,9 +3075,10 @@
                       },
                       "runtimeLimitHours": {
                         "type": "integer",
+                        "nullable": true,
                         "minimum": 1,
                         "maximum": 8760,
-                        "description": "Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most 48. Extending an existing limit must raise it by at most 48 hours per request; send the new total rather than the increment. Lowering or removing a limit is not supported."
+                        "description": "Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most 48. Extending an existing limit must raise it by at most 48 hours per request; send the new total rather than the increment. Lowering a limit is not supported. Send null to remove the limit and return the deployment to always-on funding."
                       }
                     }
                   }
@@ -3522,9 +3523,10 @@
                       },
                       "runtimeLimitHours": {
                         "type": "integer",
+                        "nullable": true,
                         "minimum": 1,
                         "maximum": 8760,
-                        "description": "Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most 48. Extending an existing limit must raise it by at most 48 hours per request; send the new total rather than the increment. Lowering or removing a limit is not supported."
+                        "description": "Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most 48. Extending an existing limit must raise it by at most 48 hours per request; send the new total rather than the increment. Lowering a limit is not supported. Send null to remove the limit and return the deployment to always-on funding."
                       }
                     }
                   }

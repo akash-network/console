@@ -410,7 +410,46 @@ describe("Deployment Settings", () => {
     });
   });
 
-  function patchRuntimeLimit({ dseq, token, runtimeLimitHours }: { dseq: string; token: string; runtimeLimitHours: number }) {
+  describe("PATCH /v2/deployment-settings/{dseq} removing a runtime limit", () => {
+    it("clears the limit and its deadline, leaving auto top-up on", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 12, runtimeEndsAt: faker.date.future() });
+
+      const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: null });
+
+      expect(response.status).toBe(200);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({
+        runtimeLimitHours: null,
+        runtimeEndsAt: null,
+        autoTopUpEnabled: true
+      });
+    });
+
+    it("leaves an already unlimited deployment alone", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true });
+
+      const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: null });
+
+      expect(response.status).toBe(200);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ runtimeLimitHours: null, runtimeEndsAt: null });
+    });
+
+    it("returns 400 when the deployment is already closed", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 12, closed: true });
+
+      const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: null });
+
+      expect(response.status).toBe(400);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ runtimeLimitHours: 12 });
+    });
+  });
+
+  function patchRuntimeLimit({ dseq, token, runtimeLimitHours }: { dseq: string; token: string; runtimeLimitHours: number | null }) {
     return app.request(`/v2/deployment-settings/${dseq}`, {
       method: "PATCH",
       headers: {
