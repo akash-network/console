@@ -48,9 +48,10 @@ export const UpdateDeploymentSettingRequestSchema = z.object({
       .int()
       .min(1)
       .max(MAX_RUNTIME_LIMIT_HOURS)
+      .nullable()
       .optional()
       .openapi({
-        description: `Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most ${MAX_RUNTIME_LIMIT_INCREMENT_HOURS}. Extending an existing limit must raise it by at most ${MAX_RUNTIME_LIMIT_INCREMENT_HOURS} hours per request; send the new total rather than the increment. Lowering or removing a limit is not supported.`
+        description: `Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most ${MAX_RUNTIME_LIMIT_INCREMENT_HOURS}. Extending an existing limit must raise it by at most ${MAX_RUNTIME_LIMIT_INCREMENT_HOURS} hours per request; send the new total rather than the increment. Lowering a limit is not supported. Send null to remove the limit and return the deployment to always-on funding.`
       })
   })
 });

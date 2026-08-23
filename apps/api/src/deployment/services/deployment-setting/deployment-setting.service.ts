@@ -20,6 +20,9 @@ import { DeploymentConfigService } from "../deployment-config/deployment-config.
 import { DrainingDeploymentService } from "../draining-deployment/draining-deployment.service";
 import { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed-deployments/top-up-managed-deployments-instrumentation.service";
 
+/** The fields a PATCH may change. A null `runtimeLimitHours` removes the limit; an absent one leaves it alone. */
+type DeploymentSettingChange = Pick<DeploymentSettingsInput, "autoTopUpEnabled" | "runtimeLimitHours">;
+
 type DeploymentSettingWithEstimatedTopUpAmount = Omit<DeploymentSettingsOutput, "lastFundedAt" | "runtimeEndsAt"> & {
   estimatedTopUpAmount: number;
   topUpFrequencyMs: number;
@@ -71,16 +74,10 @@ export class DeploymentSettingService {
     return result;
   }
 
-  async upsert(
-    params: FindDeploymentSettingParams,
-    input: Pick<DeploymentSettingsInput, "autoTopUpEnabled" | "runtimeLimitHours">
-  ): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
+  async upsert(params: FindDeploymentSettingParams, input: DeploymentSettingChange): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
     try {
       const existing = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy(params);
-      const setting =
-        input.runtimeLimitHours != null
-          ? await this.#setRuntimeLimit(params, { ...input, runtimeLimitHours: input.runtimeLimitHours }, existing)
-          : await this.#setAutoTopUp(params, input);
+      const setting = await this.#writeRequestedSetting(params, input, existing);
 
       if (input.autoTopUpEnabled !== undefined && existing?.autoTopUpEnabled !== input.autoTopUpEnabled) {
         this.instrumentation.recordSettingToggle(input.autoTopUpEnabled);
@@ -93,7 +90,23 @@ export class DeploymentSettingService {
     }
   }
 
-  async #setAutoTopUp(params: FindDeploymentSettingParams, input: Pick<DeploymentSettingsInput, "autoTopUpEnabled">): Promise<DeploymentSettingsOutput> {
+  #writeRequestedSetting(
+    params: FindDeploymentSettingParams,
+    input: DeploymentSettingChange,
+    existing: DeploymentSettingsOutput | undefined
+  ): Promise<DeploymentSettingsOutput> {
+    if (input.runtimeLimitHours === undefined) {
+      return this.#patchOrCreate(params, input);
+    }
+
+    if (input.runtimeLimitHours === null) {
+      return this.#removeRuntimeLimit(params, input, existing);
+    }
+
+    return this.#setRuntimeLimit(params, { ...input, runtimeLimitHours: input.runtimeLimitHours }, existing);
+  }
+
+  async #patchOrCreate(params: FindDeploymentSettingParams, input: DeploymentSettingsInput): Promise<DeploymentSettingsOutput> {
     const updated = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "update").updateBy(params, input, { returning: true });
 
     return (
@@ -107,9 +120,9 @@ export class DeploymentSettingService {
 
   /**
    * Runtime limits only ever go up: a deployment is closed once its limit is reached, so lowering a
-   * limit on a running deployment would silently bring the close forward, and removing one would
-   * break the promise the user bought. Extensions are therefore additive, and the request carries the
-   * new total so a retry cannot extend twice.
+   * limit on a running deployment would silently bring the close forward. Extensions are therefore
+   * additive, and the request carries the new total so a retry cannot extend twice. Dropping a limit
+   * altogether is a separate request, handled by #removeRuntimeLimit.
    *
    * A limited deployment always has auto top-up on, because funding is what keeps it alive up to the
    * limit; a limited row with funding off would be closed by the chain long before its deadline.
@@ -131,7 +144,7 @@ export class DeploymentSettingService {
     });
 
     if (setting.runtimeEndsAt) {
-      await this.#fundUpToNewDeadline(params.userId, params.dseq);
+      await this.#requestImmediateFunding(params.userId, params.dseq);
     }
 
     return setting;
@@ -182,15 +195,49 @@ export class DeploymentSettingService {
   }
 
   /**
-   * An extension moves the deadline that auto-funding clamps its deposits to, so the hours the user
-   * just bought need a deposit now rather than whenever the hourly sweep next runs. This is the same
-   * command lease start publishes, under the same singleton key, so a funding pass already in flight
-   * for this deployment absorbs the request instead of depositing twice.
+   * Puts a limited deployment back on always-on funding. Safe in a way that lowering a limit is not:
+   * it can only ever postpone a close, never bring one forward. The deadline is cleared along with the
+   * limit, or the closer would still act on it.
    *
-   * Only an anchored deadline needs this. An unanchored limit has no lease yet, and the command
-   * published at lease start funds it.
+   * Nothing recorded here says a deployment was once limited, so the one-way rule lives in the UI,
+   * which offers no way back. A limit set again through the API is harmless: it re-anchors on the next
+   * draining sweep.
    */
-  async #fundUpToNewDeadline(userId: string, dseq: string): Promise<void> {
+  async #removeRuntimeLimit(
+    params: FindDeploymentSettingParams,
+    input: DeploymentSettingChange,
+    existing: DeploymentSettingsOutput | undefined
+  ): Promise<DeploymentSettingsOutput> {
+    assert(!existing?.closed, 400, "Deployment is closed");
+
+    const setting = await this.#patchOrCreate(params, { ...input, runtimeLimitHours: null, runtimeEndsAt: null });
+
+    this.logger.info({
+      event: "RUNTIME_LIMIT_CHANGED",
+      dseq: params.dseq,
+      from: existing?.runtimeLimitHours ?? null,
+      to: null,
+      anchored: false
+    });
+
+    if (existing?.runtimeEndsAt) {
+      await this.#requestImmediateFunding(params.userId, params.dseq);
+    }
+
+    return setting;
+  }
+
+  /**
+   * Auto-funding never deposits past a deployment's runtime deadline, so both raising a limit and
+   * removing one leave the deployment short of the runtime the user just asked for until the next
+   * hourly sweep. Publishing here closes that gap. It is the same command lease start publishes, under
+   * the same singleton key, so a funding pass already in flight for this deployment absorbs the
+   * request instead of depositing twice.
+   *
+   * Only an anchored deployment needs this. Without a lease there is nothing to fund yet, and the
+   * command published at lease start covers it.
+   */
+  async #requestImmediateFunding(userId: string, dseq: string): Promise<void> {
     const wallet = await this.userWalletRepository.findOneByUserId(userId);
 
     if (!wallet?.address) {

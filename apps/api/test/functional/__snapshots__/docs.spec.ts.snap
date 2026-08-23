@@ -5719,9 +5719,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "type": "boolean",
                       },
                       "runtimeLimitHours": {
-                        "description": "Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most 48. Extending an existing limit must raise it by at most 48 hours per request; send the new total rather than the increment. Lowering or removing a limit is not supported.",
+                        "description": "Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most 48. Extending an existing limit must raise it by at most 48 hours per request; send the new total rather than the increment. Lowering a limit is not supported. Send null to remove the limit and return the deployment to always-on funding.",
                         "maximum": 8760,
                         "minimum": 1,
+                        "nullable": true,
                         "type": "integer",
                       },
                     },
@@ -15893,9 +15894,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "type": "boolean",
                       },
                       "runtimeLimitHours": {
-                        "description": "Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most 48. Extending an existing limit must raise it by at most 48 hours per request; send the new total rather than the increment. Lowering or removing a limit is not supported.",
+                        "description": "Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most 48. Extending an existing limit must raise it by at most 48 hours per request; send the new total rather than the increment. Lowering a limit is not supported. Send null to remove the limit and return the deployment to always-on funding.",
                         "maximum": 8760,
                         "minimum": 1,
+                        "nullable": true,
                         "type": "integer",
                       },
                     },

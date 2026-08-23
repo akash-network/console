@@ -273,6 +273,100 @@ describe(DeploymentSettingService.name, () => {
     });
   });
 
+  describe("upsert removing a runtime limit", () => {
+    it("clears the limit and its deadline", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(
+        createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12, runtimeEndsAt: faker.date.future() })
+      );
+      deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: null }) as never);
+
+      const result = await service.upsert(params, { runtimeLimitHours: null });
+
+      expect(deploymentSettingRepository.updateBy).toHaveBeenCalledWith(params, { runtimeLimitHours: null, runtimeEndsAt: null }, { returning: true });
+      expect(result).toEqual(expect.objectContaining({ runtimeLimitHours: null, runtimeEndsAt: null }));
+    });
+
+    it("keeps a requested auto top-up change alongside the removal", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12 }));
+      deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: true }) as never);
+
+      await service.upsert(params, { runtimeLimitHours: null, autoTopUpEnabled: true });
+
+      expect(deploymentSettingRepository.updateBy).toHaveBeenCalledWith(
+        params,
+        { autoTopUpEnabled: true, runtimeLimitHours: null, runtimeEndsAt: null },
+        { returning: true }
+      );
+    });
+
+    it("creates an unlimited setting when the deployment has none", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
+      deploymentSettingRepository.updateBy.mockResolvedValue(undefined as never);
+      deploymentSettingRepository.create.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: null }));
+
+      const result = await service.upsert(params, { runtimeLimitHours: null });
+
+      expect(deploymentSettingRepository.create).toHaveBeenCalledWith(expect.objectContaining({ ...params, runtimeLimitHours: null, runtimeEndsAt: null }));
+      expect(result).toEqual(expect.objectContaining({ runtimeLimitHours: null }));
+    });
+
+    it("rejects a removal on a closed deployment", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12, closed: true }));
+
+      await expect(service.upsert(params, { runtimeLimitHours: null })).rejects.toMatchObject({ status: 400 });
+      expect(deploymentSettingRepository.updateBy).not.toHaveBeenCalled();
+    });
+
+    it("publishes a funding command when the removed limit was anchored", async () => {
+      const { service, deploymentSettingRepository, userWalletRepository, domainEvents } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      const wallet = createUserWallet({ userId: params.userId });
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(
+        createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12, runtimeEndsAt: faker.date.future() })
+      );
+      deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: null }) as never);
+      userWalletRepository.findOneByUserId.mockResolvedValue(wallet);
+
+      await service.upsert(params, { runtimeLimitHours: null });
+
+      expect(domainEvents.publish).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { walletId: wallet.id, address: wallet.address, dseq: params.dseq } }),
+        { singletonKey: `${FundDeploymentCommand.name}.${params.dseq}.${wallet.id}` }
+      );
+    });
+
+    it("does not publish a funding command when the removed limit was never anchored", async () => {
+      const { service, deploymentSettingRepository, domainEvents } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12, runtimeEndsAt: null }));
+      deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: null }) as never);
+
+      await service.upsert(params, { runtimeLimitHours: null });
+
+      expect(domainEvents.publish).not.toHaveBeenCalled();
+    });
+  });
+
   describe("funding an extended runtime limit", () => {
     it("publishes a funding command when the extended deployment is already anchored", async () => {
       const { service, deploymentSettingRepository, userWalletRepository, domainEvents } = setup();
