@@ -95,6 +95,17 @@ describe(DeploymentSettingRepository.name, () => {
       expect(updated).toEqual(expect.objectContaining({ runtimeLimitHours: 24 }));
     });
 
+    it("turns auto top-up on so the raised limit can be funded and anchored", async () => {
+      const { deploymentSettingRepository, user, abilityFor, createLimitedSetting } = await setup();
+      const setting = await createLimitedSetting(12, { autoTopUpEnabled: false });
+
+      const updated = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "update")
+        .applyRuntimeLimit({ userId: user.id, dseq: setting.dseq, runtimeLimitHours: 24, maxIncrementHours: MAX_RUNTIME_LIMIT_INCREMENT_HOURS });
+
+      expect(updated).toEqual(expect.objectContaining({ runtimeLimitHours: 24, autoTopUpEnabled: true }));
+    });
+
     it("leaves the row untouched for a caller whose ability does not cover its user", async () => {
       const { deploymentSettingRepository, user, userRepository, abilityFor, createLimitedSetting } = await setup();
       const setting = await createLimitedSetting(12);
@@ -130,11 +141,11 @@ describe(DeploymentSettingRepository.name, () => {
       return setting.id;
     }
 
-    async function createLimitedSetting(runtimeLimitHours: number) {
+    async function createLimitedSetting(runtimeLimitHours: number, overrides: { autoTopUpEnabled?: boolean } = {}) {
       return deploymentSettingRepository.create({
         userId: user.id,
         dseq: faker.number.int({ min: 100000, max: 999999 }).toString(),
-        autoTopUpEnabled: true,
+        autoTopUpEnabled: overrides.autoTopUpEnabled ?? true,
         runtimeLimitHours
       });
     }

@@ -164,6 +164,10 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
    * lease start. A limit set through the API on a deployment whose lease is already running therefore
    * stays unanchored until the draining sweep's late-anchor fallback picks it up within the hour. The
    * web UI never hits that path, since it sets the limit before any lease exists.
+   *
+   * Turns auto top-up on with the limit, because funding is what keeps the deployment alive up to the
+   * deadline. A limited row with funding off is never anchored and never funded, so its limit would
+   * report a runtime the deployment never gets.
    */
   async applyRuntimeLimit({
     userId,
@@ -180,6 +184,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .update(this.table)
       .set({
         runtimeLimitHours,
+        autoTopUpEnabled: true,
         runtimeEndsAt: sql`case
           when ${this.table.runtimeEndsAt} is null then null
           else greatest(${this.table.runtimeEndsAt}, now()) + ((${runtimeLimitHours} - ${this.table.runtimeLimitHours}) * interval '1 hour')
