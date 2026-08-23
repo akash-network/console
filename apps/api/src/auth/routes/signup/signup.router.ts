@@ -33,10 +33,10 @@ const route = createRoute({
     204: {
       description: "User created successfully"
     },
-    400: { description: "Auth0 rejected the email or password" },
+    400: { description: "The email or password was rejected" },
     422: { description: "Account could not be created" },
     429: { description: "Too many attempts" },
-    502: { description: "Auth0 is unavailable" }
+    502: { description: "Account creation is temporarily unavailable" }
   }
 });
 

@@ -2673,7 +2673,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "User created successfully",
           },
           "400": {
-            "description": "Auth0 rejected the email or password",
+            "description": "The email or password was rejected",
           },
           "422": {
             "description": "Account could not be created",
@@ -2682,7 +2682,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "Too many attempts",
           },
           "502": {
-            "description": "Auth0 is unavailable",
+            "description": "Account creation is temporarily unavailable",
           },
         },
         "security": [],
