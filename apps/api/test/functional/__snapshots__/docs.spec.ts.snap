@@ -5718,10 +5718,13 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "description": "Whether auto top-up is enabled for this deployment",
                         "type": "boolean",
                       },
+                      "runtimeLimitHours": {
+                        "description": "Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most 48. Extending an existing limit must raise it by at most 48 hours per request; send the new total rather than the increment. Lowering or removing a limit is not supported.",
+                        "maximum": 8760,
+                        "minimum": 1,
+                        "type": "integer",
+                      },
                     },
-                    "required": [
-                      "autoTopUpEnabled",
-                    ],
                     "type": "object",
                   },
                 },
@@ -5805,6 +5808,24 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             },
             "description": "Deployment settings updated successfully",
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "message",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Invalid runtime limit change",
+          },
           "404": {
             "content": {
               "application/json": {
@@ -5822,6 +5843,24 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               },
             },
             "description": "Deployment settings not found",
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "message",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Runtime limit changed concurrently",
           },
         },
         "security": [
@@ -6857,8 +6896,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "type": "number",
                       },
                       "runtimeLimitHours": {
-                        "description": "Optional runtime limit in hours, counted from lease start. Automatic funding keeps the deployment running until the limit, then stops so the deployment drains and closes. Omit for always-on funding.",
-                        "maximum": 8760,
+                        "description": "Optional runtime limit in hours (1 to 48), counted from lease start. Automatic funding keeps the deployment running until the limit, then the deployment is closed automatically and unused funds are returned. Extend a limit with PATCH /v2/deployment-settings/{dseq}. Omit for always-on funding.",
+                        "maximum": 48,
                         "minimum": 1,
                         "type": "integer",
                       },
@@ -15853,10 +15892,13 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "description": "Whether auto top-up is enabled for this deployment",
                         "type": "boolean",
                       },
+                      "runtimeLimitHours": {
+                        "description": "Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most 48. Extending an existing limit must raise it by at most 48 hours per request; send the new total rather than the increment. Lowering or removing a limit is not supported.",
+                        "maximum": 8760,
+                        "minimum": 1,
+                        "type": "integer",
+                      },
                     },
-                    "required": [
-                      "autoTopUpEnabled",
-                    ],
                     "type": "object",
                   },
                 },
@@ -15940,6 +15982,24 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             },
             "description": "Deployment settings updated successfully",
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "message",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Invalid runtime limit change",
+          },
           "404": {
             "content": {
               "application/json": {
@@ -15957,6 +16017,24 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               },
             },
             "description": "Deployment settings not found",
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "message",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Runtime limit changed concurrently",
           },
         },
         "security": [

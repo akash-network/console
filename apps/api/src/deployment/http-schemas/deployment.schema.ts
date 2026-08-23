@@ -5,6 +5,7 @@ import { SignTxResponseOutputSchema } from "@src/billing/http-schemas/tx.schema"
 import { openApiExampleAddress } from "@src/utils/constants";
 import { AkashAddressSchema, DseqSchema } from "@src/utils/schema";
 import { LeaseStatusResponseSchema } from "./lease.schema";
+import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "./runtime-limit";
 
 const DeploymentLeaseSchema = z.object({
   id: z.object({
@@ -93,10 +94,15 @@ export const CreateDeploymentRequestSchema = z.object({
       description:
         "Deposit in dollars. Ignored when managed deposits are enabled for your account, in which case the platform sets it automatically; otherwise it is required."
     }),
-    runtimeLimitHours: z.number().int().min(1).max(8760).optional().openapi({
-      description:
-        "Optional runtime limit in hours, counted from lease start. Automatic funding keeps the deployment running until the limit, then stops so the deployment drains and closes. Omit for always-on funding."
-    })
+    runtimeLimitHours: z
+      .number()
+      .int()
+      .min(1)
+      .max(MAX_RUNTIME_LIMIT_INCREMENT_HOURS)
+      .optional()
+      .openapi({
+        description: `Optional runtime limit in hours (1 to ${MAX_RUNTIME_LIMIT_INCREMENT_HOURS}), counted from lease start. Automatic funding keeps the deployment running until the limit, then the deployment is closed automatically and unused funds are returned. Extend a limit with PATCH /v2/deployment-settings/{dseq}. Omit for always-on funding.`
+      })
   })
 });
 

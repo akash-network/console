@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { UserWallets, WalletSetting } from "@src/billing/model-schemas";
@@ -120,6 +120,56 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         target: [this.table.dseq, this.table.userId],
         set: { runtimeLimitHours, updatedAt: sql`now()` }
       });
+  }
+
+  /**
+   * Raises a deployment's runtime limit and shifts an anchored deadline by the same delta in one
+   * guarded UPDATE. The WHERE clause re-checks every rule the service validated, so two extensions
+   * racing each other cannot compound past one increment; and because callers pass an absolute total
+   * rather than a delta, a retried request is a no-op instead of a second extension. Returns
+   * undefined when the row no longer satisfies the rules.
+   *
+   * `greatest(runtime_ends_at, now())` extends from the present when the deadline has already passed,
+   * so an extension always buys the full increment. A null deadline stays null: anchoring belongs to
+   * lease start. A limit set through the API on a deployment whose lease is already running therefore
+   * stays unanchored until the draining sweep's late-anchor fallback picks it up within the hour. The
+   * web UI never hits that path, since it sets the limit before any lease exists.
+   */
+  async applyRuntimeLimit({
+    userId,
+    dseq,
+    runtimeLimitHours,
+    maxIncrementHours
+  }: {
+    userId: string;
+    dseq: string;
+    runtimeLimitHours: number;
+    maxIncrementHours: number;
+  }): Promise<DeploymentSettingsOutput | undefined> {
+    const [row] = await this.cursor
+      .update(this.table)
+      .set({
+        runtimeLimitHours,
+        runtimeEndsAt: sql`case
+          when ${this.table.runtimeEndsAt} is null then null
+          else greatest(${this.table.runtimeEndsAt}, now()) + ((${runtimeLimitHours} - ${this.table.runtimeLimitHours}) * interval '1 hour')
+        end`,
+        updatedAt: sql`now()`
+      })
+      .where(
+        and(
+          eq(this.table.userId, userId),
+          eq(this.table.dseq, dseq),
+          eq(this.table.closed, false),
+          or(
+            isNull(this.table.runtimeLimitHours),
+            and(lt(this.table.runtimeLimitHours, runtimeLimitHours), gte(this.table.runtimeLimitHours, runtimeLimitHours - maxIncrementHours))
+          )
+        )
+      )
+      .returning();
+
+    return row ? this.toOutput(row) : undefined;
   }
 
   /**

@@ -111,8 +111,28 @@ const patchRoute = createRoute({
         }
       }
     },
+    400: {
+      description: "Invalid runtime limit change",
+      content: {
+        "application/json": {
+          schema: z.object({
+            message: z.string()
+          })
+        }
+      }
+    },
     404: {
       description: "Deployment settings not found",
+      content: {
+        "application/json": {
+          schema: z.object({
+            message: z.string()
+          })
+        }
+      }
+    },
+    409: {
+      description: "Runtime limit changed concurrently",
       content: {
         "application/json": {
           schema: z.object({
@@ -224,8 +244,28 @@ const patchRouteV2 = createRoute({
         }
       }
     },
+    400: {
+      description: "Invalid runtime limit change",
+      content: {
+        "application/json": {
+          schema: z.object({
+            message: z.string()
+          })
+        }
+      }
+    },
     404: {
       description: "Deployment settings not found",
+      content: {
+        "application/json": {
+          schema: z.object({
+            message: z.string()
+          })
+        }
+      }
+    },
+    409: {
+      description: "Runtime limit changed concurrently",
       content: {
         "application/json": {
           schema: z.object({
