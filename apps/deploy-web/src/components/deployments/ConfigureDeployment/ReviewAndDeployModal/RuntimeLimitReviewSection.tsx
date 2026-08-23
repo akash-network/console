@@ -1,5 +1,4 @@
 import type { ChangeEvent, FC } from "react";
-import { useState } from "react";
 import { CustomTooltip, Input, Switch } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
@@ -14,7 +13,10 @@ export const DEPENDENCIES = { usePricing };
 const DEFAULT_RUNTIME_LIMIT_HOURS = 24;
 
 type Props = {
-  /** The requested runtime limit in hours; undefined means no limit (always-on funding). */
+  /** Whether the user is asking for a limit at all. Owned by the modal, which gates confirming on the hours being filled in. */
+  isLimited: boolean;
+  onLimitedChange: (isLimited: boolean) => void;
+  /** The requested runtime limit in hours; undefined means none entered, which reads as no limit only while the switch is off. */
   value: number | undefined;
   onChange: (value: number | undefined) => void;
   /** The review modal's priced placements, used to quote what the requested hours will cost. */
@@ -26,12 +28,11 @@ type Props = {
  * Optional runtime limit, offered at the last step so the user picks it against the price they just saw.
  * Whether a limit is offered at all is the modal's call, since the same gate decides what gets submitted.
  */
-export const RuntimeLimitReviewSection: FC<Props> = ({ value, onChange, rows, dependencies: d = DEPENDENCIES }) => {
+export const RuntimeLimitReviewSection: FC<Props> = ({ isLimited, onLimitedChange, value, onChange, rows, dependencies: d = DEPENDENCIES }) => {
   const { udenomToUsd } = d.usePricing();
-  const [isLimited, setIsLimited] = useState(value !== undefined);
 
   const toggleRuntimeLimit = (enabled: boolean) => {
-    setIsLimited(enabled);
+    onLimitedChange(enabled);
     onChange(enabled ? DEFAULT_RUNTIME_LIMIT_HOURS : undefined);
   };
 
@@ -58,25 +59,28 @@ export const RuntimeLimitReviewSection: FC<Props> = ({ value, onChange, rows, de
       </div>
 
       {isLimited && (
-        <div className="flex items-center justify-between gap-4">
-          <Input
-            type="number"
-            aria-label="Runtime limit in hours"
-            min={1}
-            max={MAX_RUNTIME_LIMIT_INCREMENT_HOURS}
-            step={1}
-            value={value ?? ""}
-            onChange={applyRuntimeLimitInput}
-            endIcon={<span className="pr-2 text-xs text-muted-foreground">hours</span>}
-            inputClassName="h-9 text-xs"
-            className="max-w-[160px]"
-          />
-          {estimatedCostUsd !== null && (
-            <span className="text-xs text-muted-foreground">
-              About ${estimatedCostUsd.toFixed(2)} for {value}h
-            </span>
-          )}
-        </div>
+        <>
+          <div className="flex items-center justify-between gap-4">
+            <Input
+              type="number"
+              aria-label="Runtime limit in hours"
+              min={1}
+              max={MAX_RUNTIME_LIMIT_INCREMENT_HOURS}
+              step={1}
+              value={value ?? ""}
+              onChange={applyRuntimeLimitInput}
+              endIcon={<span className="pr-2 text-xs text-muted-foreground">hours</span>}
+              inputClassName="h-9 text-xs"
+              className="max-w-[160px]"
+            />
+            {estimatedCostUsd !== null && (
+              <span className="text-xs text-muted-foreground">
+                About ${estimatedCostUsd.toFixed(2)} for {value}h
+              </span>
+            )}
+          </div>
+          {value === undefined && <p className="text-xs text-muted-foreground">Enter how many hours this deployment should run.</p>}
+        </>
       )}
     </div>
   );

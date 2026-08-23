@@ -143,6 +143,7 @@ describe(ReviewAndDeployModal.name, () => {
       const { mutateAsync, setRuntimeLimitHours } = setup({ onConfirm, runtimeLimitHours: 12 });
 
       await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+      await userEvent.click(screen.getByRole("button", { name: /turn off runtime limit/i }));
       setRuntimeLimitHours(undefined);
       mutateAsync.mockClear();
       await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
@@ -160,6 +161,14 @@ describe(ReviewAndDeployModal.name, () => {
       await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
 
       expect(mutateAsync.mock.calls).toEqual([[{ runtimeLimitHours: null }], [{ runtimeLimitHours: 6 }]]);
+    });
+
+    it("blocks deploying while the limit is switched on with no hours entered", async () => {
+      setup({});
+
+      await userEvent.click(screen.getByRole("button", { name: /turn on runtime limit/i }));
+
+      expect(screen.getByRole("button", { name: /confirm and deploy/i })).toBeDisabled();
     });
 
     it("raises a committed limit directly on a retry", async () => {
@@ -197,7 +206,17 @@ describe(ReviewAndDeployModal.name, () => {
     });
     const PricePerTimeUnit: typeof DEPENDENCIES.PricePerTimeUnit = ({ showAsHourly }) => <span data-testid="price">{showAsHourly ? "hourly" : "monthly"}</span>;
     const useDeploymentHasGpu: typeof DEPENDENCIES.useDeploymentHasGpu = () => input.hasGpu ?? false;
-    const RuntimeLimitReviewSection: typeof DEPENDENCIES.RuntimeLimitReviewSection = () => <div data-testid="runtime-limit-section" />;
+    const RuntimeLimitReviewSection: typeof DEPENDENCIES.RuntimeLimitReviewSection = ({ isLimited, onLimitedChange, onChange }) => (
+      <button
+        data-testid="runtime-limit-section"
+        onClick={() => {
+          onLimitedChange(!isLimited);
+          onChange(isLimited ? undefined : 24);
+        }}
+      >
+        {isLimited ? "Turn off runtime limit" : "Turn on runtime limit"}
+      </button>
+    );
     const useFlag: typeof DEPENDENCIES.useFlag = () => input.isRuntimeLimitEnabled ?? true;
     const useTrialGate: typeof DEPENDENCIES.useTrialGate = () => ({ isRestricted: input.isRestricted ?? false, isWalletReady: true });
 

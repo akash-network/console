@@ -1,6 +1,6 @@
 "use client";
 import type { ComponentProps, FC } from "react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import {
   Button,
   DialogV2,
@@ -82,8 +82,19 @@ export const ReviewAndDeployModal: FC<Props> = ({
   const { isRestricted } = d.useTrialGate();
   const isRuntimeLimitOffered = isRuntimeLimitEnabled && !isRestricted;
   const effectiveRuntimeLimitHours = isRuntimeLimitOffered && runtimeLimitHours ? runtimeLimitHours : undefined;
-  /** Only deployable once every placement is selected and still has a live (priced) bid — a closed/stale bid leaves a row unpriced and would fail at create-lease. */
-  const canConfirm = totalCount > 0 && rows.length === totalCount && pricedCount === totalCount;
+  /**
+   * The switch's own state, kept here rather than in the section: an emptied hours field reports no limit,
+   * and without knowing the switch is still on there is no way to tell that apart from a user who wants
+   * none. A limit half entered blocks the deploy, since deploying it as always-on funding is the opposite
+   * of what the switch says.
+   */
+  const [isRuntimeLimitOn, setIsRuntimeLimitOn] = useState(runtimeLimitHours !== undefined);
+  const isRuntimeLimitIncomplete = isRuntimeLimitOffered && isRuntimeLimitOn && runtimeLimitHours === undefined;
+  /**
+   * Only deployable once every placement is selected and still has a live (priced) bid: a closed or stale
+   * bid leaves a row unpriced and would fail at create-lease.
+   */
+  const canConfirm = totalCount > 0 && rows.length === totalCount && pricedCount === totalCount && !isRuntimeLimitIncomplete;
   const preventDefault = (e: Event) => e.preventDefault();
 
   /** What an earlier confirm already wrote for this dseq, so a retry can reconcile against it. */
@@ -172,7 +183,15 @@ export const ReviewAndDeployModal: FC<Props> = ({
             <TotalPrice rows={rows} showAsHourly={showAsHourly} PricePerTimeUnit={d.PricePerTimeUnit} />
           </div>
 
-          {isRuntimeLimitOffered && <d.RuntimeLimitReviewSection value={runtimeLimitHours} onChange={onRuntimeLimitHoursChange} rows={rows} />}
+          {isRuntimeLimitOffered && (
+            <d.RuntimeLimitReviewSection
+              isLimited={isRuntimeLimitOn}
+              onLimitedChange={setIsRuntimeLimitOn}
+              value={runtimeLimitHours}
+              onChange={onRuntimeLimitHoursChange}
+              rows={rows}
+            />
+          )}
         </DialogV2Body>
 
         <DialogV2Footer>

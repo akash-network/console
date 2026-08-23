@@ -21,15 +21,17 @@ describe(RuntimeLimitReviewSection.name, () => {
   });
 
   it("proposes a default limit when switched on", async () => {
-    const { onChange } = setup({});
+    const { onChange, onLimitedChange } = setup({});
     fireEvent.click(screen.getByRole("switch", { name: "Runtime limit" }));
     expect(onChange).toHaveBeenCalledWith(24);
+    expect(onLimitedChange).toHaveBeenCalledWith(true);
   });
 
   it("clears the limit when switched off", () => {
-    const { onChange } = setup({ value: 12 });
+    const { onChange, onLimitedChange } = setup({ value: 12 });
     fireEvent.click(screen.getByRole("switch", { name: "Runtime limit" }));
     expect(onChange).toHaveBeenCalledWith(undefined);
+    expect(onLimitedChange).toHaveBeenCalledWith(false);
   });
 
   it("reports whole hours through onChange", () => {
@@ -44,10 +46,22 @@ describe(RuntimeLimitReviewSection.name, () => {
     expect(onChange).toHaveBeenCalledWith(2);
   });
 
-  it("reports an emptied input as no limit", () => {
-    const { onChange } = setup({ value: 12 });
+  it("reports an emptied input as no hours yet, leaving the switch on", () => {
+    const { onChange, onLimitedChange } = setup({ value: 12 });
     fireEvent.change(screen.getByLabelText("Runtime limit in hours"), { target: { value: "" } });
     expect(onChange).toHaveBeenCalledWith(undefined);
+    expect(onLimitedChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("switch", { name: "Runtime limit" })).toBeChecked();
+  });
+
+  it("asks for the hours while the limit is on with none entered", () => {
+    setup({ isLimited: true });
+    expect(screen.getByText("Enter how many hours this deployment should run.")).toBeInTheDocument();
+  });
+
+  it("drops the prompt once hours are entered", () => {
+    setup({ value: 12 });
+    expect(screen.queryByText("Enter how many hours this deployment should run.")).not.toBeInTheDocument();
   });
 
   it("caps the input at the maximum increment", () => {
@@ -70,17 +84,25 @@ describe(RuntimeLimitReviewSection.name, () => {
     return { placementId: `p-${amount}`, placementName: `placement-${amount}`, providerName: "Dune Networks", price: { amount, denom: "uakt" } };
   }
 
-  function setup(input: { value?: number; rows?: ReviewRow[] }) {
+  function setup(input: { value?: number; isLimited?: boolean; rows?: ReviewRow[] }) {
     const onChange = vi.fn();
+    const onLimitedChange = vi.fn();
     const usePricing: typeof DEPENDENCIES.usePricing = () =>
       mock<ReturnType<typeof DEPENDENCIES.usePricing>>({ udenomToUsd: (amount: string | number) => Number(amount) / 1_000_000 });
 
     render(
       <TooltipProvider>
-        <RuntimeLimitReviewSection value={input.value} onChange={onChange} rows={input.rows ?? [pricedRow("100")]} dependencies={{ usePricing }} />
+        <RuntimeLimitReviewSection
+          isLimited={input.isLimited ?? input.value !== undefined}
+          onLimitedChange={onLimitedChange}
+          value={input.value}
+          onChange={onChange}
+          rows={input.rows ?? [pricedRow("100")]}
+          dependencies={{ usePricing }}
+        />
       </TooltipProvider>
     );
 
-    return { onChange };
+    return { onChange, onLimitedChange };
   }
 });
