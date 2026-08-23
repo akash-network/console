@@ -36,7 +36,9 @@ jobs:
       - ./dist/console.js
       - gpu-pricing-bot
   - name: mint-act
-    schedule: "0 6 * * *" # 6:00 AM every day
+    schedule: "*/10 * * * *" # every 10 minutes
+    concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 540
     command:
       - node
       - --require
