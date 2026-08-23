@@ -87,6 +87,47 @@ describe("DeploymentBillingSection", () => {
       expect(onFundsChanged).not.toHaveBeenCalled();
       expect(screen.getByRole("button", { name: "submit-hours" })).toBeInTheDocument();
     });
+
+    it("removes the limit and turns auto top-up on once the switch is confirmed", async () => {
+      const { mutateAsync, onFundsChanged } = setup({ state: "active", runtimeLimitHours: 12 });
+
+      await userEvent.click(screen.getByRole("button", { name: "Switch to always on" }));
+
+      expect(mutateAsync).toHaveBeenCalledWith({ runtimeLimitHours: null, autoTopUpEnabled: true });
+      await waitFor(() => expect(onFundsChanged).toHaveBeenCalled());
+    });
+
+    it("tracks the switch once it lands", async () => {
+      const { analyticsService } = setup({ state: "active", runtimeLimitHours: 12 });
+
+      await userEvent.click(screen.getByRole("button", { name: "Switch to always on" }));
+
+      await waitFor(() => expect(analyticsService.track).toHaveBeenCalledWith("remove_runtime_limit", expect.anything()));
+    });
+
+    it("leaves the limit alone when the switch is not confirmed", async () => {
+      const { mutateAsync, onFundsChanged } = setup({ state: "active", runtimeLimitHours: 12, isConfirmed: false });
+
+      await userEvent.click(screen.getByRole("button", { name: "Switch to always on" }));
+
+      expect(mutateAsync).not.toHaveBeenCalled();
+      expect(onFundsChanged).not.toHaveBeenCalled();
+    });
+
+    it("surfaces a rejected switch", async () => {
+      const { enqueueSnackbar, onFundsChanged } = setup({ state: "active", runtimeLimitHours: 12, patchError: new Error("closed") });
+
+      await userEvent.click(screen.getByRole("button", { name: "Switch to always on" }));
+
+      await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalled());
+      expect(onFundsChanged).not.toHaveBeenCalled();
+    });
+  });
+
+  it("does not offer a switch to always on when the deployment has no runtime limit", () => {
+    setup({ state: "active" });
+
+    expect(screen.queryByRole("button", { name: "Switch to always on" })).not.toBeInTheDocument();
   });
 
   function setup(input: {
@@ -97,6 +138,7 @@ describe("DeploymentBillingSection", () => {
     runtimeLimitHours?: number;
     runtimeEndsAt?: string | null;
     patchError?: Error;
+    isConfirmed?: boolean;
   }) {
     const setEnabled = vi.fn();
     const deposit = vi.fn();
@@ -128,6 +170,9 @@ describe("DeploymentBillingSection", () => {
     const mutation = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useUpdateDeploymentSettingMutation>>(), { mutateAsync, isPending: false });
     const useUpdateDeploymentSettingMutation: typeof DEPENDENCIES.useUpdateDeploymentSettingMutation = () => mutation;
 
+    const confirm = vi.fn().mockResolvedValue(input.isConfirmed ?? true);
+    const usePopup: typeof DEPENDENCIES.usePopup = () => mock<ReturnType<typeof DEPENDENCIES.usePopup>>({ confirm });
+
     const enqueueSnackbar = vi.fn();
     const useSnackbar: typeof DEPENDENCIES.useSnackbar = () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar });
     const Snackbar: typeof DEPENDENCIES.Snackbar = ({ title }) => <span>{title}</span>;
@@ -156,6 +201,7 @@ describe("DeploymentBillingSection", () => {
           useServices,
           useWallet,
           usePricing,
+          usePopup,
           useAutoTopUp,
           useDeploymentEscrowBalance,
           useUpdateDeploymentSettingMutation,
@@ -169,6 +215,6 @@ describe("DeploymentBillingSection", () => {
       />
     );
 
-    return { setEnabled, deposit, onFundsChanged, mutateAsync, enqueueSnackbar, analyticsService };
+    return { setEnabled, deposit, onFundsChanged, mutateAsync, enqueueSnackbar, analyticsService, confirm };
   }
 });

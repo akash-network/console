@@ -2,6 +2,7 @@
 import type { FC } from "react";
 import { useCallback, useState } from "react";
 import { Button, CustomTooltip, Snackbar, Spinner, Switch } from "@akashnetwork/ui/components";
+import { usePopup } from "@akashnetwork/ui/context";
 import formatDuration from "date-fns/formatDuration";
 import intervalToDuration from "date-fns/intervalToDuration";
 import { InfoCircle } from "iconoir-react";
@@ -26,6 +27,7 @@ import { AddRuntimeHoursModal } from "./AddRuntimeHoursModal";
 export const DEPENDENCIES = {
   useServices,
   useWallet,
+  usePopup,
   usePricing,
   useAutoTopUp,
   useDeploymentEscrowBalance,
@@ -50,6 +52,7 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
   const { analyticsService } = d.useServices();
   const { denom: walletDenom } = d.useWallet();
   const { udenomToUsd } = d.usePricing();
+  const { confirm } = d.usePopup();
   const { enqueueSnackbar } = d.useSnackbar();
   const [isDepositing, setIsDepositing] = useState(false);
   const [isAddingHours, setIsAddingHours] = useState(false);
@@ -107,6 +110,32 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
     [analyticsService, d, enqueueSnackbar, onFundsChanged, updateSetting]
   );
 
+  /**
+   * Drops the runtime limit for good, so it asks first: the deployment then funds itself until the user
+   * closes it, and nothing here offers a way back to a fixed runtime. Auto top-up is turned on with it,
+   * because that is what keeps an always-on deployment alive.
+   */
+  const switchToAlwaysOn = useCallback(async () => {
+    analyticsService.track("remove_runtime_limit_btn_clk", "Amplitude");
+
+    const isConfirmed = await confirm({
+      title: "Switch to always on?",
+      message: "This deployment will keep topping up automatically until you close it. You can't switch back to a fixed runtime."
+    });
+
+    if (!isConfirmed) return;
+
+    try {
+      await updateSetting.mutateAsync({ runtimeLimitHours: null, autoTopUpEnabled: true });
+      analyticsService.track("remove_runtime_limit", { category: "deployments", label: "Switch a limited deployment to always on" });
+      onFundsChanged();
+    } catch (error) {
+      enqueueSnackbar(<d.Snackbar title="Couldn't switch to always on" subTitle={extractErrorMessage(error as AppError)} iconVariant="error" />, {
+        variant: "error"
+      });
+    }
+  }, [analyticsService, confirm, d, enqueueSnackbar, onFundsChanged, updateSetting]);
+
   return (
     <div className="rounded-xl border bg-card p-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -123,6 +152,24 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
           </Button>
         )}
       </div>
+
+      {isActive && isRuntimeLimited && (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t pt-6">
+          <div className="space-y-1">
+            <div className="font-medium">Runtime limit</div>
+            <p className="text-sm text-muted-foreground">
+              This deployment closes automatically once its limit is reached. Switching to always on keeps it funded until you close it, and can&apos;t be
+              undone.
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {updateSetting.isPending && <Spinner size="small" />}
+            <Button variant="outline" size="md" onClick={switchToAlwaysOn} disabled={updateSetting.isPending}>
+              Switch to always on
+            </Button>
+          </div>
+        </div>
+      )}
 
       {isActive && !isRuntimeLimited && (
         <div className="mt-6 flex items-center justify-between gap-4 border-t pt-6">
