@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { UserWallets, WalletSetting } from "@src/billing/model-schemas";
@@ -19,6 +19,13 @@ export type DeploymentSettingsOutput = Omit<DeploymentSettingsDbOutput, "created
 export type FundingClaim = {
   id: string;
   claimedAt: string;
+};
+
+export type ExpiredRuntimeDeployment = {
+  id: string;
+  dseq: string;
+  walletId: number;
+  address: string;
 };
 
 export type AutoTopUpDeployment = {
@@ -108,6 +115,28 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
   }
 
   /**
+   * Deployments whose runtime limit has run out and that have not been marked closed yet. Deliberately
+   * ignores `autoTopUpEnabled`: a user who turned funding off after setting a limit still asked for the
+   * deployment to end at the deadline, and the closer is what honours that.
+   */
+  async findExpiredRuntimeDeployments(): Promise<ExpiredRuntimeDeployment[]> {
+    const deployments = await this.pg
+      .select({
+        id: this.table.id,
+        dseq: this.table.dseq,
+        walletId: UserWallets.id,
+        address: UserWallets.address
+      })
+      .from(this.table)
+      .leftJoin(Users, eq(this.table.userId, Users.id))
+      .innerJoin(UserWallets, eq(Users.id, UserWallets.userId))
+      .where(and(eq(this.table.closed, false), isNotNull(this.table.runtimeEndsAt), lt(this.table.runtimeEndsAt, sql`now()`)))
+      .orderBy(desc(this.table.id));
+
+    return deployments as ExpiredRuntimeDeployment[];
+  }
+
+  /**
    * Persists a runtime limit chosen at deployment creation. Upserts on the (dseq, userId) unique so a
    * concurrent lazy row creation from a settings read cannot drop the limit; the conflict branch only
    * writes the limit and leaves the row's other fields as the earlier writer set them.
@@ -120,6 +149,56 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         target: [this.table.dseq, this.table.userId],
         set: { runtimeLimitHours, updatedAt: sql`now()` }
       });
+  }
+
+  /**
+   * Raises a deployment's runtime limit and shifts an anchored deadline by the same delta in one
+   * guarded UPDATE. The WHERE clause re-checks every rule the service validated, so two extensions
+   * racing each other cannot compound past one increment; and because callers pass an absolute total
+   * rather than a delta, a retried request is a no-op instead of a second extension. Returns
+   * undefined when the row no longer satisfies the rules.
+   *
+   * `greatest(runtime_ends_at, now())` extends from the present when the deadline has already passed,
+   * so an extension always buys the full increment. A null deadline stays null: anchoring belongs to
+   * lease start. A limit set through the API on a deployment whose lease is already running therefore
+   * stays unanchored until the draining sweep's late-anchor fallback picks it up within the hour. The
+   * web UI never hits that path, since it sets the limit before any lease exists.
+   */
+  async applyRuntimeLimit({
+    userId,
+    dseq,
+    runtimeLimitHours,
+    maxIncrementHours
+  }: {
+    userId: string;
+    dseq: string;
+    runtimeLimitHours: number;
+    maxIncrementHours: number;
+  }): Promise<DeploymentSettingsOutput | undefined> {
+    const [row] = await this.cursor
+      .update(this.table)
+      .set({
+        runtimeLimitHours,
+        runtimeEndsAt: sql`case
+          when ${this.table.runtimeEndsAt} is null then null
+          else greatest(${this.table.runtimeEndsAt}, now()) + ((${runtimeLimitHours} - ${this.table.runtimeLimitHours}) * interval '1 hour')
+        end`,
+        updatedAt: sql`now()`
+      })
+      .where(
+        and(
+          eq(this.table.userId, userId),
+          eq(this.table.dseq, dseq),
+          eq(this.table.closed, false),
+          or(
+            isNull(this.table.runtimeLimitHours),
+            and(lt(this.table.runtimeLimitHours, runtimeLimitHours), gte(this.table.runtimeLimitHours, runtimeLimitHours - maxIncrementHours))
+          )
+        )
+      )
+      .returning();
+
+    return row ? this.toOutput(row) : undefined;
   }
 
   /**
