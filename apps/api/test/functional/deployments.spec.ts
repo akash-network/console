@@ -635,6 +635,24 @@ describe("Deployments API", () => {
 
       expect(response.status).toBe(400);
     });
+
+    it.each([0, -1])("returns 400 for a runtime limit of %s hours", async runtimeLimitHours => {
+      const { userApiKeySecret } = await mockUser();
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
+      const response = await app.request("/v1/deployments", {
+        method: "POST",
+        body: JSON.stringify({
+          data: {
+            sdl: yml,
+            runtimeLimitHours
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+    });
   });
 
   describe("DELETE /v1/deployments/{dseq}", () => {
