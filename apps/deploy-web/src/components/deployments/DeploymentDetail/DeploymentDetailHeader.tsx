@@ -75,7 +75,6 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
   const costPerBlockUDenom = liveLeases.reduce((sum, lease) => sum + parseFloat(lease.price.amount), 0);
   const liveGpuCount = liveLeases.reduce((sum, lease) => sum + (lease.gpuAmount ?? 0), 0);
 
-  // The detail page never refetches, so the tile's countdown only moves via useTickingNow's minute ticks.
   const runtimeEndsAt = settings?.runtimeEndsAt ?? null;
   const now = useTickingNow(!!runtimeEndsAt);
 

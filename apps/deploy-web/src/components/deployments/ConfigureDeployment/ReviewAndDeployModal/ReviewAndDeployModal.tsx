@@ -1,5 +1,6 @@
 "use client";
 import type { ComponentProps, FC } from "react";
+import { useRef } from "react";
 import {
   Button,
   DialogV2,
@@ -80,20 +81,37 @@ export const ReviewAndDeployModal: FC<Props> = ({
   const isRuntimeLimitEnabled = d.useFlag("deployment_runtime_limit");
   const { isRestricted } = d.useTrialGate();
   const isRuntimeLimitOffered = isRuntimeLimitEnabled && !isRestricted;
-  const effectiveRuntimeLimitHours = isRuntimeLimitOffered ? runtimeLimitHours : undefined;
+  const effectiveRuntimeLimitHours = isRuntimeLimitOffered && runtimeLimitHours ? runtimeLimitHours : undefined;
   /** Only deployable once every placement is selected and still has a live (priced) bid — a closed/stale bid leaves a row unpriced and would fail at create-lease. */
   const canConfirm = totalCount > 0 && rows.length === totalCount && pricedCount === totalCount;
   const preventDefault = (e: Event) => e.preventDefault();
+
+  /** What an earlier confirm already wrote for this dseq, so a retry can reconcile against it. */
+  const committedRuntimeLimitRef = useRef<{ dseq: string; hours: number } | null>(null);
 
   /**
    * The limit is stored on the deployment before any lease exists, so the countdown can anchor at lease
    * start. A failed patch blocks the deploy rather than deploying without the limit the user asked for:
    * the deployment would then run unbounded, which is the opposite of what they chose.
+   *
+   * A failed deploy drops back to the marketplace on the same deployment, so a second confirm reconciles
+   * what the first one wrote: the API only ever raises a limit, so turning one off or lowering it is a
+   * removal followed by the new value.
    */
   const confirmAndDeploy = async () => {
-    if (effectiveRuntimeLimitHours && dseq) {
+    const committed = committedRuntimeLimitRef.current?.dseq === dseq ? committedRuntimeLimitRef.current.hours : undefined;
+
+    if (dseq && committed !== effectiveRuntimeLimitHours) {
       try {
-        await updateSetting.mutateAsync({ runtimeLimitHours: effectiveRuntimeLimitHours });
+        if (committed !== undefined && (effectiveRuntimeLimitHours === undefined || effectiveRuntimeLimitHours < committed)) {
+          await updateSetting.mutateAsync({ runtimeLimitHours: null });
+          committedRuntimeLimitRef.current = null;
+        }
+
+        if (effectiveRuntimeLimitHours !== undefined) {
+          await updateSetting.mutateAsync({ runtimeLimitHours: effectiveRuntimeLimitHours });
+          committedRuntimeLimitRef.current = { dseq, hours: effectiveRuntimeLimitHours };
+        }
       } catch (error) {
         enqueueSnackbar(<d.Snackbar title="Couldn't set the runtime limit" subTitle={extractErrorMessage(error as AppError)} iconVariant="error" />, {
           variant: "error"

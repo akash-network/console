@@ -127,6 +127,51 @@ describe(ReviewAndDeployModal.name, () => {
       expect(screen.getByRole("button", { name: /confirm and deploy/i })).toBeDisabled();
       expect(screen.getByRole("button", { name: /back to marketplace/i })).toBeDisabled();
     });
+
+    it("does not patch again when a retry confirms the limit it already committed", async () => {
+      const { mutateAsync } = setup({ runtimeLimitHours: 12 });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+      mutateAsync.mockClear();
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("removes a committed limit when a retry confirms with the limit turned off", async () => {
+      const onConfirm = vi.fn();
+      const { mutateAsync, setRuntimeLimitHours } = setup({ onConfirm, runtimeLimitHours: 12 });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+      setRuntimeLimitHours(undefined);
+      mutateAsync.mockClear();
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync).toHaveBeenCalledWith({ runtimeLimitHours: null });
+      await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(2));
+    });
+
+    it("removes a committed limit before writing a lower one on a retry", async () => {
+      const { mutateAsync, setRuntimeLimitHours } = setup({ runtimeLimitHours: 24 });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+      setRuntimeLimitHours(6);
+      mutateAsync.mockClear();
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync.mock.calls).toEqual([[{ runtimeLimitHours: null }], [{ runtimeLimitHours: 6 }]]);
+    });
+
+    it("raises a committed limit directly on a retry", async () => {
+      const { mutateAsync, setRuntimeLimitHours } = setup({ runtimeLimitHours: 12 });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+      setRuntimeLimitHours(24);
+      mutateAsync.mockClear();
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync.mock.calls).toEqual([[{ runtimeLimitHours: 24 }]]);
+    });
   });
 
   function setup(input: {
@@ -167,13 +212,13 @@ describe(ReviewAndDeployModal.name, () => {
     const useSnackbar: typeof DEPENDENCIES.useSnackbar = () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar });
     const Snackbar: typeof DEPENDENCIES.Snackbar = ({ title }) => <span>{title}</span>;
 
-    render(
+    const modal = (runtimeLimitHours: number | undefined) => (
       <ReviewAndDeployModal
         open
         dseq="55"
         placements={[mock<PlacementType>({ id: "p1", name: "placement-1", region: "Any region" })]}
         selections={{ p1: "akash1a/55/1/2" }}
-        runtimeLimitHours={input.runtimeLimitHours}
+        runtimeLimitHours={runtimeLimitHours}
         onRuntimeLimitHoursChange={vi.fn()}
         onConfirm={input.onConfirm ?? vi.fn()}
         onBack={input.onBack ?? vi.fn()}
@@ -191,6 +236,9 @@ describe(ReviewAndDeployModal.name, () => {
       />
     );
 
-    return { mutateAsync, enqueueSnackbar };
+    const { rerender } = render(modal(input.runtimeLimitHours));
+    const setRuntimeLimitHours = (runtimeLimitHours: number | undefined) => rerender(modal(runtimeLimitHours));
+
+    return { mutateAsync, enqueueSnackbar, setRuntimeLimitHours };
   }
 });
