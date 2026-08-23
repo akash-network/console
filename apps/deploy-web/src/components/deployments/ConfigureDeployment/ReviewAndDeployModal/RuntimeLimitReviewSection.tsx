@@ -5,12 +5,10 @@ import { InfoCircle } from "iconoir-react";
 
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { API_BLOCKS_PER_HOUR } from "@src/utils/deploymentUtils";
+import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/utils/runtimeLimitUtils";
 import type { ReviewRow } from "./useReviewRows";
 
 export const DEPENDENCIES = { usePricing };
-
-/** A limit is granted in increments of at most 48 hours, matching the API; extend from the deployment's settings. */
-export const MAX_RUNTIME_LIMIT_HOURS = 48;
 
 /** What the switch fills in, so turning it on shows a concrete limit instead of an empty field that means nothing. */
 const DEFAULT_RUNTIME_LIMIT_HOURS = 24;
@@ -39,7 +37,7 @@ export const RuntimeLimitReviewSection: FC<Props> = ({ value, onChange, rows, de
 
   const applyRuntimeLimitInput = (event: ChangeEvent<HTMLInputElement>) => {
     const hours = Math.floor(Number(event.target.value));
-    onChange(hours >= 1 ? Math.min(hours, MAX_RUNTIME_LIMIT_HOURS) : undefined);
+    onChange(hours >= 1 ? Math.min(hours, MAX_RUNTIME_LIMIT_INCREMENT_HOURS) : undefined);
   };
 
   const estimatedCostUsd = value ? estimateRuntimeCostUsd(rows, value, udenomToUsd) : null;
@@ -65,7 +63,7 @@ export const RuntimeLimitReviewSection: FC<Props> = ({ value, onChange, rows, de
             type="number"
             aria-label="Runtime limit in hours"
             min={1}
-            max={MAX_RUNTIME_LIMIT_HOURS}
+            max={MAX_RUNTIME_LIMIT_INCREMENT_HOURS}
             step={1}
             value={value ?? ""}
             onChange={applyRuntimeLimitInput}

@@ -4,7 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { DeploymentDto, DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
-import { DEPENDENCIES, DeploymentDetailHeader, formatRuntimeLimit } from "./DeploymentDetailHeader";
+import { DEPENDENCIES, DeploymentDetailHeader } from "./DeploymentDetailHeader";
 
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -106,6 +106,25 @@ describe("DeploymentDetailHeader", () => {
     expect(screen.queryByText("RUNTIME LIMIT")).not.toBeInTheDocument();
   });
 
+  it("replaces the auto top-up tile with the runtime limit tile, never showing both", () => {
+    setup({ runtimeLimitHours: 12, autoTopUpEnabled: true });
+
+    expect(screen.getByText("RUNTIME LIMIT")).toBeInTheDocument();
+    expect(screen.queryByText("AUTO TOP-UP")).not.toBeInTheDocument();
+  });
+
+  it("shows the auto top-up tile when the deployment has no runtime limit", () => {
+    setup({ autoTopUpEnabled: true });
+
+    expect(screen.getByText("AUTO TOP-UP")).toBeInTheDocument();
+  });
+
+  it("shows the deployment's own escrow balance rather than the account-wide wallet balance", () => {
+    setup({ escrowBalanceUdenom: 3_720_000 });
+
+    expect(screen.getByTestId("escrow-balance")).toHaveTextContent("3.72");
+  });
+
   it("passes every lease and provider to the visit control", () => {
     const DeploymentVisitControl = vi.fn(() => <div>visit</div>);
     const leases = [buildLeaseInPlacement("1", "dcloud-us"), buildLeaseInPlacement("2", "dcloud-eu")];
@@ -203,6 +222,7 @@ describe("DeploymentDetailHeader", () => {
 
   function setup(input: {
     autoTopUpEnabled?: boolean;
+    escrowBalanceUdenom?: number;
     runtimeLimitHours?: number | null;
     runtimeEndsAt?: string | null;
     name?: string | null;
@@ -227,7 +247,11 @@ describe("DeploymentDetailHeader", () => {
     const TrialDeploymentBadge = vi.fn(() => <div>trial-badge</div>);
     const ConfidentialComputeBadge = vi.fn(() => <div>tee-badge</div>);
     const GpuInterconnectBadge = vi.fn(() => <div>interconnect-badge</div>);
-    const useWalletBalance: typeof DEPENDENCIES.useWalletBalance = () => mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>({ balance: null });
+    const useDeploymentEscrowBalance: typeof DEPENDENCIES.useDeploymentEscrowBalance = () => ({
+      balanceUdenom: input.escrowBalanceUdenom ?? 0,
+      denom: "uact"
+    });
+    const PriceValue: typeof DEPENDENCIES.PriceValue = ({ value }) => <span data-testid="escrow-balance">{value}</span>;
     const useDeploymentSettingQuery: typeof DEPENDENCIES.useDeploymentSettingQuery = () =>
       mock<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>>({
         data: mock<NonNullable<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>["data"]>>({
@@ -258,7 +282,8 @@ describe("DeploymentDetailHeader", () => {
         dependencies={MockComponents(DEPENDENCIES, {
           useLocalNotes,
           useWallet,
-          useWalletBalance,
+          useDeploymentEscrowBalance,
+          PriceValue,
           useDeploymentSettingQuery,
           useDeclaredTeeTypes,
           useDeclaredGpuInterconnect,
@@ -272,34 +297,6 @@ describe("DeploymentDetailHeader", () => {
       />
     );
 
-    return { changeDeploymentName, CostRate };
+    return { changeDeploymentName, CostRate, PriceValue };
   }
-});
-
-describe(formatRuntimeLimit.name, () => {
-  it("shows only the limit before the countdown is anchored", () => {
-    expect(formatRuntimeLimit(12, null)).toBe("12h");
-  });
-
-  it("shows the remaining time while the countdown runs", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-08-21T12:00:00.000Z"));
-
-    try {
-      expect(formatRuntimeLimit(12, "2026-08-21T17:00:00.000Z")).toBe("12h · ~5h left");
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("marks the limit as reached once the deadline passes", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-08-21T12:00:00.000Z"));
-
-    try {
-      expect(formatRuntimeLimit(12, "2026-08-21T11:00:00.000Z")).toBe("12h · reached");
-    } finally {
-      vi.useRealTimers();
-    }
-  });
 });

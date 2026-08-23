@@ -2,8 +2,9 @@ import { TooltipProvider } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/utils/runtimeLimitUtils";
 import type { DEPENDENCIES } from "./RuntimeLimitReviewSection";
-import { MAX_RUNTIME_LIMIT_HOURS, RuntimeLimitReviewSection } from "./RuntimeLimitReviewSection";
+import { RuntimeLimitReviewSection } from "./RuntimeLimitReviewSection";
 import type { ReviewRow } from "./useReviewRows";
 
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -52,7 +53,7 @@ describe(RuntimeLimitReviewSection.name, () => {
   it("caps the input at the maximum increment", () => {
     const { onChange } = setup({ value: 12 });
     fireEvent.change(screen.getByLabelText("Runtime limit in hours"), { target: { value: "99999" } });
-    expect(onChange).toHaveBeenCalledWith(MAX_RUNTIME_LIMIT_HOURS);
+    expect(onChange).toHaveBeenCalledWith(MAX_RUNTIME_LIMIT_INCREMENT_HOURS);
   });
 
   it("quotes the requested hours off the API's blocks per hour", () => {

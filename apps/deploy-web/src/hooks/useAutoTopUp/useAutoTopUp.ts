@@ -36,6 +36,12 @@ export interface UseAutoTopUpResult {
   estimatedTopUpAmount: number;
   topUpFrequencyMs: number;
   realTimeLeft: ReturnType<typeof useDeploymentMetrics>["realTimeLeft"];
+  /** The deployment's runtime limit in hours, or null when it runs until its funds are gone. */
+  runtimeLimitHours: number | null;
+  /** When the runtime limit is reached, ISO-encoded; null until the lease starts or when no limit is set. */
+  runtimeEndsAt: string | null;
+  /** The deployment's cost per block in its escrow denom, for quoting what extra runtime would cost. */
+  costPerBlockUdenom: number;
   setEnabled: (enabled: boolean) => Promise<void>;
   deposit: (amountUdenom: number) => Promise<boolean>;
 }
@@ -90,6 +96,9 @@ export function useAutoTopUp({ deployment, leases, onDeposited, dependencies: d 
     estimatedTopUpAmount: deploymentSetting.data?.estimatedTopUpAmount ?? 0,
     topUpFrequencyMs: deploymentSetting.data?.topUpFrequencyMs ?? 0,
     realTimeLeft,
+    runtimeLimitHours: deploymentSetting.data?.runtimeLimitHours ?? null,
+    runtimeEndsAt: deploymentSetting.data?.runtimeEndsAt ?? null,
+    costPerBlockUdenom: deploymentCost,
     setEnabled,
     deposit
   };
