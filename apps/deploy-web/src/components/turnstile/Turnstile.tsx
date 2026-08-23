@@ -50,9 +50,12 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
     turnstileRef.current?.render();
     turnstileRef.current?.execute();
   }, []);
+  const abandonPendingChallenge = useRef<(() => void) | undefined>(undefined);
+  /** Notifies the parent before rejecting so it can drop the abandoned attempt instead of rendering it as a failure. */
   const hideWidget = useCallback(() => {
     setStatus("dismissed");
     onDismissed?.();
+    abandonPendingChallenge.current?.();
   }, [onDismissed]);
 
   useWhen(status === "error" || status === "expired", () => {
@@ -70,20 +73,28 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
           return Promise.resolve({ token: "disabled-turnstile-token" });
         }
 
+        abandonPendingChallenge.current?.();
         resetWidget();
         return new Promise((resolve, reject) => {
-          const successListener = (event: Event) => {
+          const stopWaiting = () => {
             eventBus.current.removeEventListener("success", successListener);
             eventBus.current.removeEventListener("error", errorListener);
+            abandonPendingChallenge.current = undefined;
+          };
+          const successListener = (event: Event) => {
+            stopWaiting();
             resolve((event as CustomEvent<{ token: string }>).detail);
           };
           const errorListener = (event: Event) => {
-            eventBus.current.removeEventListener("success", successListener);
-            eventBus.current.removeEventListener("error", errorListener);
+            stopWaiting();
             const details = (event as CustomEvent<{ reason: string; error?: string }>).detail;
             reject({ status, ...details });
           };
 
+          abandonPendingChallenge.current = () => {
+            stopWaiting();
+            reject({ reason: "dismissed" });
+          };
           eventBus.current.addEventListener("success", successListener);
           eventBus.current.addEventListener("error", errorListener);
         });

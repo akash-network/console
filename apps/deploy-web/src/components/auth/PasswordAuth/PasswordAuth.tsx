@@ -94,13 +94,11 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
     }
   });
 
-  const resetMutations = useCallback(
-    function resetMutations() {
-      signInOrSignUp.reset();
-      forgotPassword.reset();
-    },
-    [signInOrSignUp, forgotPassword]
-  );
+  const abandonAuthAttempt = useCallback(() => {
+    isAuthInFlight.current = false;
+    signInOrSignUp.reset();
+    forgotPassword.reset();
+  }, [signInOrSignUp, forgotPassword]);
 
   const requestedTab = searchParams.get("tab");
   const activeView = requestedTab !== "login" && requestedTab !== "signup" && requestedTab !== "forgot-password" ? "login" : requestedTab;
@@ -109,10 +107,10 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
       const tabId = value !== "login" && value !== "signup" && value !== "forgot-password" ? "login" : value;
       const newSearchParams = new URLSearchParams(searchParams);
       newSearchParams.set("tab", tabId);
-      resetMutations();
+      abandonAuthAttempt();
       router.replace(`?${newSearchParams.toString()}`, undefined, { shallow: true });
     },
-    [searchParams, router, resetMutations]
+    [searchParams, router, abandonAuthAttempt]
   );
 
   return (
@@ -203,7 +201,7 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
           turnstileRef={turnstileRef}
           enabled={publicConfig.NEXT_PUBLIC_TURNSTILE_ENABLED}
           siteKey={publicConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-          onDismissed={resetMutations}
+          onDismissed={abandonAuthAttempt}
         />
       </div>
     </>

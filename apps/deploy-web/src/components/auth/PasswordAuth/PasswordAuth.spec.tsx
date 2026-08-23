@@ -148,6 +148,69 @@ describe(PasswordAuth.name, () => {
       expect(authService.signup).toHaveBeenCalledTimes(1);
     });
 
+    it("submits again without surfacing an error after the captcha was dismissed mid-flight", async () => {
+      const SignUpFormMock = vi.fn(ComponentMock as typeof SignUpForm);
+      const RemoteApiErrorMock = vi.fn(({ error }) => error && <div>Unexpected error</div>);
+      const { authService, renderAndWaitResponse, dismissCaptcha } = setup({
+        searchParams: { tab: "signup" },
+        dependencies: { SignUpForm: SignUpFormMock, RemoteApiError: RemoteApiErrorMock }
+      });
+      let rejectDismissedCaptcha: (reason: unknown) => void = () => {};
+      renderAndWaitResponse.mockReturnValue(
+        new Promise((_, reject) => {
+          rejectDismissedCaptcha = reject;
+        })
+      );
+      const credentials: SignUpFormValues = {
+        email: "test@example.com",
+        password: "password123",
+        termsAndConditions: true
+      };
+
+      await act(async () => SignUpFormMock.mock.lastCall![0].onSubmit(credentials));
+      await vi.waitFor(() => {
+        expect(renderAndWaitResponse).toHaveBeenCalled();
+      });
+      await act(async () => {
+        dismissCaptcha();
+        rejectDismissedCaptcha({ reason: "dismissed" });
+      });
+
+      expect(screen.queryByText(/unexpected error/i)).not.toBeInTheDocument();
+
+      renderAndWaitResponse.mockResolvedValue({ token: "test-captcha-token" });
+      await act(async () => SignUpFormMock.mock.lastCall![0].onSubmit(credentials));
+
+      await vi.waitFor(() => {
+        expect(authService.signup).toHaveBeenCalledWith({ ...credentials, captchaToken: "test-captcha-token" });
+      });
+    });
+
+    it("submits again after a failed attempt", async () => {
+      const SignUpFormMock = vi.fn(ComponentMock as typeof SignUpForm);
+      const { authService } = setup({
+        searchParams: { tab: "signup" },
+        dependencies: { SignUpForm: SignUpFormMock }
+      });
+      authService.signup.mockRejectedValueOnce(new Error("Email already in use"));
+      const credentials: SignUpFormValues = {
+        email: "test@example.com",
+        password: "password123",
+        termsAndConditions: true
+      };
+
+      await act(async () => SignUpFormMock.mock.lastCall![0].onSubmit(credentials));
+      await vi.waitFor(() => {
+        expect(authService.signup).toHaveBeenCalledTimes(1);
+      });
+
+      await act(async () => SignUpFormMock.mock.lastCall![0].onSubmit(credentials));
+
+      await vi.waitFor(() => {
+        expect(authService.signup).toHaveBeenCalledTimes(2);
+      });
+    });
+
     it("renders RemoteApiError when sign-up fails", async () => {
       const SignUpFormMock = vi.fn(ComponentMock as typeof SignUpForm);
       const RemoteApiErrorMock = vi.fn(({ error }) => error && <div>Unexpected error</div>);
@@ -261,12 +324,13 @@ describe(PasswordAuth.name, () => {
       return pageParams as ReadonlyURLSearchParams;
     };
 
-    const Turnstile = vi.fn(({ turnstileRef }: { turnstileRef?: RefObject<TurnstileRef> }) => {
+    const renderAndWaitResponse = vi.fn<TurnstileRef["renderAndWaitResponse"]>().mockResolvedValue({ token: "test-captcha-token" });
+    let notifyCaptchaDismissed: (() => void) | undefined;
+    const Turnstile = vi.fn(({ turnstileRef, onDismissed }: { turnstileRef?: RefObject<TurnstileRef>; onDismissed?: () => void }) => {
       if (turnstileRef) {
-        (turnstileRef as { current: TurnstileRef }).current = mock<TurnstileRef>({
-          renderAndWaitResponse: vi.fn().mockResolvedValue({ token: "test-captcha-token" })
-        });
+        (turnstileRef as { current: TurnstileRef }).current = mock<TurnstileRef>({ renderAndWaitResponse });
       }
+      notifyCaptchaDismissed = onDismissed;
       return null;
     });
     const analyticsService = mock<AnalyticsService>();
@@ -287,6 +351,14 @@ describe(PasswordAuth.name, () => {
       </TestContainerProvider>
     );
 
-    return { authService, analyticsService, router, checkSession, navigateBack };
+    return {
+      authService,
+      analyticsService,
+      router,
+      checkSession,
+      navigateBack,
+      renderAndWaitResponse,
+      dismissCaptcha: () => notifyCaptchaDismissed?.()
+    };
   }
 });

@@ -151,6 +151,48 @@ describe(Turnstile.name, () => {
       });
     });
 
+    it("rejects the pending challenge when the widget is dismissed", async () => {
+      let rejection: unknown;
+      const { turnstileRef } = await setup({ enabled: true, components: { Button: ButtonMock } });
+
+      const promise = turnstileRef.current!.renderAndWaitResponse().catch(error => {
+        rejection = error;
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /dismiss captcha/i }));
+        await wait(0);
+      });
+      await promise;
+
+      expect(rejection).toMatchObject({ reason: "dismissed" });
+    });
+
+    it("does not resolve an abandoned challenge when a later one succeeds", async () => {
+      let triggerSuccess: ((token: string) => void) | undefined;
+      const ReactTurnstile = forwardRef<TurnstileInstance | undefined, TurnstileProps>((props, ref) => {
+        useForwardedRef(ref);
+        triggerSuccess = (token: string) => props.onSuccess?.(token);
+        return <div>Turnstile</div>;
+      });
+      const { turnstileRef } = await setup({ enabled: true, components: { ReactTurnstile, Button: ButtonMock } });
+
+      const abandoned = vi.fn();
+      turnstileRef.current!.renderAndWaitResponse().then(abandoned, () => undefined);
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /dismiss captcha/i }));
+        await wait(0);
+      });
+
+      const retried = turnstileRef.current!.renderAndWaitResponse();
+      await act(async () => {
+        triggerSuccess?.("test-token");
+        await wait(0);
+      });
+
+      await expect(retried).resolves.toEqual({ token: "test-token" });
+      expect(abandoned).not.toHaveBeenCalled();
+    });
+
     it("resolves with disabled token when turnstile is disabled", async () => {
       const { turnstileRef } = await setup({ enabled: false });
 
@@ -181,6 +223,12 @@ describe(Turnstile.name, () => {
 
     return { ...result, turnstileRef };
   }
+
+  const ButtonMock = forwardRef<HTMLButtonElement, React.ComponentProps<typeof COMPONENTS.Button>>((props, ref) => (
+    <button type="button" {...props} ref={ref} onClick={props.onClick}>
+      {props.children}
+    </button>
+  ));
 
   function useForwardedRef<T>(ref: React.ForwardedRef<T>, instance: T = mock<T>()) {
     useEffect(() => {
