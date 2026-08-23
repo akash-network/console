@@ -21,6 +21,13 @@ export type FundingClaim = {
   claimedAt: string;
 };
 
+export type ExpiredRuntimeDeployment = {
+  id: string;
+  dseq: string;
+  walletId: number;
+  address: string;
+};
+
 export type AutoTopUpDeployment = {
   id: string;
   walletId: number;
@@ -105,6 +112,28 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .orderBy(desc(this.table.id));
 
     return deployments as AutoTopUpDeployment[];
+  }
+
+  /**
+   * Deployments whose runtime limit has run out and that have not been marked closed yet. Deliberately
+   * ignores `autoTopUpEnabled`: a user who turned funding off after setting a limit still asked for the
+   * deployment to end at the deadline, and the closer is what honours that.
+   */
+  async findExpiredRuntimeDeployments(): Promise<ExpiredRuntimeDeployment[]> {
+    const deployments = await this.pg
+      .select({
+        id: this.table.id,
+        dseq: this.table.dseq,
+        walletId: UserWallets.id,
+        address: UserWallets.address
+      })
+      .from(this.table)
+      .leftJoin(Users, eq(this.table.userId, Users.id))
+      .innerJoin(UserWallets, eq(Users.id, UserWallets.userId))
+      .where(and(eq(this.table.closed, false), isNotNull(this.table.runtimeEndsAt), lt(this.table.runtimeEndsAt, sql`now()`)))
+      .orderBy(desc(this.table.id));
+
+    return deployments as ExpiredRuntimeDeployment[];
   }
 
   /**

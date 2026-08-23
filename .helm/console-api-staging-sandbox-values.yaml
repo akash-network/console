@@ -25,6 +25,14 @@ jobs:
       - ./dist/instrumentation.js
       - ./dist/console.js
       - cleanup-stale-deployments
+  - name: close-expired-deployments
+    schedule: "*/15 * * * *" # every 15 minutes
+    command:
+      - node
+      - --require
+      - ./dist/instrumentation.js
+      - ./dist/console.js
+      - close-expired-deployments
 
 replicas: 2
 
