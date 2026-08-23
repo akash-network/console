@@ -234,17 +234,17 @@ describe(DeploymentSettingService.name, () => {
       expect(deploymentSettingRepository.applyRuntimeLimit).not.toHaveBeenCalled();
     });
 
-    it("keeps an explicit autoTopUpEnabled when creating a limited row", async () => {
+    it("forces auto top-up on when a first limit arrives with it disabled", async () => {
       const { service, deploymentSettingRepository } = setup();
       const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
 
       deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
       deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
-      deploymentSettingRepository.create.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12, autoTopUpEnabled: false }));
+      deploymentSettingRepository.create.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12, autoTopUpEnabled: true }));
 
       await service.upsert(params, { runtimeLimitHours: 12, autoTopUpEnabled: false });
 
-      expect(deploymentSettingRepository.create).toHaveBeenCalledWith({ ...params, runtimeLimitHours: 12, autoTopUpEnabled: false });
+      expect(deploymentSettingRepository.create).toHaveBeenCalledWith({ ...params, runtimeLimitHours: 12, autoTopUpEnabled: true });
     });
 
     it("returns 409 when the guarded update finds no eligible row", async () => {
@@ -446,6 +446,23 @@ describe(DeploymentSettingService.name, () => {
 
       expect(domainEvents.publish).not.toHaveBeenCalled();
       expect(result).toEqual(expect.objectContaining({ runtimeLimitHours: 24 }));
+    });
+
+    it("returns the raised limit when the wallet lookup behind the funding command fails", async () => {
+      const { service, deploymentSettingRepository, userWalletRepository, domainEvents } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12 }));
+      deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(
+        createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 24, runtimeEndsAt: faker.date.future() })
+      );
+      userWalletRepository.findOneByUserId.mockRejectedValue(new Error("connection terminated"));
+
+      const result = await service.upsert(params, { runtimeLimitHours: 24 });
+
+      expect(result).toEqual(expect.objectContaining({ runtimeLimitHours: 24 }));
+      expect(domainEvents.publish).not.toHaveBeenCalled();
     });
   });
 

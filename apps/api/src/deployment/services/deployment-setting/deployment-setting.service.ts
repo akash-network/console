@@ -103,7 +103,7 @@ export class DeploymentSettingService {
       return this.#removeRuntimeLimit(params, input, existing);
     }
 
-    return this.#setRuntimeLimit(params, { ...input, runtimeLimitHours: input.runtimeLimitHours }, existing);
+    return this.#setRuntimeLimit(params, input.runtimeLimitHours, existing);
   }
 
   async #patchOrCreate(params: FindDeploymentSettingParams, input: DeploymentSettingsInput): Promise<DeploymentSettingsOutput> {
@@ -129,11 +129,12 @@ export class DeploymentSettingService {
    */
   async #setRuntimeLimit(
     params: FindDeploymentSettingParams,
-    input: Pick<DeploymentSettingsInput, "autoTopUpEnabled"> & { runtimeLimitHours: number },
+    runtimeLimitHours: number,
     existing: DeploymentSettingsOutput | undefined
   ): Promise<DeploymentSettingsOutput> {
-    const { runtimeLimitHours } = input;
-    const setting = existing ? await this.#raiseRuntimeLimit(params, existing, runtimeLimitHours) : await this.#createRuntimeLimitedSetting(params, input);
+    const setting = existing
+      ? await this.#raiseRuntimeLimit(params, existing, runtimeLimitHours)
+      : await this.#createRuntimeLimitedSetting(params, { runtimeLimitHours });
 
     this.logger.info({
       event: "RUNTIME_LIMIT_CHANGED",
@@ -150,16 +151,18 @@ export class DeploymentSettingService {
     return setting;
   }
 
-  #createRuntimeLimitedSetting(
-    params: FindDeploymentSettingParams,
-    input: Pick<DeploymentSettingsInput, "autoTopUpEnabled"> & { runtimeLimitHours: number }
-  ): Promise<DeploymentSettingsOutput> {
+  /**
+   * An `autoTopUpEnabled: false` sent alongside a first limit is overridden rather than honoured: nothing
+   * anchors a deadline on a deployment with funding off, so the row would report a limit that never fires.
+   * The same request asked for the limit, so there is no earlier preference being overridden here.
+   */
+  #createRuntimeLimitedSetting(params: FindDeploymentSettingParams, input: { runtimeLimitHours: number }): Promise<DeploymentSettingsOutput> {
     this.#assertWithinFirstIncrement(input.runtimeLimitHours);
 
     return this.deploymentSettingRepository.accessibleBy(this.authService.ability, "create").create({
       ...params,
       runtimeLimitHours: input.runtimeLimitHours,
-      autoTopUpEnabled: input.autoTopUpEnabled ?? true
+      autoTopUpEnabled: true
     });
   }
 
@@ -236,18 +239,26 @@ export class DeploymentSettingService {
    *
    * Only an anchored deployment needs this. Without a lease there is nothing to fund yet, and the
    * command published at lease start covers it.
+   *
+   * Never throws: the limit change is already committed by the time this runs, so a failure here must
+   * not turn a successful request into a 500 that invites a retry the increase-only rule would reject.
+   * The hourly sweep is the fallback.
    */
   async #requestImmediateFunding(userId: string, dseq: string): Promise<void> {
-    const wallet = await this.userWalletRepository.findOneByUserId(userId);
+    try {
+      const wallet = await this.userWalletRepository.findOneByUserId(userId);
 
-    if (!wallet?.address) {
-      this.logger.warn({ event: "RUNTIME_LIMIT_FUNDING_SKIPPED", reason: "WALLET_NOT_FOUND", dseq, userId });
-      return;
+      if (!wallet?.address) {
+        this.logger.warn({ event: "RUNTIME_LIMIT_FUNDING_SKIPPED", reason: "WALLET_NOT_FOUND", dseq, userId });
+        return;
+      }
+
+      await this.domainEvents.publish(new FundDeploymentCommand({ walletId: wallet.id, address: wallet.address, dseq }), {
+        singletonKey: `${FundDeploymentCommand.name}.${dseq}.${wallet.id}`
+      });
+    } catch (error) {
+      this.logger.error({ event: "RUNTIME_LIMIT_FUNDING_FAILED", dseq, userId, error });
     }
-
-    await this.domainEvents.publish(new FundDeploymentCommand({ walletId: wallet.id, address: wallet.address, dseq }), {
-      singletonKey: `${FundDeploymentCommand.name}.${dseq}.${wallet.id}`
-    });
   }
 
   /** `lastFundedAt` is the auto-funding claim marker and stays out of the API payload. */

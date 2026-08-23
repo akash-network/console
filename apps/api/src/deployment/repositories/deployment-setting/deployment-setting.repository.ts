@@ -153,10 +153,11 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
 
   /**
    * Raises a deployment's runtime limit and shifts an anchored deadline by the same delta in one
-   * guarded UPDATE. The WHERE clause re-checks every rule the service validated, so two extensions
-   * racing each other cannot compound past one increment; and because callers pass an absolute total
-   * rather than a delta, a retried request is a no-op instead of a second extension. Returns
-   * undefined when the row no longer satisfies the rules.
+   * guarded UPDATE. The WHERE clause re-checks every rule the service validated, plus the caller's
+   * ability predicate, so two extensions racing each other cannot compound past one increment and a
+   * row the caller cannot update stays untouched; and because callers pass an absolute total rather
+   * than a delta, a retried request is a no-op instead of a second extension. Returns undefined when
+   * the row no longer satisfies the rules.
    *
    * `greatest(runtime_ends_at, now())` extends from the present when the deadline has already passed,
    * so an extension always buys the full increment. A null deadline stays null: anchoring belongs to
@@ -186,13 +187,15 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         updatedAt: sql`now()`
       })
       .where(
-        and(
-          eq(this.table.userId, userId),
-          eq(this.table.dseq, dseq),
-          eq(this.table.closed, false),
-          or(
-            isNull(this.table.runtimeLimitHours),
-            and(lt(this.table.runtimeLimitHours, runtimeLimitHours), gte(this.table.runtimeLimitHours, runtimeLimitHours - maxIncrementHours))
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.userId, userId),
+            eq(this.table.dseq, dseq),
+            eq(this.table.closed, false),
+            or(
+              isNull(this.table.runtimeLimitHours),
+              and(lt(this.table.runtimeLimitHours, runtimeLimitHours), gte(this.table.runtimeLimitHours, runtimeLimitHours - maxIncrementHours))
+            )
           )
         )
       )
