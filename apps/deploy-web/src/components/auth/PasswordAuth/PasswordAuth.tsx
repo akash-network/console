@@ -94,8 +94,10 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
     }
   });
 
+  /** Turnstile keeps a silent challenge running until it needs interaction, so an abandoned one would otherwise solve later and fire the request the user walked away from. */
   const abandonAuthAttempt = useCallback(() => {
     isAuthInFlight.current = false;
+    turnstileRef.current?.abandonPendingChallenge();
     signInOrSignUp.reset();
     forgotPassword.reset();
   }, [signInOrSignUp, forgotPassword]);

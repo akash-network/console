@@ -25,6 +25,7 @@ export const COMPONENTS = {
 
 export type TurnstileRef = {
   renderAndWaitResponse: () => Promise<{ token: string }>;
+  abandonPendingChallenge: () => void;
 };
 
 type TurnstileProps = {
@@ -68,6 +69,9 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
   useImperativeHandle(
     ref || externalTurnstileRef,
     () => ({
+      abandonPendingChallenge() {
+        abandonPendingChallenge.current?.();
+      },
       renderAndWaitResponse() {
         if (!enabled) {
           return Promise.resolve({ token: "disabled-turnstile-token" });

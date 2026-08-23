@@ -167,6 +167,46 @@ describe(Turnstile.name, () => {
       expect(rejection).toMatchObject({ reason: "dismissed" });
     });
 
+    it("rejects the pending challenge when the caller abandons it", async () => {
+      let rejection: unknown;
+      const { turnstileRef } = await setup({ enabled: true });
+
+      const promise = turnstileRef.current!.renderAndWaitResponse().catch(error => {
+        rejection = error;
+      });
+      await act(async () => {
+        turnstileRef.current!.abandonPendingChallenge();
+        await wait(0);
+      });
+      await promise;
+
+      expect(rejection).toMatchObject({ reason: "dismissed" });
+    });
+
+    it("does not resolve a challenge abandoned by the caller when it later succeeds", async () => {
+      let triggerSuccess: ((token: string) => void) | undefined;
+      const ReactTurnstile = forwardRef<TurnstileInstance | undefined, TurnstileProps>((props, ref) => {
+        useForwardedRef(ref);
+        triggerSuccess = (token: string) => props.onSuccess?.(token);
+        return <div>Turnstile</div>;
+      });
+      const { turnstileRef } = await setup({ enabled: true, components: { ReactTurnstile } });
+
+      const abandoned = vi.fn();
+      turnstileRef.current!.renderAndWaitResponse().then(abandoned, () => undefined);
+      await act(async () => {
+        turnstileRef.current!.abandonPendingChallenge();
+        await wait(0);
+      });
+
+      await act(async () => {
+        triggerSuccess?.("test-token");
+        await wait(0);
+      });
+
+      expect(abandoned).not.toHaveBeenCalled();
+    });
+
     it("does not resolve an abandoned challenge when a later one succeeds", async () => {
       let triggerSuccess: ((token: string) => void) | undefined;
       const ReactTurnstile = forwardRef<TurnstileInstance | undefined, TurnstileProps>((props, ref) => {

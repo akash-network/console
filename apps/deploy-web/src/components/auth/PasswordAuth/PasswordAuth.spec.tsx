@@ -59,6 +59,33 @@ describe(PasswordAuth.name, () => {
     });
   });
 
+  it("does not authenticate with a captcha challenge that resolves after the user switched tabs", async () => {
+    const TabsMock = vi.fn(ComponentMock as typeof Tabs);
+    const SignInFormMock = vi.fn(ComponentMock as typeof SignInForm);
+    const { authService, renderAndWaitResponse, abandonPendingChallenge } = setup({
+      dependencies: { Tabs: TabsMock as unknown as typeof Tabs, SignInForm: SignInFormMock }
+    });
+    let solvePendingCaptcha: (response: { token: string }) => void = () => {};
+    let rejectPendingCaptcha: (reason: unknown) => void = () => {};
+    renderAndWaitResponse.mockReturnValue(
+      new Promise((resolve, reject) => {
+        solvePendingCaptcha = resolve;
+        rejectPendingCaptcha = reject;
+      })
+    );
+    abandonPendingChallenge.mockImplementation(() => rejectPendingCaptcha({ reason: "dismissed" }));
+
+    await act(async () => SignInFormMock.mock.lastCall![0].onSubmit({ email: "test@example.com", password: "password123" }));
+    await vi.waitFor(() => {
+      expect(renderAndWaitResponse).toHaveBeenCalled();
+    });
+
+    await act(async () => TabsMock.mock.lastCall![0].onValueChange?.("signup"));
+    await act(async () => solvePendingCaptcha({ token: "test-captcha-token" }));
+
+    expect(authService.login).not.toHaveBeenCalled();
+  });
+
   describe("when SignIn tab is open", () => {
     it("runs sign-in flow with captcha token, refreshes the session, and navigates back", async () => {
       const SignInFormMock = vi.fn(ComponentMock as typeof SignInForm);
@@ -325,10 +352,11 @@ describe(PasswordAuth.name, () => {
     };
 
     const renderAndWaitResponse = vi.fn<TurnstileRef["renderAndWaitResponse"]>().mockResolvedValue({ token: "test-captcha-token" });
+    const abandonPendingChallenge = vi.fn<TurnstileRef["abandonPendingChallenge"]>();
     let notifyCaptchaDismissed: (() => void) | undefined;
     const Turnstile = vi.fn(({ turnstileRef, onDismissed }: { turnstileRef?: RefObject<TurnstileRef>; onDismissed?: () => void }) => {
       if (turnstileRef) {
-        (turnstileRef as { current: TurnstileRef }).current = mock<TurnstileRef>({ renderAndWaitResponse });
+        (turnstileRef as { current: TurnstileRef }).current = mock<TurnstileRef>({ renderAndWaitResponse, abandonPendingChallenge });
       }
       notifyCaptchaDismissed = onDismissed;
       return null;
@@ -358,6 +386,7 @@ describe(PasswordAuth.name, () => {
       checkSession,
       navigateBack,
       renderAndWaitResponse,
+      abandonPendingChallenge,
       dismissCaptcha: () => notifyCaptchaDismissed?.()
     };
   }
