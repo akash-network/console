@@ -9,10 +9,9 @@ import { DeploymentNameField } from "./DeploymentNameField/DeploymentNameField";
 import { PlacementCard } from "./PlacementCard/PlacementCard";
 import type { PlacementSelectionState } from "./PlacementSelectionBadge/PlacementSelectionBadge";
 import { ReclamationSection } from "./ReclamationSection/ReclamationSection";
-import { RuntimeLimitSection } from "./RuntimeLimitSection/RuntimeLimitSection";
 import { usePlacementManager } from "./usePlacementManager/usePlacementManager";
 
-export const DEPENDENCIES = { PlacementCard, usePlacementManager, usePlacementsWithBids, ReclamationSection, RuntimeLimitSection, DeploymentNameField };
+export const DEPENDENCIES = { PlacementCard, usePlacementManager, usePlacementsWithBids, ReclamationSection, DeploymentNameField };
 
 type Props = {
   selectedServiceId: string;
@@ -26,8 +25,6 @@ type Props = {
   dseq: string | null;
   deploymentName: string;
   onDeploymentNameChange: (value: string) => void;
-  runtimeLimitHours: number | undefined;
-  onRuntimeLimitHoursChange: (value: number | undefined) => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -42,8 +39,6 @@ export const DeploymentPane: FC<Props> = ({
   dseq,
   deploymentName,
   onDeploymentNameChange,
-  runtimeLimitHours,
-  onRuntimeLimitHoursChange,
   dependencies: d = DEPENDENCIES
 }) => {
   const [minimized, setMinimized] = useState(false);
@@ -74,7 +69,6 @@ export const DeploymentPane: FC<Props> = ({
       <div className="row-start-3 min-h-0 space-y-6 overflow-y-auto p-4">
         <d.DeploymentNameField value={deploymentName} onChange={onDeploymentNameChange} disabled={locked} />
         <d.ReclamationSection locked={locked} />
-        <d.RuntimeLimitSection value={runtimeLimitHours} onChange={onRuntimeLimitHoursChange} locked={locked} />
         <div className="space-y-2">
           <div className="flex items-center gap-2 px-1 font-mono text-xs uppercase text-muted-foreground">
             Placement

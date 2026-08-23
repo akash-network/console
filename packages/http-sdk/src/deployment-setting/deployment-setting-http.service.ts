@@ -27,7 +27,9 @@ export interface CreateDeploymentSettingV2Input {
 }
 
 export interface UpdateDeploymentSettingInput {
-  autoTopUpEnabled: boolean;
+  autoTopUpEnabled?: boolean;
+  /** The new total, not an increment. Runtime limits can only be raised, by at most 48 hours per request. */
+  runtimeLimitHours?: number;
 }
 
 export interface FindDeploymentSettingParams {

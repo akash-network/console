@@ -265,7 +265,6 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
                 sdl={liveSdl}
                 onDeploy={() => openReview(flow.selections)}
                 allPlacementsHaveBids={allPlacementsHaveBids}
-                runtimeLimitHours={runtimeLimitHours}
               />
             </div>
           </div>
@@ -285,8 +284,6 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
               onCancelAndEdit={flow.actions.cancelAndEdit}
               deploymentName={deploymentName}
               onDeploymentNameChange={setDeploymentName}
-              runtimeLimitHours={runtimeLimitHours}
-              onRuntimeLimitHoursChange={setRuntimeLimitHours}
               configurationActions={<d.SdlImportExport sdl={liveSdl} deploymentName={deploymentName} canImport={isEditable} onImport={applyImportedState} />}
             />
           </div>
@@ -303,6 +300,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
           dseq={flow.dseq}
           placements={placements}
           selections={flow.selections}
+          runtimeLimitHours={runtimeLimitHours}
+          onRuntimeLimitHoursChange={setRuntimeLimitHours}
           onBack={closeReview}
           onConfirm={() => {
             analyticsService.track("review_deploy_confirmed", { category: "deployments", dseq: flow.dseq });

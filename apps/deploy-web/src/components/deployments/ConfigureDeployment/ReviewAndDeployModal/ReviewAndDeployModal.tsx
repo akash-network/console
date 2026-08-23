@@ -8,24 +8,45 @@ import {
   DialogV2Description,
   DialogV2Footer,
   DialogV2Header,
-  DialogV2Title
+  DialogV2Title,
+  Snackbar,
+  Spinner
 } from "@akashnetwork/ui/components";
 import { ArrowRight, Rocket } from "iconoir-react";
+import { useSnackbar } from "notistack";
 
 import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
-import type { PlacementType } from "@src/types";
+import { useFlag } from "@src/hooks/useFlag";
+import { useUpdateDeploymentSettingMutation } from "@src/queries/deploymentSettingsQuery";
+import type { AppError, PlacementType } from "@src/types";
+import { extractErrorMessage } from "@src/utils/errorUtils";
 import { PRICE_DISPLAY_PRECISION, udenomToDenom } from "@src/utils/mathHelpers";
+import { useTrialGate } from "../ConfigurationPane/HardwareSection/useTrialGate/useTrialGate";
 import { useDeploymentHasGpu } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
+import { RuntimeLimitReviewSection } from "./RuntimeLimitReviewSection";
 import type { ReviewRow } from "./useReviewRows";
 import { useReviewRows } from "./useReviewRows";
 
-export const DEPENDENCIES = { useReviewRows, PricePerTimeUnit, useDeploymentHasGpu };
+export const DEPENDENCIES = {
+  useReviewRows,
+  PricePerTimeUnit,
+  useDeploymentHasGpu,
+  RuntimeLimitReviewSection,
+  useFlag,
+  useTrialGate,
+  useUpdateDeploymentSettingMutation,
+  useSnackbar,
+  Snackbar
+};
 
 interface Props {
   open: boolean;
   dseq: string | null;
   placements: PlacementType[];
   selections: Record<string, string>;
+  /** The requested runtime limit in hours; undefined means no limit. Owned by the form so it survives a draft reload. */
+  runtimeLimitHours: number | undefined;
+  onRuntimeLimitHoursChange: (value: number | undefined) => void;
   onConfirm: () => void;
   onBack: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -35,13 +56,52 @@ interface Props {
  * Built on DialogV2 (the bordered header/body/footer chrome) so it reads as a sibling of the
  * other configure-flow modals (LogsCard, ExposePortsCard, …) rather than a one-off.
  */
-export const ReviewAndDeployModal: FC<Props> = ({ open, dseq, placements, selections, onConfirm, onBack, dependencies: d = DEPENDENCIES }) => {
+export const ReviewAndDeployModal: FC<Props> = ({
+  open,
+  dseq,
+  placements,
+  selections,
+  runtimeLimitHours,
+  onRuntimeLimitHoursChange,
+  onConfirm,
+  onBack,
+  dependencies: d = DEPENDENCIES
+}) => {
   const { rows, pricedCount, totalCount } = d.useReviewRows({ dseq, placements, selections });
   /** Match the marketplace's cost unit: hourly for GPU (meaningful at that scale), monthly for CPU-only (so a cheap deployment reads as e.g. `$30/month` rather than rounding to `$0.00/hr`). */
   const showAsHourly = d.useDeploymentHasGpu();
+  const { enqueueSnackbar } = d.useSnackbar();
+  const updateSetting = d.useUpdateDeploymentSettingMutation({ dseq: dseq ?? "" });
+  /**
+   * Runtime limits sit behind a flag, and mean nothing for trial users whose deployments are never
+   * auto-funded. Gating the submitted value too, not just the control, keeps a draft saved while the flag
+   * was on from silently applying a limit after it is turned off.
+   */
+  const isRuntimeLimitOffered = d.useFlag("deployment_runtime_limit") && !d.useTrialGate().isRestricted;
+  const effectiveRuntimeLimitHours = isRuntimeLimitOffered ? runtimeLimitHours : undefined;
   /** Only deployable once every placement is selected and still has a live (priced) bid — a closed/stale bid leaves a row unpriced and would fail at create-lease. */
   const canConfirm = totalCount > 0 && rows.length === totalCount && pricedCount === totalCount;
   const preventDefault = (e: Event) => e.preventDefault();
+
+  /**
+   * The limit is stored on the deployment before any lease exists, so the countdown can anchor at lease
+   * start. A failed patch blocks the deploy rather than deploying without the limit the user asked for:
+   * the deployment would then run unbounded, which is the opposite of what they chose.
+   */
+  const confirmAndDeploy = async () => {
+    if (effectiveRuntimeLimitHours && dseq) {
+      try {
+        await updateSetting.mutateAsync({ runtimeLimitHours: effectiveRuntimeLimitHours });
+      } catch (error) {
+        enqueueSnackbar(<d.Snackbar title="Couldn't set the runtime limit" subTitle={extractErrorMessage(error as AppError)} iconVariant="error" />, {
+          variant: "error"
+        });
+        return;
+      }
+    }
+
+    onConfirm();
+  };
 
   return (
     <DialogV2 open={open} onOpenChange={isOpen => (!isOpen ? onBack() : undefined)}>
@@ -91,15 +151,17 @@ export const ReviewAndDeployModal: FC<Props> = ({ open, dseq, placements, select
             </div>
             <TotalPrice rows={rows} showAsHourly={showAsHourly} PricePerTimeUnit={d.PricePerTimeUnit} />
           </div>
+
+          {isRuntimeLimitOffered && <d.RuntimeLimitReviewSection value={runtimeLimitHours} onChange={onRuntimeLimitHoursChange} rows={rows} />}
         </DialogV2Body>
 
         <DialogV2Footer>
-          <Button variant="ghost" onClick={onBack}>
+          <Button variant="ghost" onClick={onBack} disabled={updateSetting.isPending}>
             Back to marketplace
           </Button>
-          <Button onClick={onConfirm} className="gap-2" disabled={!canConfirm}>
+          <Button onClick={confirmAndDeploy} className="gap-2" disabled={!canConfirm || updateSetting.isPending}>
             Confirm and deploy
-            <Rocket className="h-4 w-4" />
+            {updateSetting.isPending ? <Spinner size="small" /> : <Rocket className="h-4 w-4" />}
           </Button>
         </DialogV2Footer>
       </DialogV2Content>

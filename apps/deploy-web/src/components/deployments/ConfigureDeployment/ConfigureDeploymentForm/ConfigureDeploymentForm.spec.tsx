@@ -301,11 +301,10 @@ describe(ConfigureDeploymentForm.name, () => {
     await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), "my-app", undefined));
   });
 
-  it("seeds the runtime limit from the persisted draft and forwards it to the panes and header", () => {
-    const { ConfigureDeploymentPanes, ConfigureDeploymentHeader } = setup({ initialSdl: undefined, persistedRuntimeLimitHours: 6 });
+  it("seeds the runtime limit from the persisted draft and forwards it to the review modal", () => {
+    const { ReviewAndDeployModal } = setup({ initialSdl: undefined, persistedRuntimeLimitHours: 6 });
 
-    expect(ConfigureDeploymentPanes).toHaveBeenCalledWith(expect.objectContaining({ runtimeLimitHours: 6 }), expect.anything());
-    expect(ConfigureDeploymentHeader).toHaveBeenCalledWith(expect.objectContaining({ runtimeLimitHours: 6 }), expect.anything());
+    expect(ReviewAndDeployModal).toHaveBeenCalledWith(expect.objectContaining({ runtimeLimitHours: 6 }), expect.anything());
   });
 
   it("persists the runtime limit into the draft alongside the sdl", async () => {

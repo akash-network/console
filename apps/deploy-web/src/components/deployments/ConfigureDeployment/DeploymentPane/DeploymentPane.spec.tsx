@@ -128,8 +128,6 @@ describe("DeploymentPane", () => {
           dseq={null}
           deploymentName={input.deploymentName ?? ""}
           onDeploymentNameChange={input.onDeploymentNameChange ?? vi.fn()}
-          runtimeLimitHours={undefined}
-          onRuntimeLimitHoursChange={vi.fn()}
           dependencies={MockComponents(DEPENDENCIES, { usePlacementManager, usePlacementsWithBids: () => new Set<string>(), ...input.dependencies })}
         />
       </TooltipProvider>
@@ -202,8 +200,6 @@ describe("DeploymentPane placement management", () => {
           dseq={null}
           deploymentName=""
           onDeploymentNameChange={vi.fn()}
-          runtimeLimitHours={undefined}
-          onRuntimeLimitHoursChange={vi.fn()}
           dependencies={{ ...DEPENDENCIES, PlacementCard: PlacementCardWithStubbedRegion, usePlacementsWithBids: () => new Set<string>() }}
         />
       </Wrapper>

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import type { UpdateDeploymentSettingInput } from "@akashnetwork/http-sdk";
 import { isHttpError } from "@akashnetwork/http-sdk";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { millisecondsInMinute } from "date-fns/constants";
@@ -6,10 +7,27 @@ import { millisecondsInMinute } from "date-fns/constants";
 import { useServices } from "@src/context/ServicesProvider";
 import { QueryKeys } from "./queryKeys";
 
-export function useDeploymentSettingQuery(params: { dseq: string }) {
+/**
+ * Patches a deployment's settings and writes the response straight back into the settings query, so a
+ * caller that has no query of its own (the review modal, which patches a deployment it is about to
+ * deploy) still leaves the detail page's cache correct.
+ */
+export function useUpdateDeploymentSettingMutation(params: { dseq: string }) {
   const queryKey = useMemo(() => QueryKeys.getDeploymentSettingKey(params.dseq), [params.dseq]);
   const { deploymentSetting } = useServices();
   const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateDeploymentSettingInput) => deploymentSetting.updateByDseq(params.dseq, input),
+    onSuccess: data => {
+      queryClient.setQueryData(queryKey, data);
+    }
+  });
+}
+
+export function useDeploymentSettingQuery(params: { dseq: string }) {
+  const queryKey = useMemo(() => QueryKeys.getDeploymentSettingKey(params.dseq), [params.dseq]);
+  const { deploymentSetting } = useServices();
 
   const query = useQuery({
     queryKey,
@@ -24,17 +42,10 @@ export function useDeploymentSettingQuery(params: { dseq: string }) {
     }
   });
 
-  const update = useMutation({
-    mutationFn: (autoTopUpEnabled: boolean) => {
-      return deploymentSetting.updateByDseq(params.dseq, { autoTopUpEnabled });
-    },
-    onSuccess: data => {
-      queryClient.setQueryData(queryKey, data);
-    }
-  });
+  const update = useUpdateDeploymentSettingMutation(params);
 
   const setAutoTopUpEnabled = (autoTopUpEnabled: boolean) => {
-    update.mutate(autoTopUpEnabled);
+    update.mutate({ autoTopUpEnabled });
   };
 
   return {

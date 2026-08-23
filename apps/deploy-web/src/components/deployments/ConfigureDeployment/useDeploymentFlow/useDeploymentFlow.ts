@@ -43,9 +43,8 @@ export interface DeploymentFlowState {
 
 export interface DeploymentFlowActions {
   /** Creates the deployment from the given SDL. The caller passes the SDL generated from the just-submitted
-   * form values so the request can never lag behind an in-flight edit. An optional runtime limit rides along:
-   * the API stores it on the deployment's settings and stops funding it once the limit is reached. */
-  requestQuotes: (sdl: string, options?: { runtimeLimitHours?: number }) => void;
+   * form values so the request can never lag behind an in-flight edit. */
+  requestQuotes: (sdl: string) => void;
   cancelAndEdit: () => void;
   setBidStrategy: (strategy: BidStrategy) => void;
   refreshQuotes: () => void;
@@ -253,7 +252,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
    * deployment is still open (a prior close failed), it is closed first so the single-open-deployment invariant holds.
    */
   const requestQuotes = useCallback(
-    function requestQuotes(sdl: string, options?: { runtimeLimitHours?: number }) {
+    function requestQuotes(sdl: string) {
       const attempt = ++createAttemptRef.current;
       providersEverBidRef.current = false;
       bidsReceivedTrackedRef.current = false;
@@ -263,7 +262,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         if (attempt !== createAttemptRef.current) return;
         setPhase("creating");
         createDeployment.mutate(
-          { data: { sdl, deposit: DEFAULT_DEPOSIT, runtimeLimitHours: options?.runtimeLimitHours } },
+          { data: { sdl, deposit: DEFAULT_DEPOSIT } },
           {
             onSuccess: function onCreated(result: { data: { dseq: string; manifest: string } }) {
               if (attempt !== createAttemptRef.current) {

@@ -6,7 +6,7 @@ import type { DEPENDENCIES } from "./ReviewAndDeployModal";
 import { ReviewAndDeployModal } from "./ReviewAndDeployModal";
 import type { ReviewRow } from "./useReviewRows";
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(ReviewAndDeployModal.name, () => {
@@ -55,7 +55,93 @@ describe(ReviewAndDeployModal.name, () => {
     expect(screen.getByRole("button", { name: /confirm and deploy/i })).toBeDisabled();
   });
 
-  function setup(input: { rows?: ReviewRow[]; pricedCount?: number; totalCount?: number; hasGpu?: boolean; onConfirm?: () => void; onBack?: () => void }) {
+  describe("runtime limit", () => {
+    it("offers the runtime limit section by default", () => {
+      setup({});
+      expect(screen.getByTestId("runtime-limit-section")).toBeInTheDocument();
+    });
+
+    it("hides the runtime limit section when the feature flag is off", () => {
+      setup({ isRuntimeLimitEnabled: false });
+      expect(screen.queryByTestId("runtime-limit-section")).not.toBeInTheDocument();
+    });
+
+    it("hides the runtime limit section for a trial user", () => {
+      setup({ isRestricted: true });
+      expect(screen.queryByTestId("runtime-limit-section")).not.toBeInTheDocument();
+    });
+
+    it("deploys without patching settings when no limit was chosen", async () => {
+      const onConfirm = vi.fn();
+      const { mutateAsync } = setup({ onConfirm });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync).not.toHaveBeenCalled();
+      expect(onConfirm).toHaveBeenCalled();
+    });
+
+    it("patches the runtime limit before deploying", async () => {
+      const onConfirm = vi.fn();
+      const { mutateAsync } = setup({ onConfirm, runtimeLimitHours: 12 });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync).toHaveBeenCalledWith({ runtimeLimitHours: 12 });
+      await waitFor(() => expect(onConfirm).toHaveBeenCalled());
+    });
+
+    it("surfaces a failed patch and does not deploy", async () => {
+      const onConfirm = vi.fn();
+      const { enqueueSnackbar } = setup({ onConfirm, runtimeLimitHours: 12, patchError: new Error("nope") });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalled());
+      expect(onConfirm).not.toHaveBeenCalled();
+    });
+
+    it("does not patch a leftover limit when the feature flag is off", async () => {
+      const onConfirm = vi.fn();
+      const { mutateAsync } = setup({ onConfirm, runtimeLimitHours: 12, isRuntimeLimitEnabled: false });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync).not.toHaveBeenCalled();
+      expect(onConfirm).toHaveBeenCalled();
+    });
+
+    it("does not patch a leftover limit for a trial user", async () => {
+      const onConfirm = vi.fn();
+      const { mutateAsync } = setup({ onConfirm, runtimeLimitHours: 12, isRestricted: true });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync).not.toHaveBeenCalled();
+      expect(onConfirm).toHaveBeenCalled();
+    });
+
+    it("blocks both actions while the patch is in flight", () => {
+      setup({ runtimeLimitHours: 12, isPatchPending: true });
+
+      expect(screen.getByRole("button", { name: /confirm and deploy/i })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /back to marketplace/i })).toBeDisabled();
+    });
+  });
+
+  function setup(input: {
+    rows?: ReviewRow[];
+    pricedCount?: number;
+    totalCount?: number;
+    hasGpu?: boolean;
+    onConfirm?: () => void;
+    onBack?: () => void;
+    runtimeLimitHours?: number;
+    isRuntimeLimitEnabled?: boolean;
+    isRestricted?: boolean;
+    isPatchPending?: boolean;
+    patchError?: Error;
+  }) {
     const rows = input.rows ?? [
       { placementId: "p1", placementName: "placement-1", region: "Any region", providerName: "Dune Networks", price: { amount: "100", denom: "uakt" } }
     ];
@@ -66,16 +152,45 @@ describe(ReviewAndDeployModal.name, () => {
     });
     const PricePerTimeUnit: typeof DEPENDENCIES.PricePerTimeUnit = ({ showAsHourly }) => <span data-testid="price">{showAsHourly ? "hourly" : "monthly"}</span>;
     const useDeploymentHasGpu: typeof DEPENDENCIES.useDeploymentHasGpu = () => input.hasGpu ?? false;
+    const RuntimeLimitReviewSection: typeof DEPENDENCIES.RuntimeLimitReviewSection = () => <div data-testid="runtime-limit-section" />;
+    const useFlag: typeof DEPENDENCIES.useFlag = () => input.isRuntimeLimitEnabled ?? true;
+    const useTrialGate: typeof DEPENDENCIES.useTrialGate = () => ({ isRestricted: input.isRestricted ?? false, isWalletReady: true });
+
+    const mutateAsync = vi.fn().mockImplementation(() => (input.patchError ? Promise.reject(input.patchError) : Promise.resolve()));
+    const mutation = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useUpdateDeploymentSettingMutation>>(), {
+      mutateAsync,
+      isPending: input.isPatchPending ?? false
+    });
+    const useUpdateDeploymentSettingMutation: typeof DEPENDENCIES.useUpdateDeploymentSettingMutation = () => mutation;
+
+    const enqueueSnackbar = vi.fn();
+    const useSnackbar: typeof DEPENDENCIES.useSnackbar = () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar });
+    const Snackbar: typeof DEPENDENCIES.Snackbar = ({ title }) => <span>{title}</span>;
+
     render(
       <ReviewAndDeployModal
         open
         dseq="55"
         placements={[mock<PlacementType>({ id: "p1", name: "placement-1", region: "Any region" })]}
         selections={{ p1: "akash1a/55/1/2" }}
+        runtimeLimitHours={input.runtimeLimitHours}
+        onRuntimeLimitHoursChange={vi.fn()}
         onConfirm={input.onConfirm ?? vi.fn()}
         onBack={input.onBack ?? vi.fn()}
-        dependencies={{ useReviewRows, PricePerTimeUnit, useDeploymentHasGpu }}
+        dependencies={{
+          useReviewRows,
+          PricePerTimeUnit,
+          useDeploymentHasGpu,
+          RuntimeLimitReviewSection,
+          useFlag,
+          useTrialGate,
+          useUpdateDeploymentSettingMutation,
+          useSnackbar,
+          Snackbar
+        }}
       />
     );
+
+    return { mutateAsync, enqueueSnackbar };
   }
 });
