@@ -125,7 +125,8 @@ export class DeploymentSettingService {
    * altogether is a separate request, handled by #removeRuntimeLimit.
    *
    * A limited deployment always has auto top-up on, because funding is what keeps it alive up to the
-   * limit; a limited row with funding off would be closed by the chain long before its deadline.
+   * limit; a limited row with funding off would be closed by the chain long before its deadline. Both
+   * paths below turn it on, overriding an `autoTopUpEnabled: false` sent alongside a limit.
    */
   async #setRuntimeLimit(
     params: FindDeploymentSettingParams,
@@ -151,11 +152,6 @@ export class DeploymentSettingService {
     return setting;
   }
 
-  /**
-   * An `autoTopUpEnabled: false` sent alongside a first limit is overridden rather than honoured: nothing
-   * anchors a deadline on a deployment with funding off, so the row would report a limit that never fires.
-   * The same request asked for the limit, so there is no earlier preference being overridden here.
-   */
   #createRuntimeLimitedSetting(params: FindDeploymentSettingParams, input: { runtimeLimitHours: number }): Promise<DeploymentSettingsOutput> {
     this.#assertWithinFirstIncrement(input.runtimeLimitHours);
 
