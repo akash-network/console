@@ -32,12 +32,34 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     await handler.handle(job);
 
     expect(balancesService.getDeploymentBalanceInFiat).toHaveBeenCalledWith(wallet.address);
-    expect(drainingDeploymentService.calculateWeeklyDeploymentCostForAddress).toHaveBeenCalledWith(wallet.address);
+    expect(drainingDeploymentService.calculateWeeklyCoverageForAddress).toHaveBeenCalledWith(wallet.address);
     expect(notificationService.createNotification).toHaveBeenCalledWith(
       creditsRunningLowNotification(user, {
         balanceUsd,
         weeklyCostUsd,
         daysRemaining: 2,
+        paymentLink,
+        billingUrl: "https://console.akash.network/billing"
+      })
+    );
+  });
+
+  it("reports less than a day when a runtime-limited deployment front-loads the weekly cost", async () => {
+    const paymentLink = "https://console.akash.network/billing?openPayment=true";
+    const { handler, user, notificationService, job } = setup({
+      balanceUsd: 5,
+      weeklyCostUsd: 10,
+      cumulativeDailyCostsUsd: [10, 10, 10, 10, 10, 10, 10],
+      paymentLink
+    });
+
+    await handler.handle(job);
+
+    expect(notificationService.createNotification).toHaveBeenCalledWith(
+      creditsRunningLowNotification(user, {
+        balanceUsd: 5,
+        weeklyCostUsd: 10,
+        daysRemaining: 0,
         paymentLink,
         billingUrl: "https://console.akash.network/billing"
       })
@@ -53,7 +75,7 @@ describe(WalletCreditsLowCheckHandler.name, () => {
 
     expect(notificationService.createNotification).not.toHaveBeenCalled();
     expect(userWalletRepository.updateById).not.toHaveBeenCalled();
-    expect(drainingDeploymentService.calculateWeeklyDeploymentCostForAddress).not.toHaveBeenCalled();
+    expect(drainingDeploymentService.calculateWeeklyCoverageForAddress).not.toHaveBeenCalled();
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "auto_reload_enabled" }));
     expect(logger.warn).not.toHaveBeenCalled();
   });
@@ -177,6 +199,7 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     user?: ReturnType<typeof createUser>;
     balanceUsd?: number;
     weeklyCostUsd?: number;
+    cumulativeDailyCostsUsd?: number[];
     paymentLink?: string;
   }) {
     const user = input?.user ?? createUser({ email: "user@example.com" });
@@ -197,6 +220,8 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     const paymentLink = input?.paymentLink ?? "https://console.akash.network/billing?openPayment=true";
     const balanceUsd = input?.balanceUsd ?? 12.5;
     const weeklyCostUsd = input?.weeklyCostUsd ?? 35;
+    const cumulativeDailyCostsUsd =
+      input?.cumulativeDailyCostsUsd ?? (weeklyCostUsd === 0 ? [] : Array.from({ length: 7 }, (_, day) => ((day + 1) * weeklyCostUsd) / 7));
 
     const walletSettingRepository = mock<WalletSettingRepository>();
     const userWalletRepository = mock<UserWalletRepository>();
@@ -216,7 +241,7 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     userWalletRepository.findOneByUserId.mockResolvedValue(wallet);
     userRepository.findById.mockResolvedValue(user);
     balancesService.getDeploymentBalanceInFiat.mockResolvedValue(balanceUsd);
-    drainingDeploymentService.calculateWeeklyDeploymentCostForAddress.mockResolvedValue(weeklyCostUsd);
+    drainingDeploymentService.calculateWeeklyCoverageForAddress.mockResolvedValue({ weeklyCostUsd, cumulativeDailyCostsUsd });
     userWalletRepository.updateById.mockResolvedValue(undefined);
 
     const handler = new WalletCreditsLowCheckHandler(

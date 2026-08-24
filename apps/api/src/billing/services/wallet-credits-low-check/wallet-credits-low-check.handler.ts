@@ -41,7 +41,7 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
 
     const { wallet, user } = resources;
     const balanceUsd = await this.balancesService.getDeploymentBalanceInFiat(wallet.address);
-    const weeklyCostUsd = await this.drainingDeploymentService.calculateWeeklyDeploymentCostForAddress(wallet.address);
+    const { weeklyCostUsd, cumulativeDailyCostsUsd } = await this.drainingDeploymentService.calculateWeeklyCoverageForAddress(wallet.address);
 
     if (weeklyCostUsd === 0) {
       await this.#clearNotifiedIfSet(wallet);
@@ -61,7 +61,7 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
     }
 
     const paymentLink = this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK");
-    const daysRemaining = Math.max(0, Math.floor(balanceUsd / (weeklyCostUsd / 7)));
+    const daysRemaining = cumulativeDailyCostsUsd.filter(costUsd => costUsd <= balanceUsd).length;
 
     await this.notificationService.createNotification(
       creditsRunningLowNotification(user, {

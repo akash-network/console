@@ -753,7 +753,7 @@ describe(DrainingDeploymentService.name, () => {
     }
   });
 
-  describe("calculateWeeklyDeploymentCostForAddress", () => {
+  describe("calculateWeeklyCoverageForAddress", () => {
     it("calculates seven days of burn in fiat for always-on deployments still open", async () => {
       const blockRate1 = 50;
       const blockRate2 = 75;
@@ -761,13 +761,16 @@ describe(DrainingDeploymentService.name, () => {
         deployments: [{ blockRate: blockRate1 }, { blockRate: blockRate2 }]
       });
 
-      const result = await service.calculateWeeklyDeploymentCostForAddress(address);
+      const result = await service.calculateWeeklyCoverageForAddress(address);
 
-      const expectedCredits = Math.floor(blockRate1 * averageBlockCountInAnHour * 24 * 7) + Math.floor(blockRate2 * averageBlockCountInAnHour * 24 * 7);
+      const creditsForDays = (days: number) =>
+        Math.floor(blockRate1 * averageBlockCountInAnHour * 24 * days) + Math.floor(blockRate2 * averageBlockCountInAnHour * 24 * days);
+      const expectedCredits = creditsForDays(7);
       expect(userWalletRepository.accessibleBy).not.toHaveBeenCalled();
       expect(deploymentSettingRepository.accessibleBy).not.toHaveBeenCalled();
       expect(balancesService.toFiatAmount).toHaveBeenCalledWith(expectedCredits);
-      expect(result).toBe(usdFromCredits(expectedCredits));
+      expect(result.weeklyCostUsd).toBe(usdFromCredits(expectedCredits));
+      expect(result.cumulativeDailyCostsUsd).toEqual(Array.from({ length: 7 }, (_, day) => (creditsForDays(day + 1) / expectedCredits) * result.weeklyCostUsd));
     });
 
     it("bills twelve hours of burn when the runtime deadline is twelve hours away", async () => {
@@ -787,13 +790,14 @@ describe(DrainingDeploymentService.name, () => {
           ]
         });
 
-        const result = await service.calculateWeeklyDeploymentCostForAddress(address);
+        const result = await service.calculateWeeklyCoverageForAddress(address);
 
         const expectedCredits = Math.floor(blockRate * averageBlockCountInAnHour * 12);
         const weekCredits = Math.floor(blockRate * averageBlockCountInAnHour * 24 * 7);
         expect(balancesService.toFiatAmount).toHaveBeenCalledWith(expectedCredits);
         expect(balancesService.toFiatAmount).not.toHaveBeenCalledWith(weekCredits);
-        expect(result).toBe(usdFromCredits(expectedCredits));
+        expect(result.weeklyCostUsd).toBe(usdFromCredits(expectedCredits));
+        expect(result.cumulativeDailyCostsUsd).toEqual(Array.from({ length: 7 }, () => result.weeklyCostUsd));
       } finally {
         vi.useRealTimers();
       }
@@ -814,9 +818,9 @@ describe(DrainingDeploymentService.name, () => {
           ]
         });
 
-        const result = await service.calculateWeeklyDeploymentCostForAddress(address);
+        const result = await service.calculateWeeklyCoverageForAddress(address);
 
-        expect(result).toBe(0);
+        expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [] });
         expect(balancesService.toFiatAmount).not.toHaveBeenCalled();
       } finally {
         vi.useRealTimers();
@@ -835,12 +839,31 @@ describe(DrainingDeploymentService.name, () => {
         ]
       });
 
-      const result = await service.calculateWeeklyDeploymentCostForAddress(address);
+      const result = await service.calculateWeeklyCoverageForAddress(address);
 
       const expectedCredits = Math.floor(blockRate * averageBlockCountInAnHour * 3);
       expect(deploymentSettingRepository.startRuntimeCountdown).not.toHaveBeenCalled();
       expect(balancesService.toFiatAmount).toHaveBeenCalledWith(expectedCredits);
-      expect(result).toBe(usdFromCredits(expectedCredits));
+      expect(result.weeklyCostUsd).toBe(usdFromCredits(expectedCredits));
+      expect(result.cumulativeDailyCostsUsd).toEqual(Array.from({ length: 7 }, () => result.weeklyCostUsd));
+    });
+
+    it("front-loads a short runtime limit into the first day while an always-on deployment accrues daily", async () => {
+      const limitedBlockRate = 500;
+      const alwaysOnBlockRate = 10;
+      const { service, address } = await setupWeeklyBurnForAddress({
+        deployments: [{ blockRate: limitedBlockRate, runtimeLimitHours: 2, runtimeEndsAt: null }, { blockRate: alwaysOnBlockRate }]
+      });
+
+      const result = await service.calculateWeeklyCoverageForAddress(address);
+
+      const limitedCredits = Math.floor(limitedBlockRate * averageBlockCountInAnHour * 2);
+      const alwaysOnCreditsForDays = (days: number) => Math.floor(alwaysOnBlockRate * averageBlockCountInAnHour * 24 * days);
+      const weeklyCredits = limitedCredits + alwaysOnCreditsForDays(7);
+      expect(result.weeklyCostUsd).toBe(usdFromCredits(weeklyCredits));
+      expect(result.cumulativeDailyCostsUsd).toEqual(
+        Array.from({ length: 7 }, (_, day) => ((limitedCredits + alwaysOnCreditsForDays(day + 1)) / weeklyCredits) * result.weeklyCostUsd)
+      );
     });
 
     it("returns 0 when user wallet is not found", async () => {
@@ -849,9 +872,9 @@ describe(DrainingDeploymentService.name, () => {
         deployments: [{ predictedClosedHeight: 1000100, blockRate: 50 }]
       });
 
-      const result = await service.calculateWeeklyDeploymentCostForAddress(address);
+      const result = await service.calculateWeeklyCoverageForAddress(address);
 
-      expect(result).toBe(0);
+      expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [] });
     });
 
     it("returns 0 when user wallet has no address", async () => {
@@ -860,9 +883,9 @@ describe(DrainingDeploymentService.name, () => {
         deployments: [{ predictedClosedHeight: 1000100, blockRate: 50 }]
       });
 
-      const result = await service.calculateWeeklyDeploymentCostForAddress(address);
+      const result = await service.calculateWeeklyCoverageForAddress(address);
 
-      expect(result).toBe(0);
+      expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [] });
     });
 
     it("returns 0 when no deployments are found", async () => {
@@ -870,9 +893,9 @@ describe(DrainingDeploymentService.name, () => {
         deployments: []
       });
 
-      const result = await service.calculateWeeklyDeploymentCostForAddress(address);
+      const result = await service.calculateWeeklyCoverageForAddress(address);
 
-      expect(result).toBe(0);
+      expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [] });
     });
 
     it("returns 0 when block rate is zero", async () => {
@@ -880,9 +903,9 @@ describe(DrainingDeploymentService.name, () => {
         deployments: [{ blockRate: 0 }]
       });
 
-      const result = await service.calculateWeeklyDeploymentCostForAddress(address);
+      const result = await service.calculateWeeklyCoverageForAddress(address);
 
-      expect(result).toBe(0);
+      expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [] });
       expect(balancesService.toFiatAmount).not.toHaveBeenCalled();
     });
 
