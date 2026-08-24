@@ -5,6 +5,7 @@ import { Readable } from "stream";
 import type { ReadableStreamDefaultReader } from "stream/web";
 
 import type { AppContext } from "../types/AppContext";
+import { toErrno, toProviderErrorCategory } from "../utils/errno";
 import { canRetryOnError, httpRetry } from "../utils/retry";
 import { addProviderAuthValidation, providerRequestSchema } from "../utils/schema";
 
@@ -47,6 +48,22 @@ export const proxyRoute = createRoute({
         }
       },
       description: "Returned if host SSL certificate is invalid"
+    },
+    502: {
+      content: {
+        "text/plain": {
+          schema: z.string()
+        }
+      },
+      description: "Returned if the proxied host could not be reached at all"
+    },
+    503: {
+      content: {
+        "text/plain": {
+          schema: z.string()
+        }
+      },
+      description: "Returned if the proxied host answered with a server error"
     },
     200: {
       description: "Returns proxied response"
@@ -101,21 +118,20 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
   }
 
   if (proxyResult.ok === false && proxyResult.code === "connectionError") {
+    const errno = toErrno(proxyResult.error);
+    const errorCategory = toProviderErrorCategory(errno);
+
     ctx.get("container").appLogger?.warn({
       event: "PROXY_REQUEST_ERROR",
+      errorCategory,
+      errno,
       url,
       method,
       providerAddress,
       error: proxyResult.error
     });
 
-    if (
-      proxyResult.error &&
-      typeof proxyResult.error === "object" &&
-      proxyResult.error &&
-      "code" in proxyResult.error &&
-      String(proxyResult.error.code).startsWith("ERR_SSL_")
-    ) {
+    if (errorCategory === "clientCertificateError") {
       return ctx.json(
         {
           error: {
@@ -134,10 +150,11 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
       );
     }
 
-    if ((Error as any).isError(proxyResult.error) && (proxyResult.error as NodeJS.ErrnoException).code === "EFORBIDDEN") {
+    if (errorCategory === "blockedAddress") {
       ctx.get("container").appLogger?.warn({
         event: "PROXY_REQUEST_ERROR",
-        code: (proxyResult.error as NodeJS.ErrnoException).code,
+        errorCategory,
+        errno,
         url,
         method,
         providerAddress,
@@ -161,7 +178,7 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
       );
     }
 
-    return ctx.text(`Provider ${new URL(url).origin} is temporarily unavailable`, 503);
+    return ctx.text(`Provider ${new URL(url).origin} is temporarily unavailable`, 502);
   }
 
   const headers = new Headers();
@@ -182,6 +199,7 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
 
     ctx.get("container").appLogger?.error({
       event: "PROXY_REQUEST_ERROR",
+      errorCategory: "providerServerError",
       url,
       method,
       providerAddress,
