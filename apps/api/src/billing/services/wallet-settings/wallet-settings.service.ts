@@ -63,6 +63,7 @@ export class WalletSettingService {
 
     await this.walletSettingRepository.accessibleBy(ability, "update").updateById(setting.id, { autoReloadEnabled: false });
     await this.walletReloadJobService.cancelCreatedByUserId(userId);
+    await this.walletReloadJobService.scheduleCreditsLowCheck(userId, { withCleanup: true });
     this.logger.info({ event: "AUTO_RELOAD_DISABLED", reason: "DEFAULT_PAYMENT_METHOD_REMOVED", userId });
   }
 
