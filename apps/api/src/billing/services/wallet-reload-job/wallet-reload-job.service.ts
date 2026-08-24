@@ -86,23 +86,36 @@ export class WalletReloadJobService {
     await this.jobQueueService.cancelCreatedBy({ name: WalletBalanceReloadCheck.name, singletonKey: `${WalletBalanceReloadCheck.name}.${userId}` });
   }
 
+  /**
+   * Best-effort: a failed schedule is logged instead of thrown so it never fails the
+   * spend or funding operation that triggered it, and the next spend re-schedules the check.
+   */
   async scheduleCreditsLowCheck(userId: string, options?: { withCleanup?: boolean }): Promise<string | null> {
-    if (options?.withCleanup) {
-      await this.cancelCreditsLowCheckByUserId(userId);
-    }
+    try {
+      if (options?.withCleanup) {
+        await this.cancelCreditsLowCheckByUserId(userId);
+      }
 
-    const createdJobId = await this.jobQueueService.enqueue(new WalletCreditsLowCheck({ userId }), {
-      singletonKey: `${WalletCreditsLowCheck.name}.${userId}`
-    });
-
-    if (!createdJobId) {
-      this.logger.info({
-        event: "CREDITS_LOW_CHECK_ALREADY_QUEUED",
-        userId
+      const createdJobId = await this.jobQueueService.enqueue(new WalletCreditsLowCheck({ userId }), {
+        singletonKey: `${WalletCreditsLowCheck.name}.${userId}`
       });
-    }
 
-    return createdJobId;
+      if (!createdJobId) {
+        this.logger.info({
+          event: "CREDITS_LOW_CHECK_ALREADY_QUEUED",
+          userId
+        });
+      }
+
+      return createdJobId;
+    } catch (error) {
+      this.logger.error({
+        event: "CREDITS_LOW_CHECK_SCHEDULE_FAILED",
+        userId,
+        error
+      });
+      return null;
+    }
   }
 
   async cancelCreditsLowCheckByUserId(userId: string): Promise<void> {

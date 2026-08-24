@@ -120,6 +120,17 @@ describe(WalletReloadJobService.name, () => {
       expectCreditsLowCheckScheduled(jobQueueService, userWallet.userId);
     });
 
+    it("does not throw when the job queue is unavailable and a credits-low check is due", async () => {
+      const { service, walletSettingRepository, jobQueueService, logger } = setup();
+      const userId = faker.string.uuid();
+      walletSettingRepository.findByUserId.mockResolvedValue(generateWalletSetting({ autoReloadEnabled: false, userId }));
+      jobQueueService.cancelCreatedBy.mockRejectedValue(new Error("Database not opened. Call open() before executing SQL."));
+
+      await expect(service.scheduleImmediate({ userId })).resolves.toBe(false);
+
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SCHEDULE_FAILED", userId }));
+    });
+
     it("does not throw when a credits-low enqueue collides with an existing singleton", async () => {
       const { service, walletSettingRepository, jobQueueService, logger } = setup();
       const userId = faker.string.uuid();
@@ -292,6 +303,37 @@ describe(WalletReloadJobService.name, () => {
       expect(logger.info).toHaveBeenCalledWith({
         event: "CREDITS_LOW_CHECK_ALREADY_QUEUED",
         userId
+      });
+    });
+
+    it("logs and returns null when the enqueue throws", async () => {
+      const { service, jobQueueService, logger } = setup();
+      const userId = faker.string.uuid();
+      const error = new Error("Queue cache is not initialized");
+      jobQueueService.enqueue.mockRejectedValue(error);
+
+      await expect(service.scheduleCreditsLowCheck(userId)).resolves.toBeNull();
+
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "CREDITS_LOW_CHECK_SCHEDULE_FAILED",
+        userId,
+        error
+      });
+    });
+
+    it("logs and returns null when the cleanup throws", async () => {
+      const { service, jobQueueService, logger } = setup();
+      const userId = faker.string.uuid();
+      const error = new Error("Database not opened. Call open() before executing SQL.");
+      jobQueueService.cancelCreatedBy.mockRejectedValue(error);
+
+      await expect(service.scheduleCreditsLowCheck(userId, { withCleanup: true })).resolves.toBeNull();
+
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "CREDITS_LOW_CHECK_SCHEDULE_FAILED",
+        userId,
+        error
       });
     });
   });
