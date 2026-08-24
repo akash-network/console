@@ -41,6 +41,12 @@ export type AutoTopUpDeployment = {
   runtimeEndsAt: Date | null;
 };
 
+/**
+ * A deployment funds itself unless its owner turns that off: creating one already requires an
+ * initialised managed wallet, so there is no owner for whom auto top-up cannot work.
+ */
+const AUTO_TOP_UP_ENABLED_BY_DEFAULT = true;
+
 @singleton()
 export class DeploymentSettingRepository extends BaseRepository<Table, DeploymentSettingsInput, DeploymentSettingsOutput> {
   constructor(
@@ -53,6 +59,16 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
 
   accessibleBy(...abilityParams: AbilityParams) {
     return new DeploymentSettingRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
+  }
+
+  /**
+   * Applies the auto top-up default here rather than as a column default, so every row is written by
+   * code that can be read and tested. The column is NOT NULL with no database default on purpose: it
+   * makes `autoTopUpEnabled` required on a direct `insert(DeploymentSettings)`, so a write that skips
+   * this method has to state its own value instead of silently inheriting one nobody chose.
+   */
+  override create(input: DeploymentSettingsInput): Promise<DeploymentSettingsOutput> {
+    return super.create({ ...input, autoTopUpEnabled: input.autoTopUpEnabled ?? AUTO_TOP_UP_ENABLED_BY_DEFAULT });
   }
 
   async *findAutoTopUpDeploymentsByOwnerIteratively(): AsyncGenerator<{

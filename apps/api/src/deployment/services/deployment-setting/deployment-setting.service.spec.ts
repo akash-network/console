@@ -37,39 +37,33 @@ describe(DeploymentSettingService.name, () => {
       expect(deploymentSettingRepository.create).not.toHaveBeenCalled();
     });
 
-    it("creates with autoTopUpEnabled true when user has managed wallet", async () => {
+    it("leaves auto top-up to the repository default rather than deciding it from the wallet", async () => {
       const { service, deploymentSettingRepository, userWalletRepository } = setup();
       const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
-      const userWallet = createUserWallet({ userId: params.userId });
       const created = createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: true });
 
       deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
       deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
       deploymentSettingRepository.create.mockResolvedValue(created);
-      userWalletRepository.findOneByUserId.mockResolvedValue(userWallet);
 
       const result = await service.findOrCreateByUserIdAndDseq(params);
 
-      expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(params.userId);
-      expect(deploymentSettingRepository.create).toHaveBeenCalledWith(expect.objectContaining({ autoTopUpEnabled: true }));
+      expect(deploymentSettingRepository.create).toHaveBeenCalledWith(params);
+      expect(userWalletRepository.findOneByUserId).not.toHaveBeenCalled();
       expect(result).toEqual(expect.objectContaining({ autoTopUpEnabled: true }));
     });
 
-    it("creates with autoTopUpEnabled false when user has no managed wallet", async () => {
-      const { service, deploymentSettingRepository, userWalletRepository } = setup();
+    it("schedules no wallet reload for a deployment whose owner asked for nothing", async () => {
+      const { service, deploymentSettingRepository, walletReloadJobService } = setup();
       const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
-      const created = createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: false });
 
       deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
       deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
-      deploymentSettingRepository.create.mockResolvedValue(created);
-      userWalletRepository.findOneByUserId.mockResolvedValue(undefined);
+      deploymentSettingRepository.create.mockResolvedValue(createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: true }));
 
-      const result = await service.findOrCreateByUserIdAndDseq(params);
+      await service.findOrCreateByUserIdAndDseq(params);
 
-      expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(params.userId);
-      expect(deploymentSettingRepository.create).toHaveBeenCalledWith(expect.objectContaining({ autoTopUpEnabled: false }));
-      expect(result).toEqual(expect.objectContaining({ autoTopUpEnabled: false }));
+      expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
     });
 
     it("returns undefined on ForbiddenError", async () => {

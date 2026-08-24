@@ -55,8 +55,7 @@ export class DeploymentSettingService {
     }
 
     try {
-      const userWallet = await this.userWalletRepository.findOneByUserId(params.userId);
-      return await this.create({ ...params, autoTopUpEnabled: !!userWallet });
+      return await this.createWithDefaults(params);
     } catch (error) {
       if (error instanceof ForbiddenError) {
         return undefined;
@@ -65,10 +64,19 @@ export class DeploymentSettingService {
     }
   }
 
+  /**
+   * Creates a settings row on the repository's defaults, recording no choice by the user. Deployment
+   * create uses this: the row exists from the start without scheduling a wallet reload the user never
+   * asked for, which is what makes creating a row cheap enough to do for every deployment.
+   */
+  async createWithDefaults(params: FindDeploymentSettingParams): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
+    return await this.withEstimatedTopUpAmount(await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "create").create(params));
+  }
+
   async create(input: DeploymentSettingsInput): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
     const result = await this.withEstimatedTopUpAmount(await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "create").create(input));
 
-    if (result.autoTopUpEnabled) {
+    if (input.autoTopUpEnabled === true) {
       await this.walletReloadJobService.scheduleImmediate({ userId: result.userId });
     }
 
