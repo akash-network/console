@@ -17,6 +17,11 @@ import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 const COOLDOWN_MINUTES = 60;
 const WARNING_WINDOW = { leadHours: 6, minLimitHours: 12 };
 
+/** Rows created with a `Date` store exactly that value, so its ISO form is the marker the claim matches on. */
+function markerFor(runtimeEndsAt: Date) {
+  return runtimeEndsAt.toISOString();
+}
+
 describe(DeploymentSettingRepository.name, () => {
   describe("claimForFunding", () => {
     it("awards a claim to exactly one caller across concurrent attempts", async () => {
@@ -205,7 +210,7 @@ describe(DeploymentSettingRepository.name, () => {
       const { deploymentSettingRepository, createAnchoredSetting } = await setup();
       const setting = await createAnchoredSetting({ runtimeLimitHours: 24, endsInHours: 3 });
 
-      await deploymentSettingRepository.claimRuntimeEndingNotification(setting.id, setting.runtimeEndsAt!);
+      await deploymentSettingRepository.claimRuntimeEndingNotification(setting.id, markerFor(setting.runtimeEndsAt!));
       const expiring = await deploymentSettingRepository.findExpiringRuntimeDeployments(WARNING_WINDOW);
 
       expect(expiring.map(deployment => deployment.id)).not.toContain(setting.id);
@@ -214,7 +219,7 @@ describe(DeploymentSettingRepository.name, () => {
     it("warns again once an extension moves the deadline", async () => {
       const { deploymentSettingRepository, user, abilityFor, createAnchoredSetting } = await setup();
       const setting = await createAnchoredSetting({ runtimeLimitHours: 24, endsInHours: 3 });
-      await deploymentSettingRepository.claimRuntimeEndingNotification(setting.id, setting.runtimeEndsAt!);
+      await deploymentSettingRepository.claimRuntimeEndingNotification(setting.id, markerFor(setting.runtimeEndsAt!));
 
       await deploymentSettingRepository
         .accessibleBy(abilityFor(user), "update")
@@ -226,12 +231,24 @@ describe(DeploymentSettingRepository.name, () => {
   });
 
   describe("claimRuntimeEndingNotification", () => {
+    it("claims a deadline anchored by startRuntimeCountdown, whose now() carries sub-millisecond digits", async () => {
+      const { deploymentSettingRepository, createLimitedSetting } = await setup();
+      const created = await createLimitedSetting(24);
+      await deploymentSettingRepository.startRuntimeCountdown(created.id);
+      const expiring = await deploymentSettingRepository.findExpiringRuntimeDeployments({ leadHours: 25, minLimitHours: 12 });
+      const anchored = expiring.find(deployment => deployment.id === created.id)!;
+
+      const claimed = await deploymentSettingRepository.claimRuntimeEndingNotification(anchored.id, anchored.runtimeEndsAtMarker);
+
+      expect(claimed).toBe(true);
+    });
+
     it("awards the claim to exactly one caller across concurrent attempts", async () => {
       const { deploymentSettingRepository, createAnchoredSetting } = await setup();
       const setting = await createAnchoredSetting({ runtimeLimitHours: 24, endsInHours: 3 });
 
       const results = await Promise.all(
-        Array.from({ length: 5 }, () => deploymentSettingRepository.claimRuntimeEndingNotification(setting.id, setting.runtimeEndsAt!))
+        Array.from({ length: 5 }, () => deploymentSettingRepository.claimRuntimeEndingNotification(setting.id, markerFor(setting.runtimeEndsAt!)))
       );
 
       expect(results.filter(Boolean)).toHaveLength(1);
@@ -242,7 +259,7 @@ describe(DeploymentSettingRepository.name, () => {
       const setting = await createAnchoredSetting({ runtimeLimitHours: 24, endsInHours: 3 });
       const staleDeadline = new Date(setting.runtimeEndsAt!.getTime() - hoursToMilliseconds(1));
 
-      const claimed = await deploymentSettingRepository.claimRuntimeEndingNotification(setting.id, staleDeadline);
+      const claimed = await deploymentSettingRepository.claimRuntimeEndingNotification(setting.id, markerFor(staleDeadline));
 
       expect(claimed).toBe(false);
     });

@@ -32,6 +32,8 @@ export type ExpiringRuntimeDeployment = ExpiredRuntimeDeployment & {
   userId: string;
   runtimeLimitHours: number;
   runtimeEndsAt: Date;
+  /** The deadline as stored, in text, so a claim can match it without losing the sub-millisecond digits a `Date` drops. */
+  runtimeEndsAtMarker: string;
 };
 
 export type AutoTopUpDeployment = {
@@ -179,7 +181,8 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         walletId: UserWallets.id,
         address: UserWallets.address,
         runtimeLimitHours: this.table.runtimeLimitHours,
-        runtimeEndsAt: this.table.runtimeEndsAt
+        runtimeEndsAt: this.table.runtimeEndsAt,
+        runtimeEndsAtMarker: sql<string>`${this.table.runtimeEndsAt}::text`
       })
       .from(this.table)
       .leftJoin(Users, eq(this.table.userId, Users.id))
@@ -202,27 +205,50 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
 
   /**
    * Claims the right to warn about one deployment's deadline, returning false when another pass already
-   * has it. Matching on `runtimeEndsAt` keeps the claim tied to the deadline it was taken for, so an
-   * extension landing mid-sweep cannot be marked as warned by a pass that read the old deadline.
+   * has it. Matching on the deadline keeps the claim tied to the one it was taken for, so an extension
+   * landing mid-sweep cannot be marked as warned by a pass that read the old deadline.
+   *
+   * The marker is matched as text, like `releaseFundingClaim` does: deadlines anchored from `now()` carry
+   * microseconds, and a `Date` drops them, so comparing the round-tripped value would reject every
+   * deadline the countdown itself set.
    *
    * Callers claim before sending rather than stamping after. The sweep runs far more often than the
    * warning window is wide, so a send that succeeded but failed to stamp would repeat the same email on
-   * every pass until the deadline; a claim that failed to send costs one lost warning instead.
+   * every pass until the deadline. A send that fails gives the claim back through
+   * `releaseRuntimeEndingClaim`, so the warning is retried rather than lost.
    */
-  async claimRuntimeEndingNotification(id: string, runtimeEndsAt: Date): Promise<boolean> {
+  async claimRuntimeEndingNotification(id: string, runtimeEndsAtMarker: string): Promise<boolean> {
     const [claimed] = await this.cursor
       .update(this.table)
       .set({ runtimeEndingNotifiedFor: sql`${this.table.runtimeEndsAt}`, updatedAt: sql`now()` })
       .where(
         and(
           eq(this.table.id, id),
-          eq(this.table.runtimeEndsAt, runtimeEndsAt),
+          eq(this.table.runtimeEndsAt, sql`${runtimeEndsAtMarker}::timestamptz`),
           sql`${this.table.runtimeEndingNotifiedFor} is distinct from ${this.table.runtimeEndsAt}`
         )
       )
       .returning({ id: this.table.id });
 
     return !!claimed;
+  }
+
+  /**
+   * Gives back a claim whose notification was never accepted, so the next sweep can warn about the same
+   * deadline. Scoped to the exact deadline the claim was taken against, so a release arriving after an
+   * extension cannot clear the stamp a later pass wrote for the new deadline.
+   */
+  async releaseRuntimeEndingClaim(id: string, runtimeEndsAtMarker: string): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({ runtimeEndingNotifiedFor: null, updatedAt: sql`now()` })
+      .where(
+        and(
+          eq(this.table.id, id),
+          eq(this.table.runtimeEndsAt, sql`${runtimeEndsAtMarker}::timestamptz`),
+          eq(this.table.runtimeEndingNotifiedFor, sql`${runtimeEndsAtMarker}::timestamptz`)
+        )
+      );
   }
 
   /**

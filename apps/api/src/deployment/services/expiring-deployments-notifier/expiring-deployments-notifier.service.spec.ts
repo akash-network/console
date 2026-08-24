@@ -21,7 +21,7 @@ describe(ExpiringDeploymentsNotifierService.name, () => {
 
     const result = await service.notifyExpiringDeployments({ dryRun: false });
 
-    expect(deploymentSettingRepository.claimRuntimeEndingNotification).toHaveBeenCalledWith(expiring.id, expiring.runtimeEndsAt);
+    expect(deploymentSettingRepository.claimRuntimeEndingNotification).toHaveBeenCalledWith(expiring.id, expiring.runtimeEndsAtMarker);
     expect(notificationService.createNotification).toHaveBeenCalledWith(
       runtimeLimitEndingNotification(users[expiring.userId], {
         dseq: expiring.dseq,
@@ -71,6 +71,39 @@ describe(ExpiringDeploymentsNotifierService.name, () => {
     expect(result.ok).toBe(true);
   });
 
+  it("gives the claim back when the email fails, so the next sweep retries the same deadline", async () => {
+    const expiring = createExpiringRuntimeDeployment();
+    const { service, deploymentSettingRepository } = setup({
+      expiring,
+      notificationError: { dseq: expiring.dseq, error: new Error("notifications api down") }
+    });
+
+    await service.notifyExpiringDeployments({ dryRun: false });
+
+    expect(deploymentSettingRepository.releaseRuntimeEndingClaim).toHaveBeenCalledWith(expiring.id, expiring.runtimeEndsAtMarker);
+  });
+
+  it("reports the send failure even when giving the claim back also fails", async () => {
+    const expiring = createExpiringRuntimeDeployment();
+    const { service, deploymentSettingRepository } = setup({
+      expiring,
+      notificationError: { dseq: expiring.dseq, error: new Error("notifications api down") }
+    });
+    deploymentSettingRepository.releaseRuntimeEndingClaim.mockRejectedValue(new Error("db down"));
+
+    const result = await service.notifyExpiringDeployments({ dryRun: false });
+
+    expect(result.err).toBe(true);
+  });
+
+  it("leaves the claim in place when the email succeeds", async () => {
+    const { service, deploymentSettingRepository } = setup({ expiring: createExpiringRuntimeDeployment() });
+
+    await service.notifyExpiringDeployments({ dryRun: false });
+
+    expect(deploymentSettingRepository.releaseRuntimeEndingClaim).not.toHaveBeenCalled();
+  });
+
   it("keeps notifying the rest of the sweep when one deployment fails, and reports the failure", async () => {
     const failing = createExpiringRuntimeDeployment();
     const succeeding = createExpiringRuntimeDeployment();
@@ -86,6 +119,8 @@ describe(ExpiringDeploymentsNotifierService.name, () => {
   });
 
   function createExpiringRuntimeDeployment(overrides: Partial<ExpiringRuntimeDeployment> = {}): ExpiringRuntimeDeployment {
+    const runtimeEndsAt = overrides.runtimeEndsAt ?? faker.date.soon({ days: 1 });
+
     return {
       id: faker.string.uuid(),
       dseq: faker.string.numeric(6),
@@ -93,7 +128,8 @@ describe(ExpiringDeploymentsNotifierService.name, () => {
       walletId: faker.number.int({ min: 1, max: 10000 }),
       address: createAkashAddress(),
       runtimeLimitHours: 24,
-      runtimeEndsAt: faker.date.soon({ days: 1 }),
+      runtimeEndsAt,
+      runtimeEndsAtMarker: `${runtimeEndsAt.toISOString()}123`,
       ...overrides
     };
   }

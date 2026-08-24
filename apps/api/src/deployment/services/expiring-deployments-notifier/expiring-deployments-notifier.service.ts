@@ -86,7 +86,7 @@ export class ExpiringDeploymentsNotifierService {
       return false;
     }
 
-    const claimed = await this.deploymentSettingRepository.claimRuntimeEndingNotification(deployment.id, deployment.runtimeEndsAt);
+    const claimed = await this.deploymentSettingRepository.claimRuntimeEndingNotification(deployment.id, deployment.runtimeEndsAtMarker);
 
     if (!claimed) {
       this.logger.info({
@@ -98,14 +98,19 @@ export class ExpiringDeploymentsNotifierService {
       return false;
     }
 
-    await this.notificationService.createNotification(
-      runtimeLimitEndingNotification(user, {
-        dseq: deployment.dseq,
-        owner: deployment.address,
-        runtimeEndsAt: deployment.runtimeEndsAt.toISOString(),
-        deploymentSettingsUrl: this.#deploymentSettingsUrl(deployment.dseq)
-      })
-    );
+    try {
+      await this.notificationService.createNotification(
+        runtimeLimitEndingNotification(user, {
+          dseq: deployment.dseq,
+          owner: deployment.address,
+          runtimeEndsAt: deployment.runtimeEndsAt.toISOString(),
+          deploymentSettingsUrl: this.#deploymentSettingsUrl(deployment.dseq)
+        })
+      );
+    } catch (error) {
+      await this.#releaseClaim(deployment);
+      throw error;
+    }
 
     this.logger.info({
       event: "EXPIRING_DEPLOYMENT_NOTIFIED",
@@ -115,6 +120,19 @@ export class ExpiringDeploymentsNotifierService {
     });
 
     return true;
+  }
+
+  /**
+   * A claim whose email never went out is given back so the next sweep retries it. A failed release is
+   * logged rather than thrown: it would replace the send error the caller reports, and the cost is one
+   * deployment warned late or not at all, which is what the claim was already risking.
+   */
+  async #releaseClaim(deployment: ExpiringRuntimeDeployment): Promise<void> {
+    try {
+      await this.deploymentSettingRepository.releaseRuntimeEndingClaim(deployment.id, deployment.runtimeEndsAtMarker);
+    } catch (error) {
+      this.logger.error({ event: "EXPIRING_DEPLOYMENT_CLAIM_RELEASE_FAILED", dseq: deployment.dseq, owner: deployment.address, error });
+    }
   }
 
   /** `tab=SETTINGS` is the query the deployment detail page reads to open the tab holding the extend and switch-to-always-on controls. */

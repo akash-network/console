@@ -1,11 +1,12 @@
 import { hoursToMilliseconds } from "date-fns";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { container } from "tsyringe";
 import type { MockInstance } from "vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
+import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { UserRepository } from "@src/user/repositories";
 import { ExpiringDeploymentsNotifierService } from "./expiring-deployments-notifier.service";
@@ -40,6 +41,38 @@ describe(ExpiringDeploymentsNotifierService.name, () => {
       })
     );
     expect(await findSetting(user.id, dseq)).toMatchObject({ runtimeEndingNotifiedFor: runtimeEndsAt });
+  });
+
+  it("emails a deployment whose deadline was anchored by the countdown rather than written as a Date", async () => {
+    const { notifier, createUserWithWallet, createDeploymentSetting, startCountdown, findSetting, createNotification } = await setup();
+    const { user } = await createUserWithWallet();
+    const dseq = "300009";
+    const setting = await createDeploymentSetting(user.id, dseq, { runtimeLimitHours: 24, runtimeEndsAt: null });
+    await startCountdown(setting.id, 21);
+
+    const result = await notifier.notifyExpiringDeployments({ dryRun: false });
+
+    expect(result.ok).toBe(true);
+    expect(countNotificationsFor(createNotification, dseq)).toBe(1);
+    expect((await findSetting(user.id, dseq)).runtimeEndingNotifiedFor).not.toBeNull();
+  });
+
+  it("warns on the next sweep when the first email failed to send", async () => {
+    const { notifier, createUserWithWallet, createDeploymentSetting, findSetting, createNotification } = await setup();
+    const { user } = await createUserWithWallet();
+    const dseq = "300010";
+    await createDeploymentSetting(user.id, dseq, { runtimeLimitHours: 24, runtimeEndsAt: hoursFromNow(3) });
+    createNotification.mockRejectedValueOnce(new Error("notifications api down"));
+
+    const failed = await notifier.notifyExpiringDeployments({ dryRun: false });
+    expect(failed.err).toBe(true);
+    expect((await findSetting(user.id, dseq)).runtimeEndingNotifiedFor).toBeNull();
+
+    const retried = await notifier.notifyExpiringDeployments({ dryRun: false });
+
+    expect(retried.ok).toBe(true);
+    expect(countNotificationsFor(createNotification, dseq)).toBe(2);
+    expect((await findSetting(user.id, dseq)).runtimeEndingNotifiedFor).not.toBeNull();
   });
 
   it("sends only one email for the same deadline across repeated sweeps", async () => {
@@ -143,6 +176,7 @@ describe(ExpiringDeploymentsNotifierService.name, () => {
     const userWalletsTable = resolveTable("UserWallets");
     const deploymentSettingsTable = resolveTable("DeploymentSettings");
     const userRepository = container.resolve(UserRepository);
+    const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
     const notifier = container.resolve(ExpiringDeploymentsNotifierService);
 
     const createNotification = vi.spyOn(container.resolve(NotificationService), "createNotification").mockResolvedValue(undefined);
@@ -194,6 +228,18 @@ describe(ExpiringDeploymentsNotifierService.name, () => {
         .where(and(eq(deploymentSettingsTable.userId, userId), eq(deploymentSettingsTable.dseq, dseq)));
     }
 
+    /**
+     * Anchors the deadline the way production does, from `now()`, whose microseconds a `Date` cannot hold,
+     * then pulls it into the warning window with SQL arithmetic so those digits survive.
+     */
+    async function startCountdown(settingId: string, pullForwardHours: number) {
+      await deploymentSettingRepository.startRuntimeCountdown(settingId);
+      await db
+        .update(deploymentSettingsTable)
+        .set({ runtimeEndsAt: sql`${deploymentSettingsTable.runtimeEndsAt} - (${pullForwardHours} * interval '1 hour')` })
+        .where(eq(deploymentSettingsTable.id, settingId));
+    }
+
     async function findSetting(userId: string, dseq: string) {
       const [setting] = await db
         .select()
@@ -203,6 +249,6 @@ describe(ExpiringDeploymentsNotifierService.name, () => {
       return setting;
     }
 
-    return { notifier, createUserWithWallet, createDeploymentSetting, extendDeadline, liftLimit, findSetting, createNotification };
+    return { notifier, createUserWithWallet, createDeploymentSetting, startCountdown, extendDeadline, liftLimit, findSetting, createNotification };
   }
 });
