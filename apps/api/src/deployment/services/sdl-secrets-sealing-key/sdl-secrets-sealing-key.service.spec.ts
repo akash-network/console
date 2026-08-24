@@ -91,7 +91,10 @@ describe(SdlSecretsSealingKeyService.name, () => {
 
     await service.getSealingKey();
 
-    expect(kmsClient.getPublicKey).toHaveBeenCalledWith({ name: "projects/p/locations/global/keyRings/r/cryptoKeys/k/cryptoKeyVersions/1" });
+    expect(kmsClient.getPublicKey).toHaveBeenCalledWith(
+      { name: "projects/p/locations/global/keyRings/r/cryptoKeys/k/cryptoKeyVersions/1" },
+      expect.any(Object)
+    );
   });
 
   it("fails with 503 when KMS is unreachable", async () => {

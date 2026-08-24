@@ -1,7 +1,7 @@
 import type { protos } from "@google-cloud/kms";
 import { KeyManagementServiceClient } from "@google-cloud/kms";
 import { JWT, OAuth2Client } from "google-auth-library";
-import { grpc } from "google-gax";
+import { type CallOptions, grpc } from "google-gax";
 import type { InjectionToken } from "tsyringe";
 import { container, instancePerContainerCachingFactory } from "tsyringe";
 
@@ -12,7 +12,7 @@ const CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
 
 /** The Cloud KMS operations the console performs on the SDL secrets key, narrowed so they can be doubled in tests. */
 export interface SdlSecretsKmsClient {
-  getPublicKey(request: { name: string }): Promise<[protos.google.cloud.kms.v1.IPublicKey, ...unknown[]]>;
+  getPublicKey(request: { name: string }, options?: CallOptions): Promise<[protos.google.cloud.kms.v1.IPublicKey, ...unknown[]]>;
   asymmetricDecrypt(request: {
     name: string;
     ciphertext: Buffer;
