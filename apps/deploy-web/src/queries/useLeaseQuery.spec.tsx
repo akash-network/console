@@ -804,6 +804,31 @@ describe("useLeaseQuery", () => {
       expect(result.current[1].data?.services.api?.uris).toEqual(["api.example"]);
     });
 
+    it.each([502, 503])("useLeaseStatuses fails a %s from the provider proxy on the first attempt", async status => {
+      const provider = buildProvider();
+      const providerProxy = mock<ProviderProxyService>({
+        request: vi.fn().mockRejectedValue(new AxiosError("Unavailable", String(status), undefined, undefined, { status } as any))
+      });
+      const dependencies: typeof USE_LEASE_STATUS_DEPENDENCIES = {
+        ...USE_LEASE_STATUS_DEPENDENCIES,
+        useProviderCredentials: () => ({
+          details: { type: "jwt", value: "jwt-token", isExpired: false, usable: true, error: null },
+          ensureToken: vi.fn().mockResolvedValue("jwt-token")
+        })
+      };
+
+      const { result } = setupQuery(() => useLeaseStatuses([{ lease: mockLease, provider }], { dependencies }), {
+        services: { providerProxy: () => providerProxy }
+      });
+
+      await vi.waitFor(() => {
+        expect(result.current[0].isError).toBe(true);
+      });
+
+      expect(isProviderUnavailableError(result.current[0].error)).toBe(true);
+      expect(providerProxy.request).toHaveBeenCalledTimes(1);
+    });
+
     it("coerces the provider's null endpoint collections to empty arrays", async () => {
       const statusWithNulls = {
         forwarded_ports: { web: null },

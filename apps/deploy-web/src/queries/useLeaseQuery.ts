@@ -109,12 +109,18 @@ export function useLeaseExistenceQuery(address: string, options: Omit<UseQueryOp
   });
 }
 
+/**
+ * Lease-status polls own their retry and error-reporting policy, so `retry` and `meta` are not caller-settable:
+ * both hooks below set them unconditionally, and accepting them here would silently drop whatever a caller passed.
+ */
+type LeaseStatusQueryOptions = Omit<UseQueryOptions<LeaseStatusDto | null>, "queryKey" | "queryFn" | "retry" | "meta">;
+
 export function useLeaseStatus(
   params: {
     provider?: ApiProviderList | null;
     lease?: LeaseDto | null;
     dependencies?: typeof USE_LEASE_STATUS_DEPENDENCIES;
-  } & Omit<UseQueryOptions<LeaseStatusDto | null>, "queryKey" | "queryFn"> = {}
+  } & LeaseStatusQueryOptions = {}
 ) {
   const { provider, lease, dependencies: d = USE_LEASE_STATUS_DEPENDENCIES, select: callerSelect, ...options } = params;
   const providerCredentials = d.useProviderCredentials();
@@ -149,7 +155,7 @@ export const USE_LEASE_STATUS_DEPENDENCIES = {
 
 export function useLeaseStatuses(
   items: { lease: LeaseDto; provider?: ApiProviderList | null }[],
-  params: { dependencies?: typeof USE_LEASE_STATUS_DEPENDENCIES } & Omit<UseQueryOptions<LeaseStatusDto | null>, "queryKey" | "queryFn"> = {}
+  params: { dependencies?: typeof USE_LEASE_STATUS_DEPENDENCIES } & LeaseStatusQueryOptions = {}
 ) {
   const { dependencies: d = USE_LEASE_STATUS_DEPENDENCIES, select: callerSelect, ...options } = params;
   const providerCredentials = d.useProviderCredentials();
