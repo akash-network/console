@@ -6,7 +6,7 @@ import type { DEPENDENCIES } from "./ReviewAndDeployModal";
 import { ReviewAndDeployModal } from "./ReviewAndDeployModal";
 import type { ReviewRow } from "./useReviewRows";
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(ReviewAndDeployModal.name, () => {
@@ -55,7 +55,192 @@ describe(ReviewAndDeployModal.name, () => {
     expect(screen.getByRole("button", { name: /confirm and deploy/i })).toBeDisabled();
   });
 
-  function setup(input: { rows?: ReviewRow[]; pricedCount?: number; totalCount?: number; hasGpu?: boolean; onConfirm?: () => void; onBack?: () => void }) {
+  describe("runtime limit", () => {
+    it("offers the runtime limit section by default", () => {
+      setup({});
+      expect(screen.getByTestId("runtime-limit-section")).toBeInTheDocument();
+    });
+
+    it("hides the runtime limit section when the feature flag is off", () => {
+      setup({ isRuntimeLimitEnabled: false });
+      expect(screen.queryByTestId("runtime-limit-section")).not.toBeInTheDocument();
+    });
+
+    it("hides the runtime limit section for a trial user", () => {
+      setup({ isRestricted: true });
+      expect(screen.queryByTestId("runtime-limit-section")).not.toBeInTheDocument();
+    });
+
+    it("deploys without patching settings when no limit was chosen", async () => {
+      const onConfirm = vi.fn();
+      const { mutateAsync } = setup({ onConfirm });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync).not.toHaveBeenCalled();
+      expect(onConfirm).toHaveBeenCalled();
+    });
+
+    it("patches the runtime limit before deploying", async () => {
+      const onConfirm = vi.fn();
+      const { mutateAsync } = setup({ onConfirm, runtimeLimitHours: 12 });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync).toHaveBeenCalledWith({ runtimeLimitHours: 12 });
+      await waitFor(() => expect(onConfirm).toHaveBeenCalled());
+    });
+
+    it("surfaces a failed patch and does not deploy", async () => {
+      const onConfirm = vi.fn();
+      const { enqueueSnackbar } = setup({ onConfirm, runtimeLimitHours: 12, patchError: new Error("nope") });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalled());
+      expect(onConfirm).not.toHaveBeenCalled();
+    });
+
+    it("does not patch a leftover limit when the feature flag is off", async () => {
+      const onConfirm = vi.fn();
+      const { mutateAsync } = setup({ onConfirm, runtimeLimitHours: 12, isRuntimeLimitEnabled: false });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync).not.toHaveBeenCalled();
+      expect(onConfirm).toHaveBeenCalled();
+    });
+
+    it("does not patch a leftover limit for a trial user", async () => {
+      const onConfirm = vi.fn();
+      const { mutateAsync } = setup({ onConfirm, runtimeLimitHours: 12, isRestricted: true });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync).not.toHaveBeenCalled();
+      expect(onConfirm).toHaveBeenCalled();
+    });
+
+    it("blocks both actions while the patch is in flight", () => {
+      setup({ runtimeLimitHours: 12, isPatchPending: true });
+
+      expect(screen.getByRole("button", { name: /confirm and deploy/i })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /back to marketplace/i })).toBeDisabled();
+    });
+
+    it("does not patch when the stored limit already matches the requested one", async () => {
+      const onConfirm = vi.fn();
+      const { mutateAsync } = setup({ onConfirm, runtimeLimitHours: 12, storedRuntimeLimitHours: 12 });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync).not.toHaveBeenCalled();
+      expect(onConfirm).toHaveBeenCalled();
+    });
+
+    it("removes the stored limit when confirming with the limit turned off", async () => {
+      const onConfirm = vi.fn();
+      const { mutateAsync } = setup({ onConfirm, runtimeLimitHours: undefined, storedRuntimeLimitHours: 12 });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync.mock.calls).toEqual([[{ runtimeLimitHours: null }]]);
+      await waitFor(() => expect(onConfirm).toHaveBeenCalled());
+    });
+
+    it("removes the stored limit before writing a lower one, on a fresh mount that never wrote it", async () => {
+      const { mutateAsync } = setup({ runtimeLimitHours: 24, storedRuntimeLimitHours: 48 });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync.mock.calls).toEqual([[{ runtimeLimitHours: null }], [{ runtimeLimitHours: 24 }]]);
+    });
+
+    it("waits for the stored limit to be read before allowing a deploy", () => {
+      setup({ runtimeLimitHours: 24, isStoredSettingLoading: true });
+
+      expect(screen.getByRole("button", { name: /confirm and deploy/i })).toBeDisabled();
+      expect(screen.getByRole("status")).toBeInTheDocument();
+    });
+
+    it("clears the stored limit first when it could not be read", async () => {
+      const { mutateAsync } = setup({ runtimeLimitHours: 24, storedSettingError: new Error("offline") });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync.mock.calls).toEqual([[{ runtimeLimitHours: null }], [{ runtimeLimitHours: 24 }]]);
+    });
+
+    it("leaves a stored limit alone when the feature flag is off", async () => {
+      const onConfirm = vi.fn();
+      const { mutateAsync } = setup({ onConfirm, storedRuntimeLimitHours: 48, isRuntimeLimitEnabled: false });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync).not.toHaveBeenCalled();
+      expect(onConfirm).toHaveBeenCalled();
+    });
+
+    it("deploys when the stored limit cannot be read and the feature is off", async () => {
+      const onConfirm = vi.fn();
+      const { mutateAsync } = setup({ onConfirm, isRuntimeLimitEnabled: false, storedSettingError: new Error("offline") });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync).not.toHaveBeenCalled();
+      expect(onConfirm).toHaveBeenCalled();
+    });
+
+    it("says the limit was removed but not replaced when only the second patch fails", async () => {
+      const onConfirm = vi.fn();
+      const { enqueueSnackbar } = setup({ onConfirm, runtimeLimitHours: 24, storedRuntimeLimitHours: 48, secondPatchError: new Error("offline") });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalled());
+      const [[snackbar]] = enqueueSnackbar.mock.calls;
+      render(snackbar);
+      expect(screen.getByText("Runtime limit removed but not replaced")).toBeInTheDocument();
+      expect(onConfirm).not.toHaveBeenCalled();
+    });
+
+    it("blocks deploying while the limit is switched on with no hours entered", async () => {
+      setup({});
+
+      await userEvent.click(screen.getByRole("button", { name: /turn on runtime limit/i }));
+
+      expect(screen.getByRole("button", { name: /confirm and deploy/i })).toBeDisabled();
+    });
+
+    it("raises a committed limit directly on a retry", async () => {
+      const { mutateAsync, setRuntimeLimitHours } = setup({ runtimeLimitHours: 12 });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+      setRuntimeLimitHours(24);
+      mutateAsync.mockClear();
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync.mock.calls).toEqual([[{ runtimeLimitHours: 24 }]]);
+    });
+  });
+
+  function setup(input: {
+    rows?: ReviewRow[];
+    pricedCount?: number;
+    totalCount?: number;
+    hasGpu?: boolean;
+    onConfirm?: () => void;
+    onBack?: () => void;
+    runtimeLimitHours?: number;
+    storedRuntimeLimitHours?: number;
+    isStoredSettingLoading?: boolean;
+    storedSettingError?: Error;
+    isRuntimeLimitEnabled?: boolean;
+    isRestricted?: boolean;
+    isPatchPending?: boolean;
+    patchError?: Error;
+    secondPatchError?: Error;
+  }) {
     const rows = input.rows ?? [
       { placementId: "p1", placementName: "placement-1", region: "Any region", providerName: "Dune Networks", price: { amount: "100", denom: "uakt" } }
     ];
@@ -66,16 +251,76 @@ describe(ReviewAndDeployModal.name, () => {
     });
     const PricePerTimeUnit: typeof DEPENDENCIES.PricePerTimeUnit = ({ showAsHourly }) => <span data-testid="price">{showAsHourly ? "hourly" : "monthly"}</span>;
     const useDeploymentHasGpu: typeof DEPENDENCIES.useDeploymentHasGpu = () => input.hasGpu ?? false;
-    render(
+    const RuntimeLimitReviewSection: typeof DEPENDENCIES.RuntimeLimitReviewSection = ({ isLimited, onLimitedChange, onChange }) => (
+      <button
+        data-testid="runtime-limit-section"
+        onClick={() => {
+          onLimitedChange(!isLimited);
+          onChange(isLimited ? undefined : 24);
+        }}
+      >
+        {isLimited ? "Turn off runtime limit" : "Turn on runtime limit"}
+      </button>
+    );
+    const useFlag: typeof DEPENDENCIES.useFlag = () => input.isRuntimeLimitEnabled ?? true;
+    const useTrialGate: typeof DEPENDENCIES.useTrialGate = () => ({ isRestricted: input.isRestricted ?? false, isWalletReady: true });
+
+    let patchCalls = 0;
+    const mutateAsync = vi.fn().mockImplementation(() => {
+      patchCalls++;
+      if (input.patchError) return Promise.reject(input.patchError);
+      if (input.secondPatchError && patchCalls === 2) return Promise.reject(input.secondPatchError);
+      return Promise.resolve();
+    });
+    const mutation = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useUpdateDeploymentSettingMutation>>(), {
+      mutateAsync,
+      isPending: input.isPatchPending ?? false
+    });
+    const useUpdateDeploymentSettingMutation: typeof DEPENDENCIES.useUpdateDeploymentSettingMutation = () => mutation;
+
+    type StoredSetting = ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>;
+    const storedSetting = Object.assign(mock<StoredSetting>(), {
+      data:
+        input.isStoredSettingLoading || input.storedSettingError
+          ? undefined
+          : Object.assign(mock<NonNullable<StoredSetting["data"]>>(), { runtimeLimitHours: input.storedRuntimeLimitHours ?? null }),
+      isFetching: input.isStoredSettingLoading ?? false,
+      error: input.storedSettingError ?? null
+    });
+    const useDeploymentSettingQuery: typeof DEPENDENCIES.useDeploymentSettingQuery = () => storedSetting;
+
+    const enqueueSnackbar = vi.fn();
+    const useSnackbar: typeof DEPENDENCIES.useSnackbar = () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar });
+    const Snackbar: typeof DEPENDENCIES.Snackbar = ({ title }) => <span>{title}</span>;
+
+    const modal = (runtimeLimitHours: number | undefined) => (
       <ReviewAndDeployModal
         open
         dseq="55"
         placements={[mock<PlacementType>({ id: "p1", name: "placement-1", region: "Any region" })]}
         selections={{ p1: "akash1a/55/1/2" }}
+        runtimeLimitHours={runtimeLimitHours}
+        onRuntimeLimitHoursChange={vi.fn()}
         onConfirm={input.onConfirm ?? vi.fn()}
         onBack={input.onBack ?? vi.fn()}
-        dependencies={{ useReviewRows, PricePerTimeUnit, useDeploymentHasGpu }}
+        dependencies={{
+          useReviewRows,
+          PricePerTimeUnit,
+          useDeploymentHasGpu,
+          RuntimeLimitReviewSection,
+          useFlag,
+          useTrialGate,
+          useDeploymentSettingQuery,
+          useUpdateDeploymentSettingMutation,
+          useSnackbar,
+          Snackbar
+        }}
       />
     );
+
+    const { rerender } = render(modal(input.runtimeLimitHours));
+    const setRuntimeLimitHours = (runtimeLimitHours: number | undefined) => rerender(modal(runtimeLimitHours));
+
+    return { mutateAsync, enqueueSnackbar, setRuntimeLimitHours };
   }
 });

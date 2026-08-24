@@ -76,6 +76,26 @@ describe(useConfigureDraft.name, () => {
     expect(storedName("draft-1")).toBe("my-app");
   });
 
+  it("exposes the persisted runtime limit for the active draft", () => {
+    const { result } = setup({ intent: { draftId: "draft-1" }, storedRuntimeLimitHours: { "draft-1": 6 } });
+
+    expect(result.current.persistedRuntimeLimitHours).toBe(6);
+  });
+
+  it("has no persisted runtime limit when the stored draft omits one", () => {
+    const { result } = setup({ intent: { draftId: "draft-1" }, stored: { "draft-1": "version: '2.0'" } });
+
+    expect(result.current.persistedRuntimeLimitHours).toBeUndefined();
+  });
+
+  it("saves the runtime limit alongside the sdl for the active draft", () => {
+    const { result } = setup({ intent: { draftId: "draft-1" } });
+
+    result.current.save("version: '2.0'", "my-app", 6);
+
+    expect(storedRuntimeLimitHours("draft-1")).toBe(6);
+  });
+
   it("clears the persisted draft", () => {
     const { result } = setup({ intent: { draftId: "draft-1" }, stored: { "draft-1": "version: '2.0'" } });
 
@@ -151,6 +171,11 @@ describe(useConfigureDraft.name, () => {
     return raw ? (JSON.parse(raw) as { name?: string }).name : undefined;
   }
 
+  function storedRuntimeLimitHours(draftId: string) {
+    const raw = window.localStorage.getItem(`${DRAFT_KEY_PREFIX}${draftId}`);
+    return raw ? (JSON.parse(raw) as { runtimeLimitHours?: number }).runtimeLimitHours : undefined;
+  }
+
   function countDrafts() {
     return Object.keys(window.localStorage).filter(key => key.startsWith(DRAFT_KEY_PREFIX)).length;
   }
@@ -159,6 +184,7 @@ describe(useConfigureDraft.name, () => {
     intent?: Partial<DeploymentIntent>;
     stored?: Record<string, string>;
     storedName?: Record<string, string>;
+    storedRuntimeLimitHours?: Record<string, number>;
     rawStored?: Record<string, string>;
     getStorage?: typeof DEPENDENCIES.getStorage;
     mintedDraftId?: string;
@@ -169,6 +195,9 @@ describe(useConfigureDraft.name, () => {
     );
     Object.entries(input.storedName ?? {}).forEach(([draftId, name]) =>
       window.localStorage.setItem(`${DRAFT_KEY_PREFIX}${draftId}`, JSON.stringify({ sdl: "seeded", name, updatedAt: 1 }))
+    );
+    Object.entries(input.storedRuntimeLimitHours ?? {}).forEach(([draftId, runtimeLimitHours]) =>
+      window.localStorage.setItem(`${DRAFT_KEY_PREFIX}${draftId}`, JSON.stringify({ sdl: "seeded", runtimeLimitHours, updatedAt: 1 }))
     );
     Object.entries(input.rawStored ?? {}).forEach(([draftId, raw]) => window.localStorage.setItem(`${DRAFT_KEY_PREFIX}${draftId}`, raw));
 

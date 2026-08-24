@@ -6,7 +6,7 @@ import type { DeploymentDto, DeploymentGroup, LeaseDto } from "@src/types/deploy
 import type { ApiProviderList } from "@src/types/provider";
 import { DEPENDENCIES, DeploymentDetailHeader } from "./DeploymentDetailHeader";
 
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
@@ -68,6 +68,61 @@ describe("DeploymentDetailHeader", () => {
     setup({ autoTopUpEnabled: false });
 
     expect(screen.getByText("Off")).toBeInTheDocument();
+  });
+
+  it("shows the runtime limit tile when the deployment has one", () => {
+    setup({ runtimeLimitHours: 12 });
+
+    expect(screen.getByText("RUNTIME LIMIT")).toBeInTheDocument();
+    expect(screen.getByText("12h")).toBeInTheDocument();
+  });
+
+  it("keeps the remaining-time label ticking as time passes, without any query refetch", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-21T12:00:00.000Z"));
+
+    try {
+      setup({ runtimeLimitHours: 12, runtimeEndsAt: "2026-08-21T14:00:00.000Z" });
+
+      expect(screen.getByText("12h · ~2h left")).toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(61 * 60 * 1000);
+      });
+      expect(screen.getByText("12h · ~1h left")).toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
+      });
+      expect(screen.getByText("12h · reached")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("hides the runtime limit tile when the deployment has none", () => {
+    setup({});
+
+    expect(screen.queryByText("RUNTIME LIMIT")).not.toBeInTheDocument();
+  });
+
+  it("replaces the auto top-up tile with the runtime limit tile, never showing both", () => {
+    setup({ runtimeLimitHours: 12, autoTopUpEnabled: true });
+
+    expect(screen.getByText("RUNTIME LIMIT")).toBeInTheDocument();
+    expect(screen.queryByText("AUTO TOP-UP")).not.toBeInTheDocument();
+  });
+
+  it("shows the auto top-up tile when the deployment has no runtime limit", () => {
+    setup({ autoTopUpEnabled: true });
+
+    expect(screen.getByText("AUTO TOP-UP")).toBeInTheDocument();
+  });
+
+  it("shows the deployment's own escrow balance rather than the account-wide wallet balance", () => {
+    setup({ escrowBalanceUdenom: 3_720_000 });
+
+    expect(screen.getByTestId("escrow-balance")).toHaveTextContent("3.72");
   });
 
   it("passes every lease and provider to the visit control", () => {
@@ -167,6 +222,9 @@ describe("DeploymentDetailHeader", () => {
 
   function setup(input: {
     autoTopUpEnabled?: boolean;
+    escrowBalanceUdenom?: number;
+    runtimeLimitHours?: number | null;
+    runtimeEndsAt?: string | null;
     name?: string | null;
     isTrialing?: boolean;
     storedManifest?: string | null;
@@ -189,10 +247,18 @@ describe("DeploymentDetailHeader", () => {
     const TrialDeploymentBadge = vi.fn(() => <div>trial-badge</div>);
     const ConfidentialComputeBadge = vi.fn(() => <div>tee-badge</div>);
     const GpuInterconnectBadge = vi.fn(() => <div>interconnect-badge</div>);
-    const useWalletBalance: typeof DEPENDENCIES.useWalletBalance = () => mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>({ balance: null });
+    const useDeploymentEscrowBalance: typeof DEPENDENCIES.useDeploymentEscrowBalance = () => ({
+      balanceUdenom: input.escrowBalanceUdenom ?? 0,
+      denom: "uact"
+    });
+    const PriceValue: typeof DEPENDENCIES.PriceValue = ({ value }) => <span data-testid="escrow-balance">{value}</span>;
     const useDeploymentSettingQuery: typeof DEPENDENCIES.useDeploymentSettingQuery = () =>
       mock<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>>({
-        data: mock<NonNullable<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>["data"]>>({ autoTopUpEnabled: input.autoTopUpEnabled ?? false })
+        data: mock<NonNullable<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>["data"]>>({
+          autoTopUpEnabled: input.autoTopUpEnabled ?? false,
+          runtimeLimitHours: input.runtimeLimitHours ?? null,
+          runtimeEndsAt: input.runtimeEndsAt ?? null
+        })
       });
     const CostRate = vi.fn(() => <div>cost-rate</div>);
     const DeploymentVisitControl = vi.fn(() => <div>visit</div>);
@@ -216,7 +282,8 @@ describe("DeploymentDetailHeader", () => {
         dependencies={MockComponents(DEPENDENCIES, {
           useLocalNotes,
           useWallet,
-          useWalletBalance,
+          useDeploymentEscrowBalance,
+          PriceValue,
           useDeploymentSettingQuery,
           useDeclaredTeeTypes,
           useDeclaredGpuInterconnect,
@@ -230,6 +297,6 @@ describe("DeploymentDetailHeader", () => {
       />
     );
 
-    return { changeDeploymentName, CostRate };
+    return { changeDeploymentName, CostRate, PriceValue };
   }
 });

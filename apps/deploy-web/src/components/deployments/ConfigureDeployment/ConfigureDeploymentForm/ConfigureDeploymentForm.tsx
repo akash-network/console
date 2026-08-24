@@ -74,6 +74,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const { analyticsService } = d.useServices();
   const draft = d.useConfigureDraft(intent);
   const { name: deploymentName, setName: setDeploymentName } = d.useDeploymentName({ initialName, dseq: flow.dseq });
+  const [runtimeLimitHours, setRuntimeLimitHours] = useState<number | undefined>(() => draft.persistedRuntimeLimitHours);
   const form = useForm<SdlBuilderFormValuesType>({
     defaultValues: initialState.values,
     mode: "onTouched",
@@ -115,13 +116,13 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     function debouncePreviewSdl() {
       const timeout = setTimeout(function commitDebouncedSdl() {
         setPreviewSdl(liveSdl);
-        draft.save(liveSdl, deploymentName);
+        draft.save(liveSdl, deploymentName, runtimeLimitHours);
       }, SDL_SYNC_DEBOUNCE_MS);
       return function cancelPreviewDebounce() {
         clearTimeout(timeout);
       };
     },
-    [liveSdl, deploymentName, draft]
+    [liveSdl, deploymentName, runtimeLimitHours, draft]
   );
 
   useEffect(
@@ -299,6 +300,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
           dseq={flow.dseq}
           placements={placements}
           selections={flow.selections}
+          runtimeLimitHours={runtimeLimitHours}
+          onRuntimeLimitHoursChange={setRuntimeLimitHours}
           onBack={closeReview}
           onConfirm={() => {
             analyticsService.track("review_deploy_confirmed", { category: "deployments", dseq: flow.dseq });

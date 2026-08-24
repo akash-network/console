@@ -9,17 +9,19 @@ import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { ConfidentialComputeBadge } from "@src/components/shared/ConfidentialComputeBadge";
 import { CostRate } from "@src/components/shared/CostRate";
 import { GpuInterconnectBadge } from "@src/components/shared/GpuInterconnectBadge";
+import { PriceValue } from "@src/components/shared/PriceValue";
 import { TrialDeploymentBadge } from "@src/components/shared/TrialDeploymentBadge";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
 import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
-import { useWalletBalance } from "@src/hooks/useWalletBalance";
+import { useDeploymentEscrowBalance } from "@src/hooks/useDeploymentEscrowBalance/useDeploymentEscrowBalance";
+import { useTickingNow } from "@src/hooks/useTickingNow";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
-import { getEscrowDenom } from "@src/utils/deploymentUtils";
 import { isLeaseLive } from "@src/utils/leaseUtils";
-import { roundDecimal } from "@src/utils/mathHelpers";
+import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
+import { formatRuntimeLimit } from "@src/utils/runtimeLimitUtils";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import {
   countPlacementServices,
@@ -34,11 +36,12 @@ import { DeploymentStatusBadge } from "./DeploymentStatusBadge";
 export const DEPENDENCIES = {
   useLocalNotes,
   useWallet,
-  useWalletBalance,
+  useDeploymentEscrowBalance,
   useDeploymentSettingQuery,
   useDeclaredTeeTypes,
   useDeclaredGpuInterconnect,
   CostRate,
+  PriceValue,
   DeploymentVisitControl,
   CustomTooltip,
   ConfidentialComputeBadge,
@@ -63,7 +66,7 @@ export interface DeploymentDetailHeaderProps {
 export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deployment, leases, providers, dependencies: d = DEPENDENCIES }) => {
   const { getDeploymentName, changeDeploymentName, getDeploymentData } = d.useLocalNotes();
   const { isTrialing } = d.useWallet();
-  const { balance: walletBalance } = d.useWalletBalance();
+  const { balanceUdenom, denom } = d.useDeploymentEscrowBalance({ deployment, leases });
   const { data: settings } = d.useDeploymentSettingQuery({ dseq: deployment.dseq });
   const teeTypes = d.useDeclaredTeeTypes(deployment);
   const interconnect = d.useDeclaredGpuInterconnect(deployment);
@@ -72,13 +75,15 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
   const costPerBlockUDenom = liveLeases.reduce((sum, lease) => sum + parseFloat(lease.price.amount), 0);
   const liveGpuCount = liveLeases.reduce((sum, lease) => sum + (lease.gpuAmount ?? 0), 0);
 
+  const runtimeEndsAt = settings?.runtimeEndsAt ?? null;
+  const now = useTickingNow(!!runtimeEndsAt);
+
   const storedDeployment = getDeploymentData(deployment.dseq);
   const storedManifest = storedDeployment?.manifest;
   const manifestServices = useMemo(() => parseManifestServices(storedManifest), [storedManifest]);
   const servicesByPlacement = useMemo(() => parseServicesByPlacement(storedManifest), [storedManifest]);
 
   const name = getDeploymentName(deployment.dseq) || `Deployment #${deployment.dseq}`;
-  const denom = getEscrowDenom(deployment);
   const servicesCount = countPlacementServices(leases ?? [], servicesByPlacement, manifestServices);
   const memory = bytesToShrink(deployment.memoryAmount);
   const storage = bytesToShrink(deployment.storageAmount);
@@ -113,26 +118,43 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
           <SummaryItem label="COST">
             {costPerBlockUDenom ? <d.CostRate perBlockUDenom={costPerBlockUDenom} denom={denom} gpuCount={liveGpuCount} /> : "—"}
           </SummaryItem>
-          <SummaryItem label="BALANCE">{walletBalance ? `$${walletBalance.totalUsd.toFixed(2)}` : "—"}</SummaryItem>
-          <SummaryItem
-            label={
-              <span className="inline-flex items-center gap-1">
-                AUTO TOP-UP
-                <d.CustomTooltip title="Automatically add credits when your balance gets low to keep your deployments running.">
-                  <InfoCircle width={12} height={12} className="text-muted-foreground" />
-                </d.CustomTooltip>
-              </span>
-            }
-          >
-            {settings?.autoTopUpEnabled ? (
-              <Badge className="gap-1 rounded-md border-transparent bg-blue-500 px-2 py-0.5 text-white hover:bg-blue-500 dark:bg-blue-600 dark:hover:bg-blue-600">
-                <CheckCircle width={12} height={12} />
-                Active
-              </Badge>
-            ) : (
-              <span className="text-muted-foreground">Off</span>
-            )}
+          <SummaryItem label="BALANCE">
+            <d.PriceValue denom={denom} value={udenomToDenom(balanceUdenom, 6)} />
           </SummaryItem>
+          {settings?.runtimeLimitHours ? (
+            <SummaryItem
+              label={
+                <span className="inline-flex items-center gap-1">
+                  RUNTIME LIMIT
+                  <d.CustomTooltip title="This deployment closes automatically once its runtime limit is reached. Unused funds are returned to your balance.">
+                    <InfoCircle width={12} height={12} className="text-muted-foreground" />
+                  </d.CustomTooltip>
+                </span>
+              }
+            >
+              {formatRuntimeLimit(settings.runtimeLimitHours, runtimeEndsAt, now)}
+            </SummaryItem>
+          ) : (
+            <SummaryItem
+              label={
+                <span className="inline-flex items-center gap-1">
+                  AUTO TOP-UP
+                  <d.CustomTooltip title="Automatically add credits when your balance gets low to keep your deployments running.">
+                    <InfoCircle width={12} height={12} className="text-muted-foreground" />
+                  </d.CustomTooltip>
+                </span>
+              }
+            >
+              {settings?.autoTopUpEnabled ? (
+                <Badge className="gap-1 rounded-md border-transparent bg-blue-500 px-2 py-0.5 text-white hover:bg-blue-500 dark:bg-blue-600 dark:hover:bg-blue-600">
+                  <CheckCircle width={12} height={12} />
+                  Active
+                </Badge>
+              ) : (
+                <span className="text-muted-foreground">Off</span>
+              )}
+            </SummaryItem>
+          )}
           <SummaryItem label="GPU">{formatGpuLabel(deployment.gpuAmount ?? 0, getDeploymentGpuModels(deployment.groups))}</SummaryItem>
           <SummaryItem label="vCPU">{roundDecimal(deployment.cpuAmount, 2)}</SummaryItem>
           <SummaryItem label="MEMORY">{`${roundDecimal(memory.value, 2)} ${memory.unit}`}</SummaryItem>
