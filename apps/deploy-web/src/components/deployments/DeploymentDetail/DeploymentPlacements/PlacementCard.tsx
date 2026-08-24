@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import { useTeeResourceCarveouts } from "@src/hooks/useTeeResourceCarveouts";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
+import { isProviderUnavailableError } from "@src/services/query-error-policy/query-error-policy";
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { getGroupTeeType } from "@src/utils/confidentialCompute";
@@ -56,7 +57,8 @@ export const PlacementCard: FC<PlacementCardProps> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const isLeaseActive = isLeaseLive(lease);
-  const { data: leaseStatus } = d.useLeaseStatus({ provider, lease, enabled: isLeaseActive && !!provider, refetchInterval: 30_000 });
+  const { data: leaseStatus, error: leaseStatusError } = d.useLeaseStatus({ provider, lease, enabled: isLeaseActive && !!provider, refetchInterval: 30_000 });
+  const isProviderUnreachable = isProviderUnavailableError(leaseStatusError);
   const carveouts = d.useTeeResourceCarveouts(lease);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
 
@@ -96,6 +98,7 @@ export const PlacementCard: FC<PlacementCardProps> = ({
             </div>
             <h3 className="text-2xl font-medium tracking-tight">{name}</h3>
             {isReclaiming(lease) && <StatusBadge label="Reclaiming" tone="warning" />}
+            {isProviderUnreachable && <StatusBadge label="Provider not responding" tone="warning" />}
           </div>
           {(region || providerName) && (
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
