@@ -753,6 +753,211 @@ describe(DrainingDeploymentService.name, () => {
     }
   });
 
+  describe("calculateWeeklyCoverageForAddress", () => {
+    it("calculates seven days of burn in fiat for always-on deployments still open", async () => {
+      const blockRate1 = 50;
+      const blockRate2 = 75;
+      const { service, address, balancesService, userWalletRepository, deploymentSettingRepository } = await setupWeeklyBurnForAddress({
+        deployments: [{ blockRate: blockRate1 }, { blockRate: blockRate2 }]
+      });
+
+      const result = await service.calculateWeeklyCoverageForAddress(address);
+
+      const creditsForDays = (days: number) =>
+        Math.floor(blockRate1 * averageBlockCountInAnHour * 24 * days) + Math.floor(blockRate2 * averageBlockCountInAnHour * 24 * days);
+      const expectedCredits = creditsForDays(7);
+      expect(userWalletRepository.accessibleBy).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.accessibleBy).not.toHaveBeenCalled();
+      expect(balancesService.toFiatAmount).toHaveBeenCalledWith(expectedCredits);
+      expect(result.weeklyCostUsd).toBe(usdFromCredits(expectedCredits));
+      expect(result.cumulativeDailyCostsUsd).toEqual(Array.from({ length: 7 }, (_, day) => (creditsForDays(day + 1) / expectedCredits) * result.weeklyCostUsd));
+    });
+
+    it("bills twelve hours of burn when the runtime deadline is twelve hours away", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
+
+      try {
+        const blockRate = 50;
+        const runtimeEndsAt = new Date(Date.now() + 12 * millisecondsInHour);
+        const { service, address, balancesService } = await setupWeeklyBurnForAddress({
+          deployments: [
+            {
+              blockRate,
+              runtimeLimitHours: 24,
+              runtimeEndsAt
+            }
+          ]
+        });
+
+        const result = await service.calculateWeeklyCoverageForAddress(address);
+
+        const expectedCredits = Math.floor(blockRate * averageBlockCountInAnHour * 12);
+        const weekCredits = Math.floor(blockRate * averageBlockCountInAnHour * 24 * 7);
+        expect(balancesService.toFiatAmount).toHaveBeenCalledWith(expectedCredits);
+        expect(balancesService.toFiatAmount).not.toHaveBeenCalledWith(weekCredits);
+        expect(result.weeklyCostUsd).toBe(usdFromCredits(expectedCredits));
+        expect(result.cumulativeDailyCostsUsd).toEqual(Array.from({ length: 7 }, () => result.weeklyCostUsd));
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("returns 0 when the runtime deadline is in the past", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
+
+      try {
+        const { service, address, balancesService } = await setupWeeklyBurnForAddress({
+          deployments: [
+            {
+              blockRate: 50,
+              runtimeLimitHours: 12,
+              runtimeEndsAt: new Date(Date.now() - millisecondsInHour)
+            }
+          ]
+        });
+
+        const result = await service.calculateWeeklyCoverageForAddress(address);
+
+        expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [] });
+        expect(balancesService.toFiatAmount).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("bills three hours of burn for an unanchored runtime limit", async () => {
+      const blockRate = 50;
+      const { service, address, balancesService, deploymentSettingRepository } = await setupWeeklyBurnForAddress({
+        deployments: [
+          {
+            blockRate,
+            runtimeLimitHours: 3,
+            runtimeEndsAt: null
+          }
+        ]
+      });
+
+      const result = await service.calculateWeeklyCoverageForAddress(address);
+
+      const expectedCredits = Math.floor(blockRate * averageBlockCountInAnHour * 3);
+      expect(deploymentSettingRepository.startRuntimeCountdown).not.toHaveBeenCalled();
+      expect(balancesService.toFiatAmount).toHaveBeenCalledWith(expectedCredits);
+      expect(result.weeklyCostUsd).toBe(usdFromCredits(expectedCredits));
+      expect(result.cumulativeDailyCostsUsd).toEqual(Array.from({ length: 7 }, () => result.weeklyCostUsd));
+    });
+
+    it("front-loads a short runtime limit into the first day while an always-on deployment accrues daily", async () => {
+      const limitedBlockRate = 500;
+      const alwaysOnBlockRate = 10;
+      const { service, address } = await setupWeeklyBurnForAddress({
+        deployments: [{ blockRate: limitedBlockRate, runtimeLimitHours: 2, runtimeEndsAt: null }, { blockRate: alwaysOnBlockRate }]
+      });
+
+      const result = await service.calculateWeeklyCoverageForAddress(address);
+
+      const limitedCredits = Math.floor(limitedBlockRate * averageBlockCountInAnHour * 2);
+      const alwaysOnCreditsForDays = (days: number) => Math.floor(alwaysOnBlockRate * averageBlockCountInAnHour * 24 * days);
+      const weeklyCredits = limitedCredits + alwaysOnCreditsForDays(7);
+      expect(result.weeklyCostUsd).toBe(usdFromCredits(weeklyCredits));
+      expect(result.cumulativeDailyCostsUsd).toEqual(
+        Array.from({ length: 7 }, (_, day) => ((limitedCredits + alwaysOnCreditsForDays(day + 1)) / weeklyCredits) * result.weeklyCostUsd)
+      );
+    });
+
+    it("returns 0 when user wallet is not found", async () => {
+      const { service, address } = await setupWeeklyBurnForAddress({
+        userWallet: undefined,
+        deployments: [{ predictedClosedHeight: 1000100, blockRate: 50 }]
+      });
+
+      const result = await service.calculateWeeklyCoverageForAddress(address);
+
+      expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [] });
+    });
+
+    it("returns 0 when user wallet has no address", async () => {
+      const { service, address } = await setupWeeklyBurnForAddress({
+        userWallet: createUserWallet({ address: null }),
+        deployments: [{ predictedClosedHeight: 1000100, blockRate: 50 }]
+      });
+
+      const result = await service.calculateWeeklyCoverageForAddress(address);
+
+      expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [] });
+    });
+
+    it("returns 0 when no deployments are found", async () => {
+      const { service, address } = await setupWeeklyBurnForAddress({
+        deployments: []
+      });
+
+      const result = await service.calculateWeeklyCoverageForAddress(address);
+
+      expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [] });
+    });
+
+    it("returns 0 when block rate is zero", async () => {
+      const { service, address, balancesService } = await setupWeeklyBurnForAddress({
+        deployments: [{ blockRate: 0 }]
+      });
+
+      const result = await service.calculateWeeklyCoverageForAddress(address);
+
+      expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [] });
+      expect(balancesService.toFiatAmount).not.toHaveBeenCalled();
+    });
+
+    function usdFromCredits(credits: number) {
+      return Number((credits / 1_000_000).toFixed(2));
+    }
+
+    async function setupWeeklyBurnForAddress(input: {
+      userWallet?: ReturnType<typeof createUserWallet> | undefined;
+      deployments: Array<{
+        predictedClosedHeight?: number | null;
+        blockRate: number;
+        runtimeLimitHours?: number | null;
+        runtimeEndsAt?: Date | null;
+      }>;
+    }) {
+      const address = createAkashAddress();
+      const userWallet = "userWallet" in input ? input.userWallet : createUserWallet({ address });
+
+      const baseSetup = setup();
+      baseSetup.userWalletRepository.findOneBy.mockResolvedValue(userWallet);
+
+      const deploymentSettings = input.deployments.map((deployment, idx) =>
+        createAutoTopUpDeployment({
+          address,
+          dseq: String(1000 + idx),
+          runtimeLimitHours: deployment.runtimeLimitHours ?? null,
+          runtimeEndsAt: deployment.runtimeEndsAt ?? null
+        })
+      );
+
+      const drainingDeployments = deploymentSettings.map((setting, idx) => {
+        const deployment = input.deployments[idx];
+        return createDrainingDeployment({
+          dseq: Number(setting.dseq),
+          owner: address,
+          blockRate: deployment?.blockRate ?? 0,
+          predictedClosedHeight: deployment?.predictedClosedHeight ?? baseSetup.currentHeight + 100
+        });
+      });
+
+      baseSetup.deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue(deploymentSettings);
+      baseSetup.rpcService.findManyByDseqAndOwner.mockResolvedValue(drainingDeployments);
+      baseSetup.balancesService.toFiatAmount.mockImplementation(async (uaktAmount: number) => usdFromCredits(uaktAmount));
+
+      return {
+        ...baseSetup,
+        address
+      };
+    }
+  });
+
   describe("calculateAllDeploymentCostUntilDate", () => {
     it("calculates total cost for deployments closing within target date", async () => {
       vi.useFakeTimers();

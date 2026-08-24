@@ -19,6 +19,11 @@ import { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed
 
 export type { DrainingDeployment } from "@src/deployment/types/draining-deployment";
 
+export type WeeklyCoverage = {
+  weeklyCostUsd: number;
+  cumulativeDailyCostsUsd: number[];
+};
+
 @singleton()
 export class DrainingDeploymentService {
   constructor(
@@ -344,6 +349,70 @@ export class DrainingDeploymentService {
     }
 
     return await this.balancesService.toFiatAmount(weeklyCost);
+  }
+
+  /**
+   * Weekly auto-top-up coverage for an address, in USD.
+   * Caps each runtime-limited deployment at remaining hours (or the unanchored
+   * limit) so a deadline inside the week is not billed as a full seven days.
+   * `cumulativeDailyCostsUsd[d - 1]` is what the first `d` days of that coverage cost, so a
+   * balance can be translated into covered days without assuming the capped weekly total
+   * is a uniform seven-day burn rate.
+   * Not CASL-scoped — the credits-low job calls this with the wallet address.
+   */
+  async calculateWeeklyCoverageForAddress(address: string): Promise<WeeklyCoverage> {
+    const noCoverage: WeeklyCoverage = { weeklyCostUsd: 0, cumulativeDailyCostsUsd: [] };
+
+    const deploymentSettings = await this.#findAutoTopUpDeploymentSettings(address);
+    if (deploymentSettings.length === 0) {
+      return noCoverage;
+    }
+
+    const currentHeight = await this.blockHttpService.getCurrentHeight();
+    const leases = await this.#findDrainingDeployments(deploymentSettings, address, Number.MAX_SAFE_INTEGER);
+    const settingsByDseq = keyBy(deploymentSettings, s => String(s.dseq));
+
+    const burns = leases.flatMap(({ dseq, predictedClosedHeight, blockRate }) => {
+      if (!predictedClosedHeight || predictedClosedHeight <= currentHeight || blockRate <= 0) {
+        return [];
+      }
+
+      const coverageHours = this.#coverageHoursForDeployment(settingsByDseq[String(dseq)], currentHeight);
+      return coverageHours > 0 ? [{ hourlyCredits: blockRate * averageBlockCountInAnHour, coverageHours }] : [];
+    });
+
+    const weeklyCredits = this.#creditsForHours(burns, 24 * 7);
+    if (weeklyCredits === 0) {
+      return noCoverage;
+    }
+
+    const weeklyCostUsd = await this.balancesService.toFiatAmount(weeklyCredits);
+    const cumulativeDailyCostsUsd = Array.from({ length: 7 }, (_, day) => (this.#creditsForHours(burns, (day + 1) * 24) / weeklyCredits) * weeklyCostUsd);
+
+    return { weeklyCostUsd, cumulativeDailyCostsUsd };
+  }
+
+  #creditsForHours(burns: Array<{ hourlyCredits: number; coverageHours: number }>, hours: number): number {
+    return burns.reduce((total, burn) => total + Math.floor(burn.hourlyCredits * Math.min(hours, burn.coverageHours)), 0);
+  }
+
+  /**
+   * A week of coverage unless the setting has a runtime limit, then remaining
+   * hours (0 if the deadline has passed). An unanchored limit is the remaining hours.
+   */
+  #coverageHoursForDeployment(setting: AutoTopUpDeployment | undefined, currentHeight: number): number {
+    const weekHours = 24 * 7;
+
+    if (setting?.runtimeEndsAt) {
+      const remainingHours = (this.#getRuntimeLimitHeight(setting.runtimeEndsAt, currentHeight) - currentHeight) / averageBlockCountInAnHour;
+      return remainingHours <= 0 ? 0 : Math.min(weekHours, remainingHours);
+    }
+
+    if (setting?.runtimeLimitHours != null) {
+      return Math.min(weekHours, setting.runtimeLimitHours);
+    }
+
+    return weekHours;
   }
 
   /**

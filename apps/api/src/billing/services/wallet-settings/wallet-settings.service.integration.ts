@@ -274,7 +274,7 @@ describe(WalletSettingService.name, () => {
   });
 
   describe("disableAutoReload", () => {
-    it("disables auto reload and cancels the pending reload job", async () => {
+    it("disables auto reload, cancels the pending reload job, and schedules a credits-low check", async () => {
       const { user, walletSettingRepository, walletReloadJobService, service } = setup();
       const enabledSetting = generateWalletSetting({ userId: user.id, autoReloadEnabled: true });
       walletSettingRepository.findByUserId.mockResolvedValue(enabledSetting);
@@ -283,6 +283,7 @@ describe(WalletSettingService.name, () => {
 
       expect(walletSettingRepository.updateById).toHaveBeenCalledWith(enabledSetting.id, { autoReloadEnabled: false });
       expect(walletReloadJobService.cancelCreatedByUserId).toHaveBeenCalledWith(user.id);
+      expect(walletReloadJobService.scheduleCreditsLowCheck).toHaveBeenCalledWith(user.id, { withCleanup: true });
     });
 
     it("does nothing when auto reload is already disabled", async () => {

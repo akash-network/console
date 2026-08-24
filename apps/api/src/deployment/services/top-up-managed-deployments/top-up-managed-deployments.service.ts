@@ -61,6 +61,10 @@ export class TopUpManagedDeploymentsService {
           errors.push(error);
         }
       }
+
+      if (!options.dryRun) {
+        await this.#scheduleCreditsLowChecksForAutoTopUpOwners();
+      }
     } catch (error: unknown) {
       errors.push(error);
     } finally {
@@ -150,6 +154,24 @@ export class TopUpManagedDeploymentsService {
     }
 
     await this.walletReloadService.scheduleImmediate({ walletId });
+  }
+
+  /**
+   * Best-effort: the sweep only schedules credits-low email checks, so its failures are logged
+   * and kept out of the funding run's status and result, which report on funding alone.
+   */
+  async #scheduleCreditsLowChecksForAutoTopUpOwners(): Promise<void> {
+    try {
+      for await (const owner of this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively()) {
+        try {
+          await this.walletReloadService.scheduleCreditsLowCheckIfAutoReloadOff({ walletId: owner.walletId });
+        } catch (error: unknown) {
+          this.instrumentation.recordCreditsLowScheduleError({ walletId: owner.walletId, error });
+        }
+      }
+    } catch (error: unknown) {
+      this.instrumentation.recordCreditsLowScheduleError({ error });
+    }
   }
 
   /**

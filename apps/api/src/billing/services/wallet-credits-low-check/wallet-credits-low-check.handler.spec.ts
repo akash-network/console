@@ -1,0 +1,286 @@
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
+
+import type { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-low-check";
+import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
+import type { BalancesService } from "@src/billing/services/balances/balances.service";
+import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import type { JobPayload } from "@src/core";
+import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
+import type { NotificationService } from "@src/notifications/services/notification/notification.service";
+import { creditsRunningLowNotification } from "@src/notifications/services/notification-templates/credits-running-low-notification";
+import type { UserRepository } from "@src/user/repositories";
+import { WalletCreditsLowCheckHandler } from "./wallet-credits-low-check.handler";
+
+import { mockConfigService } from "@test/mocks/config-service.mock";
+import { createUser } from "@test/seeders/user.seeder";
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
+import { generateWalletSetting } from "@test/seeders/wallet-setting.seeder";
+
+describe(WalletCreditsLowCheckHandler.name, () => {
+  it("sends the credits-running-low notification when paid, Auto Recharge is off, and coverage is below a week", async () => {
+    const balanceUsd = 12.5;
+    const weeklyCostUsd = 35;
+    const paymentLink = "https://console.akash.network/billing?openPayment=true";
+    const { handler, user, wallet, notificationService, balancesService, drainingDeploymentService, job } = setup({
+      balanceUsd,
+      weeklyCostUsd,
+      paymentLink
+    });
+
+    await handler.handle(job);
+
+    expect(balancesService.getDeploymentBalanceInFiat).toHaveBeenCalledWith(wallet.address);
+    expect(drainingDeploymentService.calculateWeeklyCoverageForAddress).toHaveBeenCalledWith(wallet.address);
+    expect(notificationService.createNotification).toHaveBeenCalledWith(
+      creditsRunningLowNotification(user, {
+        balanceUsd,
+        weeklyCostUsd,
+        daysRemaining: 2,
+        paymentLink,
+        billingUrl: "https://console.akash.network/billing"
+      })
+    );
+  });
+
+  it("reports less than a day when a runtime-limited deployment front-loads the weekly cost", async () => {
+    const paymentLink = "https://console.akash.network/billing?openPayment=true";
+    const { handler, user, notificationService, job } = setup({
+      balanceUsd: 5,
+      weeklyCostUsd: 10,
+      cumulativeDailyCostsUsd: [10, 10, 10, 10, 10, 10, 10],
+      paymentLink
+    });
+
+    await handler.handle(job);
+
+    expect(notificationService.createNotification).toHaveBeenCalledWith(
+      creditsRunningLowNotification(user, {
+        balanceUsd: 5,
+        weeklyCostUsd: 10,
+        daysRemaining: 0,
+        paymentLink,
+        billingUrl: "https://console.akash.network/billing"
+      })
+    );
+  });
+
+  it("does not send when Auto Recharge is enabled", async () => {
+    const { handler, notificationService, userWalletRepository, drainingDeploymentService, logger, job } = setup({
+      autoReloadEnabled: true
+    });
+
+    await handler.handle(job);
+
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(userWalletRepository.updateById).not.toHaveBeenCalled();
+    expect(drainingDeploymentService.calculateWeeklyCoverageForAddress).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "auto_reload_enabled" }));
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it("does not send when the wallet is trialing", async () => {
+    const { handler, notificationService, userWalletRepository, logger, job } = setup({
+      isTrialing: true
+    });
+
+    await handler.handle(job);
+
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(userWalletRepository.updateById).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "trialing" }));
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it("does not send when weekly cost is 0", async () => {
+    const { handler, notificationService, userWalletRepository, logger, job } = setup({
+      weeklyCostUsd: 0
+    });
+
+    await handler.handle(job);
+
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(userWalletRepository.updateById).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "zero_cost" }));
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it("does not send when balance is at or above weekly cost", async () => {
+    const { handler, notificationService, userWalletRepository, logger, job } = setup({
+      balanceUsd: 35,
+      weeklyCostUsd: 35
+    });
+
+    await handler.handle(job);
+
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(userWalletRepository.updateById).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "sufficient_balance" }));
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it("does not send when already notified and still low", async () => {
+    const { handler, notificationService, userWalletRepository, logger, job } = setup({
+      creditsLowNotifiedAt: new Date("2026-01-01T00:00:00.000Z")
+    });
+
+    await handler.handle(job);
+
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(userWalletRepository.updateById).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "already_notified" }));
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it("clears creditsLowNotifiedAt when balance recovers", async () => {
+    const { handler, notificationService, userWalletRepository, wallet, job } = setup({
+      creditsLowNotifiedAt: new Date("2026-01-01T00:00:00.000Z"),
+      balanceUsd: 40,
+      weeklyCostUsd: 35
+    });
+
+    await handler.handle(job);
+
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(userWalletRepository.updateById).toHaveBeenCalledWith(wallet.id, { creditsLowNotifiedAt: null });
+  });
+
+  it("clears creditsLowNotifiedAt when weekly cost is 0", async () => {
+    const { handler, notificationService, userWalletRepository, wallet, job } = setup({
+      creditsLowNotifiedAt: new Date("2026-01-01T00:00:00.000Z"),
+      weeklyCostUsd: 0
+    });
+
+    await handler.handle(job);
+
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(userWalletRepository.updateById).toHaveBeenCalledWith(wallet.id, { creditsLowNotifiedAt: null });
+  });
+
+  it("does not send when the user has no email", async () => {
+    const { handler, notificationService, userWalletRepository, logger, job } = setup({
+      user: createUser({ email: null })
+    });
+
+    await handler.handle(job);
+
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(userWalletRepository.updateById).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "no_email" }));
+  });
+
+  it("does not fail the job when stamping creditsLowNotifiedAt fails after a successful send", async () => {
+    const { handler, notificationService, userWalletRepository, user, logger, job } = setup();
+    const error = new Error("connection reset");
+    userWalletRepository.updateById.mockRejectedValue(error);
+
+    await expect(handler.handle(job)).resolves.toBeUndefined();
+
+    expect(notificationService.createNotification).toHaveBeenCalledTimes(1);
+    expect(logger.error).toHaveBeenCalledWith({ event: "CREDITS_LOW_NOTIFIED_STAMP_FAILED", userId: user.id, error });
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_EMAIL_SENT" }));
+  });
+
+  it("stamps creditsLowNotifiedAt after a successful send", async () => {
+    const { handler, notificationService, userWalletRepository, wallet, logger, job } = setup();
+
+    await handler.handle(job);
+
+    expect(notificationService.createNotification).toHaveBeenCalled();
+    expect(userWalletRepository.updateById).toHaveBeenCalledWith(wallet.id, { creditsLowNotifiedAt: expect.any(Date) });
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_EMAIL_SENT" }));
+  });
+
+  it("sends when wallet settings are missing", async () => {
+    const { handler, notificationService, userWalletRepository, job } = setup({
+      walletSettingNotFound: true
+    });
+
+    await handler.handle(job);
+
+    expect(notificationService.createNotification).toHaveBeenCalled();
+    expect(userWalletRepository.updateById).toHaveBeenCalledWith(expect.any(Number), { creditsLowNotifiedAt: expect.any(Date) });
+  });
+
+  function setup(input?: {
+    autoReloadEnabled?: boolean;
+    walletSettingNotFound?: boolean;
+    isTrialing?: boolean;
+    creditsLowNotifiedAt?: Date | null;
+    user?: ReturnType<typeof createUser>;
+    balanceUsd?: number;
+    weeklyCostUsd?: number;
+    cumulativeDailyCostsUsd?: number[];
+    paymentLink?: string;
+  }) {
+    const user = input?.user ?? createUser({ email: "user@example.com" });
+    const wallet = createUserWallet({
+      userId: user.id,
+      isTrialing: input?.isTrialing ?? false,
+      creditsLowNotifiedAt: input?.creditsLowNotifiedAt ?? null
+    });
+    const walletSetting = generateWalletSetting({
+      userId: user.id,
+      walletId: wallet.id,
+      autoReloadEnabled: input?.autoReloadEnabled ?? false
+    });
+    const job: JobPayload<WalletCreditsLowCheck> = {
+      userId: user.id,
+      version: 1
+    };
+    const paymentLink = input?.paymentLink ?? "https://console.akash.network/billing?openPayment=true";
+    const balanceUsd = input?.balanceUsd ?? 12.5;
+    const weeklyCostUsd = input?.weeklyCostUsd ?? 35;
+    const cumulativeDailyCostsUsd =
+      input?.cumulativeDailyCostsUsd ?? (weeklyCostUsd === 0 ? [] : Array.from({ length: 7 }, (_, day) => ((day + 1) * weeklyCostUsd) / 7));
+
+    const walletSettingRepository = mock<WalletSettingRepository>();
+    const userWalletRepository = mock<UserWalletRepository>();
+    const userRepository = mock<UserRepository>();
+    const balancesService = mock<BalancesService>();
+    const drainingDeploymentService = mock<DrainingDeploymentService>();
+    const notificationService = mock<NotificationService>({
+      createNotification: vi.fn().mockResolvedValue(undefined)
+    });
+    const billingConfig = mockConfigService<BillingConfigService>({
+      CONSOLE_WEB_PAYMENT_LINK: paymentLink
+    });
+    const logger = mock<LoggerService>();
+
+    walletSettingRepository.findByUserId.mockResolvedValue(input?.walletSettingNotFound ? undefined : walletSetting);
+
+    userWalletRepository.findOneByUserId.mockResolvedValue(wallet);
+    userRepository.findById.mockResolvedValue(user);
+    balancesService.getDeploymentBalanceInFiat.mockResolvedValue(balanceUsd);
+    drainingDeploymentService.calculateWeeklyCoverageForAddress.mockResolvedValue({ weeklyCostUsd, cumulativeDailyCostsUsd });
+    userWalletRepository.updateById.mockResolvedValue(undefined);
+
+    const handler = new WalletCreditsLowCheckHandler(
+      walletSettingRepository,
+      userWalletRepository,
+      userRepository,
+      balancesService,
+      drainingDeploymentService,
+      notificationService,
+      billingConfig,
+      logger
+    );
+
+    return {
+      handler,
+      walletSettingRepository,
+      userWalletRepository,
+      userRepository,
+      balancesService,
+      drainingDeploymentService,
+      notificationService,
+      billingConfig,
+      logger,
+      user,
+      wallet,
+      walletSetting,
+      job
+    };
+  }
+});

@@ -275,6 +275,15 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
     });
   }
 
+  recordCreditsLowScheduleError({ error, ...details }: { walletId?: number; error: unknown }): void {
+    this.logger.error({
+      event: "CREDITS_LOW_SCHEDULE_SWEEP_ERROR",
+      ...details,
+      ...this.serializeError(error),
+      dryRun: this.options?.dryRun
+    });
+  }
+
   private serializeError(error: unknown): { message: string; stack?: string; data?: unknown } {
     if (error instanceof Error) {
       return {

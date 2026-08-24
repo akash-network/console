@@ -63,6 +63,7 @@ export class WalletSettingService {
 
     await this.walletSettingRepository.accessibleBy(ability, "update").updateById(setting.id, { autoReloadEnabled: false });
     await this.walletReloadJobService.cancelCreatedByUserId(userId);
+    await this.walletReloadJobService.scheduleCreditsLowCheck(userId, { withCleanup: true });
     this.logger.info({ event: "AUTO_RELOAD_DISABLED", reason: "DEFAULT_PAYMENT_METHOD_REMOVED", userId });
   }
 
@@ -133,17 +134,26 @@ export class WalletSettingService {
   }
 
   async #arrangeSchedule(prev?: WalletSettingOutput, next?: WalletSettingOutput) {
-    if (!next?.autoReloadEnabled) {
+    if (!next) {
       return;
     }
 
-    if (!prev?.autoReloadEnabled) {
-      await this.walletReloadJobService.scheduleForWalletSetting(next, { withCleanup: true });
+    if (next.autoReloadEnabled) {
+      if (!prev?.autoReloadEnabled) {
+        await this.walletReloadJobService.scheduleForWalletSetting(next, { withCleanup: true });
+        await this.walletReloadJobService.cancelCreditsLowCheckByUserId(next.userId);
+        await this.userWalletRepository.updateById(next.walletId, { creditsLowNotifiedAt: null });
+        return;
+      }
+
+      if (this.#hasReloadRuleChanged(prev, next)) {
+        await this.walletReloadJobService.scheduleForWalletSetting(next, { withCleanup: true });
+      }
       return;
     }
 
-    if (this.#hasReloadRuleChanged(prev, next)) {
-      await this.walletReloadJobService.scheduleForWalletSetting(next, { withCleanup: true });
+    if (prev?.autoReloadEnabled) {
+      await this.walletReloadJobService.scheduleCreditsLowCheck(next.userId, { withCleanup: true });
     }
   }
 

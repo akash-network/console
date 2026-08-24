@@ -1,7 +1,8 @@
 import { singleton } from "tsyringe";
 
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
-import { WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
+import { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-low-check";
+import { UserWalletRepository, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { EnqueueOptions, JobQueueService } from "@src/core";
 import { LoggerService } from "@src/core/providers/logging.provider";
 
@@ -9,6 +10,7 @@ import { LoggerService } from "@src/core/providers/logging.provider";
 export class WalletReloadJobService {
   constructor(
     private readonly walletSettingRepository: WalletSettingRepository,
+    private readonly userWalletRepository: UserWalletRepository,
     private readonly jobQueueService: JobQueueService,
     private readonly logger: LoggerService
   ) {
@@ -26,7 +28,28 @@ export class WalletReloadJobService {
       return true;
     }
 
+    const userId = await this.#resolveUserId(input, walletSetting);
+    if (!userId) {
+      return false;
+    }
+
+    await this.scheduleCreditsLowCheck(userId, { withCleanup: true });
     return false;
+  }
+
+  async scheduleCreditsLowCheckIfAutoReloadOff(input: { walletId: number }): Promise<void> {
+    const walletSetting = await this.walletSettingRepository.findOneBy({ walletId: input.walletId });
+
+    if (walletSetting?.autoReloadEnabled) {
+      return;
+    }
+
+    const userId = await this.#resolveUserId(input, walletSetting);
+    if (!userId) {
+      return;
+    }
+
+    await this.scheduleCreditsLowCheck(userId, { withCleanup: true });
   }
 
   async scheduleForWalletSetting(
@@ -61,6 +84,55 @@ export class WalletReloadJobService {
 
   async cancelCreatedByUserId(userId: string): Promise<void> {
     await this.jobQueueService.cancelCreatedBy({ name: WalletBalanceReloadCheck.name, singletonKey: `${WalletBalanceReloadCheck.name}.${userId}` });
+  }
+
+  /**
+   * Best-effort: a failed schedule is logged instead of thrown so it never fails the
+   * spend or funding operation that triggered it, and the next spend re-schedules the check.
+   */
+  async scheduleCreditsLowCheck(userId: string, options?: { withCleanup?: boolean }): Promise<string | null> {
+    try {
+      if (options?.withCleanup) {
+        await this.cancelCreditsLowCheckByUserId(userId);
+      }
+
+      const createdJobId = await this.jobQueueService.enqueue(new WalletCreditsLowCheck({ userId }), {
+        singletonKey: `${WalletCreditsLowCheck.name}.${userId}`
+      });
+
+      if (!createdJobId) {
+        this.logger.info({
+          event: "CREDITS_LOW_CHECK_ALREADY_QUEUED",
+          userId
+        });
+      }
+
+      return createdJobId;
+    } catch (error) {
+      this.logger.error({
+        event: "CREDITS_LOW_CHECK_SCHEDULE_FAILED",
+        userId,
+        error
+      });
+      return null;
+    }
+  }
+
+  async cancelCreditsLowCheckByUserId(userId: string): Promise<void> {
+    await this.jobQueueService.cancelCreatedBy({ name: WalletCreditsLowCheck.name, singletonKey: `${WalletCreditsLowCheck.name}.${userId}` });
+  }
+
+  async #resolveUserId(input: WalletReloadImmediateInput, walletSetting?: WalletSettingOutput): Promise<string | undefined> {
+    if (walletSetting?.userId) {
+      return walletSetting.userId;
+    }
+
+    if ("userId" in input) {
+      return input.userId;
+    }
+
+    const wallet = await this.userWalletRepository.findOneBy({ id: input.walletId });
+    return wallet?.userId;
   }
 }
 
