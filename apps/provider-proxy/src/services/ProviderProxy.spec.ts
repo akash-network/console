@@ -1,4 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { EventEmitter } from "node:events";
+import type { ClientRequest } from "node:http";
+import https from "node:https";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { CertificateValidator } from "./CertificateValidator/CertificateValidator";
@@ -29,11 +32,27 @@ describe(ProviderProxy.name, () => {
 
   it("does not consult the tracker when there is no provider to key on", async () => {
     const { proxy, connectionTracker } = setup({ shouldSkipDial: true });
+    const error = Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" });
+    stubDialFailure(error);
 
-    await proxy.connect("https://provider.example.com:8443/status", { method: "GET", providerAddress: "", signal: AbortSignal.abort() });
+    const result = await proxy.connect("https://provider.example.com:8443/status", { method: "GET", providerAddress: "" });
 
+    expect(result).toEqual({ ok: false, code: "connectionError", error });
     expect(connectionTracker.shouldSkipDial).not.toHaveBeenCalled();
+    expect(connectionTracker.recordUnreachable).not.toHaveBeenCalled();
   });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function stubDialFailure(error: Error) {
+    const request = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn(), reusedSocket: false });
+    vi.spyOn(https, "request").mockImplementation(() => {
+      setImmediate(() => request.emit("error", error));
+      return request as unknown as ClientRequest;
+    });
+  }
 
   function setup(input: { shouldSkipDial?: boolean; lastError?: unknown } = {}) {
     const connectionTracker = mock<ProviderConnectionTracker>({

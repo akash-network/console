@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { ProviderConnectionTrackerInstrumentation } from "./ProviderConnectionTracker";
-import { ProviderConnectionTracker } from "./ProviderConnectionTracker";
+import { ProviderConnectionTracker, toStateRetentionMs } from "./ProviderConnectionTracker";
 
 describe(ProviderConnectionTracker.name, () => {
   it("keeps dialing until the failure threshold is reached", () => {
@@ -95,6 +95,14 @@ describe(ProviderConnectionTracker.name, () => {
     tracker.recordReachable("provider-a");
 
     expect(instrumentation.onCleared).not.toHaveBeenCalled();
+  });
+
+  it("keeps a short-cooldown provider in memory for the default retention", () => {
+    expect(toStateRetentionMs(60_000)).toBe(10 * 60 * 1000);
+  });
+
+  it("retains a provider past a cooldown longer than the default retention", () => {
+    expect(toStateRetentionMs(15 * 60 * 1000)).toBeGreaterThan(15 * 60 * 1000);
   });
 
   function setup(input: { failureThreshold?: number; cooldownMs?: number; instrumentation?: ProviderConnectionTrackerInstrumentation } = {}) {

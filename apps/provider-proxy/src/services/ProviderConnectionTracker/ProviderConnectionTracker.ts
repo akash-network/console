@@ -11,6 +11,18 @@ import { LRUCache } from "lru-cache";
  */
 const UNREACHABLE_ERRNOS = ["EHOSTUNREACH", "ENETUNREACH", "ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED"];
 
+/** Floor for how long a tracked provider is kept in memory. Eviction is a memory backstop, never a decision. */
+const MIN_STATE_RETENTION_MS = 10 * 60 * 1000;
+
+/**
+ * An entry must outlive the cooldown it encodes: evicting mid-cooldown would resume dialing a host we already
+ * know is down. Only a dial result rewrites the entry and refreshes its age, so retention spans two windows to
+ * cover the one path that skips the write, a probe failing with an errno outside UNREACHABLE_ERRNOS.
+ */
+export function toStateRetentionMs(cooldownMs: number): number {
+  return Math.max(MIN_STATE_RETENTION_MS, cooldownMs * 2);
+}
+
 export interface ProviderConnectionTrackerOptions {
   failureThreshold: number;
   cooldownMs: number;
@@ -29,16 +41,18 @@ interface ProviderConnectionState {
 }
 
 export class ProviderConnectionTracker {
-  private readonly states = new LRUCache<string, ProviderConnectionState>({
-    max: 10_000,
-    ttl: 10 * 60 * 1000
-  });
+  private readonly states: LRUCache<string, ProviderConnectionState>;
 
   constructor(
     private readonly now: () => number,
     private readonly options: ProviderConnectionTrackerOptions,
     private readonly instrumentation?: ProviderConnectionTrackerInstrumentation
-  ) {}
+  ) {
+    this.states = new LRUCache<string, ProviderConnectionState>({
+      max: 10_000,
+      ttl: toStateRetentionMs(options.cooldownMs)
+    });
+  }
 
   /**
    * Consumes the single probe allowed per cooldown window, so calling this is a decision rather than a
