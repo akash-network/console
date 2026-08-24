@@ -9,6 +9,8 @@ export interface DeploymentSettingOutput {
   autoTopUpEnabled: boolean;
   estimatedTopUpAmount: number;
   topUpFrequencyMs: number;
+  runtimeLimitHours: number | null;
+  runtimeEndsAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

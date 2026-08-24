@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, index, pgTable, timestamp, unique, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, timestamp, unique, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { Users } from "@src/user/model-schemas";
 
@@ -17,6 +17,8 @@ export const DeploymentSettings = pgTable(
     autoTopUpEnabled: boolean("auto_top_up_enabled").notNull().default(false),
     closed: boolean("closed").notNull().default(false),
     lastFundedAt: timestamp("last_funded_at"),
+    runtimeLimitHours: integer("runtime_limit_hours"),
+    runtimeEndsAt: timestamp("runtime_ends_at", { withTimezone: true }),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow()
   },

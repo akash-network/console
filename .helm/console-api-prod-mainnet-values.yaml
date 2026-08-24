@@ -35,6 +35,17 @@ jobs:
       - ./dist/instrumentation.js
       - ./dist/console.js
       - gpu-pricing-bot
+  # Ships in dry-run for a bake period: --dry-run only logs EXPIRED_DEPLOYMENT_WOULD_CLOSE.
+  # Drop the flag to start closing for real once those logs look right.
+  - name: close-expired-deployments
+    schedule: "*/15 * * * *" # every 15 minutes
+    command:
+      - node
+      - --require
+      - ./dist/instrumentation.js
+      - ./dist/console.js
+      - close-expired-deployments
+      - --dry-run
   - name: mint-act
     schedule: "*/10 * * * *" # every 10 minutes
     concurrencyPolicy: Forbid

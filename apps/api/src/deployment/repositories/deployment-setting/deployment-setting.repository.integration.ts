@@ -3,8 +3,11 @@ import { eq, sql } from "drizzle-orm";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
+import { AbilityService } from "@src/auth/services/ability/ability.service";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
+import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/deployment/http-schemas/runtime-limit";
+import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
 import { DeploymentSettingRepository } from "./deployment-setting.repository";
 
@@ -80,12 +83,54 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("applyRuntimeLimit", () => {
+    it("raises the limit for the row's own user", async () => {
+      const { deploymentSettingRepository, user, abilityFor, createLimitedSetting } = await setup();
+      const setting = await createLimitedSetting(12);
+
+      const updated = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "update")
+        .applyRuntimeLimit({ userId: user.id, dseq: setting.dseq, runtimeLimitHours: 24, maxIncrementHours: MAX_RUNTIME_LIMIT_INCREMENT_HOURS });
+
+      expect(updated).toEqual(expect.objectContaining({ runtimeLimitHours: 24 }));
+    });
+
+    it("turns auto top-up on so the raised limit can be funded and anchored", async () => {
+      const { deploymentSettingRepository, user, abilityFor, createLimitedSetting } = await setup();
+      const setting = await createLimitedSetting(12, { autoTopUpEnabled: false });
+
+      const updated = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "update")
+        .applyRuntimeLimit({ userId: user.id, dseq: setting.dseq, runtimeLimitHours: 24, maxIncrementHours: MAX_RUNTIME_LIMIT_INCREMENT_HOURS });
+
+      expect(updated).toEqual(expect.objectContaining({ runtimeLimitHours: 24, autoTopUpEnabled: true }));
+    });
+
+    it("leaves the row untouched for a caller whose ability does not cover its user", async () => {
+      const { deploymentSettingRepository, user, userRepository, abilityFor, createLimitedSetting } = await setup();
+      const setting = await createLimitedSetting(12);
+      const otherUser = await userRepository.create({ userId: faker.string.uuid() });
+
+      const updated = await deploymentSettingRepository
+        .accessibleBy(abilityFor(otherUser), "update")
+        .applyRuntimeLimit({ userId: user.id, dseq: setting.dseq, runtimeLimitHours: 24, maxIncrementHours: MAX_RUNTIME_LIMIT_INCREMENT_HOURS });
+
+      expect(updated).toBeUndefined();
+      expect(await deploymentSettingRepository.findById(setting.id)).toEqual(expect.objectContaining({ runtimeLimitHours: 12 }));
+    });
+  });
+
   async function setup() {
     const userRepository = container.resolve(UserRepository);
     const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+    const abilityService = container.resolve(AbilityService);
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const deploymentSettingsTable = resolveTable("DeploymentSettings");
     const user = await userRepository.create({ userId: faker.string.uuid() });
+
+    function abilityFor(owner: UserOutput) {
+      return abilityService.getAbilityFor("REGULAR_USER", owner);
+    }
 
     async function createSetting() {
       const setting = await deploymentSettingRepository.create({
@@ -94,6 +139,15 @@ describe(DeploymentSettingRepository.name, () => {
         autoTopUpEnabled: true
       });
       return setting.id;
+    }
+
+    async function createLimitedSetting(runtimeLimitHours: number, overrides: { autoTopUpEnabled?: boolean } = {}) {
+      return deploymentSettingRepository.create({
+        userId: user.id,
+        dseq: faker.number.int({ min: 100000, max: 999999 }).toString(),
+        autoTopUpEnabled: overrides.autoTopUpEnabled ?? true,
+        runtimeLimitHours
+      });
     }
 
     async function backdateLastFundedAt(id: string, minutesAgo: number) {
@@ -105,6 +159,6 @@ describe(DeploymentSettingRepository.name, () => {
 
     const settingId = await createSetting();
 
-    return { userRepository, deploymentSettingRepository, user, settingId, createSetting, backdateLastFundedAt };
+    return { userRepository, deploymentSettingRepository, user, settingId, abilityFor, createSetting, createLimitedSetting, backdateLastFundedAt };
   }
 });

@@ -1,4 +1,5 @@
 import { AnyAbility } from "@casl/ability";
+import { millisecondsInHour } from "date-fns/constants";
 import keyBy from "lodash/keyBy";
 import { singleton } from "tsyringe";
 
@@ -6,6 +7,7 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { LoggerService } from "@src/core";
+import type { DryRunOptions } from "@src/core/types/console";
 import { AutoTopUpDeployment, DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DrainingDeploymentOutput, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { DrainingDeployment } from "@src/deployment/types/draining-deployment";
@@ -41,14 +43,25 @@ export class DrainingDeploymentService {
    *
    * The caller passes the block height the whole run is scoped to so the look-ahead window that admits
    * a deployment and the amount that funds it are derived from the same height.
+   * A dry run still sizes deposits against a runtime deadline but does not persist one.
    *
    * @yields Object with owner address and array of draining deployments
    */
-  async *findDrainingDeploymentsByOwner(currentHeight: number): AsyncGenerator<{ address: string; walletId: number; deployments: DrainingDeployment[] }> {
+  async *findDrainingDeploymentsByOwner(
+    currentHeight: number,
+    options: DryRunOptions = { dryRun: false }
+  ): AsyncGenerator<{ address: string; walletId: number; deployments: DrainingDeployment[] }> {
     const expectedClosureHeight = this.#getExpectedClosureHeight(currentHeight);
 
     for await (const { address, walletId, deploymentSettings } of this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively()) {
-      const deployments = await this.#resolveActiveDrainingDeployments(deploymentSettings, address, expectedClosureHeight, this.instrumentation);
+      const deployments = await this.#resolveActiveDrainingDeployments(
+        deploymentSettings,
+        address,
+        expectedClosureHeight,
+        currentHeight,
+        this.instrumentation,
+        options.dryRun
+      );
 
       if (deployments.length) {
         yield { address, walletId, deployments };
@@ -69,7 +82,7 @@ export class DrainingDeploymentService {
     const deploymentSettings = await this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwner(address);
     const expectedClosureHeight = this.#getExpectedClosureHeight(currentHeight);
 
-    return this.#resolveActiveDrainingDeployments(deploymentSettings, address, expectedClosureHeight, instrumentation);
+    return this.#resolveActiveDrainingDeployments(deploymentSettings, address, expectedClosureHeight, currentHeight, instrumentation, false);
   }
 
   #getExpectedClosureHeight(currentHeight: number): number {
@@ -80,7 +93,9 @@ export class DrainingDeploymentService {
     deploymentSettings: AutoTopUpDeployment[],
     address: string,
     expectedClosureHeight: number,
-    instrumentation: DeploymentTopUpInstrumentation
+    currentHeight: number,
+    instrumentation: DeploymentTopUpInstrumentation,
+    dryRun: boolean
   ): Promise<DrainingDeployment[]> {
     if (deploymentSettings.length === 0) {
       return [];
@@ -121,7 +136,63 @@ export class DrainingDeploymentService {
       instrumentation.recordDeploymentsMarkedClosed(missingIds.length);
     }
 
-    return active;
+    return await this.#dropDeploymentsFundedToRuntimeLimit(active, currentHeight, instrumentation, dryRun);
+  }
+
+  /**
+   * Drops runtime-limited deployments already funded up to their deadline before claims are taken,
+   * so they drain and close on chain instead of burning claim churn and non-positive-amount telemetry
+   * on every sweep of their final window. Deployments the initial-funding job never anchored (it
+   * failed or raced) get their countdown started here, inside the look-ahead window — late, which
+   * only errs toward extra runtime. A dry run uses an in-memory deadline and does not persist one.
+   */
+  async #dropDeploymentsFundedToRuntimeLimit(
+    deployments: DrainingDeployment[],
+    currentHeight: number,
+    instrumentation: DeploymentTopUpInstrumentation,
+    dryRun: boolean
+  ): Promise<DrainingDeployment[]> {
+    const fundable: DrainingDeployment[] = [];
+
+    for (const deployment of deployments) {
+      if (!deployment.runtimeLimitHours) {
+        fundable.push(deployment);
+        continue;
+      }
+
+      const runtimeEndsAt =
+        deployment.runtimeEndsAt ??
+        (dryRun
+          ? new Date(Date.now() + deployment.runtimeLimitHours * millisecondsInHour)
+          : await this.deploymentSettingRepository.startRuntimeCountdown(deployment.id));
+
+      if (!runtimeEndsAt) {
+        fundable.push(deployment);
+        continue;
+      }
+
+      if (this.#isFundedToRuntimeLimit(deployment.predictedClosedHeight, runtimeEndsAt, currentHeight)) {
+        instrumentation.recordRuntimeLimitReached({ dseq: deployment.dseq, address: deployment.address, runtimeEndsAt });
+        continue;
+      }
+
+      fundable.push({ ...deployment, runtimeEndsAt });
+    }
+
+    return fundable;
+  }
+
+  #isFundedToRuntimeLimit(predictedClosedHeight: number, runtimeEndsAt: Date, currentHeight: number): boolean {
+    const predicted = Number(predictedClosedHeight);
+    const fundedUntil = Math.max(currentHeight, Number.isFinite(predicted) ? predicted : currentHeight);
+
+    return this.#getRuntimeLimitHeight(runtimeEndsAt, currentHeight) <= fundedUntil;
+  }
+
+  #getRuntimeLimitHeight(runtimeEndsAt: Date, currentHeight: number): number {
+    const hoursUntilRuntimeEnds = (runtimeEndsAt.getTime() - Date.now()) / millisecondsInHour;
+
+    return currentHeight + averageBlockCountInAnHour * hoursUntilRuntimeEnds;
   }
 
   /**
@@ -158,11 +229,17 @@ export class DrainingDeploymentService {
    * would otherwise size a huge deposit. Such a deployment reaches slightly less than the target and
    * the next sweep tops up the remainder.
    *
-   * @param deployment - Deployment with its block rate and predicted closure height
+   * A runtime-limited deployment's target is additionally clamped to its deadline, so no deposit ever
+   * buys runway past the limit and the final deposit covers exactly the remaining runtime.
+   *
+   * @param deployment - Deployment with its block rate, predicted closure height, and optional runtime deadline
    * @param currentHeight - Block height the funding run is scoped to
    * @returns Top-up amount in credits, or 0 when the deployment already holds the target
    */
-  calculateAmountToTargetRunway(deployment: Pick<DrainingDeploymentOutput, "blockRate" | "predictedClosedHeight">, currentHeight: number): number {
+  calculateAmountToTargetRunway(
+    deployment: Pick<DrainingDeploymentOutput, "blockRate" | "predictedClosedHeight"> & { runtimeEndsAt?: Date | null },
+    currentHeight: number
+  ): number {
     const blockRate = Number(deployment.blockRate);
     const predictedClosedHeight = Number(deployment.predictedClosedHeight);
     const isUsable = Number.isFinite(blockRate) && blockRate > 0 && Number.isFinite(predictedClosedHeight);
@@ -171,7 +248,10 @@ export class DrainingDeploymentService {
       return 0;
     }
 
-    const targetHeight = currentHeight + averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_TARGET_RUNWAY_IN_H");
+    const runwayTargetHeight = currentHeight + averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_TARGET_RUNWAY_IN_H");
+    const targetHeight = deployment.runtimeEndsAt
+      ? Math.min(runwayTargetHeight, this.#getRuntimeLimitHeight(deployment.runtimeEndsAt, currentHeight))
+      : runwayTargetHeight;
     const fundedUntil = Math.max(currentHeight, predictedClosedHeight);
 
     return Math.max(0, Math.floor(blockRate * (targetHeight - fundedUntil)));
@@ -197,6 +277,8 @@ export class DrainingDeploymentService {
    * For each draining deployment, computes the cost from its predicted close height (when escrow runs out)
    * to the target height — i.e. only the portion not already covered by escrow.
    * Deployments whose escrow lasts beyond the target date are excluded (they don't need additional funding).
+   * Runtime-limited deployments are assumed to run to the target date too, so the estimate overstates
+   * slightly for a deployment whose limit lands before the target — an accepted over-reservation.
    *
    * @param address - The address to calculate the deployment costs for
    * @param targetDate - The target date to calculate the costs until and till which deployments would close

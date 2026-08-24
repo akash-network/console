@@ -51,6 +51,8 @@ describe("Deployment Settings", () => {
           updatedAt: expect.any(String),
           estimatedTopUpAmount: expect.any(Number),
           topUpFrequencyMs: expect.any(Number),
+          runtimeLimitHours: null,
+          runtimeEndsAt: null,
           closed: false
         }
       });
@@ -109,6 +111,8 @@ describe("Deployment Settings", () => {
           updatedAt: expect.any(String),
           estimatedTopUpAmount: expect.any(Number),
           topUpFrequencyMs: expect.any(Number),
+          runtimeLimitHours: null,
+          runtimeEndsAt: null,
           closed: false
         }
       });
@@ -331,6 +335,130 @@ describe("Deployment Settings", () => {
       expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, wallet.address);
     });
   });
+
+  describe("PATCH /v2/deployment-settings/{dseq} with a runtime limit", () => {
+    it("sets a first runtime limit and leaves it unanchored", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true });
+
+      const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: 12 });
+
+      expect(response.status).toBe(200);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({
+        runtimeLimitHours: 12,
+        runtimeEndsAt: null
+      });
+    });
+
+    it("shifts an anchored deadline by the extension delta", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      const runtimeEndsAt = faker.date.future();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 12, runtimeEndsAt });
+
+      const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: 20 });
+
+      expect(response.status).toBe(200);
+      const updated = await deploymentSettingRepository.findOneBy({ userId: user.id, dseq });
+      expect(updated?.runtimeLimitHours).toBe(20);
+      expect(updated?.runtimeEndsAt?.getTime()).toBe(runtimeEndsAt.getTime() + 8 * 60 * 60 * 1000);
+    });
+
+    it("returns 400 when lowering a runtime limit", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 24 });
+
+      const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: 12 });
+
+      expect(response.status).toBe(400);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ runtimeLimitHours: 24 });
+    });
+
+    it("returns 400 when an extension exceeds the 48 hour increment", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 24 });
+
+      const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: 73 });
+
+      expect(response.status).toBe(400);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ runtimeLimitHours: 24 });
+    });
+
+    it("returns 400 for a first runtime limit above 48 hours", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true });
+
+      const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: 49 });
+
+      expect(response.status).toBe(400);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ runtimeLimitHours: null });
+    });
+
+    it("returns 400 when the deployment is already closed", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 12, closed: true });
+
+      const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: 24 });
+
+      expect(response.status).toBe(400);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ runtimeLimitHours: 12 });
+    });
+  });
+
+  describe("PATCH /v2/deployment-settings/{dseq} removing a runtime limit", () => {
+    it("clears the limit and its deadline, leaving auto top-up on", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 12, runtimeEndsAt: faker.date.future() });
+
+      const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: null });
+
+      expect(response.status).toBe(200);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({
+        runtimeLimitHours: null,
+        runtimeEndsAt: null,
+        autoTopUpEnabled: true
+      });
+    });
+
+    it("leaves an already unlimited deployment alone", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true });
+
+      const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: null });
+
+      expect(response.status).toBe(200);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ runtimeLimitHours: null, runtimeEndsAt: null });
+    });
+
+    it("returns 400 when the deployment is already closed", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 12, closed: true });
+
+      const response = await patchRuntimeLimit({ dseq, token, runtimeLimitHours: null });
+
+      expect(response.status).toBe(400);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ runtimeLimitHours: 12 });
+    });
+  });
+
+  function patchRuntimeLimit({ dseq, token, runtimeLimitHours }: { dseq: string; token: string; runtimeLimitHours: number | null }) {
+    return app.request(`/v2/deployment-settings/${dseq}`, {
+      method: "PATCH",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({ data: { runtimeLimitHours } })
+    });
+  }
 
   async function setup() {
     const user = await userRepository.create({ userId: faker.string.uuid() });

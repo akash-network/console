@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { DseqSchema } from "@src/utils/schema";
+import { MAX_RUNTIME_LIMIT_HOURS, MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "./runtime-limit";
 
 const DeploymentSettingSchema = z.object({
   id: z.string().uuid(),
@@ -9,6 +10,12 @@ const DeploymentSettingSchema = z.object({
   autoTopUpEnabled: z.boolean(),
   estimatedTopUpAmount: z.number(),
   topUpFrequencyMs: z.number(),
+  runtimeLimitHours: z.number().int().nullable().openapi({
+    description: "Runtime limit in hours chosen at deployment creation, or null for always-on funding"
+  }),
+  runtimeEndsAt: z.string().datetime().nullable().openapi({
+    description: "When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set"
+  }),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime()
 });
@@ -33,9 +40,19 @@ export const CreateDeploymentSettingRequestSchema = z.object({
 
 export const UpdateDeploymentSettingRequestSchema = z.object({
   data: z.object({
-    autoTopUpEnabled: z.boolean().openapi({
+    autoTopUpEnabled: z.boolean().optional().openapi({
       description: "Whether auto top-up is enabled for this deployment"
-    })
+    }),
+    runtimeLimitHours: z
+      .number()
+      .int()
+      .min(1)
+      .max(MAX_RUNTIME_LIMIT_HOURS)
+      .nullable()
+      .optional()
+      .openapi({
+        description: `Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most ${MAX_RUNTIME_LIMIT_INCREMENT_HOURS}. Extending an existing limit must raise it by at most ${MAX_RUNTIME_LIMIT_INCREMENT_HOURS} hours per request; send the new total rather than the increment. Lowering a limit is not supported. Send null to remove the limit and return the deployment to always-on funding.`
+      })
   })
 });
 

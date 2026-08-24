@@ -11,6 +11,7 @@ import type { WalletReaderService } from "@src/billing/services/wallet-reader/wa
 import type { LoggerService } from "@src/core";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
@@ -121,6 +122,46 @@ describe(DeploymentWriterService.name, () => {
       await service.create({ userId: "user-1", sdl: "sdl-2.0", deposit: 5 });
 
       expect(rpcMessageService.getCreateDeploymentMsg.mock.calls[0][0].reclamation).toBeUndefined();
+    });
+
+    it("persists the runtime limit after the create tx succeeds", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const dseq = 1748400000000;
+      vi.spyOn(Date, "now").mockReturnValue(dseq);
+
+      await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5, runtimeLimitHours: 6 });
+
+      expect(deploymentSettingRepository.upsertRuntimeLimit).toHaveBeenCalledWith({
+        userId: wallet.userId,
+        dseq: "1748400000000",
+        runtimeLimitHours: 6
+      });
+    });
+
+    it("persists no runtime limit when none is requested", async () => {
+      const { service, deploymentSettingRepository } = setup();
+
+      await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
+
+      expect(deploymentSettingRepository.upsertRuntimeLimit).not.toHaveBeenCalled();
+    });
+
+    it("persists no runtime limit when the create tx fails", async () => {
+      const { service, signerService, deploymentSettingRepository } = setup();
+      signerService.executeDerivedDecodedTxByUserId.mockRejectedValue(new Error("tx failed"));
+
+      await expect(service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5, runtimeLimitHours: 6 })).rejects.toThrow("tx failed");
+
+      expect(deploymentSettingRepository.upsertRuntimeLimit).not.toHaveBeenCalled();
+    });
+
+    it("surfaces a runtime limit persistence failure instead of silently dropping the limit", async () => {
+      const { service, deploymentSettingRepository, logger } = setup();
+      deploymentSettingRepository.upsertRuntimeLimit.mockRejectedValue(new Error("db down"));
+
+      await expect(service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5, runtimeLimitHours: 6 })).rejects.toThrow("db down");
+
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "RUNTIME_LIMIT_PERSISTENCE_FAILED", runtimeLimitHours: 6 }));
     });
 
     it("reclaims trial orphans with age 0 before signing the create when the wallet is trialing", async () => {
@@ -360,6 +401,7 @@ describe(DeploymentWriterService.name, () => {
     });
     const featureFlagsService = mock<FeatureFlagsService>();
     featureFlagsService.isEnabled.mockReturnValue(input?.isManagedDepositEnabled ?? false);
+    const deploymentSettingRepository = mock<DeploymentSettingRepository>();
 
     walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
     sdlService.generateManifest.mockReturnValue({ ok: true, value: manifestValue } as any);
@@ -377,7 +419,8 @@ describe(DeploymentWriterService.name, () => {
       staleDeploymentsCleaner,
       logger,
       deploymentConfig,
-      featureFlagsService
+      featureFlagsService,
+      deploymentSettingRepository
     );
 
     return {
@@ -392,7 +435,8 @@ describe(DeploymentWriterService.name, () => {
       staleDeploymentsCleaner,
       logger,
       deploymentConfig,
-      featureFlagsService
+      featureFlagsService,
+      deploymentSettingRepository
     };
   }
 });
