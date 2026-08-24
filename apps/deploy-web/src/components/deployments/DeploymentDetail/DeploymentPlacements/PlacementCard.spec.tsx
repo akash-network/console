@@ -181,6 +181,15 @@ describe(PlacementCard.name, () => {
     expect(screen.queryByText("Provider not responding")).toBeInTheDocument();
   });
 
+  it("drops the warning once the lease is no longer live", () => {
+    setup({
+      lease: buildLease({ state: "closed" }),
+      leaseStatusError: new AxiosError("Unavailable", "502", undefined, undefined, { status: 502 } as never)
+    });
+
+    expect(screen.queryByText("Provider not responding")).not.toBeInTheDocument();
+  });
+
   it("does not warn when lease status simply reports nothing", () => {
     setup({ leaseStatus: null });
 

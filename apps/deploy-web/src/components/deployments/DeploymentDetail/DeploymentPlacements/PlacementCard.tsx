@@ -58,7 +58,7 @@ export const PlacementCard: FC<PlacementCardProps> = ({
 }) => {
   const isLeaseActive = isLeaseLive(lease);
   const { data: leaseStatus, error: leaseStatusError } = d.useLeaseStatus({ provider, lease, enabled: isLeaseActive && !!provider, refetchInterval: 30_000 });
-  const isProviderUnreachable = isProviderUnavailableError(leaseStatusError);
+  const isProviderUnreachable = isLeaseActive && isProviderUnavailableError(leaseStatusError);
   const carveouts = d.useTeeResourceCarveouts(lease);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
 
