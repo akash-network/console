@@ -7,9 +7,11 @@ import { TLSSocket } from "node:tls";
 import type { z } from "zod";
 
 import type { NetworkLookup } from "../utils/createForbidPrivateNetworkLookup/createForbidPrivateNetworkLookup";
+import { toErrno } from "../utils/errno";
 import type { providerRequestSchema } from "../utils/schema";
 import { propagateTracingContext } from "../utils/telemetry";
 import type { CertificateValidator, CertValidationResultError } from "./CertificateValidator/CertificateValidator";
+import type { ProviderConnectionTracker } from "./ProviderConnectionTracker/ProviderConnectionTracker";
 
 export class ProviderProxy {
   /**
@@ -20,13 +22,26 @@ export class ProviderProxy {
   });
   readonly #certificateValidator: CertificateValidator;
   readonly #networkLookup?: NetworkLookup;
+  readonly #connectionTracker?: ProviderConnectionTracker;
 
-  constructor(certificateValidator: CertificateValidator, networkLookup?: NetworkLookup) {
+  constructor(certificateValidator: CertificateValidator, networkLookup?: NetworkLookup, connectionTracker?: ProviderConnectionTracker) {
     this.#certificateValidator = certificateValidator;
     this.#networkLookup = networkLookup;
+    this.#connectionTracker = connectionTracker;
   }
 
   connect(url: string, options: ProxyConnectOptions): Promise<ProxyConnectionResult> {
+    const trackerKey = this.getTrackerKey(url, options);
+
+    if (trackerKey && this.#connectionTracker?.shouldSkipDial(trackerKey)) {
+      return Promise.resolve({
+        ok: false,
+        code: "connectionError",
+        error: this.#connectionTracker.getLastError(trackerKey),
+        shortCircuited: true
+      });
+    }
+
     return new Promise<ProxyConnectionResult>((resolve, reject) => {
       const { agentCacheKey, ...requestOptions } = this.getRequestOptions(options);
       const req = https.request(
@@ -37,15 +52,19 @@ export class ProviderProxy {
             res.on(
               "error",
               propagateTracingContext(error => {
+                this.recordUnreachable(trackerKey, error);
                 resolve({ ok: false, code: "connectionError", error });
               })
             );
 
             const socket = res.socket;
             if (!socket || !(socket instanceof TLSSocket)) {
+              this.recordReachable(trackerKey);
               res.destroy();
               return resolve({ ok: false, code: "insecureConnection" });
             }
+
+            this.recordReachable(trackerKey);
 
             if (socket.authorized) {
               // CA validation is successful, so certificate is not self-signed
@@ -102,6 +121,7 @@ export class ProviderProxy {
         req.on(
           "error",
           propagateTracingContext(error => {
+            this.recordUnreachable(trackerKey, error);
             resolve({ ok: false, code: "connectionError", error });
           })
         );
@@ -119,6 +139,25 @@ export class ProviderProxy {
       if (options.body && options.method !== "GET") req.write(options.body);
       req.end();
     });
+  }
+
+  /**
+   * Keyed by provider and dial target together so a provider that re-registers a new hostUri does not
+   * inherit the dead host's cooldown. The mTLS cert hash is deliberately left out, unlike the agent cache
+   * key, because whether a host answers has nothing to do with which credentials are presented.
+   */
+  private getTrackerKey(url: string, options: ProxyConnectOptions): string | undefined {
+    if (!this.#connectionTracker || !options.providerAddress) return undefined;
+
+    return `${options.providerAddress}|${new URL(url).origin}`;
+  }
+
+  private recordReachable(trackerKey: string | undefined): void {
+    if (trackerKey) this.#connectionTracker?.recordReachable(trackerKey);
+  }
+
+  private recordUnreachable(trackerKey: string | undefined, error: unknown): void {
+    if (trackerKey) this.#connectionTracker?.recordUnreachable(trackerKey, error, toErrno(error));
   }
 
   private getRequestOptions(options: ProxyConnectOptions) {
@@ -187,4 +226,4 @@ interface ProxyConnectionResultSuccess {
 type ProxyConnectionResultError =
   | { ok: false; code: "invalidCertificate"; reason: CertValidationResultError["code"] }
   | { ok: false; code: "insecureConnection" }
-  | { ok: false; code: "connectionError"; error: unknown };
+  | { ok: false; code: "connectionError"; error: unknown; shortCircuited?: true };
