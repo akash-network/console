@@ -15,6 +15,7 @@ export * from "./bid/bid-http.service";
 export * from "./deployment/deployment-http.service";
 export * from "./deployment/managed-deployment-http.service";
 export * from "./lease/lease-http.service";
+export * from "./lease/lease-state";
 export * from "./provider/provider-http.service";
 export * from "./utils/isHttpError";
 export * from "./git-hub/git-hub-http.service";

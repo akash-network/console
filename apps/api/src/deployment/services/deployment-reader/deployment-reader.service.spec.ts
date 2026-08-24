@@ -63,6 +63,92 @@ describe(DeploymentReaderService.name, () => {
       await expect(service.findByWalletAndDseq(wallet, dseq)).rejects.toThrow();
       expect(fallbackDeploymentReaderService.findByOwnerAndDseq).not.toHaveBeenCalled();
     });
+
+    it.each(["closed", "insufficient_funds"])("does not ask the provider for the status of a %s lease", async state => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const dseq = "12345";
+      const lease = createLeaseApiResponse({ owner: wallet.address, dseq, state });
+      const { service, providerService } = setup({ leases: [lease] });
+
+      await service.findByWalletAndDseq(wallet, dseq);
+
+      expect(providerService.getLeaseStatus).not.toHaveBeenCalled();
+      expect(providerService.toProviderAuth).not.toHaveBeenCalled();
+    });
+
+    it("still returns a closed lease, with a null status", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const dseq = "12345";
+      const lease = createLeaseApiResponse({ owner: wallet.address, dseq, state: "closed" });
+      const { service } = setup({ leases: [lease] });
+
+      const result = await service.findByWalletAndDseq(wallet, dseq);
+
+      expect(result.leases).toHaveLength(1);
+      expect(result.leases[0]).toMatchObject({ state: "closed", status: null });
+    });
+
+    it.each(["active", "reclaiming"])("asks the provider for the status of a %s lease", async state => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const dseq = "12345";
+      const lease = createLeaseApiResponse({ owner: wallet.address, dseq, state });
+      const { service, providerService } = setup({ leases: [lease] });
+
+      await service.findByWalletAndDseq(wallet, dseq);
+
+      expect(providerService.getLeaseStatus).toHaveBeenCalledWith(
+        lease.lease.id.provider,
+        lease.lease.id.dseq,
+        lease.lease.id.gseq,
+        lease.lease.id.oseq,
+        expect.anything()
+      );
+    });
+
+    it("returns every lease but only probes the live one", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const dseq = "12345";
+      const activeLease = createLeaseApiResponse({ owner: wallet.address, dseq, state: "active" });
+      const leases = [
+        activeLease,
+        createLeaseApiResponse({ owner: wallet.address, dseq, state: "closed" }),
+        createLeaseApiResponse({ owner: wallet.address, dseq, state: "insufficient_funds" })
+      ];
+      const { service, providerService } = setup({ leases });
+
+      const result = await service.findByWalletAndDseq(wallet, dseq);
+
+      expect(result.leases).toHaveLength(3);
+      expect(providerService.getLeaseStatus).toHaveBeenCalledTimes(1);
+      expect(providerService.getLeaseStatus).toHaveBeenCalledWith(
+        activeLease.lease.id.provider,
+        activeLease.lease.id.dseq,
+        activeLease.lease.id.gseq,
+        activeLease.lease.id.oseq,
+        expect.anything()
+      );
+    });
+
+    it("reports a null status and logs a warning when a live lease's provider fails", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const dseq = "12345";
+      const lease = createLeaseApiResponse({ owner: wallet.address, dseq, state: "active" });
+      const { service, providerService, logger } = setup({ leases: [lease] });
+
+      providerService.getLeaseStatus.mockRejectedValue(createHttpError(503));
+
+      const result = await service.findByWalletAndDseq(wallet, dseq);
+
+      expect(result.leases[0]).toMatchObject({ status: null });
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "LEASE_STATUS_FETCH_FAILED",
+          provider: lease.lease.id.provider,
+          dseq: lease.lease.id.dseq,
+          leaseState: "active"
+        })
+      );
+    });
   });
 
   describe("list", () => {
@@ -171,6 +257,7 @@ describe(DeploymentReaderService.name, () => {
       fallbackDeploymentInfo?: ReturnType<typeof createDeploymentInfoSeed>;
       fallbackDeploymentList?: ReturnType<typeof createDeploymentListResponseSeed>;
       fallbackLeases?: ReturnType<typeof createLeaseApiResponse>[];
+      leases?: ReturnType<typeof createLeaseApiResponse>[];
     } = {}
   ) {
     const defaultWallet = createUserWallet() as WalletInitialized;
@@ -192,7 +279,7 @@ describe(DeploymentReaderService.name, () => {
         findAll: vi.fn().mockResolvedValue(input.fallbackDeploymentList ?? defaultDeploymentList)
       }),
       leaseHttpService: mock<LeaseHttpService>({
-        list: vi.fn().mockResolvedValue({ leases: [], pagination: { next_key: null, total: "0" } })
+        list: vi.fn().mockResolvedValue({ leases: input.leases ?? [], pagination: { next_key: null, total: String(input.leases?.length ?? 0) } })
       }),
       fallbackLeaseReaderService: mock<FallbackLeaseReaderService>({
         list: vi.fn().mockResolvedValue({
