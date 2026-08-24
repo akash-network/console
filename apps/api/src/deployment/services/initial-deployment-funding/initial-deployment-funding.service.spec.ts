@@ -138,6 +138,18 @@ describe(InitialDeploymentFundingService.name, () => {
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_SKIPPED", reason: "AUTO_TOP_UP_DISABLED" }));
   });
 
+  it("anchors the runtime deadline even when auto top-up is off, so the closer can still honour it", async () => {
+    const { service, drainingDeploymentService, userWalletRepository, deploymentSettingRepository, managedSignerService } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    userWalletRepository.findById.mockResolvedValue(createUserWallet({ id: 1, address: "akash1owner", userId: "user-1" }));
+    deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt: null, autoTopUpEnabled: false }));
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(deploymentSettingRepository.startRuntimeCountdown).toHaveBeenCalledWith("setting-1");
+    expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+  });
+
   it("funds the deployment when auto top-up is explicitly enabled", async () => {
     const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);

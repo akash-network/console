@@ -78,13 +78,12 @@ export class InitialDeploymentFundingService {
     }
 
     const deploymentSetting = await this.deploymentSettingRepository.findOneBy({ userId: userWallet.userId, dseq });
+    const runtimeEndsAt = await this.startRuntimeCountdown(deploymentSetting);
 
     if (deploymentSetting && !deploymentSetting.autoTopUpEnabled) {
       this.logger.info({ event: "INITIAL_FUNDING_SKIPPED", reason: "AUTO_TOP_UP_DISABLED", dseq, address });
       return;
     }
-
-    const runtimeEndsAt = await this.startRuntimeCountdown(deploymentSetting);
 
     if (deployment.predictedClosedHeight > lookAheadHeight) {
       this.instrumentation.recordSkipped("sufficient_runway", {
@@ -166,6 +165,11 @@ export class InitialDeploymentFundingService {
    * into the requested hours. The countdown starts before the sufficient-runway skip so a well-funded
    * new lease still anchors at lease start. The anchor is a set-if-unset, so job retries and the
    * top-up sweep's late fallback all agree on the deadline the first anchoring wrote.
+   *
+   * It also runs ahead of the auto-top-up gate that follows it. A limit with funding turned off is still a deadline
+   * the user asked for, and the closer honours it by design, ignoring `autoTopUpEnabled`; but it only
+   * sees deployments whose deadline is anchored, and the sweep's late fallback skips funding-off rows.
+   * Anchoring here is what makes that deadline reachable at all.
    */
   private async startRuntimeCountdown(deploymentSetting: DeploymentSettingsOutput | undefined): Promise<Date | null> {
     if (!deploymentSetting?.runtimeLimitHours) {
