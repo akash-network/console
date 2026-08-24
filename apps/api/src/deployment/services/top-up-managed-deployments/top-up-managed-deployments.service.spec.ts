@@ -318,6 +318,22 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(jobQueueService.enqueue).not.toHaveBeenCalledWith(expect.any(WalletBalanceReloadCheck), expect.anything());
     });
 
+    it("keeps a failed credits-low sweep out of the funding run's status and result", async () => {
+      const { service, drainingDeploymentService, deploymentSettingRepository, walletSettingRepository, instrumentation } = setupWithWalletReloadJobs();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const error = new Error("connection reset");
+
+      mockNonDrainingAutoTopUpOwner(drainingDeploymentService, deploymentSettingRepository, owner, walletId);
+      walletSettingRepository.findOneBy.mockRejectedValue(error);
+
+      const result = await service.topUpDeployments({ dryRun: false });
+
+      expect(result.ok).toBe(true);
+      expect(instrumentation.recordCreditsLowScheduleError).toHaveBeenCalledWith({ walletId, error });
+      expect(instrumentation.finish).toHaveBeenCalledWith("success", CURRENT_BLOCK_HEIGHT);
+    });
+
     it("does not schedule extra checks for auto-top-up owners on dry run", async () => {
       const { service, drainingDeploymentService, deploymentSettingRepository, jobQueueService, walletSettingRepository } = setupWithWalletReloadJobs();
       const owner = createAkashAddress();
