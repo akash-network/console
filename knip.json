@@ -36,8 +36,7 @@
       "entry": ["scripts/buildAkashTemplatesCache.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"],
       "ignore": [
-        "test/seeders/balance.seeder.ts",
-        "src/secret/repositories/index.ts"
+        "test/seeders/balance.seeder.ts"
       ],
       "drizzle": false
     },
