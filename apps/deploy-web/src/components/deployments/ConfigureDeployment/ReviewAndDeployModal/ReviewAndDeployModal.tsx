@@ -1,6 +1,6 @@
 "use client";
 import type { ComponentProps, FC } from "react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   Button,
   DialogV2,
@@ -18,7 +18,7 @@ import { useSnackbar } from "notistack";
 
 import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
 import { useFlag } from "@src/hooks/useFlag";
-import { useUpdateDeploymentSettingMutation } from "@src/queries/deploymentSettingsQuery";
+import { useDeploymentSettingQuery, useUpdateDeploymentSettingMutation } from "@src/queries/deploymentSettingsQuery";
 import type { AppError, PlacementType } from "@src/types";
 import { extractErrorMessage } from "@src/utils/errorUtils";
 import { PRICE_DISPLAY_PRECISION, udenomToDenom } from "@src/utils/mathHelpers";
@@ -35,6 +35,7 @@ export const DEPENDENCIES = {
   RuntimeLimitReviewSection,
   useFlag,
   useTrialGate,
+  useDeploymentSettingQuery,
   useUpdateDeploymentSettingMutation,
   useSnackbar,
   Snackbar
@@ -73,6 +74,11 @@ export const ReviewAndDeployModal: FC<Props> = ({
   const showAsHourly = d.useDeploymentHasGpu();
   const { enqueueSnackbar } = d.useSnackbar();
   const updateSetting = d.useUpdateDeploymentSettingMutation({ dseq: dseq ?? "" });
+  const storedSetting = d.useDeploymentSettingQuery({ dseq: dseq ?? "" });
+  /** The limit already stored for this dseq, which an earlier confirm may have written. */
+  const storedRuntimeLimitHours = storedSetting.data?.runtimeLimitHours ?? undefined;
+  const isStoredRuntimeLimitLoading = storedSetting.isFetching;
+  const isStoredRuntimeLimitUnknown = !!dseq && !!storedSetting.error;
   /**
    * Runtime limits sit behind a flag, and mean nothing for trial users whose deployments are never
    * auto-funded. Gating the submitted value too, not just the control, keeps a draft saved while the flag
@@ -94,11 +100,8 @@ export const ReviewAndDeployModal: FC<Props> = ({
    * Only deployable once every placement is selected and still has a live (priced) bid: a closed or stale
    * bid leaves a row unpriced and would fail at create-lease.
    */
-  const canConfirm = totalCount > 0 && rows.length === totalCount && pricedCount === totalCount && !isRuntimeLimitIncomplete;
+  const canConfirm = totalCount > 0 && rows.length === totalCount && pricedCount === totalCount && !isRuntimeLimitIncomplete && !isStoredRuntimeLimitLoading;
   const preventDefault = (e: Event) => e.preventDefault();
-
-  /** What an earlier confirm already wrote for this dseq, so a retry can reconcile against it. */
-  const committedRuntimeLimitRef = useRef<{ dseq: string; hours: number } | null>(null);
 
   /**
    * The limit is stored on the deployment before any lease exists, so the countdown can anchor at lease
@@ -106,22 +109,28 @@ export const ReviewAndDeployModal: FC<Props> = ({
    * the deployment would then run unbounded, which is the opposite of what they chose.
    *
    * A failed deploy drops back to the marketplace on the same deployment, so a second confirm reconciles
-   * what the first one wrote: the API only ever raises a limit, so turning one off or lowering it is a
-   * removal followed by the new value.
+   * against what is already stored: the API only ever raises a limit, so turning one off or lowering it is
+   * a removal followed by the new value. The comparison reads the stored row rather than remembering what
+   * this component wrote, because the dseq and the requested limit both outlive the component: the dseq
+   * sits in the URL and the limit in the saved draft, so a reload would otherwise read a stored limit as
+   * none and send a lowering the API rejects.
+   *
+   * A read that failed leaves the stored limit unknown, and a removal first is the one sequence that lands
+   * correctly whatever it holds.
    */
   const confirmAndDeploy = async () => {
-    const committed = committedRuntimeLimitRef.current?.dseq === dseq ? committedRuntimeLimitRef.current.hours : undefined;
-
-    if (dseq && committed !== effectiveRuntimeLimitHours) {
+    if (dseq && (isStoredRuntimeLimitUnknown || storedRuntimeLimitHours !== effectiveRuntimeLimitHours)) {
       try {
-        if (committed !== undefined && (effectiveRuntimeLimitHours === undefined || effectiveRuntimeLimitHours < committed)) {
+        const mustRemoveStoredLimitFirst =
+          isStoredRuntimeLimitUnknown ||
+          (storedRuntimeLimitHours !== undefined && (effectiveRuntimeLimitHours === undefined || effectiveRuntimeLimitHours < storedRuntimeLimitHours));
+
+        if (mustRemoveStoredLimitFirst) {
           await updateSetting.mutateAsync({ runtimeLimitHours: null });
-          committedRuntimeLimitRef.current = null;
         }
 
         if (effectiveRuntimeLimitHours !== undefined) {
           await updateSetting.mutateAsync({ runtimeLimitHours: effectiveRuntimeLimitHours });
-          committedRuntimeLimitRef.current = { dseq, hours: effectiveRuntimeLimitHours };
         }
       } catch (error) {
         enqueueSnackbar(<d.Snackbar title="Couldn't set the runtime limit" subTitle={extractErrorMessage(error as AppError)} iconVariant="error" />, {

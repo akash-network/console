@@ -128,39 +128,46 @@ describe(ReviewAndDeployModal.name, () => {
       expect(screen.getByRole("button", { name: /back to marketplace/i })).toBeDisabled();
     });
 
-    it("does not patch again when a retry confirms the limit it already committed", async () => {
-      const { mutateAsync } = setup({ runtimeLimitHours: 12 });
+    it("does not patch when the stored limit already matches the requested one", async () => {
+      const onConfirm = vi.fn();
+      const { mutateAsync } = setup({ onConfirm, runtimeLimitHours: 12, storedRuntimeLimitHours: 12 });
 
-      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
-      mutateAsync.mockClear();
       await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
 
       expect(mutateAsync).not.toHaveBeenCalled();
+      expect(onConfirm).toHaveBeenCalled();
     });
 
-    it("removes a committed limit when a retry confirms with the limit turned off", async () => {
+    it("removes the stored limit when confirming with the limit turned off", async () => {
       const onConfirm = vi.fn();
-      const { mutateAsync, setRuntimeLimitHours } = setup({ onConfirm, runtimeLimitHours: 12 });
+      const { mutateAsync } = setup({ onConfirm, runtimeLimitHours: undefined, storedRuntimeLimitHours: 12 });
 
       await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
-      await userEvent.click(screen.getByRole("button", { name: /turn off runtime limit/i }));
-      setRuntimeLimitHours(undefined);
-      mutateAsync.mockClear();
-      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
 
-      expect(mutateAsync).toHaveBeenCalledWith({ runtimeLimitHours: null });
-      await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(2));
+      expect(mutateAsync.mock.calls).toEqual([[{ runtimeLimitHours: null }]]);
+      await waitFor(() => expect(onConfirm).toHaveBeenCalled());
     });
 
-    it("removes a committed limit before writing a lower one on a retry", async () => {
-      const { mutateAsync, setRuntimeLimitHours } = setup({ runtimeLimitHours: 24 });
+    it("removes the stored limit before writing a lower one, on a fresh mount that never wrote it", async () => {
+      const { mutateAsync } = setup({ runtimeLimitHours: 24, storedRuntimeLimitHours: 48 });
 
       await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
-      setRuntimeLimitHours(6);
-      mutateAsync.mockClear();
+
+      expect(mutateAsync.mock.calls).toEqual([[{ runtimeLimitHours: null }], [{ runtimeLimitHours: 24 }]]);
+    });
+
+    it("waits for the stored limit to be read before allowing a deploy", () => {
+      setup({ runtimeLimitHours: 24, isStoredSettingLoading: true });
+
+      expect(screen.getByRole("button", { name: /confirm and deploy/i })).toBeDisabled();
+    });
+
+    it("clears the stored limit first when it could not be read", async () => {
+      const { mutateAsync } = setup({ runtimeLimitHours: 24, storedSettingError: new Error("offline") });
+
       await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
 
-      expect(mutateAsync.mock.calls).toEqual([[{ runtimeLimitHours: null }], [{ runtimeLimitHours: 6 }]]);
+      expect(mutateAsync.mock.calls).toEqual([[{ runtimeLimitHours: null }], [{ runtimeLimitHours: 24 }]]);
     });
 
     it("blocks deploying while the limit is switched on with no hours entered", async () => {
@@ -191,6 +198,9 @@ describe(ReviewAndDeployModal.name, () => {
     onConfirm?: () => void;
     onBack?: () => void;
     runtimeLimitHours?: number;
+    storedRuntimeLimitHours?: number;
+    isStoredSettingLoading?: boolean;
+    storedSettingError?: Error;
     isRuntimeLimitEnabled?: boolean;
     isRestricted?: boolean;
     isPatchPending?: boolean;
@@ -227,6 +237,17 @@ describe(ReviewAndDeployModal.name, () => {
     });
     const useUpdateDeploymentSettingMutation: typeof DEPENDENCIES.useUpdateDeploymentSettingMutation = () => mutation;
 
+    type StoredSetting = ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>;
+    const storedSetting = Object.assign(mock<StoredSetting>(), {
+      data:
+        input.isStoredSettingLoading || input.storedSettingError
+          ? undefined
+          : Object.assign(mock<NonNullable<StoredSetting["data"]>>(), { runtimeLimitHours: input.storedRuntimeLimitHours ?? null }),
+      isFetching: input.isStoredSettingLoading ?? false,
+      error: input.storedSettingError ?? null
+    });
+    const useDeploymentSettingQuery: typeof DEPENDENCIES.useDeploymentSettingQuery = () => storedSetting;
+
     const enqueueSnackbar = vi.fn();
     const useSnackbar: typeof DEPENDENCIES.useSnackbar = () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar });
     const Snackbar: typeof DEPENDENCIES.Snackbar = ({ title }) => <span>{title}</span>;
@@ -248,6 +269,7 @@ describe(ReviewAndDeployModal.name, () => {
           RuntimeLimitReviewSection,
           useFlag,
           useTrialGate,
+          useDeploymentSettingQuery,
           useUpdateDeploymentSettingMutation,
           useSnackbar,
           Snackbar
