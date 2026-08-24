@@ -19,6 +19,7 @@ export const DeploymentSettings = pgTable(
     lastFundedAt: timestamp("last_funded_at"),
     runtimeLimitHours: integer("runtime_limit_hours"),
     runtimeEndsAt: timestamp("runtime_ends_at", { withTimezone: true }),
+    runtimeEndingNotifiedFor: timestamp("runtime_ending_notified_for", { withTimezone: true }),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow()
   },

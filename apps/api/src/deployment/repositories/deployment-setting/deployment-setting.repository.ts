@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { UserWallets, WalletSetting } from "@src/billing/model-schemas";
@@ -26,6 +26,12 @@ export type ExpiredRuntimeDeployment = {
   dseq: string;
   walletId: number;
   address: string;
+};
+
+export type ExpiringRuntimeDeployment = ExpiredRuntimeDeployment & {
+  userId: string;
+  runtimeLimitHours: number;
+  runtimeEndsAt: Date;
 };
 
 export type AutoTopUpDeployment = {
@@ -150,6 +156,73 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .orderBy(desc(this.table.id));
 
     return deployments as ExpiredRuntimeDeployment[];
+  }
+
+  /**
+   * Deployments approaching their runtime limit that have not been warned about this deadline yet.
+   *
+   * `minLimitHours` keeps short-lived deployments out: a user who asked for two hours does not need an
+   * email about a deadline they set minutes earlier and can barely act on. Rows already past their
+   * deadline are left to `findExpiredRuntimeDeployments`, and trial wallets are excluded because a trial
+   * deployment already gets its own `beforeCloseTrialDeployment` warning.
+   *
+   * Eligibility is keyed on the deadline itself rather than a plain "already notified" flag, so raising
+   * a limit re-arms the warning for the new deadline with no extra bookkeeping in `applyRuntimeLimit`,
+   * and dropping a limit takes the row out of the sweep by nulling `runtimeEndsAt`.
+   */
+  async findExpiringRuntimeDeployments({ leadHours, minLimitHours }: { leadHours: number; minLimitHours: number }): Promise<ExpiringRuntimeDeployment[]> {
+    const deployments = await this.pg
+      .select({
+        id: this.table.id,
+        dseq: this.table.dseq,
+        userId: this.table.userId,
+        walletId: UserWallets.id,
+        address: UserWallets.address,
+        runtimeLimitHours: this.table.runtimeLimitHours,
+        runtimeEndsAt: this.table.runtimeEndsAt
+      })
+      .from(this.table)
+      .leftJoin(Users, eq(this.table.userId, Users.id))
+      .innerJoin(UserWallets, eq(Users.id, UserWallets.userId))
+      .where(
+        and(
+          eq(this.table.closed, false),
+          eq(UserWallets.isTrialing, false),
+          gte(this.table.runtimeLimitHours, minLimitHours),
+          isNotNull(this.table.runtimeEndsAt),
+          gt(this.table.runtimeEndsAt, sql`now()`),
+          lte(this.table.runtimeEndsAt, sql`now() + (${leadHours} * interval '1 hour')`),
+          sql`${this.table.runtimeEndingNotifiedFor} is distinct from ${this.table.runtimeEndsAt}`
+        )
+      )
+      .orderBy(desc(this.table.id));
+
+    return deployments as ExpiringRuntimeDeployment[];
+  }
+
+  /**
+   * Claims the right to warn about one deployment's deadline, returning false when another pass already
+   * has it. Matching on `runtimeEndsAt` keeps the claim tied to the deadline it was taken for, so an
+   * extension landing mid-sweep cannot be marked as warned by a pass that read the old deadline.
+   *
+   * Callers claim before sending rather than stamping after. The sweep runs far more often than the
+   * warning window is wide, so a send that succeeded but failed to stamp would repeat the same email on
+   * every pass until the deadline; a claim that failed to send costs one lost warning instead.
+   */
+  async claimRuntimeEndingNotification(id: string, runtimeEndsAt: Date): Promise<boolean> {
+    const [claimed] = await this.cursor
+      .update(this.table)
+      .set({ runtimeEndingNotifiedFor: sql`${this.table.runtimeEndsAt}`, updatedAt: sql`now()` })
+      .where(
+        and(
+          eq(this.table.id, id),
+          eq(this.table.runtimeEndsAt, runtimeEndsAt),
+          sql`${this.table.runtimeEndingNotifiedFor} is distinct from ${this.table.runtimeEndsAt}`
+        )
+      )
+      .returning({ id: this.table.id });
+
+    return !!claimed;
   }
 
   /**

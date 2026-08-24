@@ -5,6 +5,7 @@ import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 
 import type { ExpiredDeploymentsCloserService } from "@src/deployment/services/expired-deployments-closer/expired-deployments-closer.service";
+import type { ExpiringDeploymentsNotifierService } from "@src/deployment/services/expiring-deployments-notifier/expiring-deployments-notifier.service";
 import type { StaleManagedDeploymentsCleanerService } from "@src/deployment/services/stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
 import type { TopUpManagedDeploymentsService } from "@src/deployment/services/top-up-managed-deployments/top-up-managed-deployments.service";
 import { TopUpDeploymentsController } from "./top-up-deployments.controller";
@@ -43,22 +44,41 @@ describe(TopUpDeploymentsController.name, () => {
     });
   });
 
+  describe("notifyExpiringDeployments", () => {
+    it("should call the service to notify expiring deployments", async () => {
+      const { controller, expiringDeploymentsNotifierService } = setup();
+      const options = { dryRun: false };
+
+      await controller.notifyExpiringDeployments(options);
+
+      expect(expiringDeploymentsNotifierService.notifyExpiringDeployments).toHaveBeenCalledWith(options);
+    });
+  });
+
   function setup(): {
     controller: TopUpDeploymentsController;
     topUpManagedDeploymentsService: MockProxy<TopUpManagedDeploymentsService>;
     staleDeploymentsCleanerService: MockProxy<StaleManagedDeploymentsCleanerService>;
     expiredDeploymentsCloserService: MockProxy<ExpiredDeploymentsCloserService>;
+    expiringDeploymentsNotifierService: MockProxy<ExpiringDeploymentsNotifierService>;
   } {
     const topUpManagedDeploymentsService = mock<TopUpManagedDeploymentsService>();
     const staleDeploymentsCleanerService = mock<StaleManagedDeploymentsCleanerService>();
     const expiredDeploymentsCloserService = mock<ExpiredDeploymentsCloserService>();
-    const controller = new TopUpDeploymentsController(topUpManagedDeploymentsService, staleDeploymentsCleanerService, expiredDeploymentsCloserService);
+    const expiringDeploymentsNotifierService = mock<ExpiringDeploymentsNotifierService>();
+    const controller = new TopUpDeploymentsController(
+      topUpManagedDeploymentsService,
+      staleDeploymentsCleanerService,
+      expiredDeploymentsCloserService,
+      expiringDeploymentsNotifierService
+    );
 
     return {
       controller,
       topUpManagedDeploymentsService,
       staleDeploymentsCleanerService,
-      expiredDeploymentsCloserService
+      expiredDeploymentsCloserService,
+      expiringDeploymentsNotifierService
     };
   }
 });

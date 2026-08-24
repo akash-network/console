@@ -97,6 +97,43 @@ describe("deployment envSchema", () => {
     });
   });
 
+  describe("RUNTIME_LIMIT_WARNING_MIN_LIMIT_IN_H", () => {
+    it("defaults to a lead of 6h and a minimum limit of 12h", () => {
+      const result = envSchema.safeParse(setup());
+
+      expect(result.success).toBe(true);
+      expect(result.success && result.data.RUNTIME_LIMIT_WARNING_LEAD_IN_H).toBe(6);
+      expect(result.success && result.data.RUNTIME_LIMIT_WARNING_MIN_LIMIT_IN_H).toBe(12);
+    });
+
+    it("accepts a minimum limit of exactly twice the lead", () => {
+      const result = envSchema.safeParse(setup({ RUNTIME_LIMIT_WARNING_LEAD_IN_H: 4, RUNTIME_LIMIT_WARNING_MIN_LIMIT_IN_H: 8 }));
+
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects a minimum limit below twice the lead", () => {
+      const result = envSchema.safeParse(setup({ RUNTIME_LIMIT_WARNING_LEAD_IN_H: 6, RUNTIME_LIMIT_WARNING_MIN_LIMIT_IN_H: 8 }));
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues[0].path).toEqual(["RUNTIME_LIMIT_WARNING_MIN_LIMIT_IN_H"]);
+    });
+
+    it("rejects a zero lead", () => {
+      const result = envSchema.safeParse(setup({ RUNTIME_LIMIT_WARNING_LEAD_IN_H: 0 }));
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues.some(issue => issue.path[0] === "RUNTIME_LIMIT_WARNING_LEAD_IN_H")).toBe(true);
+    });
+
+    it("rejects an infinite lead", () => {
+      const result = envSchema.safeParse(setup({ RUNTIME_LIMIT_WARNING_LEAD_IN_H: "Infinity" }));
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues.some(issue => issue.path[0] === "RUNTIME_LIMIT_WARNING_LEAD_IN_H")).toBe(true);
+    });
+  });
+
   describe("AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD", () => {
     it("defaults to 5 when omitted", () => {
       const result = envSchema.safeParse(setup());
@@ -136,6 +173,7 @@ describe("deployment envSchema", () => {
   function setup(overrides: Record<string, unknown> = {}) {
     return {
       PROVIDER_PROXY_URL: "https://provider-proxy.example.com",
+      DEPLOY_WEB_BASE_URL: "https://console.example.com",
       GCP_KMS_AUTH: JSON.stringify({ project_id: "console-test", servicePath: "http://localhost:8085" }),
       ...overrides
     };

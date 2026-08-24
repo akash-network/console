@@ -63,6 +63,15 @@ export const envSchema = z
       .refine(value => Number.isFinite(value) && denomToUdenom(value) > 0, "must be a finite amount that converts to a positive on-chain deposit")
       .optional()
       .default(0.5),
+    /** How long before a runtime-limited deployment reaches its limit the user is warned by email. */
+    RUNTIME_LIMIT_WARNING_LEAD_IN_H: z.number({ coerce: true }).positive().finite().optional().default(6),
+    /**
+     * Shortest runtime limit worth warning about. A limit only a little wider than the lead time would be
+     * warned about almost as soon as it is set, which tells the user nothing they did not just decide.
+     */
+    RUNTIME_LIMIT_WARNING_MIN_LIMIT_IN_H: z.number({ coerce: true }).positive().finite().optional().default(12),
+    /** Base URL of the web console, used to deep-link emails at a deployment or account page. */
+    DEPLOY_WEB_BASE_URL: z.string().url(),
     PROVIDER_PROXY_URL: z.string().url(),
     GPU_BOT_WALLET_MNEMONIC: z.string().optional(),
     GCP_KMS_AUTH: jsonEnv(gcpKmsAuthSchema),
@@ -72,6 +81,14 @@ export const envSchema = z
     GCP_KMS_KEY_VERSION: z.string().optional().default("1")
   })
   .superRefine((env, ctx) => {
+    if (env.RUNTIME_LIMIT_WARNING_MIN_LIMIT_IN_H < 2 * env.RUNTIME_LIMIT_WARNING_LEAD_IN_H) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["RUNTIME_LIMIT_WARNING_MIN_LIMIT_IN_H"],
+        message: `RUNTIME_LIMIT_WARNING_MIN_LIMIT_IN_H (${env.RUNTIME_LIMIT_WARNING_MIN_LIMIT_IN_H}) must be at least twice RUNTIME_LIMIT_WARNING_LEAD_IN_H (${env.RUNTIME_LIMIT_WARNING_LEAD_IN_H}), otherwise the shortest warned limit is warned about almost as soon as it is set`
+      });
+    }
+
     if (env.AUTO_TOP_UP_TARGET_RUNWAY_IN_H <= env.AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

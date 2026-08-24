@@ -24,7 +24,7 @@ import { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed
 /** The fields a PATCH may change. A null `runtimeLimitHours` removes the limit; an absent one leaves it alone. */
 type DeploymentSettingChange = Pick<DeploymentSettingsInput, "autoTopUpEnabled" | "runtimeLimitHours">;
 
-type DeploymentSettingWithEstimatedTopUpAmount = Omit<DeploymentSettingsOutput, "lastFundedAt" | "runtimeEndsAt"> & {
+type DeploymentSettingWithEstimatedTopUpAmount = Omit<DeploymentSettingsOutput, "lastFundedAt" | "runtimeEndingNotifiedFor" | "runtimeEndsAt"> & {
   estimatedTopUpAmount: number;
   topUpFrequencyMs: number;
   runtimeEndsAt: string | null;
@@ -292,7 +292,7 @@ export class DeploymentSettingService {
     }
   }
 
-  /** `lastFundedAt` is the auto-funding claim marker and stays out of the API payload. */
+  /** `lastFundedAt` and `runtimeEndingNotifiedFor` are internal sweep markers and stay out of the API payload. */
   async withEstimatedTopUpAmount(params: DeploymentSettingsOutput): Promise<DeploymentSettingWithEstimatedTopUpAmount>;
   async withEstimatedTopUpAmount(params: undefined): Promise<undefined>;
   async withEstimatedTopUpAmount(params?: DeploymentSettingsOutput): Promise<DeploymentSettingWithEstimatedTopUpAmount | undefined> {
@@ -300,7 +300,7 @@ export class DeploymentSettingService {
       return undefined;
     }
 
-    const { lastFundedAt, runtimeEndsAt, ...rest } = params;
+    const { lastFundedAt, runtimeEndingNotifiedFor, runtimeEndsAt, ...rest } = params;
     const setting = { ...rest, runtimeEndsAt: runtimeEndsAt?.toISOString() ?? null };
 
     if (!setting.autoTopUpEnabled) {
