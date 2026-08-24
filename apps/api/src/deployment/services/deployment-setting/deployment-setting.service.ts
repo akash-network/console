@@ -76,7 +76,7 @@ export class DeploymentSettingService {
   async create(input: DeploymentSettingsInput): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
     const result = await this.withEstimatedTopUpAmount(await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "create").create(input));
 
-    if (input.autoTopUpEnabled === true) {
+    if (result.autoTopUpEnabled) {
       await this.walletReloadJobService.scheduleImmediate({ userId: result.userId });
     }
 
