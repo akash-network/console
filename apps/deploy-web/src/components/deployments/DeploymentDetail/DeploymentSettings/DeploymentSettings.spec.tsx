@@ -30,11 +30,34 @@ describe("DeploymentSettings", () => {
     expect(screen.getByText("notifications:false")).toBeInTheDocument();
   });
 
-  function setup(input: { state?: string; isSignedIn?: boolean }) {
+  describe("when escrow is abstracted behind the threshold flag", () => {
+    it("hides the billing section for an always-on deployment", () => {
+      setup({ state: "active", isSignedIn: true, isEscrowAbstracted: true });
+
+      expect(screen.queryByText("billing-section")).not.toBeInTheDocument();
+      expect(screen.queryByText("Billing")).not.toBeInTheDocument();
+      expect(screen.getByText("notifications:true")).toBeInTheDocument();
+    });
+
+    it("keeps the billing section for a runtime-limited deployment", () => {
+      setup({ state: "active", isSignedIn: true, isEscrowAbstracted: true, runtimeLimitHours: 12 });
+
+      expect(screen.getByText("billing-section")).toBeInTheDocument();
+      expect(screen.getByText("Billing")).toBeInTheDocument();
+    });
+  });
+
+  function setup(input: { state?: string; isSignedIn?: boolean; isEscrowAbstracted?: boolean; runtimeLimitHours?: number | null }) {
     const useUser: typeof DEPENDENCIES.useUser = () =>
       mock<ReturnType<typeof DEPENDENCIES.useUser>>({
         user: input.isSignedIn ? mock<NonNullable<ReturnType<typeof DEPENDENCIES.useUser>["user"]>>({ userId: "u1" }) : undefined
       });
+    const useFlag: typeof DEPENDENCIES.useFlag = () => input.isEscrowAbstracted ?? false;
+    const settings = Object.assign(mock<NonNullable<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>["data"]>>(), {
+      runtimeLimitHours: input.runtimeLimitHours ?? null
+    });
+    const useDeploymentSettingQuery: typeof DEPENDENCIES.useDeploymentSettingQuery = () =>
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>>(), { data: settings });
     const DeploymentBillingSection: typeof DEPENDENCIES.DeploymentBillingSection = vi.fn(() => <div>billing-section</div>);
     const DeploymentNotificationsSection: typeof DEPENDENCIES.DeploymentNotificationsSection = vi.fn(props => (
       <div>notifications:{String(props.isEnabled)}</div>
@@ -46,7 +69,14 @@ describe("DeploymentSettings", () => {
         deployment={mock<DeploymentDto>({ dseq: "1786440078202", state: input.state ?? "active" })}
         leases={[mock<LeaseDto>({ id: "1", state: "active" })]}
         onDeploymentChange={vi.fn()}
-        dependencies={MockComponents(DEPENDENCIES, { useUser, DeploymentBillingSection, DeploymentNotificationsSection, DeploymentDangerZone })}
+        dependencies={MockComponents(DEPENDENCIES, {
+          useUser,
+          useFlag,
+          useDeploymentSettingQuery,
+          DeploymentBillingSection,
+          DeploymentNotificationsSection,
+          DeploymentDangerZone
+        })}
       />
     );
   }

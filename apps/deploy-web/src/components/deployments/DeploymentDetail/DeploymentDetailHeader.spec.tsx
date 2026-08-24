@@ -125,6 +125,24 @@ describe("DeploymentDetailHeader", () => {
     expect(screen.getByTestId("escrow-balance")).toHaveTextContent("3.72");
   });
 
+  describe("when escrow is abstracted behind the threshold flag", () => {
+    it("hides the balance and auto top-up tiles on an always-on deployment", () => {
+      setup({ escrowBalanceUdenom: 3_720_000, autoTopUpEnabled: true, isEscrowAbstracted: true });
+
+      expect(screen.queryByText("BALANCE")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("escrow-balance")).not.toBeInTheDocument();
+      expect(screen.queryByText("AUTO TOP-UP")).not.toBeInTheDocument();
+      expect(screen.getByText("COST")).toBeInTheDocument();
+    });
+
+    it("keeps the runtime limit tile on a limited deployment", () => {
+      setup({ runtimeLimitHours: 12, isEscrowAbstracted: true });
+
+      expect(screen.getByText("RUNTIME LIMIT")).toBeInTheDocument();
+      expect(screen.queryByText("BALANCE")).not.toBeInTheDocument();
+    });
+  });
+
   it("passes every lease and provider to the visit control", () => {
     const DeploymentVisitControl = vi.fn(() => <div>visit</div>);
     const leases = [buildLeaseInPlacement("1", "dcloud-us"), buildLeaseInPlacement("2", "dcloud-eu")];
@@ -232,6 +250,7 @@ describe("DeploymentDetailHeader", () => {
     providers?: ApiProviderList[];
     gpuAmount?: number;
     groups?: DeploymentGroup[];
+    isEscrowAbstracted?: boolean;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const changeDeploymentName = vi.fn();
@@ -242,6 +261,7 @@ describe("DeploymentDetailHeader", () => {
         getDeploymentData: () => (input.storedManifest ? { manifest: input.storedManifest, name: input.name ?? undefined } : null)
       });
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false });
+    const useFlag: typeof DEPENDENCIES.useFlag = () => input.isEscrowAbstracted ?? false;
     const useDeclaredTeeTypes: typeof DEPENDENCIES.useDeclaredTeeTypes = () => [];
     const useDeclaredGpuInterconnect: typeof DEPENDENCIES.useDeclaredGpuInterconnect = () => ({ enabled: false, fabrics: [] });
     const TrialDeploymentBadge = vi.fn(() => <div>trial-badge</div>);
@@ -282,6 +302,7 @@ describe("DeploymentDetailHeader", () => {
         dependencies={MockComponents(DEPENDENCIES, {
           useLocalNotes,
           useWallet,
+          useFlag,
           useDeploymentEscrowBalance,
           PriceValue,
           useDeploymentSettingQuery,

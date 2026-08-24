@@ -19,6 +19,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useCurrencyFormatter } from "@src/hooks/useCurrencyFormatter/useCurrencyFormatter";
 import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
 import { useDepositDeployment } from "@src/hooks/useDepositDeployment/useDepositDeployment";
+import { useFlag } from "@src/hooks/useFlag";
 import { useHasInAppHistory } from "@src/hooks/useHasInAppHistory";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
@@ -46,6 +47,7 @@ export const DEPENDENCIES = {
   useWallet,
   useCurrencyFormatter,
   useDepositDeployment,
+  useFlag,
   useDeploymentMetrics,
   useManagedDeploymentConfirm,
   useHasInAppHistory,
@@ -89,6 +91,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
   const deploymentSetting = d.useDeploymentSettingQuery({ dseq: deployment.dseq });
   const { realTimeLeft, deploymentCost } = d.useDeploymentMetrics({ deployment, leases });
   const { confirm } = d.usePopup();
+  const isEscrowAbstracted = d.useFlag("auto_reload_fixed_threshold");
 
   function handleBackClick() {
     if (hasInAppHistory) {
@@ -232,38 +235,42 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
                 </d.CustomDropdownLinkItem>
               </d.DropdownMenuContent>
             </d.DropdownMenu>
-            <d.Button
-              variant="default"
-              className="ml-2 whitespace-nowrap"
-              onClick={() => {
-                setIsDepositingDeployment(true);
-                analyticsService.track("deposit_deployment_btn_clk", "Amplitude");
-              }}
-              size="sm"
-            >
-              Add funds
-            </d.Button>
+            {!isEscrowAbstracted && (
+              <>
+                <d.Button
+                  variant="default"
+                  className="ml-2 whitespace-nowrap"
+                  onClick={() => {
+                    setIsDepositingDeployment(true);
+                    analyticsService.track("deposit_deployment_btn_clk", "Amplitude");
+                  }}
+                  size="sm"
+                >
+                  Add funds
+                </d.Button>
 
-            <div className="ml-4 flex items-center gap-2">
-              <d.Switch checked={deploymentSetting.data?.autoTopUpEnabled} onCheckedChange={setAutoTopUpEnabled} disabled={deploymentSetting.isLoading} />
-              <span>Auto top-up</span>
-              <d.CustomTooltip
-                title={
-                  <div className="space-y-2">
-                    <div>
-                      <div>Estimated amount: ${udenomToUsd(deploymentSetting.data?.estimatedTopUpAmount || 0, wallet.denom)}</div>
-                      <div>Check period: {formatDuration(intervalToDuration({ start: 0, end: deploymentSetting.data?.topUpFrequencyMs || 0 }))}</div>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Auto top-up will only occur if there are insufficient funds to maintain the deployment until the next scheduled check.
-                    </div>
-                  </div>
-                }
-              >
-                <span className="cursor-help text-muted-foreground">ⓘ</span>
-              </d.CustomTooltip>
-              {deploymentSetting.isLoading && <d.Spinner size="small" />}
-            </div>
+                <div className="ml-4 flex items-center gap-2">
+                  <d.Switch checked={deploymentSetting.data?.autoTopUpEnabled} onCheckedChange={setAutoTopUpEnabled} disabled={deploymentSetting.isLoading} />
+                  <span>Auto top-up</span>
+                  <d.CustomTooltip
+                    title={
+                      <div className="space-y-2">
+                        <div>
+                          <div>Estimated amount: ${udenomToUsd(deploymentSetting.data?.estimatedTopUpAmount || 0, wallet.denom)}</div>
+                          <div>Check period: {formatDuration(intervalToDuration({ start: 0, end: deploymentSetting.data?.topUpFrequencyMs || 0 }))}</div>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Auto top-up will only occur if there are insufficient funds to maintain the deployment until the next scheduled check.
+                        </div>
+                      </div>
+                    }
+                  >
+                    <span className="cursor-help text-muted-foreground">ⓘ</span>
+                  </d.CustomTooltip>
+                  {deploymentSetting.isLoading && <d.Spinner size="small" />}
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -302,7 +309,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
         )}
       </div>
 
-      {isDepositingDeployment && (
+      {!isEscrowAbstracted && isDepositingDeployment && (
         <d.DeploymentDepositModal
           denom={getEscrowDenom(deployment)}
           disableMin

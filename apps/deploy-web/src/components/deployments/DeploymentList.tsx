@@ -30,6 +30,7 @@ import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { useBlockchainStatus } from "@src/context/BlockchainStatusProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
@@ -45,6 +46,7 @@ import { DeploymentListRow } from "./DeploymentListRow";
 
 export const DEPENDENCIES = {
   useWallet,
+  useFlag,
   useProviderList,
   useBlockchainStatus,
   useLocalNotes,
@@ -64,6 +66,7 @@ type Props = {
 export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = DEPENDENCIES }) => {
   const {
     useWallet,
+    useFlag,
     useProviderList,
     useBlockchainStatus,
     useLocalNotes,
@@ -76,6 +79,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
     DeploymentListRow
   } = dependencies;
   const { address, signAndBroadcastTx, hasWallet } = useWallet();
+  const isEscrowAbstracted = useFlag("auto_reload_fixed_threshold");
   const { data: providers, isFetching: isLoadingProviders } = useProviderList();
   const { isBlockchainDown } = useBlockchainStatus();
   const { getDeploymentName } = useLocalNotes();
@@ -301,7 +305,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
                 <TableHead className="text-center">Specs</TableHead>
                 <TableHead className="text-center">Name</TableHead>
                 <TableHead className="text-center">DSEQ</TableHead>
-                <TableHead className="text-center">Cost and balance</TableHead>
+                <TableHead className="text-center">{isEscrowAbstracted ? "Cost" : "Cost and balance"}</TableHead>
                 <TableHead className="text-center">Leases</TableHead>
                 <TableHead></TableHead>
               </TableRow>

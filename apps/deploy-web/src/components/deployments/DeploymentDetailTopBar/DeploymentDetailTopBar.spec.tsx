@@ -174,6 +174,29 @@ describe(DeploymentDetailTopBar.name, () => {
     });
   });
 
+  describe("when escrow is abstracted behind the threshold flag", () => {
+    it("hides Add funds and the auto top-up section on an active deployment", () => {
+      const deps = setup({
+        deployment: createDeployment({ state: "active" }),
+        isEscrowAbstracted: true
+      });
+
+      expect(deps.Button).not.toHaveBeenCalledWith(expect.objectContaining({ children: "Add funds" }), {});
+      expect(screen.queryByText("Auto top-up")).not.toBeInTheDocument();
+      expect(deps.Switch).not.toHaveBeenCalled();
+    });
+
+    it("keeps the Edit Name and Close actions", () => {
+      const deps = setup({
+        deployment: createDeployment({ state: "active" }),
+        isEscrowAbstracted: true
+      });
+
+      expect(deps.CustomDropdownLinkItem).toHaveBeenCalledWith(expect.objectContaining({ children: "Edit Name" }), {});
+      expect(deps.CustomDropdownLinkItem).toHaveBeenCalledWith(expect.objectContaining({ children: "Close" }), {});
+    });
+  });
+
   describe("closed deployment", () => {
     it("renders Edit Name button", () => {
       setup({
@@ -228,6 +251,7 @@ describe(DeploymentDetailTopBar.name, () => {
     removeLeases?: () => void;
     onDeploymentClose?: () => void;
     hasInAppHistory?: boolean;
+    isEscrowAbstracted?: boolean;
     router?: { back?: () => void; push?: () => void };
     wallet?: { denom?: string; signAndBroadcastTx?: () => Promise<boolean> };
     analyticsTrack?: ReturnType<typeof vi.fn>;
@@ -271,6 +295,7 @@ describe(DeploymentDetailTopBar.name, () => {
         udenomToUsd: vi.fn(() => 0)
       })) as typeof DEPENDENCIES.usePricing,
       useHasInAppHistory: vi.fn(() => input?.hasInAppHistory ?? false) as typeof DEPENDENCIES.useHasInAppHistory,
+      useFlag: vi.fn(() => input?.isEscrowAbstracted ?? false) as typeof DEPENDENCIES.useFlag,
       useManagedDeploymentConfirm: vi.fn(() => ({
         closeDeploymentConfirm: vi.fn(() => Promise.resolve(true))
       })) as typeof DEPENDENCIES.useManagedDeploymentConfirm,

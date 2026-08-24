@@ -13,6 +13,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAutoTopUp } from "@src/hooks/useAutoTopUp/useAutoTopUp";
 import { useDeploymentEscrowBalance } from "@src/hooks/useDeploymentEscrowBalance/useDeploymentEscrowBalance";
+import { useFlag } from "@src/hooks/useFlag";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useTickingNow } from "@src/hooks/useTickingNow";
 import { useUpdateDeploymentSettingMutation } from "@src/queries/deploymentSettingsQuery";
@@ -27,6 +28,7 @@ import { AddRuntimeHoursModal } from "./AddRuntimeHoursModal";
 export const DEPENDENCIES = {
   useServices,
   useWallet,
+  useFlag,
   usePopup,
   usePricing,
   useAutoTopUp,
@@ -54,6 +56,7 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
   const { udenomToUsd } = d.usePricing();
   const { confirm } = d.usePopup();
   const { enqueueSnackbar } = d.useSnackbar();
+  const isEscrowAbstracted = d.useFlag("auto_reload_fixed_threshold");
   const [isDepositing, setIsDepositing] = useState(false);
   const [isAddingHours, setIsAddingHours] = useState(false);
   const isActive = deployment.state === "active";
@@ -140,13 +143,17 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
     <div className="rounded-xl border bg-card p-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="space-y-1">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Current balance</div>
-          <div className="text-2xl font-bold">
-            <d.PriceValue denom={escrowDenom} value={udenomToDenom(balanceUdenom, 6)} />
-          </div>
+          {!isEscrowAbstracted && (
+            <>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Current balance</div>
+              <div className="text-2xl font-bold">
+                <d.PriceValue denom={escrowDenom} value={udenomToDenom(balanceUdenom, 6)} />
+              </div>
+            </>
+          )}
           {isRuntimeLimited && <div className="text-sm text-muted-foreground">Runtime limit: {formatRuntimeLimit(runtimeLimitHours, runtimeEndsAt, now)}</div>}
         </div>
-        {isActive && (
+        {isActive && (isRuntimeLimited || !isEscrowAbstracted) && (
           <Button variant="outline" size="md" onClick={isRuntimeLimited ? openAddHoursModal : openDepositModal}>
             {isRuntimeLimited ? "Add hours" : "Add funds"}
           </Button>
@@ -171,7 +178,7 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
         </div>
       )}
 
-      {isActive && !isRuntimeLimited && (
+      {!isEscrowAbstracted && isActive && !isRuntimeLimited && (
         <div className="mt-6 flex items-center justify-between gap-4 border-t pt-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2 font-medium">
@@ -201,7 +208,9 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
         </div>
       )}
 
-      {isDepositing && <d.DeploymentDepositModal denom={escrowDenom} disableMin onCancel={() => setIsDepositing(false)} onSubmit={submitDeposit} />}
+      {!isEscrowAbstracted && isDepositing && (
+        <d.DeploymentDepositModal denom={escrowDenom} disableMin onCancel={() => setIsDepositing(false)} onSubmit={submitDeposit} />
+      )}
 
       {isAddingHours && isRuntimeLimited && (
         <d.AddRuntimeHoursModal

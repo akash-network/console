@@ -27,6 +27,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
 import { useDepositDeployment } from "@src/hooks/useDepositDeployment/useDepositDeployment";
+import { useFlag } from "@src/hooks/useFlag";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useRealTimeLeft } from "@src/hooks/useRealTimeLeft";
@@ -54,6 +55,10 @@ import { DeploymentDepositModal } from "./DeploymentDepositModal/DeploymentDepos
 import { DeploymentName } from "./DeploymentName/DeploymentName";
 import { LeaseChip } from "./LeaseChip";
 
+export const DEPENDENCIES = {
+  useFlag
+};
+
 type Props = {
   deployment: NamedDeploymentDto;
   isSelectable?: boolean;
@@ -62,10 +67,20 @@ type Props = {
   providers: Array<ApiProviderList> | undefined;
   refreshDeployments: () => void;
   children?: ReactNode;
+  dependencies?: typeof DEPENDENCIES;
 };
 
-export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, isSelectable, onSelectDeployment, checked, providers, refreshDeployments }) => {
+export const DeploymentListRow: React.FunctionComponent<Props> = ({
+  deployment,
+  isSelectable,
+  onSelectDeployment,
+  checked,
+  providers,
+  refreshDeployments,
+  dependencies: d = DEPENDENCIES
+}) => {
   const router = useRouter();
+  const isEscrowAbstracted = d.useFlag("auto_reload_fixed_threshold");
   const { analyticsService } = useServices();
   const [open, setOpen] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
@@ -226,7 +241,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                 <PriceEstimateTooltip denom={getEscrowDenom(deployment)} value={deploymentCost} showAsHourly={hasGpu} />
               </div>
             )}
-            {isActive && !!escrowBalanceInDenom && !!escrowBalance && (
+            {!isEscrowAbstracted && isActive && !!escrowBalanceInDenom && !!escrowBalance && (
               <CustomTooltip
                 title={
                   <div className="text-left">
@@ -256,7 +271,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
               </CustomTooltip>
             )}
           </div>
-          {isActive && ((isValidTimeLeft && realTimeLeft) || isRunningOutOfFunds) && (
+          {!isEscrowAbstracted && isActive && ((isValidTimeLeft && realTimeLeft) || isRunningOutOfFunds) && (
             <CustomTooltip
               disabled={!(showTimeLeftWarning || isRunningOutOfFunds)}
               title={
@@ -329,7 +344,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                 >
                   <ClickAwayListener onClickAway={() => setOpen(false)}>
                     <div>
-                      {isActive && (
+                      {!isEscrowAbstracted && isActive && (
                         <CustomDropdownLinkItem onClick={showDepositModal} icon={<Plus fontSize="small" />}>
                           Add funds
                         </CustomDropdownLinkItem>
@@ -365,7 +380,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
         </TableCell>
       </TableRow>
 
-      {isActive && isDepositingDeployment && (
+      {!isEscrowAbstracted && isActive && isDepositingDeployment && (
         <DeploymentDepositModal
           denom={getEscrowDenom(deployment)}
           disableMin
