@@ -45,9 +45,22 @@ describe("DeploymentSettings", () => {
       expect(screen.getByText("billing-section")).toBeInTheDocument();
       expect(screen.getByText("Billing")).toBeInTheDocument();
     });
+
+    it("keeps the billing section hidden until the deployment settings resolve", () => {
+      setup({ state: "active", isSignedIn: true, isEscrowAbstracted: true, isLoadingSettings: true });
+
+      expect(screen.queryByText("billing-section")).not.toBeInTheDocument();
+      expect(screen.queryByText("Billing")).not.toBeInTheDocument();
+    });
   });
 
-  function setup(input: { state?: string; isSignedIn?: boolean; isEscrowAbstracted?: boolean; runtimeLimitHours?: number | null }) {
+  function setup(input: {
+    state?: string;
+    isSignedIn?: boolean;
+    isEscrowAbstracted?: boolean;
+    runtimeLimitHours?: number | null;
+    isLoadingSettings?: boolean;
+  }) {
     const useUser: typeof DEPENDENCIES.useUser = () =>
       mock<ReturnType<typeof DEPENDENCIES.useUser>>({
         user: input.isSignedIn ? mock<NonNullable<ReturnType<typeof DEPENDENCIES.useUser>["user"]>>({ userId: "u1" }) : undefined
@@ -57,7 +70,7 @@ describe("DeploymentSettings", () => {
       runtimeLimitHours: input.runtimeLimitHours ?? null
     });
     const useDeploymentSettingQuery: typeof DEPENDENCIES.useDeploymentSettingQuery = () =>
-      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>>(), { data: settings });
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>>(), { data: input.isLoadingSettings ? undefined : settings });
     const DeploymentBillingSection: typeof DEPENDENCIES.DeploymentBillingSection = vi.fn(() => <div>billing-section</div>);
     const DeploymentNotificationsSection: typeof DEPENDENCIES.DeploymentNotificationsSection = vi.fn(props => (
       <div>notifications:{String(props.isEnabled)}</div>
