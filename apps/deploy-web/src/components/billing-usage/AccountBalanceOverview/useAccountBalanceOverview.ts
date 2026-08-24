@@ -6,12 +6,14 @@ import { useAutoReloadMode } from "@src/components/billing-usage/useAutoReloadMo
 import { useLocalNotes } from "@src/components/LocalNoteManager/useLocalNotes";
 import { useWallet } from "@src/context/WalletProvider";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
+import type { LiveEscrowInput } from "@src/hooks/useWalletBalance";
 import { computeWalletBalance } from "@src/hooks/useWalletBalance";
 import { useWalletSettingsQuery } from "@src/queries";
 import { useBalances } from "@src/queries/useBalancesQuery";
+import { useBlock } from "@src/queries/useBlocksQuery";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { isLeaseLive, LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
-import { getLeasesCostPerBlockUsd, getTimeLeft, perBlockToHourly } from "@src/utils/priceUtils";
+import { getLeaseCostPerBlockUsdByDseq, getLiveEscrowBalance, getTimeLeft, perBlockToHourly } from "@src/utils/priceUtils";
 
 export const DEPENDENCIES = {
   useWallet,
@@ -19,6 +21,7 @@ export const DEPENDENCIES = {
   useAutoReloadMode,
   useBalances,
   useAllLeases,
+  useBlock,
   useWalletSettingsQuery,
   useLocalNotes
 };
@@ -52,38 +55,53 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
   const { price, udenomToUsd } = d.usePricing();
   const { data: balances, isError: isBalancesError, fetchStatus: balancesFetchStatus } = d.useBalances(address);
   const { data: leases } = d.useAllLeases(address, { state: LIVE_LEASE_STATES, enabled: !!address });
+  const hasActiveDeployments = !!balances?.activeDeployments.length;
+  /** Gated on the wallet holding an escrow: an account with nothing running shouldn't poll the chain every 30 seconds. */
+  const { data: latestBlock } = d.useBlock("latest", { refetchInterval: 30000, enabled: hasActiveDeployments });
   const { data: walletSettings } = d.useWalletSettingsQuery();
   const { getDeploymentName } = d.useLocalNotes();
   const { showsThresholdRule } = d.useAutoReloadMode();
 
+  const liveEscrow = useMemo<LiveEscrowInput>(
+    () => ({
+      latestBlockHeight: latestBlock ? Number(latestBlock.block.header.height) : undefined,
+      perBlockUsdByDseq: getLeaseCostPerBlockUsdByDseq(leases?.filter(isLeaseLive) ?? [])
+    }),
+    [leases, latestBlock]
+  );
+
   /** Not gated on the AKT market price: managed wallets hold ACT/USDC (1:1 USD), and blocking on market data would strand the card on its skeleton during an outage. */
-  const walletBalance = useMemo(() => (balances ? computeWalletBalance(balances, price ?? 0, udenomToUsd) : null), [balances, price, udenomToUsd]);
+  const walletBalance = useMemo(
+    () => (balances ? computeWalletBalance(balances, price ?? 0, udenomToUsd, liveEscrow) : null),
+    [balances, price, udenomToUsd, liveEscrow]
+  );
 
-  const { perHourByDseq, spend } = useMemo(() => {
-    const perHourByDseq = new Map<string, number>();
-    if (!leases) return { perHourByDseq, spend: { perBlockUsd: 0, perHour: 0 } };
+  const spend = useMemo(() => {
+    const perBlockUsd = [...liveEscrow.perBlockUsdByDseq.values()].reduce((total, deploymentPerBlockUsd) => total + deploymentPerBlockUsd, 0);
 
-    let totalPerBlockUsd = 0;
-    for (const lease of leases.filter(isLeaseLive)) {
-      const perBlockUsd = getLeasesCostPerBlockUsd([lease]);
-      totalPerBlockUsd += perBlockUsd;
-      perHourByDseq.set(lease.dseq, (perHourByDseq.get(lease.dseq) ?? 0) + perBlockToHourly(perBlockUsd));
-    }
-
-    return { perHourByDseq, spend: { perBlockUsd: totalPerBlockUsd, perHour: perBlockToHourly(totalPerBlockUsd) } };
-  }, [leases]);
+    return { perBlockUsd, perHour: perBlockToHourly(perBlockUsd) };
+  }, [liveEscrow]);
 
   const deployments = useMemo<ReservedDeployment[]>(() => {
     if (!balances) return [];
     return balances.activeDeployments
-      .map(deployment => ({
-        dseq: deployment.dseq,
-        name: getDeploymentName(deployment.dseq) ?? `Deployment ${deployment.dseq}`,
-        reservedUsd: deployment.escrowAccount.state.funds.reduce((sum, fund) => sum + udenomToUsd(fund.amount, fund.denom), 0),
-        perHourUsd: perHourByDseq.get(deployment.dseq) ?? 0
-      }))
+      .map(deployment => {
+        const pricePerBlock = liveEscrow.perBlockUsdByDseq.get(deployment.dseq) ?? 0;
+
+        return {
+          dseq: deployment.dseq,
+          name: getDeploymentName(deployment.dseq) ?? `Deployment ${deployment.dseq}`,
+          reservedUsd: getLiveEscrowBalance({
+            settledBalance: deployment.escrowAccount.state.funds.reduce((sum, fund) => sum + udenomToUsd(fund.amount, fund.denom), 0),
+            pricePerBlock,
+            settledAt: Number(deployment.escrowAccount.state.settled_at),
+            latestBlockHeight: liveEscrow.latestBlockHeight
+          }),
+          perHourUsd: perBlockToHourly(pricePerBlock)
+        };
+      })
       .sort((a, b) => b.reservedUsd - a.reservedUsd);
-  }, [balances, getDeploymentName, udenomToUsd, perHourByDseq]);
+  }, [balances, getDeploymentName, udenomToUsd, liveEscrow]);
 
   const totalUsd = walletBalance?.totalUsd ?? 0;
   const reserved = deployments.reduce((sum, deployment) => sum + deployment.reservedUsd, 0);

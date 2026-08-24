@@ -75,6 +75,43 @@ export function getLeasesCostPerBlockUsd(leases: PricedLease[]): number {
   }, 0);
 }
 
+/**
+ * Groups the per-block USD price of the given leases by the deployment they belong to. Pass already-live leases.
+ */
+export function getLeaseCostPerBlockUsdByDseq(leases: (PricedLease & { dseq: string })[]): Map<string, number> {
+  const perBlockUsdByDseq = new Map<string, number>();
+
+  for (const lease of leases) {
+    perBlockUsdByDseq.set(lease.dseq, (perBlockUsdByDseq.get(lease.dseq) ?? 0) + getLeasesCostPerBlockUsd([lease]));
+  }
+
+  return perBlockUsdByDseq;
+}
+
+/**
+ * Nets off what a provider has earned since the escrow last settled. The chain only decrements an escrow's
+ * funds on settlement (deposit, withdrawal, lease close), so between settlements the raw figure reads high.
+ * Units follow the inputs: pass the balance and the price both in udenom, or both in USD.
+ * Falls back to the settled balance when the height is unknown or nothing is being spent.
+ */
+export function getLiveEscrowBalance({
+  settledBalance,
+  pricePerBlock,
+  settledAt,
+  latestBlockHeight
+}: {
+  settledBalance: number;
+  pricePerBlock: number;
+  settledAt: number;
+  latestBlockHeight?: number;
+}): number {
+  if (latestBlockHeight === undefined || !Number.isFinite(latestBlockHeight) || !Number.isFinite(settledAt) || !pricePerBlock) return settledBalance;
+
+  const blocksSinceSettlement = Math.max(latestBlockHeight - settledAt, 0);
+
+  return Math.max(settledBalance - blocksSinceSettlement * pricePerBlock, 0);
+}
+
 export function getTimeLeft(pricePerBlock: number, balance: number) {
   const blocksLeft = balance / pricePerBlock;
   const timestamp = new Date().getTime();
