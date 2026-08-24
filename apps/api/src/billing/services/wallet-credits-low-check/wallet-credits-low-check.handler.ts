@@ -73,7 +73,7 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
       })
     );
 
-    await this.userWalletRepository.updateById(wallet.id, { creditsLowNotifiedAt: new Date() });
+    await this.#stampNotified(wallet, payload.userId);
 
     this.logger.info({
       event: "CREDITS_LOW_EMAIL_SENT",
@@ -82,6 +82,19 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
       weeklyCostUsd,
       daysRemaining
     });
+  }
+
+  /**
+   * A failed stamp is logged instead of thrown: failing the job after a successful send would
+   * make the queue retry the handler and resend the email it just delivered. At worst the
+   * unstamped wallet sends one more email on the next scheduled check.
+   */
+  async #stampNotified(wallet: UserWalletOutput, userId: UserOutput["id"]): Promise<void> {
+    try {
+      await this.userWalletRepository.updateById(wallet.id, { creditsLowNotifiedAt: new Date() });
+    } catch (error) {
+      this.logger.error({ event: "CREDITS_LOW_NOTIFIED_STAMP_FAILED", userId, error });
+    }
   }
 
   async #getValidWalletResources(userId: UserOutput["id"]) {

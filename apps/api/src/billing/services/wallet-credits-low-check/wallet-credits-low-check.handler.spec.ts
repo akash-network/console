@@ -170,6 +170,18 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "no_email" }));
   });
 
+  it("does not fail the job when stamping creditsLowNotifiedAt fails after a successful send", async () => {
+    const { handler, notificationService, userWalletRepository, user, logger, job } = setup();
+    const error = new Error("connection reset");
+    userWalletRepository.updateById.mockRejectedValue(error);
+
+    await expect(handler.handle(job)).resolves.toBeUndefined();
+
+    expect(notificationService.createNotification).toHaveBeenCalledTimes(1);
+    expect(logger.error).toHaveBeenCalledWith({ event: "CREDITS_LOW_NOTIFIED_STAMP_FAILED", userId: user.id, error });
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_EMAIL_SENT" }));
+  });
+
   it("stamps creditsLowNotifiedAt after a successful send", async () => {
     const { handler, notificationService, userWalletRepository, wallet, logger, job } = setup();
 
