@@ -2,7 +2,7 @@ import { AnyAbility } from "@casl/ability";
 import { permittedFieldsOf } from "@casl/ability/extra";
 import { InjectDrizzle } from "@knaadh/nestjs-drizzle-pg";
 import { ForbiddenException, Injectable } from "@nestjs/common";
-import { and, count, eq, gt, lte, or, sql } from "drizzle-orm";
+import { and, count, eq, gt, lte, ne, or, sql } from "drizzle-orm";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { SQL } from "drizzle-orm/sql/sql";
 import difference from "lodash/difference";
@@ -80,6 +80,14 @@ export interface FindAllDeploymentAlertsConditions {
   dseq: string;
   includeSuppressed?: boolean;
 }
+
+/**
+ * The per-deployment escrow-balance alert is retired: the block worker no longer evaluates it.
+ * Rows created before the retirement still exist, so they must stay out of anything a user can
+ * still act on — otherwise they pad the alerts list and hold their notification channel hostage
+ * while being invisible in the UI.
+ */
+const RETIRED_ALERT_TYPE: AlertType = "DEPLOYMENT_BALANCE";
 
 @Injectable()
 export class AlertRepository {
@@ -235,7 +243,11 @@ export class AlertRepository {
       .from(schema.Alert)
       .where(
         this.whereAccessibleBy(
-          and(eq(schema.Alert.notificationChannelId, notificationChannelId), sql`NOT(${schema.Alert.params} @> '{"suppressedBySystem": true}')`)
+          and(
+            eq(schema.Alert.notificationChannelId, notificationChannelId),
+            ne(schema.Alert.type, RETIRED_ALERT_TYPE),
+            sql`NOT(${schema.Alert.params} @> '{"suppressedBySystem": true}')`
+          )
         )
       );
     return Number(result[0].count);
@@ -245,7 +257,7 @@ export class AlertRepository {
     const page = options.page || 1;
     const limit = options.limit || 10;
     const offset = (page - 1) * limit;
-    let where = and(this.whereAccessibleBy(), sql`NOT(${schema.Alert.params} @> '{"suppressedBySystem": true}')`);
+    let where = and(this.whereAccessibleBy(), ne(schema.Alert.type, RETIRED_ALERT_TYPE), sql`NOT(${schema.Alert.params} @> '{"suppressedBySystem": true}')`);
 
     if (options.query?.dseq) {
       where = and(where, sql`${schema.Alert.params}->>'dseq' = ${options.query.dseq}`);
