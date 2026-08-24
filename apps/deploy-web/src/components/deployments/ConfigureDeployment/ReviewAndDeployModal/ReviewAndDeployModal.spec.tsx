@@ -171,6 +171,39 @@ describe(ReviewAndDeployModal.name, () => {
       expect(mutateAsync.mock.calls).toEqual([[{ runtimeLimitHours: null }], [{ runtimeLimitHours: 24 }]]);
     });
 
+    it("leaves a stored limit alone when the feature flag is off", async () => {
+      const onConfirm = vi.fn();
+      const { mutateAsync } = setup({ onConfirm, storedRuntimeLimitHours: 48, isRuntimeLimitEnabled: false });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync).not.toHaveBeenCalled();
+      expect(onConfirm).toHaveBeenCalled();
+    });
+
+    it("deploys when the stored limit cannot be read and the feature is off", async () => {
+      const onConfirm = vi.fn();
+      const { mutateAsync } = setup({ onConfirm, isRuntimeLimitEnabled: false, storedSettingError: new Error("offline") });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync).not.toHaveBeenCalled();
+      expect(onConfirm).toHaveBeenCalled();
+    });
+
+    it("says the limit was removed but not replaced when only the second patch fails", async () => {
+      const onConfirm = vi.fn();
+      const { enqueueSnackbar } = setup({ onConfirm, runtimeLimitHours: 24, storedRuntimeLimitHours: 48, secondPatchError: new Error("offline") });
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalled());
+      const [[snackbar]] = enqueueSnackbar.mock.calls;
+      render(snackbar);
+      expect(screen.getByText("Runtime limit removed but not replaced")).toBeInTheDocument();
+      expect(onConfirm).not.toHaveBeenCalled();
+    });
+
     it("blocks deploying while the limit is switched on with no hours entered", async () => {
       setup({});
 
@@ -206,6 +239,7 @@ describe(ReviewAndDeployModal.name, () => {
     isRestricted?: boolean;
     isPatchPending?: boolean;
     patchError?: Error;
+    secondPatchError?: Error;
   }) {
     const rows = input.rows ?? [
       { placementId: "p1", placementName: "placement-1", region: "Any region", providerName: "Dune Networks", price: { amount: "100", denom: "uakt" } }
@@ -231,7 +265,13 @@ describe(ReviewAndDeployModal.name, () => {
     const useFlag: typeof DEPENDENCIES.useFlag = () => input.isRuntimeLimitEnabled ?? true;
     const useTrialGate: typeof DEPENDENCIES.useTrialGate = () => ({ isRestricted: input.isRestricted ?? false, isWalletReady: true });
 
-    const mutateAsync = vi.fn().mockImplementation(() => (input.patchError ? Promise.reject(input.patchError) : Promise.resolve()));
+    let patchCalls = 0;
+    const mutateAsync = vi.fn().mockImplementation(() => {
+      patchCalls++;
+      if (input.patchError) return Promise.reject(input.patchError);
+      if (input.secondPatchError && patchCalls === 2) return Promise.reject(input.secondPatchError);
+      return Promise.resolve();
+    });
     const mutation = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useUpdateDeploymentSettingMutation>>(), {
       mutateAsync,
       isPending: input.isPatchPending ?? false

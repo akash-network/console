@@ -74,11 +74,6 @@ export const ReviewAndDeployModal: FC<Props> = ({
   const showAsHourly = d.useDeploymentHasGpu();
   const { enqueueSnackbar } = d.useSnackbar();
   const updateSetting = d.useUpdateDeploymentSettingMutation({ dseq: dseq ?? "" });
-  const storedSetting = d.useDeploymentSettingQuery({ dseq: dseq ?? "" });
-  /** The limit already stored for this dseq, which an earlier confirm may have written. */
-  const storedRuntimeLimitHours = storedSetting.data?.runtimeLimitHours ?? undefined;
-  const isStoredRuntimeLimitLoading = storedSetting.isFetching;
-  const isStoredRuntimeLimitUnknown = !!dseq && !!storedSetting.error;
   /**
    * Runtime limits sit behind a flag, and mean nothing for trial users whose deployments are never
    * auto-funded. Gating the submitted value too, not just the control, keeps a draft saved while the flag
@@ -88,6 +83,16 @@ export const ReviewAndDeployModal: FC<Props> = ({
   const { isRestricted } = d.useTrialGate();
   const isRuntimeLimitOffered = isRuntimeLimitEnabled && !isRestricted;
   const effectiveRuntimeLimitHours = isRuntimeLimitOffered && runtimeLimitHours ? runtimeLimitHours : undefined;
+  /**
+   * Read only while a limit is on offer. With the feature off nothing here may touch the stored setting,
+   * so a deployment nobody asked to limit cannot have one removed, and a read that fails cannot block a
+   * deploy that never involved a limit.
+   */
+  const storedSetting = d.useDeploymentSettingQuery({ dseq: isRuntimeLimitOffered && dseq ? dseq : "" });
+  /** The limit already stored for this dseq, which an earlier confirm may have written. */
+  const storedRuntimeLimitHours = storedSetting.data?.runtimeLimitHours ?? undefined;
+  const isStoredRuntimeLimitLoading = storedSetting.isFetching;
+  const isStoredRuntimeLimitUnknown = !!storedSetting.error;
   /**
    * The switch's own state, kept here rather than in the section: an emptied hours field reports no limit,
    * and without knowing the switch is still on there is no way to tell that apart from a user who wants
@@ -117,9 +122,15 @@ export const ReviewAndDeployModal: FC<Props> = ({
    *
    * A read that failed leaves the stored limit unknown, and a removal first is the one sequence that lands
    * correctly whatever it holds.
+   *
+   * The pair is not atomic, so a removal that lands before the write fails leaves the deployment with no
+   * limit; confirming again reconciles from there, and the message says so rather than implying nothing
+   * changed. Nothing is funded in the meantime, since the deploy is blocked and no lease exists yet.
    */
   const confirmAndDeploy = async () => {
-    if (dseq && (isStoredRuntimeLimitUnknown || storedRuntimeLimitHours !== effectiveRuntimeLimitHours)) {
+    if (dseq && isRuntimeLimitOffered && (isStoredRuntimeLimitUnknown || storedRuntimeLimitHours !== effectiveRuntimeLimitHours)) {
+      let hasRemovedStoredLimit = false;
+
       try {
         const mustRemoveStoredLimitFirst =
           isStoredRuntimeLimitUnknown ||
@@ -127,15 +138,21 @@ export const ReviewAndDeployModal: FC<Props> = ({
 
         if (mustRemoveStoredLimitFirst) {
           await updateSetting.mutateAsync({ runtimeLimitHours: null });
+          hasRemovedStoredLimit = true;
         }
 
         if (effectiveRuntimeLimitHours !== undefined) {
           await updateSetting.mutateAsync({ runtimeLimitHours: effectiveRuntimeLimitHours });
         }
       } catch (error) {
-        enqueueSnackbar(<d.Snackbar title="Couldn't set the runtime limit" subTitle={extractErrorMessage(error as AppError)} iconVariant="error" />, {
-          variant: "error"
-        });
+        enqueueSnackbar(
+          <d.Snackbar
+            title={hasRemovedStoredLimit ? "Runtime limit removed but not replaced" : "Couldn't set the runtime limit"}
+            subTitle={extractErrorMessage(error as AppError)}
+            iconVariant="error"
+          />,
+          { variant: "error" }
+        );
         return;
       }
     }
