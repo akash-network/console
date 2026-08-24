@@ -19,14 +19,13 @@ import { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secret
 container.register(APP_INITIALIZER, {
   useFactory: instancePerContainerCachingFactory(c => {
     const logger = c.resolve(LOGGER_FACTORY)({ context: "SDL_SECRETS_SEALING_KEY" });
-    const logWarmupFailure = (error: unknown) => logger.error({ event: "SDL_SECRETS_KEY_WARMUP_FAILED", error });
 
     return {
       async [ON_APP_START]() {
         try {
-          void c.resolve(SdlSecretsSealingKeyService).getSealingKey().catch(logWarmupFailure);
+          await c.resolve(SdlSecretsSealingKeyService).getSealingKey();
         } catch (error) {
-          logWarmupFailure(error);
+          logger.fatal({ event: "SDL_SECRETS_KEY_WARMUP_FAILED", error });
         }
       }
     } satisfies AppInitializer;

@@ -107,7 +107,12 @@ export class SdlSecretsSealingKeyService {
 
   async #readPublicKey({ client, versionName }: SdlSecretsKmsTarget) {
     try {
-      const [publicKey] = await client.getPublicKey({ name: versionName });
+      const [publicKey] = await client.getPublicKey(
+        { name: versionName },
+        {
+          timeout: 5000
+        }
+      );
 
       return publicKey;
     } catch (error) {
