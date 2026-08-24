@@ -218,6 +218,18 @@ describe(useAccountBalanceOverview.name, () => {
     expect(accrued.result.current.available).toBeCloseTo(settled.result.current.available, 6);
   });
 
+  it("skips the latest-block poll while the wallet has nothing deployed", () => {
+    const { useBlock } = setup({ totalUsd: 500, deployments: [] });
+
+    expect(useBlock).toHaveBeenCalledWith("latest", expect.objectContaining({ enabled: false }));
+  });
+
+  it("polls the latest block once the wallet holds an escrow", () => {
+    const { useBlock } = setup({ deployments: [{ dseq: "1", fundsUsd: 100, settledAt: 1000 }] });
+
+    expect(useBlock).toHaveBeenCalledWith("latest", expect.objectContaining({ enabled: true }));
+  });
+
   function setup(input: {
     totalUsd?: number;
     reservedUsd?: number;
@@ -294,7 +306,7 @@ describe(useAccountBalanceOverview.name, () => {
     const blockQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useBlock>>(), {
       data: input.latestBlockHeight === undefined ? undefined : { block: { header: { height: String(input.latestBlockHeight) } } }
     });
-    const useBlock: typeof DEPENDENCIES.useBlock = () => blockQuery;
+    const useBlock = vi.fn<typeof DEPENDENCIES.useBlock>(() => blockQuery);
 
     const walletSettingsQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useWalletSettingsQuery>>(), {
       data: Object.assign(mock<WalletSettings>(), {
@@ -319,6 +331,6 @@ describe(useAccountBalanceOverview.name, () => {
       useLocalNotes
     };
 
-    return { ...renderHook(() => useAccountBalanceOverview({ dependencies })), useAllLeases };
+    return { ...renderHook(() => useAccountBalanceOverview({ dependencies })), useAllLeases, useBlock };
   }
 });

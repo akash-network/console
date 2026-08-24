@@ -55,7 +55,9 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
   const { price, udenomToUsd } = d.usePricing();
   const { data: balances, isError: isBalancesError, fetchStatus: balancesFetchStatus } = d.useBalances(address);
   const { data: leases } = d.useAllLeases(address, { state: LIVE_LEASE_STATES, enabled: !!address });
-  const { data: latestBlock } = d.useBlock("latest", { refetchInterval: 30000 });
+  const hasActiveDeployments = !!balances?.activeDeployments.length;
+  /** Gated on the wallet holding an escrow: an account with nothing running shouldn't poll the chain every 30 seconds. */
+  const { data: latestBlock } = d.useBlock("latest", { refetchInterval: 30000, enabled: hasActiveDeployments });
   const { data: walletSettings } = d.useWalletSettingsQuery();
   const { getDeploymentName } = d.useLocalNotes();
   const { showsThresholdRule } = d.useAutoReloadMode();

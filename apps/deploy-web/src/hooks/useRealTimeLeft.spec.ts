@@ -31,11 +31,10 @@ describe(useRealTimeLeft.name, () => {
   });
 
   function setup(input: { pricePerBlock: number; balance: number; settledAt: number; latestBlockHeight: number }) {
-    const chainApiHttpClient = mock<FallbackableHttpClient>({
-      defaults: { baseURL: "https://chain.test" },
-      isFallbackEnabled: false,
-      get: vi.fn().mockResolvedValue({ data: { block: { header: { height: String(input.latestBlockHeight) } } } })
-    } as unknown as FallbackableHttpClient);
+    const chainApiHttpClient = mock<FallbackableHttpClient>();
+    chainApiHttpClient.isFallbackEnabled = false;
+    chainApiHttpClient.defaults = mock<FallbackableHttpClient["defaults"]>({ baseURL: "https://chain.test" });
+    chainApiHttpClient.get.mockResolvedValue({ data: { block: { header: { height: String(input.latestBlockHeight) } } } });
 
     return setupQuery(() => useRealTimeLeft(input.pricePerBlock, input.balance, input.settledAt, 900), {
       services: { chainApiHttpClient: () => chainApiHttpClient }
