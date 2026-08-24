@@ -21,9 +21,12 @@ describe("toErrno", () => {
 });
 
 describe("toProviderErrorCategory", () => {
-  it.each(["ERR_SSL_WRONG_VERSION_NUMBER", "ERR_SSL_PACKET_LENGTH_TOO_LONG"])("classifies %s as a client certificate error", errno => {
-    expect(toProviderErrorCategory(errno)).toBe("clientCertificateError");
-  });
+  it.each(["ERR_SSL_SSLV3_ALERT_BAD_CERTIFICATE", "ERR_SSL_WRONG_VERSION_NUMBER", "ERR_SSL_PACKET_LENGTH_TOO_LONG"])(
+    "classifies %s as a TLS handshake error",
+    errno => {
+      expect(toProviderErrorCategory(errno)).toBe("tlsHandshakeError");
+    }
+  );
 
   it("classifies the private-network guard rejection as a blocked address", () => {
     expect(toProviderErrorCategory("EFORBIDDEN")).toBe("blockedAddress");

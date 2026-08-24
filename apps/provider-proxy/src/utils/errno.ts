@@ -10,15 +10,19 @@ export function toErrno(error: unknown): string | undefined {
   return typeof code === "string" ? code : undefined;
 }
 
-export type ProviderErrorCategory = "clientCertificateError" | "blockedAddress" | "providerUnreachable";
+export type ProviderErrorCategory = "tlsHandshakeError" | "blockedAddress" | "providerUnreachable";
 
 /**
- * Splits connection failures into the classes that matter downstream: a bad client certificate and a blocked
- * address are caller mistakes answered with 400, while everything else is the provider being unreachable and
- * is answered with 502. Only the last class tracks third-party downtime, so alerting keys off it.
+ * Splits connection failures into the classes that matter downstream: a failed TLS handshake and a blocked
+ * address are answered with 400, while everything else is the provider being unreachable and is answered
+ * with 502. Only the last class tracks third-party downtime, so alerting keys off it.
+ *
+ * The ERR_SSL_ prefix covers more than a rejected client certificate, since OpenSSL also reports protocol
+ * and record failures under it. Narrowing it would change which errors answer 400, so the existing routing
+ * is kept and the category is named after what the prefix actually means.
  */
 export function toProviderErrorCategory(errno: string | undefined): ProviderErrorCategory {
-  if (errno?.startsWith("ERR_SSL_")) return "clientCertificateError";
+  if (errno?.startsWith("ERR_SSL_")) return "tlsHandshakeError";
   if (errno === "EFORBIDDEN") return "blockedAddress";
   return "providerUnreachable";
 }

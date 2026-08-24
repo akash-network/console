@@ -131,7 +131,7 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
       error: proxyResult.error
     });
 
-    if (errorCategory === "clientCertificateError") {
+    if (errorCategory === "tlsHandshakeError") {
       return ctx.json(
         {
           error: {
@@ -151,15 +151,6 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
     }
 
     if (errorCategory === "blockedAddress") {
-      ctx.get("container").appLogger?.warn({
-        event: "PROXY_REQUEST_ERROR",
-        errorCategory,
-        errno,
-        url,
-        method,
-        providerAddress,
-        error: proxyResult.error
-      });
       return ctx.json(
         {
           error: {
