@@ -209,7 +209,7 @@ export const ReviewAndDeployModal: FC<Props> = ({
           </Button>
           <Button onClick={confirmAndDeploy} className="gap-2" disabled={!canConfirm || updateSetting.isPending}>
             Confirm and deploy
-            {updateSetting.isPending ? <Spinner size="small" /> : <Rocket className="h-4 w-4" />}
+            {updateSetting.isPending || isStoredRuntimeLimitLoading ? <Spinner size="small" /> : <Rocket className="h-4 w-4" />}
           </Button>
         </DialogV2Footer>
       </DialogV2Content>

@@ -160,6 +160,7 @@ describe(ReviewAndDeployModal.name, () => {
       setup({ runtimeLimitHours: 24, isStoredSettingLoading: true });
 
       expect(screen.getByRole("button", { name: /confirm and deploy/i })).toBeDisabled();
+      expect(screen.getByRole("status")).toBeInTheDocument();
     });
 
     it("clears the stored limit first when it could not be read", async () => {
