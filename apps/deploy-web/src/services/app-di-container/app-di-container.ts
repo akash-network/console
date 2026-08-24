@@ -5,7 +5,6 @@ import {
   AuthHttpService,
   createHttpClient,
   DeploymentSettingHttpService,
-  isHttpError,
   ManagedDeploymentHttpService,
   ManagedWalletHttpService,
   StripeService as HttpStripeService,
@@ -20,6 +19,7 @@ import type { Axios, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { UrlReturnToStack } from "@src/hooks/useReturnTo/UrlReturnToStack";
 import { AnalyticsService } from "@src/services/analytics/analytics.service";
+import { retryOnServerError, shouldReportQueryError } from "@src/services/query-error-policy/query-error-policy";
 import networkStore from "@src/store/networkStore";
 import { registry } from "@src/utils/customRegistry";
 import { UrlService } from "@src/utils/urlUtils";
@@ -157,13 +157,14 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       new QueryClient({
         defaultOptions: {
           queries: {
-            retry(failureCount, error) {
-              return isHttpError(error) && !!error.response && error.response.status >= 500 && failureCount < 3;
-            }
+            retry: retryOnServerError
           }
         },
         queryCache: new QueryCache({
-          onError: error => container.errorHandler.reportError({ error })
+          onError: (error, query) => {
+            if (!shouldReportQueryError(error, query.meta)) return;
+            container.errorHandler.reportError({ error });
+          }
         }),
         mutationCache: new MutationCache({
           onError: error => container.errorHandler.reportError({ error })

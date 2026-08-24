@@ -24,6 +24,7 @@ import { useBidInfo } from "@src/queries/useBidQuery";
 import type { LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
+import { isProviderUnavailableError } from "@src/services/query-error-policy/query-error-policy";
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
@@ -89,6 +90,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
     });
     const errorMessage = typeof error === "string" ? error : error?.message;
     const isLeaseNotFound = errorMessage?.includes("lease not found") && isLeaseActive;
+    const isProviderUnreachable = isProviderUnavailableError(error) && isLeaseActive;
     const servicesNames = useMemo(() => (leaseStatus ? Object.keys(leaseStatus.services) : []), [leaseStatus]);
     const [isSendingManifest, setIsSendingManifest] = useState(false);
     const { data: bid } = useBidInfo(lease.owner, lease.dseq, lease.gseq, lease.oseq, lease.provider);
@@ -258,6 +260,13 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
               }
             />
           </div>
+
+          {isProviderUnreachable && (
+            <Alert variant="warning">
+              This provider is not responding, so the status of your services cannot be shown. The lease stays open and continues to be billed until you close
+              the deployment.
+            </Alert>
+          )}
 
           {isLeaseNotFound && (
             <Alert variant="warning">

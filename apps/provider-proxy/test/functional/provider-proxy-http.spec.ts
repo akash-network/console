@@ -424,7 +424,7 @@ describe("Provider HTTP proxy", () => {
     expect(body).toEqual(`Provider ${providerUrl} is temporarily unavailable`);
   });
 
-  it("responds with 503 if provider host is not reachable", async () => {
+  it("responds with 502 if provider host is not reachable", async () => {
     const providerAddress = generateBech32();
     const validCertPair = await createX509CertPair({
       commonName: providerAddress
@@ -444,12 +444,12 @@ describe("Provider HTTP proxy", () => {
       })
     });
 
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(502);
     const body = await response.text();
     expect(body).toBe(`Provider ${new URL(providerUrl).origin} is temporarily unavailable`);
   });
 
-  it("responds with 503 if provider host hangs up connection", async () => {
+  it("responds with 502 if provider host hangs up connection", async () => {
     const providerAddress = generateBech32();
     const validCertPair = await createX509CertPair({
       commonName: providerAddress
@@ -475,7 +475,7 @@ describe("Provider HTTP proxy", () => {
       })
     });
 
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(502);
     const body = await response.text();
     expect(body).toBe(`Provider ${providerUrl} is temporarily unavailable`);
   });

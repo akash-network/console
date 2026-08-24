@@ -1,5 +1,6 @@
 import { extractData } from "../http/http.service";
 import type { HttpClient } from "../utils/httpClient";
+import type { LeaseState } from "./lease-state";
 
 export interface RpcLease {
   lease: {
@@ -70,7 +71,7 @@ export type RestAkashLeaseListResponse = {
 export type LeaseListParams = {
   owner: string;
   dseq?: string;
-  state?: "active" | "insufficient_funds" | "closed" | "reclaiming";
+  state?: LeaseState;
   pagination?: {
     limit?: number;
     key?: string;

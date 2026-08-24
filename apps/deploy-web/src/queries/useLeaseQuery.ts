@@ -7,6 +7,7 @@ import mapValues from "lodash/mapValues";
 import { useServices } from "@src/context/ServicesProvider";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
+import { isProviderUnavailableError, retryOnServerError, SKIP_REPORTING_PROVIDER_UNAVAILABLE } from "@src/services/query-error-policy/query-error-policy";
 import type { DeploymentDto, LeaseDto, RpcLease } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
@@ -108,12 +109,18 @@ export function useLeaseExistenceQuery(address: string, options: Omit<UseQueryOp
   });
 }
 
+/**
+ * Lease-status polls own their retry and error-reporting policy, so `retry` and `meta` are not caller-settable:
+ * both hooks below set them unconditionally, and accepting them here would silently drop whatever a caller passed.
+ */
+type LeaseStatusQueryOptions = Omit<UseQueryOptions<LeaseStatusDto | null>, "queryKey" | "queryFn" | "retry" | "meta">;
+
 export function useLeaseStatus(
   params: {
     provider?: ApiProviderList | null;
     lease?: LeaseDto | null;
     dependencies?: typeof USE_LEASE_STATUS_DEPENDENCIES;
-  } & Omit<UseQueryOptions<LeaseStatusDto | null>, "queryKey" | "queryFn"> = {}
+  } & LeaseStatusQueryOptions = {}
 ) {
   const { provider, lease, dependencies: d = USE_LEASE_STATUS_DEPENDENCIES, select: callerSelect, ...options } = params;
   const providerCredentials = d.useProviderCredentials();
@@ -129,6 +136,8 @@ export function useLeaseStatus(
         request: (url, requestOptions) => fetchProviderUrl(url, requestOptions)
       }),
     ...options,
+    retry: retryUnlessProviderIsUnavailable,
+    meta: SKIP_REPORTING_PROVIDER_UNAVAILABLE,
     enabled: options.enabled !== false && !!provider?.hostUri && providerCredentials.details.usable,
     // Defensive: the attestation sidecar is a pod container under the current provider design and
     // never appears as a lease-status service, so this is a passthrough today. It keeps the sidecar
@@ -146,7 +155,7 @@ export const USE_LEASE_STATUS_DEPENDENCIES = {
 
 export function useLeaseStatuses(
   items: { lease: LeaseDto; provider?: ApiProviderList | null }[],
-  params: { dependencies?: typeof USE_LEASE_STATUS_DEPENDENCIES } & Omit<UseQueryOptions<LeaseStatusDto | null>, "queryKey" | "queryFn"> = {}
+  params: { dependencies?: typeof USE_LEASE_STATUS_DEPENDENCIES } & LeaseStatusQueryOptions = {}
 ) {
   const { dependencies: d = USE_LEASE_STATUS_DEPENDENCIES, select: callerSelect, ...options } = params;
   const providerCredentials = d.useProviderCredentials();
@@ -165,6 +174,8 @@ export function useLeaseStatuses(
         });
       },
       ...options,
+      retry: retryUnlessProviderIsUnavailable,
+      meta: SKIP_REPORTING_PROVIDER_UNAVAILABLE,
       enabled: options.enabled !== false && !!provider?.hostUri && providerCredentials.details.usable,
       select: (data: LeaseStatusDto | null) => {
         const filtered = data ? omitAttestationSidecar(data) : data;
@@ -176,6 +187,14 @@ export function useLeaseStatuses(
 
 function leaseStatusQueryKey(lease?: LeaseDto | null) {
   return QueryKeys.getLeaseStatusKey(lease?.dseq || "", lease?.gseq ?? 0, lease?.oseq ?? 0);
+}
+
+/**
+ * An unreachable provider is not a Console fault and retrying cannot fix it, so these polls fail on the first
+ * attempt instead of burning three and reporting each one.
+ */
+function retryUnlessProviderIsUnavailable(failureCount: number, error: unknown): boolean {
+  return !isProviderUnavailableError(error) && retryOnServerError(failureCount, error);
 }
 
 function isLeaseStatusUnavailable(error: unknown): boolean {

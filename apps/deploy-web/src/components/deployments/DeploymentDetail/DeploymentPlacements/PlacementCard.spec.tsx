@@ -1,4 +1,5 @@
 import { TooltipProvider } from "@akashnetwork/ui/components";
+import { AxiosError } from "axios";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -174,16 +175,39 @@ describe(PlacementCard.name, () => {
     });
   }
 
+  it.each([502, 503])("warns that the provider is not responding when lease status fails with %s", status => {
+    setup({ leaseStatusError: new AxiosError("Unavailable", String(status), undefined, undefined, { status } as never) });
+
+    expect(screen.queryByText("Provider not responding")).toBeInTheDocument();
+  });
+
+  it("drops the warning once the lease is no longer live", () => {
+    setup({
+      lease: buildLease({ state: "closed" }),
+      leaseStatusError: new AxiosError("Unavailable", "502", undefined, undefined, { status: 502 } as never)
+    });
+
+    expect(screen.queryByText("Provider not responding")).not.toBeInTheDocument();
+  });
+
+  it("does not warn when lease status simply reports nothing", () => {
+    setup({ leaseStatus: null });
+
+    expect(screen.queryByText("Provider not responding")).not.toBeInTheDocument();
+  });
+
   function setup(input?: {
     lease?: LeaseDto;
     provider?: ApiProviderList;
     leaseStatus?: LeaseStatusDto | null;
+    leaseStatusError?: unknown;
     manifestServices?: Record<string, ManifestServiceDetail>;
     placementServices?: Record<string, ManifestServiceDetail>;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const leaseStatus = input && "leaseStatus" in input ? input.leaseStatus : buildStatus(["web"]);
-    const useLeaseStatus: typeof DEPENDENCIES.useLeaseStatus = () => mock<ReturnType<typeof DEPENDENCIES.useLeaseStatus>>({ data: leaseStatus });
+    const useLeaseStatus: typeof DEPENDENCIES.useLeaseStatus = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useLeaseStatus>>({ data: leaseStatus, error: input?.leaseStatusError ?? null });
     const useTeeResourceCarveouts: typeof DEPENDENCIES.useTeeResourceCarveouts = () => [];
 
     return render(
