@@ -1,4 +1,4 @@
-import { ResponseError } from "auth0";
+import { ManagementApiError, ResponseError } from "auth0";
 import { container as rootContainer } from "tsyringe";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -11,6 +11,15 @@ import type { UserService } from "@src/user/services/user/user.service";
 import { AuthController } from "./auth.controller";
 
 import { createUser } from "@test/seeders/user.seeder";
+
+/**
+ * Mirrors what the management client's own `parseError` builds for a JSON error body. Production throws
+ * this class, not `ResponseError`, so the mapping has to be exercised against it.
+ */
+function createManagementApiError(statusCode: number, message: string, error = "Bad Request") {
+  const body = JSON.stringify({ statusCode, error, message, errorCode: "auth0_idp_error" });
+  return new ManagementApiError("auth0_idp_error", error, statusCode, body, new Headers(), message);
+}
 
 describe(AuthController.name, () => {
   describe("signup", () => {
@@ -28,27 +37,62 @@ describe(AuthController.name, () => {
       });
     });
 
-    it("throws http error when auth0 returns a non-409 error", async () => {
+    it("converts 409 (user exists) to a 422 that does not confirm the email is registered", async () => {
       const { controller, auth0Service } = setup();
 
-      auth0Service.createUser.mockRejectedValue(
-        new ResponseError(400, JSON.stringify({ message: "PasswordStrengthError: Password is too weak" }), new Headers())
-      );
+      auth0Service.createUser.mockRejectedValue(createManagementApiError(409, "The user already exists.", "Conflict"));
 
-      await expect(controller.signup({ email: "user@example.com", password: "weak" })).rejects.toThrow("PasswordStrengthError: Password is too weak");
+      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" })).rejects.toMatchObject({
+        status: 422,
+        message: "Unable to create account. Please try again or use a different email."
+      });
     });
 
-    it("converts 409 (user exists) to generic 422 error", async () => {
+    it("passes a rejected password through with auth0's own message", async () => {
       const { controller, auth0Service } = setup();
 
-      auth0Service.createUser.mockRejectedValue(new ResponseError(409, JSON.stringify({ message: "The user already exists." }), new Headers()));
+      auth0Service.createUser.mockRejectedValue(createManagementApiError(400, "PasswordStrengthError: Password is too weak"));
 
-      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" })).rejects.toThrow(
-        "Unable to create account. Please try again or use a different email."
-      );
+      await expect(controller.signup({ email: "user@example.com", password: "weak" })).rejects.toMatchObject({
+        status: 400,
+        message: "PasswordStrengthError: Password is too weak"
+      });
     });
 
-    it("re-throws non-ResponseError errors", async () => {
+    it("passes a rate limit through as 429", async () => {
+      const { controller, auth0Service } = setup();
+
+      auth0Service.createUser.mockRejectedValue(createManagementApiError(429, "Too many requests", "Too Many Requests"));
+
+      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" })).rejects.toMatchObject({
+        status: 429,
+        message: "Too many requests"
+      });
+    });
+
+    it("converts an auth0 outage to a 502 without echoing its message", async () => {
+      const { controller, auth0Service } = setup();
+
+      auth0Service.createUser.mockRejectedValue(createManagementApiError(503, "Service temporarily unavailable", "Service Unavailable"));
+
+      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" })).rejects.toMatchObject({
+        status: 502,
+        message: "Unable to create the account right now. Please try again."
+      });
+    });
+
+    it("converts 409 to 422 when auth0 returns an unparseable body", async () => {
+      const { controller, auth0Service } = setup();
+
+      auth0Service.createUser.mockRejectedValue(new ResponseError(409, "<html>Conflict</html>", new Headers(), "Response returned an error code"));
+
+      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" })).rejects.toMatchObject({
+        status: 422,
+        message: "Unable to create account. Please try again or use a different email."
+      });
+    });
+
+    it("re-throws errors that did not come from the auth0 api", async () => {
       const { controller, auth0Service } = setup();
 
       auth0Service.createUser.mockRejectedValue(new Error("Network failure"));

@@ -59,6 +59,33 @@ describe(PasswordAuth.name, () => {
     });
   });
 
+  it("does not authenticate with a captcha challenge that resolves after the user switched tabs", async () => {
+    const TabsMock = vi.fn(ComponentMock as typeof Tabs);
+    const SignInFormMock = vi.fn(ComponentMock as typeof SignInForm);
+    const { authService, renderAndWaitResponse, abandonPendingChallenge } = setup({
+      dependencies: { Tabs: TabsMock as unknown as typeof Tabs, SignInForm: SignInFormMock }
+    });
+    let solvePendingCaptcha: (response: { token: string }) => void = () => {};
+    let rejectPendingCaptcha: (reason: unknown) => void = () => {};
+    renderAndWaitResponse.mockReturnValue(
+      new Promise((resolve, reject) => {
+        solvePendingCaptcha = resolve;
+        rejectPendingCaptcha = reject;
+      })
+    );
+    abandonPendingChallenge.mockImplementation(() => rejectPendingCaptcha({ reason: "dismissed" }));
+
+    await act(async () => SignInFormMock.mock.lastCall![0].onSubmit({ email: "test@example.com", password: "password123" }));
+    await vi.waitFor(() => {
+      expect(renderAndWaitResponse).toHaveBeenCalled();
+    });
+
+    await act(async () => TabsMock.mock.lastCall![0].onValueChange?.("signup"));
+    await act(async () => solvePendingCaptcha({ token: "test-captcha-token" }));
+
+    expect(authService.login).not.toHaveBeenCalled();
+  });
+
   describe("when SignIn tab is open", () => {
     it("runs sign-in flow with captcha token, refreshes the session, and navigates back", async () => {
       const SignInFormMock = vi.fn(ComponentMock as typeof SignInForm);
@@ -121,6 +148,93 @@ describe(PasswordAuth.name, () => {
       });
       await vi.waitFor(() => {
         expect(navigateBack).toHaveBeenCalled();
+      });
+    });
+
+    it("ignores a second submit while the first is still in flight", async () => {
+      const SignUpFormMock = vi.fn(ComponentMock as typeof SignUpForm);
+      const { authService } = setup({
+        searchParams: { tab: "signup" },
+        dependencies: { SignUpForm: SignUpFormMock }
+      });
+      authService.signup.mockReturnValue(new Promise(() => {}));
+      const credentials: SignUpFormValues = {
+        email: "test@example.com",
+        password: "password123",
+        termsAndConditions: true
+      };
+
+      act(() => {
+        SignUpFormMock.mock.lastCall![0].onSubmit(credentials);
+        SignUpFormMock.mock.lastCall![0].onSubmit(credentials);
+      });
+
+      await vi.waitFor(() => {
+        expect(authService.signup).toHaveBeenCalled();
+      });
+      expect(authService.signup).toHaveBeenCalledTimes(1);
+    });
+
+    it("submits again without surfacing an error after the captcha was dismissed mid-flight", async () => {
+      const SignUpFormMock = vi.fn(ComponentMock as typeof SignUpForm);
+      const RemoteApiErrorMock = vi.fn(({ error }) => error && <div>Unexpected error</div>);
+      const { authService, renderAndWaitResponse, dismissCaptcha } = setup({
+        searchParams: { tab: "signup" },
+        dependencies: { SignUpForm: SignUpFormMock, RemoteApiError: RemoteApiErrorMock }
+      });
+      let rejectDismissedCaptcha: (reason: unknown) => void = () => {};
+      renderAndWaitResponse.mockReturnValue(
+        new Promise((_, reject) => {
+          rejectDismissedCaptcha = reject;
+        })
+      );
+      const credentials: SignUpFormValues = {
+        email: "test@example.com",
+        password: "password123",
+        termsAndConditions: true
+      };
+
+      await act(async () => SignUpFormMock.mock.lastCall![0].onSubmit(credentials));
+      await vi.waitFor(() => {
+        expect(renderAndWaitResponse).toHaveBeenCalled();
+      });
+      await act(async () => {
+        dismissCaptcha();
+        rejectDismissedCaptcha({ reason: "dismissed" });
+      });
+
+      expect(screen.queryByText(/unexpected error/i)).not.toBeInTheDocument();
+
+      renderAndWaitResponse.mockResolvedValue({ token: "test-captcha-token" });
+      await act(async () => SignUpFormMock.mock.lastCall![0].onSubmit(credentials));
+
+      await vi.waitFor(() => {
+        expect(authService.signup).toHaveBeenCalledWith({ ...credentials, captchaToken: "test-captcha-token" });
+      });
+    });
+
+    it("submits again after a failed attempt", async () => {
+      const SignUpFormMock = vi.fn(ComponentMock as typeof SignUpForm);
+      const { authService } = setup({
+        searchParams: { tab: "signup" },
+        dependencies: { SignUpForm: SignUpFormMock }
+      });
+      authService.signup.mockRejectedValueOnce(new Error("Email already in use"));
+      const credentials: SignUpFormValues = {
+        email: "test@example.com",
+        password: "password123",
+        termsAndConditions: true
+      };
+
+      await act(async () => SignUpFormMock.mock.lastCall![0].onSubmit(credentials));
+      await vi.waitFor(() => {
+        expect(authService.signup).toHaveBeenCalledTimes(1);
+      });
+
+      await act(async () => SignUpFormMock.mock.lastCall![0].onSubmit(credentials));
+
+      await vi.waitFor(() => {
+        expect(authService.signup).toHaveBeenCalledTimes(2);
       });
     });
 
@@ -237,12 +351,14 @@ describe(PasswordAuth.name, () => {
       return pageParams as ReadonlyURLSearchParams;
     };
 
-    const Turnstile = vi.fn(({ turnstileRef }: { turnstileRef?: RefObject<TurnstileRef> }) => {
+    const renderAndWaitResponse = vi.fn<TurnstileRef["renderAndWaitResponse"]>().mockResolvedValue({ token: "test-captcha-token" });
+    const abandonPendingChallenge = vi.fn<TurnstileRef["abandonPendingChallenge"]>();
+    let notifyCaptchaDismissed: (() => void) | undefined;
+    const Turnstile = vi.fn(({ turnstileRef, onDismissed }: { turnstileRef?: RefObject<TurnstileRef>; onDismissed?: () => void }) => {
       if (turnstileRef) {
-        (turnstileRef as { current: TurnstileRef }).current = mock<TurnstileRef>({
-          renderAndWaitResponse: vi.fn().mockResolvedValue({ token: "test-captcha-token" })
-        });
+        (turnstileRef as { current: TurnstileRef }).current = mock<TurnstileRef>({ renderAndWaitResponse, abandonPendingChallenge });
       }
+      notifyCaptchaDismissed = onDismissed;
       return null;
     });
     const analyticsService = mock<AnalyticsService>();
@@ -263,6 +379,15 @@ describe(PasswordAuth.name, () => {
       </TestContainerProvider>
     );
 
-    return { authService, analyticsService, router, checkSession, navigateBack };
+    return {
+      authService,
+      analyticsService,
+      router,
+      checkSession,
+      navigateBack,
+      renderAndWaitResponse,
+      abandonPendingChallenge,
+      dismissCaptcha: () => notifyCaptchaDismissed?.()
+    };
   }
 });

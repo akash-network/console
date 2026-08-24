@@ -165,6 +165,40 @@ describe(PasswordlessAuth.name, () => {
     expect(token).toBe("test-captcha-token");
   });
 
+  it("does not hand a captcha token to a screen the user has left", async () => {
+    const EmailCodeVerifyMock = vi.fn(ComponentMock);
+    const { renderAndWaitResponse, abandonPendingChallenge } = setup({
+      step: "verify",
+      initialEmail: "alice@example.com",
+      dependencies: { EmailCodeVerify: EmailCodeVerifyMock as never }
+    });
+    let solvePendingCaptcha: (response: { token: string }) => void = () => {};
+    let rejectPendingCaptcha: (reason: unknown) => void = () => {};
+    renderAndWaitResponse.mockReturnValue(
+      new Promise((resolve, reject) => {
+        solvePendingCaptcha = resolve;
+        rejectPendingCaptcha = reject;
+      })
+    );
+    abandonPendingChallenge.mockImplementation(() => rejectPendingCaptcha({ reason: "dismissed" }));
+    const receiveCaptchaToken = vi.fn();
+
+    const { getCaptchaToken, onEditEmail } = EmailCodeVerifyMock.mock.lastCall![0];
+    getCaptchaToken().then(receiveCaptchaToken, () => undefined);
+    await act(async () => onEditEmail());
+    await act(async () => solvePendingCaptcha({ token: "test-captcha-token" }));
+
+    expect(receiveCaptchaToken).not.toHaveBeenCalled();
+  });
+
+  it("abandons the pending captcha challenge when the widget is dismissed", async () => {
+    const { abandonPendingChallenge, dismissCaptcha } = setup();
+
+    await act(async () => dismissCaptcha());
+
+    expect(abandonPendingChallenge).toHaveBeenCalled();
+  });
+
   it("shows the $1 credit subtext", () => {
     setup();
     expect(screen.getByText(/\$1 credit to deploy your first container/i)).toBeInTheDocument();
@@ -239,12 +273,14 @@ describe(PasswordlessAuth.name, () => {
     const useRouter: typeof DEPENDENCIES.useRouter = (() => ({ push, replace, pathname: "/login" })) as never;
     const useSearchParams: typeof DEPENDENCIES.useSearchParams = (() => params) as never;
 
-    const Turnstile = vi.fn(({ turnstileRef }: { turnstileRef?: RefObject<TurnstileRef> }) => {
+    const renderAndWaitResponse = vi.fn<TurnstileRef["renderAndWaitResponse"]>().mockResolvedValue({ token: "test-captcha-token" });
+    const abandonPendingChallenge = vi.fn<TurnstileRef["abandonPendingChallenge"]>();
+    let notifyCaptchaDismissed: (() => void) | undefined;
+    const Turnstile = vi.fn(({ turnstileRef, onDismissed }: { turnstileRef?: RefObject<TurnstileRef>; onDismissed?: () => void }) => {
       if (turnstileRef) {
-        (turnstileRef as { current: TurnstileRef }).current = mock<TurnstileRef>({
-          renderAndWaitResponse: vi.fn().mockResolvedValue({ token: "test-captcha-token" })
-        });
+        (turnstileRef as { current: TurnstileRef }).current = mock<TurnstileRef>({ renderAndWaitResponse, abandonPendingChallenge });
       }
+      notifyCaptchaDismissed = onDismissed;
       return null;
     });
 
@@ -267,7 +303,18 @@ describe(PasswordlessAuth.name, () => {
       </TestContainerProvider>
     );
 
-    return { analyticsService, onEmailChange, onFlowReset, checkSession, navigateBack, push, replace };
+    return {
+      analyticsService,
+      onEmailChange,
+      onFlowReset,
+      checkSession,
+      navigateBack,
+      push,
+      replace,
+      renderAndWaitResponse,
+      abandonPendingChallenge,
+      dismissCaptcha: () => notifyCaptchaDismissed?.()
+    };
   }
 });
 

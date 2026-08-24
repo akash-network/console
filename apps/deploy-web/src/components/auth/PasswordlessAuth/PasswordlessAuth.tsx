@@ -70,12 +70,27 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
     [router, searchParams, onEmailChange]
   );
 
+  /**
+   * Drops whatever the active screen has in flight. Turnstile keeps a silent challenge running until it
+   * needs interaction, so an abandoned one would otherwise solve later and fire the request for a screen
+   * the user has left; remounting discards the rejected mutation's error along with it.
+   */
+  const abandonActiveAttempt = useCallback(() => {
+    turnstileRef.current?.abandonPendingChallenge();
+    setScreenKey(value => value + 1);
+  }, []);
+
   const goBackToEntry = useCallback(() => {
     const params = new URLSearchParams(searchParams);
     params.delete("step");
     const query = params.toString();
     router.replace(query ? `?${query}` : router.pathname, undefined, { shallow: true });
   }, [router, searchParams]);
+
+  const restartEmailEntry = useCallback(() => {
+    abandonActiveAttempt();
+    goBackToEntry();
+  }, [abandonActiveAttempt, goBackToEntry]);
 
   /**
    * Sends a visitor who reached `?step=verify` without an in-flight email (a deep link, or a reload
@@ -131,10 +146,6 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
     await checkSession();
   }, [checkSession, onFlowReset]);
 
-  const remountActiveScreen = useCallback(() => {
-    setScreenKey(value => value + 1);
-  }, []);
-
   if (user && !error) return <d.BootLoading />;
 
   return (
@@ -189,7 +200,7 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
           key={`verify-${screenKey}`}
           email={email}
           getCaptchaToken={getCaptchaToken}
-          onEditEmail={goBackToEntry}
+          onEditEmail={restartEmailEntry}
           onVerified={handleVerified}
         />
       )}
@@ -197,7 +208,7 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
         turnstileRef={turnstileRef}
         enabled={publicConfig.NEXT_PUBLIC_TURNSTILE_ENABLED}
         siteKey={publicConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-        onDismissed={remountActiveScreen}
+        onDismissed={abandonActiveAttempt}
       />
     </>
   );

@@ -50,6 +50,7 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const { navigateBack } = d.useReturnTo({ defaultReturnTo: "/" });
   const [email, setEmail] = useState("");
   const turnstileRef = useRef<TurnstileRef | null>(null);
+  const isAuthInFlight = useRef(false);
 
   const signInOrSignUp = useMutation({
     async mutationFn(input: Tagged<"signin", SignInFormValues> | Tagged<"signup", SignUpFormValues>) {
@@ -70,6 +71,19 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
     }
   });
 
+  const submitCredentials = useCallback(
+    (input: Tagged<"signin", SignInFormValues> | Tagged<"signup", SignUpFormValues>) => {
+      if (isAuthInFlight.current) return;
+      isAuthInFlight.current = true;
+      signInOrSignUp.mutate(input, {
+        onSettled: () => {
+          isAuthInFlight.current = false;
+        }
+      });
+    },
+    [signInOrSignUp]
+  );
+
   const forgotPassword = useMutation({
     async mutationFn(input: { email: string }) {
       if (!turnstileRef.current) {
@@ -80,13 +94,13 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
     }
   });
 
-  const resetMutations = useCallback(
-    function resetMutations() {
-      signInOrSignUp.reset();
-      forgotPassword.reset();
-    },
-    [signInOrSignUp, forgotPassword]
-  );
+  /** Turnstile keeps a silent challenge running until it needs interaction, so an abandoned one would otherwise solve later and fire the request the user walked away from. */
+  const abandonAuthAttempt = useCallback(() => {
+    isAuthInFlight.current = false;
+    turnstileRef.current?.abandonPendingChallenge();
+    signInOrSignUp.reset();
+    forgotPassword.reset();
+  }, [signInOrSignUp, forgotPassword]);
 
   const requestedTab = searchParams.get("tab");
   const activeView = requestedTab !== "login" && requestedTab !== "signup" && requestedTab !== "forgot-password" ? "login" : requestedTab;
@@ -95,10 +109,10 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
       const tabId = value !== "login" && value !== "signup" && value !== "forgot-password" ? "login" : value;
       const newSearchParams = new URLSearchParams(searchParams);
       newSearchParams.set("tab", tabId);
-      resetMutations();
+      abandonAuthAttempt();
       router.replace(`?${newSearchParams.toString()}`, undefined, { shallow: true });
     },
-    [searchParams, router, resetMutations]
+    [searchParams, router, abandonAuthAttempt]
   );
 
   return (
@@ -175,13 +189,13 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
                 isLoading={signInOrSignUp.isPending}
                 defaultEmail={email}
                 onEmailChange={setEmail}
-                onSubmit={value => signInOrSignUp.mutate({ type: "signin", value })}
+                onSubmit={value => submitCredentials({ type: "signin", value })}
                 onForgotPasswordClick={() => setActiveView("forgot-password")}
               />
             </d.TabsContent>
 
             <d.TabsContent value="signup" className="mt-0">
-              <d.SignUpForm isLoading={signInOrSignUp.isPending} onSubmit={value => signInOrSignUp.mutate({ type: "signup", value })} />
+              <d.SignUpForm isLoading={signInOrSignUp.isPending} onSubmit={value => submitCredentials({ type: "signup", value })} />
             </d.TabsContent>
           </d.Tabs>
         )}
@@ -189,7 +203,7 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
           turnstileRef={turnstileRef}
           enabled={publicConfig.NEXT_PUBLIC_TURNSTILE_ENABLED}
           siteKey={publicConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-          onDismissed={resetMutations}
+          onDismissed={abandonAuthAttempt}
         />
       </div>
     </>
