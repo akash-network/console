@@ -1,34 +1,26 @@
 "use client";
 
 import type { FC, ReactNode } from "react";
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback } from "react";
 import type { components } from "@akashnetwork/console-api-types/notifications";
 import { useQueryClient } from "@tanstack/react-query";
-import { merge } from "lodash";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
 import { useWhen } from "@src/hooks/useWhen";
 import type { DeploymentDto } from "@src/types/deployment";
-import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 
 type DeploymentAlertsInput = components["schemas"]["DeploymentAlertCreateInput"]["data"];
 export type DeploymentAlertsOutput = components["schemas"]["DeploymentAlertsResponse"]["data"];
 
 export type FullAlertsInput = {
   deploymentClosed: NonNullable<DeploymentAlertsInput["alerts"]["deploymentClosed"]>;
-  deploymentBalance: NonNullable<DeploymentAlertsInput["alerts"]["deploymentBalance"]>;
 };
 
 export type ContainerInput = Omit<DeploymentAlertsInput, "owner" | "alerts"> & {
-  alerts:
-    | {
-        deploymentClosed: FullAlertsInput["deploymentClosed"];
-      }
-    | {
-        deploymentBalance: FullAlertsInput["deploymentBalance"];
-      }
-    | FullAlertsInput;
+  alerts: {
+    deploymentClosed: FullAlertsInput["deploymentClosed"];
+  };
 };
 
 export type ChildrenProps = {
@@ -38,11 +30,10 @@ export type ChildrenProps = {
   isSaving: boolean;
   isFetched: boolean;
   isError: boolean;
-  maxBalanceThreshold: number;
 };
 
 export type Props = {
-  deployment: Pick<DeploymentDto, "dseq" | "escrowBalance">;
+  deployment: Pick<DeploymentDto, "dseq">;
   children: (props: ChildrenProps) => ReactNode;
 };
 
@@ -55,51 +46,20 @@ export const DeploymentAlertsContainer: FC<Props> = ({ children, deployment }) =
 
   const mutation = api.v1.upsertDeploymentAlert.useMutation();
 
-  const prepareInput = useCallback((input: ContainerInput) => {
-    if ("deploymentBalance" in input.alerts && input.alerts.deploymentBalance.threshold) {
-      return merge({}, input, {
-        alerts: {
-          deploymentBalance: {
-            threshold: denomToUdenom(input.alerts.deploymentBalance.threshold)
-          }
-        }
-      });
-    }
-
-    return input;
-  }, []);
-
-  const toOutput = useCallback((data?: components["schemas"]["DeploymentAlertsResponse"]) => {
-    const deploymentBalance = data?.data?.alerts?.deploymentBalance;
-    if (deploymentBalance?.threshold) {
-      return merge({}, data?.data, {
-        alerts: {
-          deploymentBalance: {
-            threshold: udenomToDenom(deploymentBalance.threshold)
-          }
-        }
-      });
-    }
-
-    return data?.data;
-  }, []);
-
-  const output = useMemo(() => toOutput(data), [data, toOutput]);
-
   const upsert: ChildrenProps["upsert"] = useCallback(
     async input => {
       try {
         const result = await mutation.mutateAsync({
           dseq: deployment.dseq,
-          data: prepareInput(input)
+          data: input
         });
 
-        return toOutput(result);
+        return result?.data;
       } catch {
         notificator.error("Alert configuration failed...", { dataTestId: "alert-config-error-notification" });
       }
     },
-    [deployment.dseq, mutation, notificator, prepareInput, toOutput]
+    [deployment.dseq, mutation, notificator]
   );
 
   useWhen(
@@ -113,20 +73,15 @@ export const DeploymentAlertsContainer: FC<Props> = ({ children, deployment }) =
     [deployment.dseq]
   );
 
-  const maxBalanceThreshold = useMemo(() => {
-    return udenomToDenom(deployment.escrowBalance);
-  }, [deployment.escrowBalance]);
-
   return (
     <>
       {children({
-        data: output,
+        data: data?.data,
         upsert,
         isLoading,
         isSaving: mutation.isPending,
         isFetched,
-        isError,
-        maxBalanceThreshold
+        isError
       })}
     </>
   );

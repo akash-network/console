@@ -1,7 +1,6 @@
 import React from "react";
 import { createProxy } from "@akashnetwork/react-query-proxy";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
-import merge from "lodash/merge";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ChildrenProps, ContainerInput } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
@@ -28,15 +27,7 @@ describe(DeploymentAlertsContainer.name, () => {
       expect.stringContaining(`/v1/deployment-alerts/${dseq}`),
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({
-          data: merge({}, input, {
-            alerts: {
-              deploymentBalance: {
-                threshold: 4000000
-              }
-            }
-          })
-        })
+        body: JSON.stringify({ data: input })
       })
     );
     await vi.waitFor(() => {
@@ -76,50 +67,6 @@ describe(DeploymentAlertsContainer.name, () => {
     );
   });
 
-  it("handles escrow balance alert configuration", async () => {
-    const { mockFetch, child, dseq } = await setup();
-    const input: ContainerInput = {
-      alerts: {
-        deploymentBalance: {
-          enabled: true,
-          threshold: 100,
-          notificationChannelId: buildNotificationChannel().id
-        }
-      }
-    };
-
-    await act(() => child.upsert(input));
-
-    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining(`/v1/deployment-alerts/${dseq}`), expect.objectContaining({ method: "POST" }));
-  });
-
-  it("handles both deployment closed and balance alerts", async () => {
-    const { mockFetch, child, dseq } = await setup();
-    const input: ContainerInput = {
-      alerts: {
-        deploymentClosed: {
-          enabled: true,
-          notificationChannelId: buildNotificationChannel().id
-        },
-        deploymentBalance: {
-          enabled: true,
-          threshold: 50,
-          notificationChannelId: buildNotificationChannel().id
-        }
-      }
-    };
-
-    await act(() => child.upsert(input));
-
-    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining(`/v1/deployment-alerts/${dseq}`), expect.objectContaining({ method: "POST" }));
-  });
-
-  it("provides max balance threshold", async () => {
-    const { child } = await setup();
-
-    expect(child.maxBalanceThreshold).toBeGreaterThan(0);
-  });
-
   it("invalidates queries on successful mutation", async () => {
     const { mockFetch, input, child } = await setup();
     const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
@@ -144,11 +91,6 @@ describe(DeploymentAlertsContainer.name, () => {
         deploymentClosed: {
           enabled: true,
           notificationChannelId: buildNotificationChannel().id
-        },
-        deploymentBalance: {
-          enabled: true,
-          notificationChannelId: buildNotificationChannel().id,
-          threshold: 4
         }
       }
     };
