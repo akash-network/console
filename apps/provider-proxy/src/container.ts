@@ -6,6 +6,7 @@ import { createOtelLogger } from "@akashnetwork/logging/otel";
 import type { AppConfig } from "./config/env.config";
 import { appConfigSchema } from "./config/env.config";
 import { CertificateValidator, createCertificateValidatorInstrumentation } from "./services/CertificateValidator/CertificateValidator";
+import { createProviderConnectionTrackerInstrumentation, ProviderConnectionTracker } from "./services/ProviderConnectionTracker/ProviderConnectionTracker";
 import { ProviderProxy } from "./services/ProviderProxy";
 import { ProviderService } from "./services/ProviderService/ProviderService";
 import { WebsocketStats } from "./services/WebsocketStats";
@@ -15,6 +16,7 @@ export interface Container {
   wsStats: WebsocketStats;
   providerProxy: ProviderProxy;
   certificateValidator: CertificateValidator;
+  providerConnectionTracker: ProviderConnectionTracker | undefined;
   httpLogger: LoggerService | undefined;
   httpLoggerInterceptor: HttpLoggerInterceptor;
   wsLogger: LoggerService | undefined;
@@ -45,7 +47,21 @@ export function createContainer(untrustedConfig: Record<string, unknown>): Conta
     providerService,
     isLoggingDisabled ? undefined : createCertificateValidatorInstrumentation(createOtelLogger({ name: "cert-validator" }))
   );
-  const providerProxy = new ProviderProxy(certificateValidator, appConfig.ALLOW_PROXY_TO_LOCAL_NETWORK ? undefined : createForbidPrivateNetworkLookup());
+  const providerConnectionTracker = appConfig.PROVIDER_UNREACHABLE_TRACKING_ENABLED
+    ? new ProviderConnectionTracker(
+        Date.now,
+        {
+          failureThreshold: appConfig.PROVIDER_UNREACHABLE_FAILURE_THRESHOLD,
+          cooldownMs: appConfig.PROVIDER_UNREACHABLE_COOLDOWN_MS
+        },
+        isLoggingDisabled ? undefined : createProviderConnectionTrackerInstrumentation(createOtelLogger({ name: "connection-tracker" }))
+      )
+    : undefined;
+  const providerProxy = new ProviderProxy(
+    certificateValidator,
+    appConfig.ALLOW_PROXY_TO_LOCAL_NETWORK ? undefined : createForbidPrivateNetworkLookup(),
+    providerConnectionTracker
+  );
   const wsLogger = isLoggingDisabled ? undefined : createOtelLogger({ name: "ws" });
   const httpLogger = isLoggingDisabled ? undefined : createOtelLogger({ name: "http" });
   const httpLoggerInterceptor = new HttpLoggerInterceptor(httpLogger);
@@ -54,6 +70,7 @@ export function createContainer(untrustedConfig: Record<string, unknown>): Conta
     wsStats,
     providerProxy,
     certificateValidator,
+    providerConnectionTracker,
     httpLogger,
     httpLoggerInterceptor,
     wsLogger,

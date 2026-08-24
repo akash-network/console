@@ -449,6 +449,32 @@ describe("Provider HTTP proxy", () => {
     expect(body).toBe(`Provider ${new URL(providerUrl).origin} is temporarily unavailable`);
   });
 
+  it("does not short-circuit a provider that answers with an error", async () => {
+    const providerAddress = generateBech32();
+    const validCertPair = await createX509CertPair({ commonName: providerAddress });
+
+    const { providerUrl } = await startProviderServer({
+      certPair: validCertPair,
+      handlers: {
+        "/500"(_, res) {
+          res.writeHead(500);
+          res.end("Internal Server Error");
+        }
+      }
+    });
+    const chainServer = await startChainApiServer([validCertPair.cert]);
+    await startServer({ REST_API_NODE_URL: chainServer.url, PROVIDER_UNREACHABLE_FAILURE_THRESHOLD: 1 });
+    const dial = () =>
+      request("/", {
+        method: "POST",
+        body: JSON.stringify({ method: "GET", url: `${providerUrl}/500`, providerAddress })
+      });
+
+    await dial();
+
+    expect((await dial()).status).toBe(503);
+  });
+
   it("responds with 502 if provider host hangs up connection", async () => {
     const providerAddress = generateBech32();
     const validCertPair = await createX509CertPair({

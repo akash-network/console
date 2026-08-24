@@ -6,7 +6,13 @@ export const appConfigSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform(val => val === "true"),
-  PORT: z.number({ coerce: true }).min(0).default(3040)
+  PORT: z.number({ coerce: true }).min(0).default(3040),
+  PROVIDER_UNREACHABLE_TRACKING_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform(val => val === "true"),
+  PROVIDER_UNREACHABLE_FAILURE_THRESHOLD: z.number({ coerce: true }).min(1).default(3),
+  PROVIDER_UNREACHABLE_COOLDOWN_MS: z.number({ coerce: true }).min(0).default(60_000)
 });
 
 export type AppConfig = z.infer<typeof appConfigSchema>;
