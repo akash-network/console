@@ -130,6 +130,55 @@ describe(DeploymentAlertService.name, () => {
         enabled: input.alerts.deploymentClosed.enabled
       });
     });
+
+    it("saves the closed alert when a leftover balance alert is suppressed by the system", async () => {
+      const { alertRepository, service } = await setup();
+      const existing = generateDeploymentBalanceAlertOutput({});
+      existing.alerts.deploymentBalance.suppressedBySystem = true;
+      const input = {
+        dseq: existing.dseq,
+        owner: mockAkashAddress(),
+        alerts: {
+          deploymentClosed: {
+            notificationChannelId: faker.string.uuid(),
+            enabled: !existing.alerts.deploymentClosed.enabled
+          }
+        }
+      };
+
+      vi.spyOn(service, "get").mockResolvedValue(existing);
+
+      const result = await service.upsert(input, { ability: {} as MongoAbility, userId: faker.string.uuid() });
+
+      expect(result.ok).toBe(true);
+      expect(alertRepository.updateById).toHaveBeenCalledWith(existing.alerts.deploymentClosed.id, {
+        notificationChannelId: input.alerts.deploymentClosed.notificationChannelId,
+        enabled: input.alerts.deploymentClosed.enabled
+      });
+    });
+
+    it("rejects upserting an alert the system suppressed", async () => {
+      const { alertRepository, service } = await setup();
+      const existing = generateDeploymentBalanceAlertOutput({});
+      existing.alerts.deploymentClosed.suppressedBySystem = true;
+      const input = {
+        dseq: existing.dseq,
+        owner: mockAkashAddress(),
+        alerts: {
+          deploymentClosed: {
+            notificationChannelId: faker.string.uuid(),
+            enabled: !existing.alerts.deploymentClosed.enabled
+          }
+        }
+      };
+
+      vi.spyOn(service, "get").mockResolvedValue(existing);
+
+      const result = await service.upsert(input, { ability: {} as MongoAbility, userId: faker.string.uuid() });
+
+      expect(result.ok).toBe(false);
+      expect(alertRepository.updateById).not.toHaveBeenCalled();
+    });
   });
 
   describe("get", () => {

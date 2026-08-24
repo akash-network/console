@@ -82,7 +82,11 @@ export class DeploymentAlertService {
     }
 
     const existingAlerts = await this.get(dseq, auth.ability);
-    if (existingAlerts.alerts.deploymentBalance?.suppressedBySystem || existingAlerts.alerts.deploymentClosed?.suppressedBySystem) {
+    const isTargetingSuppressedAlert =
+      (!!alerts.deploymentBalance && !!existingAlerts.alerts.deploymentBalance?.suppressedBySystem) ||
+      (!!alerts.deploymentClosed && !!existingAlerts.alerts.deploymentClosed?.suppressedBySystem);
+
+    if (isTargetingSuppressedAlert) {
       return Err(new BadRequestException("Cannot upsert because deployment alert is suppressed by system"));
     }
 
