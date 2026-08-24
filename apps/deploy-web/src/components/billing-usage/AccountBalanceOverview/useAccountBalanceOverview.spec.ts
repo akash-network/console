@@ -160,10 +160,69 @@ describe(useAccountBalanceOverview.name, () => {
     expect(result.current.available).toBe(350);
   });
 
+  it("nets what the provider earned since the escrow settled off the reserved amount", () => {
+    const { result } = setup({
+      deployments: [{ dseq: "1", fundsUsd: 100, settledAt: 1000 }],
+      leases: [{ dseq: "1", amount: "1000000" }],
+      latestBlockHeight: 1050
+    });
+
+    expect(result.current.deployments[0].reservedUsd).toBeCloseTo(50, 6);
+    expect(result.current.reserved).toBeCloseTo(50, 6);
+  });
+
+  it("reports the settled amount for a deployment that settled at the current height", () => {
+    const { result } = setup({
+      deployments: [{ dseq: "1", fundsUsd: 100, settledAt: 1050 }],
+      leases: [{ dseq: "1", amount: "1000000" }],
+      latestBlockHeight: 1050
+    });
+
+    expect(result.current.deployments[0].reservedUsd).toBe(100);
+  });
+
+  it("reports the settled amount for a deployment with no live lease", () => {
+    const { result } = setup({
+      deployments: [{ dseq: "1", fundsUsd: 100, settledAt: 1000 }],
+      leases: [],
+      latestBlockHeight: 1050
+    });
+
+    expect(result.current.deployments[0].reservedUsd).toBe(100);
+  });
+
+  it("reports the settled amount while the latest block height is unknown", () => {
+    const { result } = setup({
+      deployments: [{ dseq: "1", fundsUsd: 100, settledAt: 1000 }],
+      leases: [{ dseq: "1", amount: "1000000" }]
+    });
+
+    expect(result.current.deployments[0].reservedUsd).toBe(100);
+  });
+
+  it("leaves available untouched by the accrual, since total and reserved both drop by it", () => {
+    const settled = setup({
+      totalUsd: 500,
+      deployments: [{ dseq: "1", fundsUsd: 100, settledAt: 1050 }],
+      leases: [{ dseq: "1", amount: "1000000" }],
+      latestBlockHeight: 1050
+    });
+    const accrued = setup({
+      totalUsd: 500,
+      deployments: [{ dseq: "1", fundsUsd: 100, settledAt: 1000 }],
+      leases: [{ dseq: "1", amount: "1000000" }],
+      latestBlockHeight: 1050
+    });
+
+    expect(accrued.result.current.totalUsd).toBeCloseTo(450, 6);
+    expect(accrued.result.current.available).toBeCloseTo(settled.result.current.available, 6);
+  });
+
   function setup(input: {
     totalUsd?: number;
     reservedUsd?: number;
-    deployments?: Array<{ dseq: string; fundsUsd: number }>;
+    deployments?: Array<{ dseq: string; fundsUsd: number; settledAt?: number }>;
+    latestBlockHeight?: number;
     names?: Record<string, string>;
     leases?: Array<{ dseq: string; amount?: string; state?: string }>;
     hasLiveLease?: boolean;
@@ -178,7 +237,7 @@ describe(useAccountBalanceOverview.name, () => {
     const reservedDeployments = input.deployments ?? (input.reservedUsd ? [{ dseq: "reserved", fundsUsd: input.reservedUsd }] : []);
     const activeDeployments = reservedDeployments.map(deployment => ({
       dseq: deployment.dseq,
-      escrowAccount: { state: { funds: [{ denom: UAKT_DENOM, amount: String(deployment.fundsUsd) }] } }
+      escrowAccount: { state: { settled_at: String(deployment.settledAt ?? ""), funds: [{ denom: UAKT_DENOM, amount: String(deployment.fundsUsd) }] } }
     }));
     const reservedTotal = reservedDeployments.reduce((sum, deployment) => sum + deployment.fundsUsd, 0);
 
@@ -232,6 +291,11 @@ describe(useAccountBalanceOverview.name, () => {
     const leasesQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAllLeases>>(), { data: leases });
     const useAllLeases = vi.fn<typeof DEPENDENCIES.useAllLeases>(() => leasesQuery);
 
+    const blockQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useBlock>>(), {
+      data: input.latestBlockHeight === undefined ? undefined : { block: { header: { height: String(input.latestBlockHeight) } } }
+    });
+    const useBlock: typeof DEPENDENCIES.useBlock = () => blockQuery;
+
     const walletSettingsQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useWalletSettingsQuery>>(), {
       data: Object.assign(mock<WalletSettings>(), {
         autoReloadEnabled: input.autoReloadEnabled ?? false,
@@ -250,6 +314,7 @@ describe(useAccountBalanceOverview.name, () => {
       useAutoReloadMode,
       useBalances,
       useAllLeases,
+      useBlock,
       useWalletSettingsQuery,
       useLocalNotes
     };

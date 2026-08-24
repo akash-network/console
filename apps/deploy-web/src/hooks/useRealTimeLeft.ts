@@ -1,7 +1,7 @@
 import add from "date-fns/add";
 
 import { useBlock } from "@src/queries/useBlocksQuery";
-import { averageBlockTime } from "@src/utils/priceUtils";
+import { averageBlockTime, getLiveEscrowBalance } from "@src/utils/priceUtils";
 
 export function useRealTimeLeft(pricePerBlock: number, balance: number, settledAt: number, createdAt: number) {
   const { data: latestBlock } = useBlock("latest", {
@@ -9,7 +9,7 @@ export function useRealTimeLeft(pricePerBlock: number, balance: number, settledA
   });
   if (!latestBlock) return;
 
-  const latestBlockHeight = latestBlock.block.header.height;
+  const latestBlockHeight = Number(latestBlock.block.header.height);
   const blocksPassed = Math.abs(settledAt - latestBlockHeight);
   const blocksSinceCreation = Math.abs(createdAt - latestBlockHeight);
 
@@ -18,7 +18,7 @@ export function useRealTimeLeft(pricePerBlock: number, balance: number, settledA
 
   return {
     timeLeft: add(new Date(timestamp), { seconds: blocksLeft * averageBlockTime }),
-    escrow: Math.max(blocksLeft * pricePerBlock, 0),
+    escrow: getLiveEscrowBalance({ settledBalance: balance, pricePerBlock, settledAt, latestBlockHeight }),
     amountSpent: Math.min(blocksSinceCreation * pricePerBlock, balance)
   };
 }
