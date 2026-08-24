@@ -1,11 +1,8 @@
+import { isLeaseLive } from "@akashnetwork/http-sdk";
+
 import type { LeaseDto } from "@src/types/deployment";
 
-export const LIVE_LEASE_STATES = ["active", "reclaiming"] as const;
-
-/** A lease whose workload is still running — actively leased or in the reclamation grace period. */
-export function isLeaseLive(lease: Pick<LeaseDto, "state">): boolean {
-  return LIVE_LEASE_STATES.some(state => lease.state === state);
-}
+export { isLeaseLive, LIVE_LEASE_STATES } from "@akashnetwork/http-sdk";
 
 /** Whether any live lease is running on GPU — drives hourly-vs-monthly cost display in the headers. */
 export function hasLiveGpuLease(leases: Pick<LeaseDto, "state" | "gpuAmount">[] | null | undefined): boolean {

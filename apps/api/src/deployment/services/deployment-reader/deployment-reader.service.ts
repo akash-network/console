@@ -5,9 +5,11 @@ import {
   DeploymentInfo,
   DeploymentListResponse,
   FindAllParams,
+  isLeaseLive,
   LeaseHttpService,
   LeaseListParams,
-  RestAkashLeaseListResponse
+  RestAkashLeaseListResponse,
+  RpcLease
 } from "@akashnetwork/http-sdk";
 import { PromisePool } from "@supercharge/promise-pool";
 import { AxiosError } from "axios";
@@ -60,36 +62,7 @@ export class DeploymentReaderService {
 
     const { leases } = await this.getLeaseList({ owner, dseq });
 
-    const leasesWithStatus = await Promise.all(
-      leases.map(async ({ lease }) => {
-        try {
-          const leaseStatus = await this.providerService.getLeaseStatus(
-            lease.id.provider,
-            lease.id.dseq,
-            lease.id.gseq,
-            lease.id.oseq,
-            await this.providerService.toProviderAuth({ walletId: wallet.id, provider: lease.id.provider }, ["status"])
-          );
-          return {
-            lease,
-            status: leaseStatus
-          };
-        } catch (error) {
-          this.logger.warn({
-            event: "LEASE_STATUS_FETCH_FAILED",
-            provider: lease.id.provider,
-            dseq: lease.id.dseq,
-            gseq: lease.id.gseq,
-            oseq: lease.id.oseq,
-            error
-          });
-          return {
-            lease,
-            status: null
-          };
-        }
-      })
-    );
+    const leasesWithStatus = await Promise.all(leases.map(({ lease }) => this.withLeaseStatus(wallet, lease)));
 
     return {
       deployment: deploymentResponse.deployment,
@@ -99,6 +72,39 @@ export class DeploymentReaderService {
       })),
       escrow_account: deploymentResponse.escrow_account
     };
+  }
+
+  /**
+   * A provider serves /lease/../status only while the lease is live: a closed lease answers 404, and a lease
+   * whose provider went offline costs a full connect timeout. Neither yields a status, so a non-live lease is
+   * reported as null without a provider round-trip. The lease itself stays in the response whatever its state.
+   */
+  private async withLeaseStatus(wallet: WalletInitialized, lease: RpcLease["lease"]) {
+    if (!isLeaseLive(lease)) {
+      return { lease, status: null };
+    }
+
+    try {
+      const status = await this.providerService.getLeaseStatus(
+        lease.id.provider,
+        lease.id.dseq,
+        lease.id.gseq,
+        lease.id.oseq,
+        await this.providerService.toProviderAuth({ walletId: wallet.id, provider: lease.id.provider }, ["status"])
+      );
+      return { lease, status };
+    } catch (error) {
+      this.logger.warn({
+        event: "LEASE_STATUS_FETCH_FAILED",
+        provider: lease.id.provider,
+        dseq: lease.id.dseq,
+        gseq: lease.id.gseq,
+        oseq: lease.id.oseq,
+        leaseState: lease.state,
+        error
+      });
+      return { lease, status: null };
+    }
   }
 
   public async list({
