@@ -48,7 +48,13 @@ test.describe("Deployment detail", () => {
       }
     });
 
+    await test.step("lands on the Events tab so the workload's first events are in view", async () => {
+      await expect(page.getByRole("tab", { name: "Events" })).toHaveAttribute("aria-selected", "true");
+    });
+
     await test.step("shows the placements & services overview on the Details tab", async () => {
+      await page.getByRole("tab", { name: "Details" }).click();
+
       await expect(page.getByText("Placements", { exact: true })).toBeVisible({ timeout: 30_000 });
 
       const service = page.getByRole("button", { name: /service-1/ });
