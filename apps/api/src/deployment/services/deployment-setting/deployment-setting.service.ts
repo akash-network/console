@@ -10,6 +10,8 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { FindDeploymentSettingParams } from "@src/deployment/http-schemas/deployment-setting.schema";
 import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/deployment/http-schemas/runtime-limit";
 import {
@@ -44,7 +46,8 @@ export class DeploymentSettingService {
     private readonly config: DeploymentConfigService,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly instrumentation: TopUpManagedDeploymentsInstrumentationService,
-    private readonly domainEvents: DomainEventsService
+    private readonly domainEvents: DomainEventsService,
+    private readonly featureFlags: FeatureFlagsService
   ) {}
 
   async findOrCreateByUserIdAndDseq(params: FindDeploymentSettingParams): Promise<DeploymentSettingWithEstimatedTopUpAmount | undefined> {
@@ -74,6 +77,8 @@ export class DeploymentSettingService {
   }
 
   async create(input: DeploymentSettingsInput): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
+    this.#assertFundingStaysOn(input.autoTopUpEnabled);
+
     const result = await this.withEstimatedTopUpAmount(await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "create").create(input));
 
     if (result.autoTopUpEnabled) {
@@ -84,6 +89,8 @@ export class DeploymentSettingService {
   }
 
   async upsert(params: FindDeploymentSettingParams, input: DeploymentSettingChange): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
+    this.#assertFundingStaysOn(input.autoTopUpEnabled);
+
     try {
       const { setting, existing } = await this.#writeReconcilingConcurrentCreate(params, input);
 
@@ -96,6 +103,21 @@ export class DeploymentSettingService {
       assert(!(error instanceof ForbiddenError), 404, "Deployment setting not found");
       throw error;
     }
+  }
+
+  /**
+   * Under the fixed-threshold rollout, deployment funding is always on (CON-734): an explicit
+   * opt-out is rejected rather than stored, so the state removed by the one-time backfill cannot be
+   * recreated. Gated on the same flag that hides the toggle in the UI, so the API and the interface
+   * flip together per user; off-flag the legacy opt-out contract holds. Runtime limits stay the
+   * supported way to bound a deployment's spend.
+   */
+  #assertFundingStaysOn(autoTopUpEnabled: boolean | undefined): void {
+    assert(
+      autoTopUpEnabled !== false || !this.featureFlags.isEnabled(FeatureFlags.AUTO_RELOAD_FIXED_THRESHOLD),
+      400,
+      "Automatic deployment funding cannot be turned off. Set a runtime limit to bound how long the deployment runs."
+    );
   }
 
   /**

@@ -5454,8 +5454,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "data": {
                     "properties": {
                       "autoTopUpEnabled": {
-                        "default": false,
-                        "description": "Whether auto top-up is enabled for this deployment",
+                        "description": "Whether auto top-up is enabled for this deployment. Defaults to enabled when omitted; an explicit false is rejected once always-on funding is rolled out",
                         "type": "boolean",
                       },
                       "dseq": {
@@ -5727,7 +5726,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "data": {
                     "properties": {
                       "autoTopUpEnabled": {
-                        "description": "Whether auto top-up is enabled for this deployment",
+                        "description": "Whether auto top-up is enabled for this deployment. An explicit false is rejected once always-on funding is rolled out",
                         "type": "boolean",
                       },
                       "runtimeLimitHours": {
@@ -15627,8 +15626,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "data": {
                     "properties": {
                       "autoTopUpEnabled": {
-                        "default": false,
-                        "description": "Whether auto top-up is enabled for this deployment",
+                        "description": "Whether auto top-up is enabled for this deployment. Defaults to enabled when omitted; an explicit false is rejected once always-on funding is rolled out",
                         "type": "boolean",
                       },
                       "dseq": {
@@ -15902,7 +15900,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "data": {
                     "properties": {
                       "autoTopUpEnabled": {
-                        "description": "Whether auto top-up is enabled for this deployment",
+                        "description": "Whether auto top-up is enabled for this deployment. An explicit false is rejected once always-on funding is rolled out",
                         "type": "boolean",
                       },
                       "runtimeLimitHours": {

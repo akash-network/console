@@ -463,6 +463,77 @@ describe("Deployment Settings", () => {
     });
   });
 
+  describe("disabling automatic funding", () => {
+    it("returns 400 for a PATCH turning auto top-up off", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true });
+
+      const response = await app.request(`/v1/deployment-settings/${user.id}/${dseq}`, {
+        method: "PATCH",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ data: { autoTopUpEnabled: false } })
+      });
+
+      expect(response.status).toBe(400);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ autoTopUpEnabled: true });
+    });
+
+    it("returns 400 when an opt-out arrives alongside a runtime limit", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true });
+
+      const response = await app.request(`/v2/deployment-settings/${dseq}`, {
+        method: "PATCH",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ data: { autoTopUpEnabled: false, runtimeLimitHours: 12 } })
+      });
+
+      expect(response.status).toBe(400);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ runtimeLimitHours: null });
+    });
+
+    it("returns 400 for a POST creating a setting with funding off", async () => {
+      const { token } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+
+      const response = await app.request("/v2/deployment-settings", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ data: { dseq, autoTopUpEnabled: false } })
+      });
+
+      expect(response.status).toBe(400);
+    });
+
+    it("creates a funded setting when the field is omitted", async () => {
+      const { token } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+
+      const response = await app.request("/v2/deployment-settings", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ data: { dseq } })
+      });
+
+      expect(response.status).toBe(201);
+      expect(await response.json()).toEqual({ data: expect.objectContaining({ autoTopUpEnabled: true }) });
+    });
+  });
+
   function patchRuntimeLimit({ dseq, token, runtimeLimitHours }: { dseq: string; token: string; runtimeLimitHours: number | null }) {
     return app.request(`/v2/deployment-settings/${dseq}`, {
       method: "PATCH",
