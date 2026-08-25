@@ -25,6 +25,30 @@ describe("envSchema", () => {
     });
   });
 
+  describe("AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN", () => {
+    it("defaults to 60 when absent", () => {
+      const result = setup({});
+      expect(result.success).toBe(true);
+      expect(result.data?.AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN).toBe(60);
+    });
+
+    it("coerces a string value", () => {
+      const result = setup({ AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN: "30" });
+      expect(result.success).toBe(true);
+      expect(result.data?.AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN).toBe(30);
+    });
+
+    it("accepts zero to disable the cap", () => {
+      const result = setup({ AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN: "0" });
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects a negative value", () => {
+      const result = setup({ AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN: "-1" });
+      expect(result.success).toBe(false);
+    });
+  });
+
   describe("MASTER_WALLET_MAX_MINT_UAKT", () => {
     it("rejects a negative value", () => {
       const result = setup({ MASTER_WALLET_MAX_MINT_UAKT: "-1" });

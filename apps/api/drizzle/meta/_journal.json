@@ -309,6 +309,13 @@
       "when": 1787670520752,
       "tag": "0043_store_deployment_sdl",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1787674771013,
+      "tag": "0044_wallet_settings_last_auto_charge_at",
+      "breakpoints": true
     }
   ]
 }

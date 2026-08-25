@@ -37,6 +37,12 @@ export const envSchema = z.object({
     .default(AUDITOR)
     .transform(val => (val ? val.split(",").map(addr => addr.trim()) : [])),
   MANAGED_WALLET_TRIAL_MIN_TOP_UP_AMOUNT: z.number({ coerce: true }).min(20).default(20),
+  /**
+   * Minimum minutes between automatic threshold-mode card charges per wallet — the default of 60
+   * caps them at one per hour. 0 disables the cap (unlike AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN, which
+   * has no disable semantics).
+   */
+  AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN: z.number({ coerce: true }).min(0).default(60),
   MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: z
     .string()
     .default("nvidia/b300,nvidia/b200,nvidia/h200,nvidia/h100,nvidia/pro6000se,nvidia/pro6000we,nvidia/a100,nvidia/rtx5090,nvidia/rtx4090,nvidia/rtx3090")

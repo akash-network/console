@@ -1,5 +1,5 @@
 import { createMongoAbility } from "@casl/ability";
-import { addMilliseconds, millisecondsInHour } from "date-fns";
+import { addMilliseconds, millisecondsInHour, millisecondsInMinute } from "date-fns";
 import { Err, Ok, Result } from "ts-results";
 import { singleton } from "tsyringe";
 
@@ -7,8 +7,9 @@ import { STANDARD_TOP_UP_MIN_AMOUNT_USD } from "@src/billing/config";
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balance.schema";
 import { centsToUsd } from "@src/billing/lib/currency/currency";
-import { UserWalletOutput, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
+import { ChargeClaim, UserWalletOutput, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
+import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { type PaymentMethod, PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { AUTO_RECHARGE_METADATA_KEY, StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
@@ -34,6 +35,7 @@ type Resources = {
 };
 type AllResources = Resources & { balance: GetBalancesResponseOutput["data"]["total"]; paymentMethod: PaymentMethod };
 type ReloadContext = AllResources & { job: JobMeta; triggeredByDeployment: boolean };
+type ReloadOutcome = { nextCheckAt: Date } | undefined;
 
 const millisecondsInDay = 24 * millisecondsInHour;
 
@@ -53,6 +55,9 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
 
   #MIN_RELOAD_AMOUNT_IN_USD = 20;
 
+  /** Scheduling the deferred check slightly past the window reopen avoids a boundary re-skip. */
+  #CHARGE_WINDOW_REOPEN_BUFFER_IN_MS = millisecondsInMinute;
+
   constructor(
     private readonly walletSettingRepository: WalletSettingRepository,
     private readonly balancesService: BalancesService,
@@ -61,7 +66,8 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     private readonly stripeTransactionService: StripeTransactionService,
     private readonly drainingDeploymentService: DrainingDeploymentService,
     private readonly deploymentRepository: DeploymentRepository,
-    private readonly instrumentationService: WalletBalanceReloadCheckInstrumentationService
+    private readonly instrumentationService: WalletBalanceReloadCheckInstrumentationService,
+    private readonly billingConfig: BillingConfigService
   ) {}
 
   async handle(payload: JobPayload<WalletBalanceReloadCheck>, job: JobMeta): Promise<void> {
@@ -72,8 +78,8 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
       const resourcesResult = await this.#collectResources(payload);
 
       if (resourcesResult.ok) {
-        await this.#tryToReload({ ...resourcesResult.val, job, triggeredByDeployment: payload.triggeredByDeployment ?? false });
-        await this.#scheduleNextCheck(resourcesResult.val);
+        const reloadOutcome = await this.#tryToReload({ ...resourcesResult.val, job, triggeredByDeployment: payload.triggeredByDeployment ?? false });
+        await this.#scheduleNextCheck(resourcesResult.val, reloadOutcome?.nextCheckAt);
         success = true;
       } else {
         this.instrumentationService.recordValidationError(resourcesResult.val.event, resourcesResult.val, payload.userId);
@@ -171,7 +177,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     });
   }
 
-  async #tryToReload(resources: ReloadContext): Promise<void> {
+  async #tryToReload(resources: ReloadContext): Promise<ReloadOutcome> {
     if (resources.walletSetting.autoReloadMode === "threshold") {
       return this.#tryToReloadOnFixedThreshold(resources);
     }
@@ -179,7 +185,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     return this.#tryToReloadOnPredictedSpend(resources);
   }
 
-  async #tryToReloadOnFixedThreshold(resources: ReloadContext): Promise<void> {
+  async #tryToReloadOnFixedThreshold(resources: ReloadContext): Promise<ReloadOutcome> {
     const { balance } = resources;
     const mode = resources.walletSetting.autoReloadMode;
     const threshold = centsToUsd(resources.walletSetting.autoReloadThreshold);
@@ -205,6 +211,15 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
       }
     }
 
+    const cooldownMinutes = this.billingConfig.get("AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN");
+    const claim = await this.walletSettingRepository.claimForCharge(resources.walletSetting.id, cooldownMinutes);
+
+    if (!claim) {
+      const nextCheckAt = this.#calculateChargeWindowReopenDate(cooldownMinutes);
+      this.instrumentationService.recordReloadSkipped({ mode, reason: "charge_rate_limited", coverageRatio, logContext: { ...log, nextCheckAt } });
+      return { nextCheckAt };
+    }
+
     try {
       await this.stripeTransactionService.createPaymentIntent({
         userId: resources.user.id,
@@ -218,12 +233,13 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
       });
       this.instrumentationService.recordReloadTriggered({ mode, amount: reloadAmount, coverageRatio, logContext: log });
     } catch (error) {
+      await this.#releaseChargeClaim(claim);
       this.instrumentationService.recordReloadFailed({ mode, error, logContext: log });
       throw error;
     }
   }
 
-  async #tryToReloadOnPredictedSpend(resources: ReloadContext): Promise<void> {
+  async #tryToReloadOnPredictedSpend(resources: ReloadContext): Promise<ReloadOutcome> {
     const mode = resources.walletSetting.autoReloadMode;
     const reloadTargetDate = addMilliseconds(new Date(), this.#RELOAD_COVERAGE_PERIOD_IN_MS);
     const costUntilTargetDateInDenom = await this.drainingDeploymentService.calculateAllDeploymentCostUntilDate(resources.wallet.address, reloadTargetDate);
@@ -279,16 +295,35 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     }
   }
 
-  async #scheduleNextCheck(resources: Resources): Promise<void> {
+  async #scheduleNextCheck(resources: Resources, nextCheckAt?: Date): Promise<void> {
+    const defaultNextCheckDate = this.#calculateNextCheckDate();
+    const startAfter = nextCheckAt && nextCheckAt < defaultNextCheckDate ? nextCheckAt : defaultNextCheckDate;
+
     try {
       await this.walletReloadJobService.scheduleForWalletSetting(resources.walletSetting, {
-        startAfter: this.#calculateNextCheckDate().toISOString(),
+        startAfter: startAfter.toISOString(),
         withCleanup: true
       });
     } catch (error) {
       this.instrumentationService.recordSchedulingError(resources.wallet.address, error);
       throw error;
     }
+  }
+
+  /**
+   * Releases best-effort: a rejected release must not replace the payment error the caller is
+   * about to record and rethrow, which retries and alerting classify.
+   */
+  async #releaseChargeClaim(claim: ChargeClaim): Promise<void> {
+    try {
+      await this.walletSettingRepository.releaseChargeClaim(claim);
+    } catch (error) {
+      this.instrumentationService.recordChargeClaimReleaseError(claim.id, error);
+    }
+  }
+
+  #calculateChargeWindowReopenDate(cooldownMinutes: number): Date {
+    return addMilliseconds(new Date(), cooldownMinutes * millisecondsInMinute + this.#CHARGE_WINDOW_REOPEN_BUFFER_IN_MS);
   }
 
   #calculateNextCheckDate(): Date {
