@@ -19,8 +19,8 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useCurrencyFormatter } from "@src/hooks/useCurrencyFormatter/useCurrencyFormatter";
 import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
 import { useDepositDeployment } from "@src/hooks/useDepositDeployment/useDepositDeployment";
-import { useFlag } from "@src/hooks/useFlag";
 import { useHasInAppHistory } from "@src/hooks/useHasInAppHistory";
+import { useIsEscrowAbstracted } from "@src/hooks/useIsEscrowAbstracted";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
@@ -47,7 +47,7 @@ export const DEPENDENCIES = {
   useWallet,
   useCurrencyFormatter,
   useDepositDeployment,
-  useFlag,
+  useIsEscrowAbstracted,
   useDeploymentMetrics,
   useManagedDeploymentConfirm,
   useHasInAppHistory,
@@ -91,7 +91,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
   const deploymentSetting = d.useDeploymentSettingQuery({ dseq: deployment.dseq });
   const { realTimeLeft, deploymentCost } = d.useDeploymentMetrics({ deployment, leases });
   const { confirm } = d.usePopup();
-  const isEscrowAbstracted = d.useFlag("auto_reload_fixed_threshold");
+  const isEscrowAbstracted = d.useIsEscrowAbstracted();
 
   function handleBackClick() {
     if (hasInAppHistory) {

@@ -169,7 +169,7 @@ describe("DeploymentBillingSection", () => {
     const analyticsService = mock<ReturnType<typeof DEPENDENCIES.useServices>["analyticsService"]>();
     const useServices: typeof DEPENDENCIES.useServices = () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService });
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ denom: "uakt" });
-    const useFlag: typeof DEPENDENCIES.useFlag = () => input.isEscrowAbstracted ?? false;
+    const useIsEscrowAbstracted: typeof DEPENDENCIES.useIsEscrowAbstracted = () => input.isEscrowAbstracted ?? false;
     const usePricing: typeof DEPENDENCIES.usePricing = () => mock<ReturnType<typeof DEPENDENCIES.usePricing>>({ udenomToUsd: () => 0 });
     const useAutoTopUp: typeof DEPENDENCIES.useAutoTopUp = () =>
       mock<ReturnType<typeof DEPENDENCIES.useAutoTopUp>>({
@@ -223,7 +223,7 @@ describe("DeploymentBillingSection", () => {
         dependencies={MockComponents(DEPENDENCIES, {
           useServices,
           useWallet,
-          useFlag,
+          useIsEscrowAbstracted,
           usePricing,
           usePopup,
           useAutoTopUp,

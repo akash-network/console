@@ -65,7 +65,7 @@ describe("DeploymentSettings", () => {
       mock<ReturnType<typeof DEPENDENCIES.useUser>>({
         user: input.isSignedIn ? mock<NonNullable<ReturnType<typeof DEPENDENCIES.useUser>["user"]>>({ userId: "u1" }) : undefined
       });
-    const useFlag: typeof DEPENDENCIES.useFlag = () => input.isEscrowAbstracted ?? false;
+    const useIsEscrowAbstracted: typeof DEPENDENCIES.useIsEscrowAbstracted = () => input.isEscrowAbstracted ?? false;
     const settings = Object.assign(mock<NonNullable<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>["data"]>>(), {
       runtimeLimitHours: input.runtimeLimitHours ?? null
     });
@@ -84,7 +84,7 @@ describe("DeploymentSettings", () => {
         onDeploymentChange={vi.fn()}
         dependencies={MockComponents(DEPENDENCIES, {
           useUser,
-          useFlag,
+          useIsEscrowAbstracted,
           useDeploymentSettingQuery,
           DeploymentBillingSection,
           DeploymentNotificationsSection,

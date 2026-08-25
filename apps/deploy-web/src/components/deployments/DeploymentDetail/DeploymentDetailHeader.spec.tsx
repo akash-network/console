@@ -261,7 +261,7 @@ describe("DeploymentDetailHeader", () => {
         getDeploymentData: () => (input.storedManifest ? { manifest: input.storedManifest, name: input.name ?? undefined } : null)
       });
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false });
-    const useFlag: typeof DEPENDENCIES.useFlag = () => input.isEscrowAbstracted ?? false;
+    const useIsEscrowAbstracted: typeof DEPENDENCIES.useIsEscrowAbstracted = () => input.isEscrowAbstracted ?? false;
     const useDeclaredTeeTypes: typeof DEPENDENCIES.useDeclaredTeeTypes = () => [];
     const useDeclaredGpuInterconnect: typeof DEPENDENCIES.useDeclaredGpuInterconnect = () => ({ enabled: false, fabrics: [] });
     const TrialDeploymentBadge = vi.fn(() => <div>trial-badge</div>);
@@ -302,7 +302,7 @@ describe("DeploymentDetailHeader", () => {
         dependencies={MockComponents(DEPENDENCIES, {
           useLocalNotes,
           useWallet,
-          useFlag,
+          useIsEscrowAbstracted,
           useDeploymentEscrowBalance,
           PriceValue,
           useDeploymentSettingQuery,

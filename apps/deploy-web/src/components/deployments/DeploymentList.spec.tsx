@@ -221,7 +221,7 @@ describe(DeploymentList.name, () => {
     });
 
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: "akash1owner", hasWallet: true });
-    const useFlag: typeof DEPENDENCIES.useFlag = () => input.isEscrowAbstracted ?? false;
+    const useIsEscrowAbstracted: typeof DEPENDENCIES.useIsEscrowAbstracted = () => input.isEscrowAbstracted ?? false;
     const useProviderList: typeof DEPENDENCIES.useProviderList = () => mock<ReturnType<typeof DEPENDENCIES.useProviderList>>({ data: [], isFetching: false });
     const useBlockchainStatus: typeof DEPENDENCIES.useBlockchainStatus = () =>
       mock<ReturnType<typeof DEPENDENCIES.useBlockchainStatus>>({ isBlockchainDown: false });
@@ -247,7 +247,7 @@ describe(DeploymentList.name, () => {
           useDeploymentsPage,
           useDeploymentList,
           useWallet,
-          useFlag,
+          useIsEscrowAbstracted,
           useProviderList,
           useBlockchainStatus,
           useLocalNotes,

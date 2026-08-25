@@ -27,7 +27,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
 import { useDepositDeployment } from "@src/hooks/useDepositDeployment/useDepositDeployment";
-import { useFlag } from "@src/hooks/useFlag";
+import { useIsEscrowAbstracted } from "@src/hooks/useIsEscrowAbstracted";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useRealTimeLeft } from "@src/hooks/useRealTimeLeft";
@@ -56,7 +56,7 @@ import { DeploymentName } from "./DeploymentName/DeploymentName";
 import { LeaseChip } from "./LeaseChip";
 
 export const DEPENDENCIES = {
-  useFlag
+  useIsEscrowAbstracted
 };
 
 type Props = {
@@ -80,7 +80,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const router = useRouter();
-  const isEscrowAbstracted = d.useFlag("auto_reload_fixed_threshold");
+  const isEscrowAbstracted = d.useIsEscrowAbstracted();
   const { analyticsService } = useServices();
   const [open, setOpen] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);

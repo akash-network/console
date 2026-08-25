@@ -1,7 +1,7 @@
 "use client";
 import type { FC, ReactNode } from "react";
 
-import { useFlag } from "@src/hooks/useFlag";
+import { useIsEscrowAbstracted } from "@src/hooks/useIsEscrowAbstracted";
 import { useUser } from "@src/hooks/useUser";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
@@ -12,7 +12,7 @@ import { DeploymentNotificationsSection } from "./DeploymentNotificationsSection
 
 export const DEPENDENCIES = {
   useUser,
-  useFlag,
+  useIsEscrowAbstracted,
   useDeploymentSettingQuery,
   DeploymentBillingSection,
   DeploymentNotificationsSection,
@@ -30,7 +30,7 @@ export const DeploymentSettings: FC<DeploymentSettingsProps> = ({ deployment, le
   const { user } = d.useUser();
   const isAlertsEnabled = !!user?.userId;
   const isActive = deployment.state === "active";
-  const isEscrowAbstracted = d.useFlag("auto_reload_fixed_threshold");
+  const isEscrowAbstracted = d.useIsEscrowAbstracted();
   const { data: settings } = d.useDeploymentSettingQuery({ dseq: deployment.dseq });
   const showsBillingSection = !isEscrowAbstracted || !!settings?.runtimeLimitHours;
 

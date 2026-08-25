@@ -295,7 +295,7 @@ describe(DeploymentDetailTopBar.name, () => {
         udenomToUsd: vi.fn(() => 0)
       })) as typeof DEPENDENCIES.usePricing,
       useHasInAppHistory: vi.fn(() => input?.hasInAppHistory ?? false) as typeof DEPENDENCIES.useHasInAppHistory,
-      useFlag: vi.fn(() => input?.isEscrowAbstracted ?? false) as typeof DEPENDENCIES.useFlag,
+      useIsEscrowAbstracted: vi.fn(() => input?.isEscrowAbstracted ?? false) as typeof DEPENDENCIES.useIsEscrowAbstracted,
       useManagedDeploymentConfirm: vi.fn(() => ({
         closeDeploymentConfirm: vi.fn(() => Promise.resolve(true))
       })) as typeof DEPENDENCIES.useManagedDeploymentConfirm,

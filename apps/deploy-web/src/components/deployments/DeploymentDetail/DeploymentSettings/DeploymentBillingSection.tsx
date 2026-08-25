@@ -13,7 +13,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAutoTopUp } from "@src/hooks/useAutoTopUp/useAutoTopUp";
 import { useDeploymentEscrowBalance } from "@src/hooks/useDeploymentEscrowBalance/useDeploymentEscrowBalance";
-import { useFlag } from "@src/hooks/useFlag";
+import { useIsEscrowAbstracted } from "@src/hooks/useIsEscrowAbstracted";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useTickingNow } from "@src/hooks/useTickingNow";
 import { useUpdateDeploymentSettingMutation } from "@src/queries/deploymentSettingsQuery";
@@ -28,7 +28,7 @@ import { AddRuntimeHoursModal } from "./AddRuntimeHoursModal";
 export const DEPENDENCIES = {
   useServices,
   useWallet,
-  useFlag,
+  useIsEscrowAbstracted,
   usePopup,
   usePricing,
   useAutoTopUp,
@@ -56,7 +56,7 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
   const { udenomToUsd } = d.usePricing();
   const { confirm } = d.usePopup();
   const { enqueueSnackbar } = d.useSnackbar();
-  const isEscrowAbstracted = d.useFlag("auto_reload_fixed_threshold");
+  const isEscrowAbstracted = d.useIsEscrowAbstracted();
   const [isDepositing, setIsDepositing] = useState(false);
   const [isAddingHours, setIsAddingHours] = useState(false);
   const isActive = deployment.state === "active";

@@ -16,7 +16,7 @@ import { TrialDeploymentBadge } from "@src/components/shared/TrialDeploymentBadg
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
-import { useFlag } from "@src/hooks/useFlag";
+import { useIsEscrowAbstracted } from "@src/hooks/useIsEscrowAbstracted";
 import { useTrialDeploymentTimeRemaining } from "@src/hooks/useTrialDeploymentTimeRemaining";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { TeeType } from "@src/utils/confidentialCompute";
@@ -26,7 +26,7 @@ import { hasLiveGpuLease, isLeaseLive } from "@src/utils/leaseUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 
 export const DEPENDENCIES = {
-  useFlag
+  useIsEscrowAbstracted
 };
 
 type Props = {
@@ -45,7 +45,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({
   interconnect = { enabled: false, fabrics: [] },
   dependencies: d = DEPENDENCIES
 }) => {
-  const isEscrowAbstracted = d.useFlag("auto_reload_fixed_threshold");
+  const isEscrowAbstracted = d.useIsEscrowAbstracted();
   const { deploymentCost, realTimeLeft } = useDeploymentMetrics({ deployment, leases });
   const isActive = deployment.state === "active";
   const hasLeases = !!leases && leases.length > 0;

@@ -15,7 +15,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
 import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
 import { useDeploymentEscrowBalance } from "@src/hooks/useDeploymentEscrowBalance/useDeploymentEscrowBalance";
-import { useFlag } from "@src/hooks/useFlag";
+import { useIsEscrowAbstracted } from "@src/hooks/useIsEscrowAbstracted";
 import { useTickingNow } from "@src/hooks/useTickingNow";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
@@ -37,7 +37,7 @@ import { DeploymentStatusBadge } from "./DeploymentStatusBadge";
 export const DEPENDENCIES = {
   useLocalNotes,
   useWallet,
-  useFlag,
+  useIsEscrowAbstracted,
   useDeploymentEscrowBalance,
   useDeploymentSettingQuery,
   useDeclaredTeeTypes,
@@ -68,7 +68,7 @@ export interface DeploymentDetailHeaderProps {
 export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deployment, leases, providers, dependencies: d = DEPENDENCIES }) => {
   const { getDeploymentName, changeDeploymentName, getDeploymentData } = d.useLocalNotes();
   const { isTrialing } = d.useWallet();
-  const isEscrowAbstracted = d.useFlag("auto_reload_fixed_threshold");
+  const isEscrowAbstracted = d.useIsEscrowAbstracted();
   const { balanceUdenom, denom } = d.useDeploymentEscrowBalance({ deployment, leases });
   const { data: settings } = d.useDeploymentSettingQuery({ dseq: deployment.dseq });
   const teeTypes = d.useDeclaredTeeTypes(deployment);
