@@ -252,17 +252,35 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
   }
 
   /**
-   * Persists a runtime limit chosen at deployment creation. Upserts on the (dseq, userId) unique so a
-   * concurrent lazy row creation from a settings read cannot drop the limit; the conflict branch only
-   * writes the limit and leaves the row's other fields as the earlier writer set them.
+   * Records what a deployment is, at the moment it is created: the SDL it was given, stripped of its
+   * secrets, the manifest version it commits on chain, and the runtime limit its creator chose. One
+   * statement, so a deployment can never end up remembering half of itself, and so the sealed secrets
+   * a later phase adds land in the same write as the SDL they belong to.
+   *
+   * Upserts on the (dseq, userId) unique because a settings read creates a row lazily, and because the
+   * caller retries a create that failed to broadcast. The conflict branch leaves every field it does
+   * not name as the earlier writer set them, and an absent runtime limit counts as unnamed: drizzle
+   * drops undefined out of the set clause, so creating without a limit cannot clear one already there.
    */
-  async upsertRuntimeLimit({ userId, dseq, runtimeLimitHours }: { userId: string; dseq: string; runtimeLimitHours: number }): Promise<void> {
+  async upsertDefinition({
+    userId,
+    dseq,
+    sdl,
+    manifestVersion,
+    runtimeLimitHours
+  }: {
+    userId: string;
+    dseq: string;
+    sdl: string | null;
+    manifestVersion: string;
+    runtimeLimitHours?: number;
+  }): Promise<void> {
     await this.cursor
       .insert(this.table)
-      .values({ userId, dseq, autoTopUpEnabled: true, runtimeLimitHours })
+      .values({ userId, dseq, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT, sdl, manifestVersion, runtimeLimitHours })
       .onConflictDoUpdate({
         target: [this.table.dseq, this.table.userId],
-        set: { runtimeLimitHours, updatedAt: sql`now()` }
+        set: { sdl, manifestVersion, runtimeLimitHours, updatedAt: sql`now()` }
       });
   }
 

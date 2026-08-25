@@ -26,7 +26,10 @@ import { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed
 /** The fields a PATCH may change. A null `runtimeLimitHours` removes the limit; an absent one leaves it alone. */
 type DeploymentSettingChange = Pick<DeploymentSettingsInput, "autoTopUpEnabled" | "runtimeLimitHours">;
 
-type DeploymentSettingWithEstimatedTopUpAmount = Omit<DeploymentSettingsOutput, "lastFundedAt" | "runtimeEndingNotifiedFor" | "runtimeEndsAt"> & {
+type DeploymentSettingWithEstimatedTopUpAmount = Omit<
+  DeploymentSettingsOutput,
+  "lastFundedAt" | "runtimeEndingNotifiedFor" | "sdl" | "manifestVersion" | "runtimeEndsAt"
+> & {
   estimatedTopUpAmount: number;
   topUpFrequencyMs: number;
   runtimeEndsAt: string | null;
@@ -76,10 +79,19 @@ export class DeploymentSettingService {
     return await this.withEstimatedTopUpAmount(await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "create").create(params));
   }
 
-  async create(input: DeploymentSettingsInput): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
+  /**
+   * Takes the same reconciling path as `upsert` rather than inserting blind, because by the time this
+   * runs the row usually exists: creating a deployment records what it is, on the very row this
+   * endpoint writes. A caller doing `POST /v1/deployments` and then `POST /v1/deployment-settings` for
+   * the same dseq would otherwise hit the (dseq, userId) unique and get a 500 for a request that used
+   * to succeed.
+   */
+  async create(input: FindDeploymentSettingParams & DeploymentSettingChange): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
     this.#assertFundingStaysOn(input.autoTopUpEnabled);
 
-    const result = await this.withEstimatedTopUpAmount(await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "create").create(input));
+    const { userId, dseq, ...change } = input;
+    const { setting } = await this.#writeReconcilingConcurrentCreate({ userId, dseq }, change);
+    const result = await this.withEstimatedTopUpAmount(setting);
 
     if (result.autoTopUpEnabled) {
       await this.walletReloadJobService.scheduleImmediate({ userId: result.userId });
@@ -314,7 +326,12 @@ export class DeploymentSettingService {
     }
   }
 
-  /** `lastFundedAt` and `runtimeEndingNotifiedFor` are internal sweep markers and stay out of the API payload. */
+  /**
+   * `lastFundedAt` and `runtimeEndingNotifiedFor` are internal sweep markers and stay out of the API
+   * payload. So do `sdl` and `manifestVersion`: they are what the console remembers a deployment by,
+   * not something it hands back, and the response schema is types only — whatever this returns is
+   * what ships.
+   */
   async withEstimatedTopUpAmount(params: DeploymentSettingsOutput): Promise<DeploymentSettingWithEstimatedTopUpAmount>;
   async withEstimatedTopUpAmount(params: undefined): Promise<undefined>;
   async withEstimatedTopUpAmount(params?: DeploymentSettingsOutput): Promise<DeploymentSettingWithEstimatedTopUpAmount | undefined> {
@@ -322,7 +339,7 @@ export class DeploymentSettingService {
       return undefined;
     }
 
-    const { lastFundedAt, runtimeEndingNotifiedFor, runtimeEndsAt, ...rest } = params;
+    const { lastFundedAt, runtimeEndingNotifiedFor, sdl, manifestVersion, runtimeEndsAt, ...rest } = params;
     const setting = { ...rest, runtimeEndsAt: runtimeEndsAt?.toISOString() ?? null };
 
     if (!setting.autoTopUpEnabled) {

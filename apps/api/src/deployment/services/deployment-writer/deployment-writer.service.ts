@@ -10,6 +10,7 @@ import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-
 import { LoggerService } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import {
   CreateDeploymentRequest,
   CreateDeploymentResponse,
@@ -18,6 +19,7 @@ import {
 } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
+import { stripSdlSecrets } from "@src/deployment/utils/sdl-secret-stripping/sdl-secret-stripping";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { denomToUdenom } from "@src/utils/math";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
@@ -53,6 +55,14 @@ export class DeploymentWriterService {
     const dseq = Date.now();
     const manifestVersion = await this.sdlService.generateManifestVersion(manifest.groups);
 
+    await this.recordDefinition({
+      userId: wallet.userId,
+      dseq: dseq.toString(),
+      submittedSdl: input.sdl,
+      manifestVersion,
+      runtimeLimitHours: input.runtimeLimitHours
+    });
+
     const message = this.rpcMessageService.getCreateDeploymentMsg({
       owner: wallet.address,
       dseq,
@@ -65,10 +75,6 @@ export class DeploymentWriterService {
 
     const result = await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, [message]);
 
-    if (input.runtimeLimitHours) {
-      await this.persistRuntimeLimit({ userId: wallet.userId, dseq: dseq.toString(), runtimeLimitHours: input.runtimeLimitHours });
-    }
-
     return {
       dseq: dseq.toString(),
       manifest: manifestToSortedJSON(manifest.groups),
@@ -77,17 +83,60 @@ export class DeploymentWriterService {
   }
 
   /**
-   * Runs after the create tx so a failed create leaves no settings row for the funding sweep to visit
-   * forever. A persistence failure surfaces as an error rather than best-effort: until switching modes
-   * ships, a silently dropped limit would leave the deployment funded indefinitely with no way back.
+   * Records what the deployment is before the create tx is broadcast, never after. The reverse order
+   * would let a successful broadcast produce a deployment with no remembered definition, which becomes
+   * unrecoverable once a later phase stores sealed secrets in the same write. A broadcast that then
+   * fails leaves a record for a deployment that does not exist on chain, which costs one row the
+   * draining sweep skips on every pass, and which the next create — always on a fresh dseq — ignores.
+   *
+   * A failure here surfaces as an error rather than best-effort, and nothing is broadcast: the user
+   * retries and gets both the deployment and its record, instead of a deployment the console cannot
+   * describe. An SDL merely too large to store is not such a failure — see `storableSdl`.
+   *
+   * The stored SDL deliberately does not hash to the stored manifest version, and no future reader
+   * should expect it to. The version is taken over the manifest the generator produced, which rewrites
+   * the denom and appends the allowed auditors to its own parse; the stored SDL is the one the user
+   * submitted, stripped. They describe the same deployment, not the same bytes.
    */
-  private async persistRuntimeLimit(input: { userId: string; dseq: string; runtimeLimitHours: number }): Promise<void> {
+  private async recordDefinition(input: {
+    userId: string;
+    dseq: string;
+    submittedSdl: string;
+    manifestVersion: Uint8Array;
+    runtimeLimitHours?: number;
+  }): Promise<void> {
+    const { submittedSdl, manifestVersion, ...rest } = input;
+
     try {
-      await this.deploymentSettingRepository.upsertRuntimeLimit(input);
+      await this.deploymentSettingRepository.upsertDefinition({
+        ...rest,
+        sdl: this.storableSdl(submittedSdl, rest.dseq),
+        manifestVersion: Buffer.from(manifestVersion).toString("base64")
+      });
     } catch (error) {
-      this.logger.error({ event: "RUNTIME_LIMIT_PERSISTENCE_FAILED", ...input, error });
+      this.logger.error({ event: "DEPLOYMENT_DEFINITION_PERSISTENCE_FAILED", ...rest, error });
       throw error;
     }
+  }
+
+  /**
+   * The submitted SDL with its secrets taken out, or nothing at all when it is too large to store. The
+   * column is `text` and so bounds nothing itself, which makes this the only thing standing between a
+   * pathological SDL and the database.
+   *
+   * Being too large is ordinary input, not a failure: the deployment goes ahead without a stored
+   * definition rather than failing over something only the console wants. It is reported by its length
+   * alone — never the SDL or any part of it, the whole point of stripping being that user content does
+   * not end up somewhere it was not meant to be, and a log is exactly that.
+   */
+  private storableSdl(submittedSdl: string, dseq: string): string | null {
+    const { sdl, length } = stripSdlSecrets(submittedSdl, SDL_MAX_LENGTH);
+
+    if (sdl === null) {
+      this.logger.warn({ event: "DEPLOYMENT_SDL_TOO_LARGE_TO_STORE", dseq, length, maxLength: SDL_MAX_LENGTH });
+    }
+
+    return sdl;
   }
 
   /**

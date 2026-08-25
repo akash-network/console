@@ -58,6 +58,23 @@ describe("Deployment Settings", () => {
       });
     });
 
+    it("hands back none of what the console remembers the deployment by", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG" });
+
+      const response = await app.request(`/v1/deployment-settings/${user.id}/${dseq}`, {
+        headers: {
+          authorization: `Bearer ${token}`
+        }
+      });
+
+      expect(response.status).toBe(200);
+      const { data } = (await response.json()) as { data: Record<string, unknown> };
+      expect(data).not.toHaveProperty("sdl");
+      expect(data).not.toHaveProperty("manifestVersion");
+    });
+
     it("enables auto top-up on a lazily created row without consulting the owner's wallet", async () => {
       const { token, user } = await setup({ hasManagedWallet: false });
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
@@ -151,6 +168,42 @@ describe("Deployment Settings", () => {
       });
 
       expect(response.status).toBe(401);
+    });
+
+    it("succeeds for a deployment whose creation already recorded its definition", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG" });
+
+      const response = await app.request("/v1/deployment-settings", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ data: { userId: user.id, dseq, autoTopUpEnabled: true } })
+      });
+
+      expect(response.status).toBe(201);
+      const { data } = (await response.json()) as { data: { dseq: string; autoTopUpEnabled: boolean } };
+      expect(data).toMatchObject({ dseq, autoTopUpEnabled: true });
+    });
+
+    it("leaves the recorded definition alone when settings are created for the same deployment", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG" });
+
+      await app.request("/v1/deployment-settings", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ data: { userId: user.id, dseq, autoTopUpEnabled: true } })
+      });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ sdl: "version: '2.0'", manifestVersion: "BAUG" });
     });
 
     it("returns 403 when creating deployment settings for another user", async () => {
