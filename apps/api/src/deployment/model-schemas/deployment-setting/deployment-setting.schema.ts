@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, index, integer, pgTable, timestamp, unique, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, text, timestamp, unique, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { Users } from "@src/user/model-schemas";
 
@@ -18,6 +18,8 @@ export const DeploymentSettings = pgTable(
     closed: boolean("closed").notNull().default(false),
     lastFundedAt: timestamp("last_funded_at"),
     runtimeLimitHours: integer("runtime_limit_hours"),
+    sdl: text("sdl"),
+    manifestVersion: varchar("manifest_version", { length: 64 }),
     runtimeEndsAt: timestamp("runtime_ends_at", { withTimezone: true }),
     runtimeEndingNotifiedFor: timestamp("runtime_ending_notified_for", { withTimezone: true }),
     createdAt: timestamp("created_at").defaultNow(),

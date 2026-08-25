@@ -372,6 +372,8 @@ describe(InitialDeploymentFundingService.name, () => {
       closed: false,
       lastFundedAt: null,
       runtimeLimitHours: null,
+      sdl: null,
+      manifestVersion: null,
       runtimeEndsAt: null,
       runtimeEndingNotifiedFor: null,
       createdAt: new Date("2026-08-20T00:00:00.000Z").toISOString(),

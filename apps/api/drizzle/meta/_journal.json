@@ -302,6 +302,13 @@
       "when": 1787641216046,
       "tag": "0042_warn_before_runtime_limit",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1787670520752,
+      "tag": "0043_store_deployment_sdl",
+      "breakpoints": true
     }
   ]
 }

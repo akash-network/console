@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
+import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/deployment/http-schemas/runtime-limit";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
@@ -264,6 +265,85 @@ describe(DeploymentSettingRepository.name, () => {
       expect(claimed).toBe(false);
     });
   });
+
+  describe("upsertDefinition", () => {
+    it("records the sdl and the manifest version of a deployment with no row yet", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG" });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({
+        sdl: "version: '2.0'",
+        manifestVersion: "BAUG",
+        autoTopUpEnabled: true,
+        runtimeLimitHours: null
+      });
+    });
+
+    it("records an sdl the caller chose not to store as nothing at all", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: null, manifestVersion: "BAUG" });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ sdl: null, manifestVersion: "BAUG" });
+    });
+
+    it("records the runtime limit its creator chose in the same write", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG", runtimeLimitHours: 6 });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ sdl: "version: '2.0'", runtimeLimitHours: 6 });
+    });
+
+    it("overwrites the definition of a row a settings read created first", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: false });
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG" });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ sdl: "version: '2.0'", autoTopUpEnabled: false });
+    });
+
+    it("leaves a runtime limit already on the row alone when none is given", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 6 });
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG" });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ runtimeLimitHours: 6 });
+    });
+
+    it("keeps the definitions of two deployments of the same user apart", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const [first, second] = [newDseq(), newDseq()];
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: first, sdl: "first", manifestVersion: "BAUG" });
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: second, sdl: "second", manifestVersion: "BQYH" });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq: first })).toMatchObject({ sdl: "first", manifestVersion: "BAUG" });
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq: second })).toMatchObject({ sdl: "second", manifestVersion: "BQYH" });
+    });
+
+    it("stores an sdl of the largest size the console will keep", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+      const sdl = "x".repeat(SDL_MAX_LENGTH);
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl, manifestVersion: "BAUG" });
+
+      expect((await deploymentSettingRepository.findOneBy({ userId: user.id, dseq }))?.sdl).toHaveLength(SDL_MAX_LENGTH);
+    });
+  });
+
+  function newDseq() {
+    return faker.number.int({ min: 100000, max: 999999 }).toString();
+  }
 
   async function setup() {
     const userRepository = container.resolve(UserRepository);

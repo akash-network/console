@@ -15,6 +15,7 @@ import { ManagedSignerService } from "@src/billing/services";
 import { CORE_CONFIG } from "@src/core";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
+import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
@@ -127,7 +128,11 @@ describe("Deployments API", () => {
     return { user, userApiKeySecret, wallets };
   }
 
-  /** Persists a real user row so the create path can write FK-bound rows like deployment settings. */
+  /**
+   * Persists a real user row, which every create needs: creating a deployment now records what that
+   * deployment is, and that record is FK-bound to the user. `mockUser` fakes the user for read paths
+   * that never write.
+   */
   async function mockPersistedUser() {
     const dbUser = await userRepository.create({ userId: faker.string.uuid() });
     const userApiKeySecret = faker.word.noun();
@@ -479,7 +484,7 @@ describe("Deployments API", () => {
 
   describe("POST /v1/deployments", () => {
     it("creates a deployment", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
       const response = await app.request("/v1/deployments", {
@@ -562,7 +567,7 @@ describe("Deployments API", () => {
     });
 
     it("creates a deployment without a deposit", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret } = await mockPersistedUser();
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
       const response = await app.request("/v1/deployments", {
@@ -598,6 +603,50 @@ describe("Deployments API", () => {
 
       const setting = await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id, dseq: result.data.dseq });
       expect(setting).toMatchObject({ autoTopUpEnabled: true, runtimeLimitHours: 6, runtimeEndsAt: null });
+    });
+
+    it("records the sdl it was given", async () => {
+      const { setting } = await createDeploymentWithSecrets();
+
+      expect(setting?.sdl).toContain("ghcr.io/akash-network/hello-akash-world");
+    });
+
+    it("records an sdl naming every env variable the submitted one declared", async () => {
+      const { setting } = await createDeploymentWithSecrets();
+
+      expect(setting?.sdl).toContain("API_TOKEN=");
+      expect(setting?.sdl).toContain("DATABASE_URL=");
+      expect(setting?.sdl).toContain("INHERITED_FROM_HOST");
+    });
+
+    it("records an sdl carrying none of the submitted env values", async () => {
+      const { setting } = await createDeploymentWithSecrets();
+
+      expect(setting?.sdl).not.toContain("PLACEHOLDER_API_TOKEN");
+      expect(setting?.sdl).not.toContain("PLACEHOLDER_DB_PASSWORD");
+      expect(setting?.sdl).not.toContain("db.example.test");
+    });
+
+    it("records an sdl carrying none of the submitted registry credentials", async () => {
+      const { setting } = await createDeploymentWithSecrets();
+
+      expect(setting?.sdl).not.toContain("PLACEHOLDER_REGISTRY_USERNAME");
+      expect(setting?.sdl).not.toContain("PLACEHOLDER_REGISTRY_PASSWORD");
+      expect(setting?.sdl).not.toContain("registry.example.test");
+      expect(setting?.sdl).not.toContain("credentials");
+    });
+
+    it("records an sdl that is still a deployable SDL", async () => {
+      const { setting } = await createDeploymentWithSecrets();
+
+      expect(container.resolve(SdlService).generateManifest(setting?.sdl ?? "").ok).toBe(true);
+    });
+
+    it("records the manifest version it commits on chain", async () => {
+      const { setting } = await createDeploymentWithSecrets();
+
+      expect(setting?.manifestVersion).toMatch(/^[A-Za-z0-9+/]+={0,2}$/);
+      expect(Buffer.from(setting?.manifestVersion ?? "", "base64")).toHaveLength(32);
     });
 
     it("returns 400 for a non-integer runtime limit", async () => {
@@ -653,6 +702,22 @@ describe("Deployments API", () => {
 
       expect(response.status).toBe(400);
     });
+
+    async function createDeploymentWithSecrets() {
+      const { userApiKeySecret, user } = await mockPersistedUser();
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl-with-secrets.yml"), "utf8");
+
+      const response = await app.request("/v1/deployments", {
+        method: "POST",
+        body: JSON.stringify({ data: { sdl: yml } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(201);
+      const result = (await response.json()) as { data: { dseq: string } };
+
+      return { setting: await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id, dseq: result.data.dseq }) };
+    }
   });
 
   describe("DELETE /v1/deployments/{dseq}", () => {

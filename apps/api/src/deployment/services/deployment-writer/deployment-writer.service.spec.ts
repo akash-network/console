@@ -1,5 +1,6 @@
 import { DeploymentReclamation, MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import { faker } from "@faker-js/faker";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
 
@@ -10,6 +11,7 @@ import type { RpcMessageService } from "@src/billing/services/rpc-message-servic
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { LoggerService } from "@src/core";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import type { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
@@ -20,6 +22,80 @@ import type { StaleManagedDeploymentsCleanerService } from "../stale-managed-dep
 import { DeploymentWriterService } from "./deployment-writer.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
+
+const ENV_VALUE = faker.string.alphanumeric(24);
+const REGISTRY_PASSWORD = faker.internet.password();
+
+/** A complete SDL around a service body, plus an optional placement profile nothing references. */
+function sdlAround(serviceBody: string, extraPlacement = ""): string {
+  return `version: "2.0"
+services:
+  web:
+    image: nginx
+${serviceBody}    expose:
+      - port: 3000
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          - size: 512Mi
+  placement:
+    dcloud:
+      pricing:
+        web:
+          denom: uakt
+          amount: 1000
+${extraPlacement}deployment:
+  web:
+    dcloud:
+      profile: web
+      count: 1`;
+}
+
+/** A valid SDL carrying an env value and a registry password, so a test can look for them afterwards. */
+const SDL_WITH_SECRETS = sdlAround(`    credentials:
+      host: registry.example.test
+      username: registry-user
+      password: ${REGISTRY_PASSWORD}
+    env:
+      - API_TOKEN=${ENV_VALUE}
+`);
+
+/**
+ * The shape that turns a small request into an enormous document: one anchored scalar aliased many
+ * times over. js-yaml loads every alias back as an independent string, so serializing writes the
+ * scalar out in full each time.
+ */
+const SDL_ALIASING_ONE_SCALAR = sdlAround(`    args:
+      - &payload ${"x".repeat(4096)}
+${Array.from({ length: 511 }, () => "      - *payload").join("\n")}
+`);
+
+/**
+ * The other shape, and the one that costs the most to measure: aliases pointing at aliases, doubling
+ * the node count per level. It hides under an unreferenced placement profile's `attributes`, the SDL's
+ * one free-form position, where the manifest generator never looks — 1.3 KB expanding to 2^24 elements.
+ */
+const SDL_ALIASING_A_DAG = sdlAround(
+  "",
+  `    unused:
+      attributes:
+        a0: &a0 []
+${Array.from({ length: 24 }, (_, level) => `        a${level + 1}: &a${level + 1} [*a${level}, *a${level}]`).join("\n")}
+      pricing:
+        web:
+          denom: uakt
+          amount: 1000
+`
+);
 
 describe(DeploymentWriterService.name, () => {
   const wallet: WalletInitialized = {
@@ -124,44 +200,134 @@ describe(DeploymentWriterService.name, () => {
       expect(rpcMessageService.getCreateDeploymentMsg.mock.calls[0][0].reclamation).toBeUndefined();
     });
 
-    it("persists the runtime limit after the create tx succeeds", async () => {
+    it("records the runtime limit alongside the definition", async () => {
       const { service, deploymentSettingRepository } = setup();
-      const dseq = 1748400000000;
-      vi.spyOn(Date, "now").mockReturnValue(dseq);
+      vi.spyOn(Date, "now").mockReturnValue(1748400000000);
 
-      await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5, runtimeLimitHours: 6 });
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5, runtimeLimitHours: 6 });
 
-      expect(deploymentSettingRepository.upsertRuntimeLimit).toHaveBeenCalledWith({
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ dseq: "1748400000000", runtimeLimitHours: 6 }));
+    });
+
+    it("records no runtime limit when none is requested", async () => {
+      const { service, deploymentSettingRepository } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ runtimeLimitHours: undefined }));
+    });
+
+    it("records the sdl and the manifest version it commits on chain", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      vi.spyOn(Date, "now").mockReturnValue(1748400000000);
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith({
         userId: wallet.userId,
         dseq: "1748400000000",
-        runtimeLimitHours: 6
+        sdl: expect.stringContaining("API_TOKEN="),
+        manifestVersion: "BAUG",
+        runtimeLimitHours: undefined
       });
     });
 
-    it("persists no runtime limit when none is requested", async () => {
+    it("records an sdl carrying none of the submitted env values", async () => {
       const { service, deploymentSettingRepository } = setup();
 
-      await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
 
-      expect(deploymentSettingRepository.upsertRuntimeLimit).not.toHaveBeenCalled();
+      expect(recordedSdlOf(deploymentSettingRepository)).not.toContain(ENV_VALUE);
     });
 
-    it("persists no runtime limit when the create tx fails", async () => {
+    it("records an sdl carrying none of the submitted registry credentials", async () => {
+      const { service, deploymentSettingRepository } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(recordedSdlOf(deploymentSettingRepository)).not.toContain(REGISTRY_PASSWORD);
+    });
+
+    it("records the definition before broadcasting the create tx", async () => {
+      const { service, signerService, deploymentSettingRepository } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(deploymentSettingRepository.upsertDefinition.mock.invocationCallOrder[0]).toBeLessThan(
+        signerService.executeDerivedDecodedTxByUserId.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("keeps the recorded definition when the create tx fails to broadcast", async () => {
       const { service, signerService, deploymentSettingRepository } = setup();
       signerService.executeDerivedDecodedTxByUserId.mockRejectedValue(new Error("tx failed"));
 
-      await expect(service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5, runtimeLimitHours: 6 })).rejects.toThrow("tx failed");
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5, runtimeLimitHours: 6 })).rejects.toThrow("tx failed");
 
-      expect(deploymentSettingRepository.upsertRuntimeLimit).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledTimes(1);
     });
 
-    it("surfaces a runtime limit persistence failure instead of silently dropping the limit", async () => {
+    it("broadcasts nothing when the definition cannot be recorded", async () => {
+      const { service, signerService, deploymentSettingRepository } = setup();
+      deploymentSettingRepository.upsertDefinition.mockRejectedValue(new Error("db down"));
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 })).rejects.toThrow("db down");
+
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
+    it("reports a failure to record the definition without logging the sdl", async () => {
       const { service, deploymentSettingRepository, logger } = setup();
-      deploymentSettingRepository.upsertRuntimeLimit.mockRejectedValue(new Error("db down"));
+      deploymentSettingRepository.upsertDefinition.mockRejectedValue(new Error("db down"));
 
-      await expect(service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5, runtimeLimitHours: 6 })).rejects.toThrow("db down");
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5, runtimeLimitHours: 6 })).rejects.toThrow("db down");
 
-      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "RUNTIME_LIMIT_PERSISTENCE_FAILED", runtimeLimitHours: 6 }));
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_DEFINITION_PERSISTENCE_FAILED", runtimeLimitHours: 6 }));
+      expect(loggedTextOf(logger)).not.toContain("API_TOKEN");
+    });
+
+    it("still creates the deployment when its sdl is too large to store", async () => {
+      const { service, signerService } = setup();
+
+      const result = await service.create({ userId: "user-1", sdl: SDL_ALIASING_ONE_SCALAR, deposit: 5 });
+
+      expect(result.dseq).toEqual(expect.any(String));
+      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+    });
+
+    it("records no sdl when an aliased scalar would serialize past the maximum stored length", async () => {
+      const { service, deploymentSettingRepository } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_ALIASING_ONE_SCALAR, deposit: 5 });
+
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ sdl: null, manifestVersion: "BAUG" }));
+    });
+
+    it("records no sdl for an sdl whose aliases form a doubling graph, without stalling on it", async () => {
+      const { service, deploymentSettingRepository, logger, signerService } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_ALIASING_A_DAG, deposit: 5 });
+
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ sdl: null, manifestVersion: "BAUG" }));
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_SDL_TOO_LARGE_TO_STORE" }));
+      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+    }, 5000);
+
+    it("reports an sdl too large to store by its length alone", async () => {
+      const { service, logger } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_ALIASING_ONE_SCALAR, deposit: 5 });
+
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_SDL_TOO_LARGE_TO_STORE", maxLength: SDL_MAX_LENGTH }));
+      expect(loggedTextOf(logger)).not.toContain("API_TOKEN");
+    });
+
+    it("never hands the sdl to the logger on a successful create", async () => {
+      const { service, logger } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(loggedTextOf(logger)).not.toContain("API_TOKEN");
     });
 
     it("reclaims trial orphans with age 0 before signing the create when the wallet is trialing", async () => {
@@ -383,6 +549,20 @@ describe(DeploymentWriterService.name, () => {
       expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ provider: "provider-2" }));
     });
   });
+
+  function recordedSdlOf(deploymentSettingRepository: MockProxy<DeploymentSettingRepository>): string {
+    const { sdl } = deploymentSettingRepository.upsertDefinition.mock.calls[0][0];
+    expect(sdl).not.toBeNull();
+    return sdl as string;
+  }
+
+  /** Everything the logger was handed, flattened, so a test can assert the sdl reached none of it. */
+  function loggedTextOf(logger: MockProxy<LoggerService>): string {
+    return [logger.error, logger.warn, logger.info, logger.debug]
+      .flatMap(method => method.mock.calls)
+      .map(call => JSON.stringify(call))
+      .join("");
+  }
 
   function setup(input?: { isManagedDepositEnabled?: boolean; defaultDeposit?: number }) {
     const signerService = mock<ManagedSignerService>();

@@ -580,6 +580,8 @@ describe(DeploymentSettingService.name, () => {
       closed: false,
       lastFundedAt: null,
       runtimeLimitHours: null,
+      sdl: null,
+      manifestVersion: null,
       runtimeEndsAt: null,
       runtimeEndingNotifiedFor: null,
       createdAt: faker.date.past().toISOString(),
