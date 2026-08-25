@@ -6,7 +6,7 @@ import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { DEPENDENCIES, DeploymentVisitControl } from "./DeploymentVisitControl";
 
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
@@ -16,6 +16,43 @@ describe(DeploymentVisitControl.name, () => {
 
     expect(screen.queryByRole("link", { name: "Visit" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Visit" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("visit-control-skeleton")).not.toBeInTheDocument();
+  });
+
+  it("shows a skeleton while lease statuses have not settled", () => {
+    setup({ endpointsByLease: {}, pendingLeases: ["1"] });
+
+    expect(screen.getByTestId("visit-control-skeleton")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Visit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Visit" })).not.toBeInTheDocument();
+  });
+
+  it("shows the resolved endpoint instead of the skeleton while another lease is still pending", async () => {
+    setup({
+      leases: [buildLease("us", "akash1us"), buildLease("eu", "akash1eu")],
+      providers: [mock<ApiProviderList>({ owner: "akash1us" }), mock<ApiProviderList>({ owner: "akash1eu" })],
+      endpointsByLease: { us: { web: ["us.akash.app"] } },
+      pendingLeases: ["eu"]
+    });
+
+    expect(await screen.findByRole("link", { name: "Visit" })).toBeInTheDocument();
+    expect(screen.queryByTestId("visit-control-skeleton")).not.toBeInTheDocument();
+  });
+
+  it("gives up on the skeleton when statuses never settle", () => {
+    vi.useFakeTimers();
+    try {
+      setup({ endpointsByLease: {}, pendingLeases: ["1"] });
+
+      act(() => {
+        vi.advanceTimersByTime(15_000);
+      });
+
+      expect(screen.queryByTestId("visit-control-skeleton")).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "Visit" })).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("shows the URI, a copy button, and a Visit link when there is one endpoint", async () => {
@@ -82,12 +119,20 @@ describe(DeploymentVisitControl.name, () => {
     return mock<LeaseDto>({ id, provider, state: "active" });
   }
 
-  function setup(input: { leases?: LeaseDto[]; providers?: ApiProviderList[]; endpointsByLease: Record<string, Record<string, string[]>> }) {
+  function setup(input: {
+    leases?: LeaseDto[];
+    providers?: ApiProviderList[];
+    endpointsByLease: Record<string, Record<string, string[]>>;
+    pendingLeases?: string[];
+  }) {
     const leases = input.leases ?? [buildLease("1", "akash1provider")];
     const providers = input.providers ?? [mock<ApiProviderList>({ owner: "akash1provider" })];
 
     const useLeaseStatuses: typeof DEPENDENCIES.useLeaseStatuses = items =>
       items.map(({ lease }) => {
+        if (input.pendingLeases?.includes(lease.id)) {
+          return mock<ReturnType<typeof DEPENDENCIES.useLeaseStatuses>[number]>({ data: undefined, isPending: true });
+        }
         const services: Record<string, string[]> = input.endpointsByLease[lease.id] ?? {};
         const leaseStatus = mock<LeaseStatusDto>();
         leaseStatus.forwarded_ports = {};
@@ -99,7 +144,7 @@ describe(DeploymentVisitControl.name, () => {
             return [name, service];
           })
         );
-        return mock<ReturnType<typeof DEPENDENCIES.useLeaseStatuses>[number]>({ data: leaseStatus });
+        return mock<ReturnType<typeof DEPENDENCIES.useLeaseStatuses>[number]>({ data: leaseStatus, isPending: false });
       });
 
     const CopyTextToClipboardButton = vi.fn(({ value, "aria-label": label }: { value: string; "aria-label"?: string }) => (

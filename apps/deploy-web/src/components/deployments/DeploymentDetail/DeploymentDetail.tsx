@@ -1,7 +1,7 @@
 "use client";
 import type { FC } from "react";
 import { useEffect, useState } from "react";
-import { buttonVariants, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
+import { buttonVariants, Skeleton, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { ArrowLeft } from "iconoir-react";
 import Link from "next/link";
@@ -84,7 +84,8 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
     data: leases,
     isLoading: isLoadingLeases,
     refetch: getLeases,
-    isSuccess: isLeasesLoaded
+    isSuccess: isLeasesLoaded,
+    isError: isLeasesError
   } = d.useDeploymentLeaseList(address, deployment, {
     enabled: deployment?.state === "active",
     refetchOnWindowFocus: false
@@ -95,6 +96,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const deploymentManifest = storedDeployment?.manifest || "";
   const isActive = deployment?.state === "active" && !!leases?.some(isLeaseLive);
   const isDeploymentNotFound = !!deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found") && !isLoadingDeployment;
+  const showsPageSkeleton = !isDeploymentNotFound && !deploymentError && !isLeasesError && (!deployment || !isLeasesLoaded);
 
   useEffect(() => {
     if (deployment) {
@@ -162,6 +164,8 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
         </div>
       )}
 
+      {showsPageSkeleton && <DeploymentDetailSkeleton />}
+
       {deployment && isLeasesLoaded && (
         <>
           <div className={PAGE_BAND}>
@@ -228,4 +232,30 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
 const TabInactiveState: FC<{ label?: string }> = ({ label = "Available when the deployment is active." }) => (
   <div className="py-12 text-center text-sm text-muted-foreground">{label}</div>
+);
+
+/** Lightweight ghost of the detail page — header band, tab strip and one content card — shown while the deployment and its leases resolve. */
+const DeploymentDetailSkeleton: FC = () => (
+  <div className="flex flex-1 flex-col" data-testid="deployment-detail-skeleton">
+    <div className={cn(PAGE_BAND, "flex flex-col gap-6 pb-6 lg:flex-row lg:items-start lg:justify-between")}>
+      <div className="space-y-3">
+        <Skeleton className="h-5 w-24 rounded-full" />
+        <Skeleton className="h-9 w-72" />
+        <Skeleton className="h-9 w-80" />
+      </div>
+      <Skeleton className="h-32 w-full rounded-xl lg:w-96" />
+    </div>
+    <div className="border-b border-t">
+      <div className={cn(PAGE_BAND, "flex gap-8 py-3")}>
+        {TABS.map(tab => (
+          <Skeleton key={tab} className="h-5 w-14" />
+        ))}
+      </div>
+    </div>
+    <div className="flex-1 bg-muted py-6">
+      <div className={PAGE_BAND}>
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    </div>
+  </div>
 );

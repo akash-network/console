@@ -119,6 +119,39 @@ describe(PlacementServiceRow.name, () => {
 
     expect(screen.getByText("Running")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /web/ })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("service-details-skeleton")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("service-replicas-skeleton")).not.toBeInTheDocument();
+  });
+
+  it("makes a pending live row expandable before any detail arrives", () => {
+    setup({ isLeaseStatusPending: true });
+
+    expect(screen.getByRole("button", { name: /web/ })).toBeInTheDocument();
+    expect(screen.getByTestId("service-replicas-skeleton")).toBeInTheDocument();
+  });
+
+  it("reserves the endpoint area with skeleton lines while the lease status is pending", async () => {
+    setup({ isLeaseStatusPending: true, detail: { image: "nginx:1.25" } });
+
+    await expandService();
+
+    expect(screen.getByText("Image")).toBeInTheDocument();
+    expect(screen.getByTestId("service-details-skeleton")).toBeInTheDocument();
+  });
+
+  it("shows the real replica count instead of a skeleton once the service reports one", () => {
+    setup({ isLeaseStatusPending: true, service: mock<LeaseServiceStatus>({ available: 2, total: 3 }) });
+
+    expect(screen.getByText("2/3 replicas")).toBeInTheDocument();
+    expect(screen.queryByTestId("service-replicas-skeleton")).not.toBeInTheDocument();
+  });
+
+  it("keeps closed rows free of skeletons even if marked pending", () => {
+    setup({ leaseState: "closed", isLeaseStatusPending: true });
+
+    expect(screen.queryByRole("button", { name: /web/ })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("service-replicas-skeleton")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("service-details-skeleton")).not.toBeInTheDocument();
   });
 
   it("shows image and resources when expanded", async () => {

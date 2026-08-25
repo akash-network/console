@@ -112,6 +112,40 @@ describe(PlacementCard.name, () => {
     expect(PlacementServiceRow).toHaveBeenCalledTimes(2);
   });
 
+  it("marks service rows pending while the lease status is loading", () => {
+    const PlacementServiceRow = vi.fn((_props: Parameters<typeof DEPENDENCIES.PlacementServiceRow>[0]) => <div>service-row</div>);
+    setup({ leaseStatus: null, isLeaseStatusPending: true, manifestServices: { web: {} }, dependencies: { PlacementServiceRow } });
+
+    expect(PlacementServiceRow.mock.calls[0][0]).toEqual(expect.objectContaining({ isLeaseStatusPending: true }));
+  });
+
+  it("does not mark rows pending once the lease is closed", () => {
+    const PlacementServiceRow = vi.fn((_props: Parameters<typeof DEPENDENCIES.PlacementServiceRow>[0]) => <div>service-row</div>);
+    setup({
+      lease: buildLease({ state: "closed" }),
+      leaseStatus: null,
+      isLeaseStatusPending: true,
+      manifestServices: { web: {} },
+      dependencies: { PlacementServiceRow }
+    });
+
+    expect(PlacementServiceRow.mock.calls[0][0]).toEqual(expect.objectContaining({ isLeaseStatusPending: false }));
+  });
+
+  it("does not mark rows pending while the provider is unknown", () => {
+    const PlacementServiceRow = vi.fn((_props: Parameters<typeof DEPENDENCIES.PlacementServiceRow>[0]) => <div>service-row</div>);
+    setup({ provider: undefined, leaseStatus: null, isLeaseStatusPending: true, manifestServices: { web: {} }, dependencies: { PlacementServiceRow } });
+
+    expect(PlacementServiceRow.mock.calls[0][0]).toEqual(expect.objectContaining({ isLeaseStatusPending: false }));
+  });
+
+  it("does not mark rows pending when the status query stays disabled and never fetches", () => {
+    const PlacementServiceRow = vi.fn((_props: Parameters<typeof DEPENDENCIES.PlacementServiceRow>[0]) => <div>service-row</div>);
+    setup({ leaseStatus: null, manifestServices: { web: {} }, dependencies: { PlacementServiceRow } });
+
+    expect(PlacementServiceRow.mock.calls[0][0]).toEqual(expect.objectContaining({ isLeaseStatusPending: false }));
+  });
+
   it("shows the reclamation card and no reclaiming badge when the lease has been reclaimed", () => {
     const ReclamationCard = vi.fn(() => <div>reclamation</div>);
     setup({ lease: buildLease({ state: "closed", groupState: "paused" }), leaseStatus: null, dependencies: { ReclamationCard } });
@@ -201,13 +235,19 @@ describe(PlacementCard.name, () => {
     provider?: ApiProviderList;
     leaseStatus?: LeaseStatusDto | null;
     leaseStatusError?: unknown;
+    isLeaseStatusPending?: boolean;
     manifestServices?: Record<string, ManifestServiceDetail>;
     placementServices?: Record<string, ManifestServiceDetail>;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const leaseStatus = input && "leaseStatus" in input ? input.leaseStatus : buildStatus(["web"]);
     const useLeaseStatus: typeof DEPENDENCIES.useLeaseStatus = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useLeaseStatus>>({ data: leaseStatus, error: input?.leaseStatusError ?? null });
+      mock<ReturnType<typeof DEPENDENCIES.useLeaseStatus>>({
+        data: leaseStatus,
+        error: input?.leaseStatusError ?? null,
+        isPending: !leaseStatus && !input?.leaseStatusError,
+        isLoading: input?.isLeaseStatusPending ?? false
+      });
     const useTeeResourceCarveouts: typeof DEPENDENCIES.useTeeResourceCarveouts = () => [];
 
     return render(
@@ -215,7 +255,7 @@ describe(PlacementCard.name, () => {
         <PlacementCard
           index={0}
           lease={input?.lease ?? buildLease()}
-          provider={input?.provider ?? buildProvider()}
+          provider={input && "provider" in input ? input.provider : buildProvider()}
           manifestServices={input?.manifestServices ?? {}}
           placementServices={input?.placementServices}
           dseq="123"
