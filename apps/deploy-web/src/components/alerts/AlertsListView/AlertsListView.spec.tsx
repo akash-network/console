@@ -214,7 +214,7 @@ describe(AlertsListView.name, () => {
       ...props
     };
 
-    const mockUseFlag = vi.fn((flag: string) => flag === "notifications_general_alerts_update" && isAlertUpdateEnabled) as unknown as typeof useFlag;
+    const mockUseFlag: typeof useFlag = flag => flag === "notifications_general_alerts_update" && isAlertUpdateEnabled;
 
     const dependencies: NonNullable<Props["dependencies"]> = {
       useFlag: mockUseFlag
