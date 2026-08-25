@@ -8,6 +8,7 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { CachedBalanceService } from "@src/deployment/services/cached-balance/cached-balance.service";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
@@ -77,10 +78,10 @@ export class InitialDeploymentFundingService {
       return;
     }
 
-    const deploymentSetting = await this.deploymentSettingRepository.findOneBy({ userId: userWallet.userId, dseq });
+    const deploymentSetting = await this.findOrCreateDeploymentSetting(userWallet.userId, dseq);
     const runtimeEndsAt = await this.startRuntimeCountdown(deploymentSetting);
 
-    if (deploymentSetting && !deploymentSetting.autoTopUpEnabled) {
+    if (!deploymentSetting.autoTopUpEnabled) {
       this.logger.info({ event: "INITIAL_FUNDING_SKIPPED", reason: "AUTO_TOP_UP_DISABLED", dseq, address });
       return;
     }
@@ -161,6 +162,37 @@ export class InitialDeploymentFundingService {
   }
 
   /**
+   * The settings row is what makes a deployment visible to the recurring funding sweep, and until
+   * CON-895 only the web app's detail page created it. Creating a missing row here covers deployments
+   * whose create bypassed POST /v1/deployments (a raw MsgCreateDeployment through the tx endpoint) and
+   * anything created before rows were written eagerly. A unique violation means the row appeared
+   * concurrently (the detail page's lazy create), so re-read and honour whatever it says.
+   */
+  private async findOrCreateDeploymentSetting(userId: string, dseq: string): Promise<DeploymentSettingsOutput> {
+    const existing = await this.deploymentSettingRepository.findOneBy({ userId, dseq });
+
+    if (existing) {
+      return existing;
+    }
+
+    try {
+      return await this.deploymentSettingRepository.create({ userId, dseq });
+    } catch (error) {
+      if (!isUniqueViolation(error)) {
+        throw error;
+      }
+
+      const concurrent = await this.deploymentSettingRepository.findOneBy({ userId, dseq });
+
+      if (!concurrent) {
+        throw error;
+      }
+
+      return concurrent;
+    }
+  }
+
+  /**
    * A runtime limit counts from lease start, not deployment creation, so bid selection doesn't eat
    * into the requested hours. The countdown starts before the sufficient-runway skip so a well-funded
    * new lease still anchors at lease start. The anchor is a set-if-unset, so job retries and the
@@ -171,8 +203,8 @@ export class InitialDeploymentFundingService {
    * sees deployments whose deadline is anchored, and the sweep's late fallback skips funding-off rows.
    * Anchoring here is what makes that deadline reachable at all.
    */
-  private async startRuntimeCountdown(deploymentSetting: DeploymentSettingsOutput | undefined): Promise<Date | null> {
-    if (!deploymentSetting?.runtimeLimitHours) {
+  private async startRuntimeCountdown(deploymentSetting: DeploymentSettingsOutput): Promise<Date | null> {
+    if (!deploymentSetting.runtimeLimitHours) {
       return null;
     }
 

@@ -600,6 +600,28 @@ describe("Deployments API", () => {
       expect(setting).toMatchObject({ autoTopUpEnabled: true, runtimeLimitHours: 6, runtimeEndsAt: null });
     });
 
+    it("persists a settings row with auto top-up enabled when no runtime limit is requested", async () => {
+      const { userApiKeySecret, user } = await mockPersistedUser();
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
+      const response = await app.request("/v1/deployments", {
+        method: "POST",
+        body: JSON.stringify({
+          data: {
+            sdl: yml,
+            deposit: 5.5
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(201);
+      const result = (await response.json()) as { data: { dseq: string } };
+
+      const setting = await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id, dseq: result.data.dseq });
+      expect(setting).toMatchObject({ autoTopUpEnabled: true, runtimeLimitHours: null });
+    });
+
     it("returns 400 for a non-integer runtime limit", async () => {
       const { userApiKeySecret } = await mockUser();
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");

@@ -155,6 +155,46 @@ describe(DeploymentWriterService.name, () => {
       expect(deploymentSettingRepository.upsertRuntimeLimit).not.toHaveBeenCalled();
     });
 
+    it("persists a default settings row after the create tx when no runtime limit is requested", async () => {
+      const { service, deploymentSettingRepository, signerService } = setup();
+      const dseq = 1748400000000;
+      vi.spyOn(Date, "now").mockReturnValue(dseq);
+
+      await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
+
+      expect(deploymentSettingRepository.create).toHaveBeenCalledWith({ userId: wallet.userId, dseq: "1748400000000" });
+      expect(signerService.executeDerivedDecodedTxByUserId.mock.invocationCallOrder[0]).toBeLessThan(
+        deploymentSettingRepository.create.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("persists no default settings row when a runtime limit is requested", async () => {
+      const { service, deploymentSettingRepository } = setup();
+
+      await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5, runtimeLimitHours: 6 });
+
+      expect(deploymentSettingRepository.create).not.toHaveBeenCalled();
+    });
+
+    it("persists no default settings row when the create tx fails", async () => {
+      const { service, signerService, deploymentSettingRepository } = setup();
+      signerService.executeDerivedDecodedTxByUserId.mockRejectedValue(new Error("tx failed"));
+
+      await expect(service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 })).rejects.toThrow("tx failed");
+
+      expect(deploymentSettingRepository.create).not.toHaveBeenCalled();
+    });
+
+    it("still returns the created deployment when the default settings row persistence fails", async () => {
+      const { service, deploymentSettingRepository, logger } = setup();
+      deploymentSettingRepository.create.mockRejectedValue(new Error("db down"));
+
+      const result = await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
+
+      expect(result.dseq).toBeDefined();
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_SETTINGS_PERSISTENCE_FAILED", userId: wallet.userId }));
+    });
+
     it("surfaces a runtime limit persistence failure instead of silently dropping the limit", async () => {
       const { service, deploymentSettingRepository, logger } = setup();
       deploymentSettingRepository.upsertRuntimeLimit.mockRejectedValue(new Error("db down"));

@@ -67,6 +67,8 @@ export class DeploymentWriterService {
 
     if (input.runtimeLimitHours) {
       await this.persistRuntimeLimit({ userId: wallet.userId, dseq: dseq.toString(), runtimeLimitHours: input.runtimeLimitHours });
+    } else {
+      await this.persistDefaultSettings({ userId: wallet.userId, dseq: dseq.toString() });
     }
 
     return {
@@ -87,6 +89,21 @@ export class DeploymentWriterService {
     } catch (error) {
       this.logger.error({ event: "RUNTIME_LIMIT_PERSISTENCE_FAILED", ...input, error });
       throw error;
+    }
+  }
+
+  /**
+   * The settings row is what makes a deployment visible to the recurring funding sweep; without it the
+   * deployment is funded once at lease start and then drains (CON-895). Runs after the create tx so a
+   * failed create leaves no row behind, and best-effort unlike persistRuntimeLimit: the deployment
+   * already exists on-chain and the lease-start funding path recreates a missing row, so failing the
+   * request here would turn a self-healing gap into a 500 for a deployment the user paid for.
+   */
+  private async persistDefaultSettings(input: { userId: string; dseq: string }): Promise<void> {
+    try {
+      await this.deploymentSettingRepository.create(input);
+    } catch (error) {
+      this.logger.error({ event: "DEPLOYMENT_SETTINGS_PERSISTENCE_FAILED", ...input, error });
     }
   }
 

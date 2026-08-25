@@ -1,3 +1,4 @@
+import { PostgresError } from "postgres";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -349,6 +350,67 @@ describe(InitialDeploymentFundingService.name, () => {
     expect(drainingDeploymentService.calculateAmountToTargetRunway).toHaveBeenCalledWith({ ...deployment, runtimeEndsAt }, CURRENT_HEIGHT);
   });
 
+  it("creates a settings row with defaults when none exists so the funding sweep can see the deployment", async () => {
+    const { service, drainingDeploymentService, userWalletRepository, deploymentSettingRepository, managedSignerService } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+    userWalletRepository.findById.mockResolvedValue(createUserWallet({ id: 1, address: "akash1owner", userId: "user-1" }));
+    deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(deploymentSettingRepository.create).toHaveBeenCalledWith({ userId: "user-1", dseq: "123" });
+    expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(1, expect.anything());
+  });
+
+  it("does not create a settings row when one already exists", async () => {
+    const { service, drainingDeploymentService, deploymentSettingRepository } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+    deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(deploymentSettingRepository.create).not.toHaveBeenCalled();
+  });
+
+  it("honours a concurrently created row when the settings insert loses the unique race", async () => {
+    const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService, logger } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+    deploymentSettingRepository.findOneBy.mockResolvedValueOnce(undefined).mockResolvedValueOnce(createDeploymentSetting({ autoTopUpEnabled: false }));
+    deploymentSettingRepository.create.mockRejectedValue(createUniqueViolation());
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_SKIPPED", reason: "AUTO_TOP_UP_DISABLED" }));
+  });
+
+  it("throws when the settings insert fails for a reason other than the unique race, so the job retries", async () => {
+    const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+    deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
+    deploymentSettingRepository.create.mockRejectedValue(new Error("db down"));
+
+    await expect(service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" })).rejects.toThrow("db down");
+
+    expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+  });
+
+  it("rethrows the insert error when the unique race re-read finds no row either", async () => {
+    const { service, drainingDeploymentService, deploymentSettingRepository } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+    deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
+    deploymentSettingRepository.create.mockRejectedValue(createUniqueViolation());
+
+    await expect(service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" })).rejects.toThrow(
+      "Failed query: insert into deployment_settings"
+    );
+  });
+
   it("skips with runtime_limit_reached when the deployment is already funded to its deadline", async () => {
     const { service, drainingDeploymentService, deploymentSettingRepository, cachedBalanceService, managedSignerService, instrumentation } = setup();
     const runtimeEndsAt = new Date("2026-08-21T12:00:00.000Z");
@@ -362,6 +424,18 @@ describe(InitialDeploymentFundingService.name, () => {
     expect(cachedBalanceService.getFresh).not.toHaveBeenCalled();
     expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
   });
+
+  /** Mirrors how drizzle surfaces a unique violation: a wrapper error carrying the driver error as its cause. */
+  function createUniqueViolation() {
+    const driverError = Object.assign(Object.create(PostgresError.prototype), {
+      name: "PostgresError",
+      code: "23505",
+      constraint_name: "dseq_user_id_idx",
+      message: 'duplicate key value violates unique constraint "dseq_user_id_idx"'
+    });
+
+    return new Error("Failed query: insert into deployment_settings", { cause: driverError });
+  }
 
   function createDeploymentSetting(overrides: Partial<DeploymentSettingsOutput> = {}): DeploymentSettingsOutput {
     return {
@@ -407,6 +481,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const createLogger: CreateLogger = () => logger;
 
     blockHttpService.getCurrentHeight.mockResolvedValue(CURRENT_HEIGHT);
+    deploymentSettingRepository.create.mockImplementation(async input => createDeploymentSetting({ userId: input.userId, dseq: input.dseq }));
     cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(1000000, 0));
     userWalletRepository.findById.mockResolvedValue(createUserWallet({ id: 1, address: "akash1owner" }));
     managedSignerService.ensureFeeGrants.mockResolvedValue(100000);
