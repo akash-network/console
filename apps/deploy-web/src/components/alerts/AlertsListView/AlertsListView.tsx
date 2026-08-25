@@ -64,8 +64,6 @@ export const AlertsListView: FC<Props> = ({
   const { confirm } = usePopup();
   const columnHelper = createColumnHelper<Alert>();
   const isAlertUpdateEnabled = d.useFlag("notifications_general_alerts_update");
-  const isDeploymentDetailRedesignEnabled = d.useFlag("deployment_detail_redesign");
-  const deploymentAlertsTab = isDeploymentDetailRedesignEnabled ? "SETTINGS" : "ALERTS";
 
   const visibleData = useMemo(() => data.filter(alert => alert.type !== "DEPLOYMENT_BALANCE"), [data]);
 
@@ -101,7 +99,7 @@ export const AlertsListView: FC<Props> = ({
       cell: info => {
         const dseq = extractDseq(info);
         return dseq ? (
-          <Link href={UrlService.deploymentDetails(dseq, deploymentAlertsTab)} className="font-bold">
+          <Link href={UrlService.deploymentDetails(dseq, "SETTINGS")} className="font-bold">
             {info.getValue()}
           </Link>
         ) : (

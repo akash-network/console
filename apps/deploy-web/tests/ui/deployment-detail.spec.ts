@@ -1,8 +1,7 @@
 import { expect, test } from "./fixture/base-test";
-import { testEnvConfig } from "./fixture/test-env.config";
 import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
 
-const REDESIGN_TABS = ["Details", "Logs", "Events", "Shell", "Update", "Settings"];
+const DETAIL_TABS = ["Details", "Logs", "Events", "Shell", "Update", "Settings"];
 
 /**
  * Summary tiles that render whatever the escrow-abstraction flags say. BALANCE, AUTO TOP-UP and RUNTIME LIMIT share a
@@ -12,10 +11,10 @@ const REDESIGN_TABS = ["Details", "Logs", "Events", "Shell", "Update", "Settings
  */
 const FLAG_INDEPENDENT_SUMMARY_TILES = ["COST", "GPU", "MEMORY", "STORAGE"];
 
-test.describe("Deployment detail redesign preview", () => {
+test.describe("Deployment detail", () => {
   test.use({ userType: "existing" });
 
-  test("renders the redesigned header and tabs on the preview route", async ({ page }) => {
+  test("renders the header, tabs and placements for a fresh deployment", async ({ page }) => {
     test.setTimeout(8 * 60 * 1000);
 
     const configure = new ConfigureDeploymentPage(page);
@@ -37,11 +36,6 @@ test.describe("Deployment detail redesign preview", () => {
       dseq = match[1];
     });
 
-    await test.step("open the redesigned preview route", async () => {
-      await page.goto(`${testEnvConfig.BASE_URL}/deployments/${dseq!}/preview`);
-      await expect(page).toHaveURL(new RegExp(`/deployments/${dseq!}/preview`));
-    });
-
     await test.step("renders the summary header and full tab bar", async () => {
       await expect(page.getByText("TOTAL SERVICES", { exact: true })).toBeVisible({ timeout: 30_000 });
 
@@ -49,7 +43,7 @@ test.describe("Deployment detail redesign preview", () => {
         await expect(page.getByText(tile, { exact: true })).toBeVisible();
       }
 
-      for (const tab of REDESIGN_TABS) {
+      for (const tab of DETAIL_TABS) {
         await expect(page.getByRole("tab", { name: tab })).toBeVisible();
       }
     });
@@ -66,7 +60,7 @@ test.describe("Deployment detail redesign preview", () => {
 
     await test.step("switches tabs via the tab query param without navigating", async () => {
       await page.getByRole("tab", { name: "Events" }).click();
-      await expect(page).toHaveURL(new RegExp(`/deployments/${dseq!}/preview\\?tab=EVENTS`));
+      await expect(page).toHaveURL(new RegExp(`/deployments/${dseq!}\\?tab=EVENTS`));
     });
   });
 });

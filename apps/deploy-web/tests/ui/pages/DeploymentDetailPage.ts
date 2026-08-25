@@ -4,60 +4,37 @@ import { expect } from "@playwright/test";
 /** The detail page only paints its tab bar once the deployment and its leases resolve, which is slow on beta. */
 const LAYOUT_TIMEOUT_MS = 120_000;
 
-/**
- * The deployment detail page, which renders either the legacy layout or the redesign depending on the
- * `deployment_detail_redesign` Unleash flag. E2E runs against a deployed environment and cannot pin the flag,
- * so every method here resolves the layout at call time and drives whichever one is on screen. Once the
- * redesign is rolled out and the flag is retired, the legacy branches are the only thing to delete.
- */
+/** The deployment detail page. Every method waits for the tab bar, which appears only once the deployment and its leases have loaded. */
 export class DeploymentDetailPage {
   constructor(readonly page: Page) {}
-
-  /**
-   * Both layouts render their whole tab bar unconditionally, but only the redesign has a Settings tab and only
-   * legacy has a Leases one. The tab bar appears only once the deployment and its leases have loaded, so this
-   * waits for whichever one arrives before deciding — probing an unsettled page would silently pick legacy.
-   */
-  private async isRedesign() {
-    const redesignTab = this.tab("Settings");
-    await expect(redesignTab.or(this.tab("Leases")).first()).toBeVisible({ timeout: LAYOUT_TIMEOUT_MS });
-
-    return await redesignTab.isVisible();
-  }
 
   private tab(name: string) {
     return this.page.getByRole("tab", { name });
   }
 
-  /** Alerts have their own tab in legacy and live under Settings → Notifications in the redesign. */
+  /** Alerts live under Settings → Notifications. */
   async openAlerts() {
-    await this.tab((await this.isRedesign()) ? "Settings" : "Alerts").click();
+    const settingsTab = this.tab("Settings");
+    await expect(settingsTab).toBeVisible({ timeout: LAYOUT_TIMEOUT_MS });
+    await settingsTab.click();
     await expect(this.page.getByText("Configure Alerts")).toBeVisible({ timeout: 10_000 });
   }
 
   /**
-   * Waits for the workload to actually serve traffic. Legacy exposes the lease state directly; the redesign
-   * derives a per-service status that only reaches "Running" once a replica is available, which is the same
-   * signal a live lease carries. The service row is a collapsible button, which distinguishes its badge from
-   * the header's deployment-level one — that turns "Running" as soon as the deployment exists.
+   * Waits for the workload to actually serve traffic. The per-service status only reaches "Running" once a
+   * replica is available, which is the same signal a live lease carries. The service row is a collapsible
+   * button, which distinguishes its badge from the header's deployment-level one — that turns "Running" as
+   * soon as the deployment exists.
    */
   async expectRunning(timeout = 60_000) {
-    const isRedesign = await this.isRedesign();
-    await this.tab(isRedesign ? "Details" : "Leases").click();
-
-    if (isRedesign) {
-      await expect(this.serviceRow("Running")).toBeVisible({ timeout });
-    } else {
-      await expect(this.page.getByLabel("Lease 0 state")).toHaveText("active", { timeout });
-    }
+    const detailsTab = this.tab("Details");
+    await expect(detailsTab).toBeVisible({ timeout: LAYOUT_TIMEOUT_MS });
+    await detailsTab.click();
+    await expect(this.serviceRow("Running")).toBeVisible({ timeout });
   }
 
   async expectClosed(timeout = 30_000) {
-    if (await this.isRedesign()) {
-      await expect(this.page.getByText("Closed").first()).toBeVisible({ timeout });
-    } else {
-      await expect(this.page.getByLabel("Lease 0 state")).toHaveText("closed", { timeout });
-    }
+    await expect(this.page.getByText("Closed").first()).toBeVisible({ timeout });
   }
 
   /** A service row is the collapsible trigger on the Details tab, labelled by the service name and its status. */
@@ -66,12 +43,11 @@ export class DeploymentDetailPage {
   }
 
   /**
-   * Closes the deployment: from the Settings tab's danger zone in the redesign, from the actions menu in
-   * legacy. Either control only appears once the deployment is active, so it is awaited first, and it
-   * disappearing once the close lands confirms it. Both layouts share the same confirmation popup.
+   * Closes the deployment from the Settings tab's danger zone. The close button only appears once the
+   * deployment is active, so it is awaited first, and it disappearing once the close lands confirms it.
    */
   async closeDeployment() {
-    const trigger = (await this.isRedesign()) ? await this.openDangerZone() : await this.openActionsMenu();
+    const trigger = await this.openDangerZone();
 
     await expect(this.page.getByText(/are you sure you want to close/i)).toBeVisible({ timeout: 5_000 });
     await this.page.getByRole("button", { name: /^confirm$/i }).click();
@@ -79,20 +55,13 @@ export class DeploymentDetailPage {
   }
 
   private async openDangerZone() {
-    await this.tab("Settings").click();
+    const settingsTab = this.tab("Settings");
+    await expect(settingsTab).toBeVisible({ timeout: LAYOUT_TIMEOUT_MS });
+    await settingsTab.click();
     const close = this.page.getByRole("button", { name: "Close deployment" });
     await close.waitFor({ state: "visible", timeout: 120_000 });
     await close.click();
 
     return close;
-  }
-
-  private async openActionsMenu() {
-    const actions = this.page.getByRole("button", { name: /deployment actions/i });
-    await actions.waitFor({ state: "visible", timeout: 120_000 });
-    await actions.click();
-    await this.page.getByRole("menuitem", { name: /close deployment/i }).click();
-
-    return actions;
   }
 }
