@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
 import {
+  Badge,
   Field,
   FieldContent,
   FieldLabel,
@@ -38,12 +39,13 @@ const AUTO_RELOAD_MAX_USD = 10_000;
 /** Mirrors STANDARD_TOP_UP_MIN_AMOUNT_USD — the fixed floor the backend applies to every recurring auto-top-up charge, independent of the trial-aware one-time top-up minimum. */
 const AUTO_RELOAD_AMOUNT_MIN_USD = 20;
 
-const MODE_OPTIONS: Array<{ value: AutoReloadMode; id: string; title: string; description: string }> = [
+const MODE_OPTIONS: Array<{ value: AutoReloadMode; id: string; title: string; description: string; recommended?: boolean }> = [
   {
     value: "threshold",
     id: "auto-reload-mode-threshold",
     title: "Fixed threshold",
-    description: "Charge a set amount as soon as your available balance runs low."
+    description: "Charge a set amount as soon as your available balance runs low.",
+    recommended: true
   },
   {
     value: "prediction",
@@ -193,7 +195,14 @@ export const AutoTopUpSettingsPopup: React.FC<AutoTopUpSettingsPopupProps> = ({
                     <Field orientation="horizontal" className="cursor-pointer p-3">
                       <RadioGroupItem value={option.value} id={option.id} className="self-center" />
                       <FieldContent>
-                        <FieldTitle className="font-medium">{option.title}</FieldTitle>
+                        <FieldTitle className="font-medium">
+                          {option.title}
+                          {enableOnSave && option.recommended && (
+                            <Badge variant="info" className="h-4 px-1.5 py-0">
+                              Recommended
+                            </Badge>
+                          )}
+                        </FieldTitle>
                         <p className="text-sm text-muted-foreground">{option.description}</p>
                       </FieldContent>
                     </Field>

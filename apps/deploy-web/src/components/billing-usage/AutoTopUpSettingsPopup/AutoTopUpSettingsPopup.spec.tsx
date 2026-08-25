@@ -196,6 +196,20 @@ describe(AutoTopUpSettingsPopup.name, () => {
     expect(amountInput().value).toBe("150");
   });
 
+  it("recommends the fixed threshold mode in the enable flow", () => {
+    setup({ enableOnSave: true });
+
+    expect(screen.getByText("Recommended")).toBeInTheDocument();
+    expect(modeRadio(/fixed threshold/i)).toHaveAccessibleName(/recommended/i);
+    expect(modeRadio(/predicted spend/i)).not.toHaveAccessibleName(/recommended/i);
+  });
+
+  it("does not recommend a mode when editing existing settings", () => {
+    setup({ enableOnSave: false });
+
+    expect(screen.queryByText("Recommended")).not.toBeInTheDocument();
+  });
+
   function modeRadio(name: RegExp) {
     return screen.getByRole("radio", { name });
   }
