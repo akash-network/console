@@ -562,6 +562,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
         autoReloadThresholdUsd: 20,
         autoReloadAmountUsd: 100,
         chargeClaimWon: false,
+        secondsUntilWindowReopen: cooldownMinutes * 60,
         chargeCooldownMinutes: cooldownMinutes
       });
 
@@ -574,6 +575,44 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       expect(scheduledDate.getTime()).toBeCloseTo(expectedReopenDate.getTime(), -3);
     });
 
+    it("waits out only the cooldown still owed when the claim is lost late in the window", async () => {
+      const { handler, walletReloadJobService, job, jobMeta } = setup({
+        autoReloadMode: "threshold",
+        balance: 10,
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100,
+        chargeClaimWon: false,
+        secondsUntilWindowReopen: 60,
+        chargeCooldownMinutes: 60
+      });
+
+      await handler.handle(job, jobMeta);
+
+      const expectedReopenDate = addMilliseconds(new Date(), 2 * millisecondsInMinute);
+      const scheduleCall = walletReloadJobService.scheduleForWalletSetting.mock.calls[0];
+      const scheduledDate = new Date(scheduleCall[1]?.startAfter as string);
+      expect(scheduledDate.getTime()).toBeCloseTo(expectedReopenDate.getTime(), -3);
+    });
+
+    it("defers by the buffer alone when no cooldown is still owed", async () => {
+      const { handler, walletReloadJobService, job, jobMeta } = setup({
+        autoReloadMode: "threshold",
+        balance: 10,
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100,
+        chargeClaimWon: false,
+        secondsUntilWindowReopen: 0,
+        chargeCooldownMinutes: 60
+      });
+
+      await handler.handle(job, jobMeta);
+
+      const expectedReopenDate = addMilliseconds(new Date(), millisecondsInMinute);
+      const scheduleCall = walletReloadJobService.scheduleForWalletSetting.mock.calls[0];
+      const scheduledDate = new Date(scheduleCall[1]?.startAfter as string);
+      expect(scheduledDate.getTime()).toBeCloseTo(expectedReopenDate.getTime(), -3);
+    });
+
     it("keeps the daily next check when the cooldown reopens later than it", async () => {
       const { handler, walletReloadJobService, job, jobMeta } = setup({
         autoReloadMode: "threshold",
@@ -581,6 +620,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
         autoReloadThresholdUsd: 20,
         autoReloadAmountUsd: 100,
         chargeClaimWon: false,
+        secondsUntilWindowReopen: 48 * 60 * 60,
         chargeCooldownMinutes: 48 * 60
       });
 
@@ -640,6 +680,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     activeDeploymentCount?: number;
     triggeredByDeployment?: boolean;
     chargeClaimWon?: boolean;
+    secondsUntilWindowReopen?: number;
     chargeCooldownMinutes?: number;
     user?: ReturnType<typeof createUser>;
     wallet?: ReturnType<typeof createUserWallet>;
@@ -680,7 +721,11 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
     const chargeClaim: ChargeClaim = { id: walletSetting.id, claimedAt: new Date().toISOString() };
     const walletSettingRepository = mock<WalletSettingRepository>();
-    walletSettingRepository.claimForCharge.mockResolvedValue(input?.chargeClaimWon === false ? undefined : chargeClaim);
+    walletSettingRepository.claimForCharge.mockResolvedValue(
+      input?.chargeClaimWon === false
+        ? { won: false, secondsUntilWindowReopen: input?.secondsUntilWindowReopen ?? 0 }
+        : { won: true, claim: chargeClaim }
+    );
     const billingConfig = mockConfigService<BillingConfigService>({
       AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN: input?.chargeCooldownMinutes ?? 60
     });

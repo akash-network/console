@@ -1,5 +1,5 @@
 import { createMongoAbility } from "@casl/ability";
-import { addMilliseconds, millisecondsInHour, millisecondsInMinute } from "date-fns";
+import { addMilliseconds, millisecondsInHour, millisecondsInMinute, millisecondsInSecond } from "date-fns";
 import { Err, Ok, Result } from "ts-results";
 import { singleton } from "tsyringe";
 
@@ -212,13 +212,15 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     }
 
     const cooldownMinutes = this.billingConfig.get("AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN");
-    const claim = await this.walletSettingRepository.claimForCharge(resources.walletSetting.id, cooldownMinutes);
+    const attempt = await this.walletSettingRepository.claimForCharge(resources.walletSetting.id, cooldownMinutes);
 
-    if (!claim) {
-      const nextCheckAt = this.#calculateChargeWindowReopenDate(cooldownMinutes);
+    if (!attempt.won) {
+      const nextCheckAt = this.#calculateChargeWindowReopenDate(attempt.secondsUntilWindowReopen);
       this.instrumentationService.recordReloadSkipped({ mode, reason: "charge_rate_limited", coverageRatio, logContext: { ...log, nextCheckAt } });
       return { nextCheckAt };
     }
+
+    const claim = attempt.claim;
 
     try {
       await this.stripeTransactionService.createPaymentIntent({
@@ -322,8 +324,12 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     }
   }
 
-  #calculateChargeWindowReopenDate(cooldownMinutes: number): Date {
-    return addMilliseconds(new Date(), cooldownMinutes * millisecondsInMinute + this.#CHARGE_WINDOW_REOPEN_BUFFER_IN_MS);
+  /**
+   * Defers by the cooldown still owed rather than a fresh full one: a check that loses the claim
+   * late in the window would otherwise wait out nearly two cooldowns before retrying.
+   */
+  #calculateChargeWindowReopenDate(secondsUntilWindowReopen: number): Date {
+    return addMilliseconds(new Date(), secondsUntilWindowReopen * millisecondsInSecond + this.#CHARGE_WINDOW_REOPEN_BUFFER_IN_MS);
   }
 
   #calculateNextCheckDate(): Date {

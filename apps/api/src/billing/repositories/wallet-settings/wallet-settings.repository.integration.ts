@@ -6,12 +6,23 @@ import { describe, expect, it } from "vitest";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { UserRepository } from "@src/user/repositories";
+import type { ChargeClaimAttempt } from "./wallet-settings.repository";
 import { WalletSettingRepository } from "./wallet-settings.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 const COOLDOWN_MINUTES = 60;
 const NO_COOLDOWN = 0;
+
+/** Narrows an attempt the assertions have already established was won. */
+function claimOf(attempt: ChargeClaimAttempt) {
+  return (attempt as Extract<ChargeClaimAttempt, { won: true }>).claim;
+}
+
+/** Narrows an attempt the assertions have already established was rate limited. */
+function reopenSecondsOf(attempt: ChargeClaimAttempt) {
+  return (attempt as Extract<ChargeClaimAttempt, { won: false }>).secondsUntilWindowReopen;
+}
 
 describe(WalletSettingRepository.name, () => {
   describe("claimForCharge", () => {
@@ -20,7 +31,7 @@ describe(WalletSettingRepository.name, () => {
 
       const results = await Promise.all(Array.from({ length: 5 }, () => walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES)));
 
-      expect(results.filter(Boolean)).toHaveLength(1);
+      expect(results.filter(result => result.won)).toHaveLength(1);
     });
 
     it("does not re-claim a wallet charged within the cooldown", async () => {
@@ -29,8 +40,31 @@ describe(WalletSettingRepository.name, () => {
       const first = await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES);
       const second = await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES);
 
-      expect(first).toEqual({ id: settingId, claimedAt: expect.any(String) });
-      expect(second).toBeUndefined();
+      expect(first).toEqual({ won: true, claim: { id: settingId, claimedAt: expect.any(String) } });
+      expect(second).toEqual({ won: false, secondsUntilWindowReopen: expect.any(Number) });
+    });
+
+    it("reports only the cooldown still owed, not a whole fresh one", async () => {
+      const { walletSettingRepository, settingId, backdateLastAutoChargeAt } = await setup();
+      const minutesElapsed = 59;
+
+      await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES);
+      await backdateLastAutoChargeAt(settingId, minutesElapsed);
+      const blocked = await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES);
+
+      expect(blocked.won).toBe(false);
+      expect(reopenSecondsOf(blocked)).toBeCloseTo((COOLDOWN_MINUTES - minutesElapsed) * 60, -1);
+    });
+
+    it("measures the cooldown still owed against the cooldown it was asked for", async () => {
+      const { walletSettingRepository, settingId, backdateLastAutoChargeAt } = await setup();
+
+      await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES);
+      await backdateLastAutoChargeAt(settingId, COOLDOWN_MINUTES + 5);
+      const blocked = await walletSettingRepository.claimForCharge(settingId, 2 * COOLDOWN_MINUTES);
+
+      expect(blocked.won).toBe(false);
+      expect(reopenSecondsOf(blocked)).toBeCloseTo(55 * 60, -1);
     });
 
     it("claims again once the cooldown has elapsed", async () => {
@@ -40,7 +74,7 @@ describe(WalletSettingRepository.name, () => {
       await backdateLastAutoChargeAt(settingId, COOLDOWN_MINUTES + 1);
       const afterCooldown = await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES);
 
-      expect(afterCooldown).toEqual({ id: settingId, claimedAt: expect.any(String) });
+      expect(afterCooldown).toEqual({ won: true, claim: { id: settingId, claimedAt: expect.any(String) } });
     });
 
     it("claims consecutively when the cooldown is zero", async () => {
@@ -49,8 +83,8 @@ describe(WalletSettingRepository.name, () => {
       const first = await walletSettingRepository.claimForCharge(settingId, NO_COOLDOWN);
       const second = await walletSettingRepository.claimForCharge(settingId, NO_COOLDOWN);
 
-      expect(first).toEqual({ id: settingId, claimedAt: expect.any(String) });
-      expect(second).toEqual({ id: settingId, claimedAt: expect.any(String) });
+      expect(first).toEqual({ won: true, claim: { id: settingId, claimedAt: expect.any(String) } });
+      expect(second).toEqual({ won: true, claim: { id: settingId, claimedAt: expect.any(String) } });
     });
   });
 
@@ -58,26 +92,39 @@ describe(WalletSettingRepository.name, () => {
     it("makes a claimed wallet immediately claimable again", async () => {
       const { walletSettingRepository, settingId } = await setup();
 
-      const claim = await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES);
-      await walletSettingRepository.releaseChargeClaim(claim!);
+      const attempt = await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES);
+      await walletSettingRepository.releaseChargeClaim(claimOf(attempt));
       const afterRelease = await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES);
 
-      expect(afterRelease).toEqual({ id: settingId, claimedAt: expect.any(String) });
+      expect(afterRelease).toEqual({ won: true, claim: { id: settingId, claimedAt: expect.any(String) } });
     });
 
     it("leaves a newer claim in place when the caller whose claim aged out releases late", async () => {
       const { walletSettingRepository, settingId } = await setup();
 
-      const agedOutClaim = await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES);
-      const newerClaim = await walletSettingRepository.claimForCharge(settingId, NO_COOLDOWN);
-      await walletSettingRepository.releaseChargeClaim(agedOutClaim!);
+      const agedOutAttempt = await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES);
+      const newerAttempt = await walletSettingRepository.claimForCharge(settingId, NO_COOLDOWN);
+      await walletSettingRepository.releaseChargeClaim(claimOf(agedOutAttempt));
 
-      expect(newerClaim).toBeDefined();
-      expect(await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES)).toBeUndefined();
+      expect(newerAttempt.won).toBe(true);
+      expect((await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES)).won).toBe(false);
 
-      await walletSettingRepository.releaseChargeClaim(newerClaim!);
+      await walletSettingRepository.releaseChargeClaim(claimOf(newerAttempt));
 
-      expect(await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES)).toEqual({ id: settingId, claimedAt: expect.any(String) });
+      expect(await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES)).toEqual({
+        won: true,
+        claim: { id: settingId, claimedAt: expect.any(String) }
+      });
+    });
+
+    it("owes no cooldown when the released row has no charge to wait on", async () => {
+      const { walletSettingRepository, settingId } = await setup();
+
+      const attempt = await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES);
+      await walletSettingRepository.releaseChargeClaim(claimOf(attempt));
+      const reclaimed = await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES);
+
+      expect(reclaimed.won).toBe(true);
     });
   });
 
