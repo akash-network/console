@@ -116,56 +116,60 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
       </div>
 
       <Card className="w-full shrink-0 lg:w-auto">
-        <CardContent className="grid grid-cols-4 gap-x-10 gap-y-5 p-6">
-          <SummaryItem label="TOTAL SERVICES">{servicesCount}</SummaryItem>
-          <SummaryItem label="COST">
-            {costPerBlockUDenom ? <d.CostRate perBlockUDenom={costPerBlockUDenom} denom={denom} gpuCount={liveGpuCount} /> : "—"}
-          </SummaryItem>
-          {!isEscrowAbstracted && (
-            <SummaryItem label="BALANCE">
-              <d.PriceValue denom={denom} value={udenomToDenom(balanceUdenom, 6)} />
+        <CardContent className="flex flex-col gap-5 p-6">
+          <div className="grid grid-cols-4 gap-x-10">
+            <SummaryItem label="TOTAL SERVICES">{servicesCount}</SummaryItem>
+            <SummaryItem label="COST">
+              {costPerBlockUDenom ? <d.CostRate perBlockUDenom={costPerBlockUDenom} denom={denom} gpuCount={liveGpuCount} /> : "—"}
             </SummaryItem>
-          )}
-          {settings?.runtimeLimitHours ? (
-            <SummaryItem
-              label={
-                <span className="inline-flex items-center gap-1">
-                  RUNTIME LIMIT
-                  <d.CustomTooltip title="This deployment closes automatically once its runtime limit is reached. Unused funds are returned to your balance.">
-                    <InfoCircle width={12} height={12} className="text-muted-foreground" />
-                  </d.CustomTooltip>
-                </span>
-              }
-            >
-              {formatRuntimeLimit(settings.runtimeLimitHours, runtimeEndsAt, now)}
-            </SummaryItem>
-          ) : (
-            !isEscrowAbstracted && (
+            {!isEscrowAbstracted && (
+              <SummaryItem label="BALANCE">
+                <d.PriceValue denom={denom} value={udenomToDenom(balanceUdenom, 6)} />
+              </SummaryItem>
+            )}
+            {settings?.runtimeLimitHours ? (
               <SummaryItem
                 label={
                   <span className="inline-flex items-center gap-1">
-                    AUTO TOP-UP
-                    <d.CustomTooltip title="Automatically add credits when your balance gets low to keep your deployments running.">
+                    RUNTIME LIMIT
+                    <d.CustomTooltip title="This deployment closes automatically once its runtime limit is reached. Unused funds are returned to your balance.">
                       <InfoCircle width={12} height={12} className="text-muted-foreground" />
                     </d.CustomTooltip>
                   </span>
                 }
               >
-                {settings?.autoTopUpEnabled ? (
-                  <Badge className="gap-1 rounded-md border-transparent bg-blue-500 px-2 py-0.5 text-white hover:bg-blue-500 dark:bg-blue-600 dark:hover:bg-blue-600">
-                    <CheckCircle width={12} height={12} />
-                    Active
-                  </Badge>
-                ) : (
-                  <span className="text-muted-foreground">Off</span>
-                )}
+                {formatRuntimeLimit(settings.runtimeLimitHours, runtimeEndsAt, now)}
               </SummaryItem>
-            )
-          )}
-          <SummaryItem label="GPU">{formatGpuLabel(deployment.gpuAmount ?? 0, getDeploymentGpuModels(deployment.groups))}</SummaryItem>
-          <SummaryItem label="vCPU">{roundDecimal(deployment.cpuAmount, 2)}</SummaryItem>
-          <SummaryItem label="MEMORY">{`${roundDecimal(memory.value, 2)} ${memory.unit}`}</SummaryItem>
-          <SummaryItem label="STORAGE">{`${roundDecimal(storage.value, 2)} ${storage.unit}`}</SummaryItem>
+            ) : (
+              !isEscrowAbstracted && (
+                <SummaryItem
+                  label={
+                    <span className="inline-flex items-center gap-1">
+                      AUTO TOP-UP
+                      <d.CustomTooltip title="Automatically add credits when your balance gets low to keep your deployments running.">
+                        <InfoCircle width={12} height={12} className="text-muted-foreground" />
+                      </d.CustomTooltip>
+                    </span>
+                  }
+                >
+                  {settings?.autoTopUpEnabled ? (
+                    <Badge className="gap-1 rounded-md border-transparent bg-blue-500 px-2 py-0.5 text-white hover:bg-blue-500 dark:bg-blue-600 dark:hover:bg-blue-600">
+                      <CheckCircle width={12} height={12} />
+                      Active
+                    </Badge>
+                  ) : (
+                    <span className="text-muted-foreground">Off</span>
+                  )}
+                </SummaryItem>
+              )
+            )}
+          </div>
+          <div className="grid grid-cols-4 gap-x-10">
+            <SummaryItem label="GPU">{formatGpuLabel(deployment.gpuAmount ?? 0, getDeploymentGpuModels(deployment.groups))}</SummaryItem>
+            <SummaryItem label="vCPU">{roundDecimal(deployment.cpuAmount, 2)}</SummaryItem>
+            <SummaryItem label="MEMORY">{`${roundDecimal(memory.value, 2)} ${memory.unit}`}</SummaryItem>
+            <SummaryItem label="STORAGE">{`${roundDecimal(storage.value, 2)} ${storage.unit}`}</SummaryItem>
+          </div>
         </CardContent>
       </Card>
     </div>
