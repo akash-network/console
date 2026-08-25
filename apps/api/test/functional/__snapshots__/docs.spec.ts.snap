@@ -15271,9 +15271,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "data": {
                     "properties": {
                       "autoReloadAmount": {
-                        "description": "USD amount charged on each automatic top-up (minimum 20, maximum 10000). Defaults are applied on create when omitted.",
+                        "description": "USD amount charged on each automatic top-up (minimum 25, maximum 10000). Defaults are applied on create when omitted.",
                         "maximum": 10000,
-                        "minimum": 20,
+                        "minimum": 25,
                         "type": "number",
                       },
                       "autoReloadEnabled": {
@@ -15288,9 +15288,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "type": "string",
                       },
                       "autoReloadThreshold": {
-                        "description": "USD credit balance at or below which an automatic top-up is triggered (minimum 5, maximum 10000). Defaults are applied on create when omitted.",
+                        "description": "USD credit balance at or below which an automatic top-up is triggered (minimum 10, maximum 10000). Defaults are applied on create when omitted.",
                         "maximum": 10000,
-                        "minimum": 5,
+                        "minimum": 10,
                         "type": "number",
                       },
                     },
@@ -15382,9 +15382,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "data": {
                     "properties": {
                       "autoReloadAmount": {
-                        "description": "USD amount charged on each automatic top-up (minimum 20, maximum 10000). Defaults are applied on create when omitted.",
+                        "description": "USD amount charged on each automatic top-up (minimum 25, maximum 10000). Defaults are applied on create when omitted.",
                         "maximum": 10000,
-                        "minimum": 20,
+                        "minimum": 25,
                         "type": "number",
                       },
                       "autoReloadEnabled": {
@@ -15399,9 +15399,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "type": "string",
                       },
                       "autoReloadThreshold": {
-                        "description": "USD credit balance at or below which an automatic top-up is triggered (minimum 5, maximum 10000). Defaults are applied on create when omitted.",
+                        "description": "USD credit balance at or below which an automatic top-up is triggered (minimum 10, maximum 10000). Defaults are applied on create when omitted.",
                         "maximum": 10000,
-                        "minimum": 5,
+                        "minimum": 10,
                         "type": "number",
                       },
                     },
