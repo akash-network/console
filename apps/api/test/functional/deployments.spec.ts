@@ -275,8 +275,100 @@ describe("Deployments API", () => {
       expect(result.data).toEqual({
         deployment: expect.any(Object),
         escrow_account: expect.any(Object),
-        leases: expect.arrayContaining([expect.any(Object)])
+        leases: expect.arrayContaining([expect.any(Object)]),
+        consoleSettings: null
       });
+    });
+
+    it("returns what the console recorded for the deployment", async () => {
+      const dseq = "1234";
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      await setupDeploymentInfoMock(wallets, dseq);
+      const sdl = `version: '2.0' # ${faker.string.uuid()}`;
+      await container.resolve(DeploymentSettingRepository).upsertDefinition({ userId: user.id, dseq, sdl, manifestVersion: "BAUG" });
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: { consoleSettings: unknown } };
+      expect(result.data.consoleSettings).toEqual({ sdl, manifestVersion: "BAUG" });
+    });
+
+    it("reads a deployment for which the console recorded nothing", async () => {
+      const dseq = "1234";
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
+      await setupDeploymentInfoMock(wallets, dseq);
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: { deployment: unknown; consoleSettings: unknown } };
+      expect(result.data.deployment).toEqual(expect.any(Object));
+      expect(result.data.consoleSettings).toBeNull();
+    });
+
+    it("reads a deployment whose settings row carries no sdl", async () => {
+      const dseq = "1234";
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      await setupDeploymentInfoMock(wallets, dseq);
+      await container.resolve(DeploymentSettingRepository).create({ userId: user.id, dseq });
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: { consoleSettings: unknown } };
+      expect(result.data.consoleSettings).toBeNull();
+    });
+
+    it("hands back none of what another user recorded for the same dseq", async () => {
+      const dseq = "1234";
+      const owner = await mockPersistedUser();
+      const otherUsersSdl = `version: '2.0' # ${faker.string.uuid()}`;
+      await container.resolve(DeploymentSettingRepository).upsertDefinition({ userId: owner.user.id, dseq, sdl: otherUsersSdl, manifestVersion: "BAUG" });
+      const reader = await mockPersistedUser();
+      await setupDeploymentInfoMock(reader.wallets, dseq);
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": reader.userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect((body as { data: { consoleSettings: unknown } }).data.consoleSettings).toBeNull();
+      expect(JSON.stringify(body)).not.toContain(otherUsersSdl);
+    });
+
+    it("hands each user their own console settings for the same dseq", async () => {
+      const dseq = "1234";
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      const first = await mockPersistedUser();
+      const firstSdl = `version: '2.0' # ${faker.string.uuid()}`;
+      await deploymentSettingRepository.upsertDefinition({ userId: first.user.id, dseq, sdl: firstSdl, manifestVersion: "BAUG" });
+      const second = await mockPersistedUser();
+      const secondSdl = `version: '2.0' # ${faker.string.uuid()}`;
+      await deploymentSettingRepository.upsertDefinition({ userId: second.user.id, dseq, sdl: secondSdl, manifestVersion: "BAUH" });
+      await setupDeploymentInfoMock(second.wallets, dseq);
+
+      const readAs = async (apiKey: string) => {
+        const response = await app.request(`/v1/deployments/${dseq}`, {
+          method: "GET",
+          headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey })
+        });
+        return (await response.json()) as { data: { consoleSettings: { sdl: string } | null } };
+      };
+
+      expect((await readAs(first.userApiKeySecret)).data.consoleSettings).toEqual({ sdl: firstSdl, manifestVersion: "BAUG" });
+      expect((await readAs(second.userApiKeySecret)).data.consoleSettings).toEqual({ sdl: secondSdl, manifestVersion: "BAUH" });
     });
 
     it("returns 404 for an error in deployment info", async () => {

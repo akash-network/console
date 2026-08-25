@@ -7078,6 +7078,25 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "properties": {
                     "data": {
                       "properties": {
+                        "consoleSettings": {
+                          "description": "What the console recorded for this deployment, or null when it recorded nothing.",
+                          "nullable": true,
+                          "properties": {
+                            "manifestVersion": {
+                              "description": "Base64 of the manifest version this deployment commits on chain. Deliberately not a hash of the \`sdl\` above.",
+                              "type": "string",
+                            },
+                            "sdl": {
+                              "description": "The SDL the console stored for this deployment. Re-serialized YAML, so not byte-identical to the submitted document.",
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "sdl",
+                            "manifestVersion",
+                          ],
+                          "type": "object",
+                        },
                         "deployment": {
                           "properties": {
                             "created_at": {
@@ -7430,6 +7449,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "deployment",
                         "leases",
                         "escrow_account",
+                        "consoleSettings",
                       ],
                       "type": "object",
                     },

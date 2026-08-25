@@ -11,12 +11,7 @@ import { LoggerService } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
-import {
-  CreateDeploymentRequest,
-  CreateDeploymentResponse,
-  GetDeploymentResponse,
-  UpdateDeploymentRequest
-} from "@src/deployment/http-schemas/deployment.schema";
+import { CreateDeploymentRequest, CreateDeploymentResponse, DeploymentResponse, UpdateDeploymentRequest } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { stripSdlSecrets } from "@src/deployment/utils/sdl-secret-stripping/sdl-secret-stripping";
@@ -196,7 +191,7 @@ export class DeploymentWriterService {
     }
   }
 
-  public async deposit(options: { userId: string; dseq: string; amount: number }): Promise<GetDeploymentResponse["data"]> {
+  public async deposit(options: { userId: string; dseq: string; amount: number }): Promise<DeploymentResponse> {
     if (this.isManagedDepositEnabled()) {
       this.logger.warn({ event: "DEPRECATED_DEPOSIT_DEPLOYMENT_ENDPOINT_USED", userId: options.userId, dseq: options.dseq });
     }
@@ -218,7 +213,7 @@ export class DeploymentWriterService {
     return await this.deploymentReaderService.findByWalletAndDseq(wallet, options.dseq);
   }
 
-  public async updateByUserIdAndDseq(userId: string, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<GetDeploymentResponse["data"]> {
+  public async updateByUserIdAndDseq(userId: string, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<DeploymentResponse> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const manifest = this.#parseManifest(input.sdl, { isTrialing: !!wallet.isTrialing });
 
@@ -240,12 +235,7 @@ export class DeploymentWriterService {
     return manifestResult.value;
   }
 
-  private async ensureDeploymentIsUpToDate(
-    wallet: UserWalletOutput,
-    dseq: string,
-    manifestVersion: Uint8Array,
-    deployment: GetDeploymentResponse["data"]
-  ): Promise<void> {
+  private async ensureDeploymentIsUpToDate(wallet: UserWalletOutput, dseq: string, manifestVersion: Uint8Array, deployment: DeploymentResponse): Promise<void> {
     if (Buffer.from(manifestVersion).toString("base64") !== deployment.deployment.hash) {
       const message = this.rpcMessageService.getUpdateDeploymentMsg({
         owner: wallet.address!,
@@ -264,7 +254,7 @@ export class DeploymentWriterService {
   }: {
     dseq: string;
     manifest: string;
-    leases: GetDeploymentResponse["data"]["leases"];
+    leases: DeploymentResponse["leases"];
     auth: { walletId: number };
   }): Promise<void> {
     const leaseProviders = new Set(leases.map(lease => lease.id.provider));

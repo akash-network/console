@@ -18,11 +18,13 @@ import { InternalServerError } from "http-errors";
 import { Op } from "sequelize";
 import { singleton } from "tsyringe";
 
+import { AuthService } from "@src/auth/services/auth.service";
 import type { WalletInitialized } from "@src/billing/repositories";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { Memoize } from "@src/caching/helpers";
 import { LoggerService } from "@src/core";
-import { GetDeploymentResponse, ListDeploymentsItem } from "@src/deployment/http-schemas/deployment.schema";
+import { ConsoleSettings, DeploymentResponse, GetDeploymentResponse, ListDeploymentsItem } from "@src/deployment/http-schemas/deployment.schema";
+import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderList } from "@src/types/provider";
@@ -41,15 +43,43 @@ export class DeploymentReaderService {
     private readonly fallbackLeaseReaderService: FallbackLeaseReaderService,
     private readonly messageService: MessageService,
     private readonly walletReaderService: WalletReaderService,
+    private readonly deploymentSettingRepository: DeploymentSettingRepository,
+    private readonly authService: AuthService,
     private readonly logger: LoggerService
   ) {}
 
   public async findByUserIdAndDseq(userId: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
-    return this.findByWalletAndDseq(wallet, dseq);
+    const [deployment, consoleSettings] = await Promise.all([this.findByWalletAndDseq(wallet, dseq), this.findConsoleSettings(userId, dseq)]);
+
+    return { ...deployment, consoleSettings };
   }
 
-  public async findByWalletAndDseq(wallet: WalletInitialized, dseq: string): Promise<GetDeploymentResponse["data"]> {
+  /**
+   * What the console recorded for this deployment, or null when it recorded nothing. The chain knows only the
+   * manifest, so the SDL that produced it is ours to remember or lose; this is what lets a deployment created on
+   * one device be read back on another.
+   *
+   * Scoped twice over, because the (dseq, userId) unique means two users holding the same dseq is an ordinary
+   * state rather than a collision: the query names the caller's own id, and `accessibleBy` ANDs the same
+   * condition into the SQL from the caller's ability. Either alone would be enough today; together they mean a
+   * later refactor has to defeat both to leak one user's SDL to another.
+   *
+   * A row with no `sdl` is reported as nothing recorded rather than as a partial record. Settings reads create
+   * rows lazily and deployments predating the recording leave both columns null, so an absent SDL is the common
+   * case and not a broken one.
+   */
+  private async findConsoleSettings(userId: string, dseq: string): Promise<ConsoleSettings | null> {
+    const setting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy({ userId, dseq });
+
+    if (!setting?.sdl || !setting.manifestVersion) {
+      return null;
+    }
+
+    return { sdl: setting.sdl, manifestVersion: setting.manifestVersion };
+  }
+
+  public async findByWalletAndDseq(wallet: WalletInitialized, dseq: string): Promise<DeploymentResponse> {
     const { address: owner } = wallet;
     const deploymentResponse = await this.getDeployment(owner, dseq);
     assert(deploymentResponse, 404, "Deployment not found");
