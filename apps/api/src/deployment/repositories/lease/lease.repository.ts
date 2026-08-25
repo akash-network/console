@@ -56,6 +56,16 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
    * @param dseqs - Array of deployment sequence numbers to filter by
    * @returns Array of draining deployment outputs
    */
+  async findOpenDseqsByOwner(owner: string): Promise<string[]> {
+    const leases = await Lease.findAll({
+      where: { owner, closedHeight: null },
+      attributes: [[fn("DISTINCT", col("dseq")), "dseq"]],
+      raw: true
+    });
+
+    return leases.map(lease => String((lease as unknown as { dseq: string | number }).dseq));
+  }
+
   async findManyByDseqAndOwner(closureHeight: number, owner: string, dseqs: string[]): Promise<DrainingDeploymentOutput[]> {
     if (!dseqs.length) return [];
 

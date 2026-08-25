@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 
+import type { DeploymentSettingsBackfillService } from "@src/deployment/services/deployment-settings-backfill/deployment-settings-backfill.service";
 import type { ExpiredDeploymentsCloserService } from "@src/deployment/services/expired-deployments-closer/expired-deployments-closer.service";
 import type { StaleManagedDeploymentsCleanerService } from "@src/deployment/services/stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
 import type { TopUpManagedDeploymentsService } from "@src/deployment/services/top-up-managed-deployments/top-up-managed-deployments.service";
@@ -43,22 +44,41 @@ describe(TopUpDeploymentsController.name, () => {
     });
   });
 
+  describe("backfillDeploymentSettings", () => {
+    it("calls the service to backfill deployment settings", async () => {
+      const { controller, deploymentSettingsBackfillService } = setup();
+      const options = { dryRun: true };
+
+      await controller.backfillDeploymentSettings(options);
+
+      expect(deploymentSettingsBackfillService.backfillDeploymentSettings).toHaveBeenCalledWith(options);
+    });
+  });
+
   function setup(): {
     controller: TopUpDeploymentsController;
     topUpManagedDeploymentsService: MockProxy<TopUpManagedDeploymentsService>;
     staleDeploymentsCleanerService: MockProxy<StaleManagedDeploymentsCleanerService>;
     expiredDeploymentsCloserService: MockProxy<ExpiredDeploymentsCloserService>;
+    deploymentSettingsBackfillService: MockProxy<DeploymentSettingsBackfillService>;
   } {
     const topUpManagedDeploymentsService = mock<TopUpManagedDeploymentsService>();
     const staleDeploymentsCleanerService = mock<StaleManagedDeploymentsCleanerService>();
     const expiredDeploymentsCloserService = mock<ExpiredDeploymentsCloserService>();
-    const controller = new TopUpDeploymentsController(topUpManagedDeploymentsService, staleDeploymentsCleanerService, expiredDeploymentsCloserService);
+    const deploymentSettingsBackfillService = mock<DeploymentSettingsBackfillService>();
+    const controller = new TopUpDeploymentsController(
+      topUpManagedDeploymentsService,
+      staleDeploymentsCleanerService,
+      expiredDeploymentsCloserService,
+      deploymentSettingsBackfillService
+    );
 
     return {
       controller,
       topUpManagedDeploymentsService,
       staleDeploymentsCleanerService,
-      expiredDeploymentsCloserService
+      expiredDeploymentsCloserService,
+      deploymentSettingsBackfillService
     };
   }
 });

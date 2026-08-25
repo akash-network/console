@@ -61,6 +61,16 @@ program
   });
 
 program
+  .command("backfill-deployment-settings")
+  .description("Create missing deployment settings rows for open deployments so the funding sweep can see them")
+  .option("-d, --dry-run", "Only count and log the missing rows without creating them", false)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(TopUpDeploymentsController).backfillDeploymentSettings(options);
+    });
+  });
+
+program
   .command("close-expired-deployments")
   .description("Close deployments that reached their runtime limit")
   .option("-d, --dry-run", "Log which deployments would be closed without broadcasting", false)
