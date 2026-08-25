@@ -2,6 +2,12 @@ import type { Page } from "@playwright/test";
 
 import { testEnvConfig } from "../fixture/test-env.config";
 
+/**
+ * The verify screen appears only once the OTP request reaches Auth0 and the email is dispatched, which outruns the
+ * 15s actionTimeout on beta.
+ */
+const VERIFY_SCREEN_TIMEOUT_MS = 45_000;
+
 export class AuthPagePasswordless {
   constructor(readonly page: Page) {}
 
@@ -19,7 +25,7 @@ export class AuthPagePasswordless {
   }
 
   async waitForVerifyScreen() {
-    await this.page.getByLabel("Verification code digit 1").waitFor({ state: "visible" });
+    await this.page.getByLabel("Verification code digit 1").waitFor({ state: "visible", timeout: VERIFY_SCREEN_TIMEOUT_MS });
   }
 
   async waitForRedirectAwayFromLogin() {

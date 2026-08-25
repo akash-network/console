@@ -13,6 +13,13 @@ export type AuthType = "passwordless" | "email-password";
 
 const DETECT_TIMEOUT_MS = 30_000;
 
+/**
+ * Leaving /login waits on a Turnstile solve, the app's auth API route and Auth0 in sequence, which on beta regularly
+ * outruns the 15s actionTimeout: 8 of 27 tests in the 2026-08-25 run retried on this gate alone, and the global
+ * teardown failed its escrow sweep with it, leaving deployments draining.
+ */
+const SIGN_IN_TIMEOUT_MS = 45_000;
+
 export function generateTestPassword(): string {
   return `E2e!${crypto.randomUUID()}`;
 }
@@ -63,7 +70,7 @@ export async function loginExistingUser(page: Page): Promise<void> {
   await page.goto(`${testEnvConfig.BASE_URL}/login?auth=password`);
   await signInWithPassword(page, { email, password });
 
-  await page.waitForURL(url => !url.pathname.includes("/login"), { timeout: 15_000 });
+  await page.waitForURL(url => !url.pathname.includes("/login"), { timeout: SIGN_IN_TIMEOUT_MS });
   await new AppNav(page).accountMenuButton().waitFor({ timeout: 30_000 });
 }
 
