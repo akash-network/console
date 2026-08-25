@@ -38,10 +38,12 @@ export function stripSdlSecrets(rawSdl: string, maxLength: number): StrippedSdl 
     delete service.credentials;
   }
 
-  const estimatedLength = estimateSerializedLength(sdl, maxLength);
+  if (mayShareNodes(rawSdl)) {
+    const estimatedLength = estimateSerializedLength(sdl, maxLength);
 
-  if (estimatedLength > maxLength) {
-    return { sdl: null, length: estimatedLength };
+    if (estimatedLength > maxLength) {
+      return { sdl: null, length: estimatedLength };
+    }
   }
 
   const stripped = dump(sdl, { lineWidth: -1 });
@@ -87,6 +89,38 @@ function withoutValue(entry: string): string {
 }
 
 /**
+ * Whether this document could possibly contain a node reachable more than once. Sharing is what the
+ * estimator exists to price, and a document without it cannot serialize to more than a constant factor
+ * over the text it arrived as — which the body limit already caps at 512 KB. Sharing is necessary for
+ * amplification rather than sufficient, which is all a guard that only ever adds work needs to be right
+ * about.
+ *
+ * Sharing comes from one place: a YAML alias. An alias needs an anchor to point at, so a document that
+ * shares anything has to spell both `&` and `*` somewhere in its bytes — and a document missing either
+ * character is a pure tree, whose serialized form is bounded by an input the body limit already caps at
+ * 512 KB. That is the whole argument, and it holds without knowing anything about YAML's grammar: no
+ * assumption about quoting, flow style, block scalars, indentation or comments, because it never asks
+ * *where* the characters are.
+ *
+ * Requiring both is what keeps it honest rather than merely cheap. Testing only `*` would send an
+ * ordinary `command: ["sh", "-c", "a && b"]` down the estimator path for nothing; testing only `&`
+ * would do the same for a `--include=*.log`. Requiring both narrows it to documents that could
+ * genuinely alias, while still deciding on presence alone.
+ *
+ * This deliberately reads the raw text and not the parsed tree. An anchored *scalar* loads into an
+ * ordinary string primitive and loses the identity a reference-walk would look for, so a tree walk
+ * would report no sharing for exactly the document that amplifies worst. It also reads the submitted
+ * text rather than the stripped document, both because the stripped one does not exist yet and because
+ * stripping removes values, never sharing.
+ *
+ * False positives cost nothing — they take the path every document took before this existed. A false
+ * negative would hand an amplifying document straight to `dump`, which is the failure this guards.
+ */
+function mayShareNodes(rawSdl: string): boolean {
+  return rawSdl.includes("&") && rawSdl.includes("*");
+}
+
+/**
  * What serializing this document would cost, measured on the parsed tree instead of by serializing it.
  * Serializing first and measuring after is what a document built out of YAML aliases exploits: an
  * anchored scalar loads as an ordinary string and loses the identity that would let js-yaml re-emit it
@@ -94,8 +128,16 @@ function withoutValue(entry: string): string {
  * the body limit can reach a gigabyte that way, and the size guard never gets to run because the
  * process is already dead.
  *
- * Walking the tree costs nothing by comparison: it allocates no strings, and it follows each alias as
- * the serializer would rather than collapsing them, which is what makes the total an honest upper bound.
+ * Walking the tree costs nothing by comparison: it allocates no strings, and it follows every alias
+ * rather than collapsing them, which is what keeps the total an upper bound.
+ *
+ * An upper bound, and a loose one, because js-yaml only re-expands *some* aliases. An anchored scalar
+ * loads into a string primitive whose identity is gone, so the serializer has no way to know it was
+ * aliased and writes it out again every time; an anchored mapping or sequence keeps its identity and is
+ * re-emitted as one anchor and N aliases. This walk cannot tell the two apart from the parsed tree, so
+ * it charges every alias as though it were a scalar. That errs toward refusing to store, never toward
+ * an unbounded serialize — but it does mean a document sharing large *objects* can be measured far
+ * above what it would actually serialize to, and refused when it would have fitted.
  *
  * Following aliases rather than memoizing them is also what makes termination something this has to
  * earn. Aliases form a DAG, not a tree, so a document can double its node count per level and be walked

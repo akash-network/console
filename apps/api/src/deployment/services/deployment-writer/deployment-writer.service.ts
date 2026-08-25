@@ -53,12 +53,13 @@ export class DeploymentWriterService {
     }
 
     const dseq = Date.now();
+    const sdl = this.strippedSdlWithinLimit(input.sdl, dseq.toString());
     const manifestVersion = await this.sdlService.generateManifestVersion(manifest.groups);
 
     await this.recordDefinition({
       userId: wallet.userId,
       dseq: dseq.toString(),
-      submittedSdl: input.sdl,
+      sdl,
       manifestVersion,
       runtimeLimitHours: input.runtimeLimitHours
     });
@@ -91,50 +92,49 @@ export class DeploymentWriterService {
    *
    * A failure here surfaces as an error rather than best-effort, and nothing is broadcast: the user
    * retries and gets both the deployment and its record, instead of a deployment the console cannot
-   * describe. An SDL merely too large to store is not such a failure — see `storableSdl`.
+   * describe.
    *
    * The stored SDL deliberately does not hash to the stored manifest version, and no future reader
    * should expect it to. The version is taken over the manifest the generator produced, which rewrites
    * the denom and appends the allowed auditors to its own parse; the stored SDL is the one the user
    * submitted, stripped. They describe the same deployment, not the same bytes.
    */
-  private async recordDefinition(input: {
-    userId: string;
-    dseq: string;
-    submittedSdl: string;
-    manifestVersion: Uint8Array;
-    runtimeLimitHours?: number;
-  }): Promise<void> {
-    const { submittedSdl, manifestVersion, ...rest } = input;
+  private async recordDefinition(input: { userId: string; dseq: string; sdl: string; manifestVersion: Uint8Array; runtimeLimitHours?: number }): Promise<void> {
+    const { manifestVersion, ...rest } = input;
 
     try {
       await this.deploymentSettingRepository.upsertDefinition({
         ...rest,
-        sdl: this.storableSdl(submittedSdl, rest.dseq),
         manifestVersion: Buffer.from(manifestVersion).toString("base64")
       });
     } catch (error) {
-      this.logger.error({ event: "DEPLOYMENT_DEFINITION_PERSISTENCE_FAILED", ...rest, error });
+      const { sdl, ...loggable } = rest;
+      this.logger.error({ event: "DEPLOYMENT_DEFINITION_PERSISTENCE_FAILED", ...loggable, error });
       throw error;
     }
   }
 
   /**
-   * The submitted SDL with its secrets taken out, or nothing at all when it is too large to store. The
-   * column is `text` and so bounds nothing itself, which makes this the only thing standing between a
-   * pathological SDL and the database.
+   * The submitted SDL with its secrets taken out, or a 400 when it is larger than the console will
+   * store. Rejecting rather than deploying-without-a-record is what keeps a deployment and the record
+   * of what it is from ever disagreeing: a deployment the console cannot describe is one nobody can
+   * later reproduce, redeploy, or attach sealed secrets to.
    *
-   * Being too large is ordinary input, not a failure: the deployment goes ahead without a stored
-   * definition rather than failing over something only the console wants. It is reported by its length
-   * alone — never the SDL or any part of it, the whole point of stripping being that user content does
-   * not end up somewhere it was not meant to be, and a log is exactly that.
+   * It runs before the definition is written and before anything is broadcast, so a rejected request
+   * leaves no row behind and nothing on chain.
+   *
+   * Neither the log nor the error says anything about the SDL beyond how long it is. The whole point of
+   * stripping is that user content does not end up somewhere it was not meant to be, and an error body
+   * travels further than a log does.
    */
-  private storableSdl(submittedSdl: string, dseq: string): string | null {
+  private strippedSdlWithinLimit(submittedSdl: string, dseq: string): string {
     const { sdl, length } = stripSdlSecrets(submittedSdl, SDL_MAX_LENGTH);
 
     if (sdl === null) {
-      this.logger.warn({ event: "DEPLOYMENT_SDL_TOO_LARGE_TO_STORE", dseq, length, maxLength: SDL_MAX_LENGTH });
+      this.logger.warn({ event: "DEPLOYMENT_SDL_TOO_LARGE", dseq, length, maxLength: SDL_MAX_LENGTH });
     }
+
+    assert(sdl !== null, 400, `SDL is too large: it exceeds the maximum of ${SDL_MAX_LENGTH} characters once stored`);
 
     return sdl;
   }

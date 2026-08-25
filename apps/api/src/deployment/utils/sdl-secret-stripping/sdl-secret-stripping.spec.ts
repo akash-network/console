@@ -173,11 +173,16 @@ describe(stripSdlSecrets.name, () => {
       expect(result.length).toBeGreaterThan(512);
     });
 
-    it("refuses a document whose aliases multiply a scalar past the limit without serializing it", () => {
-      const result = stripSdlSecrets(sdlAliasingOneScalar({ scalarLength: 4096, aliasCount: 512 }), 8192);
+    it("refuses a document whose aliases multiply a scalar past the limit, stopping at the budget rather than serializing it", () => {
+      const scalarLength = 4096;
+      const aliasCount = 512;
+      const lengthIfItHadBeenSerialized = scalarLength * aliasCount;
+
+      const result = stripSdlSecrets(sdlAliasingOneScalar({ scalarLength, aliasCount }), 8192);
 
       expect(result.sdl).toBeNull();
       expect(result.length).toBeGreaterThan(8192);
+      expect(result.length).toBeLessThan(lengthIfItHadBeenSerialized);
     });
 
     it("measures an aliased scalar once per alias, as serializing it would write it", () => {
@@ -185,6 +190,29 @@ describe(stripSdlSecrets.name, () => {
       const manyAliases = stripSdlSecrets(sdlAliasingOneScalar({ scalarLength: 4096, aliasCount: 512 }), 8192).length;
 
       expect(manyAliases).toBeGreaterThan(oneAlias);
+    });
+
+    it("stores a document with no anchors that fits, without consulting the estimate", () => {
+      const stripped = stripSdlSecrets(sdlWith({ web: { env: [`API_TOKEN=${faker.string.alphanumeric(12)}`] } }), MAX_LENGTH);
+
+      expect(stripped.sdl).toContain("API_TOKEN=");
+      expect(stripped.length).toBe(stripped.sdl?.length);
+    });
+
+    it("stores nothing for a document with no anchors that serializes past the limit", () => {
+      const result = stripSdlSecrets(sdlWith({ web: { args: ["x".repeat(4096)] } }), 512);
+
+      expect(result.sdl).toBeNull();
+      expect(result.length).toBeGreaterThan(512);
+    });
+
+    it("stores a document whose scalars merely contain an ampersand and an asterisk", () => {
+      const submitted = sdlWith({ web: { args: ["sh", "-c", "start && tail -f *.log"], env: [`TOKEN=${faker.string.alphanumeric(8)}&x*y`] } });
+
+      const stripped = strip(submitted);
+
+      expect(stripped.services.web.args).toEqual(["sh", "-c", "start && tail -f *.log"]);
+      expect(stripped.services.web.env).toEqual(["TOKEN="]);
     });
 
     it("returns a document that fits", () => {

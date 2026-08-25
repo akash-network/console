@@ -79,6 +79,11 @@ const SDL_ALIASING_ONE_SCALAR = sdlAround(`    args:
 ${Array.from({ length: 511 }, () => "      - *payload").join("\n")}
 `);
 
+/** An SDL with no anchors at all whose serialized length alone puts it past what the console stores. */
+const SDL_TOO_LONG_WITHOUT_ALIASES = sdlAround(`    args:
+${Array.from({ length: 40 }, () => `      - ${"z".repeat(4096)}`).join("\n")}
+`);
+
 /**
  * The other shape, and the one that costs the most to measure: aliases pointing at aliases, doubling
  * the node count per level. It hides under an unreferenced placement profile's `attributes`, the SDL's
@@ -286,40 +291,49 @@ describe(DeploymentWriterService.name, () => {
       expect(loggedTextOf(logger)).not.toContain("API_TOKEN");
     });
 
-    it("still creates the deployment when its sdl is too large to store", async () => {
-      const { service, signerService } = setup();
+    it("rejects an sdl the exact serialized length puts past the maximum", async () => {
+      const { service } = setup();
 
-      const result = await service.create({ userId: "user-1", sdl: SDL_ALIASING_ONE_SCALAR, deposit: 5 });
-
-      expect(result.dseq).toEqual(expect.any(String));
-      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+      await expect(service.create({ userId: "user-1", sdl: SDL_TOO_LONG_WITHOUT_ALIASES, deposit: 5 })).rejects.toMatchObject({ status: 400 });
     });
 
-    it("records no sdl when an aliased scalar would serialize past the maximum stored length", async () => {
-      const { service, deploymentSettingRepository } = setup();
+    it("rejects an sdl whose aliased scalar the estimate puts past the maximum", async () => {
+      const { service } = setup();
 
-      await service.create({ userId: "user-1", sdl: SDL_ALIASING_ONE_SCALAR, deposit: 5 });
-
-      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ sdl: null, manifestVersion: "BAUG" }));
+      await expect(service.create({ userId: "user-1", sdl: SDL_ALIASING_ONE_SCALAR, deposit: 5 })).rejects.toMatchObject({ status: 400 });
     });
 
-    it("records no sdl for an sdl whose aliases form a doubling graph, without stalling on it", async () => {
-      const { service, deploymentSettingRepository, logger, signerService } = setup();
+    it("rejects an sdl whose aliases form a doubling graph, without stalling on it", async () => {
+      const { service } = setup();
 
-      await service.create({ userId: "user-1", sdl: SDL_ALIASING_A_DAG, deposit: 5 });
-
-      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ sdl: null, manifestVersion: "BAUG" }));
-      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_SDL_TOO_LARGE_TO_STORE" }));
-      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+      await expect(service.create({ userId: "user-1", sdl: SDL_ALIASING_A_DAG, deposit: 5 })).rejects.toMatchObject({ status: 400 });
     }, 5000);
 
-    it("reports an sdl too large to store by its length alone", async () => {
+    it("records nothing for an sdl it rejects", async () => {
+      const { service, deploymentSettingRepository } = setup();
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_ALIASING_ONE_SCALAR, deposit: 5 })).rejects.toThrow();
+
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+    });
+
+    it("broadcasts nothing for an sdl it rejects", async () => {
+      const { service, signerService } = setup();
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_ALIASING_ONE_SCALAR, deposit: 5 })).rejects.toThrow();
+
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
+    it("says nothing about the sdl beyond its length when rejecting it", async () => {
       const { service, logger } = setup();
 
-      await service.create({ userId: "user-1", sdl: SDL_ALIASING_ONE_SCALAR, deposit: 5 });
+      const rejection = (await service.create({ userId: "user-1", sdl: SDL_ALIASING_ONE_SCALAR, deposit: 5 }).catch((error: Error) => error)) as Error;
 
-      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_SDL_TOO_LARGE_TO_STORE", maxLength: SDL_MAX_LENGTH }));
-      expect(loggedTextOf(logger)).not.toContain("API_TOKEN");
+      expect(rejection.message).not.toContain("payload");
+      expect(rejection.message).toContain(String(SDL_MAX_LENGTH));
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_SDL_TOO_LARGE", maxLength: SDL_MAX_LENGTH }));
+      expect(loggedTextOf(logger)).not.toContain("payload");
     });
 
     it("never hands the sdl to the logger on a successful create", async () => {
