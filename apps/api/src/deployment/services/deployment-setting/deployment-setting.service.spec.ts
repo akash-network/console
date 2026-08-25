@@ -11,6 +11,7 @@ import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.com
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DrainingDeploymentService } from "../draining-deployment/draining-deployment.service";
@@ -571,6 +572,60 @@ describe(DeploymentSettingService.name, () => {
     });
   });
 
+  describe("when always-on funding is rolled out", () => {
+    it("rejects an upsert turning auto top-up off before touching the row", async () => {
+      const { service, deploymentSettingRepository } = setup({ isAlwaysOnFundingEnabled: true });
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      await expect(service.upsert(params, { autoTopUpEnabled: false })).rejects.toMatchObject({ status: 400 });
+      expect(deploymentSettingRepository.findOneBy).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.updateBy).not.toHaveBeenCalled();
+    });
+
+    it("rejects an opt-out sent alongside a runtime limit instead of silently overriding it", async () => {
+      const { service, deploymentSettingRepository } = setup({ isAlwaysOnFundingEnabled: true });
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      await expect(service.upsert(params, { runtimeLimitHours: 12, autoTopUpEnabled: false })).rejects.toMatchObject({ status: 400 });
+      expect(deploymentSettingRepository.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects a create with funding off", async () => {
+      const { service, deploymentSettingRepository } = setup({ isAlwaysOnFundingEnabled: true });
+
+      await expect(service.create({ userId: faker.string.uuid(), dseq: faker.string.numeric(6), autoTopUpEnabled: false })).rejects.toMatchObject({
+        status: 400
+      });
+      expect(deploymentSettingRepository.create).not.toHaveBeenCalled();
+    });
+
+    it("accepts an upsert turning auto top-up on", async () => {
+      const { service, deploymentSettingRepository } = setup({ isAlwaysOnFundingEnabled: true });
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: false }));
+      deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: true }) as never);
+
+      const result = await service.upsert(params, { autoTopUpEnabled: true });
+
+      expect(result).toEqual(expect.objectContaining({ autoTopUpEnabled: true }));
+    });
+
+    it("accepts a create that omits the funding preference", async () => {
+      const { service, deploymentSettingRepository } = setup({ isAlwaysOnFundingEnabled: true });
+      const input = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.create.mockResolvedValue(createDeploymentSettingsOutput({ ...input, autoTopUpEnabled: true }));
+
+      const result = await service.create(input);
+
+      expect(deploymentSettingRepository.create).toHaveBeenCalledWith(input);
+      expect(result).toEqual(expect.objectContaining({ autoTopUpEnabled: true }));
+    });
+  });
+
   /** Mirrors how drizzle surfaces a unique violation: a wrapper error carrying the driver error as its cause. */
   function createUniqueViolation() {
     const driverError = Object.assign(Object.create(PostgresError.prototype), {
@@ -593,13 +648,14 @@ describe(DeploymentSettingService.name, () => {
       lastFundedAt: null,
       runtimeLimitHours: null,
       runtimeEndsAt: null,
+      runtimeEndingNotifiedFor: null,
       createdAt: faker.date.past().toISOString(),
       updatedAt: faker.date.past().toISOString(),
       ...overrides
     };
   }
 
-  function setup() {
+  function setup(input: { isAlwaysOnFundingEnabled?: boolean } = {}) {
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     const authService = mock<AuthService>();
     const drainingDeploymentService = mock<DrainingDeploymentService>();
@@ -607,6 +663,8 @@ describe(DeploymentSettingService.name, () => {
     const userWalletRepository = mock<UserWalletRepository>();
     const instrumentation = mock<TopUpManagedDeploymentsInstrumentationService>();
     const domainEvents = mock<DomainEventsService>();
+    const featureFlagsService = mock<FeatureFlagsService>();
+    featureFlagsService.isEnabled.mockReturnValue(input.isAlwaysOnFundingEnabled ?? false);
 
     const config = mockConfigService<DeploymentConfigService>({
       AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 24
@@ -620,7 +678,8 @@ describe(DeploymentSettingService.name, () => {
       config,
       userWalletRepository,
       instrumentation,
-      domainEvents
+      domainEvents,
+      featureFlagsService
     );
 
     return {
@@ -632,7 +691,8 @@ describe(DeploymentSettingService.name, () => {
       config,
       userWalletRepository,
       instrumentation,
-      domainEvents
+      domainEvents,
+      featureFlagsService
     };
   }
 });

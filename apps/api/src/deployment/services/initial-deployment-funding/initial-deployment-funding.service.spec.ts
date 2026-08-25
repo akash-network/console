@@ -447,6 +447,7 @@ describe(InitialDeploymentFundingService.name, () => {
       lastFundedAt: null,
       runtimeLimitHours: null,
       runtimeEndsAt: null,
+      runtimeEndingNotifiedFor: null,
       createdAt: new Date("2026-08-20T00:00:00.000Z").toISOString(),
       updatedAt: new Date("2026-08-20T00:00:00.000Z").toISOString(),
       ...overrides

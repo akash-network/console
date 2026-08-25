@@ -33,6 +33,15 @@ jobs:
       - ./dist/instrumentation.js
       - ./dist/console.js
       - close-expired-deployments
+  # Offset from close-expired-deployments so the two sweeps do not hit deployment_settings on the same minute.
+  - name: notify-expiring-deployments
+    schedule: "7,22,37,52 * * * *" # every 15 minutes
+    command:
+      - node
+      - --require
+      - ./dist/instrumentation.js
+      - ./dist/console.js
+      - notify-expiring-deployments
 
 replicas: 2
 
