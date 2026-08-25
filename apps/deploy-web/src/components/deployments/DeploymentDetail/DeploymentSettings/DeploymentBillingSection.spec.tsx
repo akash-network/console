@@ -130,6 +130,27 @@ describe("DeploymentBillingSection", () => {
     expect(screen.queryByRole("button", { name: "Switch to always on" })).not.toBeInTheDocument();
   });
 
+  describe("when escrow is abstracted behind the threshold flag", () => {
+    it("hides the balance, Add funds, and the auto top-up toggle on an always-on deployment", () => {
+      setup({ state: "active", isEscrowAbstracted: true });
+
+      expect(screen.queryByText("Current balance")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("current-balance")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Add funds" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("switch", { name: "Auto Top-Up" })).not.toBeInTheDocument();
+    });
+
+    it("keeps the runtime-limit controls on a limited deployment while hiding the balance", () => {
+      setup({ state: "active", runtimeLimitHours: 12, isEscrowAbstracted: true });
+
+      expect(screen.getByText("Runtime limit: 12h")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Add hours" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Switch to always on" })).toBeInTheDocument();
+      expect(screen.queryByText("Current balance")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Add funds" })).not.toBeInTheDocument();
+    });
+  });
+
   function setup(input: {
     state?: string;
     isEnabled?: boolean;
@@ -139,6 +160,7 @@ describe("DeploymentBillingSection", () => {
     runtimeEndsAt?: string | null;
     patchError?: Error;
     isConfirmed?: boolean;
+    isEscrowAbstracted?: boolean;
   }) {
     const setEnabled = vi.fn();
     const deposit = vi.fn();
@@ -147,6 +169,7 @@ describe("DeploymentBillingSection", () => {
     const analyticsService = mock<ReturnType<typeof DEPENDENCIES.useServices>["analyticsService"]>();
     const useServices: typeof DEPENDENCIES.useServices = () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService });
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ denom: "uakt" });
+    const useIsEscrowAbstracted: typeof DEPENDENCIES.useIsEscrowAbstracted = () => input.isEscrowAbstracted ?? false;
     const usePricing: typeof DEPENDENCIES.usePricing = () => mock<ReturnType<typeof DEPENDENCIES.usePricing>>({ udenomToUsd: () => 0 });
     const useAutoTopUp: typeof DEPENDENCIES.useAutoTopUp = () =>
       mock<ReturnType<typeof DEPENDENCIES.useAutoTopUp>>({
@@ -200,6 +223,7 @@ describe("DeploymentBillingSection", () => {
         dependencies={MockComponents(DEPENDENCIES, {
           useServices,
           useWallet,
+          useIsEscrowAbstracted,
           usePricing,
           usePopup,
           useAutoTopUp,

@@ -16,6 +16,7 @@ import { TrialDeploymentBadge } from "@src/components/shared/TrialDeploymentBadg
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
+import { useIsEscrowAbstracted } from "@src/hooks/useIsEscrowAbstracted";
 import { useTrialDeploymentTimeRemaining } from "@src/hooks/useTrialDeploymentTimeRemaining";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { TeeType } from "@src/utils/confidentialCompute";
@@ -24,15 +25,27 @@ import type { DeclaredGpuInterconnect } from "@src/utils/gpuInterconnect";
 import { hasLiveGpuLease, isLeaseLive } from "@src/utils/leaseUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 
+export const DEPENDENCIES = {
+  useIsEscrowAbstracted
+};
+
 type Props = {
   deployment: DeploymentDto;
   leases: LeaseDto[] | undefined | null;
   teeTypes?: TeeType[];
   interconnect?: DeclaredGpuInterconnect;
   children?: ReactNode;
+  dependencies?: typeof DEPENDENCIES;
 };
 
-export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment, leases, teeTypes = [], interconnect = { enabled: false, fabrics: [] } }) => {
+export const DeploymentSubHeader: React.FunctionComponent<Props> = ({
+  deployment,
+  leases,
+  teeTypes = [],
+  interconnect = { enabled: false, fabrics: [] },
+  dependencies: d = DEPENDENCIES
+}) => {
+  const isEscrowAbstracted = d.useIsEscrowAbstracted();
   const { deploymentCost, realTimeLeft } = useDeploymentMetrics({ deployment, leases });
   const isActive = deployment.state === "active";
   const hasLeases = !!leases && leases.length > 0;
@@ -51,35 +64,33 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
   return (
     <div className="grid grid-cols-2 gap-6 p-6">
       <div>
-        <LabelValue
-          label="Balance"
-          labelWidth="6rem"
-          value={
-            <div className="flex items-center space-x-2">
-              <PriceValue
-                denom={getEscrowDenom(deployment)}
-                value={udenomToDenom(isActive && hasActiveLeases && realTimeLeft ? realTimeLeft?.escrow : deployment.escrowBalance, 6)}
-              />
+        {!isEscrowAbstracted && (
+          <LabelValue
+            label="Balance"
+            labelWidth="6rem"
+            value={
+              <div className="flex items-center space-x-2">
+                <PriceValue
+                  denom={getEscrowDenom(deployment)}
+                  value={udenomToDenom(isActive && hasActiveLeases && realTimeLeft ? realTimeLeft?.escrow : deployment.escrowBalance, 6)}
+                />
 
-              {isActive && hasActiveLeases && !!realTimeLeft && realTimeLeft.escrow <= 0 && (
-                <CustomTooltip title="Your deployment is out of funds and can be closed by your provider at any time now. You can add funds to keep active.">
-                  <WarningCircle className="text-xs text-destructive" />
-                </CustomTooltip>
-              )}
-            </div>
-          }
-        />
+                {isActive && hasActiveLeases && !!realTimeLeft && realTimeLeft.escrow <= 0 && (
+                  <CustomTooltip title="Your deployment is out of funds and can be closed by your provider at any time now. You can add funds to keep active.">
+                    <WarningCircle className="text-xs text-destructive" />
+                  </CustomTooltip>
+                )}
+              </div>
+            }
+          />
+        )}
         <LabelValue
           label="Cost"
           labelWidth="6rem"
           value={
             !!deploymentCost && (
               <div className="flex items-center space-x-2">
-                <PricePerTimeUnit
-                  denom={getEscrowDenom(deployment)}
-                  perBlockValue={udenomToDenom(deploymentCost, 10)}
-                  showAsHourly={hasGpu}
-                />
+                <PricePerTimeUnit denom={getEscrowDenom(deployment)} perBlockValue={udenomToDenom(deploymentCost, 10)} showAsHourly={hasGpu} />
               </div>
             )
           }
@@ -115,16 +126,18 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
             </div>
           }
         />
-        <LabelValue
-          label="Time left"
-          labelWidth="6rem"
-          value={
-            <div className="flex items-center space-x-2">
-              {realTimeLeft && isValid(realTimeLeft?.timeLeft) && <span>~{formatDistanceToNow(realTimeLeft?.timeLeft)}</span>}
-              {isTrialing && trialTimeRemaining && <span className="text-xs text-primary">(Trial: {trialTimeRemaining})</span>}
-            </div>
-          }
-        />
+        {(!isEscrowAbstracted || (isTrialing && trialTimeRemaining)) && (
+          <LabelValue
+            label="Time left"
+            labelWidth="6rem"
+            value={
+              <div className="flex items-center space-x-2">
+                {!isEscrowAbstracted && realTimeLeft && isValid(realTimeLeft?.timeLeft) && <span>~{formatDistanceToNow(realTimeLeft?.timeLeft)}</span>}
+                {isTrialing && trialTimeRemaining && <span className="text-xs text-primary">(Trial: {trialTimeRemaining})</span>}
+              </div>
+            }
+          />
+        )}
         <LabelValue
           label="DSEQ"
           labelWidth="6rem"
