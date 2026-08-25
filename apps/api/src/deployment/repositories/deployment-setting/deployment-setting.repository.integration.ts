@@ -281,15 +281,6 @@ describe(DeploymentSettingRepository.name, () => {
       });
     });
 
-    it("records an sdl the caller chose not to store as nothing at all", async () => {
-      const { deploymentSettingRepository, user } = await setup();
-      const dseq = newDseq();
-
-      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: null, manifestVersion: "BAUG" });
-
-      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ sdl: null, manifestVersion: "BAUG" });
-    });
-
     it("records the runtime limit its creator chose in the same write", async () => {
       const { deploymentSettingRepository, user } = await setup();
       const dseq = newDseq();

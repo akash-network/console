@@ -253,7 +253,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
 
   /**
    * Records what a deployment is, at the moment it is created: the SDL it was given, stripped of its
-   * secrets, the manifest version it commits on chain, and the runtime limit its creator chose. One
+   * secrets and small enough to keep, the manifest version it commits on chain, and the runtime limit its creator chose. One
    * statement, so a deployment can never end up remembering half of itself, and so the sealed secrets
    * a later phase adds land in the same write as the SDL they belong to.
    *
@@ -271,7 +271,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
   }: {
     userId: string;
     dseq: string;
-    sdl: string | null;
+    sdl: string;
     manifestVersion: string;
     runtimeLimitHours?: number;
   }): Promise<void> {

@@ -31,6 +31,8 @@ import { createLeaseStatus } from "@test/seeders/lease-status.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
+const OVERSIZED_FILLER = "z".repeat(4096);
+
 describe("Deployments API", () => {
   const userRepository = container.resolve(UserRepository);
   const apiKeyAuthService = container.resolve(ApiKeyAuthService);
@@ -702,6 +704,42 @@ describe("Deployments API", () => {
 
       expect(response.status).toBe(400);
     });
+
+    it("returns 400 for an sdl too large to store", async () => {
+      const { userApiKeySecret } = await mockPersistedUser();
+
+      const response = await postOversizedDeployment(userApiKeySecret);
+
+      expect(response.status).toBe(400);
+    });
+
+    it("says nothing about the sdl in the 400 it returns", async () => {
+      const { userApiKeySecret } = await mockPersistedUser();
+
+      const response = await postOversizedDeployment(userApiKeySecret);
+
+      expect(await response.text()).not.toContain(OVERSIZED_FILLER);
+    });
+
+    it("records nothing and broadcasts nothing for an sdl too large to store", async () => {
+      const { userApiKeySecret, user } = await mockPersistedUser();
+
+      await postOversizedDeployment(userApiKeySecret);
+
+      expect(await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id })).toBeUndefined();
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
+    function postOversizedDeployment(userApiKeySecret: string) {
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+      const args = Array.from({ length: 40 }, () => `      - ${OVERSIZED_FILLER}`).join("\n");
+
+      return app.request("/v1/deployments", {
+        method: "POST",
+        body: JSON.stringify({ data: { sdl: yml.replace("    expose:", `    args:\n${args}\n    expose:`) } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+    }
 
     async function createDeploymentWithSecrets() {
       const { userApiKeySecret, user } = await mockPersistedUser();
