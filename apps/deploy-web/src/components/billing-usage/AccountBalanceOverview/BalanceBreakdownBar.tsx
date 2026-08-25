@@ -30,16 +30,17 @@ function badgeBackground(hue: string, alpha: number): string {
 
 /**
  * Diagonal hatch overlaid on the Available segment to flag the auto-top-up trigger zone.
- * Warning-orange because the token is identical in light and dark themes, pops against the success
- * green underneath, and cannot be confused with the monochrome primary ramp of the reserved segments.
+ * Stripes are the page background token at partial alpha, so the zone stays recognisably the Available
+ * green, just lightened in light mode and darkened in dark mode. Full alpha reads as a separate white or
+ * black band rather than a texture over the green.
  */
 export const THRESHOLD_HATCH_BACKGROUND =
-  "repeating-linear-gradient(45deg, transparent 0, transparent 4px, hsl(var(--warning) / 0.9) 4px, hsl(var(--warning) / 0.9) 8px)";
+  "repeating-linear-gradient(45deg, transparent 0, transparent 3px, hsl(var(--background) / 0.62) 3px, hsl(var(--background) / 0.62) 6px)";
 
-/** Miniature of the bar's top-up zone (warning hatch over the Available green) for legend use. */
+/** Miniature of the bar's top-up zone (background-colored hatch over the Available green) for legend use. */
 export const ThresholdHatchSwatch: React.FunctionComponent = () => (
   <span
-    className="h-3 w-3 shrink-0 rounded-[3px]"
+    className="h-3.5 w-3.5 shrink-0 rounded-[3px]"
     style={{ backgroundColor: "hsl(var(--success))", backgroundImage: THRESHOLD_HATCH_BACKGROUND }}
     aria-hidden
   />

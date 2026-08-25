@@ -121,8 +121,8 @@ describe(BalanceBreakdownBar.name, () => {
     expect(screen.queryByTestId("balance-threshold-line")).not.toBeInTheDocument();
   });
 
-  it("paints the hatch with the warning token", () => {
-    expect(THRESHOLD_HATCH_BACKGROUND).toContain("var(--warning)");
+  it("paints the hatch with the theme background token so it stays green and white/dark", () => {
+    expect(THRESHOLD_HATCH_BACKGROUND).toContain("var(--background)");
   });
 
   function setup(input: { segments: Parameters<typeof BalanceBreakdownBar>[0]["segments"]; threshold?: number | null }) {

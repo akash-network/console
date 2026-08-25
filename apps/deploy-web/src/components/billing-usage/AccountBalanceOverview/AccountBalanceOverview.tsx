@@ -123,27 +123,28 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
               <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: "hsl(var(--success))" }} aria-hidden />
               <span>Available</span>
             </div>
-            <div className="text-2xl font-bold leading-none text-success" aria-label="Available balance">
-              {usd(overview.available)}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              <span className="text-2xl font-bold leading-none text-success" aria-label="Available balance">
+                {usd(overview.available)}
+              </span>
+              {overview.autoReloadThreshold != null && (
+                <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-2">
+                    <span className="h-4 w-0 shrink-0 border-l-2 border-dashed border-foreground" aria-hidden />
+                    <span>
+                      Tops up at <span className="font-medium text-foreground">{usd(overview.autoReloadThreshold)}</span>
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <ThresholdHatchSwatch />
+                    <span>Top-up buffer</span>
+                  </span>
+                </span>
+              )}
             </div>
             <p className="text-sm text-muted-foreground">Free to spend on something new</p>
           </div>
         </div>
-
-        {overview.autoReloadThreshold != null && (
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <span className="h-3 w-0 shrink-0 border-l-2 border-dashed border-foreground" aria-hidden />
-              <span>
-                Tops up at <span className="font-medium text-foreground">{usd(overview.autoReloadThreshold)}</span>
-              </span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <ThresholdHatchSwatch />
-              <span>Top-up buffer</span>
-            </span>
-          </div>
-        )}
 
         {reservedSegments.length > 0 && (
           <div className="border-t pt-4">
