@@ -310,6 +310,16 @@ describe(DeploymentSettingRepository.name, () => {
       expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ runtimeLimitHours: 6 });
     });
 
+    it("replaces a definition an earlier write recorded", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG" });
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.1'", manifestVersion: "BQYH" });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ sdl: "version: '2.1'", manifestVersion: "BQYH" });
+    });
+
     it("keeps the definitions of two deployments of the same user apart", async () => {
       const { deploymentSettingRepository, user } = await setup();
       const [first, second] = [newDseq(), newDseq()];

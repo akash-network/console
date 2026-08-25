@@ -131,9 +131,9 @@ describe("Deployments API", () => {
   }
 
   /**
-   * Persists a real user row, which every create needs: creating a deployment now records what that
-   * deployment is, and that record is FK-bound to the user. `mockUser` fakes the user for read paths
-   * that never write.
+   * Persists a real user row, which every create and every SDL update needs: creating or updating a
+   * deployment now records what that deployment is, and that record is FK-bound to the user. `mockUser`
+   * fakes the user, and only suits paths that never record a definition.
    */
   async function mockPersistedUser() {
     const dbUser = await userRepository.create({ userId: faker.string.uuid() });
@@ -963,7 +963,7 @@ describe("Deployments API", () => {
 
   describe("PUT /v1/deployments/{dseq}", () => {
     it("should update a deployment successfully", async () => {
-      const { userApiKeySecret, wallets } = await mockUser();
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
       const dseq = "1234";
       await setupDeploymentInfoMock(wallets, dseq);
 
@@ -1064,6 +1064,92 @@ describe("Deployments API", () => {
       const result = (await response.json()) as { message: string };
       expect(result.message).toContain("Invalid SDL");
     });
+
+    it("replaces the sdl and the manifest version an earlier write recorded", async () => {
+      const { userApiKeySecret, user, dseq } = await setupUpdatableDeployment();
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "AAAA" });
+
+      const response = await putDeployment({ userApiKeySecret, dseq, sdlMock: "hello-world-sdl.yml" });
+
+      expect(response.status).toBe(200);
+      const setting = await deploymentSettingRepository.findOneBy({ userId: user.id, dseq });
+      expect(setting?.sdl).toContain("ghcr.io/akash-network/hello-akash-world");
+      expect(setting?.manifestVersion).not.toBe("AAAA");
+      expect(Buffer.from(setting?.manifestVersion ?? "", "base64")).toHaveLength(32);
+    });
+
+    it("records the definition of a deployment updated before it had one", async () => {
+      const { userApiKeySecret, user, dseq } = await setupUpdatableDeployment();
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toBeUndefined();
+
+      const response = await putDeployment({ userApiKeySecret, dseq, sdlMock: "hello-world-sdl.yml" });
+
+      expect(response.status).toBe(200);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({
+        sdl: expect.stringContaining("ghcr.io/akash-network/hello-akash-world"),
+        manifestVersion: expect.stringMatching(/^[A-Za-z0-9+/]+={0,2}$/)
+      });
+    });
+
+    it("records an sdl naming every env variable the submitted one declared", async () => {
+      const { setting } = await updateDeploymentWithSecrets();
+
+      expect(setting?.sdl).toContain("API_TOKEN=");
+      expect(setting?.sdl).toContain("DATABASE_URL=");
+      expect(setting?.sdl).toContain("INHERITED_FROM_HOST");
+    });
+
+    it("records an sdl carrying none of the submitted env values", async () => {
+      const { setting } = await updateDeploymentWithSecrets();
+
+      expect(setting?.sdl).not.toContain("PLACEHOLDER_API_TOKEN");
+      expect(setting?.sdl).not.toContain("PLACEHOLDER_DB_PASSWORD");
+      expect(setting?.sdl).not.toContain("db.example.test");
+    });
+
+    it("records an sdl carrying none of the submitted registry credentials", async () => {
+      const { setting } = await updateDeploymentWithSecrets();
+
+      expect(setting?.sdl).not.toContain("PLACEHOLDER_REGISTRY_PASSWORD");
+      expect(setting?.sdl).not.toContain("registry.example.test");
+      expect(setting?.sdl).not.toContain("credentials");
+    });
+
+    it("records an sdl that is still a deployable SDL", async () => {
+      const { setting } = await updateDeploymentWithSecrets();
+
+      expect(container.resolve(SdlService).generateManifest(setting?.sdl ?? "").ok).toBe(true);
+    });
+
+    async function setupUpdatableDeployment() {
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const dseq = "1234";
+      await setupDeploymentInfoMock(wallets, dseq);
+
+      return { userApiKeySecret, user, dseq };
+    }
+
+    function putDeployment({ userApiKeySecret, dseq, sdlMock }: { userApiKeySecret: string; dseq: string; sdlMock: string }) {
+      const yml = fs.readFileSync(path.resolve(__dirname, `../mocks/${sdlMock}`), "utf8");
+
+      return app.request(`/v1/deployments/${dseq}`, {
+        method: "PUT",
+        body: JSON.stringify({ data: { sdl: yml } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+    }
+
+    async function updateDeploymentWithSecrets() {
+      const { userApiKeySecret, user, dseq } = await setupUpdatableDeployment();
+
+      const response = await putDeployment({ userApiKeySecret, dseq, sdlMock: "hello-world-sdl-with-secrets.yml" });
+
+      expect(response.status).toBe(200);
+
+      return { setting: await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id, dseq }) };
+    }
   });
 
   describe("GET /v1/addresses/{address}/deployments/{skip}/{limit}", () => {

@@ -562,6 +562,76 @@ describe(DeploymentWriterService.name, () => {
       expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ provider: "provider-1" }));
       expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ provider: "provider-2" }));
     });
+
+    it("records the sdl and the manifest version it re-commits", async () => {
+      const { service, deploymentSettingRepository } = setup();
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS });
+
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith({
+        userId: wallet.userId,
+        dseq: "100",
+        sdl: expect.stringContaining("API_TOKEN="),
+        manifestVersion: "BAUG"
+      });
+    });
+
+    it("records an sdl carrying none of the submitted env values", async () => {
+      const { service, deploymentSettingRepository } = setup();
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS });
+
+      expect(recordedSdlOf(deploymentSettingRepository)).not.toContain(ENV_VALUE);
+    });
+
+    it("records an sdl carrying none of the submitted registry credentials", async () => {
+      const { service, deploymentSettingRepository } = setup();
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS });
+
+      expect(recordedSdlOf(deploymentSettingRepository)).not.toContain(REGISTRY_PASSWORD);
+    });
+
+    it("records the definition even when the manifest version already matches the chain", async () => {
+      const { service, sdlService, signerService, deploymentSettingRepository } = setup();
+      sdlService.generateManifestVersion.mockResolvedValue(new Uint8Array([1, 2, 3]));
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS });
+
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ dseq: "100", manifestVersion: "AQID" }));
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
+    it("records the definition before it broadcasts or re-sends the manifest", async () => {
+      const { service, signerService, providerService, deploymentSettingRepository } = setup();
+      deploymentSettingRepository.upsertDefinition.mockRejectedValue(new Error("db down"));
+
+      await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS })).rejects.toThrow("db down");
+
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("rejects an sdl too large to store without touching the deployment", async () => {
+      const { service, signerService, providerService, deploymentSettingRepository } = setup();
+
+      await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_TOO_LONG_WITHOUT_ALIASES })).rejects.toMatchObject({ status: 400 });
+
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("reports a failure to record the definition without logging the sdl", async () => {
+      const { service, deploymentSettingRepository, logger } = setup();
+      deploymentSettingRepository.upsertDefinition.mockRejectedValue(new Error("db down"));
+
+      await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS })).rejects.toThrow("db down");
+
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_DEFINITION_PERSISTENCE_FAILED", dseq: "100" }));
+      expect(loggedTextOf(logger)).not.toContain(ENV_VALUE);
+      expect(loggedTextOf(logger)).not.toContain("API_TOKEN");
+    });
   });
 
   function recordedSdlOf(deploymentSettingRepository: MockProxy<DeploymentSettingRepository>): string {

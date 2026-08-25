@@ -84,15 +84,26 @@ export class DeploymentWriterService {
   }
 
   /**
-   * Records what the deployment is before the create tx is broadcast, never after. The reverse order
-   * would let a successful broadcast produce a deployment with no remembered definition, which becomes
-   * unrecoverable once a later phase stores sealed secrets in the same write. A broadcast that then
-   * fails leaves a record for a deployment that does not exist on chain, which costs one row the
-   * draining sweep skips on every pass, and which the next create — always on a fresh dseq — ignores.
+   * Records what the deployment is before anything is broadcast, never after, on both create and
+   * update. The reverse order would let a successful broadcast produce a deployment with no remembered
+   * definition, which becomes unrecoverable once a later phase stores sealed secrets in the same write.
+   * A broadcast that then fails leaves a record for something that is not running: on create the retry
+   * takes a fresh dseq, so the orphaned row survives until the draining sweep collects it; on update
+   * the dseq is the one being updated, so the same request retried — idempotent on both the record and
+   * the chain — puts the two back in step.
    *
-   * A failure here surfaces as an error rather than best-effort, and nothing is broadcast: the user
-   * retries and gets both the deployment and its record, instead of a deployment the console cannot
-   * describe.
+   * A failure here surfaces as an error rather than best-effort, and nothing is broadcast and no
+   * manifest is re-sent: the user retries and gets both the deployment and its record, instead of a
+   * deployment the console cannot describe.
+   *
+   * An update records unconditionally, including when the manifest version already matches the chain.
+   * A matching version means the manifest is unchanged, not that the submitted document is: comments,
+   * formatting, and everything outside the manifest can still differ, and it is the SDL that is
+   * recorded.
+   *
+   * The write is last-writer-wins, with no compare-and-swap: two concurrent updates of one dseq can
+   * interleave so the row keeps one SDL while the chain runs the other, both succeeding. That is inert
+   * while nothing reads these columns, and needs revisiting when sealed secrets share the write.
    *
    * The stored SDL deliberately does not hash to the stored manifest version, and no future reader
    * should expect it to. The version is taken over the manifest the generator produced, which rewrites
@@ -120,8 +131,9 @@ export class DeploymentWriterService {
    * of what it is from ever disagreeing: a deployment the console cannot describe is one nobody can
    * later reproduce, redeploy, or attach sealed secrets to.
    *
-   * It runs before the definition is written and before anything is broadcast, so a rejected request
-   * leaves no row behind and nothing on chain.
+   * It runs before the definition is written and before anything is broadcast, so a rejected create
+   * leaves no row behind and nothing on chain, and a rejected update leaves the deployment running
+   * exactly what it ran before, still described by the record it already had.
    *
    * Neither the log nor the error says anything about the SDL beyond how long it is. The whole point of
    * stripping is that user content does not end up somewhere it was not meant to be, and an error body
@@ -221,11 +233,14 @@ export class DeploymentWriterService {
   public async updateByUserIdAndDseq(userId: string, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<GetDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const manifest = this.#parseManifest(input.sdl, { isTrialing: !!wallet.isTrialing });
+    const sdl = this.strippedSdlWithinLimit(input.sdl, dseq);
 
     const [deployment, manifestVersion] = await Promise.all([
       this.deploymentReaderService.findByWalletAndDseq(wallet, dseq),
       this.sdlService.generateManifestVersion(manifest.groups)
     ]);
+
+    await this.recordDefinition({ userId: wallet.userId, dseq, sdl, manifestVersion });
 
     await this.ensureDeploymentIsUpToDate(wallet, dseq, manifestVersion, deployment);
     const auth = { walletId: wallet.id };
