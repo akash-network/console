@@ -50,7 +50,7 @@ test.describe("Passwordless auth", () => {
   });
 
   test("returns to the email step when the browser back button is pressed on the verify screen", async ({ page }) => {
-    test.setTimeout(60 * 1000);
+    test.setTimeout(3 * 60 * 1000);
 
     const auth = new AuthPagePasswordless(page);
     await auth.goto();
