@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { useIntl } from "react-intl";
+import { Flash } from "iconoir-react";
 
 import type { ReservedDeployment } from "./useAccountBalanceOverview";
 
@@ -29,35 +30,22 @@ function badgeBackground(hue: string, alpha: number): string {
 }
 
 /**
- * Diagonal hatch overlaid on the Available segment to flag the auto-top-up trigger zone.
- * Stripes are the page background token at partial alpha, so the zone stays recognisably the Available
- * green, just lightened in light mode and darkened in dark mode. Full alpha reads as a separate white or
- * black band rather than a texture over the green.
+ * Vertical dashes for the threshold line: a 4px mark every 7px, so each mark stays taller than the line
+ * is wide and reads as a dash rather than a dot. Drawn as a gradient because `border-dashed` hands the
+ * dash length and spacing to the browser with no way to tune them.
  */
-export const THRESHOLD_HATCH_BACKGROUND =
-  "repeating-linear-gradient(45deg, transparent 0, transparent 3px, hsl(var(--background) / 0.62) 3px, hsl(var(--background) / 0.62) 6px)";
-
-/** Miniature of the bar's top-up zone (background-colored hatch over the Available green) for legend use. */
-export const ThresholdHatchSwatch: React.FunctionComponent = () => (
-  <span
-    className="h-3.5 w-3.5 shrink-0 rounded-[3px]"
-    style={{ backgroundColor: "hsl(var(--success))", backgroundImage: THRESHOLD_HATCH_BACKGROUND }}
-    aria-hidden
-  />
-);
+const THRESHOLD_LINE_DASHES = "repeating-linear-gradient(to bottom, hsl(var(--foreground)) 0 4px, transparent 4px 7px)";
 
 /**
- * Positions the auto-top-up marker inside the Available segment: the hatch spans the first
- * min(threshold, available) dollars past the reserved/available boundary and the dashed line marks its
- * right edge. Percentages are relative to the segment so the marker stays glued to that boundary
- * regardless of the 2px gaps between segments.
+ * Where the auto-top-up marker sits inside the Available segment: the dashed line lands `threshold`
+ * dollars past the reserved/available boundary, which is where the bar's right edge will be once the
+ * balance has drained far enough to trigger a top-up. Expressed as a percentage of the segment so it
+ * stays glued to that boundary regardless of the 2px gaps between segments. Null once available is at or
+ * below the threshold, where the line would fall on the segment's own right edge and read as noise.
  */
 function buildThresholdMarker(threshold: number, available: number) {
-  const markerAmount = Math.min(threshold, available);
-  return {
-    hatchWidthPct: (markerAmount / available) * 100,
-    isClamped: available <= threshold
-  };
+  if (available <= threshold) return null;
+  return { positionPct: (threshold / available) * 100, amountUsd: threshold };
 }
 
 /**
@@ -91,6 +79,12 @@ export function buildBalanceSegments(deployments: ReservedDeployment[], availabl
   return [...reservedSegments, availableSegment].filter(segment => segment.amountUsd > 0);
 }
 
+/**
+ * The dashed threshold marker deliberately overflows the bar vertically and captions itself underneath,
+ * so the bar cannot clip its own children: the rounded pill shape comes from rounding the end segments
+ * rather than an `overflow-hidden` container, and the wrapper reserves the caption's height with padding
+ * because the caption is positioned out of flow.
+ */
 export const BalanceBreakdownBar: React.FunctionComponent<{
   segments: BalanceSegment[];
   hoveredKey?: string | null;
@@ -104,41 +98,45 @@ export const BalanceBreakdownBar: React.FunctionComponent<{
   const marker = threshold !== null && threshold > 0 && available > 0 ? buildThresholdMarker(threshold, available) : null;
 
   return (
-    <div className="flex h-3 w-full gap-[2px] overflow-hidden rounded-full" role="img" aria-label={`Balance breakdown: ${label}`}>
-      {segments.map(segment => (
-        <div
-          key={segment.key}
-          className="relative h-full min-w-[3px] transition-opacity duration-150"
-          style={{
-            flexGrow: segment.amountUsd,
-            flexBasis: 0,
-            backgroundColor: segment.color,
-            opacity: hoveredKey && hoveredKey !== segment.key ? 0.35 : 1
-          }}
-          title={`${segment.label}: ${formatUsd(segment.amountUsd)}`}
-          onMouseEnter={() => onHover?.(segment.key)}
-          onMouseLeave={() => onHover?.(null)}
-        >
-          {segment.key === "available" && marker && (
-            <>
-              <div
-                className="pointer-events-none absolute inset-y-0 left-0"
-                style={{ width: `${marker.hatchWidthPct}%`, backgroundImage: THRESHOLD_HATCH_BACKGROUND }}
-                data-testid="balance-threshold-hatch"
-                aria-hidden
-              />
-              {!marker.isClamped && (
+    <div className={marker === null ? undefined : "pb-6"}>
+      <div className="flex h-3 w-full gap-[2px]" role="img" aria-label={`Balance breakdown: ${label}`}>
+        {segments.map(segment => (
+          <div
+            key={segment.key}
+            className="relative h-full min-w-[3px] transition-opacity duration-150 first:rounded-l-full last:rounded-r-full"
+            style={{
+              flexGrow: segment.amountUsd,
+              flexBasis: 0,
+              backgroundColor: segment.color,
+              opacity: hoveredKey && hoveredKey !== segment.key ? 0.35 : 1
+            }}
+            title={`${segment.label}: ${formatUsd(segment.amountUsd)}`}
+            onMouseEnter={() => onHover?.(segment.key)}
+            onMouseLeave={() => onHover?.(null)}
+          >
+            {segment.key === "available" && marker && (
+              <>
                 <div
-                  className="pointer-events-none absolute inset-y-0 border-l-2 border-dashed border-foreground"
-                  style={{ left: `${marker.hatchWidthPct}%` }}
+                  className="pointer-events-none absolute -inset-y-1.5 w-[3px] -translate-x-1/2"
+                  style={{ left: `${marker.positionPct}%`, backgroundImage: THRESHOLD_LINE_DASHES }}
                   data-testid="balance-threshold-line"
                   aria-hidden
                 />
-              )}
-            </>
-          )}
-        </div>
-      ))}
+                <div
+                  className="pointer-events-none absolute top-full mt-2 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap text-xs text-muted-foreground"
+                  style={{ left: `${marker.positionPct}%` }}
+                  data-testid="balance-threshold-caption"
+                >
+                  <Flash className="h-3 w-3 shrink-0" />
+                  <span>
+                    Tops up at <span className="font-medium text-foreground">{formatUsd(marker.amountUsd)}</span>
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

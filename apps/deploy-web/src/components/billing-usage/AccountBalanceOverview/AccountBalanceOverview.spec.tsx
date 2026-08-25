@@ -133,18 +133,18 @@ describe(AccountBalanceOverview.name, () => {
     expect(screen.queryByText(/Automatic top-ups are on/)).not.toBeInTheDocument();
   });
 
-  it("explains the threshold line and hatch in the legend when a threshold is set", () => {
+  it("names the top-up threshold under the available balance when one is set", () => {
     setup({ autoReloadEnabled: true, autoReloadThreshold: 275 });
 
     expect(screen.getByText(/Tops up at/)).toHaveTextContent("275");
-    expect(screen.getByText("Top-up buffer")).toBeInTheDocument();
+    expect(screen.queryByText("Free to spend on something new")).not.toBeInTheDocument();
   });
 
-  it("keeps the marker legend out when no threshold applies", () => {
+  it("describes the available balance generically when no threshold applies", () => {
     setup({ autoReloadEnabled: true, autoReloadThreshold: null });
 
     expect(screen.queryByText(/Tops up at/)).not.toBeInTheDocument();
-    expect(screen.queryByText("Top-up buffer")).not.toBeInTheDocument();
+    expect(screen.getByText("Free to spend on something new")).toBeInTheDocument();
   });
 
   it("renders a skeleton instead of balance while loading", () => {

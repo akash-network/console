@@ -1,7 +1,7 @@
 import { IntlProvider } from "react-intl";
 import { describe, expect, it } from "vitest";
 
-import { BalanceBreakdownBar, buildBalanceSegments, THRESHOLD_HATCH_BACKGROUND } from "./BalanceBreakdownBar";
+import { BalanceBreakdownBar, buildBalanceSegments } from "./BalanceBreakdownBar";
 import type { ReservedDeployment } from "./useAccountBalanceOverview";
 
 import { render, screen } from "@testing-library/react";
@@ -81,18 +81,18 @@ describe(BalanceBreakdownBar.name, () => {
       threshold: 250
     });
 
-    expect(screen.getByTestId("balance-threshold-hatch")).toBeInTheDocument();
     expect(screen.getByTestId("balance-threshold-line")).toBeInTheDocument();
+    expect(screen.getByTestId("balance-threshold-caption")).toHaveTextContent("Tops up at $250.00");
   });
 
   it("omits the threshold marker when no threshold is provided", () => {
     setup({ segments: [{ key: "available", label: "Available", amountUsd: 1000, color: "hsl(var(--success))" }] });
 
-    expect(screen.queryByTestId("balance-threshold-hatch")).not.toBeInTheDocument();
     expect(screen.queryByTestId("balance-threshold-line")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("balance-threshold-caption")).not.toBeInTheDocument();
   });
 
-  it("anchors the hatch to the start of the available segment", () => {
+  it("places the marker a threshold's worth into the available segment", () => {
     setup({
       segments: [
         { key: "d1", label: "llama", amountUsd: 1000, color: "hsl(var(--primary))" },
@@ -101,14 +101,14 @@ describe(BalanceBreakdownBar.name, () => {
       threshold: 250
     });
 
-    const hatch = screen.getByTestId("balance-threshold-hatch");
-    expect(hatch.style.width).toBe("25%");
-    expect(hatch.parentElement).toHaveAttribute("title", "Available: $1,000.00");
-    expect(screen.getByTestId("balance-threshold-line").style.left).toBe("25%");
+    const line = screen.getByTestId("balance-threshold-line");
+    expect(line.style.left).toBe("25%");
+    expect(line.parentElement).toHaveAttribute("title", "Available: $1,000.00");
+    expect(screen.getByTestId("balance-threshold-caption").style.left).toBe("25%");
     expect(screen.getByRole("img").children).toHaveLength(2);
   });
 
-  it("covers the whole available segment and hides the line when available is at or below the threshold", () => {
+  it("drops the marker when available is at or below the threshold", () => {
     setup({
       segments: [
         { key: "d1", label: "llama", amountUsd: 1000, color: "hsl(var(--primary))" },
@@ -117,12 +117,8 @@ describe(BalanceBreakdownBar.name, () => {
       threshold: 250
     });
 
-    expect(screen.getByTestId("balance-threshold-hatch").style.width).toBe("100%");
     expect(screen.queryByTestId("balance-threshold-line")).not.toBeInTheDocument();
-  });
-
-  it("paints the hatch with the theme background token so it stays green and white/dark", () => {
-    expect(THRESHOLD_HATCH_BACKGROUND).toContain("var(--background)");
+    expect(screen.queryByTestId("balance-threshold-caption")).not.toBeInTheDocument();
   });
 
   function setup(input: { segments: Parameters<typeof BalanceBreakdownBar>[0]["segments"]; threshold?: number | null }) {

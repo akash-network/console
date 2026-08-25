@@ -7,7 +7,7 @@ import Link from "next/link";
 
 import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
 import { UrlService } from "@src/utils/urlUtils";
-import { BalanceBreakdownBar, buildBalanceSegments, ThresholdHatchSwatch } from "./BalanceBreakdownBar";
+import { BalanceBreakdownBar, buildBalanceSegments } from "./BalanceBreakdownBar";
 import { useAccountBalanceOverview } from "./useAccountBalanceOverview";
 
 export const DEPENDENCIES = {
@@ -123,26 +123,18 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
               <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: "hsl(var(--success))" }} aria-hidden />
               <span>Available</span>
             </div>
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-              <span className="text-2xl font-bold leading-none text-success" aria-label="Available balance">
-                {usd(overview.available)}
-              </span>
-              {overview.autoReloadThreshold != null && (
-                <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-2">
-                    <span className="h-4 w-0 shrink-0 border-l-2 border-dashed border-foreground" aria-hidden />
-                    <span>
-                      Tops up at <span className="font-medium text-foreground">{usd(overview.autoReloadThreshold)}</span>
-                    </span>
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <ThresholdHatchSwatch />
-                    <span>Top-up buffer</span>
-                  </span>
-                </span>
-              )}
+            <div className="text-2xl font-bold leading-none text-success" aria-label="Available balance">
+              {usd(overview.available)}
             </div>
-            <p className="text-sm text-muted-foreground">Free to spend on something new</p>
+            <p className="text-sm text-muted-foreground">
+              {overview.autoReloadThreshold != null ? (
+                <>
+                  Tops up at <span className="font-medium text-foreground">{usd(overview.autoReloadThreshold)}</span>
+                </>
+              ) : (
+                "Free to spend on something new"
+              )}
+            </p>
           </div>
         </div>
 
