@@ -1,4 +1,5 @@
 import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
+import { HTTPException } from "hono/http-exception";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
@@ -39,6 +40,10 @@ export class DeploymentWriterService {
   ) {}
 
   public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
+    const dseq = Date.now();
+    /** SDL for storage ONLY, stripped of secrets */
+    const sdl = this.#strippedSdlWithinLimit(input.sdl, dseq.toString());
+
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
     const manifest = this.#parseManifest(input.sdl, { isTrialing: !!wallet.isTrialing });
     const depositInDollars = this.resolveDepositInDollars(input.deposit);
@@ -47,8 +52,6 @@ export class DeploymentWriterService {
       await this.reclaimTrialOrphanedDeployments(wallet);
     }
 
-    const dseq = Date.now();
-    const sdl = this.strippedSdlWithinLimit(input.sdl, dseq.toString());
     const manifestVersion = await this.sdlService.generateManifestVersion(manifest.groups);
 
     await this.recordDefinition({
@@ -120,28 +123,15 @@ export class DeploymentWriterService {
     }
   }
 
-  /**
-   * The submitted SDL with its secrets taken out, or a 400 when it is larger than the console will
-   * store. Rejecting rather than deploying-without-a-record is what keeps a deployment and the record
-   * of what it is from ever disagreeing: a deployment the console cannot describe is one nobody can
-   * later reproduce, redeploy, or attach sealed secrets to.
-   *
-   * It runs before the definition is written and before anything is broadcast, so a rejected create
-   * leaves no row behind and nothing on chain, and a rejected update leaves the deployment running
-   * exactly what it ran before, still described by the record it already had.
-   *
-   * Neither the log nor the error says anything about the SDL beyond how long it is. The whole point of
-   * stripping is that user content does not end up somewhere it was not meant to be, and an error body
-   * travels further than a log does.
-   */
-  private strippedSdlWithinLimit(submittedSdl: string, dseq: string): string {
+  #strippedSdlWithinLimit(submittedSdl: string, dseq: string): string {
     const { sdl, length } = stripSdlSecrets(submittedSdl, SDL_MAX_LENGTH);
 
     if (sdl === null) {
       this.logger.warn({ event: "DEPLOYMENT_SDL_TOO_LARGE", dseq, length, maxLength: SDL_MAX_LENGTH });
+      throw new HTTPException(400, {
+        message: `SDL is too large: it exceeds the maximum of ${SDL_MAX_LENGTH} characters once stored`
+      });
     }
-
-    assert(sdl !== null, 400, `SDL is too large: it exceeds the maximum of ${SDL_MAX_LENGTH} characters once stored`);
 
     return sdl;
   }
@@ -169,7 +159,8 @@ export class DeploymentWriterService {
    * before the create tx so the freed deployment allowance is available when the create's balance check runs.
    * Best-effort: a cleanup failure never blocks the create, which then proceeds and may 402 exactly as it would today.
    * Age 0 also closes an actively-quoting lease-less deployment of the same trial user, acceptable since a trial
-   * balance cannot fund two deployments at once.
+   * balance cannot fund two deployments at once — but only because every way this request can still be refused has
+   * already been tried. Nothing that can reject the caller may be added below this line.
    */
   private async reclaimTrialOrphanedDeployments(wallet: WalletInitialized): Promise<void> {
     try {
@@ -228,7 +219,7 @@ export class DeploymentWriterService {
   public async updateByUserIdAndDseq(userId: string, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<DeploymentResponse> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const manifest = this.#parseManifest(input.sdl, { isTrialing: !!wallet.isTrialing });
-    const sdl = this.strippedSdlWithinLimit(input.sdl, dseq);
+    const sdl = this.#strippedSdlWithinLimit(input.sdl, dseq);
 
     const [deployment, manifestVersion] = await Promise.all([
       this.deploymentReaderService.findByWalletAndDseq(wallet, dseq),
