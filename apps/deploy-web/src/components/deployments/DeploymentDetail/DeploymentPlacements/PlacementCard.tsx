@@ -60,10 +60,10 @@ export const PlacementCard: FC<PlacementCardProps> = ({
   const {
     data: leaseStatus,
     error: leaseStatusError,
-    isPending
+    isLoading
   } = d.useLeaseStatus({ provider, lease, enabled: isLeaseActive && !!provider, refetchInterval: 30_000 });
-  /** Raw isPending stays true forever for a disabled query (closed lease, unknown provider), so mirror the enabled gate. */
-  const isLeaseStatusPending = isLeaseActive && !!provider && isPending;
+  /** isLoading, not isPending: useLeaseStatus also gates `enabled` on provider.hostUri and usable provider credentials, so the query can stay disabled forever with isPending stuck true, while isLoading is false for a query that never fetches. */
+  const isLeaseStatusPending = isLeaseActive && !!provider && isLoading;
   const isProviderUnreachable = isLeaseActive && isProviderUnavailableError(leaseStatusError);
   const carveouts = d.useTeeResourceCarveouts(lease);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());

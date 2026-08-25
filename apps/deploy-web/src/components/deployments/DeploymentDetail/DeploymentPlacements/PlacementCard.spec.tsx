@@ -139,6 +139,13 @@ describe(PlacementCard.name, () => {
     expect(PlacementServiceRow.mock.calls[0][0]).toEqual(expect.objectContaining({ isLeaseStatusPending: false }));
   });
 
+  it("does not mark rows pending when the status query stays disabled and never fetches", () => {
+    const PlacementServiceRow = vi.fn((_props: Parameters<typeof DEPENDENCIES.PlacementServiceRow>[0]) => <div>service-row</div>);
+    setup({ leaseStatus: null, manifestServices: { web: {} }, dependencies: { PlacementServiceRow } });
+
+    expect(PlacementServiceRow.mock.calls[0][0]).toEqual(expect.objectContaining({ isLeaseStatusPending: false }));
+  });
+
   it("shows the reclamation card and no reclaiming badge when the lease has been reclaimed", () => {
     const ReclamationCard = vi.fn(() => <div>reclamation</div>);
     setup({ lease: buildLease({ state: "closed", groupState: "paused" }), leaseStatus: null, dependencies: { ReclamationCard } });
@@ -238,7 +245,8 @@ describe(PlacementCard.name, () => {
       mock<ReturnType<typeof DEPENDENCIES.useLeaseStatus>>({
         data: leaseStatus,
         error: input?.leaseStatusError ?? null,
-        isPending: input?.isLeaseStatusPending ?? false
+        isPending: !leaseStatus && !input?.leaseStatusError,
+        isLoading: input?.isLeaseStatusPending ?? false
       });
     const useTeeResourceCarveouts: typeof DEPENDENCIES.useTeeResourceCarveouts = () => [];
 
