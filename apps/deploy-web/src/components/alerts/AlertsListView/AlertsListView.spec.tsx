@@ -75,20 +75,12 @@ describe(AlertsListView.name, () => {
     expect(screen.queryByText("Escrow Threshold")).not.toBeInTheDocument();
   });
 
-  it("links the deployment name to the settings tab when the deployment detail redesign is enabled", () => {
+  it("links the deployment name to the settings tab", () => {
     const mockAlert = buildAlert({ type: "CHAIN_MESSAGE", params: { dseq: "12345", type: "DEPLOYMENT_CLOSED" } });
 
-    setup({ data: [mockAlert], isDeploymentDetailRedesignEnabled: true });
+    setup({ data: [mockAlert] });
 
     expect(screen.getByRole("link", { name: mockAlert.deploymentName })).toHaveAttribute("href", UrlService.deploymentDetails("12345", "SETTINGS"));
-  });
-
-  it("links the deployment name to the alerts tab when the deployment detail redesign is disabled", () => {
-    const mockAlert = buildAlert({ type: "CHAIN_MESSAGE", params: { dseq: "12345", type: "DEPLOYMENT_CLOSED" } });
-
-    setup({ data: [mockAlert], isDeploymentDetailRedesignEnabled: false });
-
-    expect(screen.getByRole("link", { name: mockAlert.deploymentName })).toHaveAttribute("href", UrlService.deploymentDetails("12345", "ALERTS"));
   });
 
   it("renders table with disabled alert without params", () => {
@@ -203,11 +195,7 @@ describe(AlertsListView.name, () => {
     expect(screen.getByRole("navigation")).toBeInTheDocument();
   });
 
-  function setup({
-    isAlertUpdateEnabled = true,
-    isDeploymentDetailRedesignEnabled = false,
-    ...props
-  }: Partial<Props> & { isAlertUpdateEnabled?: boolean; isDeploymentDetailRedesignEnabled?: boolean } = {}) {
+  function setup({ isAlertUpdateEnabled = true, ...props }: Partial<Props> & { isAlertUpdateEnabled?: boolean } = {}) {
     const defaultProps: Props = {
       pagination: {
         page: 1,
@@ -226,15 +214,7 @@ describe(AlertsListView.name, () => {
       ...props
     };
 
-    const mockUseFlag = vi.fn((flag: string) => {
-      if (flag === "notifications_general_alerts_update") {
-        return isAlertUpdateEnabled;
-      }
-      if (flag === "deployment_detail_redesign") {
-        return isDeploymentDetailRedesignEnabled;
-      }
-      return false;
-    }) as unknown as typeof useFlag;
+    const mockUseFlag: typeof useFlag = flag => flag === "notifications_general_alerts_update" && isAlertUpdateEnabled;
 
     const dependencies: NonNullable<Props["dependencies"]> = {
       useFlag: mockUseFlag
