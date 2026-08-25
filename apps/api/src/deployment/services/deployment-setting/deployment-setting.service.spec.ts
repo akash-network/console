@@ -108,6 +108,47 @@ describe(DeploymentSettingService.name, () => {
     });
   });
 
+  describe("create", () => {
+    it("applies the request to the default row deployment create already wrote when the insert conflicts", async () => {
+      const { service, deploymentSettingRepository, walletReloadJobService } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.create.mockRejectedValue(createUniqueViolation());
+      deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: true }) as never);
+
+      const result = await service.create({ ...params, autoTopUpEnabled: true });
+
+      expect(deploymentSettingRepository.updateBy).toHaveBeenCalledWith(params, { autoTopUpEnabled: true }, { returning: true });
+      expect(result).toEqual(expect.objectContaining({ autoTopUpEnabled: true }));
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ userId: params.userId });
+    });
+
+    it("rethrows the unique violation when the conflicting row cannot be updated", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      const uniqueViolation = createUniqueViolation();
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.create.mockRejectedValue(uniqueViolation);
+      deploymentSettingRepository.updateBy.mockResolvedValue(undefined);
+
+      await expect(service.create({ ...params, autoTopUpEnabled: true })).rejects.toBe(uniqueViolation);
+    });
+
+    it("rethrows a non-unique-violation insert error untouched", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      const insertError = new Error("connection terminated");
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.create.mockRejectedValue(insertError);
+
+      await expect(service.create({ ...params, autoTopUpEnabled: true })).rejects.toBe(insertError);
+      expect(deploymentSettingRepository.updateBy).not.toHaveBeenCalled();
+    });
+  });
+
   describe("upsert", () => {
     it("records setting toggle when autoTopUpEnabled changes", async () => {
       const { service, deploymentSettingRepository, instrumentation } = setup();

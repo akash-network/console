@@ -91,13 +91,40 @@ export class DeploymentSettingService {
   }
 
   async create(input: DeploymentSettingsInput): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
-    const result = await this.withEstimatedTopUpAmount(await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "create").create(input));
+    const result = await this.withEstimatedTopUpAmount(await this.#createOrApplyToExisting(input));
 
     if (result.autoTopUpEnabled) {
       await this.walletReloadJobService.scheduleImmediate({ userId: result.userId });
     }
 
     return result;
+  }
+
+  /**
+   * Deployment create writes a default settings row eagerly, so an explicit create for the same
+   * deployment routinely finds the row already there. That default row records no choice by the user,
+   * while this request does, so on a unique violation the request is applied to the existing row
+   * instead of failing on the (dseq, userId) unique the default row already claimed.
+   */
+  async #createOrApplyToExisting(input: DeploymentSettingsInput): Promise<DeploymentSettingsOutput> {
+    try {
+      return await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "create").create(input);
+    } catch (error) {
+      if (!isUniqueViolation(error)) {
+        throw error;
+      }
+
+      const { userId, dseq, ...changes } = input;
+      const updated = await this.deploymentSettingRepository
+        .accessibleBy(this.authService.ability, "update")
+        .updateBy({ userId, dseq }, changes, { returning: true });
+
+      if (!updated) {
+        throw error;
+      }
+
+      return updated;
+    }
   }
 
   async upsert(params: FindDeploymentSettingParams, input: DeploymentSettingChange): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
