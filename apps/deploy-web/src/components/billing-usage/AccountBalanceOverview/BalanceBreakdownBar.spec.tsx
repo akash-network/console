@@ -81,16 +81,18 @@ describe(BalanceBreakdownBar.name, () => {
       threshold: 250
     });
 
-    expect(screen.getByText(/Tops up at/)).toHaveTextContent("$250");
+    expect(screen.getByTestId("balance-threshold-line")).toBeInTheDocument();
+    expect(screen.getByTestId("balance-threshold-caption")).toHaveTextContent("Tops up at $250.00");
   });
 
   it("omits the threshold marker when no threshold is provided", () => {
     setup({ segments: [{ key: "available", label: "Available", amountUsd: 1000, color: "hsl(var(--success))" }] });
 
-    expect(screen.queryByText(/Tops up at/)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("balance-threshold-line")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("balance-threshold-caption")).not.toBeInTheDocument();
   });
 
-  it("positions the marker as the far-right slice of the bar", () => {
+  it("places the marker a threshold's worth into the available segment", () => {
     setup({
       segments: [
         { key: "d1", label: "llama", amountUsd: 1000, color: "hsl(var(--primary))" },
@@ -99,8 +101,24 @@ describe(BalanceBreakdownBar.name, () => {
       threshold: 250
     });
 
-    expect(screen.getByTestId("balance-threshold-hatch").style.width).toBe("12.5%");
-    expect(screen.getByTestId("balance-threshold-line").style.left).toBe("87.5%");
+    const line = screen.getByTestId("balance-threshold-line");
+    expect(line.style.left).toBe("25%");
+    expect(line.parentElement).toHaveAttribute("title", "Available: $1,000.00");
+    expect(screen.getByTestId("balance-threshold-caption").style.left).toBe("25%");
+    expect(screen.getByRole("img").children).toHaveLength(2);
+  });
+
+  it("drops the marker when available is at or below the threshold", () => {
+    setup({
+      segments: [
+        { key: "d1", label: "llama", amountUsd: 1000, color: "hsl(var(--primary))" },
+        { key: "available", label: "Available", amountUsd: 200, color: "hsl(var(--success))" }
+      ],
+      threshold: 250
+    });
+
+    expect(screen.queryByTestId("balance-threshold-line")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("balance-threshold-caption")).not.toBeInTheDocument();
   });
 
   function setup(input: { segments: Parameters<typeof BalanceBreakdownBar>[0]["segments"]; threshold?: number | null }) {

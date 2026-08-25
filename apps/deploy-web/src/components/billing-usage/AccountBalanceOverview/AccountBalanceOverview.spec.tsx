@@ -133,6 +133,20 @@ describe(AccountBalanceOverview.name, () => {
     expect(screen.queryByText(/Automatic top-ups are on/)).not.toBeInTheDocument();
   });
 
+  it("names the top-up threshold under the available balance when one is set", () => {
+    setup({ autoReloadEnabled: true, autoReloadThreshold: 275 });
+
+    expect(screen.getByText(/Tops up at/)).toHaveTextContent("275");
+    expect(screen.queryByText("Free to spend on something new")).not.toBeInTheDocument();
+  });
+
+  it("describes the available balance generically when no threshold applies", () => {
+    setup({ autoReloadEnabled: true, autoReloadThreshold: null });
+
+    expect(screen.queryByText(/Tops up at/)).not.toBeInTheDocument();
+    expect(screen.getByText("Free to spend on something new")).toBeInTheDocument();
+  });
+
   it("renders a skeleton instead of balance while loading", () => {
     setup({ isLoading: true });
 

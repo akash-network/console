@@ -126,7 +126,15 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
             <div className="text-2xl font-bold leading-none text-success" aria-label="Available balance">
               {usd(overview.available)}
             </div>
-            <p className="text-sm text-muted-foreground">Free to spend on something new</p>
+            <p className="text-sm text-muted-foreground">
+              {overview.autoReloadThreshold != null ? (
+                <>
+                  Tops up at <span className="font-medium text-foreground">{usd(overview.autoReloadThreshold)}</span>
+                </>
+              ) : (
+                "Free to spend on something new"
+              )}
+            </p>
           </div>
         </div>
 
