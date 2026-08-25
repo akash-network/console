@@ -1,7 +1,7 @@
 "use client";
 import type { FC, ReactNode } from "react";
 import { useState } from "react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger, Skeleton } from "@akashnetwork/ui/components";
 import { Box, Globe, Label, NavArrowDown, NavArrowRight } from "iconoir-react";
 
 import type { ForwardedPort, LeaseServiceStatus, ServiceIp } from "@src/queries/useLeaseQuery";
@@ -24,6 +24,8 @@ export interface PlacementServiceRowProps {
   ips?: ServiceIp[] | null;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** True while the lease-status poll for a live lease has not settled; endpoint details render as skeleton lines instead of popping in. */
+  isLeaseStatusPending?: boolean;
 }
 
 export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
@@ -36,7 +38,8 @@ export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
   forwardedPorts,
   ips,
   open: openProp,
-  onOpenChange
+  onOpenChange,
+  isLeaseStatusPending
 }) => {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const isControlled = openProp !== undefined;
@@ -47,6 +50,7 @@ export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
   const portChips = toPortChips({ forwardedPorts, ips, closed });
   const replicaLabel = closed ? undefined : formatReplicaCount(service);
   const hasDetails = !!(detail?.resources || detail?.image || uriLinks.length > 0 || portChips.length > 0);
+  const showsPendingDetails = !!isLeaseStatusPending && !closed;
 
   function handleOpenChange(next: boolean) {
     if (!isControlled) setUncontrolledOpen(next);
@@ -64,9 +68,13 @@ export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
     <div className="flex min-w-0 flex-1 items-center justify-end">
       <span className="shrink-0 text-sm text-muted-foreground">{replicaLabel}</span>
     </div>
+  ) : showsPendingDetails ? (
+    <div className="flex min-w-0 flex-1 items-center justify-end">
+      <Skeleton className="h-4 w-24" data-testid="service-replicas-skeleton" />
+    </div>
   ) : null;
 
-  if (closed || !hasDetails) {
+  if (closed || (!hasDetails && !showsPendingDetails)) {
     return (
       <div className="overflow-hidden rounded-lg border">
         <div className="flex items-center gap-3 p-4">
@@ -108,6 +116,12 @@ export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
             <PortChips items={portChips} />
           </ServiceDetailRow>
         ) : null}
+        {showsPendingDetails && (
+          <div className="space-y-3 border-t px-5 py-4" data-testid="service-details-skeleton">
+            <Skeleton className="h-4 w-3/5" />
+            <Skeleton className="h-4 w-2/5" />
+          </div>
+        )}
       </CollapsibleContent>
     </Collapsible>
   );

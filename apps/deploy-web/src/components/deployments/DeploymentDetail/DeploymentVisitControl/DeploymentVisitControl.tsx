@@ -1,6 +1,6 @@
 "use client";
 import type { FC } from "react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Button,
   buttonVariants,
@@ -8,7 +8,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  Skeleton
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { Globe, NavArrowDown } from "iconoir-react";
@@ -23,7 +24,8 @@ import { collectVisitEndpoints, endpointLabel } from "./visitEndpoints";
 
 export const DEPENDENCIES = {
   useLeaseStatuses,
-  CopyTextToClipboardButton
+  CopyTextToClipboardButton,
+  Skeleton
 };
 
 export interface DeploymentVisitControlProps {
@@ -31,6 +33,13 @@ export interface DeploymentVisitControlProps {
   providers: ApiProviderList[];
   dependencies?: typeof DEPENDENCIES;
 }
+
+/**
+ * Upper bound on how long the endpoint skeleton may wait for lease statuses that never settle
+ * (their queries stay disabled when a provider is missing from the list or provider credentials fail),
+ * after which the control collapses to nothing exactly as it did before skeletons existed.
+ */
+const ENDPOINT_SKELETON_MAX_WAIT_MS = 15_000;
 
 export const DeploymentVisitControl: FC<DeploymentVisitControlProps> = ({ leases, providers, dependencies: d = DEPENDENCIES }) => {
   const items = useMemo(
@@ -43,6 +52,21 @@ export const DeploymentVisitControl: FC<DeploymentVisitControlProps> = ({ leases
   );
   const statuses = d.useLeaseStatuses(items, { refetchInterval: 30_000 });
   const endpoints = statuses.flatMap(status => collectVisitEndpoints(status.data));
+
+  const [hasWaitExpired, setHasWaitExpired] = useState(false);
+  useEffect(function stopWaitingEventually() {
+    const timer = setTimeout(() => setHasWaitExpired(true), ENDPOINT_SKELETON_MAX_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!hasWaitExpired && endpoints.length === 0 && statuses.some(status => status.isPending)) {
+    return (
+      <div className="flex items-center gap-2" data-testid="visit-control-skeleton">
+        <d.Skeleton className="h-9 w-64 max-w-xs" />
+        <d.Skeleton className="h-9 w-16" />
+      </div>
+    );
+  }
 
   return <VisitControlView endpoints={endpoints} CopyTextToClipboardButton={d.CopyTextToClipboardButton} />;
 };

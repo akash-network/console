@@ -79,6 +79,27 @@ describe("DeploymentDetail", () => {
     setup({ deployment: null, error });
 
     expect(screen.getByText(/this deployment does not exist/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("deployment-detail-skeleton")).not.toBeInTheDocument();
+  });
+
+  it("renders the page skeleton while the deployment loads", () => {
+    setup({ deployment: null });
+
+    expect(screen.getByTestId("deployment-detail-skeleton")).toBeInTheDocument();
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+  });
+
+  it("renders the page skeleton until leases resolve", () => {
+    setup({ isLeasesLoaded: false });
+
+    expect(screen.getByTestId("deployment-detail-skeleton")).toBeInTheDocument();
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+  });
+
+  it("keeps the skeleton away when leases fail to load", () => {
+    setup({ isLeasesLoaded: false, isLeasesError: true });
+
+    expect(screen.queryByTestId("deployment-detail-skeleton")).not.toBeInTheDocument();
   });
 
   it("redirects an in-progress deployment with no lease to the configure flow", () => {
@@ -113,6 +134,7 @@ describe("DeploymentDetail", () => {
     deployment?: DeploymentDto | null;
     leases?: LeaseDto[] | null;
     isLeasesLoaded?: boolean;
+    isLeasesError?: boolean;
     error?: Error | null;
     tab?: string;
     leaseState?: string;
@@ -140,7 +162,12 @@ describe("DeploymentDetail", () => {
     const useDeploymentDetail: typeof DEPENDENCIES.useDeploymentDetail = () =>
       mock<ReturnType<typeof DEPENDENCIES.useDeploymentDetail>>({ data: deployment, isFetching: false, error: input?.error ?? null });
     const useDeploymentLeaseList: typeof DEPENDENCIES.useDeploymentLeaseList = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useDeploymentLeaseList>>({ data: leases, isLoading: false, isSuccess: input?.isLeasesLoaded ?? true });
+      mock<ReturnType<typeof DEPENDENCIES.useDeploymentLeaseList>>({
+        data: leases,
+        isLoading: false,
+        isSuccess: input?.isLeasesLoaded ?? true,
+        isError: input?.isLeasesError ?? false
+      });
     const useProviderList: typeof DEPENDENCIES.useProviderList = () =>
       mock<ReturnType<typeof DEPENDENCIES.useProviderList>>({ data: providers, isFetching: false });
     const redeploy = vi.fn();

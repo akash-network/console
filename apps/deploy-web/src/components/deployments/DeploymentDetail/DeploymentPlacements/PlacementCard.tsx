@@ -57,7 +57,13 @@ export const PlacementCard: FC<PlacementCardProps> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const isLeaseActive = isLeaseLive(lease);
-  const { data: leaseStatus, error: leaseStatusError } = d.useLeaseStatus({ provider, lease, enabled: isLeaseActive && !!provider, refetchInterval: 30_000 });
+  const {
+    data: leaseStatus,
+    error: leaseStatusError,
+    isPending
+  } = d.useLeaseStatus({ provider, lease, enabled: isLeaseActive && !!provider, refetchInterval: 30_000 });
+  /** Raw isPending stays true forever for a disabled query (closed lease, unknown provider), so mirror the enabled gate. */
+  const isLeaseStatusPending = isLeaseActive && !!provider && isPending;
   const isProviderUnreachable = isLeaseActive && isProviderUnavailableError(leaseStatusError);
   const carveouts = d.useTeeResourceCarveouts(lease);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
@@ -158,6 +164,7 @@ export const PlacementCard: FC<PlacementCardProps> = ({
                 uris={leaseStatus?.services?.[serviceName]?.uris}
                 forwardedPorts={leaseStatus?.forwarded_ports?.[serviceName]}
                 ips={leaseStatus?.ips?.[serviceName]}
+                isLeaseStatusPending={isLeaseStatusPending}
                 open={expanded.has(serviceName)}
                 onOpenChange={next => handleOpenChange(serviceName, next)}
               />
