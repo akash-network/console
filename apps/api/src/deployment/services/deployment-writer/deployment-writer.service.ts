@@ -48,12 +48,13 @@ export class DeploymentWriterService {
     const manifest = this.#parseManifest(input.sdl, { isTrialing: !!wallet.isTrialing });
     const depositInDollars = this.resolveDepositInDollars(input.deposit);
 
+    const dseq = Date.now();
+    const sdl = this.strippedSdlWithinLimit(input.sdl, dseq.toString());
+
     if (wallet.isTrialing) {
       await this.reclaimTrialOrphanedDeployments(wallet);
     }
 
-    const dseq = Date.now();
-    const sdl = this.strippedSdlWithinLimit(input.sdl, dseq.toString());
     const manifestVersion = await this.sdlService.generateManifestVersion(manifest.groups);
 
     await this.recordDefinition({
@@ -121,7 +122,11 @@ export class DeploymentWriterService {
    * later reproduce, redeploy, or attach sealed secrets to.
    *
    * It runs before the definition is written and before anything is broadcast, so a rejected request
-   * leaves no row behind and nothing on chain.
+   * leaves no row behind and nothing on chain. "Anything" includes the trial reclamation, which is why
+   * this sits above it: that reclamation closes a trialing wallet's lease-less deployments on chain, so
+   * rejecting after it would let a bad SDL destroy a deployment the user was still collecting bids for.
+   * Every other rejection on this path — the wallet lookup, the manifest parse, the deposit check — is
+   * already above it, and this one belongs in the same group.
    *
    * Neither the log nor the error says anything about the SDL beyond how long it is. The whole point of
    * stripping is that user content does not end up somewhere it was not meant to be, and an error body
@@ -162,7 +167,8 @@ export class DeploymentWriterService {
    * before the create tx so the freed deployment allowance is available when the create's balance check runs.
    * Best-effort: a cleanup failure never blocks the create, which then proceeds and may 402 exactly as it would today.
    * Age 0 also closes an actively-quoting lease-less deployment of the same trial user, acceptable since a trial
-   * balance cannot fund two deployments at once.
+   * balance cannot fund two deployments at once — but only because every way this request can still be refused has
+   * already been tried. Nothing that can reject the caller may be added below this line.
    */
   private async reclaimTrialOrphanedDeployments(wallet: WalletInitialized): Promise<void> {
     try {

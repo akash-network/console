@@ -89,16 +89,17 @@ function withoutValue(entry: string): string {
 }
 
 /**
- * Whether this document could possibly contain a node reachable more than once. Sharing is what the
- * estimator exists to price, and a document without it cannot serialize to more than a constant factor
- * over the text it arrived as — which the body limit already caps at 512 KB. Sharing is necessary for
- * amplification rather than sufficient, which is all a guard that only ever adds work needs to be right
- * about.
+ * Whether this document could possibly contain a node reachable more than once, which is the one thing
+ * `estimateSerializedLength` exists to price. Skipping the estimator for a document that cannot share a
+ * node is therefore safe *with respect to alias amplification* — and that is the whole of the claim.
+ * It is deliberately not a claim that an alias-free document cannot serialize to much more than it
+ * arrived as: one can, since flow style spells a nesting level in about four characters and block style
+ * re-spells it as two spaces per level on every emitted line. The estimator never priced indentation
+ * either, so that is a property of the SDL surface rather than of this guard.
  *
  * Sharing comes from one place: a YAML alias. An alias needs an anchor to point at, so a document that
- * shares anything has to spell both `&` and `*` somewhere in its bytes — and a document missing either
- * character is a pure tree, whose serialized form is bounded by an input the body limit already caps at
- * 512 KB. That is the whole argument, and it holds without knowing anything about YAML's grammar: no
+ * shares anything has to spell both `&` and `*` somewhere in its bytes, and a document missing either
+ * character cannot alias. That argument holds without knowing anything about YAML's grammar: no
  * assumption about quoting, flow style, block scalars, indentation or comments, because it never asks
  * *where* the characters are.
  *

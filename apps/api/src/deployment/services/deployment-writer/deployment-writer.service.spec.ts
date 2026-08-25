@@ -23,6 +23,7 @@ import { DeploymentWriterService } from "./deployment-writer.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 
+const ALIASED_FILLER = "x".repeat(4096);
 const ENV_VALUE = faker.string.alphanumeric(24);
 const REGISTRY_PASSWORD = faker.internet.password();
 
@@ -75,7 +76,7 @@ const SDL_WITH_SECRETS = sdlAround(`    credentials:
  * scalar out in full each time.
  */
 const SDL_ALIASING_ONE_SCALAR = sdlAround(`    args:
-      - &payload ${"x".repeat(4096)}
+      - &payload ${ALIASED_FILLER}
 ${Array.from({ length: 511 }, () => "      - *payload").join("\n")}
 `);
 
@@ -330,10 +331,11 @@ describe(DeploymentWriterService.name, () => {
 
       const rejection = (await service.create({ userId: "user-1", sdl: SDL_ALIASING_ONE_SCALAR, deposit: 5 }).catch((error: Error) => error)) as Error;
 
+      expect(rejection.message).not.toContain(ALIASED_FILLER);
       expect(rejection.message).not.toContain("payload");
       expect(rejection.message).toContain(String(SDL_MAX_LENGTH));
       expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_SDL_TOO_LARGE", maxLength: SDL_MAX_LENGTH }));
-      expect(loggedTextOf(logger)).not.toContain("payload");
+      expect(loggedTextOf(logger)).not.toContain(ALIASED_FILLER);
     });
 
     it("never hands the sdl to the logger on a successful create", async () => {
@@ -403,6 +405,14 @@ describe(DeploymentWriterService.name, () => {
       walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, isTrialing: true });
 
       await expect(service.create({ userId: "user-1", sdl: "valid-sdl" })).rejects.toMatchObject({ status: 400 });
+      expect(staleDeploymentsCleaner.cleanUpForWallet).not.toHaveBeenCalled();
+    });
+
+    it("does not reclaim trial orphans when an oversized sdl will reject the create", async () => {
+      const { service, staleDeploymentsCleaner, walletReaderService } = setup();
+      walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, isTrialing: true });
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_ALIASING_ONE_SCALAR, deposit: 5 })).rejects.toMatchObject({ status: 400 });
       expect(staleDeploymentsCleaner.cleanUpForWallet).not.toHaveBeenCalled();
     });
   });
