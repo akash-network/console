@@ -1,7 +1,6 @@
 "use client";
 import React from "react";
 import { useIntl } from "react-intl";
-import { Flash } from "iconoir-react";
 
 import type { ReservedDeployment } from "./useAccountBalanceOverview";
 
@@ -29,17 +28,34 @@ function badgeBackground(hue: string, alpha: number): string {
   return `hsl(${hue} / ${Number(Math.max(0.08, alpha * 0.2).toFixed(3))})`;
 }
 
-/** Diagonal hatch overlaid on the available bar to flag the auto-top-up trigger zone; theme-aware via the foreground token. */
-const HATCH_BACKGROUND =
-  "repeating-linear-gradient(45deg, transparent 0, transparent 3px, hsl(var(--foreground) / 0.28) 3px, hsl(var(--foreground) / 0.28) 6px)";
+/**
+ * Diagonal hatch overlaid on the Available segment to flag the auto-top-up trigger zone.
+ * Warning-orange because the token is identical in light and dark themes, pops against the success
+ * green underneath, and cannot be confused with the monochrome primary ramp of the reserved segments.
+ */
+export const THRESHOLD_HATCH_BACKGROUND =
+  "repeating-linear-gradient(45deg, transparent 0, transparent 4px, hsl(var(--warning) / 0.9) 4px, hsl(var(--warning) / 0.9) 8px)";
 
-/** Positions the auto-top-up marker as the far-right slice of the bar: the dotted line is its left edge, the hatch is the slice itself. */
-function buildThresholdMarker(threshold: number, available: number, total: number) {
+/** Miniature of the bar's top-up zone (warning hatch over the Available green) for legend use. */
+export const ThresholdHatchSwatch: React.FunctionComponent = () => (
+  <span
+    className="h-3 w-3 shrink-0 rounded-[3px]"
+    style={{ backgroundColor: "hsl(var(--success))", backgroundImage: THRESHOLD_HATCH_BACKGROUND }}
+    aria-hidden
+  />
+);
+
+/**
+ * Positions the auto-top-up marker inside the Available segment: the hatch spans the first
+ * min(threshold, available) dollars past the reserved/available boundary and the dashed line marks its
+ * right edge. Percentages are relative to the segment so the marker stays glued to that boundary
+ * regardless of the 2px gaps between segments.
+ */
+function buildThresholdMarker(threshold: number, available: number) {
   const markerAmount = Math.min(threshold, available);
   return {
-    threshold,
-    hatchWidthPct: (markerAmount / total) * 100,
-    linePositionPct: ((total - markerAmount) / total) * 100
+    hatchWidthPct: (markerAmount / available) * 100,
+    isClamped: available <= threshold
   };
 }
 
@@ -83,55 +99,45 @@ export const BalanceBreakdownBar: React.FunctionComponent<{
   const intl = useIntl();
   const formatUsd = (value: number) => intl.formatNumber(value, { style: "currency", currency: "USD" });
   const label = segments.map(segment => `${segment.label} ${formatUsd(segment.amountUsd)}`).join(", ");
-  const total = segments.reduce((sum, segment) => sum + segment.amountUsd, 0);
   const available = segments.find(segment => segment.key === "available")?.amountUsd ?? 0;
-  const marker = threshold !== null && threshold > 0 && available > 0 && total > 0 ? buildThresholdMarker(threshold, available, total) : null;
+  const marker = threshold !== null && threshold > 0 && available > 0 ? buildThresholdMarker(threshold, available) : null;
 
   return (
-    <div className="space-y-1">
-      <div className="relative">
-        <div className="relative flex h-3 w-full gap-[2px] overflow-hidden rounded-full" role="img" aria-label={`Balance breakdown: ${label}`}>
-          {segments.map(segment => (
-            <div
-              key={segment.key}
-              className="h-full min-w-[3px] transition-opacity duration-150"
-              style={{
-                flexGrow: segment.amountUsd,
-                flexBasis: 0,
-                backgroundColor: segment.color,
-                opacity: hoveredKey && hoveredKey !== segment.key ? 0.35 : 1
-              }}
-              title={`${segment.label}: ${formatUsd(segment.amountUsd)}`}
-              onMouseEnter={() => onHover?.(segment.key)}
-              onMouseLeave={() => onHover?.(null)}
-            />
-          ))}
-          {marker && (
-            <div
-              className="pointer-events-none absolute inset-y-0 right-0"
-              style={{ width: `${marker.hatchWidthPct}%`, backgroundImage: HATCH_BACKGROUND }}
-              data-testid="balance-threshold-hatch"
-              aria-hidden
-            />
+    <div className="flex h-3 w-full gap-[2px] overflow-hidden rounded-full" role="img" aria-label={`Balance breakdown: ${label}`}>
+      {segments.map(segment => (
+        <div
+          key={segment.key}
+          className="relative h-full min-w-[3px] transition-opacity duration-150"
+          style={{
+            flexGrow: segment.amountUsd,
+            flexBasis: 0,
+            backgroundColor: segment.color,
+            opacity: hoveredKey && hoveredKey !== segment.key ? 0.35 : 1
+          }}
+          title={`${segment.label}: ${formatUsd(segment.amountUsd)}`}
+          onMouseEnter={() => onHover?.(segment.key)}
+          onMouseLeave={() => onHover?.(null)}
+        >
+          {segment.key === "available" && marker && (
+            <>
+              <div
+                className="pointer-events-none absolute inset-y-0 left-0"
+                style={{ width: `${marker.hatchWidthPct}%`, backgroundImage: THRESHOLD_HATCH_BACKGROUND }}
+                data-testid="balance-threshold-hatch"
+                aria-hidden
+              />
+              {!marker.isClamped && (
+                <div
+                  className="pointer-events-none absolute inset-y-0 border-l-2 border-dashed border-foreground"
+                  style={{ left: `${marker.hatchWidthPct}%` }}
+                  data-testid="balance-threshold-line"
+                  aria-hidden
+                />
+              )}
+            </>
           )}
         </div>
-        {marker && (
-          <div
-            className="pointer-events-none absolute inset-y-[-2px] border-l-2 border-dashed border-foreground"
-            style={{ left: `${marker.linePositionPct}%` }}
-            data-testid="balance-threshold-line"
-            aria-hidden
-          />
-        )}
-      </div>
-      {marker && (
-        <p className="flex items-center justify-end gap-1 text-xs text-muted-foreground">
-          <Flash className="h-3 w-3" aria-hidden />
-          <span>
-            Tops up at <span className="font-medium text-foreground">{formatUsd(marker.threshold)}</span>
-          </span>
-        </p>
-      )}
+      ))}
     </div>
   );
 };

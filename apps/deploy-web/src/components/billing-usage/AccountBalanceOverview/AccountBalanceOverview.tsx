@@ -7,7 +7,7 @@ import Link from "next/link";
 
 import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
 import { UrlService } from "@src/utils/urlUtils";
-import { BalanceBreakdownBar, buildBalanceSegments } from "./BalanceBreakdownBar";
+import { BalanceBreakdownBar, buildBalanceSegments, ThresholdHatchSwatch } from "./BalanceBreakdownBar";
 import { useAccountBalanceOverview } from "./useAccountBalanceOverview";
 
 export const DEPENDENCIES = {
@@ -129,6 +129,21 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
             <p className="text-sm text-muted-foreground">Free to spend on something new</p>
           </div>
         </div>
+
+        {overview.autoReloadThreshold != null && (
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-0 shrink-0 border-l-2 border-dashed border-foreground" aria-hidden />
+              <span>
+                Tops up at <span className="font-medium text-foreground">{usd(overview.autoReloadThreshold)}</span>
+              </span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <ThresholdHatchSwatch />
+              <span>Top-up buffer</span>
+            </span>
+          </div>
+        )}
 
         {reservedSegments.length > 0 && (
           <div className="border-t pt-4">
