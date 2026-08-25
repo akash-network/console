@@ -35,10 +35,10 @@ describe(AutoTopUpSettingsPopup.name, () => {
     const upsertMutate = vi.fn();
     setup({ upsertMutate });
 
-    fireEvent.change(amountInput(), { target: { value: "5" } });
+    fireEvent.change(amountInput(), { target: { value: "24.99" } });
     await submit();
 
-    expect(screen.getByText(/Minimum amount is \$20/)).toBeInTheDocument();
+    expect(screen.getByText(/Minimum amount is \$25/)).toBeInTheDocument();
     expect(upsertMutate).not.toHaveBeenCalled();
   });
 
@@ -46,11 +46,18 @@ describe(AutoTopUpSettingsPopup.name, () => {
     const upsertMutate = vi.fn();
     setup({ upsertMutate });
 
-    fireEvent.change(thresholdInput(), { target: { value: "1" } });
+    fireEvent.change(thresholdInput(), { target: { value: "9.99" } });
     await submit();
 
-    expect(screen.getByText(/Minimum threshold is \$5/)).toBeInTheDocument();
+    expect(screen.getByText(/Minimum threshold is \$10/)).toBeInTheDocument();
     expect(upsertMutate).not.toHaveBeenCalled();
+  });
+
+  it("raises stored values below the minimums to the minimums when prefilling", () => {
+    setup({ threshold: 5, amount: 20 });
+
+    expect(thresholdInput().value).toBe("10");
+    expect(amountInput().value).toBe("25");
   });
 
   it("blocks submit and shows an error when the amount is above the maximum", async () => {
@@ -137,10 +144,12 @@ describe(AutoTopUpSettingsPopup.name, () => {
     );
   });
 
-  it("saves prediction mode even when a stored threshold is below the threshold-mode minimum", async () => {
+  it("saves prediction mode even when the entered threshold is below the threshold-mode minimum", async () => {
     const upsertMutate = vi.fn();
-    setup({ mode: "prediction", threshold: 1, amount: 1, upsertMutate });
+    setup({ mode: "threshold", upsertMutate });
 
+    fireEvent.change(thresholdInput(), { target: { value: "1" } });
+    fireEvent.click(modeRadio(/predicted spend/i));
     await submit();
 
     expect(upsertMutate).toHaveBeenCalledWith({ data: { autoReloadEnabled: true, autoReloadMode: "prediction" } }, expect.anything());

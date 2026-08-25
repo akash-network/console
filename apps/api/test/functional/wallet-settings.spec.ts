@@ -36,7 +36,7 @@ describe("Wallet Settings", () => {
       const response = await app.request("/v1/wallet-settings", {
         method: "PUT",
         headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-        body: JSON.stringify({ data: { autoReloadEnabled: true, autoReloadAmount: 5 } })
+        body: JSON.stringify({ data: { autoReloadEnabled: true, autoReloadAmount: 24.99 } })
       });
 
       expect(response.status).toBe(400);
@@ -48,7 +48,7 @@ describe("Wallet Settings", () => {
       const response = await app.request("/v1/wallet-settings", {
         method: "PUT",
         headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-        body: JSON.stringify({ data: { autoReloadEnabled: true, autoReloadThreshold: 1 } })
+        body: JSON.stringify({ data: { autoReloadEnabled: true, autoReloadThreshold: 9.99 } })
       });
 
       expect(response.status).toBe(400);

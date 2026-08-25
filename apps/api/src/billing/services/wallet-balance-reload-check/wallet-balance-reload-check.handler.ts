@@ -3,7 +3,7 @@ import { addMilliseconds, millisecondsInHour } from "date-fns";
 import { Err, Ok, Result } from "ts-results";
 import { singleton } from "tsyringe";
 
-import { STANDARD_TOP_UP_MIN_AMOUNT_USD } from "@src/billing/config";
+import { AUTO_RELOAD_AMOUNT_MIN_USD } from "@src/billing/config";
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balance.schema";
 import { centsToUsd } from "@src/billing/lib/currency/currency";
@@ -183,7 +183,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     const { balance } = resources;
     const mode = resources.walletSetting.autoReloadMode;
     const threshold = centsToUsd(resources.walletSetting.autoReloadThreshold);
-    const reloadAmount = Math.max(centsToUsd(resources.walletSetting.autoReloadAmount), STANDARD_TOP_UP_MIN_AMOUNT_USD);
+    const reloadAmount = Math.max(centsToUsd(resources.walletSetting.autoReloadAmount), AUTO_RELOAD_AMOUNT_MIN_USD);
     const log = {
       walletAddress: resources.wallet.address,
       balance,

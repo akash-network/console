@@ -1,8 +1,6 @@
 import { z } from "@hono/zod-openapi";
 
-import { STANDARD_TOP_UP_MIN_AMOUNT_USD } from "@src/billing/config";
-
-const AUTO_RELOAD_THRESHOLD_MIN_USD = 5;
+import { AUTO_RELOAD_AMOUNT_MIN_USD, AUTO_RELOAD_THRESHOLD_MIN_USD } from "@src/billing/config";
 
 /** Upper bounds stop an oversized value from being charged verbatim to the card. */
 const AUTO_RELOAD_THRESHOLD_MAX_USD = 10_000;
@@ -49,12 +47,12 @@ export const WalletSettingsInputSchema = z.object({
     }),
   autoReloadAmount: z
     .number()
-    .min(STANDARD_TOP_UP_MIN_AMOUNT_USD)
+    .min(AUTO_RELOAD_AMOUNT_MIN_USD)
     .max(AUTO_RELOAD_AMOUNT_MAX_USD)
     .multipleOf(0.01)
     .optional()
     .openapi({
-      description: `USD amount charged on each automatic top-up (minimum ${STANDARD_TOP_UP_MIN_AMOUNT_USD}, maximum ${AUTO_RELOAD_AMOUNT_MAX_USD}). Defaults are applied on create when omitted.`
+      description: `USD amount charged on each automatic top-up (minimum ${AUTO_RELOAD_AMOUNT_MIN_USD}, maximum ${AUTO_RELOAD_AMOUNT_MAX_USD}). Defaults are applied on create when omitted.`
     })
 });
 
