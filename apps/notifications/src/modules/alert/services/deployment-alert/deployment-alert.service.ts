@@ -214,7 +214,7 @@ export class DeploymentAlertService {
 
   private getConsoleLink(dseq: string): string {
     const baseUrl = this.configService.getOrThrow("alert.CONSOLE_WEB_URL");
-    return `<a href="https://${baseUrl}/deployments/${dseq}?tab=ALERTS">${baseUrl}</a>`;
+    return `<a href="https://${baseUrl}/deployments/${dseq}?tab=SETTINGS">${baseUrl}</a>`;
   }
 
   async get(dseq: string, ability: MongoAbility): Promise<DeploymentAlertOutput> {
