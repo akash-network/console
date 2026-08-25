@@ -80,6 +80,32 @@ describe(DeploymentSettingService.name, () => {
 
       expect(result).toBeUndefined();
     });
+
+    it("returns the concurrently created row when the insert loses the race", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      const concurrent = createDeploymentSettingsOutput(params);
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValueOnce(undefined).mockResolvedValueOnce(concurrent);
+      deploymentSettingRepository.create.mockRejectedValue(createUniqueViolation());
+
+      const result = await service.findOrCreateByUserIdAndDseq(params);
+
+      expect(result).toEqual(expect.objectContaining({ userId: params.userId, dseq: params.dseq }));
+    });
+
+    it("rethrows the unique violation when the concurrent row is not readable", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      const uniqueViolation = createUniqueViolation();
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
+      deploymentSettingRepository.create.mockRejectedValue(uniqueViolation);
+
+      await expect(service.findOrCreateByUserIdAndDseq(params)).rejects.toBe(uniqueViolation);
+    });
   });
 
   describe("upsert", () => {

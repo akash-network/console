@@ -47,6 +47,12 @@ export class DeploymentSettingService {
     private readonly domainEvents: DomainEventsService
   ) {}
 
+  /**
+   * The row can appear while this request runs: the lease-start funding job inserts a default row the
+   * moment a lease starts, which is exactly when the detail page first asks for settings. The
+   * (dseq, userId) unique catches whichever insert loses; re-reading returns the row the winner wrote
+   * instead of surfacing the driver error as a 500.
+   */
   async findOrCreateByUserIdAndDseq(params: FindDeploymentSettingParams): Promise<DeploymentSettingWithEstimatedTopUpAmount | undefined> {
     const setting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy(params);
 
@@ -60,7 +66,18 @@ export class DeploymentSettingService {
       if (error instanceof ForbiddenError) {
         return undefined;
       }
-      throw error;
+
+      if (!isUniqueViolation(error)) {
+        throw error;
+      }
+
+      const concurrent = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy(params);
+
+      if (!concurrent) {
+        throw error;
+      }
+
+      return this.withEstimatedTopUpAmount(concurrent);
     }
   }
 
