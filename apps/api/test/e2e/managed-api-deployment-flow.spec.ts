@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { ListBidsResponse } from "@src/bid/http-schemas/bid.schema";
 import type {
   CreateDeploymentResponse,
+  CreateLeaseResponse,
   DepositDeploymentResponse,
   GetDeploymentResponse,
   UpdateDeploymentResponse
@@ -196,7 +197,7 @@ describe("Managed Wallet API Deployment Flow", () => {
     apiKey: string,
     deployment: CreateDeploymentResponse["data"],
     bid: ListBidsResponse["data"][number]
-  ): Promise<GetDeploymentResponse["data"] | undefined> {
+  ): Promise<CreateLeaseResponse["data"] | undefined> {
     const body = {
       manifest: deployment.manifest,
       leases: [
@@ -209,7 +210,7 @@ describe("Managed Wallet API Deployment Flow", () => {
       ]
     };
 
-    const { data } = await requestApi<GetDeploymentResponse>("/v1/leases", {
+    const { data } = await requestApi<CreateLeaseResponse>("/v1/leases", {
       method: "POST",
       headers: {
         "content-type": "application/json",

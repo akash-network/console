@@ -7861,6 +7861,13 @@ export interface operations {
                   }[];
                 };
               };
+              /** @description What the console recorded for this deployment, or null when it recorded nothing. */
+              consoleSettings: {
+                /** @description The SDL the console stored for this deployment. Re-serialized YAML, so not byte-identical to the submitted document. */
+                sdl: string;
+                /** @description Base64 of the manifest version this deployment commits on chain. Deliberately not a hash of the `sdl` above. */
+                manifestVersion: string;
+              } | null;
             };
           };
         };

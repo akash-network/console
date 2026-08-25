@@ -281,7 +281,7 @@ describe("Deployments API", () => {
     });
 
     it("returns what the console recorded for the deployment", async () => {
-      const dseq = "1234";
+      const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
       const { userApiKeySecret, user, wallets } = await mockPersistedUser();
       await setupDeploymentInfoMock(wallets, dseq);
       const sdl = `version: '2.0' # ${faker.string.uuid()}`;
@@ -298,7 +298,7 @@ describe("Deployments API", () => {
     });
 
     it("reads a deployment for which the console recorded nothing", async () => {
-      const dseq = "1234";
+      const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
       const { userApiKeySecret, wallets } = await mockPersistedUser();
       await setupDeploymentInfoMock(wallets, dseq);
 
@@ -314,7 +314,7 @@ describe("Deployments API", () => {
     });
 
     it("reads a deployment whose settings row carries no sdl", async () => {
-      const dseq = "1234";
+      const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
       const { userApiKeySecret, user, wallets } = await mockPersistedUser();
       await setupDeploymentInfoMock(wallets, dseq);
       await container.resolve(DeploymentSettingRepository).create({ userId: user.id, dseq });
@@ -330,7 +330,7 @@ describe("Deployments API", () => {
     });
 
     it("hands back none of what another user recorded for the same dseq", async () => {
-      const dseq = "1234";
+      const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
       const owner = await mockPersistedUser();
       const otherUsersSdl = `version: '2.0' # ${faker.string.uuid()}`;
       await container.resolve(DeploymentSettingRepository).upsertDefinition({ userId: owner.user.id, dseq, sdl: otherUsersSdl, manifestVersion: "BAUG" });
@@ -349,7 +349,7 @@ describe("Deployments API", () => {
     });
 
     it("hands each user their own console settings for the same dseq", async () => {
-      const dseq = "1234";
+      const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
       const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
       const first = await mockPersistedUser();
       const firstSdl = `version: '2.0' # ${faker.string.uuid()}`;
