@@ -58,6 +58,20 @@ describe("Deployment Settings", () => {
       });
     });
 
+    it("enables auto top-up on a lazily created row without consulting the owner's wallet", async () => {
+      const { token, user } = await setup({ hasManagedWallet: false });
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+
+      const response = await app.request(`/v1/deployment-settings/${user.id}/${dseq}`, {
+        headers: {
+          authorization: `Bearer ${token}`
+        }
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ data: expect.objectContaining({ autoTopUpEnabled: true }) });
+    });
+
     it("returns 404 when accessing other user's deployment settings", async () => {
       const { user: user1 } = await setup();
       const { token: token2 } = await setup();
@@ -460,17 +474,18 @@ describe("Deployment Settings", () => {
     });
   }
 
-  async function setup() {
+  async function setup(input: { hasManagedWallet?: boolean } = {}) {
     const user = await userRepository.create({ userId: faker.string.uuid() });
     const walletAddress = createAkashAddress();
     const token = faker.string.alphanumeric(40);
 
     const wallet = createUserWallet({ userId: user.id, address: walletAddress });
+    const resolvedWallet = input.hasManagedWallet === false ? undefined : wallet;
 
     vi.spyOn(userAuthTokenService, "getValidUserId").mockResolvedValue(user.userId);
     vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(userWalletRepository);
-    vi.spyOn(userWalletRepository, "findFirst").mockResolvedValue(wallet);
-    vi.spyOn(userWalletRepository, "findOneByUserId").mockResolvedValue(wallet);
+    vi.spyOn(userWalletRepository, "findFirst").mockResolvedValue(resolvedWallet);
+    vi.spyOn(userWalletRepository, "findOneByUserId").mockResolvedValue(resolvedWallet);
     vi.spyOn(leaseRepository, "findOneByDseqAndOwner").mockResolvedValue(createDrainingDeployment());
 
     return { user, token, wallet };

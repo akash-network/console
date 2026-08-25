@@ -120,6 +120,28 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("create", () => {
+    it("enables auto top-up on a row whose owner expressed no preference", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+
+      const setting = await deploymentSettingRepository.create({ userId: user.id, dseq: faker.number.int({ min: 100000, max: 999999 }).toString() });
+
+      expect(setting.autoTopUpEnabled).toBe(true);
+    });
+
+    it("keeps an explicit opt-out rather than overwriting it with the default", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+
+      const setting = await deploymentSettingRepository.create({
+        userId: user.id,
+        dseq: faker.number.int({ min: 100000, max: 999999 }).toString(),
+        autoTopUpEnabled: false
+      });
+
+      expect(setting.autoTopUpEnabled).toBe(false);
+    });
+  });
+
   async function setup() {
     const userRepository = container.resolve(UserRepository);
     const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
@@ -159,6 +181,15 @@ describe(DeploymentSettingRepository.name, () => {
 
     const settingId = await createSetting();
 
-    return { userRepository, deploymentSettingRepository, user, settingId, abilityFor, createSetting, createLimitedSetting, backdateLastFundedAt };
+    return {
+      userRepository,
+      deploymentSettingRepository,
+      user,
+      settingId,
+      abilityFor,
+      createSetting,
+      createLimitedSetting,
+      backdateLastFundedAt
+    };
   }
 });

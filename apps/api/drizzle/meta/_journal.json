@@ -288,6 +288,13 @@
       "when": 1787578784118,
       "tag": "0040_tan_puma",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1787603676055,
+      "tag": "0041_auto_top_up_default_in_code",
+      "breakpoints": true
     }
   ]
 }
