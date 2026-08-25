@@ -526,6 +526,7 @@ describe(DeploymentSettingService.name, () => {
       lastFundedAt: null,
       runtimeLimitHours: null,
       runtimeEndsAt: null,
+      runtimeEndingNotifiedFor: null,
       createdAt: faker.date.past().toISOString(),
       updatedAt: faker.date.past().toISOString(),
       ...overrides

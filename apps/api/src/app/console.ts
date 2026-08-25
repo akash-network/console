@@ -71,6 +71,16 @@ program
   });
 
 program
+  .command("notify-expiring-deployments")
+  .description("Warn users whose runtime-limited deployments are about to reach their limit")
+  .option("-d, --dry-run", "Log which users would be warned without sending any email", false)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(TopUpDeploymentsController).notifyExpiringDeployments(options);
+    });
+  });
+
+program
   .command("cleanup-provider-deployments")
   .description("Close trial deployments for a provider")
   .option("-c, --concurrency <number>", "How many wallets are processed concurrently", value => z.number({ coerce: true }).optional().default(10).parse(value))

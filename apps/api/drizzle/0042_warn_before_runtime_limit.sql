@@ -1,0 +1,1 @@
+ALTER TABLE "deployment_settings" ADD COLUMN "runtime_ending_notified_for" timestamp with time zone;

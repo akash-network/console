@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { hoursToMilliseconds } from "date-fns";
 import { eq, sql } from "drizzle-orm";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
@@ -11,7 +12,15 @@ import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
 import { DeploymentSettingRepository } from "./deployment-setting.repository";
 
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+
 const COOLDOWN_MINUTES = 60;
+const WARNING_WINDOW = { leadHours: 6, minLimitHours: 12 };
+
+/** Rows created with a `Date` store exactly that value, so its ISO form is the marker the claim matches on. */
+function markerFor(runtimeEndsAt: Date) {
+  return runtimeEndsAt.toISOString();
+}
 
 describe(DeploymentSettingRepository.name, () => {
   describe("claimForFunding", () => {
@@ -142,13 +151,136 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("findExpiringRuntimeDeployments", () => {
+    it("returns a limited deployment whose deadline falls inside the lead window", async () => {
+      const { deploymentSettingRepository, createAnchoredSetting } = await setup();
+      const setting = await createAnchoredSetting({ runtimeLimitHours: 24, endsInHours: 3 });
+
+      const expiring = await deploymentSettingRepository.findExpiringRuntimeDeployments(WARNING_WINDOW);
+
+      expect(expiring.map(deployment => deployment.id)).toContain(setting.id);
+    });
+
+    it("excludes a deadline still beyond the lead window", async () => {
+      const { deploymentSettingRepository, createAnchoredSetting } = await setup();
+      const setting = await createAnchoredSetting({ runtimeLimitHours: 24, endsInHours: 9 });
+
+      const expiring = await deploymentSettingRepository.findExpiringRuntimeDeployments(WARNING_WINDOW);
+
+      expect(expiring.map(deployment => deployment.id)).not.toContain(setting.id);
+    });
+
+    it("excludes a deadline that has already passed, leaving it to the closer", async () => {
+      const { deploymentSettingRepository, createAnchoredSetting } = await setup();
+      const setting = await createAnchoredSetting({ runtimeLimitHours: 24, endsInHours: -1 });
+
+      const expiring = await deploymentSettingRepository.findExpiringRuntimeDeployments(WARNING_WINDOW);
+
+      expect(expiring.map(deployment => deployment.id)).not.toContain(setting.id);
+    });
+
+    it("excludes a limit shorter than the minimum worth warning about", async () => {
+      const { deploymentSettingRepository, createAnchoredSetting } = await setup();
+      const setting = await createAnchoredSetting({ runtimeLimitHours: 4, endsInHours: 3 });
+
+      const expiring = await deploymentSettingRepository.findExpiringRuntimeDeployments(WARNING_WINDOW);
+
+      expect(expiring.map(deployment => deployment.id)).not.toContain(setting.id);
+    });
+
+    it("excludes a closed deployment", async () => {
+      const { deploymentSettingRepository, createAnchoredSetting } = await setup();
+      const setting = await createAnchoredSetting({ runtimeLimitHours: 24, endsInHours: 3, closed: true });
+
+      const expiring = await deploymentSettingRepository.findExpiringRuntimeDeployments(WARNING_WINDOW);
+
+      expect(expiring.map(deployment => deployment.id)).not.toContain(setting.id);
+    });
+
+    it("excludes a trial wallet, which already gets its own closing warning", async () => {
+      const { deploymentSettingRepository, createAnchoredSetting, trialUser } = await setup();
+      const setting = await createAnchoredSetting({ runtimeLimitHours: 24, endsInHours: 3, userId: trialUser.id });
+
+      const expiring = await deploymentSettingRepository.findExpiringRuntimeDeployments(WARNING_WINDOW);
+
+      expect(expiring.map(deployment => deployment.id)).not.toContain(setting.id);
+    });
+
+    it("excludes a deployment already warned about this deadline", async () => {
+      const { deploymentSettingRepository, createAnchoredSetting } = await setup();
+      const setting = await createAnchoredSetting({ runtimeLimitHours: 24, endsInHours: 3 });
+
+      await deploymentSettingRepository.claimRuntimeEndingNotification(setting.id, markerFor(setting.runtimeEndsAt!));
+      const expiring = await deploymentSettingRepository.findExpiringRuntimeDeployments(WARNING_WINDOW);
+
+      expect(expiring.map(deployment => deployment.id)).not.toContain(setting.id);
+    });
+
+    it("warns again once an extension moves the deadline", async () => {
+      const { deploymentSettingRepository, user, abilityFor, createAnchoredSetting } = await setup();
+      const setting = await createAnchoredSetting({ runtimeLimitHours: 24, endsInHours: 3 });
+      await deploymentSettingRepository.claimRuntimeEndingNotification(setting.id, markerFor(setting.runtimeEndsAt!));
+
+      await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "update")
+        .applyRuntimeLimit({ userId: user.id, dseq: setting.dseq, runtimeLimitHours: 28, maxIncrementHours: MAX_RUNTIME_LIMIT_INCREMENT_HOURS });
+      const expiring = await deploymentSettingRepository.findExpiringRuntimeDeployments({ leadHours: 8, minLimitHours: 12 });
+
+      expect(expiring.map(deployment => deployment.id)).toContain(setting.id);
+    });
+  });
+
+  describe("claimRuntimeEndingNotification", () => {
+    it("claims a deadline anchored by startRuntimeCountdown, whose now() carries sub-millisecond digits", async () => {
+      const { deploymentSettingRepository, createLimitedSetting } = await setup();
+      const created = await createLimitedSetting(24);
+      await deploymentSettingRepository.startRuntimeCountdown(created.id);
+      const expiring = await deploymentSettingRepository.findExpiringRuntimeDeployments({ leadHours: 25, minLimitHours: 12 });
+      const anchored = expiring.find(deployment => deployment.id === created.id)!;
+
+      const claimed = await deploymentSettingRepository.claimRuntimeEndingNotification(anchored.id, anchored.runtimeEndsAtMarker);
+
+      expect(claimed).toBe(true);
+    });
+
+    it("awards the claim to exactly one caller across concurrent attempts", async () => {
+      const { deploymentSettingRepository, createAnchoredSetting } = await setup();
+      const setting = await createAnchoredSetting({ runtimeLimitHours: 24, endsInHours: 3 });
+
+      const results = await Promise.all(
+        Array.from({ length: 5 }, () => deploymentSettingRepository.claimRuntimeEndingNotification(setting.id, markerFor(setting.runtimeEndsAt!)))
+      );
+
+      expect(results.filter(Boolean)).toHaveLength(1);
+    });
+
+    it("refuses a claim taken against a deadline the row no longer has", async () => {
+      const { deploymentSettingRepository, createAnchoredSetting } = await setup();
+      const setting = await createAnchoredSetting({ runtimeLimitHours: 24, endsInHours: 3 });
+      const staleDeadline = new Date(setting.runtimeEndsAt!.getTime() - hoursToMilliseconds(1));
+
+      const claimed = await deploymentSettingRepository.claimRuntimeEndingNotification(setting.id, markerFor(staleDeadline));
+
+      expect(claimed).toBe(false);
+    });
+  });
+
   async function setup() {
     const userRepository = container.resolve(UserRepository);
     const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
     const abilityService = container.resolve(AbilityService);
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const deploymentSettingsTable = resolveTable("DeploymentSettings");
+    const userWalletsTable = resolveTable("UserWallets");
     const user = await userRepository.create({ userId: faker.string.uuid() });
+    const trialUser = await userRepository.create({ userId: faker.string.uuid() });
+
+    async function createWallet(userId: string, isTrialing: boolean) {
+      await db.insert(userWalletsTable).values({ userId, address: createAkashAddress(), deploymentAllowance: "10000000", feeAllowance: "5000000", isTrialing });
+    }
+
+    await createWallet(user.id, false);
+    await createWallet(trialUser.id, true);
 
     function abilityFor(owner: UserOutput) {
       return abilityService.getAbilityFor("REGULAR_USER", owner);
@@ -172,6 +304,22 @@ describe(DeploymentSettingRepository.name, () => {
       });
     }
 
+    async function createAnchoredSetting(input: { runtimeLimitHours: number; endsInHours: number; closed?: boolean; userId?: string }) {
+      const [setting] = await db
+        .insert(deploymentSettingsTable)
+        .values({
+          userId: input.userId ?? user.id,
+          dseq: faker.number.int({ min: 100000, max: 999999 }).toString(),
+          autoTopUpEnabled: true,
+          closed: input.closed ?? false,
+          runtimeLimitHours: input.runtimeLimitHours,
+          runtimeEndsAt: new Date(Date.now() + hoursToMilliseconds(input.endsInHours))
+        })
+        .returning();
+
+      return setting;
+    }
+
     async function backdateLastFundedAt(id: string, minutesAgo: number) {
       await db
         .update(deploymentSettingsTable)
@@ -185,10 +333,12 @@ describe(DeploymentSettingRepository.name, () => {
       userRepository,
       deploymentSettingRepository,
       user,
+      trialUser,
       settingId,
       abilityFor,
       createSetting,
       createLimitedSetting,
+      createAnchoredSetting,
       backdateLastFundedAt
     };
   }
