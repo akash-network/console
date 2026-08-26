@@ -36,6 +36,18 @@ export type ExpiringRuntimeDeployment = ExpiredRuntimeDeployment & {
   runtimeEndsAtMarker: string;
 };
 
+/** A remembered definition old enough to sweep, with the address its dseq would live under on chain. */
+export type UnbackedDefinitionCandidate = {
+  id: string;
+  dseq: string;
+  address: string;
+  /** When the row was written, in text, so paging past it cannot lose the sub-millisecond digits a `Date` drops. */
+  createdAtMarker: string;
+};
+
+/** Where a page of candidates left off. The id breaks ties, so two rows written in the same tick cannot hide each other. */
+export type UnbackedDefinitionCursor = Pick<UnbackedDefinitionCandidate, "id" | "createdAtMarker">;
+
 export type AutoTopUpDeployment = {
   id: string;
   walletId: number;
@@ -285,6 +297,58 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         target: [this.table.dseq, this.table.userId],
         set: { sdl, manifestVersion, runtimeLimitHours, updatedAt: sql`now()` }
       });
+  }
+
+  /**
+   * One page of remembered definitions old enough that the create tx each was written for has either
+   * reached the chain or never will. Answering which of the two happened needs the chain, so this only
+   * narrows the field: the caller checks every row it returns against the chain before deleting anything.
+   *
+   * `closed = false` is a cheap head start, not the protection for closed deployments — that lives in the
+   * caller asking the chain for every state. `sdl is not null` skips rows a settings read created lazily,
+   * which remember no definition and carry only the choices their owner made.
+   *
+   * Pages newest first, through a `(created_at, id)` keyset rather than an offset: newest first so a run cut
+   * short has still covered where orphans are, and a keyset so that deleting rows as the caller pages cannot
+   * shift the rows underneath it.
+   *
+   * The cursor's timestamp travels as text, for the same reason `runtimeEndsAtMarker` does. `created_at` is
+   * `now()` at microsecond precision and a JS `Date` holds only milliseconds, so a cursor round-tripped
+   * through one is the stored value truncated down — and the next page, asking for rows strictly older than
+   * it, would drop every sibling written in the same millisecond, on this page and on every later one. The
+   * comparison is written as a single row value so it cannot drift out of step with the ORDER BY beside it.
+   */
+  async findUnbackedDefinitionCandidates({
+    graceHours,
+    pageSize,
+    olderThan
+  }: {
+    graceHours: number;
+    pageSize: number;
+    olderThan?: UnbackedDefinitionCursor;
+  }): Promise<UnbackedDefinitionCandidate[]> {
+    const candidates = await this.pg
+      .select({
+        id: this.table.id,
+        dseq: this.table.dseq,
+        address: UserWallets.address,
+        createdAtMarker: sql<string>`to_char(${this.table.createdAt}, 'YYYY-MM-DD"T"HH24:MI:SS.US')`
+      })
+      .from(this.table)
+      .innerJoin(UserWallets, eq(this.table.userId, UserWallets.userId))
+      .where(
+        and(
+          eq(this.table.closed, false),
+          isNotNull(this.table.sdl),
+          isNotNull(UserWallets.address),
+          lt(this.table.createdAt, sql`now() - (${graceHours} * interval '1 hour')`),
+          olderThan ? sql`(${this.table.createdAt}, ${this.table.id}) < (${olderThan.createdAtMarker}::timestamp, ${olderThan.id}::uuid)` : undefined
+        )
+      )
+      .orderBy(desc(this.table.createdAt), desc(this.table.id))
+      .limit(pageSize);
+
+    return candidates as UnbackedDefinitionCandidate[];
   }
 
   /**

@@ -93,6 +93,69 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("findUnbackedDefinitionCandidates", () => {
+    it("returns one page of the newest candidates, not the oldest and not all of them", async () => {
+      const { deploymentSettingRepository, rememberDefinitions } = await setup();
+      const dseqs = await rememberDefinitions(["oldest", "older", "middle", "newer", "newest"]);
+
+      const page = await deploymentSettingRepository.findUnbackedDefinitionCandidates({ graceHours: 1, pageSize: 3 });
+
+      expect(page.map(candidate => candidate.dseq)).toEqual([dseqs.newest, dseqs.newer, dseqs.middle]);
+    });
+
+    it("walks the rest through the cursor, returning each record exactly once", async () => {
+      const { deploymentSettingRepository, rememberDefinitions } = await setup();
+      const dseqs = await rememberDefinitions(["oldest", "older", "middle", "newer", "newest"]);
+
+      const first = await deploymentSettingRepository.findUnbackedDefinitionCandidates({ graceHours: 1, pageSize: 3 });
+      const second = await deploymentSettingRepository.findUnbackedDefinitionCandidates({ graceHours: 1, pageSize: 3, olderThan: first[2] });
+
+      expect(second.map(candidate => candidate.dseq)).toEqual([dseqs.older, dseqs.oldest]);
+    });
+
+    /**
+     * `created_at` is `now()` at microsecond precision and a JS `Date` holds milliseconds, so a cursor
+     * carried as a `Date` is the real value truncated down — and the next page, asking for rows strictly
+     * older than it, silently drops every sibling written in the same millisecond. Ties on an identical
+     * timestamp are the other half: they are what the `id` tiebreaker and the secondary ORDER BY exist for.
+     * Both are seeded here, and both straddle a page boundary.
+     *
+     * The tie group is deliberately wider than a page. Postgres promises no order among rows with equal sort
+     * keys, so a fixture whose ties fit inside one page could agree with an id-ordered walk by luck and pass
+     * against a broken ORDER BY. Four tied rows against a page size of two put a boundary inside the group,
+     * which is what makes the walk desynchronise whenever the ordering is not id-descending. Resize one and
+     * you have to resize the other.
+     */
+    it("returns every record exactly once when timestamps collide or differ only in microseconds", async () => {
+      const { rememberDefinitionsAt, walkEveryPage } = await setup();
+      const seeded = await rememberDefinitionsAt([
+        "2026-01-01 00:00:00.700000",
+        "2026-01-01 00:00:00.500000",
+        "2026-01-01 00:00:00.500000",
+        "2026-01-01 00:00:00.500000",
+        "2026-01-01 00:00:00.500000",
+        "2026-01-01 00:00:00.123400",
+        "2026-01-01 00:00:00.123200",
+        "2026-01-01 00:00:00.123000"
+      ]);
+
+      const walked = await walkEveryPage(2);
+
+      expect([...walked].sort()).toEqual([...seeded].sort());
+    });
+
+    it("returns no page at all once the cursor passes the oldest candidate", async () => {
+      const { deploymentSettingRepository, rememberDefinitions } = await setup();
+      await rememberDefinitions(["oldest", "newest"]);
+
+      const first = await deploymentSettingRepository.findUnbackedDefinitionCandidates({ graceHours: 1, pageSize: 10 });
+      const exhausted = await deploymentSettingRepository.findUnbackedDefinitionCandidates({ graceHours: 1, pageSize: 10, olderThan: first[1] });
+
+      expect(first).toHaveLength(2);
+      expect(exhausted).toEqual([]);
+    });
+  });
+
   describe("applyRuntimeLimit", () => {
     it("raises the limit for the row's own user", async () => {
       const { deploymentSettingRepository, user, abilityFor, createLimitedSetting } = await setup();
@@ -401,6 +464,82 @@ describe(DeploymentSettingRepository.name, () => {
       return setting;
     }
 
+    /**
+     * Remembered definitions at exact timestamps, written as text so the microseconds survive: a JS `Date`
+     * is millisecond-only and could not express the collisions these tests exist to cover. Returns the
+     * dseqs in seeding order.
+     */
+    async function rememberDefinitionsAt(timestamps: string[]) {
+      await db.delete(deploymentSettingsTable);
+
+      const dseqs: string[] = [];
+
+      for (const [index, timestamp] of timestamps.entries()) {
+        const dseq = `9100${index}`;
+        dseqs.push(dseq);
+        await db.insert(deploymentSettingsTable).values({
+          userId: user.id,
+          dseq,
+          autoTopUpEnabled: true,
+          closed: false,
+          sdl: "version: '2.0'",
+          manifestVersion: "bWFuaWZlc3Q=",
+          createdAt: sql`${timestamp}::timestamp` as unknown as Date
+        });
+      }
+
+      return dseqs;
+    }
+
+    /** Pages to exhaustion exactly as the sweep does, so a cursor that skips or repeats a row shows up here. */
+    async function walkEveryPage(pageSize: number) {
+      const seen: string[] = [];
+      let olderThan;
+
+      while (true) {
+        const page = await deploymentSettingRepository.findUnbackedDefinitionCandidates({ graceHours: 1, pageSize, olderThan });
+
+        if (!page.length) {
+          break;
+        }
+
+        seen.push(...page.map(candidate => candidate.dseq));
+        olderThan = page[page.length - 1];
+
+        if (page.length < pageSize) {
+          break;
+        }
+      }
+
+      return seen;
+    }
+
+    /**
+     * Remembered definitions written one hour apart, oldest label first, all well past any grace period.
+     * Distinct `created_at` values are the point: they are what makes newest-first observable.
+     */
+    async function rememberDefinitions(labels: string[]) {
+      await db.delete(deploymentSettingsTable);
+
+      const byLabel: Record<string, string> = {};
+
+      for (const [index, label] of labels.entries()) {
+        const dseq = `9000${index}`;
+        byLabel[label] = dseq;
+        await db.insert(deploymentSettingsTable).values({
+          userId: user.id,
+          dseq,
+          autoTopUpEnabled: true,
+          closed: false,
+          sdl: "version: '2.0'",
+          manifestVersion: "bWFuaWZlc3Q=",
+          createdAt: new Date(Date.now() - hoursToMilliseconds(labels.length - index + 1))
+        });
+      }
+
+      return byLabel;
+    }
+
     async function backdateLastFundedAt(id: string, minutesAgo: number) {
       await db
         .update(deploymentSettingsTable)
@@ -420,6 +559,9 @@ describe(DeploymentSettingRepository.name, () => {
       createSetting,
       createLimitedSetting,
       createAnchoredSetting,
+      rememberDefinitions,
+      rememberDefinitionsAt,
+      walkEveryPage,
       backdateLastFundedAt
     };
   }
