@@ -24,6 +24,12 @@ export type WeeklyCoverage = {
   cumulativeDailyCostsUsd: number[];
 };
 
+export type WeeklyBurnSource = Pick<DrainingDeployment, "predictedClosedHeight" | "blockRate"> &
+  Partial<Pick<AutoTopUpDeployment, "runtimeLimitHours" | "runtimeEndsAt">>;
+
+/** Hours in the seven-day window every weekly spending figure is quoted over. */
+const WEEK_HOURS = 24 * 7;
+
 @singleton()
 export class DrainingDeploymentService {
   private readonly loggerService: ReturnType<CreateLogger>;
@@ -344,8 +350,10 @@ export class DrainingDeploymentService {
   }
 
   /**
-   * Calculates the weekly spending for all deployments with auto top-up enabled.
-   * This calculates the cost to keep all deployments running for 7 days, regardless of when they would close.
+   * Weekly auto-top-up spending for a user, in USD — the same figure the credits-low email
+   * threshold uses, so the number shown in the product and the warning can never disagree.
+   * CASL guards the wallet lookup; the per-address coverage query is safe once the wallet
+   * is proven to belong to the caller.
    *
    * @param userId - The user ID to calculate the deployment costs for
    * @param ability - CASL ability instance for authorization checks
@@ -358,28 +366,9 @@ export class DrainingDeploymentService {
       return 0;
     }
 
-    const deploymentSettings = await this.deploymentSettingRepository.accessibleBy(ability, "read").findAutoTopUpDeploymentsByOwner(userWallet.address);
+    const { weeklyCostUsd } = await this.calculateWeeklyCoverageForAddress(userWallet.address);
 
-    if (deploymentSettings.length === 0) {
-      return 0;
-    }
-
-    const currentHeight = await this.blockHttpService.getCurrentHeight();
-    const blocksInAWeek = Math.floor(averageBlockCountInAnHour * 24 * 7);
-    const drainingDeployments = await this.#findDrainingDeployments(deploymentSettings, userWallet.address, Number.MAX_SAFE_INTEGER);
-
-    const weeklyCost = await this.#accumulateDeploymentCost(drainingDeployments, ({ predictedClosedHeight, blockRate }) => {
-      if (predictedClosedHeight && predictedClosedHeight > currentHeight && blockRate > 0) {
-        return Math.floor(blockRate * blocksInAWeek);
-      }
-      return 0;
-    });
-
-    if (weeklyCost === 0) {
-      return 0;
-    }
-
-    return await this.balancesService.toFiatAmount(weeklyCost);
+    return weeklyCostUsd;
   }
 
   /**
@@ -402,17 +391,12 @@ export class DrainingDeploymentService {
     const currentHeight = await this.blockHttpService.getCurrentHeight();
     const leases = await this.#findDrainingDeployments(deploymentSettings, address, Number.MAX_SAFE_INTEGER);
     const settingsByDseq = keyBy(deploymentSettings, s => String(s.dseq));
+    const burns = this.#buildWeeklyBurns(
+      leases.map(lease => ({ ...settingsByDseq[String(lease.dseq)], predictedClosedHeight: lease.predictedClosedHeight, blockRate: lease.blockRate })),
+      currentHeight
+    );
 
-    const burns = leases.flatMap(({ dseq, predictedClosedHeight, blockRate }) => {
-      if (!predictedClosedHeight || predictedClosedHeight <= currentHeight || blockRate <= 0) {
-        return [];
-      }
-
-      const coverageHours = this.#coverageHoursForDeployment(settingsByDseq[String(dseq)], currentHeight);
-      return coverageHours > 0 ? [{ hourlyCredits: blockRate * averageBlockCountInAnHour, coverageHours }] : [];
-    });
-
-    const weeklyCredits = this.#creditsForHours(burns, 24 * 7);
+    const weeklyCredits = this.#creditsForHours(burns, WEEK_HOURS);
     if (weeklyCredits === 0) {
       return noCoverage;
     }
@@ -423,6 +407,29 @@ export class DrainingDeploymentService {
     return { weeklyCostUsd, cumulativeDailyCostsUsd };
   }
 
+  /**
+   * Seven-day burn in credits for deployments whose lease data is already in hand — lets the
+   * hourly funding sweep price an owner's coverage without re-querying settings or leases.
+   * Applies the same runtime-limit capping as `calculateWeeklyCoverageForAddress`; comparing
+   * the result against a credit balance is equivalent to the credits-low handler's USD
+   * comparison because `toFiatAmount` is monotonic (identity for uact), off by at most its
+   * cent rounding.
+   */
+  calculateWeeklyCoverageCredits(deployments: WeeklyBurnSource[], currentHeight: number): number {
+    return this.#creditsForHours(this.#buildWeeklyBurns(deployments, currentHeight), WEEK_HOURS);
+  }
+
+  #buildWeeklyBurns(deployments: WeeklyBurnSource[], currentHeight: number): Array<{ hourlyCredits: number; coverageHours: number }> {
+    return deployments.flatMap(deployment => {
+      if (!deployment.predictedClosedHeight || deployment.predictedClosedHeight <= currentHeight || deployment.blockRate <= 0) {
+        return [];
+      }
+
+      const coverageHours = this.#coverageHoursForDeployment(deployment, currentHeight);
+      return coverageHours > 0 ? [{ hourlyCredits: deployment.blockRate * averageBlockCountInAnHour, coverageHours }] : [];
+    });
+  }
+
   #creditsForHours(burns: Array<{ hourlyCredits: number; coverageHours: number }>, hours: number): number {
     return burns.reduce((total, burn) => total + Math.floor(burn.hourlyCredits * Math.min(hours, burn.coverageHours)), 0);
   }
@@ -431,19 +438,17 @@ export class DrainingDeploymentService {
    * A week of coverage unless the setting has a runtime limit, then remaining
    * hours (0 if the deadline has passed). An unanchored limit is the remaining hours.
    */
-  #coverageHoursForDeployment(setting: AutoTopUpDeployment | undefined, currentHeight: number): number {
-    const weekHours = 24 * 7;
-
-    if (setting?.runtimeEndsAt) {
+  #coverageHoursForDeployment(setting: Partial<Pick<AutoTopUpDeployment, "runtimeLimitHours" | "runtimeEndsAt">>, currentHeight: number): number {
+    if (setting.runtimeEndsAt) {
       const remainingHours = (this.#getRuntimeLimitHeight(setting.runtimeEndsAt, currentHeight) - currentHeight) / averageBlockCountInAnHour;
-      return remainingHours <= 0 ? 0 : Math.min(weekHours, remainingHours);
+      return remainingHours <= 0 ? 0 : Math.min(WEEK_HOURS, remainingHours);
     }
 
-    if (setting?.runtimeLimitHours != null) {
-      return Math.min(weekHours, setting.runtimeLimitHours);
+    if (setting.runtimeLimitHours != null) {
+      return Math.min(WEEK_HOURS, setting.runtimeLimitHours);
     }
 
-    return weekHours;
+    return WEEK_HOURS;
   }
 
   /**

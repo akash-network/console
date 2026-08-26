@@ -758,9 +758,24 @@ describe(DrainingDeploymentService.name, () => {
       expect(result).toBe(0);
     });
 
+    it("caps a runtime-limited deployment at its remaining hours like the credits-low threshold", async () => {
+      const blockRate = 50;
+      const runtimeLimitHours = 12;
+      const baseSetup = setup();
+      const { service, userId, ability, balancesService } = await setupCalculateWeeklyCost({
+        deployments: [{ predictedClosedHeight: baseSetup.currentHeight + 1_000_000, blockRate, runtimeLimitHours }],
+        expectedFiatAmount: 3.6
+      });
+
+      const result = await service.calculateWeeklyDeploymentCost(userId, ability);
+
+      expect(balancesService.toFiatAmount).toHaveBeenCalledWith(Math.floor(blockRate * averageBlockCountInAnHour * runtimeLimitHours));
+      expect(result).toBe(3.6);
+    });
+
     async function setupCalculateWeeklyCost(input: {
       userWallet?: ReturnType<typeof createUserWallet> | undefined;
-      deployments: Array<{ predictedClosedHeight: number | null; blockRate: number }>;
+      deployments: Array<{ predictedClosedHeight: number | null; blockRate: number; runtimeLimitHours?: number }>;
       expectedFiatAmount?: number;
     }) {
       const userId = faker.string.uuid();
@@ -771,9 +786,11 @@ describe(DrainingDeploymentService.name, () => {
       const baseSetup = setup();
       baseSetup.userWalletRepository.accessibleBy.mockReturnValue(baseSetup.userWalletRepository);
       baseSetup.userWalletRepository.findOneByUserId.mockResolvedValue(userWallet);
+      baseSetup.userWalletRepository.findOneBy.mockResolvedValue(userWallet);
 
-      baseSetup.deploymentSettingRepository.accessibleBy.mockReturnValue(baseSetup.deploymentSettingRepository);
-      const deploymentSettings = createManyAutoTopUpDeployments(input.deployments.length, { address });
+      const deploymentSettings = input.deployments.map(deployment =>
+        createAutoTopUpDeployment({ address, runtimeLimitHours: deployment.runtimeLimitHours ?? null })
+      );
 
       const drainingDeployments = deploymentSettings.map((setting, idx) => {
         const deployment = input.deployments[idx];
