@@ -58,6 +58,24 @@ jobs:
       - ./dist/console.js
       - notify-expiring-deployments
       - --dry-run
+  # Ships in dry-run for a bake period: --dry-run only logs ORPHANED_DEFINITION_WOULD_SWEEP.
+  # Drop the flag to start deleting for real once those logs look right. Deleting a remembered
+  # definition cannot be undone, so this one bakes before it is trusted.
+  # Daily, and offset from the other deployment_settings sweeps so no two of them share a minute.
+  - name: sweep-orphaned-definitions
+    schedule: "17 3 * * *" # 03:17 every day
+    # One chain listing per owner, run one after another, so a slow or rate-limiting node stretches the run
+    # rather than failing it. Forbid keeps a slow run from being joined by the next night's, and the deadline
+    # ends it instead: the sweep is capped and idempotent, so a run cut short is one that made progress.
+    concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 1800
+    command:
+      - node
+      - --require
+      - ./dist/instrumentation.js
+      - ./dist/console.js
+      - sweep-orphaned-definitions
+      - --dry-run
   - name: mint-act
     schedule: "*/10 * * * *" # every 10 minutes
     concurrencyPolicy: Forbid

@@ -170,6 +170,44 @@ describe("deployment envSchema", () => {
     });
   });
 
+  describe("orphan sweep", () => {
+    it("leaves a definition alone for an hour, far longer than a create takes to reach the chain", () => {
+      const result = envSchema.safeParse(setup());
+
+      expect(result.success).toBe(true);
+      expect(result.success && result.data.ORPHANED_DEFINITION_SWEEP_GRACE_IN_H).toBe(1);
+    });
+
+    it("rejects a zero grace, which would let the sweep race a create still in flight", () => {
+      const result = envSchema.safeParse(setup({ ORPHANED_DEFINITION_SWEEP_GRACE_IN_H: 0 }));
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues.some(issue => issue.path[0] === "ORPHANED_DEFINITION_SWEEP_GRACE_IN_H")).toBe(true);
+    });
+
+    it("reads 500 records per page and keeps paging for 20 minutes, which bounds a run by time rather than by coverage", () => {
+      const result = envSchema.safeParse(setup());
+
+      expect(result.success).toBe(true);
+      expect(result.success && result.data.ORPHANED_DEFINITION_SWEEP_PAGE_SIZE).toBe(500);
+      expect(result.success && result.data.ORPHANED_DEFINITION_SWEEP_BUDGET_IN_MIN).toBe(20);
+    });
+
+    it("rejects a zero budget, which would stop a run before its first page", () => {
+      const result = envSchema.safeParse(setup({ ORPHANED_DEFINITION_SWEEP_BUDGET_IN_MIN: 0 }));
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues.some(issue => issue.path[0] === "ORPHANED_DEFINITION_SWEEP_BUDGET_IN_MIN")).toBe(true);
+    });
+
+    it("rejects a zero page size, which would read nothing on every page", () => {
+      const result = envSchema.safeParse(setup({ ORPHANED_DEFINITION_SWEEP_PAGE_SIZE: 0 }));
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues.some(issue => issue.path[0] === "ORPHANED_DEFINITION_SWEEP_PAGE_SIZE")).toBe(true);
+    });
+  });
+
   function setup(overrides: Record<string, unknown> = {}) {
     return {
       PROVIDER_PROXY_URL: "https://provider-proxy.example.com",

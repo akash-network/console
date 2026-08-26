@@ -63,6 +63,28 @@ export const envSchema = z
       .refine(value => Number.isFinite(value) && denomToUdenom(value) > 0, "must be a finite amount that converts to a positive on-chain deposit")
       .optional()
       .default(0.5),
+    /**
+     * How long a remembered definition is left alone before the orphan sweep will look at it. It only has to
+     * outlast the gap between writing the record and the create tx reaching the chain — the signer round trip
+     * plus one block — so an hour is two orders of magnitude of headroom. Raising it only delays a deletion;
+     * lowering it below that gap would let the sweep race a create that is still in flight.
+     */
+    ORPHANED_DEFINITION_SWEEP_GRACE_IN_H: z.number({ coerce: true }).positive().finite().optional().default(1),
+    /**
+     * How many remembered definitions the orphan sweep reads per query. A page size, not a coverage limit:
+     * the sweep keeps paging until the candidates run out, so this bounds the size of one read and nothing
+     * else. It must not become a cap on how much history a run covers — records the sweep never examines
+     * are the oldest of their cohort and would sit permanently below a moving waterline, which would make
+     * the sweep worst exactly during the outage that mass-produces the orphans it exists to remove.
+     */
+    ORPHANED_DEFINITION_SWEEP_PAGE_SIZE: z.number({ coerce: true }).int().positive().finite().optional().default(500),
+    /**
+     * How long the orphan sweep keeps paging before it stops and reports what it did not reach. This, not a
+     * record count, is what bounds a run: the sweep is idempotent and pages newest first, so a run that
+     * spends its budget has swept the recent records and left the rest for the next one. Keep it under the
+     * job's `activeDeadlineSeconds` so the sweep ends itself and logs, rather than being killed mid-page.
+     */
+    ORPHANED_DEFINITION_SWEEP_BUDGET_IN_MIN: z.number({ coerce: true }).positive().finite().optional().default(20),
     /** How long before a runtime-limited deployment reaches its limit the user is warned by email. */
     RUNTIME_LIMIT_WARNING_LEAD_IN_H: z.number({ coerce: true }).positive().finite().optional().default(6),
     /**

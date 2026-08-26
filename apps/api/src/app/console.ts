@@ -81,6 +81,16 @@ program
   });
 
 program
+  .command("sweep-orphaned-definitions")
+  .description("Delete remembered definitions whose create transaction never reached the chain")
+  .option("-d, --dry-run", "Log which definitions would be deleted without deleting any", false)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(TopUpDeploymentsController).sweepOrphanedDefinitions(options);
+    });
+  });
+
+program
   .command("cleanup-provider-deployments")
   .description("Close trial deployments for a provider")
   .option("-c, --concurrency <number>", "How many wallets are processed concurrently", value => z.number({ coerce: true }).optional().default(10).parse(value))
