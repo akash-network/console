@@ -1,4 +1,3 @@
-import { BmeHttpService } from "@akashnetwork/http-sdk";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { Err, Ok, Result } from "ts-results";
@@ -28,7 +27,6 @@ export class MasterWalletMintService {
     private readonly txManagerService: TxManagerService,
     @inject(CHAIN_SDK) private readonly chainSdk: ChainSDK,
     private readonly denomExchangeService: DenomExchangeService,
-    private readonly bmeHttpService: BmeHttpService,
     private readonly rpcMessageService: RpcMessageService,
     private readonly timerService: TimerService
   ) {}
@@ -124,14 +122,14 @@ export class MasterWalletMintService {
   }
 
   private async getMinMintAmount(): Promise<number> {
-    const { params } = await this.bmeHttpService.getParams();
-    const uactCoin = params.min_mint.find(coin => coin.denom === "uact");
+    const { params } = await this.chainSdk.akash.bme.v1.getParams();
+    const uactCoin = params?.minMint.find(coin => coin.denom === "uact");
 
     if (!uactCoin) {
       this.logger.warn({
         event: "MASTER_WALLET_MINT_MIN_NOT_FOUND",
         message: "uact denom not found in BME min_mint params, falling back to 10_000_000",
-        min_mint: params.min_mint
+        minMint: params?.minMint
       });
       return 10_000_000;
     }
