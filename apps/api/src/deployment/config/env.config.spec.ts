@@ -134,6 +134,32 @@ describe("deployment envSchema", () => {
     });
   });
 
+  describe("PROVIDER_OUTAGE_FRESHNESS_WINDOW_IN_H", () => {
+    it("defaults to trusting outages the inventory re-checked within 3 hours", () => {
+      const result = envSchema.safeParse(setup());
+
+      expect(result.success).toBe(true);
+      expect(result.success && result.data.PROVIDER_OUTAGE_FRESHNESS_WINDOW_IN_H).toBe(3);
+    });
+
+    it("rejects an unbounded freshness window, which would trust an outage record nobody maintains", () => {
+      const result = envSchema.safeParse(setup({ PROVIDER_OUTAGE_FRESHNESS_WINDOW_IN_H: Infinity }));
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues.some(issue => issue.path[0] === "PROVIDER_OUTAGE_FRESHNESS_WINDOW_IN_H")).toBe(true);
+    });
+
+    it("requires somewhere to read the outage record from", () => {
+      const config = setup();
+      delete (config as Record<string, unknown>).PROVIDER_INVENTORY_API_URL;
+
+      const result = envSchema.safeParse(config);
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues.some(issue => issue.path[0] === "PROVIDER_INVENTORY_API_URL")).toBe(true);
+    });
+  });
+
   describe("AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD", () => {
     it("defaults to 5 when omitted", () => {
       const result = envSchema.safeParse(setup());
@@ -314,6 +340,7 @@ describe("deployment envSchema", () => {
   function setup(overrides: Record<string, unknown> = {}) {
     return {
       PROVIDER_PROXY_URL: "https://provider-proxy.example.com",
+      PROVIDER_INVENTORY_API_URL: "https://provider-inventory.example.com",
       DEPLOY_WEB_BASE_URL: "https://console.example.com",
       GCP_KMS_AUTH: JSON.stringify({ project_id: "console-test", servicePath: "http://localhost:8085" }),
       ...overrides

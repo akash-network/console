@@ -1,7 +1,8 @@
 import { Lease } from "@akashnetwork/database/dbSchemas/akash";
-import { col, fn, Op, WhereOptions } from "sequelize";
-import { singleton } from "tsyringe";
+import { col, fn, Op, QueryTypes, Sequelize, WhereOptions } from "sequelize";
+import { inject, singleton } from "tsyringe";
 
+import { CHAIN_DB } from "@src/chain";
 import { DrainingDeploymentLeaseSource } from "@src/deployment/types/draining-deployment";
 
 export interface DrainingDeploymentOutput {
@@ -11,6 +12,12 @@ export interface DrainingDeploymentOutput {
   blockRate: number;
   predictedClosedHeight: number;
   closedHeight?: number;
+}
+
+export interface ActiveLeaseOnProvider {
+  owner: string;
+  dseq: string;
+  providerAddress: string;
 }
 
 export interface DatabaseLeaseListParams {
@@ -29,6 +36,38 @@ export interface DatabaseLeaseListParams {
 
 @singleton()
 export class LeaseRepository implements DrainingDeploymentLeaseSource {
+  readonly #chainDb: Sequelize;
+
+  constructor(@inject(CHAIN_DB) chainDb: Sequelize) {
+    this.#chainDb = chainDb;
+  }
+
+  /**
+   * Every active lease of every deployment that has at least one active lease on one of the given
+   * providers — including the leases that deployment holds on providers that are perfectly healthy.
+   *
+   * Callers need the whole picture, not just the dark leases: warning an owner takes one dark lease,
+   * but closing a deployment takes all of its leases being dark, and that can only be decided by
+   * seeing the ones this query would otherwise filter away.
+   */
+  async findActiveLeasesOfDeploymentsOnProviders(providers: string[]): Promise<ActiveLeaseOnProvider[]> {
+    if (providers.length === 0) return [];
+
+    return await this.#chainDb.query<ActiveLeaseOnProvider>(
+      `/* lease:activeOnProviders */
+      SELECT l."owner", l."dseq"::text AS "dseq", l."providerAddress"
+      FROM lease l
+      WHERE l."closedHeight" IS NULL
+        AND (l."owner", l."dseq") IN (
+          SELECT dark."owner", dark."dseq"
+          FROM lease dark
+          WHERE dark."providerAddress" IN (:providers)
+            AND dark."closedHeight" IS NULL
+        )`,
+      { type: QueryTypes.SELECT, replacements: { providers } }
+    );
+  }
+
   async findOneByDseqAndOwner(dseq: string, owner: string): Promise<DrainingDeploymentOutput | null> {
     const leases = await Lease.findAll({
       where: { dseq, owner },
