@@ -9,11 +9,13 @@ import type { BillingConfigService } from "@src/billing/services/billing-config/
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
-import type { CreateLogger } from "@src/core";
+import type { CreateLogger, JobQueueService, TxService } from "@src/core";
+import { JOB_NAME } from "@src/core";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { DeleteUnbackedDeploymentSetting } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
@@ -26,6 +28,10 @@ import { mockConfigService } from "@test/mocks/config-service.mock";
 const ALIASED_FILLER = "x".repeat(4096);
 const ENV_VALUE = faker.string.alphanumeric(24);
 const REGISTRY_PASSWORD = faker.internet.password();
+const DEPLOYMENT_SETTING_ID = faker.string.uuid();
+const GRACE_IN_MIN = 60;
+const RETRY_LIMIT = 48;
+const RETRY_DELAY_MAX_IN_MIN = 30;
 
 /** A complete SDL around a service body, plus an optional placement profile nothing references. */
 function sdlAround(serviceBody: string, extraPlacement = ""): string {
@@ -150,6 +156,7 @@ describe(DeploymentWriterService.name, () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   describe("create", () => {
@@ -261,6 +268,91 @@ describe(DeploymentWriterService.name, () => {
 
       expect(deploymentSettingRepository.upsertDefinition.mock.invocationCallOrder[0]).toBeLessThan(
         signerService.executeDerivedDecodedTxByUserId.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("enqueues a compensation for the definition it records", async () => {
+      const { service, jobQueueService } = setup();
+      vi.spyOn(Date, "now").mockReturnValue(1748400000000);
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new DeleteUnbackedDeploymentSetting({ deploymentSettingId: DEPLOYMENT_SETTING_ID, owner: wallet.address, dseq: "1748400000000" }),
+        expect.objectContaining({ singletonKey: "deleteUnbackedDeploymentSetting.user-1.1748400000000" })
+      );
+    });
+
+    it("records nothing and enqueues nothing outside the transaction that has to carry both", async () => {
+      const { service, deploymentSettingRepository, jobQueueService } = setup({ transactionRuns: false });
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("holds the compensation back by the grace a create is given to reach the chain", async () => {
+      const { service, jobQueueService } = setup();
+      vi.useFakeTimers({ now: new Date("2026-01-01T00:00:00.000Z") });
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ startAfter: "2026-01-01T01:00:00.000Z" }));
+    });
+
+    it("gives the compensation a retry horizon that outlasts a chain-node outage", async () => {
+      const { service, jobQueueService } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ retryLimit: RETRY_LIMIT, retryBackoff: true, retryDelayMax: RETRY_DELAY_MAX_IN_MIN * 60 })
+      );
+    });
+
+    it("cancels the compensation once the create tx is broadcast", async () => {
+      const { service, jobQueueService } = setup();
+      vi.spyOn(Date, "now").mockReturnValue(1748400000000);
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(jobQueueService.cancelCreatedBy).toHaveBeenCalledWith({
+        name: DeleteUnbackedDeploymentSetting[JOB_NAME],
+        singletonKey: "deleteUnbackedDeploymentSetting.user-1.1748400000000"
+      });
+    });
+
+    it("cancels the compensation no earlier than the broadcast that makes it unnecessary", async () => {
+      const { service, signerService, jobQueueService } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(signerService.executeDerivedDecodedTxByUserId.mock.invocationCallOrder[0]).toBeLessThan(
+        jobQueueService.cancelCreatedBy.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("leaves the compensation in place when the create tx fails to broadcast", async () => {
+      const { service, signerService, jobQueueService } = setup();
+      signerService.executeDerivedDecodedTxByUserId.mockRejectedValue(new Error("tx failed"));
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 })).rejects.toThrow("tx failed");
+
+      expect(jobQueueService.cancelCreatedBy).not.toHaveBeenCalled();
+    });
+
+    it("still returns the deployment it created when the compensation cannot be cancelled", async () => {
+      const { service, jobQueueService, logger } = setup();
+      jobQueueService.cancelCreatedBy.mockRejectedValue(new Error("queue down"));
+      vi.spyOn(Date, "now").mockReturnValue(1748400000000);
+
+      const result = await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(result.dseq).toBe("1748400000000");
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "UNBACKED_DEPLOYMENT_SETTING_COMPENSATION_CANCEL_FAILED", userId: "user-1", dseq: "1748400000000" })
       );
     });
 
@@ -542,6 +634,15 @@ describe(DeploymentWriterService.name, () => {
       expect(result).toBe(deploymentData);
     });
 
+    it("enqueues no compensation for an update, whose deployment the chain has already answered for", async () => {
+      const { service, jobQueueService } = setup();
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
+
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(jobQueueService.cancelCreatedBy).not.toHaveBeenCalled();
+    });
+
     it("skips update tx when manifest hash matches", async () => {
       const { service, signerService, rpcMessageService, sdlService } = setup();
       const manifestVersion = new Uint8Array([1, 2, 3]);
@@ -664,7 +765,7 @@ describe(DeploymentWriterService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: DeploymentWriterService.name });
   });
 
-  function setup(input?: { isManagedDepositEnabled?: boolean; defaultDeposit?: number }) {
+  function setup(input?: { isManagedDepositEnabled?: boolean; defaultDeposit?: number; transactionRuns?: boolean }) {
     const signerService = mock<ManagedSignerService>();
     const rpcMessageService = mock<RpcMessageService>();
     const sdlService = mock<SdlService>();
@@ -678,11 +779,18 @@ describe(DeploymentWriterService.name, () => {
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const deploymentConfig: MockProxy<DeploymentConfigService> = mockConfigService<DeploymentConfigService>({
-      DEPLOYMENT_DEFAULT_DEPOSIT: input?.defaultDeposit ?? 0.5
+      DEPLOYMENT_DEFAULT_DEPOSIT: input?.defaultDeposit ?? 0.5,
+      UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN: GRACE_IN_MIN,
+      UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT: RETRY_LIMIT,
+      UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: RETRY_DELAY_MAX_IN_MIN
     });
     const featureFlagsService = mock<FeatureFlagsService>();
     featureFlagsService.isEnabled.mockReturnValue(input?.isManagedDepositEnabled ?? false);
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
+    deploymentSettingRepository.upsertDefinition.mockResolvedValue(DEPLOYMENT_SETTING_ID);
+    const txService = mock<TxService>();
+    txService.transaction.mockImplementation(async cb => (input?.transactionRuns === false ? (undefined as never) : await cb()));
+    const jobQueueService = mock<JobQueueService>();
 
     walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
     sdlService.generateManifest.mockReturnValue({ ok: true, value: manifestValue } as any);
@@ -701,7 +809,9 @@ describe(DeploymentWriterService.name, () => {
       createLogger,
       deploymentConfig,
       featureFlagsService,
-      deploymentSettingRepository
+      deploymentSettingRepository,
+      txService,
+      jobQueueService
     );
 
     return {
@@ -718,7 +828,9 @@ describe(DeploymentWriterService.name, () => {
       createLogger,
       deploymentConfig,
       featureFlagsService,
-      deploymentSettingRepository
+      deploymentSettingRepository,
+      txService,
+      jobQueueService
     };
   }
 });

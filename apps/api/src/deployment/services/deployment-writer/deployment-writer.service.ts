@@ -1,4 +1,5 @@
 import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
+import { addMinutes } from "date-fns";
 import { HTTPException } from "hono/http-exception";
 import assert from "http-assert";
 import { inject, singleton } from "tsyringe";
@@ -8,12 +9,16 @@ import { BillingConfigService } from "@src/billing/services/billing-config/billi
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
-import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY, TxService } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import { CreateDeploymentRequest, CreateDeploymentResponse, DeploymentResponse, UpdateDeploymentRequest } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import {
+  DeleteUnbackedDeploymentSetting,
+  unbackedDeploymentSettingKeyFor
+} from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { stripSdlSecrets } from "@src/deployment/utils/sdl-secret-stripping/sdl-secret-stripping";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -38,7 +43,9 @@ export class DeploymentWriterService {
     @inject(LOGGER_FACTORY) createLogger: CreateLogger,
     private readonly deploymentConfig: DeploymentConfigService,
     private readonly featureFlagsService: FeatureFlagsService,
-    private readonly deploymentSettingRepository: DeploymentSettingRepository
+    private readonly deploymentSettingRepository: DeploymentSettingRepository,
+    private readonly txService: TxService,
+    private readonly jobQueueService: JobQueueService
   ) {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
@@ -58,8 +65,9 @@ export class DeploymentWriterService {
 
     const manifestVersion = await this.sdlService.generateManifestVersion(manifest.groups);
 
-    await this.recordDefinition({
+    await this.recordDefinitionWithCompensation({
       userId: wallet.userId,
+      owner: wallet.address,
       dseq: dseq.toString(),
       sdl,
       manifestVersion,
@@ -78,6 +86,8 @@ export class DeploymentWriterService {
 
     const result = await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, [message]);
 
+    await this.retireCompensation({ userId: wallet.userId, dseq: dseq.toString() });
+
     return {
       dseq: dseq.toString(),
       manifest: manifestToSortedJSON(manifest.groups),
@@ -85,11 +95,66 @@ export class DeploymentWriterService {
     };
   }
 
-  private async recordDefinition(input: { userId: string; dseq: string; sdl: string; manifestVersion: Uint8Array; runtimeLimitHours?: number }): Promise<void> {
+  /**
+   * Writes what the deployment is and, in the same transaction, the compensation that deletes that record again
+   * if the create never reaches the chain. The two have to land together: a record written without a compensation
+   * is unreachable by anything in the codebase — the stale-deployment cleanup starts from on-chain deployments and
+   * the funding sweep skips any dseq it finds no lease for — while a compensation without a record is a no-op.
+   *
+   * Only creating needs this. Updating records the same columns, but not before reading the deployment off the
+   * chain and failing if it is not there, so a record an update writes is already known to be backed.
+   */
+  private async recordDefinitionWithCompensation(input: {
+    userId: string;
+    owner: string;
+    dseq: string;
+    sdl: string;
+    manifestVersion: Uint8Array;
+    runtimeLimitHours?: number;
+  }): Promise<void> {
+    const { owner, ...definition } = input;
+
+    await this.txService.transaction(async () => {
+      const deploymentSettingId = await this.recordDefinition(definition);
+
+      await this.jobQueueService.enqueue(new DeleteUnbackedDeploymentSetting({ deploymentSettingId, owner, dseq: input.dseq }), {
+        singletonKey: unbackedDeploymentSettingKeyFor(input),
+        startAfter: addMinutes(new Date(), this.deploymentConfig.get("UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN")).toISOString(),
+        retryLimit: this.deploymentConfig.get("UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT"),
+        retryBackoff: true,
+        retryDelayMax: this.deploymentConfig.get("UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN") * 60
+      });
+    });
+  }
+
+  /**
+   * Retires the compensation now that the create has landed. A failure is logged rather than raised: the
+   * deployment exists, so refusing the caller a response it earned would be the larger harm, and an uncancelled
+   * compensation is harmless on its own because it asks the chain before deleting anything and the chain will
+   * report the deployment present.
+   */
+  private async retireCompensation(key: { userId: string; dseq: string }): Promise<void> {
+    try {
+      await this.jobQueueService.cancelCreatedBy({
+        name: DeleteUnbackedDeploymentSetting[JOB_NAME],
+        singletonKey: unbackedDeploymentSettingKeyFor(key)
+      });
+    } catch (error) {
+      this.logger.warn({ event: "UNBACKED_DEPLOYMENT_SETTING_COMPENSATION_CANCEL_FAILED", ...key, error });
+    }
+  }
+
+  private async recordDefinition(input: {
+    userId: string;
+    dseq: string;
+    sdl: string;
+    manifestVersion: Uint8Array;
+    runtimeLimitHours?: number;
+  }): Promise<string> {
     const { manifestVersion, ...rest } = input;
 
     try {
-      await this.deploymentSettingRepository.upsertDefinition({
+      return await this.deploymentSettingRepository.upsertDefinition({
         ...rest,
         manifestVersion: Buffer.from(manifestVersion).toString("base64")
       });

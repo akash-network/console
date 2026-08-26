@@ -63,6 +63,23 @@ export const envSchema = z
       .refine(value => Number.isFinite(value) && denomToUdenom(value) > 0, "must be a finite amount that converts to a positive on-chain deposit")
       .optional()
       .default(0.5),
+    /**
+     * How long a newly recorded deployment setting is left alone before the console asks the chain whether the
+     * create it was written for ever landed. It must comfortably exceed the worst case of broadcasting the create
+     * and the queried node indexing it: check too early and the node answers "not found" for a deployment that is
+     * live, and the row carrying its SDL and its runtime limit is deleted. Waiting longer only ever delays deleting
+     * a row nothing reads, so the value is deliberately orders of magnitude above that worst case.
+     */
+    UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN: z.number({ coerce: true }).positive().finite().optional().default(60),
+    /**
+     * How long the console keeps re-asking the chain about a deployment setting whose create may never have landed.
+     * Nothing else can find such a row, so a compensation that exhausts its retries leaks it permanently; the horizon
+     * is therefore sized to outlast a chain-node outage rather than a blip. With exponential backoff capped at
+     * `UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN` this spans roughly a day.
+     */
+    UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT: z.number({ coerce: true }).int().positive().optional().default(48),
+    /** Ceiling on the exponential backoff between chain re-checks, so a long outage is retried steadily rather than ever more rarely. */
+    UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: z.number({ coerce: true }).positive().finite().optional().default(30),
     /** How long before a runtime-limited deployment reaches its limit the user is warned by email. */
     RUNTIME_LIMIT_WARNING_LEAD_IN_H: z.number({ coerce: true }).positive().finite().optional().default(6),
     /**

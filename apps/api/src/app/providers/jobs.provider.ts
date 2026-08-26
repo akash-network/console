@@ -17,26 +17,33 @@ import { FundDrainingDeploymentsHandler } from "../services/fund-draining-deploy
 import { TrialDeploymentLeaseCreatedHandler } from "../services/trial-deployment-lease-created/trial-deployment-lease-created.handler";
 import { TrialStartedHandler } from "../services/trial-started/trial-started.handler";
 
+/**
+ * Brings up every queue the app enqueues onto. Exported because enqueuing requires the queue to exist, so a
+ * request path that enqueues cannot be exercised against an app booted without this — which is how functional
+ * tests boot it, since they call the Hono app directly rather than through `startServer`.
+ */
+export async function startJobQueues(): Promise<void> {
+  const jobQueueManager = container.resolve(JobQueueService);
+  await jobQueueManager.setup();
+  await jobQueueManager.registerHandlers([
+    container.resolve(TrialStartedHandler),
+    container.resolve(NotificationHandler),
+    container.resolve(CloseTrialDeploymentHandler),
+    container.resolve(TrialDeploymentLeaseCreatedHandler),
+    container.resolve(EnableDeploymentAlertHandler),
+    container.resolve(FundDeploymentHandler),
+    container.resolve(FundDrainingDeploymentsHandler),
+    container.resolve(WalletBalanceReloadCheckHandler),
+    container.resolve(WalletCreditsLowCheckHandler),
+    container.resolve(FirstPurchaseBonusGrantedHandler),
+    container.resolve(AutoRechargeSucceededHandler),
+    container.resolve(ActivateTrialHandler),
+    container.resolve(DeleteUnbackedDeploymentSettingHandler)
+  ]);
+}
+
 container.register(APP_INITIALIZER, {
   useValue: {
-    async [ON_APP_START]() {
-      const jobQueueManager = container.resolve(JobQueueService);
-      await jobQueueManager.setup();
-      await jobQueueManager.registerHandlers([
-        container.resolve(TrialStartedHandler),
-        container.resolve(NotificationHandler),
-        container.resolve(CloseTrialDeploymentHandler),
-        container.resolve(TrialDeploymentLeaseCreatedHandler),
-        container.resolve(EnableDeploymentAlertHandler),
-        container.resolve(FundDeploymentHandler),
-        container.resolve(FundDrainingDeploymentsHandler),
-        container.resolve(WalletBalanceReloadCheckHandler),
-        container.resolve(WalletCreditsLowCheckHandler),
-        container.resolve(FirstPurchaseBonusGrantedHandler),
-        container.resolve(AutoRechargeSucceededHandler),
-        container.resolve(ActivateTrialHandler),
-        container.resolve(DeleteUnbackedDeploymentSettingHandler)
-      ]);
-    }
+    [ON_APP_START]: startJobQueues
   } satisfies AppInitializer
 });
