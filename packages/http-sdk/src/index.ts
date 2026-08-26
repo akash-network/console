@@ -16,15 +16,12 @@ export * from "./deployment/deployment-http.service";
 export * from "./deployment/managed-deployment-http.service";
 export * from "./lease/lease-http.service";
 export * from "./lease/lease-state";
-export * from "./provider/provider-http.service";
 export * from "./utils/isHttpError";
 export * from "./git-hub/git-hub-http.service";
 export * from "./bme";
 export * from "./cosmos";
-export * from "./certificates/certificates.service";
 export * from "./stripe/stripe.service";
 export * from "./stripe/stripe.types";
-export { getAllItems } from "./utils/pagination.utils";
 export { createHttpClient, type HttpClient, type HttpClientOptions } from "./utils/httpClient";
 export {
   createFetchAdapter,

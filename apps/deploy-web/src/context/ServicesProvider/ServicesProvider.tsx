@@ -1,6 +1,6 @@
 import React, { useContext, useMemo } from "react";
 import type { NetworkId } from "@akashnetwork/chain-sdk/web";
-import { AuthzHttpService, BmeHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
+import { AuthzHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { netConfig } from "@akashnetwork/net";
 
 import { UACT_DENOM, UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
@@ -35,7 +35,6 @@ export function useServices() {
 function createAppContainer<T extends Factories>(blockchainStatus: BlockchainStatusContextType, services: Partial<T> | undefined) {
   const di = createChildContainer(rootContainer, {
     authzHttpService: () => new AuthzHttpService(di.chainApiHttpClient),
-    bmeHttpService: () => new BmeHttpService(di.chainApiHttpClient),
     leaseHttpService: () => new LeaseHttpService(di.chainApiHttpClient),
     walletBalancesService: () =>
       new WalletBalancesService(di.authzHttpService, di.chainApiHttpClient, {

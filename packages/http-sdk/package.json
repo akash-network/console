@@ -18,7 +18,6 @@
     "validate:types": "tsc -p tsconfig.build.json --noEmit && echo"
   },
   "dependencies": {
-    "@akashnetwork/logging": "*",
     "axios": "^1.7.2",
     "cockatiel": "^3.2.1",
     "date-fns": "^4.1.0",
