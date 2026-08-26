@@ -331,6 +331,30 @@ describe(Turnstile.name, () => {
       }
     });
 
+    it("abandons a pending challenge on unmount rather than reporting it wedged 2 minutes later", async () => {
+      const { turnstileRef, errorHandler, unmount } = await setup({ enabled: true });
+      vi.useFakeTimers();
+
+      try {
+        let rejection: unknown;
+        const promise = turnstileRef.current!.renderAndWaitResponse().catch(error => {
+          rejection = error;
+        });
+        await act(async () => {
+          unmount();
+        });
+        await promise;
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(CHALLENGE_DEADLINE_MS);
+        });
+
+        expect(rejection).toMatchObject({ reason: "dismissed" });
+        expect(errorHandler.reportError).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("resolves with disabled token when turnstile is disabled", async () => {
       const { turnstileRef } = await setup({ enabled: false });
 

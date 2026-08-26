@@ -1,7 +1,7 @@
 "use client";
 
 import type { RefObject } from "react";
-import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { MdInfo } from "react-icons/md";
 import { Button } from "@akashnetwork/ui/components";
 import type { TurnstileInstance } from "@marsidev/react-turnstile";
@@ -85,6 +85,9 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
   useWhen(status === "dismissed", () => {
     turnstileRef.current?.remove();
   });
+  useEffect(function abandonPendingChallengeOnUnmount() {
+    return () => abandonPendingChallenge.current?.();
+  }, []);
 
   useImperativeHandle(
     ref || externalTurnstileRef,
