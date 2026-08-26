@@ -1,9 +1,9 @@
 import { Err, Ok, Result } from "ts-results";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
-import { LoggerService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import type { DryRunOptions } from "@src/core/types/console";
 import { DeploymentSettingRepository, type ExpiredRuntimeDeployment } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
@@ -22,14 +22,16 @@ import { DeploymentWriterService } from "@src/deployment/services/deployment-wri
  */
 @singleton()
 export class ExpiredDeploymentsCloserService {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly deploymentWriterService: DeploymentWriterService,
     private readonly chainErrorService: ChainErrorService,
-    private readonly logger: LoggerService
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    this.logger.setContext(ExpiredDeploymentsCloserService.name);
+    this.logger = createLogger({ context: ExpiredDeploymentsCloserService.name });
   }
 
   async closeExpiredDeployments({ dryRun }: DryRunOptions): Promise<Result<void, unknown[]>> {

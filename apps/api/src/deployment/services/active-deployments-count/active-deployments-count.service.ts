@@ -1,7 +1,7 @@
-import { injectable } from "tsyringe";
+import { inject, injectable } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
-import { LoggerService } from "@src/core/providers/logging.provider";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import type { Resolver } from "@src/core/providers/resolvers.provider";
 import { DATA_RESOLVER } from "@src/core/providers/resolvers.provider";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
@@ -11,12 +11,14 @@ import { UserOutput } from "@src/user/repositories";
 export class ActiveDeploymentsCountService implements Resolver {
   readonly key = "activeDeployments";
 
+  private readonly loggerService: ReturnType<CreateLogger>;
+
   constructor(
     private readonly deploymentRepository: DeploymentRepository,
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly loggerService: LoggerService
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    loggerService.setContext(ActiveDeploymentsCountService.name);
+    this.loggerService = createLogger({ context: ActiveDeploymentsCountService.name });
   }
 
   async resolve(user: UserOutput) {

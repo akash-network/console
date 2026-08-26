@@ -1,8 +1,8 @@
 import type { Counter, Histogram, Meter } from "@opentelemetry/api";
-import { Lifecycle, scoped } from "tsyringe";
+import { inject, Lifecycle, scoped } from "tsyringe";
 
 import { DepositDeploymentMsgOptions } from "@src/billing/services";
-import { LoggerService, MetricsService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY, MetricsService } from "@src/core";
 import type { DryRunOptions } from "@src/core/types/console";
 import { TopUpSummarizer } from "@src/deployment/lib/top-up-summarizer/top-up-summarizer";
 import { DrainingDeployment } from "@src/deployment/types/draining-deployment";
@@ -21,15 +21,16 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
   private readonly predictedCloseBlocks: Histogram;
   private readonly insufficientBalanceWithAutoReload: Counter;
   private readonly settingToggles: Counter;
+  private readonly logger: ReturnType<CreateLogger>;
   private startTime: number | undefined;
   private options: DryRunOptions | undefined;
 
   constructor(
     private readonly metricsService: MetricsService,
     private readonly topUpSummarizer: TopUpSummarizer,
-    private readonly logger: LoggerService
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    this.logger.setContext(TopUpManagedDeploymentsInstrumentationService.name);
+    this.logger = createLogger({ context: TopUpManagedDeploymentsInstrumentationService.name });
 
     this.meter = this.metricsService.getMeter("auto-top-up", "1.0.0");
 

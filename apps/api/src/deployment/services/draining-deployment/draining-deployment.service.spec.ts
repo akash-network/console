@@ -11,7 +11,7 @@ import { mock } from "vitest-mock-extended";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
-import type { LoggerService } from "@src/core";
+import type { CreateLogger } from "@src/core";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DrainingDeploymentOutput, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { averageBlockCountInAnHour } from "@src/utils/constants";
@@ -1090,6 +1090,12 @@ describe(DrainingDeploymentService.name, () => {
     }
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: DrainingDeploymentService.name });
+  });
+
   function setup() {
     const currentHeight = 1000000;
 
@@ -1100,7 +1106,8 @@ describe(DrainingDeploymentService.name, () => {
     const userWalletRepository = mock<UserWalletRepository>();
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     const rpcService = mock<DrainingDeploymentRpcService>();
-    const loggerService = mock<LoggerService>();
+    const loggerService = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => loggerService);
     const balancesService = mock<BalancesService>();
 
     rpcService.findManyByDseqAndOwner.mockResolvedValue([]);
@@ -1118,7 +1125,7 @@ describe(DrainingDeploymentService.name, () => {
       userWalletRepository,
       deploymentSettingRepository,
       config,
-      loggerService,
+      createLogger,
       rpcService,
       balancesService,
       instrumentation
@@ -1132,6 +1139,7 @@ describe(DrainingDeploymentService.name, () => {
       deploymentSettingRepository,
       rpcService,
       loggerService,
+      createLogger,
       balancesService,
       config,
       currentHeight,

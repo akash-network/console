@@ -2,10 +2,10 @@ import "@test/mocks/logger-service.mock";
 
 import type { DeploymentHttpService, DeploymentListResponse, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { LoggerService } from "@src/core";
+import type { CreateLogger } from "@src/core";
 import { DrainingDeploymentRpcService } from "./draining-deployment-rpc.service";
 
 import { createAkashAddress } from "@test/seeders";
@@ -194,6 +194,12 @@ describe(DrainingDeploymentRpcService.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: DrainingDeploymentRpcService.name });
+  });
+
   function setup({
     inputs = []
   }: {
@@ -214,7 +220,8 @@ describe(DrainingDeploymentRpcService.name, () => {
   } = {}) {
     const leaseHttpService = mock<LeaseHttpService>();
     const deploymentHttpService = mock<DeploymentHttpService>();
-    const loggerService = mock<LoggerService>();
+    const loggerService = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => loggerService);
 
     const owner = createAkashAddress();
     const closureHeight = 1000000;
@@ -276,13 +283,14 @@ describe(DrainingDeploymentRpcService.name, () => {
       pagination: { next_key: null, total: String(deploymentList.length) }
     } as unknown as DeploymentListResponse);
 
-    const service = new DrainingDeploymentRpcService(leaseHttpService, deploymentHttpService, loggerService);
+    const service = new DrainingDeploymentRpcService(leaseHttpService, deploymentHttpService, createLogger);
 
     return {
       service,
       leaseHttpService,
       deploymentHttpService,
       loggerService,
+      createLogger,
       owner,
       dseqs,
       closureHeight

@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
-import type { LoggerService } from "@src/core";
+import type { CreateLogger } from "@src/core";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { CachedBalanceService } from "./cached-balance.service";
 
@@ -171,15 +171,22 @@ describe(CachedBalanceService.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: CachedBalanceService.name });
+  });
+
   function setup(input?: { headroomInUsd?: number }) {
     const balancesService = mock<BalancesService>();
     const deploymentConfig = mockConfigService<DeploymentConfigService>({
       AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD: input?.headroomInUsd ?? 0
     });
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    const service = new CachedBalanceService(balancesService, deploymentConfig, logger);
+    const service = new CachedBalanceService(balancesService, deploymentConfig, createLogger);
 
-    return { service, balancesService, deploymentConfig, logger };
+    return { service, balancesService, deploymentConfig, logger, createLogger };
   }
 });

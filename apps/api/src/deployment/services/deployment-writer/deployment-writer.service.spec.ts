@@ -9,7 +9,7 @@ import type { BillingConfigService } from "@src/billing/services/billing-config/
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
-import type { LoggerService } from "@src/core";
+import type { CreateLogger } from "@src/core";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
@@ -651,12 +651,18 @@ describe(DeploymentWriterService.name, () => {
   }
 
   /** Everything the logger was handed, flattened, so a test can assert the sdl reached none of it. */
-  function loggedTextOf(logger: MockProxy<LoggerService>): string {
+  function loggedTextOf(logger: MockProxy<ReturnType<CreateLogger>>): string {
     return [logger.error, logger.warn, logger.info, logger.debug]
       .flatMap(method => method.mock.calls)
       .map(call => JSON.stringify(call))
       .join("");
   }
+
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: DeploymentWriterService.name });
+  });
 
   function setup(input?: { isManagedDepositEnabled?: boolean; defaultDeposit?: number }) {
     const signerService = mock<ManagedSignerService>();
@@ -669,7 +675,8 @@ describe(DeploymentWriterService.name, () => {
     const deploymentReaderService = mock<DeploymentReaderService>();
     const walletReaderService = mock<WalletReaderService>();
     const staleDeploymentsCleaner = mock<StaleManagedDeploymentsCleanerService>();
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
     const deploymentConfig: MockProxy<DeploymentConfigService> = mockConfigService<DeploymentConfigService>({
       DEPLOYMENT_DEFAULT_DEPOSIT: input?.defaultDeposit ?? 0.5
     });
@@ -691,7 +698,7 @@ describe(DeploymentWriterService.name, () => {
       deploymentReaderService,
       walletReaderService,
       staleDeploymentsCleaner,
-      logger,
+      createLogger,
       deploymentConfig,
       featureFlagsService,
       deploymentSettingRepository
@@ -708,6 +715,7 @@ describe(DeploymentWriterService.name, () => {
       walletReaderService,
       staleDeploymentsCleaner,
       logger,
+      createLogger,
       deploymentConfig,
       featureFlagsService,
       deploymentSettingRepository
