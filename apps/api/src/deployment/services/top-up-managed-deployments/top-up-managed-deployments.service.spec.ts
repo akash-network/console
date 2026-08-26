@@ -3,7 +3,7 @@ import "@test/mocks/logger-service.mock";
 import { Scope, Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { IndexedTx } from "@cosmjs/stargate";
 import { faker } from "@faker-js/faker";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
@@ -16,7 +16,7 @@ import type { ManagedSignerService } from "@src/billing/services/managed-signer/
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import type { JobQueueService } from "@src/core";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { DrainingDeployment, DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
@@ -1001,9 +1001,10 @@ describe(TopUpManagedDeploymentsService.name, () => {
     const walletSettingRepository = mock<WalletSettingRepository>();
     const userWalletRepository = mock<UserWalletRepository>();
     const jobQueueService = mock<JobQueueService>();
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
     jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
-    const walletReloadService = new WalletReloadJobService(walletSettingRepository, userWalletRepository, jobQueueService, logger);
+    const walletReloadService = new WalletReloadJobService(walletSettingRepository, userWalletRepository, jobQueueService, createLogger);
 
     return {
       ...setup({ ...input, walletReloadService }),

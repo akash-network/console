@@ -1,12 +1,12 @@
 import { faker } from "@faker-js/faker";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-low-check";
 import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
 import type { JobQueueService } from "@src/core";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { WalletReloadJobService } from "./wallet-reload-job.service";
 
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
@@ -367,20 +367,28 @@ describe(WalletReloadJobService.name, () => {
     expect((job as WalletCreditsLowCheck).data).toEqual({ userId });
   }
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: WalletReloadJobService.name });
+  });
+
   function setup() {
     const walletSettingRepository = mock<WalletSettingRepository>();
     const userWalletRepository = mock<UserWalletRepository>();
     const jobQueueService = mock<JobQueueService>();
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    const service = new WalletReloadJobService(walletSettingRepository, userWalletRepository, jobQueueService, logger);
+    const service = new WalletReloadJobService(walletSettingRepository, userWalletRepository, jobQueueService, createLogger);
 
     return {
       service,
       walletSettingRepository,
       userWalletRepository,
       jobQueueService,
-      logger
+      logger,
+      createLogger
     };
   }
 });

@@ -7,7 +7,7 @@ import type { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
 import type { PaymentMethod, PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { UserRepository } from "@src/user/repositories";
 import { WalletSettingService } from "./wallet-settings.service";
 
@@ -57,6 +57,12 @@ describe(WalletSettingService.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: WalletSettingService.name });
+  });
+
   function setup() {
     const user = createUser();
     const userWithStripe = { ...user, stripeCustomerId: faker.string.uuid() };
@@ -82,7 +88,8 @@ describe(WalletSettingService.name, () => {
     const walletReloadJobService = mock<WalletReloadJobService>({
       scheduleForWalletSetting: vi.fn().mockResolvedValue(jobId)
     });
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
     const service = new WalletSettingService(
       walletSettingRepository,
       userWalletRepository,
@@ -90,7 +97,7 @@ describe(WalletSettingService.name, () => {
       paymentMethodService,
       authService,
       walletReloadJobService,
-      logger
+      createLogger
     );
 
     return {
@@ -101,7 +108,8 @@ describe(WalletSettingService.name, () => {
       userWalletRepository,
       walletReloadJobService,
       jobId,
-      service
+      service,
+      createLogger
     };
   }
 });

@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 import createError from "http-errors";
 import type Stripe from "stripe";
 import { container } from "tsyringe";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "@src/auth/services/auth.service";
@@ -19,7 +19,7 @@ import type { TopUpService } from "@src/billing/services/top-up/top-up.service";
 import type { TransactionReportingService } from "@src/billing/services/transaction-reporting/transaction-reporting.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { WalletSettingService } from "@src/billing/services/wallet-settings/wallet-settings.service";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { StripeController } from "./stripe.controller";
 
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
@@ -344,6 +344,12 @@ describe(StripeController.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: StripeController.name });
+  });
+
   function setup() {
     const user = createUser();
     const payingUser: PayingUser = { ...user, stripeCustomerId: user.stripeCustomerId! };
@@ -362,7 +368,8 @@ describe(StripeController.name, () => {
     const trialActivationJobService = mock<TrialActivationJobService>();
     const transactionReporting = mock<TransactionReportingService>();
     const walletSettingService = mock<WalletSettingService>();
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
     const controller = new StripeController(
       stripe,
       stripeTransaction,
@@ -376,7 +383,7 @@ describe(StripeController.name, () => {
       couponRedemptionService,
       customerService,
       walletSettingService,
-      logger
+      createLogger
     );
     container.register(AuthService, { useValue: authService });
 
@@ -394,6 +401,7 @@ describe(StripeController.name, () => {
       trialActivationJobService,
       walletSettingService,
       logger,
+      createLogger,
       user
     };
   }

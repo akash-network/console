@@ -9,7 +9,7 @@ import { context, trace } from "@opentelemetry/api";
 import assert from "http-assert";
 import { BadRequest, isHttpError } from "http-errors";
 import pick from "lodash/pick";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
@@ -21,7 +21,7 @@ import { ManagedUserWalletService } from "@src/billing/services/managed-user-wal
 import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
-import { LoggerService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { UserRepository } from "@src/user/repositories";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
@@ -40,6 +40,8 @@ const INSUFFICIENT_DEPOSIT_BALANCE_RELOADING_MESSAGE =
 
 @singleton()
 export class ManagedSignerService {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     @InjectTypeRegistry() private readonly registry: Registry,
     private readonly billingConfigService: BillingConfigService,
@@ -55,9 +57,9 @@ export class ManagedSignerService {
     private readonly walletReloadJobService: WalletReloadJobService,
     private readonly managedUserWalletService: ManagedUserWalletService,
     private readonly trialActivationJobService: TrialActivationJobService,
-    private readonly logger: LoggerService
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    this.logger.setContext(ManagedSignerService.name);
+    this.logger = createLogger({ context: ManagedSignerService.name });
   }
 
   @Trace()

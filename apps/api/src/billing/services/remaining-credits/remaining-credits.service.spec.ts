@@ -3,7 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { RemainingCreditsService } from "./remaining-credits.service";
 
 import { createUser } from "@test/seeders/user.seeder";
@@ -61,6 +61,12 @@ describe(RemainingCreditsService.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: RemainingCreditsService.name });
+  });
+
   function setup(input?: { findOneByUserId?: UserWalletRepository["findOneByUserId"]; retrieveDeploymentLimit?: BalancesService["retrieveDeploymentLimit"] }) {
     const mocks = {
       userWalletRepository: mock<UserWalletRepository>({
@@ -69,11 +75,13 @@ describe(RemainingCreditsService.name, () => {
       balanceService: mock<BalancesService>({
         retrieveDeploymentLimit: input?.retrieveDeploymentLimit ?? vi.fn()
       }),
-      logger: mock<LoggerService>()
+      logger: mock<ReturnType<CreateLogger>>()
     };
 
-    const service = new RemainingCreditsService(mocks.balanceService, mocks.userWalletRepository, mocks.logger);
+    const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
 
-    return { service, ...mocks };
+    const service = new RemainingCreditsService(mocks.balanceService, mocks.userWalletRepository, createLogger);
+
+    return { service, createLogger, ...mocks };
   }
 });
