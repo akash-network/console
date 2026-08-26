@@ -10,6 +10,7 @@ import type { AuthService } from "@src/auth/services/auth.service";
 import type { CreateLogger } from "@src/core";
 import { SDL_SECRETS_MAX_SEAL_LIFETIME_MS } from "@src/deployment/config/sdl-secrets.config";
 import type { SdlSecretsKmsClient } from "@src/deployment/providers/kms.provider";
+import { KmsWrappedJweService } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe.service";
 import type { UserOutput } from "@src/user/repositories";
 import { SdlSecretsUnsealerService } from "./sdl-secrets-unsealer.service";
 
@@ -203,6 +204,22 @@ describe(SdlSecretsUnsealerService.name, () => {
     await expect(open(await seal({ nested: { deep: "value" } }))).rejects.toMatchObject({ status: 400 });
   });
 
+  it("rejects a payload that is not JSON at all as an invalid payload rather than a tampered seal", async () => {
+    const { open, sealRaw, logger } = setup();
+
+    await expect(open(await sealRaw("not json at all"))).rejects.toMatchObject({ status: 400 });
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "SDL_SECRETS_SEAL_PAYLOAD_INVALID" }));
+  });
+
+  it("reports a genuinely altered ciphertext as a tampered seal rather than an invalid payload", async () => {
+    const { open, seal, logger } = setup();
+    const parts = (await seal({ TOKEN: "t" })).split(".");
+    parts[3] = Buffer.from("tampered").toString("base64url");
+
+    await expect(open(parts.join("."))).rejects.toThrow();
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "SDL_SECRETS_SEAL_TAMPERED" }));
+  });
+
   it("fails with 503 when KMS is unreachable", async () => {
     const { open, seal, kmsClient, logger } = setup();
     kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("14 UNAVAILABLE"), { code: grpc.status.UNAVAILABLE }));
@@ -355,10 +372,10 @@ describe(SdlSecretsUnsealerService.name, () => {
     const jwk = { ...publicKey.export({ format: "jwk" }), use: "enc", alg: "RSA-OAEP-256" };
     const clientSecrets = { DB_URL: `postgres://app:${randomUUID()}@db.internal/app`, API_TOKEN: randomBytes(20).toString("hex") };
 
-    const seal = async (secrets: unknown, claims?: Record<string, unknown>) =>
-      new CompactEncrypt(new TextEncoder().encode(JSON.stringify(secrets)))
-        .setProtectedHeader(sealClaims(claims) as never)
-        .encrypt(await importJWK(jwk, "RSA-OAEP-256"));
+    const sealRaw = async (plaintext: string, claims?: Record<string, unknown>) =>
+      new CompactEncrypt(new TextEncoder().encode(plaintext)).setProtectedHeader(sealClaims(claims) as never).encrypt(await importJWK(jwk, "RSA-OAEP-256"));
+
+    const seal = async (secrets: unknown, claims?: Record<string, unknown>) => await sealRaw(JSON.stringify(secrets), claims);
 
     /**
      * Builds a compact JWE from the same stock primitives and AAD convention the service decodes
@@ -402,9 +419,9 @@ describe(SdlSecretsUnsealerService.name, () => {
     const createLogger: CreateLogger = () => logger;
 
     const kmsTarget = { client: kmsClient, versionName: VERSION_NAME, kid: KID };
-    const service = new SdlSecretsUnsealerService(kmsTarget, authService, createLogger);
+    const service = new SdlSecretsUnsealerService(kmsTarget, new KmsWrappedJweService(kmsTarget), authService, createLogger);
     const open = (seal: string, sdl = SDL) => service.open({ seal, sdl });
 
-    return { open, kmsClient, authService, logger, seal, assembleSeal, privateKey, clientSecrets };
+    return { open, kmsClient, authService, logger, seal, sealRaw, assembleSeal, privateKey, clientSecrets };
   }
 });
