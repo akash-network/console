@@ -1,4 +1,4 @@
-import type { CosmosHttpService } from "@akashnetwork/http-sdk/src/cosmos/cosmos-http.service";
+import type { CosmosHttpService } from "@akashnetwork/http-sdk";
 import { AxiosError } from "axios";
 import { describe, expect, it } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
