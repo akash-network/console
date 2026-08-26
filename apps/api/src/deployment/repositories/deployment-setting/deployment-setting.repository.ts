@@ -252,15 +252,18 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
   }
 
   /**
-   * Records what a deployment is, at the moment it is created: the SDL it was given, stripped of its
-   * secrets and small enough to keep, the manifest version it commits on chain, and the runtime limit its creator chose. One
-   * statement, so a deployment can never end up remembering half of itself, and so the sealed secrets
-   * a later phase adds land in the same write as the SDL they belong to.
+   * Records what a deployment is, at the moment it is created and again every time it is updated: the
+   * SDL it was given, stripped of its secrets and small enough to keep, the manifest version it commits
+   * on chain, and the runtime limit its creator chose. One statement, so a deployment can never end up
+   * remembering half of itself, and so the sealed secrets a later phase adds land in the same write as
+   * the SDL they belong to.
    *
-   * Upserts on the (dseq, userId) unique because a settings read creates a row lazily, and because the
-   * caller retries a create that failed to broadcast. The conflict branch leaves every field it does
-   * not name as the earlier writer set them, and an absent runtime limit counts as unnamed: drizzle
-   * drops undefined out of the set clause, so creating without a limit cannot clear one already there.
+   * Upserts on the (dseq, userId) unique because a settings read creates a row lazily, because the
+   * caller retries a create that failed to broadcast, and because an update of a deployment that
+   * predates any record has to produce the row a create would have. The conflict branch leaves every
+   * field it does not name as the earlier writer set them, and an absent runtime limit counts as
+   * unnamed: drizzle drops undefined out of the set clause, so neither creating nor updating without a
+   * limit can clear one already there.
    */
   async upsertDefinition({
     userId,
