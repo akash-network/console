@@ -3,7 +3,6 @@ import { generateManifest, generateManifestVersion, yaml as sdlYaml } from "@aka
 import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
-import { BlockHttpService } from "@akashnetwork/http-sdk";
 import { DirectSecp256k1HdWallet, EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { calculateFee, SigningStargateClient } from "@cosmjs/stargate";
 import assert from "http-assert";
@@ -14,6 +13,7 @@ import { inject, singleton } from "tsyringe";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { CHAIN_SDK, type ChainSDK } from "@src/chain/providers/chain-sdk.provider";
+import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { DEPLOYMENT_CONFIG, type DeploymentConfig } from "@src/deployment/config/config.provider";
 import { GpuService } from "@src/gpu/services/gpu.service";
@@ -108,7 +108,7 @@ export class GpuBidsCreatorService {
 
     const doneModels: string[] = [];
     for (const model of models) {
-      const dseq = (await this.getCurrentHeight()).toString();
+      const dseq = (await this.blockHttpService.getCurrentHeight()).toString();
       this.#logger.info({ event: "CREATING_DEPLOYMENT", ...pick(model, ["vendor", "model", "ram", "interface"]) });
 
       if (doneModels.includes(model.model + "-" + model.ram)) {
@@ -197,12 +197,5 @@ export class GpuBidsCreatorService {
     }
 
     return gpuSdl;
-  }
-
-  private async getCurrentHeight() {
-    const height = await this.blockHttpService.getCurrentHeight();
-    if (Number.isNaN(height)) throw new Error("Failed to get current height");
-
-    return height;
   }
 }

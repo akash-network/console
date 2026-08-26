@@ -1,5 +1,4 @@
 import type { QueryBidsResponse } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
-import type { BlockHttpService } from "@akashnetwork/http-sdk";
 import type { Registry } from "@cosmjs/proto-signing";
 import { calculateFee, type SigningStargateClient } from "@cosmjs/stargate";
 import { describe, expect, it, vi } from "vitest";
@@ -7,6 +6,7 @@ import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ChainSDK } from "@src/chain/providers/chain-sdk.provider";
+import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { DeploymentConfig } from "@src/deployment/config/config.provider";
 import type { GpuService } from "@src/gpu/services/gpu.service";
@@ -232,23 +232,6 @@ describe(GpuBidsCreatorService.name, () => {
       await service["signAndBroadcast"]("akash1owner", signingClient, []);
 
       expect(calculateFee).toHaveBeenCalledWith(410962, "0.025uakt");
-    });
-  });
-
-  describe("getCurrentHeight", () => {
-    it("returns current height from block service", async () => {
-      const { service } = setup();
-
-      const height = await service["getCurrentHeight"]();
-
-      expect(height).toBe(100000);
-    });
-
-    it("throws when height is NaN", async () => {
-      const { service, blockHttpService } = setup();
-      blockHttpService.getCurrentHeight.mockResolvedValue(NaN);
-
-      await expect(service["getCurrentHeight"]()).rejects.toThrow("Failed to get current height");
     });
   });
 

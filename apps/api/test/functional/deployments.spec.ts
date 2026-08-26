@@ -1,4 +1,3 @@
-import { BlockHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { NotFound } from "http-errors";
 import nock from "nock";
@@ -13,6 +12,7 @@ import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.servi
 import type { UserWalletOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services";
+import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { CORE_CONFIG } from "@src/core";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
