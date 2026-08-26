@@ -11,9 +11,18 @@ type QueryOptions = NonNullable<Parameters<ChainSDK["akash"]["deployment"]["v1be
 const BLOCK_HEIGHT_HEADER = "x-cosmos-block-height";
 
 /**
- * How far past a record's creation the chain must have progressed before an absence is believed. It absorbs
- * the gap between the database clock that stamped the record and the consensus clock that stamps blocks, plus
- * the block or two a create needs to be included.
+ * How far past a record's creation the chain must have progressed before an absence is believed.
+ *
+ * This is not a guess about clock skew: a create is broadcast as an *unordered* cosmos tx carrying
+ * `timeoutTimestamp = now + UNORDERED_TX_TTL_MS` (tx-signer, default 30s), so the chain itself refuses to
+ * include a create tx more than that long after it was signed, and with the signer's retry ceiling the hard
+ * bound on inclusion is around two and a half minutes. Ten minutes is roughly four times a bound the chain
+ * enforces, and the remainder absorbs the gap between the database clock that stamped the record and the
+ * consensus clock that stamps blocks.
+ *
+ * That makes this constant load-bearing on `UNORDERED_TX_TTL_MS` in **another service**, silently: raising
+ * that TTL past about nine minutes would let a create land later than this margin allows, and nothing here —
+ * no test, no type, no log — would notice. Change one and check the other.
  *
  * It is also a floor no configuration can undermine: a grace period shortened below it does not start
  * deleting early, it just makes the compensation retry until the chain has moved far enough on.

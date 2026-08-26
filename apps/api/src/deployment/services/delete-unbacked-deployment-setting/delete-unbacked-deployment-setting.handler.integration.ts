@@ -3,7 +3,7 @@ import { addMinutes } from "date-fns";
 import { eq } from "drizzle-orm";
 import nock from "nock";
 import { container } from "tsyringe";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiPgDatabase } from "@src/core";
 import { JobQueueService, POSTGRES_DB, resolveTable } from "@src/core";
@@ -68,6 +68,15 @@ function bootstrapJobQueue() {
 describe(DeleteUnbackedDeploymentSettingHandler.name, () => {
   afterEach(() => {
     nock.cleanAll();
+  });
+
+  /**
+   * A worker left running outlives the interceptors: the compensation it retried becomes due a minute later
+   * with nock torn down, and issues a real request to `REST_API_NODE_URL` — egress from CI to a third-party
+   * mainnet endpoint, and a flake that only shows up on a slow run.
+   */
+  afterAll(async () => {
+    if (jobQueueReady) await (await jobQueueReady).dispose();
   });
 
   it("deletes a setting no deployment backs, run the way a worker runs it", async () => {
