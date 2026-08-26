@@ -8,6 +8,13 @@ const defaultCache = require("next-pwa/cache");
 const withPWA = require("next-pwa")({
   dest: "public",
   disable: isDev,
+  /**
+   * next-pwa registers a start-url route ahead of every other rule, handled by a plugin that rewrites an
+   * opaqueredirect into a fake empty 200 -- so the "/" -> "/login" redirect gets stored as a blank document and
+   * served back on the next visit. dynamicStartUrl drops that route; cacheStartUrl stops "/" being precached too.
+   */
+  cacheStartUrl: false,
+  dynamicStartUrl: false,
   runtimeCaching: [
     {
       urlPattern: ({ url }) => {
@@ -16,6 +23,20 @@ const withPWA = require("next-pwa")({
       },
       handler: "NetworkOnly",
       options: { cacheName: "third-party-network-only" }
+    },
+    /**
+     * Must precede defaultCache, whose catch-all "others" rule is a 24h NetworkFirst that also matches navigations:
+     * on a slow network its 10s timeout serves a day-old document whose /_next/static/<buildId> chunks 404 after a
+     * deploy, and only a hard reload escapes it. The app needs a live session and API to render anything useful, so
+     * an honest network error beats a stale shell.
+     */
+    {
+      urlPattern: ({ url, request }) => {
+        const isSameOrigin = self.origin === url.origin; // eslint-disable-line no-undef
+        return isSameOrigin && request.destination === "document";
+      },
+      handler: "NetworkOnly",
+      options: { cacheName: "html-network-only" }
     },
     ...defaultCache
   ]
