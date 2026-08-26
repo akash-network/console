@@ -17,11 +17,7 @@ import { FundDrainingDeploymentsHandler } from "../services/fund-draining-deploy
 import { TrialDeploymentLeaseCreatedHandler } from "../services/trial-deployment-lease-created/trial-deployment-lease-created.handler";
 import { TrialStartedHandler } from "../services/trial-started/trial-started.handler";
 
-/**
- * Brings up every queue the app enqueues onto. Exported because enqueuing requires the queue to exist, so a
- * request path that enqueues cannot be exercised against an app booted without this — which is how functional
- * tests boot it, since they call the Hono app directly rather than through `startServer`.
- */
+/** Exported because enqueuing needs the queue to exist, and functional tests boot the app without running its initializers. */
 export async function startJobQueues(): Promise<void> {
   const jobQueueManager = container.resolve(JobQueueService);
   await jobQueueManager.setup();

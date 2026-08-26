@@ -7,11 +7,6 @@ import { JobQueueService } from "@src/core/services/job-queue/job-queue.service"
 import { DeleteUnbackedDeploymentSetting } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import { startJobQueues } from "./jobs.provider";
 
-/**
- * The functional suite calls `startJobQueues` directly, so nothing else notices if the registration below it
- * is dropped — every test would still pass while every `POST /deployments` in production failed on a queue
- * that was never created. These pin the wiring, not the function.
- */
 describe("jobs.provider", () => {
   it("registers bringing the queues up as an app initializer", () => {
     const initializers = container.resolveAll(APP_INITIALIZER);

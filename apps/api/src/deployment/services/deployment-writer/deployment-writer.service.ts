@@ -95,20 +95,7 @@ export class DeploymentWriterService {
     };
   }
 
-  /**
-   * Writes what the deployment is and, in the same transaction, the compensation that deletes that record again
-   * if the create never reaches the chain. The two have to land together: a record written without a compensation
-   * is unreachable by anything in the codebase — the stale-deployment cleanup starts from on-chain deployments and
-   * the funding sweep skips any dseq it finds no lease for — while a compensation without a record is a no-op.
-   *
-   * Only creating needs this. Updating records the same columns, but not before reading the deployment off the
-   * chain and failing if it is not there, so a record an update writes is already known to be backed.
-   *
-   * pg-boss inserts with `ON CONFLICT DO NOTHING` and returns no id when it drops a job, so an enqueue that
-   * went nowhere looks exactly like one that worked. No unique index can fire for a `standard` policy queue
-   * today, which is the only reason this cannot happen — so it is checked rather than trusted, and rolls the
-   * record back with it, because the alternative is the unreachable row this whole mechanism exists to prevent.
-   */
+  /** The record and its compensation must land in one transaction: a record written without one is unreachable by anything in the codebase. */
   private async recordDefinitionWithCompensation(input: {
     userId: string;
     owner: string;
@@ -137,12 +124,7 @@ export class DeploymentWriterService {
     });
   }
 
-  /**
-   * Retires the compensation now that the create has landed. A failure is logged rather than raised: the
-   * deployment exists, so refusing the caller a response it earned would be the larger harm, and an uncancelled
-   * compensation is harmless on its own because it asks the chain before deleting anything and the chain will
-   * report the deployment present.
-   */
+  /** A failure must stay logged rather than raised: the create already succeeded, and an uncancelled compensation still asks the chain before deleting. */
   private async retireCompensation(key: { userId: string; dseq: string }): Promise<void> {
     try {
       await this.jobQueueService.cancelCreatedBy({

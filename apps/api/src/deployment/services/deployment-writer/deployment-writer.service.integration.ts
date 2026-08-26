@@ -51,13 +51,12 @@ deployment:
       count: 1`;
 
 const GRACE_IN_MIN = 60;
-const RETRY_LIMIT = 48;
+const RETRY_LIMIT = 47;
 const RETRY_DELAY_IN_SECONDS = 30;
 const RETRY_DELAY_MAX_IN_SECONDS = 30 * 60;
 
 let jobQueueReady: Promise<JobQueueService> | undefined;
 
-/** pg-boss owns its own schema and creates it on start, so the queue this suite enqueues onto is bootstrapped once per file. */
 function bootstrapJobQueue() {
   jobQueueReady ??= (async () => {
     const jobQueue = container.resolve(JobQueueService);
@@ -81,24 +80,12 @@ type CompensationRow = {
   start_after: string;
 };
 
-/**
- * Covers the outbox itself: that the setting row and the compensation that can find it again are one write,
- * and that a create which reaches the chain retires its own compensation. Both are properties of the database,
- * not of the service's control flow, so they are asserted against real Postgres and a real pg-boss schema.
- * Broadcasting is stubbed at the signer boundary because signing has its own tests.
- */
 describe(DeploymentWriterService.name, () => {
   afterEach(() => {
     vi.restoreAllMocks();
     nock.cleanAll();
   });
 
-  /**
-   * The retry test starts a real worker, and a worker left running outlives the interceptors: the compensation
-   * it rescheduled comes due half a minute later with nock torn down, and issues a real request to
-   * `REST_API_NODE_URL` — egress from CI to a third-party mainnet endpoint, and a flake that only shows up on a
-   * slow run.
-   */
   afterAll(async () => {
     if (jobQueueReady) await (await jobQueueReady).dispose();
   });
@@ -193,12 +180,6 @@ describe(DeploymentWriterService.name, () => {
     });
   });
 
-  /**
-   * The columns above are settings; this is the behaviour they exist to produce. pg-boss multiplies its
-   * backoff by `retry_delay`, whose queue default is 0, so a horizon that sets only the limit and the cap
-   * stores three convincing values and still reschedules every attempt at `now()` — 48 of them back to back,
-   * dead in about a minute. Only an assertion on the rescheduled time can tell the two apart.
-   */
   it("pushes the next attempt into the future after one that failed", async () => {
     const { user, createDeployment, findCompensation, makeCompensationDue, failEveryChainQuery, startWorkers, broadcast } = await setup();
     broadcast.mockRejectedValue(new Error("tx failed"));
@@ -223,7 +204,6 @@ describe(DeploymentWriterService.name, () => {
     expect(gap).toBeLessThanOrEqual(secondsToMilliseconds(RETRY_DELAY_MAX_IN_SECONDS));
   });
 
-  /** pg-boss owns its schema, so the app's configured name is the only correct way to reach its tables. */
   function jobTable() {
     return sql`${sql.identifier(container.resolve(CoreConfigService).get("POSTGRES_BACKGROUND_JOBS_SCHEMA"))}.job`;
   }
@@ -266,11 +246,6 @@ describe(DeploymentWriterService.name, () => {
       return compensation as CompensationRow;
     }
 
-    /**
-     * The id of the transaction that inserted the row. Two rows sharing one is the only direct evidence that
-     * a single transaction wrote both, and the only assertion that fails if the compensation is enqueued
-     * beside the setting's transaction rather than inside it.
-     */
     async function findSettingTransactionId(dseq: string) {
       const [row] = (await db.execute(sql`select xmin::text as transaction_id from deployment_settings where dseq = ${dseq}`)) as unknown as {
         transaction_id: string;
@@ -303,7 +278,6 @@ describe(DeploymentWriterService.name, () => {
       return (await findCompensations(user.id)).length;
     }
 
-    /** Brings the grace period forward so a worker will pick the compensation up now instead of in an hour. */
     async function makeCompensationDue(userId: string) {
       const [compensation] = await findCompensations(userId);
       await db.execute(sql`update ${jobTable()} set start_after = now() where singleton_key = ${compensation.singleton_key}`);
@@ -311,7 +285,6 @@ describe(DeploymentWriterService.name, () => {
       return { dseq: compensation.data.dseq };
     }
 
-    /** Makes the compensation's very first chain query fail, so the attempt fails for a reason a retry could fix. */
     function failEveryChainQuery() {
       nock(container.resolve(CoreConfigService).get("REST_API_NODE_URL"))
         .persist()
@@ -324,7 +297,6 @@ describe(DeploymentWriterService.name, () => {
     const executionContextService = container.resolve(ExecutionContextService);
     const ability = container.resolve(AbilityService).getAbilityFor("REGULAR_USER", user);
 
-    /** Creating is a request-path operation: it reads the caller's wallet through the ability the request carries. */
     async function createDeployment() {
       return await executionContextService.runWithContext(async () => {
         executionContextService.set("CURRENT_USER", user);
