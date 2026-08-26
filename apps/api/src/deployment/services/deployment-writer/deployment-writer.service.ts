@@ -81,33 +81,6 @@ export class DeploymentWriterService {
     };
   }
 
-  /**
-   * Records what the deployment is before anything is broadcast, never after, on both create and
-   * update. The reverse order would let a successful broadcast produce a deployment with no remembered
-   * definition, which becomes unrecoverable once a later phase stores sealed secrets in the same write.
-   * A broadcast that then fails leaves a record for something that is not running: on create the retry
-   * takes a fresh dseq, so the orphaned row survives until the draining sweep collects it; on update
-   * the dseq is the one being updated, so the same request retried — idempotent on both the record and
-   * the chain — puts the two back in step.
-   *
-   * A failure here surfaces as an error rather than best-effort, and nothing is broadcast and no
-   * manifest is re-sent: the user retries and gets both the deployment and its record, instead of a
-   * deployment the console cannot describe.
-   *
-   * An update records unconditionally, including when the manifest version already matches the chain.
-   * A matching version means the manifest is unchanged, not that the submitted document is: comments,
-   * formatting, and everything outside the manifest can still differ, and it is the SDL that is
-   * recorded.
-   *
-   * The write is last-writer-wins, with no compare-and-swap: two concurrent updates of one dseq can
-   * interleave so the row keeps one SDL while the chain runs the other, both succeeding. That is inert
-   * while nothing reads these columns, and needs revisiting when sealed secrets share the write.
-   *
-   * The stored SDL deliberately does not hash to the stored manifest version, and no future reader
-   * should expect it to. The version is taken over the manifest the generator produced, which rewrites
-   * the denom and appends the allowed auditors to its own parse; the stored SDL is the one the user
-   * submitted, stripped. They describe the same deployment, not the same bytes.
-   */
   private async recordDefinition(input: { userId: string; dseq: string; sdl: string; manifestVersion: Uint8Array; runtimeLimitHours?: number }): Promise<void> {
     const { manifestVersion, ...rest } = input;
 
@@ -124,11 +97,12 @@ export class DeploymentWriterService {
   }
 
   #strippedSdlWithinLimit(submittedSdl: string, dseq: string): string {
-    const { sdl, length } = stripSdlSecrets(submittedSdl, SDL_MAX_LENGTH);
+    const { sdl, length, error } = stripSdlSecrets(submittedSdl, SDL_MAX_LENGTH);
 
     if (sdl === null) {
       this.logger.warn({ event: "DEPLOYMENT_SDL_TOO_LARGE", dseq, length, maxLength: SDL_MAX_LENGTH });
       throw new HTTPException(400, {
+        cause: error,
         message: `SDL is too large: it exceeds the maximum of ${SDL_MAX_LENGTH} characters once stored`
       });
     }

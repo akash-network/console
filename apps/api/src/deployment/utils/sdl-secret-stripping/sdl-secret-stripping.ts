@@ -9,7 +9,7 @@ type SdlServiceDefinition = SDLInput["services"][string];
  * what the stripped document was measured at — an estimate once it exceeds the limit, since measuring
  * stops there rather than running a pathological document to completion.
  */
-export type StrippedSdl = { sdl: string | null; length: number };
+export type StrippedSdl = { sdl: string | null; length: number; error?: unknown };
 
 /**
  * The submitted SDL with the value of every `env` entry and every private registry `credentials` block
@@ -31,7 +31,12 @@ export type StrippedSdl = { sdl: string | null; length: number };
  * for the raw SDL anywhere a hash is taken over it.
  */
 export function stripSdlSecrets(rawSdl: string, maxLength: number): StrippedSdl {
-  const sdl = yaml.raw<SDLInput>(rawSdl);
+  let sdl: SDLInput;
+  try {
+    sdl = yaml.raw<SDLInput>(rawSdl);
+  } catch (error) {
+    return { sdl: null, length: rawSdl.length, error };
+  }
 
   for (const service of serviceDefinitionsOf(sdl)) {
     stripEnvValues(service);
