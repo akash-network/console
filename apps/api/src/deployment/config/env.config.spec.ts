@@ -170,6 +170,147 @@ describe("deployment envSchema", () => {
     });
   });
 
+  describe("UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN", () => {
+    it("defaults to an hour when omitted", () => {
+      expect(envSchema.parse(setup()).UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN).toBe(60);
+    });
+
+    it("accepts a longer grace, which only ever delays a deletion", () => {
+      expect(envSchema.parse(setup({ UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN: "720" })).UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN).toBe(720);
+    });
+
+    it("accepts the shortest grace on the floor", () => {
+      expect(envSchema.parse(setup({ UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN: 15 })).UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN).toBe(15);
+    });
+
+    it("rejects a grace below the floor, which would delete creates still in flight", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN: 14 }), "UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN");
+    });
+
+    it("rejects a fraction of a minute coerced from a string", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN: "0.01" }), "UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN");
+    });
+
+    it("rejects a zero grace", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN: 0 }), "UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN");
+    });
+
+    it("rejects a negative grace", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN: -60 }), "UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN");
+    });
+
+    it("rejects an infinite grace", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN: "Infinity" }), "UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN");
+    });
+
+    it("rejects a non-numeric grace", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN: "soon" }), "UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN");
+    });
+  });
+
+  describe("UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT", () => {
+    it("defaults to 47 retries, a horizon of 48 attempts, when omitted", () => {
+      expect(envSchema.parse(setup()).UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT).toBe(47);
+    });
+
+    it("accepts a single retry", () => {
+      expect(envSchema.parse(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT: "1" })).UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT).toBe(1);
+    });
+
+    it("rejects no retries at all, which would leak on the first chain hiccup", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT: 0 }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT");
+    });
+
+    it("rejects a fractional retry count", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT: 2.5 }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT");
+    });
+
+    it("rejects a negative retry count", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT: -1 }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT");
+    });
+
+    it("rejects a non-numeric retry count", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT: "many" }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT");
+    });
+  });
+
+  describe("UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC", () => {
+    it("defaults to half a minute when omitted", () => {
+      expect(envSchema.parse(setup()).UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC).toBe(30);
+    });
+
+    it("accepts a one second first gap", () => {
+      expect(envSchema.parse(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC: "1" })).UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC).toBe(1);
+    });
+
+    it("rejects a zero first gap, which collapses the whole backoff to nothing", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC: 0 }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC");
+    });
+
+    it("rejects a fractional first gap, which pg-boss stores as whole seconds", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC: 0.5 }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC");
+    });
+
+    it("rejects a negative first gap", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC: -30 }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC");
+    });
+
+    it("rejects a non-numeric first gap", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC: "soon" }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC");
+    });
+  });
+
+  describe("UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN", () => {
+    it("defaults to half an hour when omitted", () => {
+      expect(envSchema.parse(setup()).UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN).toBe(30);
+    });
+
+    it("accepts a tighter ceiling", () => {
+      expect(envSchema.parse(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: "5" })).UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN).toBe(5);
+    });
+
+    it("rejects a zero ceiling, which would cap every gap at nothing", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: 0 }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN");
+    });
+
+    it("rejects a negative ceiling", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: -30 }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN");
+    });
+
+    it("rejects an infinite ceiling", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: "Infinity" }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN");
+    });
+
+    it("rejects a non-numeric ceiling", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: "long" }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN");
+    });
+
+    it("accepts half a minute, which is a whole number of seconds", () => {
+      expect(envSchema.parse(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: 0.5 })).UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN).toBe(0.5);
+    });
+
+    it("accepts a quarter of a minute, which is a whole number of seconds", () => {
+      expect(envSchema.parse(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: "0.25" })).UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN).toBe(
+        0.25
+      );
+    });
+
+    it("rejects a ceiling that converts to a fraction of a second, which the integer column would refuse", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: 1.01 }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN");
+    });
+
+    it("rejects a fractional ceiling coerced from a string", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: "1.01" }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN");
+    });
+  });
+
+  function expectRejected(env: Record<string, unknown>, key: string) {
+    const result = envSchema.safeParse(env);
+
+    expect(result.success).toBe(false);
+    expect(!result.success && result.error.issues.some(issue => issue.path[0] === key)).toBe(true);
+  }
+
   function setup(overrides: Record<string, unknown> = {}) {
     return {
       PROVIDER_PROXY_URL: "https://provider-proxy.example.com",

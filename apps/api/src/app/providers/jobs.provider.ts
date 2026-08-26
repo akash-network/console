@@ -17,26 +17,29 @@ import { FundDrainingDeploymentsHandler } from "../services/fund-draining-deploy
 import { TrialDeploymentLeaseCreatedHandler } from "../services/trial-deployment-lease-created/trial-deployment-lease-created.handler";
 import { TrialStartedHandler } from "../services/trial-started/trial-started.handler";
 
+/** Exported because enqueuing needs the queue to exist, and functional tests boot the app without running its initializers. */
+export async function startJobQueues(): Promise<void> {
+  const jobQueueManager = container.resolve(JobQueueService);
+  await jobQueueManager.setup();
+  await jobQueueManager.registerHandlers([
+    container.resolve(TrialStartedHandler),
+    container.resolve(NotificationHandler),
+    container.resolve(CloseTrialDeploymentHandler),
+    container.resolve(TrialDeploymentLeaseCreatedHandler),
+    container.resolve(EnableDeploymentAlertHandler),
+    container.resolve(FundDeploymentHandler),
+    container.resolve(FundDrainingDeploymentsHandler),
+    container.resolve(WalletBalanceReloadCheckHandler),
+    container.resolve(WalletCreditsLowCheckHandler),
+    container.resolve(FirstPurchaseBonusGrantedHandler),
+    container.resolve(AutoRechargeSucceededHandler),
+    container.resolve(ActivateTrialHandler),
+    container.resolve(DeleteUnbackedDeploymentSettingHandler)
+  ]);
+}
+
 container.register(APP_INITIALIZER, {
   useValue: {
-    async [ON_APP_START]() {
-      const jobQueueManager = container.resolve(JobQueueService);
-      await jobQueueManager.setup();
-      await jobQueueManager.registerHandlers([
-        container.resolve(TrialStartedHandler),
-        container.resolve(NotificationHandler),
-        container.resolve(CloseTrialDeploymentHandler),
-        container.resolve(TrialDeploymentLeaseCreatedHandler),
-        container.resolve(EnableDeploymentAlertHandler),
-        container.resolve(FundDeploymentHandler),
-        container.resolve(FundDrainingDeploymentsHandler),
-        container.resolve(WalletBalanceReloadCheckHandler),
-        container.resolve(WalletCreditsLowCheckHandler),
-        container.resolve(FirstPurchaseBonusGrantedHandler),
-        container.resolve(AutoRechargeSucceededHandler),
-        container.resolve(ActivateTrialHandler),
-        container.resolve(DeleteUnbackedDeploymentSettingHandler)
-      ]);
-    }
+    [ON_APP_START]: startJobQueues
   } satisfies AppInitializer
 });
