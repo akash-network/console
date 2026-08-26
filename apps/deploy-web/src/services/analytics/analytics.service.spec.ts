@@ -401,7 +401,7 @@ describe(AnalyticsService.name, () => {
   });
 
   describe("untrackable hosts", () => {
-    it.each(["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]", "console.localhost", "mymachine.local"])(
+    it.each(["localhost", "127.0.0.1", "127.0.0.2", "127.1.2.3", "0.0.0.0", "::1", "[::1]", "console.localhost", "mymachine.local"])(
       "does not initialize Amplitude on %s even when enabled",
       hostname => {
         const init = vi.fn();
@@ -470,7 +470,7 @@ describe(AnalyticsService.name, () => {
       expect(dataLayer).toHaveLength(1);
     });
 
-    it.each(["console.akash.network", "console-beta.akash.network", "8zv824gmq5zw-console-beta.akash.network"])(
+    it.each(["console.akash.network", "console-beta.akash.network", "8zv824gmq5zw-console-beta.akash.network", "127-console.akash.network"])(
       "initializes Amplitude on the real host %s",
       hostname => {
         const init = vi.fn();

@@ -168,10 +168,13 @@ const isBrowser = typeof window !== "undefined";
  * Hosts that never belong to a real user: dev servers and jsdom test runs both report one of these, and every
  * device they invent is billed as a tracked user against the Amplitude MTU quota even though nobody is using the app.
  */
-const UNTRACKABLE_HOSTNAMES = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]);
+const UNTRACKABLE_HOSTNAMES = new Set(["localhost", "0.0.0.0", "::1", "[::1]"]);
+
+/** The whole 127.0.0.0/8 range is loopback, so a dev server bound to any of it is still nobody. */
+const IPV4_LOOPBACK = /^127(?:\.\d{1,3}){3}$/;
 
 function isTrackableHostname(hostname: string): boolean {
-  if (!hostname || UNTRACKABLE_HOSTNAMES.has(hostname)) {
+  if (!hostname || UNTRACKABLE_HOSTNAMES.has(hostname) || IPV4_LOOPBACK.test(hostname)) {
     return false;
   }
 
