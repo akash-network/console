@@ -68,6 +68,40 @@ describe(EmailSenderService.name, () => {
       );
     });
 
+    it("logs which notification was emailed and how many recipients it reached", async () => {
+      const { service, loggerService } = await setup();
+      const params = {
+        addresses: [faker.internet.email(), faker.internet.email()],
+        subject: faker.lorem.sentence(),
+        content: faker.lorem.paragraph(),
+        userId: faker.string.uuid(),
+        notificationId: `creditsRunningLow.${faker.string.uuid()}`
+      };
+
+      await service.send(params);
+
+      expect(loggerService.info).toHaveBeenCalledWith({
+        event: "EMAIL_SENT",
+        notificationId: params.notificationId,
+        userId: params.userId,
+        subject: params.subject,
+        recipientCount: 2
+      });
+    });
+
+    it("logs an undefined notificationId for alert emails that carry none", async () => {
+      const { service, loggerService } = await setup();
+
+      await service.send({
+        addresses: [faker.internet.email()],
+        subject: faker.lorem.sentence(),
+        content: faker.lorem.paragraph(),
+        userId: faker.string.uuid()
+      });
+
+      expect(loggerService.info).toHaveBeenCalledWith(expect.objectContaining({ event: "EMAIL_SENT", notificationId: undefined }));
+    });
+
     it("strips disallowed markup from the content", async () => {
       const { service, novu } = await setup();
 

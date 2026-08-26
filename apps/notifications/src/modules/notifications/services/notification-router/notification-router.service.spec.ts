@@ -28,7 +28,8 @@ describe(NotificationRouterService.name, () => {
         userId: notificationChannel.userId,
         addresses: notificationChannel.config.addresses,
         subject: notificationCommand.payload.summary,
-        content: notificationCommand.payload.description
+        content: notificationCommand.payload.description,
+        notificationId: notificationCommand.notificationId
       });
     });
   });

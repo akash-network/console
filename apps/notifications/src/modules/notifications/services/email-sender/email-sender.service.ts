@@ -12,6 +12,7 @@ type EmailSendOptions = {
   subject: string;
   content: string;
   userId: string;
+  notificationId?: string;
 };
 
 @Injectable()
@@ -24,7 +25,7 @@ export class EmailSenderService {
     this.loggerService.setContext(EmailSenderService.name);
   }
 
-  async send({ addresses, userId, subject, content }: EmailSendOptions): Promise<void> {
+  async send({ addresses, userId, subject, content, notificationId }: EmailSendOptions): Promise<void> {
     await this.novu.trigger({
       workflowId: this.configService.getOrThrow("notifications.NOVU_MAILER_WORKFLOW_ID"),
       to: {
@@ -45,6 +46,14 @@ export class EmailSenderService {
           to: addresses
         }
       }
+    });
+
+    this.loggerService.info({
+      event: "EMAIL_SENT",
+      notificationId,
+      userId,
+      subject,
+      recipientCount: addresses.length
     });
   }
 }

@@ -72,6 +72,7 @@ describe(JobsController.name, () => {
         eventKeyRegistry.createNotification,
         {
           notificationChannelId: channel.id,
+          notificationId: "notifyAboutStartTrial",
           payload: {
             description: "test",
             summary: "test"
@@ -105,6 +106,7 @@ describe(JobsController.name, () => {
         eventKeyRegistry.createNotification,
         {
           notificationChannelId: channel.id,
+          notificationId: "notifyAboutStartTrial",
           payload: {
             description: "test",
             summary: "test"
@@ -137,6 +139,7 @@ describe(JobsController.name, () => {
         eventKeyRegistry.createNotification,
         {
           notificationChannelId: channel.id,
+          notificationId: "notifyAbout1WeekTrial",
           payload: {
             description: "test",
             summary: "test"

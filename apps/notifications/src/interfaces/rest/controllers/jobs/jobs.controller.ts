@@ -59,7 +59,8 @@ export class JobsController {
       eventKeyRegistry.createNotification,
       {
         payload: job.payload,
-        notificationChannelId: notificationChannel.id
+        notificationChannelId: notificationChannel.id,
+        notificationId: job.notificationId
       },
       publishOptions
     );
