@@ -1,6 +1,6 @@
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
-import { LoggerService } from "../../providers/logging.provider";
+import { type CreateLogger, LOGGER_FACTORY } from "../../providers/logging.provider";
 import { EnqueueOptions, Job, JOB_NAME, JobPayload, JobQueueService } from "../job-queue/job-queue.service";
 
 export { JOB_NAME as DOMAIN_EVENT_NAME };
@@ -10,10 +10,14 @@ export type EventPayload<T extends DomainEvent> = JobPayload<T>;
 
 @singleton()
 export class DomainEventsService {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly jobQueueManager: JobQueueService,
-    private readonly logger: LoggerService
-  ) {}
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.logger = createLogger({ context: DomainEventsService.name });
+  }
 
   async publish(event: DomainEvent, options?: EnqueueOptions): Promise<string | null> {
     try {

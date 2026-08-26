@@ -3,7 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { FirstPurchaseBonusGranted } from "@src/billing/events/first-purchase-bonus-granted";
 import type { EventPayload } from "@src/core";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { firstPurchaseBonusGrantedNotification } from "@src/notifications/services/notification-templates/first-purchase-bonus-granted-notification";
 import type { UserRepository } from "@src/user/repositories";
@@ -45,6 +45,12 @@ describe(FirstPurchaseBonusGrantedHandler.name, () => {
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "FIRST_PURCHASE_BONUS_EMAIL_SKIPPED" }));
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: FirstPurchaseBonusGrantedHandler.name });
+  });
+
   function setup(input?: { findUserById?: UserRepository["findById"] }) {
     const mocks = {
       notificationService: mock<NotificationService>({
@@ -53,11 +59,13 @@ describe(FirstPurchaseBonusGrantedHandler.name, () => {
       userRepository: mock<UserRepository>({
         findById: input?.findUserById ?? vi.fn()
       }),
-      logger: mock<LoggerService>()
+      logger: mock<ReturnType<CreateLogger>>()
     };
 
-    const handler = new FirstPurchaseBonusGrantedHandler(mocks.notificationService, mocks.userRepository, mocks.logger);
+    const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
 
-    return { handler, ...mocks };
+    const handler = new FirstPurchaseBonusGrantedHandler(mocks.notificationService, mocks.userRepository, createLogger);
+
+    return { handler, createLogger, ...mocks };
   }
 });

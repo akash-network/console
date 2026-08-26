@@ -6,7 +6,7 @@ import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { EventPayload } from "@src/core";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { autoRechargeSucceededNotification } from "@src/notifications/services/notification-templates/auto-recharge-succeeded-notification";
 import type { UserRepository } from "@src/user/repositories";
@@ -71,6 +71,12 @@ describe(AutoRechargeSucceededHandler.name, () => {
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "AUTO_RECHARGE_SUCCESS_EMAIL_SKIPPED", reason: "Wallet address not found" }));
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup({ user: null });
+
+    expect(createLogger).toHaveBeenCalledWith({ context: AutoRechargeSucceededHandler.name });
+  });
+
   function setup(input: {
     user: ReturnType<typeof createUser> | null;
     wallet?: ReturnType<typeof createUserWallet>;
@@ -93,8 +99,10 @@ describe(AutoRechargeSucceededHandler.name, () => {
       billingConfig: mock<BillingConfigService>({
         get: vi.fn().mockReturnValue(input.paymentLink ?? "https://console.akash.network/billing?openPayment=true")
       }),
-      logger: mock<LoggerService>()
+      logger: mock<ReturnType<CreateLogger>>()
     };
+
+    const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
 
     const handler = new AutoRechargeSucceededHandler(
       mocks.notificationService,
@@ -102,9 +110,9 @@ describe(AutoRechargeSucceededHandler.name, () => {
       mocks.userWalletRepository,
       mocks.balancesService,
       mocks.billingConfig,
-      mocks.logger
+      createLogger
     );
 
-    return { handler, ...mocks };
+    return { handler, createLogger, ...mocks };
   }
 });

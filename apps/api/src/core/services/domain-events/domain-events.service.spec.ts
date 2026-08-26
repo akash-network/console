@@ -1,7 +1,7 @@
-import type { LoggerService } from "@akashnetwork/logging";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { CreateLogger } from "../../providers/logging.provider";
 import type { JobQueueService } from "../job-queue/job-queue.service";
 import type { DomainEvent } from "./domain-events.service";
 import { DomainEventsService } from "./domain-events.service";
@@ -27,10 +27,17 @@ describe(DomainEventsService.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: DomainEventsService.name });
+  });
+
   function setup() {
     const jobQueueManager = mock<JobQueueService>();
-    const logger = mock<LoggerService>();
-    const service = new DomainEventsService(jobQueueManager, logger);
-    return { service, jobQueueManager, logger };
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
+    const service = new DomainEventsService(jobQueueManager, createLogger);
+    return { service, jobQueueManager, logger, createLogger };
   }
 });

@@ -6,12 +6,12 @@ import { DisposableRegistry } from "@src/core/lib/disposable-registry/disposable
 import type { AppInitializer } from "./app-initializer";
 import { APP_INITIALIZER, ON_APP_START } from "./app-initializer";
 import { CORE_CONFIG } from "./config.provider";
-import { LoggerService } from "./logging.provider";
+import { LOGGER_FACTORY } from "./logging.provider";
 
 container.register(APP_INITIALIZER, {
   useFactory: instancePerContainerCachingFactory(
     DisposableRegistry.registerFromFactory<AppInitializer>(c => {
-      const logger = c.resolve(LoggerService);
+      const logger = c.resolve(LOGGER_FACTORY)({ context: "EVENTLOOP_MONITORING" });
       let disposable: ReturnType<typeof blockedAt> | null = null;
       return {
         async [ON_APP_START]() {

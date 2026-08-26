@@ -1,10 +1,10 @@
 import "@test/mocks/logger-service.mock";
 
-import type { LoggerService } from "@akashnetwork/logging";
 import { faker } from "@faker-js/faker";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { CreateLogger } from "../../providers/logging.provider";
 import { ErrorService } from "./error.service";
 
 describe(ErrorService.name, () => {
@@ -48,9 +48,16 @@ describe(ErrorService.name, () => {
     expect(actual).toBeUndefined();
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: ErrorService.name });
+  });
+
   function setup() {
-    const logger = mock<LoggerService>();
-    const service = new ErrorService(logger);
-    return { service, logger };
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
+    const service = new ErrorService(createLogger);
+    return { service, logger, createLogger };
   }
 });

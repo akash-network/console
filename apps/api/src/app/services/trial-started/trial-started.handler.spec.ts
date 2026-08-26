@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
@@ -217,6 +217,12 @@ describe(TrialStartedHandler.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: TrialStartedHandler.name });
+  });
+
   function setup(input?: {
     findUserById?: UserRepository["findById"];
     createNotification?: NotificationService["createNotification"];
@@ -235,7 +241,7 @@ describe(TrialStartedHandler.name, () => {
       userRepository: mock<UserRepository>({
         findById: input?.findUserById ?? vi.fn()
       }),
-      logger: mock<LoggerService>(),
+      logger: mock<ReturnType<CreateLogger>>(),
       coreConfig: mockConfig<BillingConfigService>({
         TRIAL_ALLOWANCE_EXPIRATION_DAYS: input?.trialExpirationDays ?? 30,
         CONSOLE_WEB_PAYMENT_LINK: paymentLink,
@@ -243,8 +249,10 @@ describe(TrialStartedHandler.name, () => {
       })
     };
 
-    const handler = new TrialStartedHandler(mocks.notificationService, mocks.jobQueueManager, mocks.userRepository, mocks.logger, mocks.coreConfig);
+    const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
 
-    return { handler, ...mocks, paymentLink };
+    const handler = new TrialStartedHandler(mocks.notificationService, mocks.jobQueueManager, mocks.userRepository, createLogger, mocks.coreConfig);
+
+    return { handler, createLogger, ...mocks, paymentLink };
   }
 });

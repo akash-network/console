@@ -1,10 +1,10 @@
 import { addHours } from "date-fns";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { DOMAIN_EVENT_NAME, EventPayload, JobHandler, JobQueueService, LoggerService } from "@src/core";
+import { type CreateLogger, DOMAIN_EVENT_NAME, EventPayload, JobHandler, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { RESOLVED_MARKER } from "@src/notifications/services/notification-data-resolver/notification-data-resolver.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 import { CloseTrialDeployment } from "../close-trial-deployment/close-trial-deployment.handler";
@@ -15,12 +15,16 @@ export class TrialDeploymentLeaseCreatedHandler implements JobHandler<TrialDeplo
 
   public readonly concurrency = 2;
 
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly logger: LoggerService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger,
     private readonly jobQueueService: JobQueueService,
     private readonly billingConfig: BillingConfigService
-  ) {}
+  ) {
+    this.logger = createLogger({ context: TrialDeploymentLeaseCreatedHandler.name });
+  }
 
   async handle(payload: EventPayload<TrialDeploymentLeaseCreated>): Promise<void> {
     const wallet = await this.userWalletRepository.findById(payload.walletId);
