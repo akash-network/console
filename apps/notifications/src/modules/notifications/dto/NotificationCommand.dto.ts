@@ -3,6 +3,7 @@ import { z } from "zod";
 
 const NotificationCommandSchema = z.object({
   notificationChannelId: z.string(),
+  notificationId: z.string().optional(),
   payload: z.object({
     summary: z.string(),
     description: z.string()

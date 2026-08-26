@@ -7,6 +7,7 @@ import { AlertConfig } from "@src/modules/alert/config";
 import { ChainBlockCreatedDto } from "@src/modules/alert/dto/chain-block-created.dto";
 import { AlertRepository, DeploymentBalanceAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
 import { AlertMessageService } from "@src/modules/alert/services/alert-message/alert-message.service";
+import { alertNotifiedLog } from "@src/modules/alert/services/alert-notified-log";
 import { ConditionsMatcherService } from "@src/modules/alert/services/conditions-matcher/conditions-matcher.service";
 import { DeploymentService } from "@src/modules/alert/services/deployment/deployment.service";
 import type { MessageCallback } from "@src/modules/alert/types/message-callback.type";
@@ -66,6 +67,8 @@ export class DeploymentBalanceAlertsService {
 
         if (payload) {
           await onMessage({ payload, notificationChannelId: alert.notificationChannelId });
+
+          this.loggerService.info(alertNotifiedLog(alert, { reason: "SUSPENDED_BY_SYSTEM" }));
         }
         return;
       }
@@ -99,6 +102,8 @@ export class DeploymentBalanceAlertsService {
           }),
           notificationChannelId: alert.notificationChannelId
         });
+
+        this.loggerService.info(alertNotifiedLog(alert, { status: updatedAlert?.status }));
       }
     } catch (error) {
       this.loggerService.error({

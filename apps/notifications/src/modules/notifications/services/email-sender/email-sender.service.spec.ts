@@ -7,7 +7,6 @@ import { describe, expect, it } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
-import { AnalyticsService } from "@src/modules/notifications/services/analytics/analytics.service";
 import { EmailSenderService } from "./email-sender.service";
 
 import { MockProvider } from "@test/mocks/provider.mock";
@@ -19,8 +18,8 @@ describe(EmailSenderService.name, () => {
   });
 
   describe("send", () => {
-    it("should send an email and track analytics", async () => {
-      const { service, novu, analyticsService, novuWorkflowId } = await setup();
+    it("sends the email through the configured Novu workflow", async () => {
+      const { service, novu, novuWorkflowId } = await setup();
       const email = faker.internet.email();
       const params = {
         addresses: [email],
@@ -47,44 +46,85 @@ describe(EmailSenderService.name, () => {
           }
         }
       });
-
-      expect(analyticsService.track).toHaveBeenCalledWith(params.userId, "email_sent", {
-        recipient_count: 1,
-        subject: params.subject,
-        workflow_id: novuWorkflowId
-      });
     });
 
-    it("should handle analytics tracking errors gracefully", async () => {
-      const { service, novu, analyticsService, loggerService, novuWorkflowId } = await setup();
-      const email = faker.internet.email();
-      const params = {
-        addresses: [email],
+    it("sends to every address while addressing the first one as the subscriber", async () => {
+      const { service, novu } = await setup();
+      const addresses = [faker.internet.email(), faker.internet.email(), faker.internet.email()];
+      const userId = faker.string.uuid();
+
+      await service.send({
+        addresses,
         subject: faker.lorem.sentence(),
         content: faker.lorem.paragraph(),
-        userId: faker.string.uuid()
-      };
-
-      const analyticsError = new Error("Analytics service error");
-      analyticsService.track.mockImplementation(() => {
-        throw analyticsError;
+        userId
       });
+
+      expect(novu.trigger).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: { subscriberId: userId, email: addresses[0] },
+          overrides: { email: { to: addresses } }
+        })
+      );
+    });
+
+    it("logs which notification was emailed and how many recipients it reached", async () => {
+      const { service, loggerService } = await setup();
+      const params = {
+        addresses: [faker.internet.email(), faker.internet.email()],
+        subject: faker.lorem.sentence(),
+        content: faker.lorem.paragraph(),
+        userId: faker.string.uuid(),
+        notificationId: `creditsRunningLow.${faker.string.uuid()}`
+      };
 
       await service.send(params);
 
-      expect(novu.trigger).toHaveBeenCalled();
-      expect(analyticsService.track).toHaveBeenCalledWith(params.userId, "email_sent", {
-        recipient_count: 1,
+      expect(loggerService.info).toHaveBeenCalledWith({
+        event: "EMAIL_SENT",
+        notificationId: params.notificationId,
+        userId: params.userId,
         subject: params.subject,
-        workflow_id: novuWorkflowId
+        recipientCount: 2
       });
-      expect(loggerService.error).toHaveBeenCalledWith({ message: "Failed to track email analytics", error: analyticsError });
+    });
+
+    it("logs an undefined notificationId for alert emails that carry none", async () => {
+      const { service, loggerService } = await setup();
+
+      await service.send({
+        addresses: [faker.internet.email()],
+        subject: faker.lorem.sentence(),
+        content: faker.lorem.paragraph(),
+        userId: faker.string.uuid()
+      });
+
+      expect(loggerService.info).toHaveBeenCalledWith(expect.objectContaining({ event: "EMAIL_SENT", notificationId: undefined }));
+    });
+
+    it("strips disallowed markup from the content", async () => {
+      const { service, novu } = await setup();
+
+      await service.send({
+        addresses: [faker.internet.email()],
+        subject: faker.lorem.sentence(),
+        content: '<script>alert(1)</script><strong>keep</strong><a href="https://akash.network">link</a>',
+        userId: faker.string.uuid()
+      });
+
+      expect(novu.trigger).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            content: '<strong>keep</strong><a href="https://akash.network">link</a>'
+          })
+        })
+      );
     });
   });
 
   async function setup() {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [EmailSenderService, MockProvider(Novu), MockProvider(ConfigService), MockProvider(AnalyticsService), MockProvider(LoggerService)]
+      providers: [EmailSenderService, MockProvider(Novu), MockProvider(ConfigService), MockProvider(LoggerService)]
     }).compile();
 
     const novuWorkflowId = faker.lorem.word();
@@ -98,7 +138,6 @@ describe(EmailSenderService.name, () => {
     return {
       service: module.get<EmailSenderService>(EmailSenderService),
       novu: module.get<MockProxy<Novu>>(Novu),
-      analyticsService: module.get<MockProxy<AnalyticsService>>(AnalyticsService),
       loggerService: module.get<MockProxy<LoggerService>>(LoggerService),
       novuWorkflowId
     };

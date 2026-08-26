@@ -5,6 +5,7 @@ import { LoggerService } from "@src/common/services/logger/logger.service";
 import type { AlertConfig } from "@src/modules/alert/config";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import type { AlertMessagePayload } from "@src/modules/alert/services/alert-message/alert-message.service";
+import { alertNotifiedLog } from "@src/modules/alert/services/alert-notified-log";
 import { getLeaseClosedReasonText, toLeaseClosedReason } from "@src/modules/alert/services/reclaim-alert/lease-closed-reason";
 import { formatReclaimDeadline } from "@src/modules/alert/services/reclaim-alert/reclaim-deadline";
 import type { MessageCallback } from "@src/modules/alert/types/message-callback.type";
@@ -51,6 +52,8 @@ export class ReclaimAlertService {
       notificationChannelId: claimedAlert.notificationChannelId,
       payload: this.buildMessage(event)
     });
+
+    this.loggerService.info(alertNotifiedLog(claimedAlert, { reason: "RECLAIM_DEADLINE" }));
   }
 
   private buildMessage(event: ReclaimAlertEvent): AlertMessagePayload {

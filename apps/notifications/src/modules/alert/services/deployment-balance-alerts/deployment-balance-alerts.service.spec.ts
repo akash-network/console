@@ -73,6 +73,33 @@ describe(DeploymentBalanceAlertsService.name, () => {
       });
     });
 
+    it("logs which alert was notified and the status it moved to", async () => {
+      const { service, alertRepository, deploymentService, alertMessageService, loggerService, onMessage } = await setup();
+      const alert = generateDeploymentBalanceAlert({
+        params: { owner: mockAkashAddress(), dseq: faker.string.numeric(6) },
+        conditions: { field: "balance", value: 10000000, operator: "lt" },
+        minBlockHeight: 1000
+      });
+      alertRepository.paginateAll.mockImplementation(async options => {
+        await options.callback([alert] as any);
+      });
+      alertRepository.updateById.mockImplementation(async (id, update) => ({ ...alert, ...update }) as AlertOutput);
+      deploymentService.getDeploymentBalance.mockResolvedValue(Ok({ balance: 9000000 }));
+      alertMessageService.getMessage.mockReturnValue(generateAlertMessage({ notificationChannelId: alert.notificationChannelId }).payload);
+
+      await service.alertFor({ height: 1000 }, onMessage);
+
+      expect(loggerService.info).toHaveBeenCalledWith({
+        event: "ALERT_NOTIFIED",
+        alertId: alert.id,
+        alertType: alert.type,
+        alertName: alert.name,
+        userId: alert.userId,
+        notificationChannelId: alert.notificationChannelId,
+        status: "TRIGGERED"
+      });
+    });
+
     it("should recover an alert for a given block and mark it as OK", async () => {
       const { service, alertRepository, deploymentService, alertMessageService, onMessage } = await setup();
       const owner = mockAkashAddress();

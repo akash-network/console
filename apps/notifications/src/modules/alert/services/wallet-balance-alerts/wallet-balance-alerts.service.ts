@@ -5,6 +5,7 @@ import { LoggerService } from "@src/common/services/logger/logger.service";
 import { ChainBlockCreatedDto } from "@src/modules/alert/dto/chain-block-created.dto";
 import { AlertRepository, WalletBalanceAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
 import { AlertMessageService } from "@src/modules/alert/services/alert-message/alert-message.service";
+import { alertNotifiedLog } from "@src/modules/alert/services/alert-notified-log";
 import { ConditionsMatcherService } from "@src/modules/alert/services/conditions-matcher/conditions-matcher.service";
 import type { MessageCallback } from "@src/modules/alert/types/message-callback.type";
 
@@ -88,6 +89,8 @@ export class WalletBalanceAlertsService {
           }),
           notificationChannelId: alert.notificationChannelId
         });
+
+        this.loggerService.info(alertNotifiedLog(alert, { status: updatedAlert?.status }));
       }
     } catch (error) {
       this.loggerService.error({
