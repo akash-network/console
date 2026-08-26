@@ -3,7 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { EnvConfig } from "@src/providers/app-config.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
-import type { ProviderIncidentRepository } from "@src/repositories/provider-incident/provider-incident.repository";
+import type { OpenIncident, ProviderIncidentRepository } from "@src/repositories/provider-incident/provider-incident.repository";
 import type { ProviderInventory, ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
 import type { ChainProviderPollerService } from "@src/services/chain-provider-poller/chain-provider-poller.service";
 import type { StreamLifecycleManagerService } from "@src/services/stream-lifecycle-manager/stream-lifecycle-manager.service";
@@ -12,6 +12,7 @@ import type { TimerService } from "../timer/timer.service";
 import { DiscoverySchedulerService } from "./discovery-scheduler.service";
 
 const DEAD_PROVIDER_UPDATED_THRESHOLD_MS = 10 * 24 * 60 * 60 * 1000;
+const DEAD_PROVIDER_RETRY_INTERVAL_MS = 60 * 60 * 1000;
 
 describe(DiscoverySchedulerService.name, () => {
   beforeEach(() => {
@@ -84,17 +85,20 @@ describe(DiscoverySchedulerService.name, () => {
   it("forwards the provider's offline-since timestamp to lifecycle.start", async () => {
     const offline = createProvider({ owner: "offline", hostUri: "https://offline:8443" });
     const offlineSince = new Date(Date.now() - 60_000);
-    const { lifecycle } = setup({ providers: [offline], offlineSince: new Map([[offline.owner, offlineSince]]) });
+    const { lifecycle } = setup({ providers: [offline], openIncidents: openIncidents({ offline: { startedAt: offlineSince } }) });
 
     await vi.advanceTimersByTimeAsync(0);
 
     expect(lifecycle.start).toHaveBeenCalledWith({ ...offline, offlineSince }, expect.any(AbortSignal));
   });
 
-  it("skips a provider whose open incident is older than the dead-provider threshold", async () => {
+  it("skips a dead provider that was dialled within the retry interval", async () => {
     const dead = createProvider({ owner: "dead", hostUri: "https://dead:8443" });
-    const offlineSince = new Date(Date.now() - DEAD_PROVIDER_UPDATED_THRESHOLD_MS - 1_000);
-    const { lifecycle, logger } = setup({ providers: [dead], offlineSince: new Map([[dead.owner, offlineSince]]) });
+    const startedAt = new Date(Date.now() - DEAD_PROVIDER_UPDATED_THRESHOLD_MS - 1_000);
+    const { lifecycle, logger } = setup({
+      providers: [dead],
+      openIncidents: openIncidents({ dead: { startedAt, lastAttemptAt: new Date(Date.now() - 60_000) } })
+    });
 
     await vi.advanceTimersByTimeAsync(0);
 
@@ -102,10 +106,37 @@ describe(DiscoverySchedulerService.name, () => {
     expect(logger.debug).toHaveBeenCalledWith(expect.objectContaining({ event: "DISCOVERY_SKIP_PROVIDER", owner: "dead" }));
   });
 
+  it("re-verifies a dead provider that has not been dialled for the retry interval", async () => {
+    const dead = createProvider({ owner: "dead", hostUri: "https://dead:8443" });
+    const startedAt = new Date(Date.now() - DEAD_PROVIDER_UPDATED_THRESHOLD_MS - 1_000);
+    const lastAttemptAt = new Date(Date.now() - DEAD_PROVIDER_RETRY_INTERVAL_MS - 1_000);
+    const { lifecycle, logger } = setup({ providers: [dead], openIncidents: openIncidents({ dead: { startedAt, lastAttemptAt } }) });
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(lifecycle.start).toHaveBeenCalledWith({ ...dead, offlineSince: startedAt }, expect.any(AbortSignal));
+    expect(logger.debug).toHaveBeenCalledWith(expect.objectContaining({ event: "DISCOVERY_REVERIFY_DEAD_PROVIDER", owner: "dead" }));
+  });
+
+  it("does not re-verify a dead provider that is already being dialled", async () => {
+    const dead = createProvider({ owner: "dead", hostUri: "https://dead:8443" });
+    const startedAt = new Date(Date.now() - DEAD_PROVIDER_UPDATED_THRESHOLD_MS - 1_000);
+    const lastAttemptAt = new Date(Date.now() - DEAD_PROVIDER_RETRY_INTERVAL_MS - 1_000);
+    const { lifecycle } = setup({
+      providers: [dead],
+      watched: new Map([["dead", { hostUri: "https://dead:8443" }]]),
+      openIncidents: openIncidents({ dead: { startedAt, lastAttemptAt } })
+    });
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(lifecycle.start).not.toHaveBeenCalled();
+  });
+
   it("retries a dead provider instead of skipping it when its on-chain record changed this tick", async () => {
     const dead = createProvider({ owner: "dead", hostUri: "https://dead:8443" });
     const offlineSince = new Date(Date.now() - DEAD_PROVIDER_UPDATED_THRESHOLD_MS - 1_000);
-    const { writer, lifecycle, logger } = setup({ providers: [dead], offlineSince: new Map([[dead.owner, offlineSince]]) });
+    const { writer, lifecycle, logger } = setup({ providers: [dead], openIncidents: openIncidents({ dead: { startedAt: offlineSince } }) });
     writer.bulkUpsertProviders.mockResolvedValue([{ owner: dead.owner }]);
 
     await vi.advanceTimersByTimeAsync(0);
@@ -118,7 +149,7 @@ describe(DiscoverySchedulerService.name, () => {
     // dead detection keys off open incidents only — a provider with no open incident is never skipped,
     // regardless of how stale its inventory row is
     const provider = createProvider({ owner: "healthy", hostUri: "https://healthy:8443" });
-    const { lifecycle, logger } = setup({ providers: [provider], offlineSince: new Map() });
+    const { lifecycle, logger } = setup({ providers: [provider], openIncidents: new Map() });
 
     await vi.advanceTimersByTimeAsync(0);
 
@@ -130,11 +161,11 @@ describe(DiscoverySchedulerService.name, () => {
     // A dead provider is still on-chain, so its inventory row and open incident must be preserved.
     // Deleting them (via stopAndDelete) would reset dead-detection and re-monitor it as brand-new next tick.
     const dead = createProvider({ owner: "dead", hostUri: "https://dead:8443" });
-    const offlineSince = new Date(Date.now() - DEAD_PROVIDER_UPDATED_THRESHOLD_MS - 1_000);
+    const startedAt = new Date(Date.now() - DEAD_PROVIDER_UPDATED_THRESHOLD_MS - 1_000);
     const { lifecycle } = setup({
       providers: [dead],
       watched: new Map([["dead", { hostUri: "https://dead:8443" }]]),
-      offlineSince: new Map([[dead.owner, offlineSince]])
+      openIncidents: openIncidents({ dead: { startedAt, lastAttemptAt: new Date(Date.now() - 60_000) } })
     });
 
     await vi.advanceTimersByTimeAsync(0);
@@ -164,7 +195,7 @@ describe(DiscoverySchedulerService.name, () => {
     const { lifecycle } = setup({
       providers: [updated],
       watched: new Map([["moving", { hostUri: "https://old:8443" }]]),
-      offlineSince: new Map([[updated.owner, offlineSince]])
+      openIncidents: openIncidents({ moving: { startedAt: offlineSince } })
     });
 
     await vi.advanceTimersByTimeAsync(0);
@@ -338,7 +369,7 @@ describe(DiscoverySchedulerService.name, () => {
     onlineOwners?: Pick<ProviderInventory, "owner" | "hostUri">[];
     autoStart?: boolean;
     watched?: Map<string, { hostUri: string }>;
-    offlineSince?: Map<string, Date>;
+    openIncidents?: Map<string, OpenIncident>;
   }) {
     const poller = mock<ChainProviderPollerService>();
     const writer = mock<ProviderInventoryRepository>();
@@ -348,7 +379,7 @@ describe(DiscoverySchedulerService.name, () => {
     lifecycle.stopAndDelete.mockResolvedValue();
     lifecycle.waitForPendingConnections.mockResolvedValue();
     writer.bulkUpsertProviders.mockResolvedValue([]);
-    incidentRepository.getOfflineSince.mockResolvedValue(input?.offlineSince ?? new Map());
+    incidentRepository.getOpenIncidents.mockResolvedValue(input?.openIncidents ?? new Map());
     incidentRepository.deleteEndedBefore.mockResolvedValue(0);
 
     const onlineOwners = input?.onlineOwners ?? [];
@@ -371,6 +402,7 @@ describe(DiscoverySchedulerService.name, () => {
       STREAM_RECONNECT_MAX_DELAY_MS: 300_000,
       STREAM_FIRST_MESSAGE_TIMEOUT_MS: 10_000,
       DEAD_PROVIDER_UPDATED_THRESHOLD_MS,
+      DEAD_PROVIDER_RETRY_INTERVAL_MS,
       REST_API_NODE_URL: "http://localhost:1317",
       INCIDENT_RETENTION_DAYS: 31,
       INCIDENT_CLEANUP_INTERVAL_MS: 24 * 60 * 60 * 1000
@@ -417,6 +449,12 @@ function asyncIterableThatThrows<T>(error: Error): AsyncGenerator<T> {
       return this;
     }
   } as AsyncGenerator<T>;
+}
+
+function openIncidents(byOwner: Record<string, { startedAt: Date; lastAttemptAt?: Date }>): Map<string, OpenIncident> {
+  return new Map(
+    Object.entries(byOwner).map(([owner, incident]) => [owner, { startedAt: incident.startedAt, lastAttemptAt: incident.lastAttemptAt ?? new Date() }])
+  );
 }
 
 function createProvider(overrides?: Partial<ChainProvider>): ChainProvider {

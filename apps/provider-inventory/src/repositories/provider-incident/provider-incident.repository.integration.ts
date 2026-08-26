@@ -4,6 +4,7 @@ import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
 import { providerIncidents } from "@src/model-schemas/provider-incident/provider-incident.schema";
+import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
 import { ProviderIncidentRepository } from "./provider-incident.repository";
 
@@ -34,6 +35,40 @@ describe(ProviderIncidentRepository.name, () => {
       expect(rows).toHaveLength(1);
       expect(rows[0].endedAt).toBeNull();
       expect(rows[0].startedAt.toISOString()).toBe(firstRow.startedAt.toISOString());
+    });
+
+    it("records the new attempt on the incident that is already open", async () => {
+      const { repository, db } = setup();
+      await seedIncident(db, {
+        provider: "akash1a",
+        startedAt: atDaysAgoUtc(9, 10),
+        lastAttemptAt: atDaysAgoUtc(7, 10),
+        endedAt: null
+      });
+
+      await repository.openIncident("akash1a");
+
+      const [row] = await db.select().from(providerIncidents);
+      expect(row.startedAt.toISOString()).toBe(atDaysAgoUtc(9, 10).toISOString());
+      expect(row.lastAttemptAt.getTime()).toBeGreaterThan(Date.now() - 60_000);
+    });
+
+    it("leaves a closed incident's attempt time alone when opening a new outage", async () => {
+      const { repository, db } = setup();
+      const closedLastAttemptAt = atDaysAgoUtc(5, 10);
+      await seedIncident(db, {
+        provider: "akash1a",
+        startedAt: atDaysAgoUtc(5, 9),
+        lastAttemptAt: closedLastAttemptAt,
+        endedAt: atDaysAgoUtc(5, 11)
+      });
+
+      await repository.openIncident("akash1a");
+
+      const rows = await db.select().from(providerIncidents).where(eq(providerIncidents.provider, "akash1a"));
+      const [closed] = rows.filter(r => r.endedAt !== null);
+      expect(rows).toHaveLength(2);
+      expect(closed.lastAttemptAt.toISOString()).toBe(closedLastAttemptAt.toISOString());
     });
 
     it("opens a new incident for a fresh outage and leaves the prior closed incident intact", async () => {
@@ -105,33 +140,34 @@ describe(ProviderIncidentRepository.name, () => {
     });
   });
 
-  describe("getOfflineSince", () => {
-    it("returns the open incident's started_at for a provider with an open incident", async () => {
+  describe("getOpenIncidents", () => {
+    it("returns the open incident of a provider that is currently unreachable", async () => {
       const { repository, db } = setup();
       const startedAt = new Date("2026-01-01T00:00:00Z");
-      await seedIncident(db, { provider: "akash1a", startedAt, endedAt: null });
+      const lastAttemptAt = new Date("2026-01-03T00:00:00Z");
+      await seedIncident(db, { provider: "akash1a", startedAt, lastAttemptAt, endedAt: null });
 
-      const result = await repository.getOfflineSince(["akash1a"]);
+      const result = await repository.getOpenIncidents(["akash1a"]);
 
-      expect(result.get("akash1a")?.toISOString()).toBe(startedAt.toISOString());
+      expect(result.get("akash1a")).toEqual({ startedAt, lastAttemptAt });
     });
 
-    it("returns the open incident's started_at even when an earlier closed incident exists", async () => {
+    it("returns the open incident even when an earlier closed incident exists", async () => {
       const { repository, db } = setup();
       const openStartedAt = new Date("2026-02-01T00:00:00Z");
       await seedClosed(db, { provider: "akash1a", startedAt: new Date("2026-01-01T00:00:00Z"), endedAt: new Date("2026-01-01T00:05:00Z") });
       await seedIncident(db, { provider: "akash1a", startedAt: openStartedAt, endedAt: null });
 
-      const result = await repository.getOfflineSince(["akash1a"]);
+      const result = await repository.getOpenIncidents(["akash1a"]);
 
-      expect(result.get("akash1a")?.toISOString()).toBe(openStartedAt.toISOString());
+      expect(result.get("akash1a")?.startedAt.toISOString()).toBe(openStartedAt.toISOString());
     });
 
     it("omits providers whose only incident is already closed", async () => {
       const { repository, db } = setup();
       await seedClosed(db, { provider: "akash1a", endedAt: new Date("2026-01-01T00:05:00Z") });
 
-      const result = await repository.getOfflineSince(["akash1a"]);
+      const result = await repository.getOpenIncidents(["akash1a"]);
 
       expect(result.has("akash1a")).toBe(false);
     });
@@ -140,7 +176,7 @@ describe(ProviderIncidentRepository.name, () => {
       const { repository, db } = setup();
       await seedIncident(db, { provider: "akash1a", startedAt: new Date("2026-01-01T00:00:00Z"), endedAt: null });
 
-      const result = await repository.getOfflineSince(["akash1a", "akash1unknown"]);
+      const result = await repository.getOpenIncidents(["akash1a", "akash1unknown"]);
 
       expect([...result.keys()]).toEqual(["akash1a"]);
     });
@@ -148,9 +184,64 @@ describe(ProviderIncidentRepository.name, () => {
     it("returns an empty map for an empty list", async () => {
       const { repository } = setup();
 
-      const result = await repository.getOfflineSince([]);
+      const result = await repository.getOpenIncidents([]);
 
       expect(result.size).toBe(0);
+    });
+  });
+
+  describe("findOutagesStartedBefore", () => {
+    it("returns ongoing outages older than the requested age, with the provider's host", async () => {
+      const { repository, db } = setup();
+      const startedAt = atDaysAgoUtc(5, 10);
+      const lastAttemptAt = atDaysAgoUtc(0, 10);
+      await seedProvider(db, { owner: "akash1a", hostUri: "https://provider.a:8443" });
+      await seedIncident(db, { provider: "akash1a", startedAt, lastAttemptAt, endedAt: null });
+
+      const outages = await repository.findOutagesStartedBefore(3);
+
+      expect(outages).toEqual([{ provider: "akash1a", hostUri: "https://provider.a:8443", startedAt, lastAttemptAt }]);
+    });
+
+    it("omits outages that are younger than the requested age", async () => {
+      const { repository, db } = setup();
+      await seedProvider(db, { owner: "akash1a" });
+      await seedIncident(db, { provider: "akash1a", startedAt: atDaysAgoUtc(1, 10), endedAt: null });
+
+      const outages = await repository.findOutagesStartedBefore(3);
+
+      expect(outages).toEqual([]);
+    });
+
+    it("omits providers whose outage has already ended", async () => {
+      const { repository, db } = setup();
+      await seedProvider(db, { owner: "akash1a" });
+      await seedClosed(db, { provider: "akash1a", startedAt: atDaysAgoUtc(9, 10), endedAt: atDaysAgoUtc(1, 10) });
+
+      const outages = await repository.findOutagesStartedBefore(3);
+
+      expect(outages).toEqual([]);
+    });
+
+    it("omits outages of providers that are no longer in the inventory", async () => {
+      const { repository, db } = setup();
+      await seedIncident(db, { provider: "akash1gone", startedAt: atDaysAgoUtc(9, 10), endedAt: null });
+
+      const outages = await repository.findOutagesStartedBefore(3);
+
+      expect(outages).toEqual([]);
+    });
+
+    it("returns the longest outages first", async () => {
+      const { repository, db } = setup();
+      await seedProvider(db, { owner: "akash1a" });
+      await seedProvider(db, { owner: "akash1b" });
+      await seedIncident(db, { provider: "akash1a", startedAt: atDaysAgoUtc(5, 10), endedAt: null });
+      await seedIncident(db, { provider: "akash1b", startedAt: atDaysAgoUtc(9, 10), endedAt: null });
+
+      const outages = await repository.findOutagesStartedBefore(3);
+
+      expect(outages.map(o => o.provider)).toEqual(["akash1b", "akash1a"]);
     });
   });
 
@@ -295,13 +386,24 @@ interface SeedClosedInput {
 }
 
 async function seedClosed(db: PostgresJsDatabase, input: SeedClosedInput): Promise<void> {
+  const startedAt = input.startedAt ?? new Date(input.endedAt.getTime() - 60_000);
   await db.insert(providerIncidents).values({
     provider: input.provider,
-    startedAt: input.startedAt ?? new Date(input.endedAt.getTime() - 60_000),
+    startedAt,
+    lastAttemptAt: startedAt,
     endedAt: input.endedAt
   });
 }
 
-async function seedIncident(db: PostgresJsDatabase, input: { provider: string; startedAt: Date; endedAt: Date | null }): Promise<void> {
-  await db.insert(providerIncidents).values({ provider: input.provider, startedAt: input.startedAt, endedAt: input.endedAt });
+async function seedIncident(db: PostgresJsDatabase, input: { provider: string; startedAt: Date; lastAttemptAt?: Date; endedAt: Date | null }): Promise<void> {
+  await db.insert(providerIncidents).values({
+    provider: input.provider,
+    startedAt: input.startedAt,
+    lastAttemptAt: input.lastAttemptAt ?? input.startedAt,
+    endedAt: input.endedAt
+  });
+}
+
+async function seedProvider(db: PostgresJsDatabase, input: { owner: string; hostUri?: string }): Promise<void> {
+  await db.insert(providerInventory).values({ owner: input.owner, hostUri: input.hostUri ?? `https://${input.owner}:8443` });
 }
