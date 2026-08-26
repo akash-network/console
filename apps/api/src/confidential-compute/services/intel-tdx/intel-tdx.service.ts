@@ -2,7 +2,7 @@ import type { HttpClient } from "@akashnetwork/http-sdk";
 import type { JwtPayload } from "jsonwebtoken";
 import { inject, singleton } from "tsyringe";
 
-import { LoggerService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import type { CpuReportVerdict } from "../../http-schemas/attestation.schema";
 import type { ConfidentialComputeConfig } from "../../providers/config.provider";
 import { CONFIDENTIAL_COMPUTE_CONFIG } from "../../providers/config.provider";
@@ -24,11 +24,15 @@ import { verifyJwtWithJwks } from "../jwt-verify";
 export class IntelTdxService {
   readonly #vendor = "intel-tdx" as const;
 
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     @inject(INTEL_ITA_HTTP_CLIENT) private readonly httpClient: HttpClient,
     @inject(CONFIDENTIAL_COMPUTE_CONFIG) private readonly config: ConfidentialComputeConfig,
-    private readonly logger: LoggerService
-  ) {}
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.logger = createLogger({ context: IntelTdxService.name });
+  }
 
   async verify(input: { report: string; nonce: string }): Promise<CpuReportVerdict> {
     const apiKey = this.config.INTEL_ITA_API_KEY;

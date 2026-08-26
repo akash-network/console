@@ -1,5 +1,3 @@
-import "@test/mocks/logger-service.mock";
-
 import type { DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { AxiosError } from "axios";
 import { describe, expect, it, vi } from "vitest";

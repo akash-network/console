@@ -1,6 +1,6 @@
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
-import { LoggerService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import type {
   CpuReportVerdict,
   GpuReportVerdict,
@@ -21,12 +21,16 @@ import { NvidiaGpuService } from "./nvidia-gpu/nvidia-gpu.service";
  */
 @singleton()
 export class AttestationService {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly amdSnpService: AmdSnpService,
     private readonly intelTdxService: IntelTdxService,
     private readonly nvidiaGpuService: NvidiaGpuService,
-    private readonly logger: LoggerService
-  ) {}
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.logger = createLogger({ context: AttestationService.name });
+  }
 
   async verify(request: VerifyAttestationRequest): Promise<VerifyAttestationResponse> {
     const cpuVendor: CpuReportVerdict["vendor"] = request.tee_platform.startsWith("snp") ? "amd-sev-snp" : "intel-tdx";

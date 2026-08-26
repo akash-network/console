@@ -2,7 +2,7 @@ import type { Octokit } from "@octokit/rest";
 import { describe, expect, it } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
-import type { LoggerService } from "@src/core";
+import type { CreateLogger } from "@src/core";
 import type { GithubChainRegistryChainResponse } from "@src/types";
 import type { Template } from "../../types/template";
 import type { ArchiveReader, DirectoryEntry, GitHubArchiveService } from "../github-archive/github-archive.service";
@@ -472,7 +472,7 @@ describe(TemplateFetcherService.name, () => {
 
   function setup() {
     const templateProcessor = mock<TemplateProcessorService>();
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
     const octokit = mockDeep<Octokit>();
     const archiveService = mock<GitHubArchiveService>();
 

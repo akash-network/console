@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { JobPayload } from "@src/core/services/job-queue/job-queue.service";
 import type { NotificationDataResolverService } from "@src/notifications/services/notification-data-resolver/notification-data-resolver.service";
 import type { UserRepository } from "@src/user/repositories";
@@ -301,6 +301,12 @@ describe(NotificationHandler.name, () => {
     expect(notificationService.createNotification).not.toHaveBeenCalled();
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: NotificationHandler.name });
+  });
+
   function setup(input?: {
     findUserById?: UserRepository["findById"];
     createNotification?: NotificationService["createNotification"];
@@ -316,11 +322,13 @@ describe(NotificationHandler.name, () => {
       notificationDataResolverService: mock<NotificationDataResolverService>({
         resolve: input?.resolveVars ?? vi.fn().mockImplementation(async (user, vars) => vars)
       }),
-      logger: mock<LoggerService>()
+      logger: mock<ReturnType<CreateLogger>>()
     };
 
-    const handler = new NotificationHandler(mocks.notificationService, mocks.logger, mocks.userRepository, mocks.notificationDataResolverService);
+    const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
 
-    return { handler, ...mocks };
+    const handler = new NotificationHandler(mocks.notificationService, createLogger, mocks.userRepository, mocks.notificationDataResolverService);
+
+    return { handler, createLogger, ...mocks };
   }
 });

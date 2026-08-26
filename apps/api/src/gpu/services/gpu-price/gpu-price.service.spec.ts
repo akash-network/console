@@ -5,14 +5,14 @@ import type { Day } from "@akashnetwork/database/dbSchemas/base";
 import { faker } from "@faker-js/faker";
 import { subDays } from "date-fns";
 import { container } from "tsyringe";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { Registry } from "@src/billing/providers/type-registry.provider";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import type { AkashBlockRepository } from "@src/block/repositories/akash-block/akash-block.repository";
 import { cacheEngine } from "@src/caching/helpers";
-import type { LoggerService } from "@src/core";
+import type { CreateLogger } from "@src/core";
 import type { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import type { GpuConfig } from "../../config/env.config";
 import type { DayRepository } from "../../repositories/day.repository";
@@ -625,6 +625,12 @@ describe(GpuPriceService.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup({ gpusForPricing: [], deploymentsWithGpu: [], days: [] });
+
+    expect(createLogger).toHaveBeenCalledWith({ context: GpuPriceService.name });
+  });
+
   function setup(input: {
     gpusForPricing: GpuType[];
     deploymentsWithGpu: ReturnType<typeof createDeploymentWithBid>[];
@@ -635,7 +641,8 @@ describe(GpuPriceService.name, () => {
     const deploymentRepository = mock<DeploymentRepository>();
     const akashBlockRepository = mock<AkashBlockRepository>();
     const dayRepository = mock<DayRepository>();
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
 
     const gpuConfig: GpuConfig = {
       PROVIDER_UPTIME_GRACE_PERIOD_MINUTES: 180,
@@ -655,9 +662,9 @@ describe(GpuPriceService.name, () => {
     );
     dayRepository.getDaysAfter.mockResolvedValue(input.days as Day[]);
 
-    const service = new GpuPriceService(gpuRepository, deploymentRepository, akashBlockRepository, dayRepository, gpuConfig, typeRegistry, logger);
+    const service = new GpuPriceService(gpuRepository, deploymentRepository, akashBlockRepository, dayRepository, gpuConfig, typeRegistry, createLogger);
 
-    return { service, gpuRepository, deploymentRepository, akashBlockRepository, dayRepository, logger };
+    return { service, gpuRepository, deploymentRepository, akashBlockRepository, dayRepository, logger, createLogger };
   }
 
   function createProvider(overrides?: Partial<GpuType["providers"][0]>) {

@@ -1,8 +1,8 @@
-import type { LoggerService } from "@akashnetwork/logging";
 import { millisecondsInMinute } from "date-fns";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { CreateLogger } from "@src/core";
 import type { DbHealthcheck, JobQueueHealthcheck } from "@src/core";
 import { HealthzService } from "./healthz.service";
 
@@ -194,14 +194,22 @@ describe(HealthzService.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: HealthzService.name });
+  });
+
   function setup() {
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
     const dbHealthcheck = mock<DbHealthcheck>({ ping: vi.fn().mockResolvedValue(undefined) });
     const jobQueueHealthcheck = mock<JobQueueHealthcheck>({ ping: vi.fn().mockResolvedValue(undefined) });
-    const healthzService = new HealthzService(dbHealthcheck, jobQueueHealthcheck, logger);
+    const healthzService = new HealthzService(dbHealthcheck, jobQueueHealthcheck, createLogger);
 
     return {
       logger,
+      createLogger,
       service: healthzService,
       dbHealthcheck,
       jobQueueHealthcheck

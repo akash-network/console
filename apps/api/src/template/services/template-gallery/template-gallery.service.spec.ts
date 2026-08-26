@@ -3,7 +3,7 @@ import { mock } from "vitest-mock-extended";
 import { z } from "zod";
 
 import { cacheEngine } from "@src/caching/helpers";
-import type { LoggerService } from "@src/core";
+import type { CreateLogger } from "@src/core";
 import type { Category, Template } from "../../types/template";
 import type { TemplateFetcherService } from "../template-fetcher/template-fetcher.service";
 import type { FileSystemApi, TemplateTagsConfig } from "./template-gallery.service";
@@ -339,7 +339,7 @@ describe(TemplateGalleryService.name, () => {
   });
 
   function setup(input?: { getTagsConfig?: () => TemplateTagsConfig }) {
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
     const fsMock = mock<FileSystemApi>({
       access: vi.fn(() => Promise.reject(new Error("File not found")))
     });

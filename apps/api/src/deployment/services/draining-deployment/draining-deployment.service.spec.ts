@@ -1,5 +1,3 @@
-import "@test/mocks/logger-service.mock";
-
 import type { AnyAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { addWeeks } from "date-fns";

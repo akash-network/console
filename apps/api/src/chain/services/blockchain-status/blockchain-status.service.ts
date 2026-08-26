@@ -1,17 +1,16 @@
 import { inject, singleton } from "tsyringe";
 
-import { LoggerService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { CHAIN_SDK, type ChainSDK } from "../../providers/chain-sdk.provider";
 
 @singleton()
 export class BlockchainStatusService {
   readonly #chainSdk: ChainSDK;
-  readonly #logger: LoggerService;
+  readonly #logger: ReturnType<CreateLogger>;
 
-  constructor(@inject(CHAIN_SDK) chainSdk: ChainSDK, logger: LoggerService) {
+  constructor(@inject(CHAIN_SDK) chainSdk: ChainSDK, @inject(LOGGER_FACTORY) createLogger: CreateLogger) {
+    this.#logger = createLogger({ context: BlockchainStatusService.name });
     this.#chainSdk = chainSdk;
-    this.#logger = logger;
-    this.#logger.setContext(BlockchainStatusService.name);
   }
 
   async getStatus(): Promise<{ isBlockchainReachable: boolean }> {

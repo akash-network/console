@@ -9,7 +9,7 @@ import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import type { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
@@ -412,12 +412,10 @@ describe(UserService.name, () => {
     };
   }
 
-  function setup(input?: {
-    createDefaultNotificationChannel?: NotificationService["createDefaultChannel"];
-    ensureDataKey?: DataKeyService["ensureDataKey"];
-  }) {
+  function setup(input?: { createDefaultNotificationChannel?: NotificationService["createDefaultChannel"]; ensureDataKey?: DataKeyService["ensureDataKey"] }) {
     const analyticsService = mock<AnalyticsService>();
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger: CreateLogger = () => logger;
     const auth0Service = mock<Auth0Service>();
     const walletInitializerService = mock<WalletInitializerService>({
       ensureWallet: vi.fn().mockResolvedValue(createUserWallet())
@@ -428,11 +426,11 @@ describe(UserService.name, () => {
     const { n, e } = publicKey.export({ format: "jwk" });
     const sealingKeyService = mock<SdlSecretsSealingKeyService>();
     sealingKeyService.peekSealingKey.mockReturnValue({ kid: "sdl-secrets.v1", publicKey, jwk: { kty: "RSA", n: n!, e: e!, use: "enc", alg: "RSA-OAEP-256" } });
-    const dataKeyService = new DataKeyService(dataKeyRepository, sealingKeyService, logger);
+    const dataKeyService = new DataKeyService(dataKeyRepository, sealingKeyService, createLogger);
     const service = new UserService(
       userRepository,
       analyticsService,
-      logger,
+      createLogger,
       mock<NotificationService>({
         createDefaultChannel: input?.createDefaultNotificationChannel ?? (() => Promise.resolve())
       }),

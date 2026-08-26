@@ -1,12 +1,12 @@
-import type { LoggerService } from "@akashnetwork/logging";
 import { execFileSync } from "node:child_process";
 import crypto, { X509Certificate } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { CreateLogger } from "@src/core";
 import { envSchema } from "../../config/env.config";
 import { generateCrl } from "./amd-crl.test-fixtures";
 import type { AmdKdsClient } from "./amd-kds.client";
@@ -163,6 +163,12 @@ describe(AmdSnpService.name, () => {
     expect(verdict.status).toBe("unverifiable");
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup({ withKds: false });
+
+    expect(createLogger).toHaveBeenCalledWith({ context: AmdSnpService.name });
+  });
+
   function setup(input: {
     withKds: boolean;
     products?: string[];
@@ -182,8 +188,9 @@ describe(AmdSnpService.name, () => {
     });
 
     const config = { ...envSchema.parse({}), AMD_SNP_PRODUCTS: input.products ?? [resolving] };
-    const service = new AmdSnpService(kdsClient, config, mock<LoggerService>());
-    return { service, kdsClient };
+    const createLogger = vi.fn<CreateLogger>(() => mock<ReturnType<CreateLogger>>());
+    const service = new AmdSnpService(kdsClient, config, createLogger);
+    return { service, kdsClient, createLogger };
   }
 });
 

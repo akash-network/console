@@ -1,5 +1,3 @@
-import "@test/mocks/logger-service.mock";
-
 import type { QueryBidsResponse } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { BlockHttpService } from "@akashnetwork/http-sdk";
 import type { Registry } from "@cosmjs/proto-signing";

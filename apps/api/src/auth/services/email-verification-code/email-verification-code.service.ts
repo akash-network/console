@@ -1,11 +1,11 @@
 import { createHash, randomInt } from "crypto";
 import assert from "http-assert";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { EmailVerificationCodeRepository } from "@src/auth/repositories/email-verification-code/email-verification-code.repository";
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
-import { LoggerService } from "@src/core/providers/logging.provider";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { emailVerificationCodeNotification } from "@src/notifications/services/notification-templates/email-verification-code-notification";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -20,14 +20,18 @@ function hashCode(code: string): string {
 
 @singleton()
 export class EmailVerificationCodeService {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly emailVerificationCodeRepository: EmailVerificationCodeRepository,
     private readonly auth0Service: Auth0Service,
     private readonly notificationService: NotificationService,
     private readonly userRepository: UserRepository,
     private readonly trialActivationJobService: TrialActivationJobService,
-    private readonly logger: LoggerService
-  ) {}
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.logger = createLogger({ context: EmailVerificationCodeService.name });
+  }
 
   async sendCode(userInternalId: string): Promise<{ codeSentAt: string }> {
     const user = await this.userRepository.findById(userInternalId);

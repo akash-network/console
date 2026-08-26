@@ -1,5 +1,3 @@
-import "@test/mocks/logger-service.mock";
-
 import { faker } from "@faker-js/faker";
 import { createHash } from "crypto";
 import { describe, expect, it, vi } from "vitest";
@@ -12,7 +10,7 @@ import type {
 import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
 
@@ -207,6 +205,12 @@ describe(EmailVerificationCodeService.name, () => {
     };
   }
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: EmailVerificationCodeService.name });
+  });
+
   function setup(
     input: {
       emailVerificationCodeRepository?: EmailVerificationCodeRepository;
@@ -214,7 +218,7 @@ describe(EmailVerificationCodeService.name, () => {
       notificationService?: NotificationService;
       userRepository?: UserRepository;
       trialActivationJobService?: TrialActivationJobService;
-      logger?: LoggerService;
+      logger?: ReturnType<CreateLogger>;
     } = {}
   ) {
     const emailVerificationCodeRepository = input.emailVerificationCodeRepository ?? mock<EmailVerificationCodeRepository>();
@@ -222,7 +226,8 @@ describe(EmailVerificationCodeService.name, () => {
     const notificationService = input.notificationService ?? mock<NotificationService>();
     const userRepository = input.userRepository ?? mock<UserRepository>();
     const trialActivationJobService = input.trialActivationJobService ?? mock<TrialActivationJobService>({ schedule: vi.fn().mockResolvedValue(undefined) });
-    const logger = input.logger ?? mock<LoggerService>();
+    const logger = input.logger ?? mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
 
     const service = new EmailVerificationCodeService(
       emailVerificationCodeRepository,
@@ -230,7 +235,7 @@ describe(EmailVerificationCodeService.name, () => {
       notificationService,
       userRepository,
       trialActivationJobService,
-      logger
+      createLogger
     );
 
     return {
@@ -239,7 +244,8 @@ describe(EmailVerificationCodeService.name, () => {
       auth0Service,
       notificationService,
       userRepository,
-      logger
+      logger,
+      createLogger
     };
   }
 });

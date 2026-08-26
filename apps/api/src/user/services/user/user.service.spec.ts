@@ -1,5 +1,3 @@
-import "@test/mocks/logger-service.mock";
-
 import { faker } from "@faker-js/faker";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -8,7 +6,7 @@ import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import type { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { DataKeyService } from "@src/secret/services/data-key/data-key.service";
@@ -152,10 +150,17 @@ describe(UserService.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: UserService.name });
+  });
+
   function setup() {
     const userRepository = mock<UserRepository>();
     const analyticsService = mock<AnalyticsService>();
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
     const notificationService = mock<NotificationService>();
     const auth0Service = mock<Auth0Service>();
     const emailVerificationCodeService = mock<EmailVerificationCodeService>();
@@ -168,7 +173,7 @@ describe(UserService.name, () => {
     const service = new UserService(
       userRepository,
       analyticsService,
-      logger,
+      createLogger,
       notificationService,
       auth0Service,
       emailVerificationCodeService,
@@ -182,6 +187,7 @@ describe(UserService.name, () => {
       userRepository,
       analyticsService,
       logger,
+      createLogger,
       notificationService,
       auth0Service,
       emailVerificationCodeService,

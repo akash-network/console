@@ -4,7 +4,7 @@ import { pipeline } from "node:stream/promises";
 import { createGunzip } from "node:zlib";
 import tar from "tar";
 
-import type { LoggerService } from "@src/core";
+import type { CreateLogger } from "@src/core";
 
 export interface DirectoryEntry {
   name: string;
@@ -24,9 +24,9 @@ interface ParsedArchive {
 
 export class GitHubArchiveService {
   readonly #cache = new LRUCache<string, Promise<ArchiveReader>>({ max: 10 });
-  readonly #logger: LoggerService;
+  readonly #logger: ReturnType<CreateLogger>;
 
-  constructor(logger: LoggerService) {
+  constructor(logger: ReturnType<CreateLogger>) {
     this.#logger = logger;
   }
 

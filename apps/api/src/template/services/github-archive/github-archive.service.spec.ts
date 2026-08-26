@@ -3,7 +3,7 @@ import tar from "tar";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { LoggerService } from "@src/core";
+import type { CreateLogger } from "@src/core";
 import { GitHubArchiveService } from "./github-archive.service";
 
 describe(GitHubArchiveService.name, () => {
@@ -83,7 +83,7 @@ describe(GitHubArchiveService.name, () => {
   });
 
   function setup() {
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
     const service = new GitHubArchiveService(logger);
 
     async function installArchive(files: Record<string, string>) {

@@ -2,11 +2,10 @@ import { faker } from "@faker-js/faker";
 import crc32c from "fast-crc32c";
 import { compactDecrypt, decodeProtectedHeader } from "jose";
 import { generateKeyPairSync } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { CreateLogger } from "@src/core";
-import type { LoggerService } from "@src/core/providers/logging.provider";
 import { SDL_SECRETS_UNAVAILABLE_ERROR_MESSAGE } from "@src/deployment/config/sdl-secrets.config";
 import type { SdlSecretsKmsClient } from "@src/deployment/providers/kms.provider";
 import { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
@@ -114,6 +113,12 @@ describe(DataKeyService.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createDataKeyLogger } = setup();
+
+    expect(createDataKeyLogger).toHaveBeenCalledWith({ context: DataKeyService.name });
+  });
+
   function setup(input?: { kid?: string }) {
     const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 3072 });
     const pem = publicKey.export({ type: "spki", format: "pem" }).toString();
@@ -140,8 +145,9 @@ describe(DataKeyService.name, () => {
       return { dataKey, isNew: true };
     });
 
-    const logger = mock<LoggerService>();
-    const service = new DataKeyService(dataKeyRepository, sealingKeyService, logger);
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createDataKeyLogger = vi.fn<CreateLogger>(() => logger);
+    const service = new DataKeyService(dataKeyRepository, sealingKeyService, createDataKeyLogger);
 
     return {
       service,
@@ -149,6 +155,7 @@ describe(DataKeyService.name, () => {
       sealingKeyService,
       kmsClient,
       logger,
+      createDataKeyLogger,
       privateKey,
       publicKey,
       warmSealingKey: () => sealingKeyService.getSealingKey()

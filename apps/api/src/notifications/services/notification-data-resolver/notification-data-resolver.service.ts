@@ -1,6 +1,6 @@
 import { inject, singleton } from "tsyringe";
 
-import { LoggerService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import type { NotificationDataResolvers } from "@src/notifications/providers/notification-data-resolvers.provider";
 import { NOTIFICATION_DATA_RESOLVERS } from "@src/notifications/providers/notification-data-resolvers.provider";
 import { UserOutput } from "@src/user/repositories";
@@ -14,11 +14,13 @@ export const RESOLVED_MARKER: ResolvedMarker = "$resolved";
 
 @singleton()
 export class NotificationDataResolverService {
+  private readonly loggerService: ReturnType<CreateLogger>;
+
   constructor(
     @inject(NOTIFICATION_DATA_RESOLVERS) private readonly resolvers: NotificationDataResolvers,
-    private readonly loggerService: LoggerService
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    loggerService.setContext(NotificationDataResolverService.name);
+    this.loggerService = createLogger({ context: NotificationDataResolverService.name });
   }
 
   async resolve<T extends Record<string, unknown> | undefined>(user: UserOutput, vars: T): Promise<T> {

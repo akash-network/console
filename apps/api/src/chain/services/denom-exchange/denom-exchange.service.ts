@@ -3,19 +3,19 @@ import { inject, singleton } from "tsyringe";
 
 import { memoizeAsync } from "@src/caching/helpers";
 import { CHAIN_SDK, type ChainSDK } from "@src/chain/providers/chain-sdk.provider";
-import { LoggerService } from "@src/core/providers/logging.provider";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { DayRepository } from "@src/gpu/repositories/day.repository";
 
 @singleton()
 export class DenomExchangeService {
   readonly #chainSdk: ChainSDK;
   readonly #dayRepository: DayRepository;
-  readonly #logger: LoggerService;
+  readonly #logger: ReturnType<CreateLogger>;
 
-  constructor(@inject(CHAIN_SDK) chainSdk: ChainSDK, dayRepository: DayRepository, logger: LoggerService) {
+  constructor(@inject(CHAIN_SDK) chainSdk: ChainSDK, dayRepository: DayRepository, @inject(LOGGER_FACTORY) createLogger: CreateLogger) {
+    this.#logger = createLogger({ context: DenomExchangeService.name });
     this.#chainSdk = chainSdk;
     this.#dayRepository = dayRepository;
-    this.#logger = logger;
   }
 
   getExchangeRateToUSD = memoizeAsync(

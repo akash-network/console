@@ -1,14 +1,10 @@
 import createError from "http-errors";
 import { CompactEncrypt } from "jose";
 import { randomBytes } from "node:crypto";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
-import { LoggerService } from "@src/core/providers/logging.provider";
-import {
-  SDL_SECRETS_CONTENT_ENCRYPTION,
-  SDL_SECRETS_SEAL_ALGORITHM,
-  SDL_SECRETS_UNAVAILABLE_ERROR_MESSAGE
-} from "@src/deployment/config/sdl-secrets.config";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
+import { SDL_SECRETS_CONTENT_ENCRYPTION, SDL_SECRETS_SEAL_ALGORITHM, SDL_SECRETS_UNAVAILABLE_ERROR_MESSAGE } from "@src/deployment/config/sdl-secrets.config";
 import { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
 import type { DataKeyInput, DataKeyOutput } from "@src/secret/repositories/data-key/data-key.repository";
 import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
@@ -24,11 +20,15 @@ const DATA_ENCRYPTION_KEY_BYTES = 32;
  */
 @singleton()
 export class DataKeyService {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly dataKeyRepository: DataKeyRepository,
     private readonly sealingKeyService: SdlSecretsSealingKeyService,
-    private readonly logger: LoggerService
-  ) {}
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.logger = createLogger({ context: DataKeyService.name });
+  }
 
   async ensureDataKey(userId: string): Promise<DataKeyOutput> {
     const existing = await this.dataKeyRepository.findByUserId(userId);

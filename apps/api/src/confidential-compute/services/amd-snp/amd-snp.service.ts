@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { inject, singleton } from "tsyringe";
 
-import { LoggerService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import type { CpuReportVerdict } from "../../http-schemas/attestation.schema";
 import type { ConfidentialComputeConfig } from "../../providers/config.provider";
 import { CONFIDENTIAL_COMPUTE_CONFIG } from "../../providers/config.provider";
@@ -28,11 +28,15 @@ interface SnpCertChain {
 export class AmdSnpService {
   readonly #vendor = "amd-sev-snp" as const;
 
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly kdsClient: AmdKdsClient,
     @inject(CONFIDENTIAL_COMPUTE_CONFIG) private readonly config: ConfidentialComputeConfig,
-    private readonly logger: LoggerService
-  ) {}
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.logger = createLogger({ context: AmdSnpService.name });
+  }
 
   async verify(input: { report: string; certChain: string; nonce: string }): Promise<CpuReportVerdict> {
     let parsed: ParsedSnpReport;

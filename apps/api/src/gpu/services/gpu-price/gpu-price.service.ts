@@ -8,7 +8,7 @@ import type { Registry } from "@src/billing/providers/type-registry.provider";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { AkashBlockRepository } from "@src/block/repositories/akash-block/akash-block.repository";
 import { Memoize } from "@src/caching/helpers";
-import { LoggerService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { GpuRepository } from "@src/gpu/repositories/gpu.repository";
 import type { GpuBidType, GpuPriceModel, GpuProviderType, GpuWithPricesType, ProviderWithBestBid } from "@src/gpu/types/gpu.type";
@@ -32,6 +32,8 @@ export class GpuPriceService {
   readonly #gpuConfig: GpuConfig;
   readonly #typeRegistry: Registry;
 
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly gpuRepository: GpuRepository,
     private readonly deploymentRepository: DeploymentRepository,
@@ -39,8 +41,9 @@ export class GpuPriceService {
     private readonly dayRepository: DayRepository,
     @inject(GPU_CONFIG) gpuConfig: GpuConfig,
     @inject(TYPE_REGISTRY) typeRegistry: Registry,
-    private readonly logger: LoggerService
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
+    this.logger = createLogger({ context: GpuPriceService.name });
     this.#gpuConfig = gpuConfig;
     this.#typeRegistry = typeRegistry;
   }

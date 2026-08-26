@@ -3,7 +3,7 @@ import { isAxiosError } from "axios";
 import { inject, singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
-import { LoggerService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { AMD_KDS_HTTP_CLIENT } from "../../providers/vendor-clients.provider";
 import type { ParsedSnpReport } from "./snp-report.parser";
 
@@ -20,10 +20,14 @@ export interface AmdCaChain {
  */
 @singleton()
 export class AmdKdsClient {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     @inject(AMD_KDS_HTTP_CLIENT) private readonly httpClient: HttpClient,
-    private readonly logger: LoggerService
-  ) {}
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.logger = createLogger({ context: AmdKdsClient.name });
+  }
 
   /** Fetches the VCEK for a chip at a specific reported TCB. Returns `null` when KDS has no such product/chip (404). */
   async getVcek(product: string, report: Pick<ParsedSnpReport, "chipId" | "reportedTcb">): Promise<Buffer | null> {

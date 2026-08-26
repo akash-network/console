@@ -1,5 +1,3 @@
-import "@test/mocks/logger-service.mock";
-
 import { describe, expect, it } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";

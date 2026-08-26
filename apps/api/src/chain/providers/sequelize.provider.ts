@@ -12,7 +12,7 @@ import { ChainConfigService } from "@src/chain/services/chain-config/chain-confi
 import { DisposableRegistry } from "@src/core/lib/disposable-registry/disposable-registry";
 import type { AppInitializer } from "@src/core/providers/app-initializer";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 
@@ -81,7 +81,7 @@ export async function connectUsingSequelize(logger = createOtelLogger({ context:
   await authenticateDatabase(container.resolve(CHAIN_DB), logger);
 }
 
-async function authenticateDatabase(database: Sequelize, logger: LoggerService) {
+async function authenticateDatabase(database: Sequelize, logger: ReturnType<CreateLogger>) {
   logger.debug(`Connecting to database (${database.config.host}/${database.config.database})...`);
   await database.authenticate();
   logger.debug("Connection has been established successfully.");

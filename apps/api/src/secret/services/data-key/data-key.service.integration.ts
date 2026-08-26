@@ -4,7 +4,7 @@ import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
 import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
 import { UserRepository } from "@src/user/repositories";
@@ -66,7 +66,7 @@ describe(DataKeyService.name, () => {
 
     const dataKeyRepository = container.resolve(DataKeyRepository);
     const userRepository = container.resolve(UserRepository);
-    const service = new DataKeyService(dataKeyRepository, sealingKeyService, mock<LoggerService>());
+    const service = new DataKeyService(dataKeyRepository, sealingKeyService, () => mock<ReturnType<CreateLogger>>());
     const createdUserIds: string[] = [];
 
     cleanup = async () => {

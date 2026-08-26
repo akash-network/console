@@ -2,7 +2,7 @@ import { ApiError } from "@akashnetwork/openapi-sdk";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type DeepMockProxy, mock, mockDeep, type MockProxy } from "vitest-mock-extended";
 
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
 import type { NotificationsApiClient, NotificationsInternalApiClient } from "../../providers/notifications-api.provider";
 import { type CreateNotificationInput, NotificationService } from "./notification.service";
@@ -262,12 +262,12 @@ describe(NotificationService.name, () => {
     api?: DeepMockProxy<NotificationsApiClient>;
     apiInternal?: DeepMockProxy<NotificationsInternalApiClient>;
     userRepository?: MockProxy<UserRepository>;
-    logger?: MockProxy<LoggerService>;
+    logger?: MockProxy<ReturnType<CreateLogger>>;
   }) {
     const api = overrides?.api ?? mockDeep<NotificationsApiClient>();
     const apiInternal = overrides?.apiInternal ?? mockDeep<NotificationsInternalApiClient>();
     const userRepository = overrides?.userRepository ?? mock<UserRepository>();
-    const logger = overrides?.logger ?? mock<LoggerService>();
+    const logger = overrides?.logger ?? mock<ReturnType<CreateLogger>>();
     const service = new NotificationService(api, apiInternal, userRepository, () => logger);
 
     return { service, api, apiInternal, userRepository, logger };
