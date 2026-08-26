@@ -81,8 +81,8 @@ export const envSchema = z
     /**
      * How long the console keeps re-asking the chain about a deployment setting whose create may never have landed.
      * Nothing else can find such a row, so a compensation that exhausts its retries leaks it permanently; the horizon
-     * is therefore sized to outlast a chain-node outage rather than a blip. With exponential backoff capped at
-     * `UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN` this spans roughly a day.
+     * is therefore sized to outlast a chain-node outage rather than a blip. With the backoff below doubling from
+     * 30s and capped at half an hour, 48 attempts span about 21.5 to 22 hours depending on jitter.
      */
     UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT: z.number({ coerce: true }).int().positive().optional().default(48),
     /**

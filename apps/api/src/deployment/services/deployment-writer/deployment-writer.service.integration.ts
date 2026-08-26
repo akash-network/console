@@ -2,7 +2,7 @@ import { minutesToMilliseconds, secondsToMilliseconds } from "date-fns";
 import { eq, sql } from "drizzle-orm";
 import nock from "nock";
 import { container } from "tsyringe";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
@@ -91,6 +91,16 @@ describe(DeploymentWriterService.name, () => {
   afterEach(() => {
     vi.restoreAllMocks();
     nock.cleanAll();
+  });
+
+  /**
+   * The retry test starts a real worker, and a worker left running outlives the interceptors: the compensation
+   * it rescheduled comes due half a minute later with nock torn down, and issues a real request to
+   * `REST_API_NODE_URL` — egress from CI to a third-party mainnet endpoint, and a flake that only shows up on a
+   * slow run.
+   */
+  afterAll(async () => {
+    if (jobQueueReady) await (await jobQueueReady).dispose();
   });
 
   it("enqueues a compensation for the setting it records", async () => {
