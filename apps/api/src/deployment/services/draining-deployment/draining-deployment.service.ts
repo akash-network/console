@@ -1,5 +1,5 @@
 import { AnyAbility } from "@casl/ability";
-import { millisecondsInHour } from "date-fns/constants";
+import { millisecondsInHour, minutesInHour } from "date-fns/constants";
 import keyBy from "lodash/keyBy";
 import { singleton } from "tsyringe";
 
@@ -260,6 +260,35 @@ export class DrainingDeploymentService {
     const fundedUntil = Math.max(currentHeight, predictedClosedHeight);
 
     return Math.max(0, Math.floor(blockRate * (targetHeight - fundedUntil)));
+  }
+
+  /**
+   * Minutes of runway a deployment holds once a deposit of `amount` lands, counting the runway its escrow
+   * already covers. Shares `calculateAmountToTargetRunway`'s funded-until floor, so a deployment already
+   * in arrears is credited only the runway the deposit itself buys.
+   *
+   * @param deployment - Deployment with its block rate and predicted closure height
+   * @param amount - Deposit amount in credits
+   * @param currentHeight - Block height the funding run is scoped to
+   * @returns Minutes of runway after the deposit, or 0 when the deployment's block rate is unusable
+   */
+  calculateRunwayMinutesAfterDeposit(
+    deployment: Pick<DrainingDeploymentOutput, "blockRate" | "predictedClosedHeight">,
+    amount: number,
+    currentHeight: number
+  ): number {
+    const blockRate = Number(deployment.blockRate);
+    const predictedClosedHeight = Number(deployment.predictedClosedHeight);
+    const isUsable = Number.isFinite(blockRate) && blockRate > 0 && Number.isFinite(predictedClosedHeight);
+
+    if (!isUsable) {
+      return 0;
+    }
+
+    const fundedUntil = Math.max(currentHeight, predictedClosedHeight);
+    const runwayBlocks = fundedUntil - currentHeight + amount / blockRate;
+
+    return (runwayBlocks / averageBlockCountInAnHour) * minutesInHour;
   }
 
   /**

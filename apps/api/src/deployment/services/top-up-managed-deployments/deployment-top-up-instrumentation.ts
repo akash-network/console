@@ -13,6 +13,7 @@ export interface DeploymentTopUpInstrumentation {
   recordDeploymentPreparation(ownerAddress: string, predictedClosedHeight: number): void;
   recordInvalidDepositAmount(details: { desiredAmount: number; dseq: string; address: string; blockRate: number }): void;
   recordRuntimeLimitReached(details: { dseq: string; address: string; runtimeEndsAt: Date }): void;
+  recordDepositBelowUsefulRunway(details: { dseq: string; address: string; desiredAmount: number; affordableAmount: number; runwayMinutes: number }): void;
   recordMessagePreparationError(details: { deployment: DrainingDeployment; error: unknown }): void;
   recordSkipped(details: { owner: string; deploymentCount: number }): void;
   recordDeposit(details: { owner: string; items: FundingMessageItem[] }): void;

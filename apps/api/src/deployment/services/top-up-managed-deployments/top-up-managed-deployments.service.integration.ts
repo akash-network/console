@@ -448,6 +448,30 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(executeDerivedTx).toHaveBeenCalledOnce();
     });
 
+    it("declines a dust deposit the allowance caps below the cooldown, then funds in full once credits arrive", async () => {
+      const { topUpService, executeDerivedTx, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } =
+        await setup();
+      const { user, wallet, address } = await createUserWithWallet();
+      const dseq = "830001";
+      /** Buys 40 minutes at the seeded block rate, short of the 60-minute dedup cooldown. */
+      const DUST_ALLOWANCE = 20000;
+
+      await createDeploymentSetting(user.id, dseq);
+      mockLeasesForOwner(address, [createActiveLease(address, dseq)], { persist: true });
+      mockDeploymentsForOwner(address, [createActiveDeployment(address, dseq)], { persist: true });
+
+      stubGetFreshLimits({ [address]: DUST_ALLOWANCE });
+      await topUpService.topUpDrainingDeploymentsForOwner({ walletId: wallet.id, address });
+
+      expect(executeDerivedTx).not.toHaveBeenCalled();
+
+      stubGetFreshLimits({ [address]: 10000000 });
+      await topUpService.topUpDrainingDeploymentsForOwner({ walletId: wallet.id, address });
+
+      expect(executeDerivedTx).toHaveBeenCalledOnce();
+      expect(depositedAmounts(executeDerivedTx)).toEqual([BLOCK_RATE * averageBlockCountInAnHour * 48]);
+    });
+
     it("releases the claim of a deposit that landed with a non-OK code so the next pass funds it", async () => {
       const { topUpService, executeDerivedTx, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } =
         await setup();

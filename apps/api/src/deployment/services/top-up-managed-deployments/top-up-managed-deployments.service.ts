@@ -223,6 +223,20 @@ export class TopUpManagedDeploymentsService {
             });
             return;
           }
+          const affordableAmount = balance.previewSufficientAmount(desiredAmount);
+          const runwayMinutes = this.drainingDeploymentService.calculateRunwayMinutesAfterDeposit(deployment, affordableAmount, currentHeight);
+
+          if (this.#isCappedBelowUsefulRunway({ desiredAmount, affordableAmount, runwayMinutes })) {
+            instrumentation.recordDepositBelowUsefulRunway({
+              dseq: deployment.dseq,
+              address: deployment.address,
+              desiredAmount,
+              affordableAmount,
+              runwayMinutes
+            });
+            return;
+          }
+
           const sufficientAmount = balance.reserveSufficientAmount(desiredAmount);
 
           const messageInput: DepositDeploymentMsgOptions = {
@@ -250,6 +264,31 @@ export class TopUpManagedDeploymentsService {
     );
 
     return messageInputs.filter(x => !!x);
+  }
+
+  /**
+   * A deposit capped by the credits available that buys less runway than the dedup cooldown is worse than
+   * no deposit: it stamps a claim that locks the deployment out of funding for longer than the runway it
+   * just bought, so credits landing in between cannot save it. Left unfunded, the deployment keeps its
+   * claim free for the pass that runs the moment those credits land.
+   *
+   * Only capped deposits are declined. An uncapped one is the complete answer for the deployment however
+   * small it is, which is what a runtime-limited deployment close to its deadline asks for. A deployment
+   * the allowance cannot fund at all is left to `reserveSufficientAmount`, whose insufficient-balance
+   * error is what drives the credits-low telemetry.
+   */
+  #isCappedBelowUsefulRunway({
+    desiredAmount,
+    affordableAmount,
+    runwayMinutes
+  }: {
+    desiredAmount: number;
+    affordableAmount: number;
+    runwayMinutes: number;
+  }): boolean {
+    const isCapped = affordableAmount > 0 && affordableAmount < desiredAmount;
+
+    return isCapped && runwayMinutes < this.deploymentConfig.get("AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN");
   }
 
   private async topUpForOwner(

@@ -3,7 +3,7 @@ import "@test/mocks/logger-service.mock";
 import type { AnyAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { addWeeks } from "date-fns";
-import { millisecondsInHour } from "date-fns/constants";
+import { millisecondsInHour, minutesInHour } from "date-fns/constants";
 import { groupBy } from "lodash";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -514,6 +514,61 @@ describe(DrainingDeploymentService.name, () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+  });
+
+  describe("calculateRunwayMinutesAfterDeposit", () => {
+    it("adds the runway a deposit buys to the runway the escrow already covers", () => {
+      const { service, currentHeight } = setup();
+
+      const result = service.calculateRunwayMinutesAfterDeposit(
+        { blockRate: 50, predictedClosedHeight: currentHeight + averageBlockCountInAnHour * 2 },
+        50 * averageBlockCountInAnHour * 3,
+        currentHeight
+      );
+
+      expect(result).toBe(5 * minutesInHour);
+    });
+
+    it("counts only what the deposit buys for a deployment already in arrears", () => {
+      const { service, currentHeight } = setup();
+
+      const result = service.calculateRunwayMinutesAfterDeposit(
+        { blockRate: 50, predictedClosedHeight: currentHeight - averageBlockCountInAnHour * 10 },
+        50 * averageBlockCountInAnHour,
+        currentHeight
+      );
+
+      expect(result).toBe(minutesInHour);
+    });
+
+    it("reports the runway the escrow still covers when nothing is deposited", () => {
+      const { service, currentHeight } = setup();
+
+      const result = service.calculateRunwayMinutesAfterDeposit(
+        { blockRate: 50, predictedClosedHeight: currentHeight + averageBlockCountInAnHour },
+        0,
+        currentHeight
+      );
+
+      expect(result).toBe(minutesInHour);
+    });
+
+    it("returns 0 for a non-positive block rate", () => {
+      const { service, currentHeight } = setup();
+
+      expect(service.calculateRunwayMinutesAfterDeposit({ blockRate: 0, predictedClosedHeight: currentHeight }, 1000, currentHeight)).toBe(0);
+      expect(service.calculateRunwayMinutesAfterDeposit({ blockRate: -5, predictedClosedHeight: currentHeight }, 1000, currentHeight)).toBe(0);
+    });
+
+    it("returns 0 rather than NaN when the predicted close height is missing", () => {
+      const { service, currentHeight } = setup();
+      const withoutPredictedCloseHeight = { blockRate: 50, predictedClosedHeight: undefined } as unknown as Pick<
+        DrainingDeploymentOutput,
+        "blockRate" | "predictedClosedHeight"
+      >;
+
+      expect(service.calculateRunwayMinutesAfterDeposit(withoutPredictedCloseHeight, 1000, currentHeight)).toBe(0);
     });
   });
 
