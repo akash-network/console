@@ -284,6 +284,24 @@ describe("deployment envSchema", () => {
     it("rejects a non-numeric ceiling", () => {
       expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: "long" }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN");
     });
+
+    it("accepts half a minute, which is a whole number of seconds", () => {
+      expect(envSchema.parse(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: 0.5 })).UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN).toBe(0.5);
+    });
+
+    it("accepts a quarter of a minute, which is a whole number of seconds", () => {
+      expect(envSchema.parse(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: "0.25" })).UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN).toBe(
+        0.25
+      );
+    });
+
+    it("rejects a ceiling that converts to a fraction of a second, which the integer column would refuse", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: 1.01 }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN");
+    });
+
+    it("rejects a fractional ceiling coerced from a string", () => {
+      expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: "1.01" }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN");
+    });
   });
 
   function expectRejected(env: Record<string, unknown>, key: string) {

@@ -91,8 +91,27 @@ export const envSchema = z
      * positive for the horizon below to exist at all.
      */
     UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC: z.number({ coerce: true }).int().positive().optional().default(30),
-    /** Ceiling on the exponential backoff between chain re-checks, so a long outage is retried steadily rather than ever more rarely. */
-    UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: z.number({ coerce: true }).positive().finite().optional().default(30),
+    /**
+     * Ceiling on the exponential backoff between chain re-checks, so a long outage is retried steadily rather
+     * than ever more rarely.
+     *
+     * Constrained to values whose conversion to seconds is a whole number, because that converted value lands in
+     * an integer column: pg-boss expands send options through `json_to_recordset(... "retryDelayMax" integer)`,
+     * and Postgres errors on a fractional text-to-integer conversion rather than rounding it. Without this, a
+     * value like 1.01 passes validation, the app boots, and then every enqueue throws — which, since a failed
+     * enqueue rolls the deployment record back with it, means every create fails at runtime. Rejecting it here
+     * turns a landmine that survives boot into a refusal to boot.
+     *
+     * Deliberately not `.int()`: half a minute and a quarter of a minute are legitimate ceilings and convert to
+     * whole seconds.
+     */
+    UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: z
+      .number({ coerce: true })
+      .positive()
+      .finite()
+      .refine(value => Number.isInteger(value * 60), "must convert to a whole number of seconds, since the backoff ceiling is stored in seconds")
+      .optional()
+      .default(30),
     /** How long before a runtime-limited deployment reaches its limit the user is warned by email. */
     RUNTIME_LIMIT_WARNING_LEAD_IN_H: z.number({ coerce: true }).positive().finite().optional().default(6),
     /**
