@@ -6,6 +6,7 @@ import { providerUnreachableNotification } from "./provider-unreachable-notifica
 import { createUser } from "@test/seeders/user.seeder";
 
 const DEPLOYMENT_URL = "https://console.akash.network/deployments/654321";
+const CLOSE_AFTER_DAYS = 14;
 
 describe(providerUnreachableNotification.name, () => {
   it("returns a notification naming the deployment, the provider and how long it has been dark", () => {
@@ -17,6 +18,7 @@ describe(providerUnreachableNotification.name, () => {
       owner: "akash1owner",
       hostUri: "https://provider.akash.cmolls.de:8443",
       downSince: downSince.toISOString(),
+      closeAfterDays: CLOSE_AFTER_DAYS,
       deploymentUrl: DEPLOYMENT_URL
     });
 
@@ -26,6 +28,7 @@ describe(providerUnreachableNotification.name, () => {
     expect(result.payload.description).toContain("<strong>https://provider.akash.cmolls.de:8443</strong>");
     expect(result.payload.description).toContain("5 days");
     expect(result.payload.description).toContain(`<a href="${DEPLOYMENT_URL}">Close the deployment</a>`);
+    expect(result.payload.description).toContain("we will close the deployment for you");
     expect(result.user).toEqual({ id: "user-123", email: "user@example.com" });
   });
 
@@ -37,6 +40,7 @@ describe(providerUnreachableNotification.name, () => {
       owner: "akash1owner",
       hostUri: '<script>alert("xss")</script>',
       downSince: subDays(new Date(), 5).toISOString(),
+      closeAfterDays: CLOSE_AFTER_DAYS,
       deploymentUrl: DEPLOYMENT_URL
     });
 
@@ -46,7 +50,7 @@ describe(providerUnreachableNotification.name, () => {
 
   it("keys the notification id on the outage so a provider that recovers and fails again is reported anew", () => {
     const user = createUser({ id: "user-123", email: "user@example.com" });
-    const vars = { dseq: "654321", owner: "akash1owner", hostUri: "https://dark:8443", deploymentUrl: DEPLOYMENT_URL };
+    const vars = { dseq: "654321", owner: "akash1owner", hostUri: "https://dark:8443", closeAfterDays: CLOSE_AFTER_DAYS, deploymentUrl: DEPLOYMENT_URL };
 
     const first = providerUnreachableNotification(user, { ...vars, downSince: subDays(new Date(), 9).toISOString() });
     const second = providerUnreachableNotification(user, { ...vars, downSince: subDays(new Date(), 3).toISOString() });

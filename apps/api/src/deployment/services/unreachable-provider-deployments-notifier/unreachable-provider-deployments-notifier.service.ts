@@ -168,6 +168,7 @@ export class UnreachableProviderDeploymentsNotifierService {
           owner: deployment.owner,
           hostUri: deployment.hostUri,
           downSince: deployment.downSince,
+          closeAfterDays: this.config.get("PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS"),
           deploymentUrl: this.#deploymentUrl(deployment.dseq)
         })
       );

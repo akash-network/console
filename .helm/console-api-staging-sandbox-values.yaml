@@ -43,6 +43,15 @@ jobs:
       - ./dist/instrumentation.js
       - ./dist/console.js
       - notify-unreachable-provider-deployments
+  # Offset from the sweeps above so no two of them hit deployment_settings on the same minute.
+  - name: close-unreachable-provider-deployments
+    schedule: "26 * * * *" # hourly
+    command:
+      - node
+      - --require
+      - ./dist/instrumentation.js
+      - ./dist/console.js
+      - close-unreachable-provider-deployments
 
 replicas: 2
 
