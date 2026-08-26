@@ -65,8 +65,8 @@ export const envSchema = z
       .default(0.5),
     /** Must outlast a create still in flight: this delay, not the cancellation, is what keeps a live deployment's row safe. */
     UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN: z.number({ coerce: true }).min(15).finite().optional().default(60),
-    /** Sized to outlast a chain-node outage, since nothing can find a row whose compensation exhausts its retries. */
-    UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT: z.number({ coerce: true }).int().positive().optional().default(48),
+    /** Retries pg-boss adds on top of the first attempt, sized to outlast a chain-node outage since nothing can find a row that exhausts them. */
+    UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT: z.number({ coerce: true }).int().positive().optional().default(47),
     /** pg-boss multiplies its backoff by this and defaults it to 0, which would collapse every later gap to zero. */
     UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC: z.number({ coerce: true }).int().positive().optional().default(30),
     /** Reaches pg-boss as seconds in an integer column, so a value that is not whole seconds makes every enqueue throw. */

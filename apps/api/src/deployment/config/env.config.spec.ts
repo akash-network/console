@@ -209,27 +209,27 @@ describe("deployment envSchema", () => {
   });
 
   describe("UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT", () => {
-    it("defaults to a horizon of 48 attempts when omitted", () => {
-      expect(envSchema.parse(setup()).UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT).toBe(48);
+    it("defaults to 47 retries, a horizon of 48 attempts, when omitted", () => {
+      expect(envSchema.parse(setup()).UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT).toBe(47);
     });
 
-    it("accepts a single attempt", () => {
+    it("accepts a single retry", () => {
       expect(envSchema.parse(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT: "1" })).UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT).toBe(1);
     });
 
-    it("rejects no attempts at all, which would leak on the first chain hiccup", () => {
+    it("rejects no retries at all, which would leak on the first chain hiccup", () => {
       expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT: 0 }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT");
     });
 
-    it("rejects a fractional attempt count", () => {
+    it("rejects a fractional retry count", () => {
       expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT: 2.5 }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT");
     });
 
-    it("rejects a negative attempt count", () => {
+    it("rejects a negative retry count", () => {
       expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT: -1 }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT");
     });
 
-    it("rejects a non-numeric attempt count", () => {
+    it("rejects a non-numeric retry count", () => {
       expectRejected(setup({ UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT: "many" }), "UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT");
     });
   });
