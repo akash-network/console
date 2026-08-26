@@ -5,10 +5,17 @@ import { singleton } from "tsyringe";
 import type { UserOutput } from "@src/user/repositories";
 import type { AppContext } from "../../types/app-context";
 
+/** A data key held for one request: the record's identity is free, the key behind it costs a key-service call. */
+export interface HeldDataKey {
+  readonly id: string;
+  unwrap(): Promise<Buffer>;
+}
+
 interface ExecutionStorage {
   CURRENT_USER: UserOutput;
   ABILITY: MongoAbility;
   HTTP_CONTEXT: AppContext;
+  HELD_DATA_KEYS: Map<string, Promise<HeldDataKey>>;
 }
 
 @singleton()
@@ -23,6 +30,11 @@ export class ExecutionContextService {
     }
 
     return store;
+  }
+
+  /** Whether a store exists at all, so a caller can distinguish "no request" from "nothing stored" without catching. */
+  hasContext(): boolean {
+    return this.storage.getStore() !== undefined;
   }
 
   set<K extends keyof ExecutionStorage>(key: K, value: ExecutionStorage[K] | undefined) {
