@@ -92,16 +92,34 @@ export class TopUpManagedDeploymentsService {
    * about to drain does not wait up to an hour for the next scheduled pass.
    */
   async topUpDrainingDeploymentsForOwner({ walletId, address }: { walletId: number; address: string }): Promise<void> {
-    const currentHeight = await this.blockHttpService.getCurrentHeight();
-    const deployments = await this.drainingDeploymentService.findDrainingDeploymentsForOwner(address, this.fundDrainingInstrumentation, currentHeight);
+    try {
+      const currentHeight = await this.blockHttpService.getCurrentHeight();
+      const deployments = await this.drainingDeploymentService.findDrainingDeploymentsForOwner(address, this.fundDrainingInstrumentation, currentHeight);
 
-    if (!deployments.length) {
-      this.fundDrainingInstrumentation.recordSkipped({ owner: address, deploymentCount: 0 });
-      return;
+      if (!deployments.length) {
+        this.fundDrainingInstrumentation.recordSkipped({ owner: address, deploymentCount: 0 });
+        return;
+      }
+
+      const balance = await this.cachedBalanceService.getFresh(address);
+      await this.#fundOwnerDeployments({ address, walletId, deployments }, { dryRun: false }, balance, this.fundDrainingInstrumentation, currentHeight);
+    } finally {
+      await this.#scheduleCreditsLowCheckOnLandedCredits(walletId);
     }
+  }
 
-    const balance = await this.cachedBalanceService.getFresh(address);
-    await this.#fundOwnerDeployments({ address, walletId, deployments }, { dryRun: false }, balance, this.fundDrainingInstrumentation, currentHeight);
+  /**
+   * Credits just landed on this wallet, so the credits-low verdict may flip — typically clearing
+   * the low stamp. Runs whether or not anything was draining, and best-effort: a schedule failure
+   * must not fail the funding job after a landed deposit, where retries would burn against the
+   * funding-claim cooldown.
+   */
+  async #scheduleCreditsLowCheckOnLandedCredits(walletId: number): Promise<void> {
+    try {
+      await this.walletReloadService.scheduleCreditsLowCheckIfAutoReloadOff({ walletId });
+    } catch (error: unknown) {
+      this.fundDrainingInstrumentation.recordCreditsLowScheduleError({ walletId, error });
+    }
   }
 
   async #fundOwnerDeployments(

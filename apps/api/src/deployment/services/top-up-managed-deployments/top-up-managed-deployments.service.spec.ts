@@ -878,6 +878,30 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(walletReloadService.scheduleImmediate).not.toHaveBeenCalled();
     });
 
+    it("schedules a credits-low check even when the owner has nothing to fund", async () => {
+      const { service, drainingDeploymentService, walletReloadService } = setup();
+      const owner = createAkashAddress();
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([]);
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId: 1, address: owner });
+
+      expect(walletReloadService.scheduleCreditsLowCheckIfAutoReloadOff).toHaveBeenCalledWith({ walletId: 1 });
+    });
+
+    it("records a failed credits-low schedule without failing the funding job", async () => {
+      const { service, drainingDeploymentService, walletReloadService, fundDrainingInstrumentation } = setup();
+      const owner = createAkashAddress();
+      const error = new Error("connection reset");
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([]);
+      vi.mocked(walletReloadService.scheduleCreditsLowCheckIfAutoReloadOff).mockRejectedValue(error);
+
+      await expect(service.topUpDrainingDeploymentsForOwner({ walletId: 1, address: owner })).resolves.toBeUndefined();
+
+      expect(fundDrainingInstrumentation.recordCreditsLowScheduleError).toHaveBeenCalledWith({ walletId: 1, error });
+    });
+
     it("records a non-positive-amount skip without reporting a false insufficient-balance error", async () => {
       const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, walletReloadService, fundDrainingInstrumentation } = setup();
       const owner = createAkashAddress();

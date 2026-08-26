@@ -199,6 +199,10 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
     this.deploymentsMarkedClosed.add(count);
   }
 
+  recordCreditsLowScheduleError({ walletId, error }: { walletId: number; error: unknown }): void {
+    this.emitLog("error", { event: "FUND_DRAINING_CREDITS_LOW_SCHEDULE_ERROR", walletId, error });
+  }
+
   /**
    * The cron records blocks-until-predicted-close against a run-scoped start height. The stateless
    * event-driven path has no per-run start height, so there is nothing meaningful to record here.

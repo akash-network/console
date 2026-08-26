@@ -55,7 +55,32 @@ export class InitialDeploymentFundingService {
    * is terminal — retrying against a closed account can never succeed.
    * Every other early exit is terminal: the hourly cron remains the safety net.
    */
-  async fundOnLeaseStarted({ walletId, address, dseq }: FundOnLeaseStartedInput): Promise<void> {
+  async fundOnLeaseStarted(input: FundOnLeaseStartedInput): Promise<void> {
+    try {
+      await this.#fundOnLeaseStarted(input);
+    } finally {
+      await this.#scheduleCreditsLowCheck(input);
+    }
+  }
+
+  /**
+   * A lease just started, so the account's weekly burn changed and the credits-low verdict may
+   * flip — including when the funding itself skipped (sufficient runway, insufficient balance).
+   * Best-effort for the same reason as the wallet reload: it must never affect the funding outcome.
+   */
+  async #scheduleCreditsLowCheck({ walletId, dseq, address }: FundOnLeaseStartedInput): Promise<void> {
+    try {
+      await this.walletReloadJobService.scheduleCreditsLowCheckIfAutoReloadOff({ walletId });
+    } catch (error) {
+      try {
+        this.logger.error({ event: "INITIAL_FUNDING_CREDITS_LOW_SCHEDULE_FAILED", walletId, dseq, address, error });
+      } catch {
+        return;
+      }
+    }
+  }
+
+  async #fundOnLeaseStarted({ walletId, address, dseq }: FundOnLeaseStartedInput): Promise<void> {
     const [deployment] = await this.drainingDeploymentService.findLeases(Number.MAX_SAFE_INTEGER, address, [dseq]);
 
     if (!deployment) {
