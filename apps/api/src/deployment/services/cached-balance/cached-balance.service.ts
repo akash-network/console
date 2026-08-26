@@ -34,8 +34,16 @@ export class CachedBalance {
     return this.#headroomWaived;
   }
 
+  /**
+   * What `reserveSufficientAmount` would hand out, without taking it, so a caller can decline a deposit
+   * before the allowance is spoken for and leave it to the rest of the owner's batch.
+   */
+  public previewSufficientAmount(desiredAmount: number) {
+    return Math.min(desiredAmount, this.#spendable);
+  }
+
   public reserveSufficientAmount(desiredAmount: number) {
-    const value = Math.min(desiredAmount, this.#spendable);
+    const value = this.previewSufficientAmount(desiredAmount);
 
     if (value <= 0) {
       throw new Error(`Insufficient balance: ${this.#spendable} < ${desiredAmount}`);

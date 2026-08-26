@@ -76,6 +76,20 @@ describe(CachedBalanceService.name, () => {
       expect(amount).toBe(1000);
     });
 
+    it("previews the amount a reservation would hand out without spending it", async () => {
+      const { service, balancesService } = setup();
+      balancesService.getFreshLimits.mockResolvedValue({
+        deployment: DEPLOYMENT_LIMIT,
+        fee: 100
+      });
+
+      const balance = await service.get(address);
+
+      expect(balance.previewSufficientAmount(1500)).toBe(1000);
+      expect(balance.previewSufficientAmount(400)).toBe(400);
+      expect(balance.spendable).toBe(1000);
+    });
+
     it("throws when trying to reserve a zero or negative amount", async () => {
       const { service, balancesService } = setup();
       balancesService.getFreshLimits.mockResolvedValue({

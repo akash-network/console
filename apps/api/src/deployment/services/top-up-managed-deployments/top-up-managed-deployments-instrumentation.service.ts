@@ -20,6 +20,7 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
   private readonly depositAmount: Histogram;
   private readonly predictedCloseBlocks: Histogram;
   private readonly insufficientBalanceWithAutoReload: Counter;
+  private readonly depositsBelowUsefulRunway: Counter;
   private readonly settingToggles: Counter;
   private readonly logger: ReturnType<CreateLogger>;
   private startTime: number | undefined;
@@ -70,6 +71,10 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
 
     this.insufficientBalanceWithAutoReload = this.metricsService.createCounter(this.meter, "auto_top_up_insufficient_balance_with_auto_reload_total", {
       description: "Total number of insufficient balance errors where wallet auto-reload is enabled"
+    });
+
+    this.depositsBelowUsefulRunway = this.metricsService.createCounter(this.meter, "auto_top_up_deposits_below_useful_runway_total", {
+      description: "Total number of deposits declined because the credits available bought less runway than the dedup cooldown"
     });
 
     this.settingToggles = this.metricsService.createCounter(this.meter, "auto_top_up_setting_toggles_total", {
@@ -191,6 +196,20 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
         this.messagePreparationErrors.add(1, { error_type: "unknown" });
       });
     }
+  }
+
+  recordDepositBelowUsefulRunway(details: { dseq: string; address: string; desiredAmount: number; affordableAmount: number; runwayMinutes: number }): void {
+    this.topUpSummarizer.inc("depositsBelowUsefulRunwayCount");
+
+    this.logger.warn({
+      event: "DEPOSIT_BELOW_USEFUL_RUNWAY",
+      ...details,
+      dryRun: this.options?.dryRun
+    });
+
+    this.execWhenEnabled(() => {
+      this.depositsBelowUsefulRunway.add(1);
+    });
   }
 
   recordDeploymentsMarkedClosed(count: number): void {
