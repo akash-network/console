@@ -199,11 +199,13 @@ describe(stripSdlSecrets.name, () => {
       expect(stripped.length).toBe(stripped.sdl?.length);
     });
 
-    it("stores nothing for a document with no anchors that serializes past the limit", () => {
-      const result = stripSdlSecrets(sdlWith({ web: { args: ["x".repeat(4096)] } }), 512);
+    it("measures a document with no anchors by serializing it exactly", () => {
+      const submitted = sdlWith({ web: { args: ["x".repeat(4096)] } });
+
+      const result = stripSdlSecrets(submitted, 512);
 
       expect(result.sdl).toBeNull();
-      expect(result.length).toBeGreaterThan(512);
+      expect(result.length).toBe(dump(yaml.raw(submitted), { lineWidth: -1 }).length);
     });
 
     it("stores a document whose scalars merely contain an ampersand and an asterisk", () => {
