@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import yaml from "js-yaml";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -185,6 +186,7 @@ describe("DeploymentDetailHeader", () => {
     });
 
     expect(screen.getByText("COST").parentElement).toHaveTextContent("cost-tooltip");
+    expect(screen.getByText("COST").parentElement?.querySelector("svg")).toBeInTheDocument();
     expect(CostBreakdownTooltip).toHaveBeenCalledWith(expect.objectContaining({ perBlockUDenom: 4000, gpuCount: 2 }), {});
     expect(CostRate).toHaveBeenCalledWith(expect.objectContaining({ hideBreakdownTooltip: true }), {});
   });
@@ -292,7 +294,7 @@ describe("DeploymentDetailHeader", () => {
         })
       });
     const CostRate = vi.fn(() => <div>cost-rate</div>);
-    const CostBreakdownTooltip = vi.fn(() => <span>cost-tooltip</span>);
+    const CostBreakdownTooltip = vi.fn(({ children }: { children?: ReactNode }) => <span>cost-tooltip{children}</span>);
     const DeploymentVisitControl = vi.fn(() => <div>visit</div>);
 
     const deployment = mock<DeploymentDto>({
