@@ -167,6 +167,25 @@ describe(FundDrainingDeploymentsInstrumentationService.name, () => {
     });
   });
 
+  describe("recordHeadroomConceded", () => {
+    it("increments the concession counter and warns with the amounts either side of it", () => {
+      const { service, headroomConcessions } = setup();
+      const details = {
+        dseq: "900001",
+        address: "akash1owner",
+        desiredAmount: 50_000_000,
+        flooredAmount: 600_000,
+        affordableAmount: 5_600_000,
+        runwayMinutes: 2880
+      };
+
+      service.recordHeadroomConceded(details);
+
+      expect(headroomConcessions.add).toHaveBeenCalledWith(1);
+      expect(mockLogger.warn).toHaveBeenCalledWith({ event: "FUND_DRAINING_HEADROOM_CONCEDED", ...details });
+    });
+  });
+
   describe("recordDeploymentsMarkedClosed", () => {
     it("increments the marked-closed counter by the given count", () => {
       const { service, deploymentsMarkedClosed } = setup();
@@ -270,6 +289,7 @@ describe(FundDrainingDeploymentsInstrumentationService.name, () => {
       masterWalletInsufficientFunds: counters["fund_draining_deployments_master_wallet_insufficient_funds_total"],
       deploymentsMarkedClosed: counters["fund_draining_deployments_deployments_marked_closed_total"],
       claimReleaseErrors: counters["fund_draining_deployments_claim_release_errors_total"],
+      headroomConcessions: counters["fund_draining_deployments_headroom_concessions_total"],
       jobDuration: histograms["fund_draining_deployments_job_duration_ms"],
       depositAmount: histograms["fund_draining_deployments_deposit_amount"]
     };

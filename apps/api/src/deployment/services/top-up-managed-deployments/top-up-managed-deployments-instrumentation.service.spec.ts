@@ -128,6 +128,46 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
     });
   });
 
+  describe("recordHeadroomConceded", () => {
+    it("counts the concession, warns with the amounts either side of it, and carries the dry-run flag", () => {
+      const { service, logger, summarizer, countersByName } = setup();
+      service.start(100, { dryRun: false });
+      const deployment = createDrainingDeployment();
+      const details = {
+        dseq: deployment.dseq,
+        address: deployment.address,
+        desiredAmount: 50_000_000,
+        flooredAmount: 600_000,
+        affordableAmount: 5_600_000,
+        runwayMinutes: 2880
+      };
+
+      service.recordHeadroomConceded(details);
+
+      expect(summarizer.get("headroomConcessionCount")).toBe(1);
+      expect(countersByName["auto_top_up_headroom_concessions_total"].add).toHaveBeenCalledWith(1);
+      expect(logger.warn).toHaveBeenCalledWith({ event: "AUTO_TOP_UP_HEADROOM_CONCEDED", ...details, dryRun: false });
+    });
+
+    it("counts the concession without emitting a metric in dry run mode", () => {
+      const { service, summarizer, countersByName } = setup();
+      service.start(100, { dryRun: true });
+      const deployment = createDrainingDeployment();
+
+      service.recordHeadroomConceded({
+        dseq: deployment.dseq,
+        address: deployment.address,
+        desiredAmount: 50_000_000,
+        flooredAmount: 600_000,
+        affordableAmount: 5_600_000,
+        runwayMinutes: 2880
+      });
+
+      expect(summarizer.get("headroomConcessionCount")).toBe(1);
+      expect(countersByName["auto_top_up_headroom_concessions_total"].add).not.toHaveBeenCalled();
+    });
+  });
+
   describe("recordDeploymentPreparation", () => {
     it("records predicted close blocks when start height is set", () => {
       const { service, summarizer } = setup();
