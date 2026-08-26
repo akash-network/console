@@ -1,7 +1,7 @@
 "use client";
 
 import type { RefObject } from "react";
-import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { MdInfo } from "react-icons/md";
 import { Button } from "@akashnetwork/ui/components";
 import type { TurnstileInstance } from "@marsidev/react-turnstile";
@@ -10,12 +10,23 @@ import { motion } from "framer-motion";
 import { RefreshCwIcon, Undo2 } from "lucide-react";
 import dynamic from "next/dynamic";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { useWhen } from "@src/hooks/useWhen";
 import { getInjectedConfig } from "@src/utils/getInjectedConfig/getInjectedConfig";
 
 type TurnstileStatus = "uninitialized" | "solved" | "interactive" | "expired" | "error" | "dismissed";
 
 const VISIBILITY_STATUSES: TurnstileStatus[] = ["interactive", "error"];
+
+/**
+ * Cloudflare recovers from a failed or expired challenge on its own, so the widget must never be torn down and
+ * rebuilt from our side: doing so restarts the challenge with no backoff, and an error -> interactive -> error
+ * cycle then flaps forever until the page is hard reloaded.
+ */
+const RECOVERY_OPTIONS = { retry: "auto", retryInterval: 8_000, refreshExpired: "auto" } as const;
+
+/** Bounds how long a caller waits on those retries, so a wedged challenge surfaces an error instead of hanging the form. */
+export const CHALLENGE_DEADLINE_MS = 120_000;
 
 export const COMPONENTS = {
   ReactTurnstile,
@@ -45,6 +56,18 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
   const isVisible = useMemo(() => enabled && VISIBILITY_STATUSES.includes(status), [enabled, status]);
   const eventBus = useRef<EventTarget>(new EventTarget());
   const injectedConfig = getInjectedConfig();
+  const { errorHandler } = useServices();
+
+  const hasReportedFailure = useRef(false);
+  /** Cloudflare keeps retrying every 8s, so only the first anomaly of a run is reported: enough to diagnose, without one Sentry event per retry per stuck visitor. A run ends at the next success or the next challenge the caller asks for. */
+  const reportChallengeFailure = useCallback(
+    (error: unknown, event: string) => {
+      if (hasReportedFailure.current) return;
+      hasReportedFailure.current = true;
+      errorHandler.reportError({ error, severity: "warning", tags: { event } });
+    },
+    [errorHandler]
+  );
 
   const resetWidget = useCallback(() => {
     turnstileRef.current?.remove();
@@ -52,6 +75,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
     turnstileRef.current?.execute();
   }, []);
   const abandonPendingChallenge = useRef<(() => void) | undefined>(undefined);
+  const stopWaitingForChallenge = useRef<(() => void) | undefined>(undefined);
   /** Notifies the parent before rejecting so it can drop the abandoned attempt instead of rendering it as a failure. */
   const hideWidget = useCallback(() => {
     setStatus("dismissed");
@@ -59,12 +83,17 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
     abandonPendingChallenge.current?.();
   }, [onDismissed]);
 
-  useWhen(status === "error" || status === "expired", () => {
-    resetWidget();
-  });
   useWhen(status === "dismissed", () => {
     turnstileRef.current?.remove();
   });
+  /**
+   * Unmounting is not a dismissal, so the deadline is dropped without settling the promise: the caller awaiting it is
+   * going away with us. Rejecting instead would surface as a mutation error and reach the global MutationCache
+   * reporter as an untagged non-Error, one Sentry event for every visitor who navigates off mid-challenge.
+   */
+  useEffect(function stopWaitingForChallengeOnUnmount() {
+    return () => stopWaitingForChallenge.current?.();
+  }, []);
 
   useImperativeHandle(
     ref || externalTurnstileRef,
@@ -78,12 +107,15 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
         }
 
         abandonPendingChallenge.current?.();
+        hasReportedFailure.current = false;
         resetWidget();
         return new Promise((resolve, reject) => {
           const stopWaiting = () => {
+            clearTimeout(deadline);
             eventBus.current.removeEventListener("success", successListener);
             eventBus.current.removeEventListener("error", errorListener);
             abandonPendingChallenge.current = undefined;
+            stopWaitingForChallenge.current = undefined;
           };
           const successListener = (event: Event) => {
             stopWaiting();
@@ -99,12 +131,19 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
             stopWaiting();
             reject({ reason: "dismissed" });
           };
+          stopWaitingForChallenge.current = stopWaiting;
+          const deadline = setTimeout(() => {
+            stopWaiting();
+            reportChallengeFailure(new Error("Turnstile challenge never settled"), "TURNSTILE_CHALLENGE_WEDGED");
+            reject({ reason: "timeout" });
+          }, CHALLENGE_DEADLINE_MS);
+
           eventBus.current.addEventListener("success", successListener);
           eventBus.current.addEventListener("error", errorListener);
         });
       }
     }),
-    [resetWidget, enabled]
+    [resetWidget, enabled, reportChallengeFailure]
   );
 
   if (!enabled) {
@@ -133,17 +172,17 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
               className="flex-1"
               ref={turnstileRef}
               siteKey={injectedConfig?.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? siteKey}
-              options={{ execution: "execute", size: "normal" }}
+              options={{ execution: "execute", size: "normal", ...RECOVERY_OPTIONS }}
               onError={error => {
                 setStatus("error");
+                reportChallengeFailure(error, "TURNSTILE_CHALLENGE_FAILED");
                 eventBus.current.dispatchEvent(new CustomEvent("error", { detail: { error, reason: "error" } }));
               }}
-              onExpire={() => {
-                setStatus("expired");
-                eventBus.current.dispatchEvent(new CustomEvent("expired", { detail: { reason: "expired" } }));
-              }}
+              onExpire={() => setStatus("expired")}
+              onTimeout={() => reportChallengeFailure(new Error("Turnstile challenge timed out"), "TURNSTILE_CHALLENGE_TIMED_OUT")}
               onSuccess={token => {
                 setStatus("solved");
+                hasReportedFailure.current = false;
                 eventBus.current.dispatchEvent(new CustomEvent("success", { detail: { token } }));
               }}
               onBeforeInteractive={() => setStatus("interactive")}
