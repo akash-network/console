@@ -485,7 +485,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ amount: 100 }));
     });
 
-    it("clamps the charge to the $20 minimum when the stored amount is below it", async () => {
+    it("clamps the charge to the $25 minimum when the stored amount is below it", async () => {
       const { handler, stripeTransactionService, job, jobMeta } = setup({
         autoReloadMode: "threshold",
         balance: 5,
@@ -495,7 +495,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       await handler.handle(job, jobMeta);
 
-      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ amount: 20 }));
+      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ amount: 25 }));
     });
 
     it("records the failure and rethrows when the payment intent fails", async () => {

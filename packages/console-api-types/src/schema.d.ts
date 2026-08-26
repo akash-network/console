@@ -7183,9 +7183,9 @@ export interface operations {
              * @enum {string}
              */
             autoReloadMode?: "threshold" | "prediction";
-            /** @description USD credit balance at or below which an automatic top-up is triggered (minimum 5, maximum 10000). Defaults are applied on create when omitted. */
+            /** @description USD credit balance at or below which an automatic top-up is triggered (minimum 10, maximum 10000). Defaults are applied on create when omitted. */
             autoReloadThreshold?: number;
-            /** @description USD amount charged on each automatic top-up (minimum 20, maximum 10000). Defaults are applied on create when omitted. */
+            /** @description USD amount charged on each automatic top-up (minimum 25, maximum 10000). Defaults are applied on create when omitted. */
             autoReloadAmount?: number;
           };
         };
@@ -7240,9 +7240,9 @@ export interface operations {
              * @enum {string}
              */
             autoReloadMode?: "threshold" | "prediction";
-            /** @description USD credit balance at or below which an automatic top-up is triggered (minimum 5, maximum 10000). Defaults are applied on create when omitted. */
+            /** @description USD credit balance at or below which an automatic top-up is triggered (minimum 10, maximum 10000). Defaults are applied on create when omitted. */
             autoReloadThreshold?: number;
-            /** @description USD amount charged on each automatic top-up (minimum 20, maximum 10000). Defaults are applied on create when omitted. */
+            /** @description USD amount charged on each automatic top-up (minimum 25, maximum 10000). Defaults are applied on create when omitted. */
             autoReloadAmount?: number;
           };
         };

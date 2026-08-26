@@ -30,14 +30,14 @@ export const DEFAULT_AUTO_RELOAD_MODE: AutoReloadMode = "threshold";
 export const DEFAULT_AUTO_RELOAD_THRESHOLD = 20;
 export const DEFAULT_AUTO_RELOAD_AMOUNT = 100;
 
-/** Matches AkashML's minimum credit-balance threshold. */
-const AUTO_RELOAD_THRESHOLD_MIN_USD = 5;
+/** Mirrors the API's AUTO_RELOAD_THRESHOLD_MIN_USD, itself matching RunPod's auto-pay threshold floor. */
+const AUTO_RELOAD_THRESHOLD_MIN_USD = 10;
 
 /** Mirrors the max bound on both fields in the backend's WalletSettingsInputSchema so over-limit values fail inline instead of as a generic 400. */
 const AUTO_RELOAD_MAX_USD = 10_000;
 
-/** Mirrors STANDARD_TOP_UP_MIN_AMOUNT_USD — the fixed floor the backend applies to every recurring auto-top-up charge, independent of the trial-aware one-time top-up minimum. */
-const AUTO_RELOAD_AMOUNT_MIN_USD = 20;
+/** Mirrors the API's AUTO_RELOAD_AMOUNT_MIN_USD — the floor applied to every recurring auto-top-up charge, independent of the trial-aware one-time top-up minimum. */
+const AUTO_RELOAD_AMOUNT_MIN_USD = 25;
 
 const MODE_OPTIONS: Array<{ value: AutoReloadMode; id: string; title: string; description: string; recommended?: boolean }> = [
   {
@@ -119,8 +119,8 @@ export const AutoTopUpSettingsPopup: React.FC<AutoTopUpSettingsPopupProps> = ({
   const defaultValues = useMemo<AutoTopUpFormValues>(
     () => ({
       autoReloadMode: mode ?? DEFAULT_AUTO_RELOAD_MODE,
-      autoReloadThreshold: threshold ?? DEFAULT_AUTO_RELOAD_THRESHOLD,
-      autoReloadAmount: amount ?? DEFAULT_AUTO_RELOAD_AMOUNT
+      autoReloadThreshold: Math.max(threshold ?? DEFAULT_AUTO_RELOAD_THRESHOLD, AUTO_RELOAD_THRESHOLD_MIN_USD),
+      autoReloadAmount: Math.max(amount ?? DEFAULT_AUTO_RELOAD_AMOUNT, AUTO_RELOAD_AMOUNT_MIN_USD)
     }),
     [mode, threshold, amount]
   );
