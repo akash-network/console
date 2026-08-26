@@ -63,48 +63,13 @@ export const envSchema = z
       .refine(value => Number.isFinite(value) && denomToUdenom(value) > 0, "must be a finite amount that converts to a positive on-chain deposit")
       .optional()
       .default(0.5),
-    /**
-     * How long a newly recorded deployment setting is left alone before the console asks the chain whether the
-     * create it was written for ever landed.
-     *
-     * This is the real invariant protecting a live deployment's row, not the cancellation on a successful
-     * broadcast: `cancelCreatedBy` only cancels a job still in state `created`, so a compensation a worker has
-     * already picked up cannot be called off at all, and the delay is the only thing that keeps it from being
-     * picked up while the create is still in flight. Check too early and the chain has nothing to report yet.
-     *
-     * Waiting longer only ever delays deleting a row nothing reads, so the default is orders of magnitude above
-     * the worst case of broadcasting a create and having it indexed. The floor exists because a value near zero
-     * would turn the compensation into "delete every create whose tx is not yet on chain"; the presence check
-     * enforces its own margin on top, so a short value here costs retries rather than rows.
-     */
+    /** Must outlast a create still in flight: this delay, not the cancellation, is what keeps a live deployment's row safe. */
     UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN: z.number({ coerce: true }).min(15).finite().optional().default(60),
-    /**
-     * How long the console keeps re-asking the chain about a deployment setting whose create may never have landed.
-     * Nothing else can find such a row, so a compensation that exhausts its retries leaks it permanently; the horizon
-     * is therefore sized to outlast a chain-node outage rather than a blip. With the backoff below doubling from
-     * 30s and capped at half an hour, 48 attempts span about 21.5 to 22 hours depending on jitter.
-     */
+    /** Sized to outlast a chain-node outage, since nothing can find a row whose compensation exhausts its retries. */
     UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT: z.number({ coerce: true }).int().positive().optional().default(48),
-    /**
-     * First gap between chain re-checks, doubling from there. pg-boss multiplies its backoff by this value and
-     * defaults it to 0, which collapses every later gap to zero however high the cap is set — so it must be
-     * positive for the horizon below to exist at all.
-     */
+    /** pg-boss multiplies its backoff by this and defaults it to 0, which would collapse every later gap to zero. */
     UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC: z.number({ coerce: true }).int().positive().optional().default(30),
-    /**
-     * Ceiling on the exponential backoff between chain re-checks, so a long outage is retried steadily rather
-     * than ever more rarely.
-     *
-     * Constrained to values whose conversion to seconds is a whole number, because that converted value lands in
-     * an integer column: pg-boss expands send options through `json_to_recordset(... "retryDelayMax" integer)`,
-     * and Postgres errors on a fractional text-to-integer conversion rather than rounding it. Without this, a
-     * value like 1.01 passes validation, the app boots, and then every enqueue throws — which, since a failed
-     * enqueue rolls the deployment record back with it, means every create fails at runtime. Rejecting it here
-     * turns a landmine that survives boot into a refusal to boot.
-     *
-     * Deliberately not `.int()`: half a minute and a quarter of a minute are legitimate ceilings and convert to
-     * whole seconds.
-     */
+    /** Reaches pg-boss as seconds in an integer column, so a value that is not whole seconds makes every enqueue throw. */
     UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: z
       .number({ coerce: true })
       .positive()
