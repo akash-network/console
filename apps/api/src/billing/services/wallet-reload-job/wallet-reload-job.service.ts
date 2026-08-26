@@ -19,6 +19,12 @@ export class WalletReloadJobService {
     this.logger = createLogger({ context: WalletReloadJobService.name });
   }
 
+  /**
+   * Schedules a balance reload check when Auto Recharge is on and does nothing otherwise.
+   * Deliberately does NOT fall through to a credits-low check: this runs on every managed
+   * spend, and coverage checks are driven by state-change triggers and the hourly funding
+   * sweep instead (CON-896).
+   */
   async scheduleImmediate(input: WalletReloadImmediateInput, options?: { triggeredByDeployment?: boolean }): Promise<boolean> {
     const walletSetting =
       "userId" in input
@@ -30,12 +36,6 @@ export class WalletReloadJobService {
       return true;
     }
 
-    const userId = await this.#resolveUserId(input, walletSetting);
-    if (!userId) {
-      return false;
-    }
-
-    await this.scheduleCreditsLowCheck(userId, { withCleanup: true });
     return false;
   }
 
@@ -90,7 +90,8 @@ export class WalletReloadJobService {
 
   /**
    * Best-effort: a failed schedule is logged instead of thrown so it never fails the
-   * spend or funding operation that triggered it, and the next spend re-schedules the check.
+   * state-change trigger or funding operation behind it, and the hourly funding sweep
+   * re-evaluates every eligible account regardless.
    */
   async scheduleCreditsLowCheck(userId: string, options?: { withCleanup?: boolean }): Promise<string | null> {
     try {
