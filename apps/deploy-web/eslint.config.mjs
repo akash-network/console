@@ -20,7 +20,8 @@ export default [
     }
   },
   {
-    files: ["tests/ui/**/*.ts", "tests/ui/**/*.tsx"],
+    // matched with a leading **/ so the override still applies when lint-staged runs eslint from the git root
+    files: ["**/tests/ui/**/*.ts", "**/tests/ui/**/*.tsx"],
     rules: {
       "react-hooks/rules-of-hooks": "off"
     }
