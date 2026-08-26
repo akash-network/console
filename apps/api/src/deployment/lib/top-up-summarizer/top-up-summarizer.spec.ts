@@ -1,5 +1,4 @@
 import "reflect-metadata";
-import "@test/mocks/logger-service.mock";
 
 import { beforeEach, describe, expect, it } from "vitest";
 

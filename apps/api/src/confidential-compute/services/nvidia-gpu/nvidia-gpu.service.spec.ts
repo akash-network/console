@@ -1,10 +1,10 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
-import type { LoggerService } from "@akashnetwork/logging";
 import jwt from "jsonwebtoken";
 import crypto from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { CreateLogger } from "@src/core";
 import { envSchema } from "../../config/env.config";
 import type { Jwks } from "../jwt-verify";
 import { detectGpuArch, extractAttestationResult, extractDeviceTokens, extractEat, NvidiaGpuService, splitGpuReport } from "./nvidia-gpu.service";
@@ -175,13 +175,20 @@ describe(NvidiaGpuService.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup({});
+
+    expect(createLogger).toHaveBeenCalledWith({ context: NvidiaGpuService.name });
+  });
+
   function setup(input: { eat?: string; jwks?: Jwks; data?: unknown }) {
     const httpClient = mock<HttpClient>();
     if (input.data !== undefined) httpClient.post.mockResolvedValue({ data: input.data });
     else if (input.eat) httpClient.post.mockResolvedValue({ data: input.eat });
     if (input.jwks) httpClient.get.mockResolvedValue({ data: input.jwks });
-    const service = new NvidiaGpuService(httpClient, envSchema.parse({}), mock<LoggerService>());
-    return { service, httpClient };
+    const createLogger = vi.fn<CreateLogger>(() => mock<ReturnType<CreateLogger>>());
+    const service = new NvidiaGpuService(httpClient, envSchema.parse({}), createLogger);
+    return { service, httpClient, createLogger };
   }
 });
 

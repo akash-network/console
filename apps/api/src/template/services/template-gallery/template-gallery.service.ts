@@ -6,7 +6,7 @@ import { constants as fsConstants } from "node:fs";
 import path from "node:path";
 import type z from "zod";
 
-import type { LoggerService } from "@src/core";
+import type { CreateLogger } from "@src/core";
 import type { Category, FinalCategory, Template } from "@src/template/types/template";
 import { reusePendingPromise } from "../../../caching/helpers.ts";
 import { GitHubArchiveService } from "../github-archive/github-archive.service.ts";
@@ -76,12 +76,12 @@ export class TemplateGalleryService {
 
   private readonly templateFetcher: TemplateFetcherService | null;
   private readonly templateProcessor: TemplateProcessorService;
-  readonly #logger: LoggerService;
+  readonly #logger: ReturnType<CreateLogger>;
   readonly #fs: FileSystemApi;
   readonly #options: Options;
   readonly #galleriesCachePath: string;
 
-  constructor(logger: LoggerService, fs: FileSystemApi, options: Options) {
+  constructor(logger: ReturnType<CreateLogger>, fs: FileSystemApi, options: Options) {
     this.#logger = logger;
     this.#fs = fs;
     this.templateProcessor = new TemplateProcessorService();

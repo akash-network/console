@@ -1,7 +1,7 @@
 import { guard, MongoQuery } from "@ucast/mongo2js";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
-import { LoggerService } from "@src/core/providers/logging.provider";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { Job, JOB_NAME, JobHandler, JobPayload } from "@src/core/services/job-queue/job-queue.service";
 import {
   IsResolved,
@@ -51,12 +51,16 @@ export class NotificationJob<T extends keyof NotificationTemplates = keyof Notif
 export class NotificationHandler implements JobHandler<NotificationJob> {
   public readonly accepts = NotificationJob;
 
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly notificationService: NotificationService,
-    private readonly logger: LoggerService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger,
     private readonly userRepository: UserRepository,
     private readonly notificationDataResolver: NotificationDataResolverService
-  ) {}
+  ) {
+    this.logger = createLogger({ context: NotificationHandler.name });
+  }
 
   async handle<T extends keyof NotificationTemplates>(payload: JobPayload<NotificationJob<T>>): Promise<void> {
     const notificationTemplate = notificationTemplates[payload.template] as GenericNotificationTemplate;

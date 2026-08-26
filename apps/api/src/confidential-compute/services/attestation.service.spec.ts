@@ -1,7 +1,7 @@
-import type { LoggerService } from "@akashnetwork/logging";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { CreateLogger } from "@src/core";
 import type { CpuReportVerdict, GpuReportVerdict, VerifyAttestationRequest } from "../http-schemas/attestation.schema";
 import type { AmdSnpService } from "./amd-snp/amd-snp.service";
 import type { IntelTdxService } from "./intel-tdx/intel-tdx.service";
@@ -82,13 +82,20 @@ describe(AttestationService.name, () => {
     expect(result.nonce).toBe("the-nonce");
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: AttestationService.name });
+  });
+
   function setup() {
     const amdSnpService = mock<AmdSnpService>();
     const intelTdxService = mock<IntelTdxService>();
     const nvidiaGpuService = mock<NvidiaGpuService>();
-    const logger = mock<LoggerService>();
-    const service = new AttestationService(amdSnpService, intelTdxService, nvidiaGpuService, logger);
-    return { service, amdSnpService, intelTdxService, nvidiaGpuService, logger };
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
+    const service = new AttestationService(amdSnpService, intelTdxService, nvidiaGpuService, createLogger);
+    return { service, amdSnpService, intelTdxService, nvidiaGpuService, logger, createLogger };
   }
 });
 

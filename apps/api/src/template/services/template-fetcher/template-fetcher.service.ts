@@ -1,7 +1,7 @@
 import type { Octokit } from "@octokit/rest";
 import PromisePool from "@supercharge/promise-pool";
 
-import type { LoggerService } from "@src/core";
+import type { CreateLogger } from "@src/core";
 import type { GithubChainRegistryChainResponse } from "@src/types";
 import type { GithubDirectoryItem } from "@src/types/github";
 import type { Category, TemplateSource } from "../../types/template.ts";
@@ -29,7 +29,7 @@ export function isTemplateFile(relativePath: string): boolean {
 }
 
 export class TemplateFetcherService {
-  readonly #logger: LoggerService;
+  readonly #logger: ReturnType<CreateLogger>;
 
   /**
    * Github API rate limits requests.
@@ -42,7 +42,7 @@ export class TemplateFetcherService {
 
   constructor(
     private readonly templateProcessor: TemplateProcessorService,
-    logger: LoggerService,
+    logger: ReturnType<CreateLogger>,
     createOctokit: (githubPAT?: string, fetch?: typeof globalThis.fetch) => Octokit,
     archiveService: GitHubArchiveService,
     options: FetcherOptions

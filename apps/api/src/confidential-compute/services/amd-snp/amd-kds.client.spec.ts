@@ -1,10 +1,10 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
-import type { LoggerService } from "@akashnetwork/logging";
 import { AxiosError } from "axios";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { cacheEngine } from "@src/caching/helpers";
+import type { CreateLogger } from "@src/core";
 import { AmdKdsClient, splitPemChain } from "./amd-kds.client";
 
 const CERT_ASK = "-----BEGIN CERTIFICATE-----\nASK\n-----END CERTIFICATE-----";
@@ -117,11 +117,18 @@ describe(AmdKdsClient.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: AmdKdsClient.name });
+  });
+
   function setup() {
     const httpClient = mock<HttpClient>();
-    const logger = mock<LoggerService>();
-    const client = new AmdKdsClient(httpClient, logger);
-    return { client, httpClient, logger };
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
+    const client = new AmdKdsClient(httpClient, createLogger);
+    return { client, httpClient, logger, createLogger };
   }
 });
 

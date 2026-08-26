@@ -1,5 +1,3 @@
-import "@test/mocks/logger-service.mock";
-
 import { Scope, Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { IndexedTx } from "@cosmjs/stargate";
 import { faker } from "@faker-js/faker";

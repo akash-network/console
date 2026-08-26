@@ -3,7 +3,7 @@ import { inject, singleton } from "tsyringe";
 
 import type { DbHealthcheck, JobQueueHealthcheck } from "@src/core";
 import { DB_HEALTHCHECK, JOB_QUEUE_HEALTHCHECK } from "@src/core";
-import { LoggerService } from "@src/core/providers/logging.provider";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 
 @singleton()
 export class HealthzService {
@@ -12,9 +12,9 @@ export class HealthzService {
   constructor(
     @inject(DB_HEALTHCHECK) dbHealthcheck: DbHealthcheck,
     @inject(JOB_QUEUE_HEALTHCHECK) jobQueueHealthcheck: JobQueueHealthcheck,
-    logger: LoggerService
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    logger.setContext(HealthzService.name);
+    const logger = createLogger({ context: HealthzService.name });
     this.healthchecks.push(
       new Healthcheck("postgres", dbHealthcheck, logger, {
         cacheTTL: millisecondsInMinute
@@ -68,7 +68,7 @@ class Healthcheck {
   constructor(
     public readonly name: string,
     private readonly healthchecker: Pick<DbHealthcheck | JobQueueHealthcheck, "ping">,
-    private readonly logger: LoggerService,
+    private readonly logger: ReturnType<CreateLogger>,
     private readonly options: {
       cacheTTL: number;
     }

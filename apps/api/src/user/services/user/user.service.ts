@@ -1,12 +1,12 @@
 import assert from "http-assert";
 import randomInt from "lodash/random";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
-import { LoggerService } from "@src/core/providers/logging.provider";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { getPostgresError, isUniqueViolation } from "@src/core/repositories/base.repository";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
@@ -15,17 +15,21 @@ import { UserInput, type UserOutput, UserRepository } from "../../repositories/u
 
 @singleton()
 export class UserService {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly userRepository: UserRepository,
     private readonly analyticsService: AnalyticsService,
-    private readonly logger: LoggerService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger,
     private readonly notificationService: NotificationService,
     private readonly auth0: Auth0Service,
     private readonly emailVerificationCodeService: EmailVerificationCodeService,
     private readonly walletInitializer: WalletInitializerService,
     private readonly trialActivationJobService: TrialActivationJobService,
     private readonly dataKeyService: DataKeyService
-  ) {}
+  ) {
+    this.logger = createLogger({ context: UserService.name });
+  }
 
   async registerUser(data: RegisterUserInput): Promise<{
     id: string;

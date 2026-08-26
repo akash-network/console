@@ -1,5 +1,3 @@
-import "@test/mocks/logger-service.mock";
-
 import { faker } from "@faker-js/faker";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";

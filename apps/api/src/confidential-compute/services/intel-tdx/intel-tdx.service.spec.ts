@@ -1,10 +1,10 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
-import type { LoggerService } from "@akashnetwork/logging";
 import jwt from "jsonwebtoken";
 import crypto from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { CreateLogger } from "@src/core";
 import type { ConfidentialComputeConfig } from "../../config/env.config";
 import { envSchema } from "../../config/env.config";
 import type { Jwks } from "../jwt-verify";
@@ -102,13 +102,20 @@ describe(IntelTdxService.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup({});
+
+    expect(createLogger).toHaveBeenCalledWith({ context: IntelTdxService.name });
+  });
+
   function setup(input: { apiKey?: string; token?: string; jwks?: Jwks }) {
     const httpClient = mock<HttpClient>();
     if (input.token) httpClient.post.mockResolvedValue({ data: { token: input.token } });
     if (input.jwks) httpClient.get.mockResolvedValue({ data: input.jwks });
     const config: ConfidentialComputeConfig = { ...envSchema.parse({}), INTEL_ITA_API_KEY: input.apiKey };
-    const service = new IntelTdxService(httpClient, config, mock<LoggerService>());
-    return { service, httpClient };
+    const createLogger = vi.fn<CreateLogger>(() => mock<ReturnType<CreateLogger>>());
+    const service = new IntelTdxService(httpClient, config, createLogger);
+    return { service, httpClient, createLogger };
   }
 });
 

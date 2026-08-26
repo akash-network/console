@@ -1,5 +1,3 @@
-import "@test/mocks/logger-service.mock";
-
 import { ForbiddenError } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { PostgresError } from "postgres";

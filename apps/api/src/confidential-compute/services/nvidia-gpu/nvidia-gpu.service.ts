@@ -2,7 +2,7 @@ import type { HttpClient } from "@akashnetwork/http-sdk";
 import type { JwtPayload } from "jsonwebtoken";
 import { inject, singleton } from "tsyringe";
 
-import { LoggerService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import type { GpuReportVerdict } from "../../http-schemas/attestation.schema";
 import type { ConfidentialComputeConfig } from "../../providers/config.provider";
 import { CONFIDENTIAL_COMPUTE_CONFIG } from "../../providers/config.provider";
@@ -28,11 +28,15 @@ const GPU_NONCE_BYTES = 32;
  */
 @singleton()
 export class NvidiaGpuService {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     @inject(NVIDIA_NRAS_HTTP_CLIENT) private readonly httpClient: HttpClient,
     @inject(CONFIDENTIAL_COMPUTE_CONFIG) private readonly config: ConfidentialComputeConfig,
-    private readonly logger: LoggerService
-  ) {}
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.logger = createLogger({ context: NvidiaGpuService.name });
+  }
 
   async verify(input: { deviceIndex: number; report: string; nonce: string }): Promise<GpuReportVerdict> {
     const reportBytes = Buffer.from(input.report, "base64");

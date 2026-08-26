@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { ChainSDK } from "@src/chain/providers/chain-sdk.provider";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { DayRepository } from "@src/gpu/repositories/day.repository";
 import { DenomExchangeService } from "./denom-exchange.service";
 
@@ -126,6 +126,12 @@ describe(DenomExchangeService.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup({});
+
+    expect(createLogger).toHaveBeenCalledWith({ context: DenomExchangeService.name });
+  });
+
   function setup(input: {
     historicalPrice?: string;
     emptyHistoricalPrices?: boolean;
@@ -159,10 +165,11 @@ describe(DenomExchangeService.name, () => {
     const dayRepository = mock<DayRepository>();
     dayRepository.getLatestAktPrice.mockResolvedValue("latestAktPrice" in input ? input.latestAktPrice! : 1.23);
 
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    const service = new DenomExchangeService(chainSdk, dayRepository, logger);
+    const service = new DenomExchangeService(chainSdk, dayRepository, createLogger);
 
-    return { service, getAggregatedPriceV2, getPricesV2, dayRepository, logger };
+    return { service, getAggregatedPriceV2, getPricesV2, dayRepository, logger, createLogger };
   }
 });
