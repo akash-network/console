@@ -43,9 +43,10 @@ jobs:
       - ./dist/console.js
       - notify-expiring-deployments
   # Daily, and offset from the other deployment_settings sweeps so no two of them share a minute.
-  # Object name kept short on purpose: the chart renders it as console-api-<chain>-<name> and the
-  # CronJob controller caps that at 52 chars, which the CLI command name would exceed.
-  - name: sweep-orphaned-definitions
+  # The object name is deliberately shorter than the subcommand: the chart renders it as
+  # {{ Chart.Name }}-{{ .Values.chain }}-<name> and the CronJob name is capped at 52 chars including that
+  # prefix. The `command:` arg below is the one that must match console.ts — do not "fix" the mismatch.
+  - name: cleanup-orphaned-settings
     schedule: "17 3 * * *" # 03:17 every day
     # Backstop for the cleanup's own time budget, which is set lower so it stops and logs before this fires.
     # Forbid keeps a slow run from being joined by the next night's.
