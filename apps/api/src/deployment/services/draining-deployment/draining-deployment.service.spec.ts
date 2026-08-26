@@ -13,6 +13,7 @@ import type { CreateLogger } from "@src/core";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DrainingDeploymentOutput, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { averageBlockCountInAnHour } from "@src/utils/constants";
+import type { DeploymentCloseJobService } from "../deployment-close-job/deployment-close-job.service";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DrainingDeploymentRpcService } from "../draining-deployment-rpc/draining-deployment-rpc.service";
 import type { DeploymentTopUpInstrumentation } from "../top-up-managed-deployments/deployment-top-up-instrumentation";
@@ -321,6 +322,91 @@ describe(DrainingDeploymentService.name, () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+
+    it("schedules a close job for a deadline it just anchored", async () => {
+      const { service, deploymentSettingRepository, deploymentCloseJobService, currentHeight } = setup();
+      const sink = mock<DeploymentTopUpInstrumentation>();
+      const address = createAkashAddress();
+      const anchoredEndsAt = new Date(Date.now() + 12 * millisecondsInHour);
+      const setting = createAutoTopUpDeployment({ address, dseq: "3010", runtimeLimitHours: 12, runtimeEndsAt: null });
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([setting]);
+      deploymentSettingRepository.startRuntimeCountdown.mockResolvedValue(anchoredEndsAt);
+      vi.spyOn(service, "findLeases").mockResolvedValue([
+        createDrainingDeployment({ dseq: Number(setting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 })
+      ]);
+
+      await service.findDrainingDeploymentsForOwner(address, sink, currentHeight);
+
+      expect(deploymentCloseJobService.schedule).toHaveBeenCalledWith(
+        { deploymentSettingId: setting.id, userId: setting.userId, dseq: setting.dseq },
+        { startAfter: anchoredEndsAt, withCleanup: true }
+      );
+    });
+
+    it("schedules no close job for a deadline that was already anchored", async () => {
+      const { service, deploymentSettingRepository, deploymentCloseJobService, currentHeight } = setup();
+      const sink = mock<DeploymentTopUpInstrumentation>();
+      const address = createAkashAddress();
+      const setting = createAutoTopUpDeployment({
+        address,
+        dseq: "3011",
+        runtimeLimitHours: 12,
+        runtimeEndsAt: new Date(Date.now() + 10 * millisecondsInHour)
+      });
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([setting]);
+      vi.spyOn(service, "findLeases").mockResolvedValue([
+        createDrainingDeployment({ dseq: Number(setting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 })
+      ]);
+
+      await service.findDrainingDeploymentsForOwner(address, sink, currentHeight);
+
+      expect(deploymentCloseJobService.schedule).not.toHaveBeenCalled();
+    });
+
+    it("still anchors and funds when the close job cannot be scheduled", async () => {
+      const { service, deploymentSettingRepository, deploymentCloseJobService, currentHeight } = setup();
+      const sink = mock<DeploymentTopUpInstrumentation>();
+      const address = createAkashAddress();
+      const anchoredEndsAt = new Date(Date.now() + 12 * millisecondsInHour);
+      const setting = createAutoTopUpDeployment({ address, dseq: "3013", runtimeLimitHours: 12, runtimeEndsAt: null });
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([setting]);
+      deploymentSettingRepository.startRuntimeCountdown.mockResolvedValue(anchoredEndsAt);
+      deploymentCloseJobService.schedule.mockRejectedValue(new Error("queue unavailable"));
+      vi.spyOn(service, "findLeases").mockResolvedValue([
+        createDrainingDeployment({ dseq: Number(setting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 })
+      ]);
+
+      const result = await service.findDrainingDeploymentsForOwner(address, sink, currentHeight);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({ dseq: setting.dseq, runtimeEndsAt: anchoredEndsAt });
+    });
+
+    it("schedules no close job during a dry run", async () => {
+      const { service, deploymentSettingRepository, deploymentCloseJobService, currentHeight } = setup();
+      const address = createAkashAddress();
+      const setting = createAutoTopUpDeployment({ address, dseq: "3012", runtimeLimitHours: 12, runtimeEndsAt: null });
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+        (async function* () {
+          yield { address, walletId: setting.walletId, deploymentSettings: [setting] };
+        })()
+      );
+      vi.spyOn(service, "findLeases").mockResolvedValue([
+        createDrainingDeployment({ dseq: Number(setting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 })
+      ]);
+
+      const callback = vi.fn();
+      for await (const result of service.findDrainingDeploymentsByOwner(currentHeight, { dryRun: true })) {
+        callback(result);
+      }
+
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(deploymentCloseJobService.schedule).not.toHaveBeenCalled();
     });
 
     it("returns an empty array without querying leases when the owner has no auto-top-up deployments", async () => {
@@ -1211,6 +1297,7 @@ describe(DrainingDeploymentService.name, () => {
     const leaseRepository = mock<LeaseRepository>();
     const userWalletRepository = mock<UserWalletRepository>();
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
+    const deploymentCloseJobService = mock<DeploymentCloseJobService>();
     const rpcService = mock<DrainingDeploymentRpcService>();
     const loggerService = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => loggerService);
@@ -1230,6 +1317,7 @@ describe(DrainingDeploymentService.name, () => {
       leaseRepository,
       userWalletRepository,
       deploymentSettingRepository,
+      deploymentCloseJobService,
       config,
       createLogger,
       rpcService,
@@ -1243,6 +1331,7 @@ describe(DrainingDeploymentService.name, () => {
       leaseRepository,
       userWalletRepository,
       deploymentSettingRepository,
+      deploymentCloseJobService,
       rpcService,
       loggerService,
       createLogger,

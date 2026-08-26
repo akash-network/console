@@ -77,6 +77,12 @@ export const envSchema = z
       .refine(value => Number.isInteger(value * 60), "must convert to a whole number of seconds, since the backoff ceiling is stored in seconds")
       .optional()
       .default(30),
+    /**
+     * Keeps the expired-deployment close job from broadcasting: it logs the close it would have made and
+     * reschedules itself instead. Defaults to on so an environment that has not opted into closing keeps
+     * observing, and closing for real is one variable away.
+     */
+    CLOSE_EXPIRED_DEPLOYMENTS_DRY_RUN: z.enum(["true", "false"]).default("true"),
     /** How long before a runtime-limited deployment reaches its limit the user is warned by email. */
     RUNTIME_LIMIT_WARNING_LEAD_IN_H: z.number({ coerce: true }).positive().finite().optional().default(6),
     /**

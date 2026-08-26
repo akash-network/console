@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 
-import type { ExpiredDeploymentsCloserService } from "@src/deployment/services/expired-deployments-closer/expired-deployments-closer.service";
+import type { DeploymentCloseJobService } from "@src/deployment/services/deployment-close-job/deployment-close-job.service";
 import type { ExpiringDeploymentsNotifierService } from "@src/deployment/services/expiring-deployments-notifier/expiring-deployments-notifier.service";
 import type { StaleManagedDeploymentsCleanerService } from "@src/deployment/services/stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
 import type { TopUpManagedDeploymentsService } from "@src/deployment/services/top-up-managed-deployments/top-up-managed-deployments.service";
@@ -18,6 +18,15 @@ describe(TopUpDeploymentsController.name, () => {
 
       expect(topUpManagedDeploymentsService.topUpDeployments).toHaveBeenCalledWith(options);
     });
+
+    it("reconciles close jobs for deployments already past their deadline", async () => {
+      const { controller, deploymentCloseJobService } = setup();
+      const options = { concurrency: 5, dryRun: false };
+
+      await controller.topUpDeployments(options);
+
+      expect(deploymentCloseJobService.reconcileExpired).toHaveBeenCalledWith(options);
+    });
   });
 
   describe("cleanUpStaleDeployment", () => {
@@ -28,17 +37,6 @@ describe(TopUpDeploymentsController.name, () => {
       await controller.cleanUpStaleDeployment(options);
 
       expect(staleDeploymentsCleanerService.cleanup).toHaveBeenCalledWith(options);
-    });
-  });
-
-  describe("closeExpiredDeployments", () => {
-    it("should call the service to close expired deployments", async () => {
-      const { controller, expiredDeploymentsCloserService } = setup();
-      const options = { dryRun: false };
-
-      await controller.closeExpiredDeployments(options);
-
-      expect(expiredDeploymentsCloserService.closeExpiredDeployments).toHaveBeenCalledWith(options);
     });
   });
 
@@ -57,17 +55,17 @@ describe(TopUpDeploymentsController.name, () => {
     controller: TopUpDeploymentsController;
     topUpManagedDeploymentsService: MockProxy<TopUpManagedDeploymentsService>;
     staleDeploymentsCleanerService: MockProxy<StaleManagedDeploymentsCleanerService>;
-    expiredDeploymentsCloserService: MockProxy<ExpiredDeploymentsCloserService>;
+    deploymentCloseJobService: MockProxy<DeploymentCloseJobService>;
     expiringDeploymentsNotifierService: MockProxy<ExpiringDeploymentsNotifierService>;
   } {
     const topUpManagedDeploymentsService = mock<TopUpManagedDeploymentsService>();
     const staleDeploymentsCleanerService = mock<StaleManagedDeploymentsCleanerService>();
-    const expiredDeploymentsCloserService = mock<ExpiredDeploymentsCloserService>();
+    const deploymentCloseJobService = mock<DeploymentCloseJobService>();
     const expiringDeploymentsNotifierService = mock<ExpiringDeploymentsNotifierService>();
     const controller = new TopUpDeploymentsController(
       topUpManagedDeploymentsService,
       staleDeploymentsCleanerService,
-      expiredDeploymentsCloserService,
+      deploymentCloseJobService,
       expiringDeploymentsNotifierService
     );
 
@@ -75,7 +73,7 @@ describe(TopUpDeploymentsController.name, () => {
       controller,
       topUpManagedDeploymentsService,
       staleDeploymentsCleanerService,
-      expiredDeploymentsCloserService,
+      deploymentCloseJobService,
       expiringDeploymentsNotifierService
     };
   }

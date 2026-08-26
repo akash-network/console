@@ -11,9 +11,9 @@ import { DeploymentSettingRepository, type ExpiringRuntimeDeployment } from "../
 
 /**
  * Warns users that a runtime-limited deployment is about to reach its limit and be closed, while they can
- * still keep it running. Without this the deployment simply stops: `ExpiredDeploymentsCloserService` closes
- * it the moment the deadline passes, and a user who forgot about the limit or changed their mind finds out
- * only afterwards.
+ * still keep it running. Without this the deployment simply stops: the deployment's close job runs the
+ * moment the deadline passes, and a user who forgot about the limit or changed their mind finds out only
+ * afterwards.
  *
  * One email per deadline. Extending the limit moves the deadline, which re-arms the warning for the new one;
  * lifting the limit clears the deadline and takes the deployment out of the sweep for good.

@@ -152,6 +152,53 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("findExpiredRuntimeDeployments", () => {
+    it("returns a deployment whose deadline has passed, with what a close job needs", async () => {
+      const { deploymentSettingRepository, createAnchoredSetting, user } = await setup();
+      const setting = await createAnchoredSetting({ runtimeLimitHours: 24, endsInHours: -1 });
+
+      const expired = await deploymentSettingRepository.findExpiredRuntimeDeployments();
+
+      expect(expired).toContainEqual(expect.objectContaining({ id: setting.id, userId: user.id, dseq: setting.dseq }));
+    });
+
+    it("excludes a deadline still ahead", async () => {
+      const { deploymentSettingRepository, createAnchoredSetting } = await setup();
+      const setting = await createAnchoredSetting({ runtimeLimitHours: 24, endsInHours: 1 });
+
+      const expired = await deploymentSettingRepository.findExpiredRuntimeDeployments();
+
+      expect(expired.map(deployment => deployment.id)).not.toContain(setting.id);
+    });
+
+    it("excludes a runtime limit that was never anchored", async () => {
+      const { deploymentSettingRepository, createLimitedSetting } = await setup();
+      const setting = await createLimitedSetting(24);
+
+      const expired = await deploymentSettingRepository.findExpiredRuntimeDeployments();
+
+      expect(expired.map(deployment => deployment.id)).not.toContain(setting.id);
+    });
+
+    it("excludes a deployment already marked closed", async () => {
+      const { deploymentSettingRepository, createAnchoredSetting } = await setup();
+      const setting = await createAnchoredSetting({ runtimeLimitHours: 24, endsInHours: -1, closed: true });
+
+      const expired = await deploymentSettingRepository.findExpiredRuntimeDeployments();
+
+      expect(expired.map(deployment => deployment.id)).not.toContain(setting.id);
+    });
+
+    it("returns an expired deployment whose auto top-up was turned off", async () => {
+      const { deploymentSettingRepository, createAnchoredSetting } = await setup();
+      const setting = await createAnchoredSetting({ runtimeLimitHours: 24, endsInHours: -1, autoTopUpEnabled: false });
+
+      const expired = await deploymentSettingRepository.findExpiredRuntimeDeployments();
+
+      expect(expired.map(deployment => deployment.id)).toContain(setting.id);
+    });
+  });
+
   describe("findExpiringRuntimeDeployments", () => {
     it("returns a limited deployment whose deadline falls inside the lead window", async () => {
       const { deploymentSettingRepository, createAnchoredSetting } = await setup();
@@ -171,7 +218,7 @@ describe(DeploymentSettingRepository.name, () => {
       expect(expiring.map(deployment => deployment.id)).not.toContain(setting.id);
     });
 
-    it("excludes a deadline that has already passed, leaving it to the closer", async () => {
+    it("excludes a deadline that has already passed, leaving it to the close job", async () => {
       const { deploymentSettingRepository, createAnchoredSetting } = await setup();
       const setting = await createAnchoredSetting({ runtimeLimitHours: 24, endsInHours: -1 });
 
@@ -385,13 +432,19 @@ describe(DeploymentSettingRepository.name, () => {
       });
     }
 
-    async function createAnchoredSetting(input: { runtimeLimitHours: number; endsInHours: number; closed?: boolean; userId?: string }) {
+    async function createAnchoredSetting(input: {
+      runtimeLimitHours: number;
+      endsInHours: number;
+      closed?: boolean;
+      userId?: string;
+      autoTopUpEnabled?: boolean;
+    }) {
       const [setting] = await db
         .insert(deploymentSettingsTable)
         .values({
           userId: input.userId ?? user.id,
           dseq: faker.number.int({ min: 100000, max: 999999 }).toString(),
-          autoTopUpEnabled: true,
+          autoTopUpEnabled: input.autoTopUpEnabled ?? true,
           closed: input.closed ?? false,
           runtimeLimitHours: input.runtimeLimitHours,
           runtimeEndsAt: new Date(Date.now() + hoursToMilliseconds(input.endsInHours))

@@ -35,20 +35,9 @@ jobs:
       - ./dist/instrumentation.js
       - ./dist/console.js
       - gpu-pricing-bot
-  # Ships in dry-run for a bake period: --dry-run only logs EXPIRED_DEPLOYMENT_WOULD_CLOSE.
-  # Drop the flag to start closing for real once those logs look right.
-  - name: close-expired-deployments
-    schedule: "*/15 * * * *" # every 15 minutes
-    command:
-      - node
-      - --require
-      - ./dist/instrumentation.js
-      - ./dist/console.js
-      - close-expired-deployments
-      - --dry-run
   # Ships in dry-run for a bake period: --dry-run only logs EXPIRING_DEPLOYMENT_WOULD_NOTIFY.
   # Drop the flag to start emailing for real once those logs look right.
-  # Offset from close-expired-deployments so the two sweeps do not hit deployment_settings on the same minute.
+  # Offset off the hour so it does not hit deployment_settings on the same minute as top-up-deployments.
   - name: notify-expiring-deployments
     schedule: "7,22,37,52 * * * *" # every 15 minutes
     command:

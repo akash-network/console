@@ -19,6 +19,7 @@ import {
   DeploymentSettingsInput,
   DeploymentSettingsOutput
 } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { DeploymentCloseJobService } from "../deployment-close-job/deployment-close-job.service";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DrainingDeploymentService } from "../draining-deployment/draining-deployment.service";
 import { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed-deployments/top-up-managed-deployments-instrumentation.service";
@@ -46,6 +47,7 @@ export class DeploymentSettingService {
     private readonly authService: AuthService,
     private readonly drainingDeploymentService: DrainingDeploymentService,
     private readonly walletReloadJobService: WalletReloadJobService,
+    private readonly deploymentCloseJobService: DeploymentCloseJobService,
     private readonly config: DeploymentConfigService,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly instrumentation: TopUpManagedDeploymentsInstrumentationService,
@@ -216,6 +218,7 @@ export class DeploymentSettingService {
 
     if (setting.runtimeEndsAt) {
       await this.#requestImmediateFunding(params.userId, params.dseq);
+      await this.#rescheduleCloseJob(setting);
     }
 
     return setting;
@@ -290,6 +293,7 @@ export class DeploymentSettingService {
 
     if (existing?.runtimeEndsAt) {
       await this.#requestImmediateFunding(params.userId, params.dseq);
+      await this.#cancelCloseJob(existing);
     }
 
     return setting;
@@ -323,6 +327,38 @@ export class DeploymentSettingService {
       });
     } catch (error) {
       this.logger.error({ event: "RUNTIME_LIMIT_FUNDING_FAILED", dseq, userId, error });
+    }
+  }
+
+  /**
+   * Moves the deployment's close job to the deadline the extension just wrote.
+   *
+   * Never throws, for the same reason `#requestImmediateFunding` does not: the limit change is already
+   * committed, so a failure here must not turn a successful request into a 500 that invites a retry the
+   * increase-only rule would reject. It is also self-healing, because a job left on the old deadline
+   * fires, reads the deadline that has since moved, and reschedules itself.
+   */
+  async #rescheduleCloseJob(setting: DeploymentSettingsOutput): Promise<void> {
+    try {
+      await this.deploymentCloseJobService.schedule(
+        { deploymentSettingId: setting.id, userId: setting.userId, dseq: setting.dseq },
+        { startAfter: setting.runtimeEndsAt!, withCleanup: true }
+      );
+    } catch (error) {
+      this.logger.error({ event: "RUNTIME_LIMIT_CLOSE_JOB_SYNC_FAILED", dseq: setting.dseq, userId: setting.userId, error });
+    }
+  }
+
+  /**
+   * Drops the close job along with the limit it was scheduled for. Never throws, and self-healing in
+   * the same way: a job that outlives its cancellation fires, finds no deadline on the row, and closes
+   * nothing.
+   */
+  async #cancelCloseJob(setting: DeploymentSettingsOutput): Promise<void> {
+    try {
+      await this.deploymentCloseJobService.cancel(setting.id);
+    } catch (error) {
+      this.logger.error({ event: "RUNTIME_LIMIT_CLOSE_JOB_SYNC_FAILED", dseq: setting.dseq, userId: setting.userId, error });
     }
   }
 

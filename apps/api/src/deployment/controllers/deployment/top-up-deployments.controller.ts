@@ -1,7 +1,7 @@
 import { singleton } from "tsyringe";
 
 import type { DryRunOptions } from "@src/core/types/console";
-import { ExpiredDeploymentsCloserService } from "@src/deployment/services/expired-deployments-closer/expired-deployments-closer.service";
+import { DeploymentCloseJobService } from "@src/deployment/services/deployment-close-job/deployment-close-job.service";
 import { ExpiringDeploymentsNotifierService } from "@src/deployment/services/expiring-deployments-notifier/expiring-deployments-notifier.service";
 import { StaleManagedDeploymentsCleanerService } from "@src/deployment/services/stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
 import { TopUpManagedDeploymentsService } from "@src/deployment/services/top-up-managed-deployments/top-up-managed-deployments.service";
@@ -12,20 +12,17 @@ export class TopUpDeploymentsController {
   constructor(
     private readonly topUpManagedDeploymentsService: TopUpManagedDeploymentsService,
     private readonly staleDeploymentsCleanerService: StaleManagedDeploymentsCleanerService,
-    private readonly expiredDeploymentsCloserService: ExpiredDeploymentsCloserService,
+    private readonly deploymentCloseJobService: DeploymentCloseJobService,
     private readonly expiringDeploymentsNotifierService: ExpiringDeploymentsNotifierService
   ) {}
 
   async topUpDeployments(options: DryRunOptions) {
     await this.topUpManagedDeploymentsService.topUpDeployments(options);
+    await this.deploymentCloseJobService.reconcileExpired(options);
   }
 
   async cleanUpStaleDeployment(options: CleanUpStaleDeploymentsParams) {
     await this.staleDeploymentsCleanerService.cleanup(options);
-  }
-
-  async closeExpiredDeployments(options: DryRunOptions) {
-    return await this.expiredDeploymentsCloserService.closeExpiredDeployments(options);
   }
 
   async notifyExpiringDeployments(options: DryRunOptions) {
