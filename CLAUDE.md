@@ -217,6 +217,11 @@ See detailed guidelines:
 See detailed guidelines:
 @./.claude/instructions/use-mock-instead-of-as-unknown-as-in-tests.md
 
+## Prefer pg-boss over cron jobs for double writes and time-specific executions
+
+See detailed guidelines:
+@./.claude/instructions/prefer-pg-boss-over-cron-jobs.md
+
 ## Writing Tests
 
 Always use the `/console-tests` skill when writing, fixing, reviewing, or refactoring tests in this repo.
