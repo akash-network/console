@@ -47,13 +47,25 @@ describe(CostRate.name, () => {
     expect(screen.queryAllByText(/per hour \/ GPU/i)).toHaveLength(0);
   });
 
-  function setup(input: { gpuCount: number; perBlockUDenom?: number }) {
+  it("omits the breakdown tooltip when the consumer renders it elsewhere", () => {
+    const { trigger } = setup({ gpuCount: 2, hideBreakdownTooltip: true });
+
+    expect(trigger).toBeNull();
+    expect(screen.getByText("$590.36")).toBeInTheDocument();
+  });
+
+  function setup(input: { gpuCount: number; perBlockUDenom?: number; hideBreakdownTooltip?: boolean }) {
     const user = userEvent.setup();
     const { container } = render(
       <TestContainerProvider>
         <IntlProvider locale="en">
           <TooltipProvider>
-            <CostRate perBlockUDenom={input.perBlockUDenom ?? ONE_ACT_PER_BLOCK} denom="uact" gpuCount={input.gpuCount} />
+            <CostRate
+              perBlockUDenom={input.perBlockUDenom ?? ONE_ACT_PER_BLOCK}
+              denom="uact"
+              gpuCount={input.gpuCount}
+              hideBreakdownTooltip={input.hideBreakdownTooltip}
+            />
           </TooltipProvider>
         </IntlProvider>
       </TestContainerProvider>

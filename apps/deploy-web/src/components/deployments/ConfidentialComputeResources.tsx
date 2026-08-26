@@ -6,7 +6,7 @@ import { Info } from "lucide-react";
 import type { TeeResourceCarveout } from "@src/utils/confidentialCompute";
 import { MIN_PRIMARY_CPU_MILLICORES, MIN_PRIMARY_MEMORY_BYTES } from "@src/utils/confidentialCompute";
 import { roundDecimal } from "@src/utils/mathHelpers";
-import { bytesToShrink } from "@src/utils/unitUtils";
+import { formatByteSize } from "@src/utils/unitUtils";
 
 export type Props = {
   carveouts: TeeResourceCarveout[];
@@ -17,14 +17,9 @@ export const DEPENDENCIES = { CustomTooltip };
 
 const formatCpu = (millicores: number) => `${roundDecimal(millicores / 1000, 2)} CPU`;
 
-const formatMemory = (bytes: number) => {
-  const { value, unit } = bytesToShrink(bytes, true);
-  return `${roundDecimal(value, 2)} ${unit}`;
-};
-
 /** Self-describing label for a resource unit (on-chain groups carry no service names). */
 const formatUnitLabel = (carveout: TeeResourceCarveout) => {
-  const parts = [formatCpu(carveout.requested.cpu), formatMemory(carveout.requested.memory)];
+  const parts = [formatCpu(carveout.requested.cpu), formatByteSize(carveout.requested.memory)];
   if (carveout.gpuUnits > 0) parts.push(`${carveout.gpuUnits} GPU`);
   return parts.join(" · ");
 };
@@ -36,7 +31,7 @@ function ResourceLine({ label, cpu, memory }: { label: string; cpu: number; memo
       {/* Keep each value intact (e.g. "0.01 CPU") and pinned right so a wrapping label can't break the numbers across lines. */}
       <span className="flex shrink-0 items-center gap-3 whitespace-nowrap text-right font-medium tabular-nums">
         <span>{formatCpu(cpu)}</span>
-        <span>{formatMemory(memory)}</span>
+        <span>{formatByteSize(memory)}</span>
       </span>
     </div>
   );

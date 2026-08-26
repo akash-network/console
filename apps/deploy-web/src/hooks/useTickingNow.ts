@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 /**
  * Default cadence between re-renders.
  *
- * Labels built on this hook typically display whole minutes ("2m left") or whole hours ("~5h left"), so one
+ * Labels built on this hook typically display whole minutes ("45m left") or hours and minutes ("2h 10m left"), so one
  * update per minute keeps them honest — including flipping to an expired state within a minute of crossing
  * the deadline — while avoiding the per-second churn a visibly-running countdown like `useQuoteExpiry` needs.
  */
@@ -15,7 +15,7 @@ export const DEFAULT_TICK_INTERVAL_MS = 60_000;
  * Some views compute text from `Date.now()` at render time but never refetch data — no query polling and
  * refetch-on-focus disabled — so once mounted, that text freezes at whatever was true on first render until
  * an unrelated re-render happens. A user who leaves such a page open keeps seeing a stale verdict long after
- * reality moved on (e.g. "~1h left" after the deadline already passed). This hook fixes that: while
+ * reality moved on (e.g. "1h left" after the deadline already passed). This hook fixes that: while
  * `enabled`, an interval pushes `Date.now()` into state every `intervalMs`, re-rendering the component so
  * anything formatted from the returned clock stays current.
  *

@@ -6,17 +6,15 @@ import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
 import { isLeaseLive } from "@src/utils/leaseUtils";
 import { parseSvcCommand } from "@src/utils/sdl/sdlImport";
-
-export interface ResourceSize {
-  value: number;
-  unit: string;
-}
+import { sizeStringToBytes } from "@src/utils/unitUtils";
 
 export interface ManifestServiceResources {
   cpu?: number;
   gpuUnits: number;
-  memory?: ResourceSize;
-  storage?: ResourceSize;
+  /** Bytes, normalized from the SDL's own suffix so the page renders one unit family everywhere. */
+  memory?: number;
+  /** Bytes, normalized from the SDL's own suffix so the page renders one unit family everywhere. */
+  storage?: number;
 }
 
 export interface ManifestEnvVar {
@@ -228,15 +226,11 @@ function toCommandString(value: unknown): string {
   return parseSvcCommand(value as string | (string | number | boolean)[]).replace(/\n/g, " ");
 }
 
-function parseSize(size: unknown): ResourceSize | undefined {
-  if (typeof size === "number") return { value: size, unit: "" };
+function parseSize(size: unknown): number | undefined {
+  if (typeof size === "number") return size;
   if (typeof size !== "string") return undefined;
 
-  const value = parseFloat(size);
-  if (Number.isNaN(value)) return undefined;
-
-  const unit = size.match(/[a-zA-Z]+/)?.[0] ?? "";
-  return { value, unit };
+  return sizeStringToBytes(size);
 }
 
 function toNumber(value: unknown): number | undefined {

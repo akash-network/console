@@ -11,6 +11,8 @@ interface Props {
   denom: string;
   gpuCount: number;
   className?: string;
+  /** For consumers that render the breakdown tooltip elsewhere, e.g. next to a stat label. */
+  hideBreakdownTooltip?: boolean;
 }
 
 /**
@@ -18,7 +20,7 @@ interface Props {
  * that scale) with the monthly rate beneath it; a CPU-only spec shows just the monthly rate so an inexpensive
  * deployment doesn't read as `$0.00/hr`. The info tooltip fills in the rates that aren't already shown.
  */
-export const CostRate: FC<Props> = ({ perBlockUDenom, denom, gpuCount, className }) => {
+export const CostRate: FC<Props> = ({ perBlockUDenom, denom, gpuCount, className, hideBreakdownTooltip }) => {
   const showAsHourly = gpuCount > 0;
   const perBlockValue = udenomToDenom(perBlockUDenom, PRICE_DISPLAY_PRECISION);
 
@@ -26,7 +28,7 @@ export const CostRate: FC<Props> = ({ perBlockUDenom, denom, gpuCount, className
     <div className={cn("flex min-w-0 flex-col", className)}>
       <span className="inline-flex items-center">
         <PricePerTimeUnit denom={denom} perBlockValue={perBlockValue} showAsHourly={showAsHourly} abbreviated />
-        <CostBreakdownTooltip perBlockValue={perBlockValue} denom={denom} gpuCount={gpuCount} />
+        {!hideBreakdownTooltip && <CostBreakdownTooltip perBlockUDenom={perBlockUDenom} denom={denom} gpuCount={gpuCount} />}
       </span>
       {showAsHourly && (
         <PricePerTimeUnit className="text-xs font-normal text-muted-foreground" denom={denom} perBlockValue={perBlockValue} showAsHourly={false} abbreviated />

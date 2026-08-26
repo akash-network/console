@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { IntlProvider } from "react-intl";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { describe, expect, it } from "vitest";
@@ -30,13 +31,23 @@ describe(CostBreakdownTooltip.name, () => {
     expect(screen.queryAllByText(/per month/i)).toHaveLength(0);
   });
 
-  function setup(input: { gpuCount: number }) {
+  it("renders a custom trigger in place of the default info icon", async () => {
+    const { user } = setup({ gpuCount: 0, trigger: <button>breakdown</button> });
+
+    await user.hover(screen.getByRole("button", { name: "breakdown" }));
+
+    expect(await screen.findAllByText(/per hour/i)).not.toHaveLength(0);
+  });
+
+  function setup(input: { gpuCount: number; trigger?: ReactNode }) {
     const user = userEvent.setup();
     const { container } = render(
       <TestContainerProvider>
         <IntlProvider locale="en">
           <TooltipProvider>
-            <CostBreakdownTooltip perBlockValue={0.0001} denom="uakt" gpuCount={input.gpuCount} />
+            <CostBreakdownTooltip perBlockUDenom={100} denom="uakt" gpuCount={input.gpuCount}>
+              {input.trigger}
+            </CostBreakdownTooltip>
           </TooltipProvider>
         </IntlProvider>
       </TestContainerProvider>
