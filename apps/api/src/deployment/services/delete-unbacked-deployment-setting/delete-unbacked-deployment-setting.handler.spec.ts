@@ -16,6 +16,20 @@ import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 const OWNER = createAkashAddress();
 const DSEQ = "1748400000000";
+const RECORDED_AT = new Date("2026-01-01T00:00:00.000Z");
+
+/**
+ * `createdAt` is declared `string` on the repository's output type but arrives from drizzle as a `Date`, and a
+ * row can carry none at all. Both are shapes the handler has to survive, so the fixture states them as they
+ * really are rather than as the type does — the one place this file needs to step outside it.
+ */
+function settingRecordedAt(input: { id: string; dseq: string; recordedAt: Date | null }) {
+  return mock<DeploymentSettingsOutput>({
+    id: input.id,
+    dseq: input.dseq,
+    createdAt: input.recordedAt as unknown as DeploymentSettingsOutput["createdAt"]
+  });
+}
 
 describe(DeleteUnbackedDeploymentSettingHandler.name, () => {
   it("deletes the setting when the chain does not have the deployment", async () => {
@@ -84,12 +98,21 @@ describe(DeleteUnbackedDeploymentSettingHandler.name, () => {
     expect(deploymentPresenceService.isOnChain).not.toHaveBeenCalled();
   });
 
-  it("asks the chain about the deployment the payload names", async () => {
+  it("asks the chain about the deployment the payload names, judged against when the row was written", async () => {
     const { handler, payload, deploymentPresenceService } = setup({ isOnChain: true });
 
     await handler.handle(payload);
 
-    expect(deploymentPresenceService.isOnChain).toHaveBeenCalledWith({ owner: OWNER, dseq: DSEQ });
+    expect(deploymentPresenceService.isOnChain).toHaveBeenCalledWith({ owner: OWNER, dseq: DSEQ, recordedAt: RECORDED_AT });
+  });
+
+  it("keeps a setting whose stored creation time is missing, since no chain answer could be judged against it", async () => {
+    const { handler, payload, deploymentSettingRepository, deploymentPresenceService } = setup({ isOnChain: false, recordedAt: null });
+
+    await handler.handle(payload);
+
+    expect(deploymentSettingRepository.deleteById).not.toHaveBeenCalled();
+    expect(deploymentPresenceService.isOnChain).not.toHaveBeenCalled();
   });
 
   it("accepts the job the create enqueues", () => {
@@ -98,7 +121,7 @@ describe(DeleteUnbackedDeploymentSettingHandler.name, () => {
     expect(handler.accepts).toBe(DeleteUnbackedDeploymentSetting);
   });
 
-  it("keys a compensation by the setting's owner and dseq", () => {
+  it("keys a compensation by the owning user and the dseq", () => {
     expect(unbackedDeploymentSettingKeyFor({ userId: "user-1", dseq: DSEQ })).toBe(`deleteUnbackedDeploymentSetting.user-1.${DSEQ}`);
   });
 
@@ -108,11 +131,12 @@ describe(DeleteUnbackedDeploymentSettingHandler.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: DeleteUnbackedDeploymentSettingHandler.name });
   });
 
-  function setup(input: { isOnChain?: boolean; chainLookupRejectsWith?: unknown; settingExists?: boolean; storedDseq?: string }) {
+  function setup(input: { isOnChain?: boolean; chainLookupRejectsWith?: unknown; settingExists?: boolean; storedDseq?: string; recordedAt?: Date | null }) {
     const deploymentSettingId = faker.string.uuid();
+    const recordedAt = input.recordedAt === undefined ? RECORDED_AT : input.recordedAt;
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.findById.mockResolvedValue(
-      input.settingExists === false ? undefined : mock<DeploymentSettingsOutput>({ id: deploymentSettingId, dseq: input.storedDseq ?? DSEQ })
+      input.settingExists === false ? undefined : settingRecordedAt({ id: deploymentSettingId, dseq: input.storedDseq ?? DSEQ, recordedAt })
     );
 
     const deploymentPresenceService = mock<DeploymentPresenceService>();

@@ -1,22 +1,36 @@
 import { faker } from "@faker-js/faker";
+import { addMinutes } from "date-fns";
 import { eq } from "drizzle-orm";
 import nock from "nock";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiPgDatabase } from "@src/core";
-import { CORE_CONFIG, JobQueueService, POSTGRES_DB, resolveTable } from "@src/core";
+import { JobQueueService, POSTGRES_DB, resolveTable } from "@src/core";
+import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { UserRepository } from "@src/user/repositories";
 import { DeleteUnbackedDeploymentSetting, DeleteUnbackedDeploymentSettingHandler } from "./delete-unbacked-deployment-setting.handler";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 const DEPLOYMENT_INFO_PATH = "/akash/deployment/v1beta4/deployments/info";
+const LATEST_BLOCK_PATH = "/cosmos/base/tendermint/v1beta1/blocks/latest";
+const BLOCK_HEIGHT_HEADER = "x-cosmos-block-height";
+
+/** Comfortably past the margin the presence check requires between the row and the block it will trust. */
+const CHAIN_MINUTES_AHEAD = 30;
+const CHAIN_HEIGHT = "28343549";
 
 /** The response two independent mainnet REST nodes returned for a deployment that was never created. */
 const ABSENT_FROM_CHAIN = {
   status: 404,
   body: { code: 5, message: "codespace deployment code 4: Deployment not found", details: [] }
+};
+
+/** What a node behind the pinned height actually answers, captured against mainnet. Note it is not code 5. */
+const HEIGHT_ABOVE_THEIR_CHAIN = {
+  status: 500,
+  body: { code: 2, message: "codespace sdk code 26: invalid height: cannot query with height in the future; please provide a valid height", details: [] }
 };
 
 /** The shape of a real answer, trimmed to the fields the presence check can see. */
@@ -102,6 +116,43 @@ describe(DeleteUnbackedDeploymentSettingHandler.name, () => {
     expect(await findSetting(settingId)).toBeDefined();
   });
 
+  it("pins the lookup to the height it proved is past the row", async () => {
+    const { payload, handler, answerChainWith, pinnedHeights } = await setup();
+    answerChainWith(ABSENT_FROM_CHAIN);
+
+    await handler.handle(payload);
+
+    expect(pinnedHeights()).toEqual([CHAIN_HEIGHT]);
+  });
+
+  it("keeps a setting and throws when the answering node has not reached the pinned height", async () => {
+    const { settingId, payload, handler, answerChainWith, findSetting } = await setup();
+    answerChainWith(HEIGHT_ABOVE_THEIR_CHAIN);
+
+    await expect(handler.handle(payload)).rejects.toThrow();
+
+    expect(await findSetting(settingId)).toBeDefined();
+  });
+
+  it("keeps a setting and throws when the chain has not progressed past the row", async () => {
+    const { settingId, payload, handler, answerChainWith, findSetting } = await setup({ chainMinutesAhead: -1 });
+    answerChainWith(ABSENT_FROM_CHAIN);
+
+    await expect(handler.handle(payload)).rejects.toThrow(/not past/);
+
+    expect(await findSetting(settingId)).toBeDefined();
+  });
+
+  it("keeps a setting and throws when the latest block cannot be read", async () => {
+    const { settingId, payload, handler, answerChainWith, failLatestBlock, findSetting } = await setup();
+    answerChainWith(ABSENT_FROM_CHAIN);
+    failLatestBlock();
+
+    await expect(handler.handle(payload)).rejects.toThrow();
+
+    expect(await findSetting(settingId)).toBeDefined();
+  });
+
   it("deletes the setting once across two deliveries of the same compensation", async () => {
     const { settingId, payload, handler, answerChainWith, findSetting } = await setup();
     answerChainWith(ABSENT_FROM_CHAIN, 2);
@@ -112,10 +163,10 @@ describe(DeleteUnbackedDeploymentSettingHandler.name, () => {
     expect(await findSetting(settingId)).toBeUndefined();
   });
 
-  async function setup() {
+  async function setup(input: { chainMinutesAhead?: number } = {}) {
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const deploymentSettingsTable = resolveTable("DeploymentSettings");
-    const restApiNodeUrl = container.resolve<{ REST_API_NODE_URL: string }>(CORE_CONFIG).REST_API_NODE_URL;
+    const restApiNodeUrl = container.resolve(CoreConfigService).get("REST_API_NODE_URL");
     const jobQueue = await bootstrapJobQueue();
 
     const owner = createAkashAddress();
@@ -126,16 +177,47 @@ describe(DeleteUnbackedDeploymentSettingHandler.name, () => {
       .values({ userId: user.id, dseq, autoTopUpEnabled: true, sdl: 'version: "2.0"', manifestVersion: "BAUG" })
       .returning();
 
+    answerLatestBlockWith(addMinutes(new Date(setting.createdAt ?? new Date()), input.chainMinutesAhead ?? CHAIN_MINUTES_AHEAD));
+
     /**
      * Matches the exact deployment the compensation is about, so a lookup that asked for anything else finds no
      * interceptor and fails the test rather than quietly receiving the answer meant for another deployment.
      */
+    const pinned: string[] = [];
+
+    function answerLatestBlockWith(time: Date) {
+      nock(restApiNodeUrl)
+        .persist()
+        .get(LATEST_BLOCK_PATH)
+        .query(true)
+        .reply(200, { block_id: {}, block: { header: { height: CHAIN_HEIGHT, time: time.toISOString(), chain_id: "akashnet-2" } } });
+    }
+
+    function failLatestBlock() {
+      nock.cleanAll();
+      nock(restApiNodeUrl)
+        .persist()
+        .get(LATEST_BLOCK_PATH)
+        .query(true)
+        .replyWithError(Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }));
+      nock(restApiNodeUrl).get(DEPLOYMENT_INFO_PATH).query(true).reply(ABSENT_FROM_CHAIN.status, ABSENT_FROM_CHAIN.body);
+    }
+
+    function pinnedHeights() {
+      return pinned;
+    }
+
     function answerChainWith({ status, body }: { status: number; body: unknown }, times = 1) {
       nock(restApiNodeUrl)
         .get(DEPLOYMENT_INFO_PATH)
         .query({ "id.owner": owner, "id.dseq": dseq })
         .times(times)
-        .reply(status, body as nock.Body);
+        .reply(function reply(this: nock.ReplyFnContext) {
+          const header = this.req.headers[BLOCK_HEIGHT_HEADER] as string | string[] | undefined;
+          pinned.push(Array.isArray(header) ? header[0] : header ?? "(none)");
+
+          return [status, body as nock.Body];
+        });
     }
 
     function failChainWith(error: Error) {
@@ -156,6 +238,8 @@ describe(DeleteUnbackedDeploymentSettingHandler.name, () => {
       settingId: setting.id,
       answerChainWith,
       failChainWith,
+      failLatestBlock,
+      pinnedHeights,
       findSetting,
       enqueueCompensation: () => jobQueue.enqueue(new DeleteUnbackedDeploymentSetting({ deploymentSettingId: setting.id, owner, dseq })),
       startWorkers: () => jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 })

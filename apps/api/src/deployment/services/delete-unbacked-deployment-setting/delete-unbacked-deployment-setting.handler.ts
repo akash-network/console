@@ -35,8 +35,6 @@ export function unbackedDeploymentSettingKeyFor({ userId, dseq }: { userId: stri
 export class DeleteUnbackedDeploymentSettingHandler implements JobHandler<DeleteUnbackedDeploymentSetting> {
   public readonly accepts = DeleteUnbackedDeploymentSetting;
 
-  public readonly concurrency = 2;
-
   private readonly logger: ReturnType<CreateLogger>;
 
   constructor(
@@ -49,9 +47,14 @@ export class DeleteUnbackedDeploymentSettingHandler implements JobHandler<Delete
 
   /**
    * Running is not evidence that the deployment is missing — the broadcast may have landed and the process died
-   * before cancelling, or the cancellation itself may have failed — so the chain is asked every time and is the
-   * only thing that authorises the delete. Anything short of a chain answer escapes, because the queue retrying
-   * costs a row's extra lifetime while a wrong delete costs the only stored copy of its SDL and its runtime limit.
+   * before cancelling, and `cancelCreatedBy` only cancels a job still in state `created`, so a compensation a
+   * worker has already picked up cannot be called off at all. What keeps a live deployment's row safe in that
+   * window is not the cancellation but the two things below, and anything short of a chain answer escapes,
+   * because the queue retrying costs a row's extra lifetime while a wrong delete costs the only stored copy of
+   * its SDL and its runtime limit.
+   *
+   * The row's own `createdAt` is what the chain answer is judged against, which is why it is read here rather
+   * than taken from the payload: the guard has to be anchored to when the record was actually written.
    *
    * The repository is used unscoped on purpose. Job execution runs under an empty ability, and `accessibleBy`
    * builds a `DrizzleAbility` that refuses in a field initializer, so a scoped read would throw before any SQL ran.
@@ -70,7 +73,12 @@ export class DeleteUnbackedDeploymentSettingHandler implements JobHandler<Delete
       return;
     }
 
-    if (await this.isOnChain({ deploymentSettingId, owner, dseq })) {
+    if (!setting.createdAt) {
+      this.logger.error({ event: "UNBACKED_DEPLOYMENT_SETTING_UNDATED", deploymentSettingId, owner, dseq });
+      return;
+    }
+
+    if (await this.isOnChain({ deploymentSettingId, owner, dseq, recordedAt: new Date(setting.createdAt) })) {
       this.logger.info({ event: "UNBACKED_DEPLOYMENT_SETTING_IS_BACKED", deploymentSettingId, owner, dseq });
       return;
     }
@@ -79,9 +87,19 @@ export class DeleteUnbackedDeploymentSettingHandler implements JobHandler<Delete
     this.logger.info({ event: "UNBACKED_DEPLOYMENT_SETTING_DELETED", deploymentSettingId, owner, dseq });
   }
 
-  private async isOnChain({ deploymentSettingId, owner, dseq }: { deploymentSettingId: string; owner: string; dseq: string }): Promise<boolean> {
+  private async isOnChain({
+    deploymentSettingId,
+    owner,
+    dseq,
+    recordedAt
+  }: {
+    deploymentSettingId: string;
+    owner: string;
+    dseq: string;
+    recordedAt: Date;
+  }): Promise<boolean> {
     try {
-      return await this.deploymentPresenceService.isOnChain({ owner, dseq });
+      return await this.deploymentPresenceService.isOnChain({ owner, dseq, recordedAt });
     } catch (error) {
       this.logger.error({ event: "UNBACKED_DEPLOYMENT_SETTING_CHAIN_LOOKUP_FAILED", deploymentSettingId, owner, dseq, error });
       throw error;
