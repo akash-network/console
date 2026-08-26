@@ -5,8 +5,9 @@ import nock from "nock";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { container } from "tsyringe";
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { startJobQueues } from "@src/app/providers/jobs.provider";
 import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.service";
 import type { UserWalletOutput } from "@src/billing/repositories";
@@ -48,6 +49,10 @@ describe("Deployments API", () => {
   let knownWallets: Record<string, UserWalletOutput[]>;
   let allWallets: UserWalletOutput[];
   let currentHeight: number;
+
+  beforeAll(async () => {
+    await startJobQueues();
+  }, 20_000);
 
   beforeEach(() => {
     knownUsers = {};

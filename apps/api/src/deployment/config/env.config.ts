@@ -63,6 +63,20 @@ export const envSchema = z
       .refine(value => Number.isFinite(value) && denomToUdenom(value) > 0, "must be a finite amount that converts to a positive on-chain deposit")
       .optional()
       .default(0.5),
+    /** Must outlast a create still in flight: this delay, not the cancellation, is what keeps a live deployment's row safe. */
+    UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN: z.number({ coerce: true }).min(15).finite().optional().default(60),
+    /** Retries pg-boss adds on top of the first attempt, sized to outlast a chain-node outage since nothing can find a row that exhausts them. */
+    UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT: z.number({ coerce: true }).int().positive().optional().default(47),
+    /** pg-boss multiplies its backoff by this and defaults it to 0, which would collapse every later gap to zero. */
+    UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC: z.number({ coerce: true }).int().positive().optional().default(30),
+    /** Reaches pg-boss as seconds in an integer column, so a value that is not whole seconds makes every enqueue throw. */
+    UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: z
+      .number({ coerce: true })
+      .positive()
+      .finite()
+      .refine(value => Number.isInteger(value * 60), "must convert to a whole number of seconds, since the backoff ceiling is stored in seconds")
+      .optional()
+      .default(30),
     /** How long before a runtime-limited deployment reaches its limit the user is warned by email. */
     RUNTIME_LIMIT_WARNING_LEAD_IN_H: z.number({ coerce: true }).positive().finite().optional().default(6),
     /**

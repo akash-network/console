@@ -277,14 +277,17 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     sdl: string;
     manifestVersion: string;
     runtimeLimitHours?: number;
-  }): Promise<void> {
-    await this.cursor
+  }): Promise<string> {
+    const [row] = await this.cursor
       .insert(this.table)
       .values({ userId, dseq, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT, sdl, manifestVersion, runtimeLimitHours })
       .onConflictDoUpdate({
         target: [this.table.dseq, this.table.userId],
         set: { sdl, manifestVersion, runtimeLimitHours, updatedAt: sql`now()` }
-      });
+      })
+      .returning({ id: this.table.id });
+
+    return row.id;
   }
 
   /**
