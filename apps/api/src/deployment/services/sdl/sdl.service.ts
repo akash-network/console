@@ -46,6 +46,7 @@ export class SdlService {
     }
   }
 
+  /** The one entry point that skips Console Reference validation, because its caller has already substituted every reference away. */
   generateManifestFrom(potentiallyInvalidSDL: SDLInput, options: { isTrialing?: boolean } = {}): GenerateManifestResult {
     const deploymentGrantDenom = this.#config.DEPLOYMENT_GRANT_DENOM;
     const sdlPlacement =

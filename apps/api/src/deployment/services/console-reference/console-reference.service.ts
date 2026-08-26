@@ -7,6 +7,9 @@ const CONSOLE_REFERENCE_PREFIX = "ac-";
 
 const CONSOLE_REFERENCE = /^ac-([a-z]+):\/\/([A-Za-z_][A-Za-z0-9_]{0,63})$/;
 
+/** The whole message is logged by the error handler, and an offending value is only bounded by the request body limit. */
+const MAX_ECHOED_REFERENCE_LENGTH = 120;
+
 type ConsoleReferenceRead = { type: "plain" } | { type: "reserved" } | { type: "reference"; kind: string; name: string };
 
 function readConsoleReference(value: string): ConsoleReferenceRead {
@@ -73,6 +76,10 @@ export class ConsoleReferenceService {
   }
 
   register(resolver: ConsoleReferenceResolver): void {
+    if (this.#resolvers.has(resolver.kind)) {
+      throw new Error(`Console Reference kind "${resolver.kind}" is already registered`);
+    }
+
     this.#resolvers.set(resolver.kind, resolver);
   }
 
@@ -136,7 +143,7 @@ export class ConsoleReferenceService {
     if (read.type === "reserved") {
       return referenceError(
         instancePath,
-        `"${declaration.value}" is not a recognized Console Reference and values beginning with "${CONSOLE_REFERENCE_PREFIX}" are reserved`,
+        `"${declaration.value.slice(0, MAX_ECHOED_REFERENCE_LENGTH)}" is not a recognized Console Reference and values beginning with "${CONSOLE_REFERENCE_PREFIX}" are reserved`,
         { value: declaration.value }
       );
     }

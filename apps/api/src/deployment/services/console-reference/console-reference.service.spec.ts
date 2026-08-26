@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 import type { ConsoleReferenceResolver } from "./console-reference.service";
 import { ConsoleReferenceService } from "./console-reference.service";
 
-const VALID_NAMES = ["A", "a", "_", "_A", "A9", `A${"b".repeat(63)}`];
+const VALID_NAMES = ["A", "a", "_", "_A", "A9", `A${"b".repeat(62)}`, `A${"b".repeat(63)}`];
+const RESERVED_VALUES = ["ac-", "ac-://X", "ac-secret9://X", "ac-secret:/X", "ac-SECRET://X"];
 const INVALID_NAMES = ["", "9NAME", "NA-ME", "NA.ME", "NA ME", "NAMÉ", "NAME!", `A${"b".repeat(64)}`, "NAME/", "NA\nME"];
 
 describe(ConsoleReferenceService.name, () => {
@@ -172,6 +173,12 @@ describe(ConsoleReferenceService.name, () => {
       expect(sdl.services.web.env).toEqual(["MODE=var-MODE"]);
     });
 
+    it("refuses to register a kind that is already registered", () => {
+      const { service } = setup();
+
+      expect(() => service.register({ kind: "secret", resolve: () => "displaced" })).toThrow("already registered");
+    });
+
     it("reports a name spelling an Object.prototype member as missing", () => {
       const { service } = setup();
       const sdl = sdlWithEnv(["A=ac-secret://constructor"]);
@@ -223,12 +230,21 @@ describe(ConsoleReferenceService.name, () => {
       expect(error.message).toContain("reserved");
     });
 
-    it("rejects an upper-case kind", () => {
+    it.each(RESERVED_VALUES)("rejects the reserved value %j", value => {
       const { service } = setup();
 
-      const [error] = service.substitute(sdlWithEnv(["A=ac-SECRET://TOKEN"]), { secrets: { TOKEN: "resolved" } });
+      const [error] = service.substitute(sdlWithEnv([`A=${value}`]), { secrets: { X: "resolved", TOKEN: "resolved" } });
 
-      expect(error.message).toContain("ac-SECRET://TOKEN");
+      expect(error.message).toContain("reserved");
+      expect(error.message).toContain(value);
+    });
+
+    it("truncates a very long reserved value in the message it echoes", () => {
+      const { service } = setup();
+
+      const [error] = service.substitute(sdlWithEnv([`A=ac-${"z".repeat(500)}`]), { secrets: {} });
+
+      expect(error.message.length).toBeLessThan(250);
     });
 
     it("treats names differing only in case as different names", () => {

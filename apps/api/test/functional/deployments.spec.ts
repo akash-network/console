@@ -1,3 +1,4 @@
+import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
 import { faker } from "@faker-js/faker";
 import { NotFound } from "http-errors";
 import nock from "nock";
@@ -1299,6 +1300,19 @@ describe("Deployments API", () => {
       expect(response.status).toBe(400);
       const result = (await response.json()) as { message: string };
       expect(result.message).toContain("ac-secret://TOKEN");
+    });
+
+    it("commits the manifest version of the very manifest it sends the providers", async () => {
+      const { userApiKeySecret, user, dseq } = await setupUpdatableDeployment();
+      const sdlService = container.resolve(SdlService);
+      const manifest = sdlService.generateManifest(fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8"));
+      const { groups } = (manifest as Extract<typeof manifest, { ok: true }>).value;
+
+      await putDeployment({ userApiKeySecret, dseq, sdlMock: "hello-world-sdl.yml" });
+
+      const setting = await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id, dseq });
+      expect(setting?.manifestVersion).toBe(Buffer.from(await sdlService.generateManifestVersion(groups)).toString("base64"));
+      expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ manifest: manifestToSortedJSON(groups) }));
     });
 
     it("records nothing and sends no manifest for an unrecognized ac- kind", async () => {

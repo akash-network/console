@@ -261,10 +261,8 @@ export class DeploymentWriterService {
     const manifest = this.#parseManifest(input.sdl, { isTrialing: !!wallet.isTrialing });
     const sdl = this.#strippedSdlWithinLimit(input.sdl, dseq);
 
-    const [deployment, { manifestVersion }] = await Promise.all([
-      this.deploymentReaderService.findByWalletAndDseq(wallet, dseq),
-      this.#resolveSdl(input.sdl, { isTrialing: !!wallet.isTrialing })
-    ]);
+    const { manifestVersion } = await this.#resolveSdl(input.sdl, { isTrialing: !!wallet.isTrialing });
+    const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
 
     await this.recordDefinition({ userId: wallet.userId, dseq, sdl, manifestVersion });
 
@@ -281,7 +279,7 @@ export class DeploymentWriterService {
     return manifestResult.value;
   }
 
-  /** Only the manifest version is taken from the resolved SDL: the resolved manifest itself must not leave this call. */
+  /** Only the manifest version is taken from the resolved SDL: the resolved manifest itself must not leave this call. Runs before any lookup so a bad reference always answers 400 rather than racing a 404. */
   async #resolveSdl(sdl: string, options: { isTrialing?: boolean }): Promise<Pick<ResolvedSdl, "manifestVersion">> {
     const result = await this.resolvedSdlService.resolve({ sdl, secrets: {}, ...options });
 

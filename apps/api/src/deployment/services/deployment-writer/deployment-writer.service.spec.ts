@@ -1,6 +1,7 @@
 import { DeploymentReclamation, MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { faker } from "@faker-js/faker";
+import { NotFound } from "http-errors";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
 
@@ -702,6 +703,14 @@ describe(DeploymentWriterService.name, () => {
 
       await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" })).rejects.toMatchObject({ status: 400 });
       expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("answers a bad reference with 400 even for a deployment it cannot find", async () => {
+      const { service, resolvedSdlService, deploymentReaderService } = setup();
+      resolvedSdlService.resolve.mockResolvedValue({ ok: false, value: [{ message: "no value supplied" }] } as any);
+      deploymentReaderService.findByWalletAndDseq.mockRejectedValue(new NotFound("Deployment not found"));
+
+      await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" })).rejects.toMatchObject({ status: 400 });
     });
 
     it("sends the providers the manifest built from the sdl as submitted", async () => {

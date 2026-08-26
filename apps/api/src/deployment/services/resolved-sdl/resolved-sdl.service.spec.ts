@@ -1,5 +1,6 @@
 import { dump } from "js-yaml";
 import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { BillingConfig } from "@src/billing/providers";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
@@ -75,10 +76,7 @@ describe(ResolvedSdlService.name, () => {
   });
 
   function setup() {
-    const config = {
-      DEPLOYMENT_GRANT_DENOM: "uakt",
-      MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: []
-    } as unknown as BillingConfig;
+    const config = mock<BillingConfig>({ DEPLOYMENT_GRANT_DENOM: "uakt", MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: [] });
     const blockedGpuService = new BlockedGpuService(mockConfigService<BillingConfigService>({ MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: [] }));
     const consoleReferenceService = new ConsoleReferenceService();
     const sdlService = new SdlService(config, blockedGpuService, consoleReferenceService);
