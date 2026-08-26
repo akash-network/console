@@ -27,6 +27,17 @@ export type WeeklyCoverage = {
 export type WeeklyBurnSource = Pick<DrainingDeployment, "predictedClosedHeight" | "blockRate"> &
   Partial<Pick<AutoTopUpDeployment, "runtimeLimitHours" | "runtimeEndsAt">>;
 
+export type AutoTopUpOwnerDeployments = {
+  address: string;
+  walletId: number;
+  userId: string;
+  autoReloadEnabled: boolean;
+  isTrialing: boolean;
+  creditsLowNotifiedAt: Date | null;
+  activeDeployments: DrainingDeployment[];
+  drainingDeployments: DrainingDeployment[];
+};
+
 /** Hours in the seven-day window every weekly spending figure is quoted over. */
 const WEEK_HOURS = 24 * 7;
 
@@ -49,36 +60,38 @@ export class DrainingDeploymentService {
   }
 
   /**
-   * Finds draining deployments grouped by owner address.
-   * Iterates through all owners with auto-top-up enabled deployments,
-   * fetches draining deployment data, and marks closed deployments.
-   * Yields batches of active draining deployments per owner.
+   * Iterates every owner with auto-top-up enabled deployments, resolving each owner's full
+   * active-deployment picture once: `drainingDeployments` is the fundable subset inside the
+   * look-ahead window, `activeDeployments` the complete set the credits-low coverage math
+   * prices. Owners with nothing draining are still yielded so the sweep can evaluate their
+   * coverage from data already in hand instead of re-querying per job.
    *
    * The caller passes the block height the whole run is scoped to so the look-ahead window that admits
    * a deployment and the amount that funds it are derived from the same height.
    * A dry run still sizes deposits against a runtime deadline but does not persist one.
    *
-   * @yields Object with owner address and array of draining deployments
+   * @yields Owner wallet state with its active and draining deployments
    */
-  async *findDrainingDeploymentsByOwner(
-    currentHeight: number,
-    options: DryRunOptions = { dryRun: false }
-  ): AsyncGenerator<{ address: string; walletId: number; deployments: DrainingDeployment[] }> {
-    const expectedClosureHeight = this.#getExpectedClosureHeight(currentHeight);
-
+  async *findDrainingDeploymentsByOwner(currentHeight: number, options: DryRunOptions = { dryRun: false }): AsyncGenerator<AutoTopUpOwnerDeployments> {
     for await (const { address, walletId, deploymentSettings } of this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively()) {
-      const deployments = await this.#resolveActiveDrainingDeployments(
+      const { activeDeployments, drainingDeployments } = await this.#resolveOwnerDeployments(
         deploymentSettings,
         address,
-        expectedClosureHeight,
         currentHeight,
         this.instrumentation,
         options.dryRun
       );
 
-      if (deployments.length) {
-        yield { address, walletId, deployments };
-      }
+      yield {
+        address,
+        walletId,
+        userId: deploymentSettings[0].userId,
+        autoReloadEnabled: deploymentSettings[0].isWalletAutoTopUpEnabled,
+        isTrialing: deploymentSettings[0].walletIsTrialing,
+        creditsLowNotifiedAt: deploymentSettings[0].walletCreditsLowNotifiedAt,
+        activeDeployments,
+        drainingDeployments
+      };
     }
   }
 
@@ -93,35 +106,51 @@ export class DrainingDeploymentService {
     currentHeight: number
   ): Promise<DrainingDeployment[]> {
     const deploymentSettings = await this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwner(address);
-    const expectedClosureHeight = this.#getExpectedClosureHeight(currentHeight);
+    const { drainingDeployments } = await this.#resolveOwnerDeployments(deploymentSettings, address, currentHeight, instrumentation, false);
 
-    return this.#resolveActiveDrainingDeployments(deploymentSettings, address, expectedClosureHeight, currentHeight, instrumentation, false);
+    return drainingDeployments;
   }
 
   #getExpectedClosureHeight(currentHeight: number): number {
     return Math.floor(currentHeight + averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H"));
   }
 
-  async #resolveActiveDrainingDeployments(
+  async #resolveOwnerDeployments(
     deploymentSettings: AutoTopUpDeployment[],
     address: string,
-    expectedClosureHeight: number,
     currentHeight: number,
     instrumentation: DeploymentTopUpInstrumentation,
     dryRun: boolean
+  ): Promise<{ activeDeployments: DrainingDeployment[]; drainingDeployments: DrainingDeployment[] }> {
+    const expectedClosureHeight = this.#getExpectedClosureHeight(currentHeight);
+    const activeDeployments = await this.#resolveActiveDeployments(deploymentSettings, address, instrumentation);
+    const drainingDeployments = await this.#dropDeploymentsFundedToRuntimeLimit(
+      activeDeployments.filter(deployment => deployment.predictedClosedHeight <= expectedClosureHeight),
+      currentHeight,
+      instrumentation,
+      dryRun
+    );
+
+    return { activeDeployments, drainingDeployments };
+  }
+
+  async #resolveActiveDeployments(
+    deploymentSettings: AutoTopUpDeployment[],
+    address: string,
+    instrumentation: DeploymentTopUpInstrumentation
   ): Promise<DrainingDeployment[]> {
     if (deploymentSettings.length === 0) {
       return [];
     }
 
     const dseqs = deploymentSettings.map(deployment => deployment.dseq);
-    const drainingDeployments = await this.findLeases(expectedClosureHeight, address, dseqs);
+    const leases = await this.findLeases(Number.MAX_SAFE_INTEGER, address, dseqs);
 
-    if (!drainingDeployments.length) {
+    if (!leases.length) {
       return [];
     }
 
-    const byDseqOwner = keyBy(drainingDeployments, "dseq");
+    const byDseqOwner = keyBy(leases, "dseq");
     const [active, missingIds] = deploymentSettings.reduce<[DrainingDeployment[], string[]]>(
       (acc, deploymentSetting) => {
         const deployment = byDseqOwner[Number(deploymentSetting.dseq)];
@@ -149,7 +178,7 @@ export class DrainingDeploymentService {
       instrumentation.recordDeploymentsMarkedClosed(missingIds.length);
     }
 
-    return await this.#dropDeploymentsFundedToRuntimeLimit(active, currentHeight, instrumentation, dryRun);
+    return active;
   }
 
   /**

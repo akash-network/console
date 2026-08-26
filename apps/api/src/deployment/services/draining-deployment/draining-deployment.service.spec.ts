@@ -89,14 +89,12 @@ describe(DrainingDeploymentService.name, () => {
       expect(loggerService.error).not.toHaveBeenCalled();
       expect(deploymentSettingRepository.updateManyById).toHaveBeenCalledWith(expect.arrayContaining([expect.any(String)]), { closed: true });
 
-      expect(callback).toHaveBeenCalledTimes(activeBatches.length);
-      activeBatches.forEach((batch, index) => {
-        const deployment = batch[0];
-        expect(callback).toHaveBeenNthCalledWith(
-          index + 1,
+      expect(callback).toHaveBeenCalledTimes(deploymentSettings.length);
+      [activeBatches[0][0], activeBatches[1][0]].forEach(deployment => {
+        expect(callback).toHaveBeenCalledWith(
           expect.objectContaining({
             address: deployment.owner,
-            deployments: expect.arrayContaining([
+            drainingDeployments: expect.arrayContaining([
               expect.objectContaining({
                 dseq: deployment.dseq.toString(),
                 address: deployment.owner
@@ -104,6 +102,44 @@ describe(DrainingDeploymentService.name, () => {
             ])
           })
         );
+      });
+      expect(callback).toHaveBeenCalledWith(expect.objectContaining({ address: addresses[1], activeDeployments: [], drainingDeployments: [] }));
+      expect(callback).toHaveBeenCalledWith(expect.objectContaining({ address: addresses[2], activeDeployments: [], drainingDeployments: [] }));
+    });
+
+    it("yields a non-draining owner with its active deployments and an empty fundable subset", async () => {
+      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const creditsLowNotifiedAt = faker.date.recent();
+      const setting = createAutoTopUpDeployment({ isWalletAutoTopUpEnabled: true, walletIsTrialing: true, walletCreditsLowNotifiedAt: creditsLowNotifiedAt });
+      const farFromClosure = createDrainingDeployment({
+        dseq: Number(setting.dseq),
+        owner: setting.address,
+        predictedClosedHeight: currentHeight + averageBlockCountInAnHour * 24 * 7
+      });
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+        (async function* () {
+          yield { address: setting.address, walletId: setting.walletId, deploymentSettings: [setting] };
+        })()
+      );
+      const findLeasesSpy = vi.spyOn(service, "findLeases").mockResolvedValue([farFromClosure]);
+
+      const callback = vi.fn();
+      for await (const result of service.findDrainingDeploymentsByOwner(currentHeight)) {
+        callback(result);
+      }
+
+      expect(findLeasesSpy).toHaveBeenCalledWith(Number.MAX_SAFE_INTEGER, setting.address, [setting.dseq]);
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(callback).toHaveBeenCalledWith({
+        address: setting.address,
+        walletId: setting.walletId,
+        userId: setting.userId,
+        autoReloadEnabled: true,
+        isTrialing: true,
+        creditsLowNotifiedAt,
+        activeDeployments: [expect.objectContaining({ dseq: setting.dseq, predictedClosedHeight: farFromClosure.predictedClosedHeight })],
+        drainingDeployments: []
       });
     });
 
@@ -136,7 +172,7 @@ describe(DrainingDeploymentService.name, () => {
         expect(callback).toHaveBeenCalledWith(
           expect.objectContaining({
             address,
-            deployments: [
+            drainingDeployments: [
               expect.objectContaining({
                 dseq: setting.dseq,
                 runtimeEndsAt: new Date(Date.now() + runtimeLimitHours * millisecondsInHour)

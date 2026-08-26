@@ -3,14 +3,16 @@ import { Err, Ok, Result } from "ts-results";
 import { singleton } from "tsyringe";
 
 import { DepositDeploymentMsgOptions, RpcMessageService } from "@src/billing/services";
+import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
+import { needsCreditsLowTransition } from "@src/billing/services/wallet-credits-low-check/credits-low-transition";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import type { DryRunOptions } from "@src/core/types/console";
 import { DeploymentSettingRepository, type FundingClaim } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import { DrainingDeployment } from "@src/deployment/services/draining-deployment/draining-deployment.service";
+import { AutoTopUpOwnerDeployments, DrainingDeployment } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { CachedBalance, CachedBalanceService } from "../cached-balance/cached-balance.service";
@@ -39,7 +41,8 @@ export class TopUpManagedDeploymentsService {
     private readonly fundDrainingInstrumentation: FundDrainingDeploymentsInstrumentationService,
     private readonly walletReloadService: WalletReloadJobService,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
-    private readonly deploymentConfig: DeploymentConfigService
+    private readonly deploymentConfig: DeploymentConfigService,
+    private readonly balancesService: BalancesService
   ) {}
 
   /**
@@ -55,15 +58,23 @@ export class TopUpManagedDeploymentsService {
     try {
       for await (const owner of this.drainingDeploymentService.findDrainingDeploymentsByOwner(currentHeight, options)) {
         try {
-          const balance = await this.cachedBalanceService.get(owner.address);
-          await this.#fundOwnerDeployments(owner, options, balance, this.instrumentation, currentHeight);
+          if (owner.drainingDeployments.length) {
+            const balance = await this.cachedBalanceService.get(owner.address);
+            await this.#fundOwnerDeployments(
+              { address: owner.address, walletId: owner.walletId, deployments: owner.drainingDeployments },
+              options,
+              balance,
+              this.instrumentation,
+              currentHeight
+            );
+          }
         } catch (error: unknown) {
           errors.push(error);
+        } finally {
+          if (!options.dryRun) {
+            await this.#ensureCreditsLowTransitionChecked(owner, currentHeight);
+          }
         }
-      }
-
-      if (!options.dryRun) {
-        await this.#scheduleCreditsLowChecksForAutoTopUpOwners();
       }
     } catch (error: unknown) {
       errors.push(error);
@@ -157,21 +168,51 @@ export class TopUpManagedDeploymentsService {
   }
 
   /**
-   * Best-effort: the sweep only schedules credits-low email checks, so its failures are logged
-   * and kept out of the funding run's status and result, which report on funding alone.
+   * Best-effort: the sweep only schedules credits-low email checks, so failures here are
+   * recorded and kept out of the funding run's status and result, which report on funding
+   * alone. Runs after the funding attempt regardless of its outcome — an owner whose funding
+   * just failed is among the most likely to be low. A funded owner is enqueued without an
+   * inline verdict: the deposits just moved its balance, so the handler recomputes fresh state.
    */
-  async #scheduleCreditsLowChecksForAutoTopUpOwners(): Promise<void> {
+  async #ensureCreditsLowTransitionChecked(owner: AutoTopUpOwnerDeployments, currentHeight: number): Promise<void> {
     try {
-      for await (const owner of this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively()) {
-        try {
-          await this.walletReloadService.scheduleCreditsLowCheckIfAutoReloadOff({ walletId: owner.walletId });
-        } catch (error: unknown) {
-          this.instrumentation.recordCreditsLowScheduleError({ walletId: owner.walletId, error });
-        }
+      if (owner.autoReloadEnabled || owner.isTrialing) {
+        return;
+      }
+
+      if (owner.drainingDeployments.length || (await this.#needsCreditsLowTransition(owner, currentHeight))) {
+        await this.walletReloadService.scheduleCreditsLowCheck(owner.userId, { withCleanup: true });
       }
     } catch (error: unknown) {
-      this.instrumentation.recordCreditsLowScheduleError({ error });
+      this.instrumentation.recordCreditsLowScheduleError({ walletId: owner.walletId, error });
+
+      try {
+        await this.walletReloadService.scheduleCreditsLowCheck(owner.userId, { withCleanup: true });
+      } catch {
+        return;
+      }
     }
+  }
+
+  /**
+   * Decides from data already in hand whether the credits-low state machine needs to move;
+   * anything enqueued is re-verified by the handler against fresh state, so a stale row here
+   * costs at most a no-op job, and an evaluation failure falls back to enqueueing so the
+   * handler's retries absorb transient errors. Compares in credits: `toFiatAmount` is
+   * monotonic (identity for uact), so this matches the handler's USD comparison except
+   * inside its cent-rounding band, where the mismatch is a harmless enqueue.
+   */
+  async #needsCreditsLowTransition(owner: AutoTopUpOwnerDeployments, currentHeight: number): Promise<boolean> {
+    const isNotified = Boolean(owner.creditsLowNotifiedAt);
+    const weeklyCredits = this.drainingDeploymentService.calculateWeeklyCoverageCredits(owner.activeDeployments, currentHeight);
+
+    if (weeklyCredits === 0) {
+      return needsCreditsLowTransition({ balance: 0, weeklyCost: 0, isNotified });
+    }
+
+    const balance = await this.balancesService.retrieveDeploymentLimit({ address: owner.address });
+
+    return needsCreditsLowTransition({ balance, weeklyCost: weeklyCredits, isNotified });
   }
 
   /**
