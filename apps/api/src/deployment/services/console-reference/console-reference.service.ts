@@ -5,7 +5,7 @@ import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/s
 
 const CONSOLE_REFERENCE_PREFIX = "ac-";
 
-const CONSOLE_REFERENCE = /^ac-([a-z]+):\/\/([A-Za-z_][A-Za-z0-9_]{0,63})$/;
+const CONSOLE_REFERENCE = /^ac-([a-z]{1,16}):\/\/([A-Za-z_][A-Za-z0-9_]{0,63})$/;
 
 /** The whole message is logged by the error handler, and an offending value is only bounded by the request body limit. */
 const MAX_ECHOED_REFERENCE_LENGTH = 120;
