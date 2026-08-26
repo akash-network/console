@@ -75,6 +75,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
     turnstileRef.current?.execute();
   }, []);
   const abandonPendingChallenge = useRef<(() => void) | undefined>(undefined);
+  const stopWaitingForChallenge = useRef<(() => void) | undefined>(undefined);
   /** Notifies the parent before rejecting so it can drop the abandoned attempt instead of rendering it as a failure. */
   const hideWidget = useCallback(() => {
     setStatus("dismissed");
@@ -85,8 +86,13 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
   useWhen(status === "dismissed", () => {
     turnstileRef.current?.remove();
   });
-  useEffect(function abandonPendingChallengeOnUnmount() {
-    return () => abandonPendingChallenge.current?.();
+  /**
+   * Unmounting is not a dismissal, so the deadline is dropped without settling the promise: the caller awaiting it is
+   * going away with us. Rejecting instead would surface as a mutation error and reach the global MutationCache
+   * reporter as an untagged non-Error, one Sentry event for every visitor who navigates off mid-challenge.
+   */
+  useEffect(function stopWaitingForChallengeOnUnmount() {
+    return () => stopWaitingForChallenge.current?.();
   }, []);
 
   useImperativeHandle(
@@ -109,6 +115,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
             eventBus.current.removeEventListener("success", successListener);
             eventBus.current.removeEventListener("error", errorListener);
             abandonPendingChallenge.current = undefined;
+            stopWaitingForChallenge.current = undefined;
           };
           const successListener = (event: Event) => {
             stopWaiting();
@@ -124,6 +131,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
             stopWaiting();
             reject({ reason: "dismissed" });
           };
+          stopWaitingForChallenge.current = stopWaiting;
           const deadline = setTimeout(() => {
             stopWaiting();
             reportChallengeFailure(new Error("Turnstile challenge never settled"), "TURNSTILE_CHALLENGE_WEDGED");

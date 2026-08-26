@@ -331,25 +331,41 @@ describe(Turnstile.name, () => {
       }
     });
 
-    it("abandons a pending challenge on unmount rather than reporting it wedged 2 minutes later", async () => {
+    it("drops a pending challenge on unmount without reporting it wedged 2 minutes later", async () => {
       const { turnstileRef, errorHandler, unmount } = await setup({ enabled: true });
       vi.useFakeTimers();
 
       try {
-        let rejection: unknown;
-        const promise = turnstileRef.current!.renderAndWaitResponse().catch(error => {
-          rejection = error;
-        });
+        const settled = vi.fn();
+        turnstileRef.current!.renderAndWaitResponse().then(settled, settled);
         await act(async () => {
           unmount();
         });
-        await promise;
         await act(async () => {
           await vi.advanceTimersByTimeAsync(CHALLENGE_DEADLINE_MS);
         });
 
-        expect(rejection).toMatchObject({ reason: "dismissed" });
         expect(errorHandler.reportError).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("does not reject on unmount, so an abandoned page cannot report a captcha error the visitor never saw", async () => {
+      const { turnstileRef, unmount } = await setup({ enabled: true });
+      vi.useFakeTimers();
+
+      try {
+        const settled = vi.fn();
+        turnstileRef.current!.renderAndWaitResponse().then(settled, settled);
+        await act(async () => {
+          unmount();
+        });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(CHALLENGE_DEADLINE_MS);
+        });
+
+        expect(settled).not.toHaveBeenCalled();
       } finally {
         vi.useRealTimers();
       }
