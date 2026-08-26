@@ -10,6 +10,9 @@ import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createAkashAddress } from "@test/seeders";
 
 describe(CachedBalanceService.name, () => {
+  /** Mirrors the `DEPLOYMENT_DEFAULT_DEPOSIT` default: the smallest deposit the platform makes, in dollars. */
+  const DEFAULT_DEPOSIT_IN_USD = 0.5;
+
   describe("get", () => {
     const address = createAkashAddress();
     const DEPLOYMENT_LIMIT = 1000;
@@ -168,6 +171,80 @@ describe(CachedBalanceService.name, () => {
       expect(balance.headroomWaived).toBe(false);
     });
 
+    it("waives the headroom when what sits above it is too small to be a deposit", async () => {
+      const { service, balancesService } = setup({ headroomInUsd: 5 });
+      balancesService.getFreshLimits.mockResolvedValue({ deployment: 5_300_000, fee: 100 });
+
+      const balance = await service.getFresh(address);
+
+      expect(balance.spendable).toBe(5_300_000);
+      expect(balance.headroomWaived).toBe(true);
+    });
+
+    it("keeps the headroom when what sits above it is exactly a deposit", async () => {
+      const { service, balancesService } = setup({ headroomInUsd: 5 });
+      balancesService.getFreshLimits.mockResolvedValue({ deployment: 5_500_000, fee: 100 });
+
+      const balance = await service.getFresh(address);
+
+      expect(balance.spendable).toBe(500_000);
+      expect(balance.headroomWaived).toBe(false);
+    });
+
+    it("reports a disabled headroom as unwaived even on a balance below a single deposit", async () => {
+      const { service, balancesService } = setup({ headroomInUsd: 0 });
+      balancesService.getFreshLimits.mockResolvedValue({ deployment: 100_000, fee: 100 });
+
+      const balance = await service.getFresh(address);
+
+      expect(balance.spendable).toBe(100_000);
+      expect(balance.headroomWaived).toBe(false);
+    });
+
+    it("yields the headroom on demand so the whole balance becomes spendable", async () => {
+      const { service, balancesService } = setup({ headroomInUsd: 5 });
+      balancesService.getFreshLimits.mockResolvedValue({ deployment: 10_000_000, fee: 100 });
+
+      const balance = await service.getFresh(address);
+      balance.waiveHeadroom();
+
+      expect(balance.spendable).toBe(10_000_000);
+      expect(balance.headroomWaived).toBe(true);
+    });
+
+    it("previews what yielding the headroom would release without yielding it", async () => {
+      const { service, balancesService } = setup({ headroomInUsd: 5 });
+      balancesService.getFreshLimits.mockResolvedValue({ deployment: 10_000_000, fee: 100 });
+
+      const balance = await service.getFresh(address);
+
+      expect(balance.previewSufficientAmountWithoutHeadroom(10_000_000)).toBe(10_000_000);
+      expect(balance.previewSufficientAmount(10_000_000)).toBe(5_000_000);
+      expect(balance.headroomWaived).toBe(false);
+    });
+
+    it("previews the same amount with and without a disabled headroom", async () => {
+      const { service, balancesService } = setup({ headroomInUsd: 0 });
+      balancesService.getFreshLimits.mockResolvedValue({ deployment: 10_000_000, fee: 100 });
+
+      const balance = await service.getFresh(address);
+
+      expect(balance.previewSufficientAmountWithoutHeadroom(10_000_000)).toBe(10_000_000);
+      expect(balance.previewSufficientAmount(10_000_000)).toBe(10_000_000);
+    });
+
+    it("keeps what a batch already reserved out of the balance the yielded headroom releases", async () => {
+      const { service, balancesService } = setup({ headroomInUsd: 5 });
+      balancesService.getFreshLimits.mockResolvedValue({ deployment: 10_000_000, fee: 100 });
+
+      const balance = await service.getFresh(address);
+      balance.reserveSufficientAmount(3_000_000);
+      balance.waiveHeadroom();
+
+      expect(balance.spendable).toBe(7_000_000);
+      expect(balance.previewSufficientAmountWithoutHeadroom(10_000_000)).toBe(7_000_000);
+    });
+
     it("logs the headroom decision so the floor can be tuned from data", async () => {
       const { service, balancesService, logger } = setup({ headroomInUsd: 5 });
       balancesService.getFreshLimits.mockResolvedValue({ deployment: 6_000_000, fee: 100 });
@@ -179,6 +256,7 @@ describe(CachedBalanceService.name, () => {
         address,
         available: 6_000_000,
         headroom: 5_000_000,
+        minDeposit: 500_000,
         spendable: 1_000_000,
         waived: false
       });
@@ -191,10 +269,11 @@ describe(CachedBalanceService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: CachedBalanceService.name });
   });
 
-  function setup(input?: { headroomInUsd?: number }) {
+  function setup(input?: { headroomInUsd?: number; defaultDepositInUsd?: number }) {
     const balancesService = mock<BalancesService>();
     const deploymentConfig = mockConfigService<DeploymentConfigService>({
-      AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD: input?.headroomInUsd ?? 0
+      AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD: input?.headroomInUsd ?? 0,
+      DEPLOYMENT_DEFAULT_DEPOSIT: input?.defaultDepositInUsd ?? DEFAULT_DEPOSIT_IN_USD
     });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);

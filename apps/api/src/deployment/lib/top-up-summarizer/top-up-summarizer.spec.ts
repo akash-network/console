@@ -129,6 +129,7 @@ describe(TopUpSummarizer.name, () => {
       summarizer.inc("deploymentTopUpErrorCount");
       summarizer.inc("insufficientBalanceCount");
       summarizer.inc("depositsBelowUsefulRunwayCount");
+      summarizer.inc("headroomConcessionCount");
       summarizer.set("startBlockHeight", 1000);
       summarizer.set("endBlockHeight", 2000);
       summarizer.ensurePredictedClosedHeight(1500);
@@ -146,6 +147,7 @@ describe(TopUpSummarizer.name, () => {
         deploymentsMarkedClosedCount: 0,
         insufficientBalanceCount: 1,
         depositsBelowUsefulRunwayCount: 1,
+        headroomConcessionCount: 1,
         walletsCount: 2,
         walletsTopUpCount: 1,
         walletsTopUpErrorCount: 1,
@@ -165,6 +167,7 @@ describe(TopUpSummarizer.name, () => {
         deploymentsMarkedClosedCount: 0,
         insufficientBalanceCount: 0,
         depositsBelowUsefulRunwayCount: 0,
+        headroomConcessionCount: 0,
         walletsCount: 0,
         walletsTopUpCount: 0,
         walletsTopUpErrorCount: 0,

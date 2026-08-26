@@ -43,6 +43,7 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
   private readonly masterWalletInsufficientFunds: Counter;
   private readonly deploymentsMarkedClosed: Counter;
   private readonly claimReleaseErrors: Counter;
+  private readonly headroomConcessions: Counter;
 
   private readonly logger = createOtelLogger({ context: "FundDrainingDeploymentsService" });
 
@@ -98,6 +99,10 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
     this.claimReleaseErrors = this.metricsService.createCounter(this.meter, "fund_draining_deployments_claim_release_errors_total", {
       description: "Total number of failed attempts to release an immediate funding claim after a deposit did not land"
     });
+
+    this.headroomConcessions = this.metricsService.createCounter(this.meter, "fund_draining_deployments_headroom_concessions_total", {
+      description: "Total number of immediate funding deposits sized from the whole balance because keeping the headroom would have skipped them"
+    });
   }
 
   recordJobSucceeded(durationMs: number): void {
@@ -143,6 +148,18 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
   recordDepositBelowUsefulRunway(details: { dseq: string; address: string; desiredAmount: number; affordableAmount: number; runwayMinutes: number }): void {
     this.skips.add(1, { reason: "below_useful_runway" satisfies FundDrainingSkipReason });
     this.emitLog("warn", { event: "FUND_DRAINING_DEPOSIT_BELOW_USEFUL_RUNWAY", ...details });
+  }
+
+  recordHeadroomConceded(details: {
+    dseq: string;
+    address: string;
+    desiredAmount: number;
+    flooredAmount: number;
+    affordableAmount: number;
+    runwayMinutes: number;
+  }): void {
+    this.headroomConcessions.add(1);
+    this.emitLog("warn", { event: "FUND_DRAINING_HEADROOM_CONCEDED", ...details });
   }
 
   recordMessagePreparationError({ deployment, error }: { deployment: DrainingDeployment; error: unknown }): void {

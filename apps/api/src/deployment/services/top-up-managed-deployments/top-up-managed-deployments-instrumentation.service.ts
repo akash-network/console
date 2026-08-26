@@ -21,6 +21,7 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
   private readonly predictedCloseBlocks: Histogram;
   private readonly insufficientBalanceWithAutoReload: Counter;
   private readonly depositsBelowUsefulRunway: Counter;
+  private readonly headroomConcessions: Counter;
   private readonly settingToggles: Counter;
   private readonly logger: ReturnType<CreateLogger>;
   private startTime: number | undefined;
@@ -75,6 +76,10 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
 
     this.depositsBelowUsefulRunway = this.metricsService.createCounter(this.meter, "auto_top_up_deposits_below_useful_runway_total", {
       description: "Total number of deposits declined because the credits available bought less runway than the dedup cooldown"
+    });
+
+    this.headroomConcessions = this.metricsService.createCounter(this.meter, "auto_top_up_headroom_concessions_total", {
+      description: "Total number of deposits sized from the whole balance because keeping the headroom would have skipped them"
     });
 
     this.settingToggles = this.metricsService.createCounter(this.meter, "auto_top_up_setting_toggles_total", {
@@ -163,6 +168,22 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
 
     this.execWhenEnabled(() => {
       this.chainTxErrors.add(1);
+    });
+  }
+
+  recordHeadroomConceded(details: {
+    dseq: string;
+    address: string;
+    desiredAmount: number;
+    flooredAmount: number;
+    affordableAmount: number;
+    runwayMinutes: number;
+  }): void {
+    this.topUpSummarizer.inc("headroomConcessionCount");
+    this.logger.warn({ event: "AUTO_TOP_UP_HEADROOM_CONCEDED", ...details, dryRun: this.options?.dryRun });
+
+    this.execWhenEnabled(() => {
+      this.headroomConcessions.add(1);
     });
   }
 
