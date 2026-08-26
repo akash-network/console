@@ -77,8 +77,9 @@ async function closeDeploymentsLeftBehind(page: Page) {
 export async function injectUIConfig(page: Page) {
   await page.addInitScript(() => {
     (window as any).__AK_INJECTED_CONFIG__ = Object.freeze({
-      // always pass turnstile site key: https://developers.cloudflare.com/turnstile/troubleshooting/testing/#dummy-sitekeys-and-secret-keys
-      NEXT_PUBLIC_TURNSTILE_SITE_KEY: "1x00000000000000000000AA"
+      // always pass, invisible turnstile site key: https://developers.cloudflare.com/turnstile/troubleshooting/testing/#dummy-sitekeys-and-secret-keys
+      // the visible variant (…AA) can still enter an interactive challenge that no test ever solves, stalling sign-in forever
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: "1x00000000000000000000BB"
     });
   });
 }

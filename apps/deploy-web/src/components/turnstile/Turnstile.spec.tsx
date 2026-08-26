@@ -5,11 +5,13 @@ import { setTimeout as wait } from "node:timers/promises";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
 import type { TurnstileRef } from "./Turnstile";
-import { COMPONENTS, Turnstile } from "./Turnstile";
+import { CHALLENGE_DEADLINE_MS, COMPONENTS, Turnstile } from "./Turnstile";
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
+import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(Turnstile.name, () => {
   it("does not render if turnstile is disabled", async () => {
@@ -24,21 +26,64 @@ describe(Turnstile.name, () => {
     expect(screen.queryByText("Turnstile")).toBeInTheDocument();
   });
 
-  it("resets actual widget on error", async () => {
-    const turnstileInstance = mock<TurnstileInstance>();
-    const ReactTurnstile = forwardRef<TurnstileInstance | undefined, TurnstileProps>((props, ref) => {
-      useForwardedRef(ref, turnstileInstance);
-      useEffect(() => {
-        props.onError?.("test");
-      }, []);
-      return <div>Turnstile</div>;
-    });
+  it("leaves the widget in place on error so Cloudflare's own retry can recover", async () => {
+    const { ReactTurnstile, instance, latestProps } = createTurnstileMock();
     await setup({ enabled: true, components: { ReactTurnstile } });
 
-    expect(turnstileInstance.remove).toHaveBeenCalled();
-    expect(turnstileInstance.render).toHaveBeenCalled();
-    expect(turnstileInstance.execute).toHaveBeenCalled();
+    await act(async () => {
+      latestProps.current?.onError?.("network-error");
+      await wait(0);
+    });
+
+    expect(instance.remove).not.toHaveBeenCalled();
+    expect(instance.render).not.toHaveBeenCalled();
+    expect(instance.execute).not.toHaveBeenCalled();
     expect(screen.queryByText("Some error occurred")).toBeInTheDocument();
+  });
+
+  it("reports challenge failures so they are visible in production", async () => {
+    const { ReactTurnstile, latestProps } = createTurnstileMock();
+    const { errorHandler } = await setup({ enabled: true, components: { ReactTurnstile } });
+
+    await act(async () => {
+      latestProps.current?.onError?.("network-error");
+      await wait(0);
+    });
+
+    expect(errorHandler.reportError).toHaveBeenCalledWith(expect.objectContaining({ error: "network-error", tags: { event: "TURNSTILE_CHALLENGE_FAILED" } }));
+  });
+
+  it("reports only the first failure of a run so Cloudflare's retries cannot storm Sentry", async () => {
+    const { ReactTurnstile, latestProps } = createTurnstileMock();
+    const { errorHandler } = await setup({ enabled: true, components: { ReactTurnstile } });
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await act(async () => {
+        latestProps.current?.onError?.("network-error");
+        await wait(0);
+      });
+    }
+
+    expect(errorHandler.reportError).toHaveBeenCalledTimes(1);
+  });
+
+  it("never restarts the widget when errors alternate with interactive prompts", async () => {
+    const { ReactTurnstile, instance, latestProps } = createTurnstileMock();
+    await setup({ enabled: true, components: { ReactTurnstile } });
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await act(async () => {
+        latestProps.current?.onError?.("network-error");
+        await wait(0);
+      });
+      await act(async () => {
+        latestProps.current?.onBeforeInteractive?.();
+        await wait(0);
+      });
+    }
+
+    expect(instance.remove).not.toHaveBeenCalled();
+    expect(instance.execute).not.toHaveBeenCalled();
   });
 
   it('resets actual widget on "Retry" button click', async () => {
@@ -233,6 +278,43 @@ describe(Turnstile.name, () => {
       expect(abandoned).not.toHaveBeenCalled();
     });
 
+    it("resolves once Cloudflare refreshes an expired token", async () => {
+      const { ReactTurnstile, latestProps } = createTurnstileMock();
+      const { turnstileRef } = await setup({ enabled: true, components: { ReactTurnstile } });
+
+      const promise = turnstileRef.current!.renderAndWaitResponse();
+      await act(async () => {
+        latestProps.current?.onExpire?.("stale-token");
+        await wait(0);
+      });
+      await act(async () => {
+        latestProps.current?.onSuccess?.("refreshed-token");
+        await wait(0);
+      });
+
+      await expect(promise).resolves.toEqual({ token: "refreshed-token" });
+    });
+
+    it("rejects a challenge that never settles instead of hanging the caller", async () => {
+      const { turnstileRef } = await setup({ enabled: true });
+      vi.useFakeTimers();
+
+      try {
+        let rejection: unknown;
+        const promise = turnstileRef.current!.renderAndWaitResponse().catch(error => {
+          rejection = error;
+        });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(CHALLENGE_DEADLINE_MS);
+        });
+        await promise;
+
+        expect(rejection).toMatchObject({ reason: "timeout" });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("resolves with disabled token when turnstile is disabled", async () => {
       const { turnstileRef } = await setup({ enabled: false });
 
@@ -243,25 +325,28 @@ describe(Turnstile.name, () => {
 
   async function setup(input?: { enabled?: boolean; siteKey?: string; onDismissed?: () => void; components?: Partial<typeof COMPONENTS> }) {
     const turnstileRef = { current: null as TurnstileRef | null };
+    const errorHandler = mock<ErrorHandlerService>();
 
     const result = render(
-      <Turnstile
-        ref={turnstileRef}
-        enabled={!!input?.enabled}
-        siteKey="unittest-site-key"
-        onDismissed={input?.onDismissed}
-        components={MockComponents(COMPONENTS, {
-          ReactTurnstile: forwardRef<TurnstileInstance | undefined, TurnstileProps>((_, ref) => {
-            useForwardedRef(ref);
-            return <div>Turnstile</div>;
-          }),
-          ...input?.components
-        })}
-      />
+      <TestContainerProvider services={{ errorHandler: () => errorHandler }}>
+        <Turnstile
+          ref={turnstileRef}
+          enabled={!!input?.enabled}
+          siteKey="unittest-site-key"
+          onDismissed={input?.onDismissed}
+          components={MockComponents(COMPONENTS, {
+            ReactTurnstile: forwardRef<TurnstileInstance | undefined, TurnstileProps>((_, ref) => {
+              useForwardedRef(ref);
+              return <div>Turnstile</div>;
+            }),
+            ...input?.components
+          })}
+        />
+      </TestContainerProvider>
     );
     await act(() => wait(0));
 
-    return { ...result, turnstileRef };
+    return { ...result, turnstileRef, errorHandler };
   }
 
   const ButtonMock = forwardRef<HTMLButtonElement, React.ComponentProps<typeof COMPONENTS.Button>>((props, ref) => (
@@ -269,6 +354,17 @@ describe(Turnstile.name, () => {
       {props.children}
     </button>
   ));
+
+  function createTurnstileMock(instance: TurnstileInstance = mock<TurnstileInstance>()) {
+    const latestProps: { current: TurnstileProps | undefined } = { current: undefined };
+    const ReactTurnstile = forwardRef<TurnstileInstance | undefined, TurnstileProps>((props, ref) => {
+      useForwardedRef(ref, instance);
+      latestProps.current = props;
+      return <div>Turnstile</div>;
+    });
+
+    return { ReactTurnstile, instance, latestProps };
+  }
 
   function useForwardedRef<T>(ref: React.ForwardedRef<T>, instance: T = mock<T>()) {
     useEffect(() => {
