@@ -59,7 +59,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
   const { errorHandler } = useServices();
 
   const hasReportedFailure = useRef(false);
-  /** Cloudflare keeps retrying every 8s, so only the first anomaly of a run is reported: enough to diagnose, without one Sentry event per retry per stuck visitor. */
+  /** Cloudflare keeps retrying every 8s, so only the first anomaly of a run is reported: enough to diagnose, without one Sentry event per retry per stuck visitor. A run ends at the next success or the next challenge the caller asks for. */
   const reportChallengeFailure = useCallback(
     (error: unknown, event: string) => {
       if (hasReportedFailure.current) return;
@@ -98,6 +98,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
         }
 
         abandonPendingChallenge.current?.();
+        hasReportedFailure.current = false;
         resetWidget();
         return new Promise((resolve, reject) => {
           const stopWaiting = () => {
@@ -122,6 +123,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
           };
           const deadline = setTimeout(() => {
             stopWaiting();
+            reportChallengeFailure(new Error("Turnstile challenge never settled"), "TURNSTILE_CHALLENGE_WEDGED");
             reject({ reason: "timeout" });
           }, CHALLENGE_DEADLINE_MS);
 
@@ -130,7 +132,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
         });
       }
     }),
-    [resetWidget, enabled]
+    [resetWidget, enabled, reportChallengeFailure]
   );
 
   if (!enabled) {

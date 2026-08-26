@@ -74,14 +74,17 @@ async function closeDeploymentsLeftBehind(page: Page) {
   }
 }
 
+/**
+ * Cloudflare's always-pass, invisible dummy sitekey. The visible always-pass variant (1x...AA) can still enter an
+ * interactive challenge that no test ever solves, which stalls sign-in until the whole budget burns.
+ * https://developers.cloudflare.com/turnstile/troubleshooting/testing/#dummy-sitekeys-and-secret-keys
+ */
+const ALWAYS_PASS_INVISIBLE_SITE_KEY = "1x00000000000000000000BB";
+
 export async function injectUIConfig(page: Page) {
-  await page.addInitScript(() => {
-    (window as any).__AK_INJECTED_CONFIG__ = Object.freeze({
-      // always pass, invisible turnstile site key: https://developers.cloudflare.com/turnstile/troubleshooting/testing/#dummy-sitekeys-and-secret-keys
-      // the visible variant (…AA) can still enter an interactive challenge that no test ever solves, stalling sign-in forever
-      NEXT_PUBLIC_TURNSTILE_SITE_KEY: "1x00000000000000000000BB"
-    });
-  });
+  await page.addInitScript(siteKey => {
+    (window as any).__AK_INJECTED_CONFIG__ = Object.freeze({ NEXT_PUBLIC_TURNSTILE_SITE_KEY: siteKey });
+  }, ALWAYS_PASS_INVISIBLE_SITE_KEY);
 }
 
 /**

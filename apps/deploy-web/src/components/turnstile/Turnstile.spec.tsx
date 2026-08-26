@@ -67,6 +67,21 @@ describe(Turnstile.name, () => {
     expect(errorHandler.reportError).toHaveBeenCalledTimes(1);
   });
 
+  it("reports the first failure of every run, not only of the first one", async () => {
+    const { ReactTurnstile, latestProps } = createTurnstileMock();
+    const { turnstileRef, errorHandler } = await setup({ enabled: true, components: { ReactTurnstile } });
+
+    for (let run = 0; run < 2; run++) {
+      turnstileRef.current!.renderAndWaitResponse().catch(() => undefined);
+      await act(async () => {
+        latestProps.current?.onError?.("network-error");
+        await wait(0);
+      });
+    }
+
+    expect(errorHandler.reportError).toHaveBeenCalledTimes(2);
+  });
+
   it("never restarts the widget when errors alternate with interactive prompts", async () => {
     const { ReactTurnstile, instance, latestProps } = createTurnstileMock();
     await setup({ enabled: true, components: { ReactTurnstile } });
@@ -296,7 +311,7 @@ describe(Turnstile.name, () => {
     });
 
     it("rejects a challenge that never settles instead of hanging the caller", async () => {
-      const { turnstileRef } = await setup({ enabled: true });
+      const { turnstileRef, errorHandler } = await setup({ enabled: true });
       vi.useFakeTimers();
 
       try {
@@ -310,6 +325,7 @@ describe(Turnstile.name, () => {
         await promise;
 
         expect(rejection).toMatchObject({ reason: "timeout" });
+        expect(errorHandler.reportError).toHaveBeenCalledWith(expect.objectContaining({ tags: { event: "TURNSTILE_CHALLENGE_WEDGED" } }));
       } finally {
         vi.useRealTimers();
       }
