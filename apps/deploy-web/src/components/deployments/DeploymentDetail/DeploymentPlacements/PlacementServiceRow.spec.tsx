@@ -158,7 +158,7 @@ describe(PlacementServiceRow.name, () => {
     setup({
       detail: {
         image: "ghcr.io/acmecorp/llm-gateway:0.9.4",
-        resources: { gpuUnits: 0, cpu: 1, memory: { value: 2, unit: "Gi" }, storage: { value: 10, unit: "Gi" } }
+        resources: { gpuUnits: 0, cpu: 1, memory: 2 * 1024 ** 3, storage: 10 * 1024 ** 3 }
       }
     });
 
@@ -168,7 +168,7 @@ describe(PlacementServiceRow.name, () => {
     expect(screen.getByText("ghcr.io/acmecorp/llm-gateway:0.9.4")).toBeInTheDocument();
     expect(screen.getByText("vCPU")).toBeInTheDocument();
     expect(screen.getByText("Memory")).toBeInTheDocument();
-    expect(screen.getByText("2 Gi")).toBeInTheDocument();
+    expect(screen.getByText("2.15 GB")).toBeInTheDocument();
     expect(screen.getByText("Storage")).toBeInTheDocument();
   });
 

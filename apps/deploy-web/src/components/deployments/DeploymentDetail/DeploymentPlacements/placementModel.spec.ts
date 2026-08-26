@@ -27,7 +27,7 @@ describe("placementModel", () => {
       const result = parseManifestServices(manifest);
 
       expect(result.web.image).toBe("nginx:latest");
-      expect(result.web.resources).toEqual({ cpu: 2, gpuUnits: 0, memory: { value: 512, unit: "Mi" }, storage: { value: 1, unit: "Gi" } });
+      expect(result.web.resources).toEqual({ cpu: 2, gpuUnits: 0, memory: 512 * 1024 ** 2, storage: 1024 ** 3 });
     });
 
     it("reads gpu units from the compute profile", () => {
@@ -69,8 +69,8 @@ describe("placementModel", () => {
       expect(parseManifestServices(manifest).web.resources).toEqual({
         cpu: 1,
         gpuUnits: 0,
-        memory: { value: 256, unit: "Mi" },
-        storage: { value: 1, unit: "Gi" }
+        memory: 256 * 1024 ** 2,
+        storage: 1024 ** 3
       });
     });
 

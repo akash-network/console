@@ -6,6 +6,7 @@ import { Box, Globe, Label, NavArrowDown, NavArrowRight } from "iconoir-react";
 
 import type { ForwardedPort, LeaseServiceStatus, ServiceIp } from "@src/queries/useLeaseQuery";
 import type { LeaseDto } from "@src/types/deployment";
+import { formatByteSize } from "@src/utils/unitUtils";
 import { StatusBadge } from "../DeploymentStatusBadge";
 import type { ManifestServiceDetail, ManifestServiceResources } from "./placementModel";
 import { formatReplicaCount, getServiceStatus } from "./placementModel";
@@ -147,6 +148,6 @@ function buildServiceStats(resources: ManifestServiceResources): PlacementStat[]
   return stats;
 }
 
-function formatSize(size: ManifestServiceResources["memory"]): string {
-  return size ? `${size.value} ${size.unit}`.trim() : "—";
+function formatSize(bytes: ManifestServiceResources["memory"]): string {
+  return bytes === undefined ? "—" : formatByteSize(bytes);
 }

@@ -14,7 +14,7 @@ import { isLeaseLive } from "@src/utils/leaseUtils";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { providerDisplayName } from "@src/utils/providerUtils";
 import { isProviderReclaimed, isReclaiming } from "@src/utils/reclamationUtils";
-import { bytesToShrink } from "@src/utils/unitUtils";
+import { formatByteSize } from "@src/utils/unitUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ConfidentialComputeResources } from "../../ConfidentialComputeResources";
 import { DownloadAttestationEvidence } from "../../DownloadAttestationEvidence";
@@ -177,12 +177,10 @@ export const PlacementCard: FC<PlacementCardProps> = ({
 };
 
 function buildPlacementStats(lease: LeaseDto, serviceCount: number, gpuModels: string[]): PlacementStat[] {
-  const memory = bytesToShrink(lease.memoryAmount);
-  const storage = bytesToShrink(lease.storageAmount);
   const stats: PlacementStat[] = [
     { label: "vCPU", value: roundDecimal(lease.cpuAmount, 2) },
-    { label: "Memory", value: `${roundDecimal(memory.value, 2)} ${memory.unit}` },
-    { label: "Storage", value: `${roundDecimal(storage.value, 2)} ${storage.unit}` }
+    { label: "Memory", value: formatByteSize(lease.memoryAmount) },
+    { label: "Storage", value: formatByteSize(lease.storageAmount) }
   ];
   if (lease.gpuAmount && lease.gpuAmount > 0) {
     stats.push({ label: "GPU", value: formatGpuLabel(lease.gpuAmount, gpuModels) });

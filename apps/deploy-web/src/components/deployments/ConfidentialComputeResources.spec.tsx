@@ -34,11 +34,11 @@ describe(ConfidentialComputeResources.name, () => {
     expect(screen.getByText("Available to your container")).toBeInTheDocument();
 
     expect(screen.getByText("0.5 CPU")).toBeInTheDocument();
-    expect(screen.getByText("256 MiB")).toBeInTheDocument();
+    expect(screen.getByText("268.44 MB")).toBeInTheDocument();
     expect(screen.getByText("0.1 CPU")).toBeInTheDocument();
-    expect(screen.getByText("64 MiB")).toBeInTheDocument();
+    expect(screen.getByText("67.11 MB")).toBeInTheDocument();
     expect(screen.getByText("0.4 CPU")).toBeInTheDocument();
-    expect(screen.getByText("192 MiB")).toBeInTheDocument();
+    expect(screen.getByText("201.33 MB")).toBeInTheDocument();
   });
 
   it("warns when the declared resources are at or below the attestation sidecar reservation", () => {
@@ -69,8 +69,8 @@ describe(ConfidentialComputeResources.name, () => {
     };
     setup({ carveouts: [cpuCarveout, second] });
 
-    expect(screen.getByText("0.5 CPU · 256 MiB")).toBeInTheDocument();
-    expect(screen.getByText("8 CPU · 32 GiB · 1 GPU")).toBeInTheDocument();
+    expect(screen.getByText("0.5 CPU · 268.44 MB")).toBeInTheDocument();
+    expect(screen.getByText("8 CPU · 34.36 GB · 1 GPU")).toBeInTheDocument();
   });
 
   it("notes the replica count when a resource unit runs more than one pod", () => {

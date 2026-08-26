@@ -23,7 +23,7 @@ import type { ApiProviderList } from "@src/types/provider";
 import { isLeaseLive } from "@src/utils/leaseUtils";
 import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 import { formatRuntimeLimit } from "@src/utils/runtimeLimitUtils";
-import { bytesToShrink } from "@src/utils/unitUtils";
+import { formatByteSize } from "@src/utils/unitUtils";
 import {
   countPlacementServices,
   formatGpuLabel,
@@ -88,8 +88,6 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
 
   const name = getDeploymentName(deployment.dseq) || `Deployment #${deployment.dseq}`;
   const servicesCount = countPlacementServices(leases ?? [], servicesByPlacement, manifestServices);
-  const memory = bytesToShrink(deployment.memoryAmount);
-  const storage = bytesToShrink(deployment.storageAmount);
 
   return (
     <div className="flex flex-col gap-6 py-6 lg:flex-row lg:items-start lg:justify-between">
@@ -167,8 +165,8 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
           <div className="grid grid-cols-4 gap-x-10">
             <SummaryItem label="GPU">{formatGpuLabel(deployment.gpuAmount ?? 0, getDeploymentGpuModels(deployment.groups))}</SummaryItem>
             <SummaryItem label="vCPU">{roundDecimal(deployment.cpuAmount, 2)}</SummaryItem>
-            <SummaryItem label="MEMORY">{`${roundDecimal(memory.value, 2)} ${memory.unit}`}</SummaryItem>
-            <SummaryItem label="STORAGE">{`${roundDecimal(storage.value, 2)} ${storage.unit}`}</SummaryItem>
+            <SummaryItem label="MEMORY">{formatByteSize(deployment.memoryAmount)}</SummaryItem>
+            <SummaryItem label="STORAGE">{formatByteSize(deployment.storageAmount)}</SummaryItem>
           </div>
         </CardContent>
       </Card>
