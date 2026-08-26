@@ -29,6 +29,21 @@ describe(providerUnreachableNotification.name, () => {
     expect(result.user).toEqual({ id: "user-123", email: "user@example.com" });
   });
 
+  it("escapes a host uri the provider declared with markup in it", () => {
+    const user = createUser({ id: "user-123", email: "user@example.com" });
+
+    const result = providerUnreachableNotification(user, {
+      dseq: "654321",
+      owner: "akash1owner",
+      hostUri: '<script>alert("xss")</script>',
+      downSince: subDays(new Date(), 5).toISOString(),
+      deploymentUrl: DEPLOYMENT_URL
+    });
+
+    expect(result.payload.description).not.toContain("<script>");
+    expect(result.payload.description).toContain("&lt;script&gt;");
+  });
+
   it("keys the notification id on the outage so a provider that recovers and fails again is reported anew", () => {
     const user = createUser({ id: "user-123", email: "user@example.com" });
     const vars = { dseq: "654321", owner: "akash1owner", hostUri: "https://dark:8443", deploymentUrl: DEPLOYMENT_URL };
