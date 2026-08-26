@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatByteSize, sizeStringToBytes } from "./unitUtils";
+import { bytesToShrink, formatByteSize, sizeStringToBytes } from "./unitUtils";
 
 describe(sizeStringToBytes.name, () => {
   it("converts a binary suffix to bytes", () => {
@@ -31,6 +31,27 @@ describe(sizeStringToBytes.name, () => {
   });
 });
 
+describe(bytesToShrink.name, () => {
+  it("picks the unit the amount fits into", () => {
+    expect(bytesToShrink(536870912)).toEqual({ value: 536.870912, unit: "MB" });
+    expect(bytesToShrink(536870912, true)).toEqual({ value: 512, unit: "MiB" });
+  });
+
+  it("keeps an amount smaller than the first unit in bytes", () => {
+    expect(bytesToShrink(512)).toEqual({ value: 512, unit: "Bytes" });
+    expect(bytesToShrink(0.5)).toEqual({ value: 0.5, unit: "Bytes" });
+    expect(bytesToShrink(0)).toEqual({ value: 0, unit: "Bytes" });
+  });
+
+  it("keeps an amount larger than the last unit in that unit", () => {
+    expect(bytesToShrink(1000 ** 9)).toEqual({ value: 1000, unit: "YB" });
+  });
+
+  it("carries the sign through", () => {
+    expect(bytesToShrink(-2000)).toEqual({ value: -2, unit: "kB" });
+  });
+});
+
 describe(formatByteSize.name, () => {
   it("labels bytes with the largest decimal unit that fits", () => {
     expect(formatByteSize(536870912)).toBe("536.87 MB");
@@ -38,7 +59,9 @@ describe(formatByteSize.name, () => {
     expect(formatByteSize(1000000)).toBe("1 MB");
   });
 
-  it("labels an empty amount", () => {
+  it("labels amounts too small for a larger unit in bytes", () => {
     expect(formatByteSize(0)).toBe("0 Bytes");
+    expect(formatByteSize(512)).toBe("512 Bytes");
+    expect(formatByteSize(0.5)).toBe("0.5 Bytes");
   });
 });

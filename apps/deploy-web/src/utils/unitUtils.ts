@@ -50,21 +50,14 @@ export function formatByteSize(bytes: number): string {
 
 export function bytesToShrink(value: number, bibyte?: boolean) {
   const multiplier = bibyte ? 1024 : 1000;
-  let finalValue = 0;
-  let finalUnit = bibyte ? bibyteUnits[0] : byteUnits[0];
+  const units = bibyte ? bibyteUnits : byteUnits;
   const isNegative = value < 0;
-  const _value = Math.abs(value);
+  const magnitude = Math.abs(value);
+  /** Clamped to the unit list: anything below one unit stays in bytes, anything above the last unit stays in it. */
+  const unitIndex = magnitude === 0 ? 0 : Math.min(Math.max(Math.floor(Math.log(magnitude) / Math.log(multiplier)), 0), units.length - 1);
+  const finalValue = magnitude / Math.pow(multiplier, unitIndex);
 
-  if (_value !== 0) {
-    const i = parseInt(Math.floor(Math.log(_value) / Math.log(multiplier)).toString());
-
-    if (i !== 0) {
-      finalValue = _value / Math.pow(multiplier, i);
-      finalUnit = bibyte ? bibyteUnits[i] : byteUnits[i];
-    }
-  }
-
-  return { value: isNegative ? -finalValue : finalValue, unit: finalUnit };
+  return { value: isNegative ? -finalValue : finalValue, unit: units[unitIndex] };
 }
 
 export function toBytes(size: number, type: string, bibyte?: boolean) {
