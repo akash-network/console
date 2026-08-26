@@ -400,12 +400,103 @@ describe(AnalyticsService.name, () => {
     });
   });
 
+  describe("untrackable hosts", () => {
+    it.each(["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]", "console.localhost", "mymachine.local"])(
+      "does not initialize Amplitude on %s even when enabled",
+      hostname => {
+        const init = vi.fn();
+        const identify = vi.fn();
+        const service = setup({
+          amplitude: { init, identify },
+          hostname,
+          options: {
+            amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+            ga: { enabled: false, measurementId: mockGaMeasurementId }
+          }
+        });
+
+        service.identify({ id: faker.string.uuid() });
+
+        expect(init).not.toHaveBeenCalled();
+        expect(identify).not.toHaveBeenCalled();
+      }
+    );
+
+    it("does not track Amplitude events on localhost", () => {
+      const track = vi.fn();
+      const service = setup({
+        amplitude: { track },
+        hostname: "localhost",
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.track("create_deployment");
+
+      expect(track).not.toHaveBeenCalled();
+    });
+
+    it("does not initialize Amplitude when the hostname is unavailable", () => {
+      const init = vi.fn();
+      const service = setup({
+        amplitude: { init },
+        hostname: "",
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.identify({ id: faker.string.uuid() });
+
+      expect(init).not.toHaveBeenCalled();
+    });
+
+    it("still forwards events to GA on localhost so local GTM debugging keeps working", () => {
+      const dataLayer: Record<string, unknown>[] = [];
+      const service = setup({
+        dataLayer,
+        hostname: "localhost",
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: true, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.track("create_deployment");
+
+      expect(dataLayer).toHaveLength(1);
+    });
+
+    it.each(["console.akash.network", "console-beta.akash.network", "8zv824gmq5zw-console-beta.akash.network"])(
+      "initializes Amplitude on the real host %s",
+      hostname => {
+        const init = vi.fn();
+        const service = setup({
+          amplitude: { init },
+          hostname,
+          options: {
+            amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+            ga: { enabled: false, measurementId: mockGaMeasurementId }
+          }
+        });
+
+        service.identify({ id: faker.string.uuid() });
+
+        expect(init).toHaveBeenCalledWith(mockAmplitudeApiKey, undefined, undefined);
+      }
+    );
+  });
+
   function setup(params: {
     amplitude?: Mocked<Amplitude>;
     dataLayer?: Record<string, unknown>[];
     options?: AnalyticsOptions;
     storage?: Pick<Storage, "getItem" | "setItem">;
     locationSearch?: string;
+    hostname?: string;
   }) {
     const amplitude = {
       init: vi.fn(),
@@ -433,7 +524,8 @@ describe(AnalyticsService.name, () => {
       amplitude,
       () => dataLayer,
       storage,
-      () => params.locationSearch ?? ""
+      () => params.locationSearch ?? "",
+      () => params.hostname ?? "console.akash.network"
     );
   }
 });

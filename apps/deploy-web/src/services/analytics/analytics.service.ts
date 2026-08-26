@@ -164,6 +164,20 @@ const UTM_PARAM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", 
 
 const isBrowser = typeof window !== "undefined";
 
+/**
+ * Hosts that never belong to a real user: dev servers and jsdom test runs both report one of these, and every
+ * device they invent is billed as a tracked user against the Amplitude MTU quota even though nobody is using the app.
+ */
+const UNTRACKABLE_HOSTNAMES = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]);
+
+function isTrackableHostname(hostname: string): boolean {
+  if (!hostname || UNTRACKABLE_HOSTNAMES.has(hostname)) {
+    return false;
+  }
+
+  return !hostname.endsWith(".localhost") && !hostname.endsWith(".local");
+}
+
 export type Amplitude = Pick<typeof amplitude, "init" | "Identify" | "identify" | "track" | "setUserId" | "add" | "flush">;
 
 export class AnalyticsService {
@@ -183,9 +197,10 @@ export class AnalyticsService {
     private readonly amplitudeClient: Amplitude = amplitude,
     private readonly getDataLayer: () => Record<string, unknown>[] | undefined = () => (isBrowser ? window.dataLayer : undefined),
     private readonly storage: Pick<Storage, "getItem" | "setItem"> | undefined = isBrowser ? window.localStorage : undefined,
-    private readonly getLocationSearch: () => string = () => (isBrowser ? window.location.search : "")
+    private readonly getLocationSearch: () => string = () => (isBrowser ? window.location.search : ""),
+    private readonly getHostname: () => string = () => (isBrowser ? window.location.hostname : "")
   ) {
-    this.isAmplitudeEnabled = this.options.amplitude.enabled;
+    this.isAmplitudeEnabled = this.options.amplitude.enabled && isTrackableHostname(this.getHostname());
     this.utmProperties = this.captureFirstTouchUtm();
   }
 
