@@ -29,7 +29,7 @@ type DeploymentSettingChange = Pick<DeploymentSettingsInput, "autoTopUpEnabled" 
 
 type DeploymentSettingWithEstimatedTopUpAmount = Omit<
   DeploymentSettingsOutput,
-  "lastFundedAt" | "runtimeEndingNotifiedFor" | "sdl" | "manifestVersion" | "runtimeEndsAt"
+  "lastFundedAt" | "runtimeEndingNotifiedFor" | "providerUnreachableNotifiedFor" | "sdl" | "manifestVersion" | "runtimeEndsAt"
 > & {
   estimatedTopUpAmount: number;
   topUpFrequencyMs: number;
@@ -363,8 +363,8 @@ export class DeploymentSettingService {
   }
 
   /**
-   * `lastFundedAt` and `runtimeEndingNotifiedFor` are internal sweep markers and stay out of the API
-   * payload. So do `sdl` and `manifestVersion`: they are what the console remembers a deployment by,
+   * `lastFundedAt`, `runtimeEndingNotifiedFor` and `providerUnreachableNotifiedFor` are internal sweep markers and stay
+   * out of the API payload. So do `sdl` and `manifestVersion`: they are what the console remembers a deployment by,
    * not something it hands back, and the response schema is types only — whatever this returns is
    * what ships.
    */
@@ -375,7 +375,7 @@ export class DeploymentSettingService {
       return undefined;
     }
 
-    const { lastFundedAt, runtimeEndingNotifiedFor, sdl, manifestVersion, runtimeEndsAt, ...rest } = params;
+    const { lastFundedAt, runtimeEndingNotifiedFor, providerUnreachableNotifiedFor, sdl, manifestVersion, runtimeEndsAt, ...rest } = params;
     const setting = { ...rest, runtimeEndsAt: runtimeEndsAt?.toISOString() ?? null };
 
     if (!setting.autoTopUpEnabled) {

@@ -5,6 +5,7 @@ import type { DeploymentCloseJobService } from "@src/deployment/services/deploym
 import type { ExpiringDeploymentsNotifierService } from "@src/deployment/services/expiring-deployments-notifier/expiring-deployments-notifier.service";
 import type { StaleManagedDeploymentsCleanerService } from "@src/deployment/services/stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
 import type { TopUpManagedDeploymentsService } from "@src/deployment/services/top-up-managed-deployments/top-up-managed-deployments.service";
+import type { UnreachableProviderDeploymentsNotifierService } from "@src/deployment/services/unreachable-provider-deployments-notifier/unreachable-provider-deployments-notifier.service";
 import { TopUpDeploymentsController } from "./top-up-deployments.controller";
 
 describe(TopUpDeploymentsController.name, () => {
@@ -64,16 +65,29 @@ describe(TopUpDeploymentsController.name, () => {
     });
   });
 
+  describe("notifyUnreachableProviderDeployments", () => {
+    it("delegates to the service that warns owners of deployments on unreachable providers", async () => {
+      const { controller, unreachableProviderDeploymentsNotifierService } = setup();
+      const options = { dryRun: false };
+
+      await controller.notifyUnreachableProviderDeployments(options);
+
+      expect(unreachableProviderDeploymentsNotifierService.notifyUnreachableProviderDeployments).toHaveBeenCalledWith(options);
+    });
+  });
+
   function setup() {
     const topUpManagedDeploymentsService = mock<TopUpManagedDeploymentsService>();
     const staleDeploymentsCleanerService = mock<StaleManagedDeploymentsCleanerService>();
     const deploymentCloseJobService = mock<DeploymentCloseJobService>();
     const expiringDeploymentsNotifierService = mock<ExpiringDeploymentsNotifierService>();
+    const unreachableProviderDeploymentsNotifierService = mock<UnreachableProviderDeploymentsNotifierService>();
     const controller = new TopUpDeploymentsController(
       topUpManagedDeploymentsService,
       staleDeploymentsCleanerService,
       deploymentCloseJobService,
-      expiringDeploymentsNotifierService
+      expiringDeploymentsNotifierService,
+      unreachableProviderDeploymentsNotifierService
     );
 
     return {
@@ -81,7 +95,8 @@ describe(TopUpDeploymentsController.name, () => {
       topUpManagedDeploymentsService,
       staleDeploymentsCleanerService,
       deploymentCloseJobService,
-      expiringDeploymentsNotifierService
+      expiringDeploymentsNotifierService,
+      unreachableProviderDeploymentsNotifierService
     };
   }
 });

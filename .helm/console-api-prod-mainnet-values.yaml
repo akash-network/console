@@ -47,6 +47,19 @@ jobs:
       - ./dist/console.js
       - notify-expiring-deployments
       - --dry-run
+  # Ships in dry-run for a bake period: --dry-run only logs UNREACHABLE_PROVIDER_DEPLOYMENT_WOULD_NOTIFY.
+  # The first live run catches up on every outage already past the threshold, so check the volume in
+  # those logs before dropping the flag.
+  # Offset from the two runtime-limit sweeps so no two of them hit deployment_settings on the same minute.
+  - name: notify-unreachable-provider-deployments
+    schedule: "11,41 * * * *" # every 30 minutes
+    command:
+      - node
+      - --require
+      - ./dist/instrumentation.js
+      - ./dist/console.js
+      - notify-unreachable-provider-deployments
+      - --dry-run
   - name: mint-act
     schedule: "*/10 * * * *" # every 10 minutes
     concurrencyPolicy: Forbid

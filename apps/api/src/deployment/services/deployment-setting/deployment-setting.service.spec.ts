@@ -681,6 +681,7 @@ describe(DeploymentSettingService.name, () => {
       manifestVersion: null,
       runtimeEndsAt: null,
       runtimeEndingNotifiedFor: null,
+      providerUnreachableNotifiedFor: null,
       createdAt: faker.date.past().toISOString(),
       updatedAt: faker.date.past().toISOString(),
       ...overrides

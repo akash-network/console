@@ -421,6 +421,57 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .where(or(...claims.map(claim => and(eq(this.table.id, claim.id), eq(this.table.lastFundedAt, sql`${claim.claimedAt}::timestamp`)))));
   }
 
+  /**
+   * Claims the right to tell one owner that their deployment's provider has gone dark, returning false
+   * when this outage has already been reported. The marker is the moment the outage started, so a
+   * provider that recovers and fails again re-arms the warning for the new outage while a single long
+   * outage is only ever reported once.
+   *
+   * Inserts the row when a deployment has no settings yet — created before settings existed, or created
+   * outside the web app — because the warning has to be remembered somewhere and this is where it lives.
+   * Such a row is written with funding off: an outage bookmark must not be the thing that enrols a
+   * deployment into automatic funding.
+   *
+   * The marker is matched as text for the same reason `releaseFundingClaim` does: a `Date` drops the
+   * sub-millisecond digits Postgres keeps, so a round-tripped value would never match itself.
+   *
+   * Claimed before the email is sent rather than stamped after: the sweep runs many times an hour while
+   * an outage lasts days, so a send that succeeded but failed to stamp would mail the same owner on
+   * every pass. A send that fails hands the claim back through `releaseProviderUnreachableClaim`.
+   */
+  async claimProviderUnreachableNotification({ userId, dseq, downSinceMarker }: { userId: string; dseq: string; downSinceMarker: string }): Promise<boolean> {
+    const [claimed] = await this.cursor
+      .insert(this.table)
+      .values({
+        userId,
+        dseq,
+        autoTopUpEnabled: false,
+        providerUnreachableNotifiedFor: sql`${downSinceMarker}::timestamptz`
+      })
+      .onConflictDoUpdate({
+        target: [this.table.dseq, this.table.userId],
+        set: { providerUnreachableNotifiedFor: sql`${downSinceMarker}::timestamptz`, updatedAt: sql`now()` },
+        setWhere: sql`${this.table.providerUnreachableNotifiedFor} is distinct from ${downSinceMarker}::timestamptz`
+      })
+      .returning({ id: this.table.id });
+
+    return !!claimed;
+  }
+
+  /**
+   * Gives back a claim whose email was never accepted, so the next sweep can report the same outage.
+   * Scoped to the exact outage the claim was taken against, so a release arriving late cannot clear the
+   * stamp a later pass wrote for a newer outage.
+   */
+  async releaseProviderUnreachableClaim({ userId, dseq, downSinceMarker }: { userId: string; dseq: string; downSinceMarker: string }): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({ providerUnreachableNotifiedFor: null, updatedAt: sql`now()` })
+      .where(
+        and(eq(this.table.userId, userId), eq(this.table.dseq, dseq), eq(this.table.providerUnreachableNotifiedFor, sql`${downSinceMarker}::timestamptz`))
+      );
+  }
+
   protected toInput(payload: Partial<DeploymentSettingsInput>): Partial<DeploymentSettingsInput> {
     if (!payload.updatedAt) {
       payload.updatedAt = new Date();
