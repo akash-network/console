@@ -30,6 +30,14 @@ The check is a pure balance comparison: it does not project future spend. The ba
 
 One guard sits after the comparison: when the wallet owns no active deployment the charge is skipped (`no_active_deployments`), so leftover credit below the threshold never gets topped up on an idle wallet. Checks enqueued by initial deployment funding (`triggeredByDeployment`) bypass that count, because it reads the indexer-fed `Deployment` table, which lags chain state right after a lease starts.
 
+### Charge rate limit
+
+A second guard sits right before the charge: at most one automatic charge per `AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN` (default 60 minutes; `0` disables the cap) per wallet. Deployment funding drains a balance in lumps, so without a cap an expensive deployment can produce a burst of identical card charges within minutes: each one costs a flat Stripe fee, risks issuer velocity declines mid-burst, and reads as statement shock (CON-843 measures these bursts).
+
+The cap is an atomic claim on `wallet_settings.last_auto_charge_at`, the same guarded-UPDATE pattern escrow top-ups use for `last_funded_at`: concurrent checks racing for the same wallet resolve to a single winner, so two overlapping jobs cannot both charge. A failed charge attempt releases the claim, so retry behavior is unchanged. A lost claim records a `charge_rate_limited` skip and reschedules the check for when the window reopens (cooldown plus a 1-minute buffer) instead of the usual 24h safety net, so a rate-limited reload is deferred, never dropped.
+
+Manual top-ups never touch this path, and prediction mode is exempt.
+
 ### Worked examples (defaults: threshold $20, amount $100)
 
 | Balance | Threshold | Amount | Outcome |
@@ -49,7 +57,7 @@ Checks are **spend-event-driven**, not fixed to a daily cadence. A check is enqu
 1. When a user enables auto top-up (immediate, prefilled from the settings dialog).
 2. When a user changes their mode, threshold, or amount while enabled (immediate — backs the dialog's "top-up runs shortly after saving").
 3. After every spending broadcast, after initial deployment funding, and after each escrow top-up cycle.
-4. On a self-rescheduled 24h job that acts only as a safety net.
+4. On a self-rescheduled job that acts only as a safety net: 24h out normally, or at the charge-window reopen when the previous check was rate-limited.
 
 Because pg-boss's `singleton` policy uniqueness applies only to *active* jobs, an immediate enqueue is never swallowed by the pending daily safety-net job. Top-ups therefore happen within seconds of the balance crossing the threshold.
 
@@ -71,7 +79,7 @@ The charge uses a job-scoped idempotency key (`WalletBalanceReloadCheck.<jobId>`
 
 ## What happens on failure?
 
-- **Payment fails**: Error is logged and re-thrown (job fails, will retry).
+- **Payment fails**: The charge claim is released (best-effort), then the error is logged and re-thrown (job fails, will retry under the same idempotency key).
 - **Validation fails**: Error is logged, job completes successfully (no retry needed).
 - **Scheduling next check fails**: Error is logged and re-thrown.
 

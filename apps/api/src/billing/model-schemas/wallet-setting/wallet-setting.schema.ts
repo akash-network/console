@@ -28,6 +28,12 @@ export const WalletSetting = pgTable(
     autoReloadMode: autoReloadModeEnum("auto_reload_mode").notNull().default("prediction"),
     autoReloadThreshold: integer("auto_reload_threshold").notNull().default(2000),
     autoReloadAmount: integer("auto_reload_amount").notNull().default(10000),
+    /**
+     * Claim marker rate-limiting automatic threshold-mode charges: set by the winning claim right
+     * before the card is charged, cleared when the charge attempt fails. Null means the wallet has
+     * never been auto-charged (or the last attempt was released).
+     */
+    lastAutoChargeAt: timestamp("last_auto_charge_at"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow()
   },

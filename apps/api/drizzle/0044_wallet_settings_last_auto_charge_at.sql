@@ -1,0 +1,1 @@
+ALTER TABLE "wallet_settings" ADD COLUMN "last_auto_charge_at" timestamp;

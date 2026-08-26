@@ -11,6 +11,7 @@ export const generateWalletSetting = (overrides: Partial<WalletSettingOutput>) =
     autoReloadMode: "prediction" as const,
     autoReloadThreshold: faker.number.int({ min: 500, max: 100000 }),
     autoReloadAmount: faker.number.int({ min: 2000, max: 100000 }),
+    lastAutoChargeAt: null,
     createdAt: faker.date.recent(),
     updatedAt: faker.date.recent(),
     ...overrides

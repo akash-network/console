@@ -98,7 +98,7 @@ export class WalletBalanceReloadCheckInstrumentationService {
     });
   }
 
-  recordReloadSkipped(input: ReloadMetricInput & { reason: "zero_cost" | "sufficient_balance" | "no_active_deployments" }): void {
+  recordReloadSkipped(input: ReloadMetricInput & { reason: "zero_cost" | "sufficient_balance" | "no_active_deployments" | "charge_rate_limited" }): void {
     this.reloadsSkipped.add(1, {
       mode: input.mode,
       reason: input.reason
@@ -130,6 +130,14 @@ export class WalletBalanceReloadCheckInstrumentationService {
       mode: input.mode,
       event: "WALLET_BALANCE_RELOAD_FAILED",
       error: input.error
+    });
+  }
+
+  recordChargeClaimReleaseError(walletSettingId: string, error: unknown): void {
+    this.logger.error({
+      event: "ERROR_RELEASING_CHARGE_CLAIM",
+      walletSettingId,
+      error
     });
   }
 

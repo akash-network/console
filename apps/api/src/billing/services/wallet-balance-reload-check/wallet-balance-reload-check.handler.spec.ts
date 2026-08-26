@@ -1,12 +1,13 @@
 import { faker } from "@faker-js/faker";
-import { addMilliseconds, millisecondsInHour } from "date-fns";
+import { addMilliseconds, millisecondsInHour, millisecondsInMinute } from "date-fns";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import { usdToCents } from "@src/billing/lib/currency/currency";
-import type { WalletSettingRepository } from "@src/billing/repositories";
+import type { ChargeClaim, WalletSettingRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
+import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import type { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
@@ -17,6 +18,7 @@ import type { JobPayload } from "../../../core";
 import { WalletBalanceReloadCheckHandler } from "./wallet-balance-reload-check.handler";
 import type { WalletBalanceReloadCheckInstrumentationService } from "./wallet-balance-reload-check-instrumentation.service";
 
+import { mockConfigService } from "@test/mocks/config-service.mock";
 import { generateMergedPaymentMethod as generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
@@ -213,6 +215,20 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
           withCleanup: true
         })
       );
+    });
+
+    it("charges in prediction mode without consulting the charge rate limit", async () => {
+      const { handler, walletSettingRepository, stripeTransactionService, job, jobMeta } = setup({
+        balance: 10.0,
+        weeklyCostInDenom: 50_000_000,
+        weeklyCostInFiat: 50.0,
+        chargeClaimWon: false
+      });
+
+      await handler.handle(job, jobMeta);
+
+      expect(walletSettingRepository.claimForCharge).not.toHaveBeenCalled();
+      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ amount: 40 }));
     });
 
     it("records reload failure and throws when payment intent fails", async () => {
@@ -500,6 +516,155 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
         logContext: expect.objectContaining({ walletAddress: expect.any(String), balance: 10, threshold: 20, reloadAmount: 100 })
       });
     });
+
+    it("claims the charge window with the configured cooldown and keeps the claim after a successful charge", async () => {
+      const { handler, walletSettingRepository, stripeTransactionService, walletSetting, job, jobMeta } = setup({
+        autoReloadMode: "threshold",
+        balance: 10,
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100,
+        chargeCooldownMinutes: 30
+      });
+
+      await handler.handle(job, jobMeta);
+
+      expect(walletSettingRepository.claimForCharge).toHaveBeenCalledWith(walletSetting.id, 30);
+      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ amount: 100 }));
+      expect(walletSettingRepository.releaseChargeClaim).not.toHaveBeenCalled();
+    });
+
+    it("skips without charging when another charge happened within the cooldown", async () => {
+      const { handler, stripeTransactionService, instrumentationService, job, jobMeta } = setup({
+        autoReloadMode: "threshold",
+        balance: 10,
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100,
+        chargeClaimWon: false
+      });
+
+      await handler.handle(job, jobMeta);
+
+      expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
+      expect(instrumentationService.recordReloadSkipped).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mode: "threshold",
+          reason: "charge_rate_limited",
+          logContext: expect.objectContaining({ balance: 10, threshold: 20, nextCheckAt: expect.any(Date) })
+        })
+      );
+    });
+
+    it("defers the next check to the window reopen when rate limited", async () => {
+      const cooldownMinutes = 60;
+      const { handler, walletReloadJobService, job, jobMeta } = setup({
+        autoReloadMode: "threshold",
+        balance: 10,
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100,
+        chargeClaimWon: false,
+        secondsUntilWindowReopen: cooldownMinutes * 60,
+        chargeCooldownMinutes: cooldownMinutes
+      });
+
+      await handler.handle(job, jobMeta);
+
+      const expectedReopenDate = addMilliseconds(new Date(), (cooldownMinutes + 1) * millisecondsInMinute);
+      const scheduleCall = walletReloadJobService.scheduleForWalletSetting.mock.calls[0];
+      expect(scheduleCall[1]).toEqual(expect.objectContaining({ withCleanup: true }));
+      const scheduledDate = new Date(scheduleCall[1]?.startAfter as string);
+      expect(scheduledDate.getTime()).toBeCloseTo(expectedReopenDate.getTime(), -3);
+    });
+
+    it("waits out only the cooldown still owed when the claim is lost late in the window", async () => {
+      const { handler, walletReloadJobService, job, jobMeta } = setup({
+        autoReloadMode: "threshold",
+        balance: 10,
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100,
+        chargeClaimWon: false,
+        secondsUntilWindowReopen: 60,
+        chargeCooldownMinutes: 60
+      });
+
+      await handler.handle(job, jobMeta);
+
+      const expectedReopenDate = addMilliseconds(new Date(), 2 * millisecondsInMinute);
+      const scheduleCall = walletReloadJobService.scheduleForWalletSetting.mock.calls[0];
+      const scheduledDate = new Date(scheduleCall[1]?.startAfter as string);
+      expect(scheduledDate.getTime()).toBeCloseTo(expectedReopenDate.getTime(), -3);
+    });
+
+    it("defers by the buffer alone when no cooldown is still owed", async () => {
+      const { handler, walletReloadJobService, job, jobMeta } = setup({
+        autoReloadMode: "threshold",
+        balance: 10,
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100,
+        chargeClaimWon: false,
+        secondsUntilWindowReopen: 0,
+        chargeCooldownMinutes: 60
+      });
+
+      await handler.handle(job, jobMeta);
+
+      const expectedReopenDate = addMilliseconds(new Date(), millisecondsInMinute);
+      const scheduleCall = walletReloadJobService.scheduleForWalletSetting.mock.calls[0];
+      const scheduledDate = new Date(scheduleCall[1]?.startAfter as string);
+      expect(scheduledDate.getTime()).toBeCloseTo(expectedReopenDate.getTime(), -3);
+    });
+
+    it("keeps the daily next check when the cooldown reopens later than it", async () => {
+      const { handler, walletReloadJobService, job, jobMeta } = setup({
+        autoReloadMode: "threshold",
+        balance: 10,
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100,
+        chargeClaimWon: false,
+        secondsUntilWindowReopen: 48 * 60 * 60,
+        chargeCooldownMinutes: 48 * 60
+      });
+
+      await handler.handle(job, jobMeta);
+
+      const expectedNextCheckDate = addMilliseconds(new Date(), 24 * millisecondsInHour);
+      const scheduleCall = walletReloadJobService.scheduleForWalletSetting.mock.calls[0];
+      const scheduledDate = new Date(scheduleCall[1]?.startAfter as string);
+      expect(scheduledDate.getTime()).toBeCloseTo(expectedNextCheckDate.getTime(), -3);
+    });
+
+    it("releases the claim and rethrows when the payment intent fails", async () => {
+      const error = new Error("Payment failed");
+      const { handler, walletSettingRepository, stripeTransactionService, chargeClaim, job, jobMeta } = setup({
+        autoReloadMode: "threshold",
+        balance: 10,
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100
+      });
+      stripeTransactionService.createPaymentIntent.mockRejectedValue(error);
+      walletSettingRepository.releaseChargeClaim.mockResolvedValue();
+
+      await expect(handler.handle(job, jobMeta)).rejects.toThrow(error);
+
+      expect(walletSettingRepository.releaseChargeClaim).toHaveBeenCalledWith(chargeClaim);
+    });
+
+    it("rethrows the payment error when releasing the claim also fails", async () => {
+      const paymentError = new Error("Payment failed");
+      const releaseError = new Error("Release failed");
+      const { handler, walletSettingRepository, stripeTransactionService, instrumentationService, chargeClaim, job, jobMeta } = setup({
+        autoReloadMode: "threshold",
+        balance: 10,
+        autoReloadThresholdUsd: 20,
+        autoReloadAmountUsd: 100
+      });
+      stripeTransactionService.createPaymentIntent.mockRejectedValue(paymentError);
+      walletSettingRepository.releaseChargeClaim.mockRejectedValue(releaseError);
+
+      await expect(handler.handle(job, jobMeta)).rejects.toThrow(paymentError);
+
+      expect(instrumentationService.recordChargeClaimReleaseError).toHaveBeenCalledWith(chargeClaim.id, releaseError);
+      expect(instrumentationService.recordReloadFailed).toHaveBeenCalledWith(expect.objectContaining({ error: paymentError }));
+    });
   });
 
   function setup(input?: {
@@ -514,6 +679,9 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     autoReloadMode?: "prediction" | "threshold";
     activeDeploymentCount?: number;
     triggeredByDeployment?: boolean;
+    chargeClaimWon?: boolean;
+    secondsUntilWindowReopen?: number;
+    chargeCooldownMinutes?: number;
     user?: ReturnType<typeof createUser>;
     wallet?: ReturnType<typeof createUserWallet>;
   }) {
@@ -551,7 +719,16 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       id: faker.string.uuid()
     };
 
+    const chargeClaim: ChargeClaim = { id: walletSetting.id, claimedAt: new Date().toISOString() };
     const walletSettingRepository = mock<WalletSettingRepository>();
+    walletSettingRepository.claimForCharge.mockResolvedValue(
+      input?.chargeClaimWon === false
+        ? { won: false, secondsUntilWindowReopen: input?.secondsUntilWindowReopen ?? 0 }
+        : { won: true, claim: chargeClaim }
+    );
+    const billingConfig = mockConfigService<BillingConfigService>({
+      AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN: input?.chargeCooldownMinutes ?? 60
+    });
     const balancesService = mock<BalancesService>({
       ensure2floatingDigits: vi.fn().mockImplementation((amount: number) => amount)
     });
@@ -567,7 +744,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       recordReloadSkipped: vi.fn(),
       recordReloadFailed: vi.fn(),
       recordValidationError: vi.fn(),
-      recordSchedulingError: vi.fn()
+      recordSchedulingError: vi.fn(),
+      recordChargeClaimReleaseError: vi.fn()
     });
     const balance = input?.balance ?? 50.0;
     const weeklyCostInDenom = input?.weeklyCostInDenom ?? 50_000_000;
@@ -597,7 +775,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       stripeTransactionService,
       drainingDeploymentService,
       deploymentRepository,
-      instrumentationService
+      instrumentationService,
+      billingConfig
     );
 
     return {
@@ -610,6 +789,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       paymentMethodService,
       stripeTransactionService,
       instrumentationService,
+      billingConfig,
+      chargeClaim,
       walletSetting,
       walletSettingWithWallet,
       wallet,
