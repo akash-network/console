@@ -4,7 +4,7 @@ import { singleton } from "tsyringe";
 
 import { ManagedSignerService, RpcMessageService } from "@src/billing/services";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
-import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
@@ -21,7 +21,7 @@ export class LeaseService {
   ) {}
 
   @Trace()
-  public async createLeasesAndSendManifest({ leases, manifest, userId }: CreateLeaseRequest & { userId: string }): Promise<GetDeploymentResponse["data"]> {
+  public async createLeasesAndSendManifest({ leases, manifest, userId }: CreateLeaseRequest & { userId: string }): Promise<DeploymentResponse> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const dseq = leases[0].dseq;
 

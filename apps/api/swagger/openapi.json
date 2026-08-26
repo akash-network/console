@@ -4190,12 +4190,32 @@
                             "id",
                             "state"
                           ]
+                        },
+                        "consoleSettings": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "sdl": {
+                              "type": "string",
+                              "description": "The SDL the console stored for this deployment. Re-serialized YAML, so not byte-identical to the submitted document."
+                            },
+                            "manifestVersion": {
+                              "type": "string",
+                              "description": "Base64 of the manifest version this deployment commits on chain. Deliberately not a hash of the `sdl` above."
+                            }
+                          },
+                          "required": [
+                            "sdl",
+                            "manifestVersion"
+                          ],
+                          "description": "What the console recorded for this deployment, or null when it recorded nothing."
                         }
                       },
                       "required": [
                         "deployment",
                         "leases",
-                        "escrow_account"
+                        "escrow_account",
+                        "consoleSettings"
                       ]
                     }
                   },

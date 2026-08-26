@@ -12,7 +12,7 @@ import type { WalletReaderService } from "@src/billing/services/wallet-reader/wa
 import type { LoggerService } from "@src/core";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
-import type { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -117,7 +117,7 @@ describe(DeploymentWriterService.name, () => {
     groupSpecs: [{ name: "test-group", resources: [] }]
   };
 
-  const deploymentData: GetDeploymentResponse["data"] = {
+  const deploymentData: DeploymentResponse = {
     deployment: {
       id: { owner: wallet.address, dseq: "100" },
       state: "active",

@@ -4,7 +4,7 @@ import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY, SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { LeaseController } from "@src/deployment/controllers/lease/lease.controller";
-import { GetDeploymentResponseSchema } from "@src/deployment/http-schemas/deployment.schema";
+import { CreateLeaseResponseSchema } from "@src/deployment/http-schemas/deployment.schema";
 import { CreateLeaseRequestSchema } from "@src/deployment/http-schemas/lease.schema";
 import { FallbackLeaseListQuerySchema, FallbackLeaseListResponseSchema } from "@src/deployment/http-schemas/lease-rpc.schema";
 
@@ -31,7 +31,7 @@ const createLeaseRoute = createRoute({
       description: "Leases created and manifest sent",
       content: {
         "application/json": {
-          schema: GetDeploymentResponseSchema
+          schema: CreateLeaseResponseSchema
         }
       }
     }

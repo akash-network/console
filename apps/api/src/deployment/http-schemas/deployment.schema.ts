@@ -78,7 +78,25 @@ const DeploymentLeaseListItemSchema = DeploymentResponseSchema.extend({
   leases: z.array(DeploymentLeaseSchema.omit({ status: true }))
 });
 
+const ConsoleSettingsSchema = z.object({
+  sdl: z.string().openapi({
+    description: "The SDL the console stored for this deployment. Re-serialized YAML, so not byte-identical to the submitted document."
+  }),
+  manifestVersion: z.string().openapi({
+    description: "Base64 of the manifest version this deployment commits on chain. Deliberately not a hash of the `sdl` above."
+  })
+});
+
 export const GetDeploymentResponseSchema = z.object({
+  data: DeploymentResponseSchema.extend({
+    consoleSettings: ConsoleSettingsSchema.nullable().openapi({
+      description: "What the console recorded for this deployment, or null when it recorded nothing."
+    })
+  })
+});
+
+/** POST /v1/leases answers with the deployment as the chain describes it, without the console's own record. */
+export const CreateLeaseResponseSchema = z.object({
   data: DeploymentResponseSchema
 });
 
@@ -283,6 +301,9 @@ export const GetWeeklyDeploymentCostResponseSchema = z.object({
   })
 });
 
+export type DeploymentResponse = z.infer<typeof DeploymentResponseSchema>;
+export type CreateLeaseResponse = z.infer<typeof CreateLeaseResponseSchema>;
+export type ConsoleSettings = z.infer<typeof ConsoleSettingsSchema>;
 export type GetDeploymentResponse = z.infer<typeof GetDeploymentResponseSchema>;
 export type CreateDeploymentRequest = z.infer<typeof CreateDeploymentRequestSchema>;
 export type CreateDeploymentResponse = z.infer<typeof CreateDeploymentResponseSchema>;

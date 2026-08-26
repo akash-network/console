@@ -5,9 +5,11 @@ import { AxiosError } from "axios";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { AuthService } from "@src/auth/services/auth.service";
 import type { WalletInitialized } from "@src/billing/repositories";
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { FallbackDeploymentReaderService } from "@src/deployment/services/fallback-deployment-reader/fallback-deployment-reader.service";
 import type { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import type { MessageService } from "@src/deployment/services/message-service/message.service";
@@ -20,6 +22,57 @@ import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder"
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(DeploymentReaderService.name, () => {
+  describe("findByUserIdAndDseq", () => {
+    it("returns what the console recorded alongside the deployment", async () => {
+      const { service, wallet } = setup({ recorded: { sdl: "version: '2.0'", manifestVersion: "BAUG" } });
+
+      const result = await service.findByUserIdAndDseq(wallet.userId, "12345");
+
+      expect(result.consoleSettings).toEqual({ sdl: "version: '2.0'", manifestVersion: "BAUG" });
+    });
+
+    it("returns no console settings when nothing was recorded for the deployment", async () => {
+      const { service, wallet } = setup({ recorded: null });
+
+      const result = await service.findByUserIdAndDseq(wallet.userId, "12345");
+
+      expect(result.consoleSettings).toBeNull();
+    });
+
+    it("returns no console settings for a settings row that carries no sdl", async () => {
+      const { service, wallet } = setup({ recorded: { sdl: null, manifestVersion: null } });
+
+      const result = await service.findByUserIdAndDseq(wallet.userId, "12345");
+
+      expect(result.consoleSettings).toBeNull();
+    });
+
+    it("reads the console settings under the caller's own ability and user id", async () => {
+      const { service, wallet, deploymentSettingRepository, scopedDeploymentSettingRepository, authService } = setup();
+
+      await service.findByUserIdAndDseq(wallet.userId, "12345");
+
+      expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
+      expect(scopedDeploymentSettingRepository.findOneBy).toHaveBeenCalledWith({ userId: wallet.userId, dseq: "12345" });
+    });
+
+    it("reads the console settings without waiting for the chain to answer", async () => {
+      const { service, wallet, deploymentHttpService, scopedDeploymentSettingRepository } = setup();
+      const deploymentInfo = createDeploymentInfoSeed();
+      let settingsWereReadBeforeTheChainAnswered = false;
+
+      deploymentHttpService.findByOwnerAndDseq.mockImplementation(async () => {
+        await Promise.resolve();
+        settingsWereReadBeforeTheChainAnswered = scopedDeploymentSettingRepository.findOneBy.mock.calls.length > 0;
+        return deploymentInfo;
+      });
+
+      await service.findByUserIdAndDseq(wallet.userId, "12345");
+
+      expect(settingsWereReadBeforeTheChainAnswered).toBe(true);
+    });
+  });
+
   describe("findByWalletAndDseq", () => {
     it("falls back to database for deployment data when blockchain node is unreachable", async () => {
       const wallet = createUserWallet() as WalletInitialized;
@@ -258,6 +311,7 @@ describe(DeploymentReaderService.name, () => {
       fallbackDeploymentList?: ReturnType<typeof createDeploymentListResponseSeed>;
       fallbackLeases?: ReturnType<typeof createLeaseApiResponse>[];
       leases?: ReturnType<typeof createLeaseApiResponse>[];
+      recorded?: Pick<DeploymentSettingsOutput, "sdl" | "manifestVersion"> | null;
     } = {}
   ) {
     const defaultWallet = createUserWallet() as WalletInitialized;
@@ -294,6 +348,15 @@ describe(DeploymentReaderService.name, () => {
       logger: mock<LoggerService>()
     };
 
+    const recorded = input.recorded === undefined ? { sdl: "version: '2.0'", manifestVersion: "BAUG" } : input.recorded;
+    const scopedDeploymentSettingRepository = mock<DeploymentSettingRepository>({
+      findOneBy: vi.fn().mockResolvedValue(recorded ? mock<DeploymentSettingsOutput>(recorded) : undefined)
+    });
+    const deploymentSettingRepository = mock<DeploymentSettingRepository>({
+      accessibleBy: vi.fn().mockReturnValue(scopedDeploymentSettingRepository)
+    });
+    const authService = mock<AuthService>({ ability: mock<AuthService["ability"]>() });
+
     const service = new DeploymentReaderService(
       mocks.providerService,
       mocks.deploymentHttpService,
@@ -302,9 +365,11 @@ describe(DeploymentReaderService.name, () => {
       mocks.fallbackLeaseReaderService,
       mocks.messageService,
       mocks.walletReaderService,
+      deploymentSettingRepository,
+      authService,
       mocks.logger
     );
 
-    return { service, ...mocks };
+    return { service, ...mocks, wallet, deploymentSettingRepository, scopedDeploymentSettingRepository, authService };
   }
 });
