@@ -13,8 +13,8 @@ export const MAX_RUNTIME_LIMIT_HOURS = 8760;
  *
  * The wall clock is read through the `now` parameter rather than `Date.now()` directly. That keeps the
  * output deterministic under fake timers in tests and lets callers stay fresh on pages that never refetch
- * by passing a ticking clock (`useTickingNow`) — without one, the "~Xh left" / "reached" verdict would
- * freeze at first render.
+ * by passing a ticking clock (`useTickingNow`) — without one, the "2h 10m left" / "limit reached" verdict
+ * would freeze at first render.
  *
  * @param runtimeLimitHours The limit the user requested, shown as-is (e.g. "12h").
  * @param runtimeEndsAt When the deployment is closed automatically, ISO-encoded; null while the countdown
@@ -26,9 +26,27 @@ export function formatRuntimeLimit(runtimeLimitHours: number, runtimeEndsAt: str
   if (!runtimeEndsAt) {
     return limit;
   }
-  const hoursRemaining = (new Date(runtimeEndsAt).getTime() - now) / (1000 * 60 * 60);
-  if (hoursRemaining <= 0) {
-    return `${limit} · reached`;
+  const millisecondsRemaining = new Date(runtimeEndsAt).getTime() - now;
+  if (millisecondsRemaining <= 0) {
+    return `${limit} · limit reached`;
   }
-  return `${limit} · ~${Math.ceil(hoursRemaining)}h left`;
+  return `${limit} · ${formatTimeRemaining(millisecondsRemaining)} left`;
+}
+
+const MILLISECONDS_PER_MINUTE = 60 * 1000;
+const MINUTES_PER_HOUR = 60;
+
+/**
+ * The remaining time as the coarsest honest reading: minutes alone below an hour, hours alone on the hour,
+ * both otherwise. Rounding up at the minute keeps the final seconds reading "1m" rather than "0m", and never
+ * overstates by more than a minute — unlike rounding up whole hours, which sold 2h10m as "~3h".
+ */
+function formatTimeRemaining(milliseconds: number): string {
+  const totalMinutes = Math.ceil(milliseconds / MILLISECONDS_PER_MINUTE);
+  const hours = Math.floor(totalMinutes / MINUTES_PER_HOUR);
+  const minutes = totalMinutes % MINUTES_PER_HOUR;
+
+  if (hours === 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}m`;
 }

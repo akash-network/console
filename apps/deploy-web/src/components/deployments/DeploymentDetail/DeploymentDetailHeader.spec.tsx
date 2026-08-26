@@ -84,17 +84,17 @@ describe("DeploymentDetailHeader", () => {
     try {
       setup({ runtimeLimitHours: 12, runtimeEndsAt: "2026-08-21T14:00:00.000Z" });
 
-      expect(screen.getByText("12h · ~2h left")).toBeInTheDocument();
+      expect(screen.getByText("12h · 2h left")).toBeInTheDocument();
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(61 * 60 * 1000);
       });
-      expect(screen.getByText("12h · ~1h left")).toBeInTheDocument();
+      expect(screen.getByText("12h · 59m left")).toBeInTheDocument();
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
       });
-      expect(screen.getByText("12h · reached")).toBeInTheDocument();
+      expect(screen.getByText("12h · limit reached")).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }
