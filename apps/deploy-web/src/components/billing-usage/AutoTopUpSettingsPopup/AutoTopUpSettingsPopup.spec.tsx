@@ -121,6 +121,18 @@ describe(AutoTopUpSettingsPopup.name, () => {
     expect(screen.queryByLabelText(/purchase this amount/i)).not.toBeInTheDocument();
   });
 
+  it("tells the user the card is charged at most once per hour in threshold mode", () => {
+    setup({ mode: "threshold" });
+
+    expect(screen.getByText(/charged at most once per hour/i)).toBeInTheDocument();
+  });
+
+  it("hides the hourly charge cap in prediction mode", () => {
+    setup({ mode: "prediction" });
+
+    expect(screen.queryByText(/charged at most once per hour/i)).not.toBeInTheDocument();
+  });
+
   it("saves prediction mode without threshold values", async () => {
     const upsertMutate = vi.fn();
     setup({ mode: "threshold", threshold: 30, amount: 150, upsertMutate });
