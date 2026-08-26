@@ -8,12 +8,12 @@ import isAfter from "date-fns/isAfter";
 import subDays from "date-fns/subDays";
 import assert from "http-assert";
 import { BadGateway } from "http-errors";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import type { UserWalletOutput } from "@src/billing/repositories";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
-import { LoggerService } from "@src/core/providers/logging.provider";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import type { ManagedSignerService } from "../managed-signer/managed-signer.service";
 import { RpcMessageService, SpendingAuthorizationMsgOptions } from "../rpc-message-service/rpc-message.service";
 
@@ -40,13 +40,17 @@ export class ManagedUserWalletService {
     }
   );
 
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly txManagerService: TxManagerService,
     private readonly rpcMessageService: RpcMessageService,
     private readonly authzHttpService: AuthzHttpService,
-    private readonly logger: LoggerService
-  ) {}
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.logger = createLogger({ context: ManagedUserWalletService.name });
+  }
 
   async createAndAuthorizeTrialSpending(signer: ManagedSignerService, { addressIndex }: { addressIndex: number }) {
     const address = await this.txManagerService.getDerivedWalletAddress(addressIndex);

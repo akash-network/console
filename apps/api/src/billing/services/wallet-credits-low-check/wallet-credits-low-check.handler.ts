@@ -1,10 +1,10 @@
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-low-check";
 import { isWalletInitialized, type UserWalletOutput, UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { type JobHandler, type JobPayload, LoggerService } from "@src/core";
+import { type CreateLogger, type JobHandler, type JobPayload, LOGGER_FACTORY } from "@src/core";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { creditsRunningLowNotification } from "@src/notifications/services/notification-templates/credits-running-low-notification";
@@ -22,6 +22,8 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
 
   public readonly policy = "singleton";
 
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly walletSettingRepository: WalletSettingRepository,
     private readonly userWalletRepository: UserWalletRepository,
@@ -30,8 +32,10 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
     private readonly drainingDeploymentService: DrainingDeploymentService,
     private readonly notificationService: NotificationService,
     private readonly billingConfig: BillingConfigService,
-    private readonly logger: LoggerService
-  ) {}
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.logger = createLogger({ context: WalletCreditsLowCheckHandler.name });
+  }
 
   async handle(payload: JobPayload<WalletCreditsLowCheck>): Promise<void> {
     const resources = await this.#getValidWalletResources(payload.userId);

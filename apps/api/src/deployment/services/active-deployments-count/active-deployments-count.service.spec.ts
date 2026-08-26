@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { ActiveDeploymentsCountService } from "./active-deployments-count.service";
 
@@ -61,6 +61,12 @@ describe(ActiveDeploymentsCountService.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: ActiveDeploymentsCountService.name });
+  });
+
   function setup(input?: { findOneByUserId?: UserWalletRepository["findOneByUserId"]; countActiveByOwner?: DeploymentRepository["countActiveByOwner"] }) {
     const mocks = {
       userWalletRepository: mock<UserWalletRepository>({
@@ -69,11 +75,13 @@ describe(ActiveDeploymentsCountService.name, () => {
       deploymentRepository: mock<DeploymentRepository>({
         countActiveByOwner: input?.countActiveByOwner ?? vi.fn()
       }),
-      logger: mock<LoggerService>()
+      logger: mock<ReturnType<CreateLogger>>()
     };
 
-    const service = new ActiveDeploymentsCountService(mocks.deploymentRepository, mocks.userWalletRepository, mocks.logger);
+    const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
 
-    return { service, ...mocks };
+    const service = new ActiveDeploymentsCountService(mocks.deploymentRepository, mocks.userWalletRepository, createLogger);
+
+    return { service, createLogger, ...mocks };
   }
 });

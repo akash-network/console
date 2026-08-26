@@ -3,7 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
 import type { JobPayload } from "@src/core";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { EnableDeploymentAlertHandler } from "./enable-deployment-alert.handler";
 
@@ -27,17 +27,24 @@ describe(EnableDeploymentAlertHandler.name, () => {
     });
   });
 
-  function setup(params?: { notificationService?: Partial<NotificationService>; logger?: Partial<LoggerService> }) {
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: EnableDeploymentAlertHandler.name });
+  });
+
+  function setup(params?: { notificationService?: Partial<NotificationService>; logger?: Partial<ReturnType<CreateLogger>> }) {
     const notificationService = mock<NotificationService>({
       autoEnableDeploymentAlert: vi.fn().mockResolvedValue(undefined),
       ...params?.notificationService
     });
-    const logger = mock<LoggerService>({
+    const logger = mock<ReturnType<CreateLogger>>({
       ...params?.logger
     });
+    const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    const handler = new EnableDeploymentAlertHandler(notificationService, logger);
+    const handler = new EnableDeploymentAlertHandler(notificationService, createLogger);
 
-    return { handler, notificationService, logger };
+    return { handler, notificationService, logger, createLogger };
   }
 });

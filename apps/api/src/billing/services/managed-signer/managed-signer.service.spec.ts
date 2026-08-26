@@ -21,7 +21,7 @@ import type { ManagedUserWalletService } from "@src/billing/services/managed-use
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
-import type { LoggerService } from "@src/core";
+import type { CreateLogger } from "@src/core";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
@@ -851,6 +851,12 @@ describe(ManagedSignerService.name, () => {
     };
   }
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: ManagedSignerService.name });
+  });
+
   function setupForCreate(input: { deploymentLimit: number } & Omit<NonNullable<Parameters<typeof setup>[0]>, "retrieveDeploymentLimit">) {
     const { deploymentLimit, ...rest } = input;
 
@@ -929,8 +935,7 @@ describe(ManagedSignerService.name, () => {
         refillWalletFees: vi.fn()
       }),
       trialActivationJobService: mock<TrialActivationJobService>(),
-      logger: mock<LoggerService>({
-        setContext: vi.fn(),
+      logger: mock<ReturnType<CreateLogger>>({
         error: vi.fn(),
         warn: vi.fn()
       })
@@ -939,6 +944,8 @@ describe(ManagedSignerService.name, () => {
     const registryMock = mock<Registry>({
       decode: input?.decode ?? vi.fn()
     });
+
+    const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
 
     const service = new ManagedSignerService(
       registryMock,
@@ -955,9 +962,9 @@ describe(ManagedSignerService.name, () => {
       mocks.walletReloadJobService,
       mocks.managedUserWalletService,
       mocks.trialActivationJobService,
-      mocks.logger
+      createLogger
     );
 
-    return { service, registry: registryMock, ...mocks };
+    return { service, registry: registryMock, createLogger, ...mocks };
   }
 });

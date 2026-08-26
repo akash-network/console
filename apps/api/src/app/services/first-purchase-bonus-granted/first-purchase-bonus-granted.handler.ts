@@ -1,7 +1,7 @@
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { FirstPurchaseBonusGranted } from "@src/billing/events/first-purchase-bonus-granted";
-import { EventPayload, JobHandler, LoggerService } from "@src/core";
+import { type CreateLogger, EventPayload, JobHandler, LOGGER_FACTORY } from "@src/core";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { firstPurchaseBonusGrantedNotification } from "@src/notifications/services/notification-templates/first-purchase-bonus-granted-notification";
 import { UserRepository } from "@src/user/repositories";
@@ -12,11 +12,15 @@ export class FirstPurchaseBonusGrantedHandler implements JobHandler<FirstPurchas
 
   public readonly concurrency = 2;
 
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly notificationService: NotificationService,
     private readonly userRepository: UserRepository,
-    private readonly logger: LoggerService
-  ) {}
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.logger = createLogger({ context: FirstPurchaseBonusGrantedHandler.name });
+  }
 
   async handle(payload: EventPayload<FirstPurchaseBonusGranted>): Promise<void> {
     const user = await this.userRepository.findById(payload.userId);

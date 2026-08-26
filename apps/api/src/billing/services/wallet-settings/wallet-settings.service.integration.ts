@@ -10,7 +10,7 @@ import type { UserWalletRepository, WalletSettingOutput, WalletSettingRepository
 import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { type PaymentMethod } from "@src/billing/services/payment-method/payment-method.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { UserRepository } from "@src/user/repositories";
 import { WalletSettingService } from "./wallet-settings.service";
 
@@ -332,7 +332,8 @@ describe(WalletSettingService.name, () => {
     const walletReloadJobService = mock<WalletReloadJobService>({
       scheduleForWalletSetting: vi.fn().mockResolvedValue(jobId)
     });
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
     const service = new WalletSettingService(
       walletSettingRepository,
       userWalletRepository,
@@ -340,7 +341,7 @@ describe(WalletSettingService.name, () => {
       paymentMethodService,
       authService,
       walletReloadJobService,
-      logger
+      createLogger
     );
 
     return {

@@ -2,10 +2,10 @@ import "@test/mocks/logger-service.mock";
 
 import { faker } from "@faker-js/faker";
 import type { Counter } from "@opentelemetry/api";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { LoggerService, MetricsService } from "@src/core";
+import type { CreateLogger, MetricsService } from "@src/core";
 import { TopUpSummarizer } from "@src/deployment/lib/top-up-summarizer/top-up-summarizer";
 import type { DrainingDeployment } from "@src/deployment/types/draining-deployment";
 import { TopUpManagedDeploymentsInstrumentationService } from "./top-up-managed-deployments-instrumentation.service";
@@ -217,6 +217,12 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
     };
   }
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: TopUpManagedDeploymentsInstrumentationService.name });
+  });
+
   function setup() {
     const countersByName: Record<string, Counter> = {};
     const metricsService = mock<MetricsService>();
@@ -229,10 +235,11 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
     metricsService.createHistogram.mockReturnValue(mock());
 
     const summarizer = new TopUpSummarizer();
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    const service = new TopUpManagedDeploymentsInstrumentationService(metricsService, summarizer, logger);
+    const service = new TopUpManagedDeploymentsInstrumentationService(metricsService, summarizer, createLogger);
 
-    return { service, metricsService, countersByName, summarizer, logger };
+    return { service, metricsService, countersByName, summarizer, logger, createLogger };
   }
 });

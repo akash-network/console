@@ -6,7 +6,7 @@ import type { UserWalletRepository, WalletSettingRepository } from "@src/billing
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { JobPayload } from "@src/core";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { creditsRunningLowNotification } from "@src/notifications/services/notification-templates/credits-running-low-notification";
@@ -203,6 +203,12 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     expect(userWalletRepository.updateById).toHaveBeenCalledWith(expect.any(Number), { creditsLowNotifiedAt: expect.any(Date) });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: WalletCreditsLowCheckHandler.name });
+  });
+
   function setup(input?: {
     autoReloadEnabled?: boolean;
     walletSettingNotFound?: boolean;
@@ -246,7 +252,8 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     const billingConfig = mockConfigService<BillingConfigService>({
       CONSOLE_WEB_PAYMENT_LINK: paymentLink
     });
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
 
     walletSettingRepository.findByUserId.mockResolvedValue(input?.walletSettingNotFound ? undefined : walletSetting);
 
@@ -264,7 +271,7 @@ describe(WalletCreditsLowCheckHandler.name, () => {
       drainingDeploymentService,
       notificationService,
       billingConfig,
-      logger
+      createLogger
     );
 
     return {
@@ -277,6 +284,7 @@ describe(WalletCreditsLowCheckHandler.name, () => {
       notificationService,
       billingConfig,
       logger,
+      createLogger,
       user,
       wallet,
       walletSetting,

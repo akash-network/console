@@ -7,7 +7,7 @@ import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { EventPayload } from "@src/core";
 import { DOMAIN_EVENT_NAME } from "@src/core";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 import { CloseTrialDeployment } from "../close-trial-deployment/close-trial-deployment.handler";
@@ -204,6 +204,12 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
     );
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: TrialDeploymentLeaseCreatedHandler.name });
+  });
+
   function setup(input?: {
     findWalletById?: UserWalletRepository["findById"];
     enqueueJob?: JobQueueService["enqueue"];
@@ -213,7 +219,7 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
       userWalletRepository: mock<UserWalletRepository>({
         findById: input?.findWalletById ?? vi.fn()
       }),
-      logger: mock<LoggerService>(),
+      logger: mock<ReturnType<CreateLogger>>(),
       jobQueueService: mock<JobQueueService>({
         enqueue: input?.enqueueJob ?? vi.fn().mockResolvedValue(undefined)
       }),
@@ -222,8 +228,10 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
       })
     };
 
-    const handler = new TrialDeploymentLeaseCreatedHandler(mocks.userWalletRepository, mocks.logger, mocks.jobQueueService, mocks.billingConfig);
+    const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
 
-    return { handler, ...mocks };
+    const handler = new TrialDeploymentLeaseCreatedHandler(mocks.userWalletRepository, createLogger, mocks.jobQueueService, mocks.billingConfig);
+
+    return { handler, createLogger, ...mocks };
   }
 });

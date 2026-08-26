@@ -1,18 +1,20 @@
 import { DeploymentHttpService, LeaseHttpService, type RpcLease } from "@akashnetwork/http-sdk";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
-import { LoggerService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DrainingDeploymentOutput } from "@src/deployment/repositories/lease/lease.repository";
 import { DrainingDeploymentLeaseSource, RpcDeploymentInfo } from "@src/deployment/types/draining-deployment";
 
 @singleton()
 export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSource {
+  private readonly loggerService: ReturnType<CreateLogger>;
+
   constructor(
     private readonly leaseHttpService: LeaseHttpService,
     private readonly deploymentHttpService: DeploymentHttpService,
-    private readonly loggerService: LoggerService
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    loggerService.setContext(DrainingDeploymentRpcService.name);
+    this.loggerService = createLogger({ context: DrainingDeploymentRpcService.name });
   }
 
   /**

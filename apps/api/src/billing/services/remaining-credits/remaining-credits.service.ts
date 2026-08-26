@@ -1,8 +1,8 @@
-import { injectable } from "tsyringe";
+import { inject, injectable } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
-import { LoggerService } from "@src/core/providers/logging.provider";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import type { Resolver } from "@src/core/providers/resolvers.provider";
 import { DATA_RESOLVER } from "@src/core/providers/resolvers.provider";
 import { UserOutput } from "@src/user/repositories";
@@ -12,12 +12,14 @@ import { udenomToDenom } from "@src/utils/math";
 export class RemainingCreditsService implements Resolver {
   readonly key = "remainingCredits";
 
+  private readonly loggerService: ReturnType<CreateLogger>;
+
   constructor(
     private readonly balanceService: BalancesService,
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly loggerService: LoggerService
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    loggerService.setContext(RemainingCreditsService.name);
+    this.loggerService = createLogger({ context: RemainingCreditsService.name });
   }
 
   async resolve(user: UserOutput) {

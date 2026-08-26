@@ -6,7 +6,7 @@ import { mock } from "vitest-mock-extended";
 import type { SignAndBroadcastOptions } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
 import type { Wallet } from "@src/billing/lib/wallet/wallet";
 import type { ExternalSignerHttpSdkService } from "@src/billing/services/external-signer-http-sdk/external-signer-http-sdk.service";
-import type { LoggerService } from "@src/core";
+import type { CreateLogger } from "@src/core";
 import { TxManagerService } from "./tx-manager.service";
 
 import { createAkashAddress } from "@test/seeders";
@@ -83,6 +83,12 @@ describe(TxManagerService.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: TxManagerService.name });
+  });
+
   function setup(input?: {
     fundingWalletAddress?: string;
     derivedWalletAddress?: string;
@@ -110,7 +116,8 @@ describe(TxManagerService.name, () => {
       }
     };
 
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
     const externalSignerHttpSdkService = mock<ExternalSignerHttpSdkService>({
       signAndBroadcastWithFundingWallet: vi
         .fn()
@@ -120,7 +127,7 @@ describe(TxManagerService.name, () => {
         .mockResolvedValue(input?.externalDerivedResult ?? mock<IndexedTx>({ code: 0, hash: "default-hash", rawLog: "success" }))
     });
 
-    const service = new TxManagerService(walletResources, logger, externalSignerHttpSdkService);
+    const service = new TxManagerService(walletResources, createLogger, externalSignerHttpSdkService);
 
     return {
       service,
@@ -128,6 +135,7 @@ describe(TxManagerService.name, () => {
       derivedWallet,
       walletFactory,
       logger,
+      createLogger,
       externalSignerHttpSdkService
     };
   }

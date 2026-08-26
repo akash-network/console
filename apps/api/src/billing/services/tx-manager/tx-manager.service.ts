@@ -5,7 +5,7 @@ import type { SignAndBroadcastOptions } from "@src/billing/lib/batch-signing-cli
 import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ExternalSignerHttpSdkService } from "@src/billing/services/external-signer-http-sdk/external-signer-http-sdk.service";
-import { LoggerService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 
 export type WalletFactory = (walletIndex?: number) => Wallet;
 type WalletVersionConfig = {
@@ -54,12 +54,14 @@ type WalletOptions = {
 export class TxManagerService {
   readonly #DEFAULT_WALLET_VERSION: WalletVersion = "v2";
 
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     @inject(WALLET_RESOURCES) private readonly walletResources: WalletResources,
-    private readonly logger: LoggerService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger,
     private readonly externalSignerHttpSdkService: ExternalSignerHttpSdkService
   ) {
-    this.logger.setContext(TxManagerService.name);
+    this.logger = createLogger({ context: TxManagerService.name });
   }
 
   #getWalletResources(options?: WalletOptions): WalletVersionConfig {

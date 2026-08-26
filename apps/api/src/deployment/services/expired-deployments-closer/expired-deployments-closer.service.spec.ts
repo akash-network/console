@@ -1,10 +1,10 @@
 import { faker } from "@faker-js/faker";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
-import type { LoggerService } from "@src/core";
+import type { CreateLogger } from "@src/core";
 import type { DeploymentSettingRepository, ExpiredRuntimeDeployment } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { ExpiredDeploymentsCloserService } from "./expired-deployments-closer.service";
@@ -94,12 +94,19 @@ describe(ExpiredDeploymentsCloserService.name, () => {
     };
   }
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup({ expired: [] });
+
+    expect(createLogger).toHaveBeenCalledWith({ context: ExpiredDeploymentsCloserService.name });
+  });
+
   function setup(input: { expired: ExpiredRuntimeDeployment[]; walletAddress?: string | null; closeError?: Error; isUnsettleable?: boolean }) {
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     const userWalletRepository = mock<UserWalletRepository>();
     const deploymentWriterService = mock<DeploymentWriterService>();
     const chainErrorService = mock<ChainErrorService>();
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
 
     deploymentSettingRepository.findExpiredRuntimeDeployments.mockResolvedValue(input.expired);
     userWalletRepository.findById.mockImplementation(async walletId => {
@@ -115,8 +122,14 @@ describe(ExpiredDeploymentsCloserService.name, () => {
       deploymentWriterService.close.mockRejectedValue(input.closeError);
     }
 
-    const service = new ExpiredDeploymentsCloserService(deploymentSettingRepository, userWalletRepository, deploymentWriterService, chainErrorService, logger);
+    const service = new ExpiredDeploymentsCloserService(
+      deploymentSettingRepository,
+      userWalletRepository,
+      deploymentWriterService,
+      chainErrorService,
+      createLogger
+    );
 
-    return { service, deploymentSettingRepository, userWalletRepository, deploymentWriterService, chainErrorService, logger };
+    return { service, deploymentSettingRepository, userWalletRepository, deploymentWriterService, chainErrorService, logger, createLogger };
   }
 });

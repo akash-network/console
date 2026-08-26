@@ -1,12 +1,12 @@
 import { AnyAbility } from "@casl/ability";
 import { millisecondsInHour } from "date-fns/constants";
 import keyBy from "lodash/keyBy";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
-import { LoggerService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import type { DryRunOptions } from "@src/core/types/console";
 import { AutoTopUpDeployment, DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DrainingDeploymentOutput, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
@@ -26,18 +26,20 @@ export type WeeklyCoverage = {
 
 @singleton()
 export class DrainingDeploymentService {
+  private readonly loggerService: ReturnType<CreateLogger>;
+
   constructor(
     private readonly blockHttpService: BlockHttpService,
     private readonly leaseRepository: LeaseRepository,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly config: DeploymentConfigService,
-    private readonly loggerService: LoggerService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger,
     private readonly rpcService: DrainingDeploymentRpcService,
     private readonly balancesService: BalancesService,
     private readonly instrumentation: TopUpManagedDeploymentsInstrumentationService
   ) {
-    loggerService.setContext(DrainingDeploymentService.name);
+    this.loggerService = createLogger({ context: DrainingDeploymentService.name });
   }
 
   /**

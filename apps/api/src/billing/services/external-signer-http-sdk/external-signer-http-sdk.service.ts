@@ -6,7 +6,7 @@ import { inject, singleton } from "tsyringe";
 import type { SignAndBroadcastOptions } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { LoggerService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 
 type SignAndBroadcastRequestMessage = {
   typeUrl: string;
@@ -33,12 +33,14 @@ type SignAndBroadcastResponse = {
 
 @singleton()
 export class ExternalSignerHttpSdkService {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly billingConfigService: BillingConfigService,
-    private readonly logger: LoggerService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger,
     @inject(TYPE_REGISTRY) private readonly registry: Registry
   ) {
-    this.logger.setContext(ExternalSignerHttpSdkService.name);
+    this.logger = createLogger({ context: ExternalSignerHttpSdkService.name });
   }
 
   async signAndBroadcastWithFundingWallet(messages: readonly EncodeObject[]) {

@@ -7,7 +7,7 @@ import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { JOB_NAME, type JobPayload, type JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
@@ -281,6 +281,12 @@ describe(CloseTrialDeploymentHandler.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: CloseTrialDeploymentHandler.name });
+  });
+
   function setup(input?: {
     findWalletById?: UserWalletRepository["findById"];
     enqueueJob?: JobQueueService["enqueue"];
@@ -301,7 +307,7 @@ describe(CloseTrialDeploymentHandler.name, () => {
             })
           )
       }),
-      logger: mock<LoggerService>(),
+      logger: mock<ReturnType<CreateLogger>>(),
       jobQueueService: mock<JobQueueService>({
         enqueue: input?.enqueueJob ?? vi.fn().mockResolvedValue(undefined)
       }),
@@ -317,9 +323,11 @@ describe(CloseTrialDeploymentHandler.name, () => {
       chainErrorService: new ChainErrorService(mock<BalanceHttpService>(), mock<BillingConfigService>(), mock<TxManagerService>())
     };
 
+    const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
+
     const handler = new CloseTrialDeploymentHandler(
       mocks.userWalletRepository,
-      mocks.logger,
+      createLogger,
       mocks.jobQueueService,
       mocks.deploymentWriterService,
       mocks.deploymentService,
@@ -327,6 +335,6 @@ describe(CloseTrialDeploymentHandler.name, () => {
       mocks.chainErrorService
     );
 
-    return { handler, ...mocks };
+    return { handler, createLogger, ...mocks };
   }
 });

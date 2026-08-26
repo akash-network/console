@@ -1,14 +1,14 @@
 import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
 import { HTTPException } from "hono/http-exception";
 import assert from "http-assert";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import type { UserWalletOutput, WalletInitialized } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
-import { LoggerService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
@@ -24,6 +24,8 @@ import { StaleManagedDeploymentsCleanerService } from "../stale-managed-deployme
 
 @singleton()
 export class DeploymentWriterService {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly signerService: ManagedSignerService,
     private readonly rpcMessageService: RpcMessageService,
@@ -33,11 +35,13 @@ export class DeploymentWriterService {
     private readonly deploymentReaderService: DeploymentReaderService,
     private readonly walletReaderService: WalletReaderService,
     private readonly staleDeploymentsCleaner: StaleManagedDeploymentsCleanerService,
-    private readonly logger: LoggerService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger,
     private readonly deploymentConfig: DeploymentConfigService,
     private readonly featureFlagsService: FeatureFlagsService,
     private readonly deploymentSettingRepository: DeploymentSettingRepository
-  ) {}
+  ) {
+    this.logger = createLogger({ context: DeploymentWriterService.name });
+  }
 
   public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
     const dseq = Date.now();

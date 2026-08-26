@@ -3,12 +3,12 @@ import type { EncodeObject } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
 import addDays from "date-fns/addDays";
 import subDays from "date-fns/subDays";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { BillingConfig } from "@src/billing/providers";
 import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { ManagedSignerService } from "../managed-signer/managed-signer.service";
 import type { RpcMessageService } from "../rpc-message-service/rpc-message.service";
 import { ManagedUserWalletService } from "./managed-user-wallet.service";
@@ -154,6 +154,12 @@ describe(ManagedUserWalletService.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: ManagedUserWalletService.name });
+  });
+
   function setup() {
     const config: BillingConfig = {
       TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: 500000,
@@ -167,7 +173,8 @@ describe(ManagedUserWalletService.name, () => {
     const rpcMessageService = mock<RpcMessageService>();
     const authzHttpService = mock<AuthzHttpService>();
     const signer = mock<ManagedSignerService>();
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
 
     txManagerService.getFundingWalletAddress.mockResolvedValue(createAkashAddress());
     authzHttpService.hasFeeAllowance.mockResolvedValue(false);
@@ -175,8 +182,8 @@ describe(ManagedUserWalletService.name, () => {
     rpcMessageService.getRevokeAllowanceMsg.mockReturnValue({ typeUrl: "/fee-revoke", value: {} } as unknown as EncodeObject);
     signer.executeFundingTx.mockResolvedValue({ code: 0, hash: "hash", rawLog: "[]" } as never);
 
-    const service = new ManagedUserWalletService(config, txManagerService, rpcMessageService, authzHttpService, logger);
+    const service = new ManagedUserWalletService(config, txManagerService, rpcMessageService, authzHttpService, createLogger);
 
-    return { service, signer, config, txManagerService, rpcMessageService, authzHttpService, logger };
+    return { service, signer, config, txManagerService, rpcMessageService, authzHttpService, logger, createLogger };
   }
 });

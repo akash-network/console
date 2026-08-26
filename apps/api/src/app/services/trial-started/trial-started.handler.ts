@@ -1,9 +1,9 @@
 import { addDays, subDays } from "date-fns";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { TrialStarted } from "@src/billing/events/trial-started";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { EventPayload, JobHandler, JobQueueService, LoggerService } from "@src/core";
+import { type CreateLogger, EventPayload, JobHandler, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { RESOLVED_MARKER } from "@src/notifications/services/notification-data-resolver/notification-data-resolver.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
@@ -16,13 +16,17 @@ export class TrialStartedHandler implements JobHandler<TrialStarted> {
 
   public readonly concurrency = 2;
 
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly notificationService: NotificationService,
     private readonly jobQueueManager: JobQueueService,
     private readonly userRepository: UserRepository,
-    private readonly logger: LoggerService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger,
     private readonly billingConfig: BillingConfigService
-  ) {}
+  ) {
+    this.logger = createLogger({ context: TrialStartedHandler.name });
+  }
 
   async handle(payload: EventPayload<TrialStarted>): Promise<void> {
     const user = await this.userRepository.findById(payload.userId);

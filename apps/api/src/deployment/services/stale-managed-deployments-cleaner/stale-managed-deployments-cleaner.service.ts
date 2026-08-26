@@ -1,6 +1,6 @@
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { secondsInMinute } from "date-fns/constants";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
@@ -8,7 +8,7 @@ import { ManagedUserWalletService, RpcMessageService } from "@src/billing/servic
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { BlockRepository } from "@src/chain/repositories/block.repository";
-import { LoggerService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { ErrorService } from "@src/core/services/error/error.service";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { CleanUpStaleDeploymentsParams } from "@src/deployment/types/state-deployments";
@@ -17,6 +17,8 @@ import { averageBlockTime } from "@src/utils/constants";
 @singleton()
 export class StaleManagedDeploymentsCleanerService {
   private readonly MAX_LIVE_BLOCKS = Math.floor((10 * secondsInMinute) / averageBlockTime);
+
+  private readonly logger: ReturnType<CreateLogger>;
 
   constructor(
     private readonly userWalletRepository: UserWalletRepository,
@@ -28,9 +30,9 @@ export class StaleManagedDeploymentsCleanerService {
     private readonly managedUserWalletService: ManagedUserWalletService,
     private readonly errorService: ErrorService,
     private readonly chainErrorService: ChainErrorService,
-    private readonly logger: LoggerService
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    this.logger.setContext(StaleManagedDeploymentsCleanerService.name);
+    this.logger = createLogger({ context: StaleManagedDeploymentsCleanerService.name });
   }
 
   async cleanup(options: CleanUpStaleDeploymentsParams) {

@@ -1,20 +1,22 @@
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-low-check";
 import { UserWalletRepository, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { EnqueueOptions, JobQueueService } from "@src/core";
-import { LoggerService } from "@src/core/providers/logging.provider";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 
 @singleton()
 export class WalletReloadJobService {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly walletSettingRepository: WalletSettingRepository,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly jobQueueService: JobQueueService,
-    private readonly logger: LoggerService
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    this.logger.setContext(WalletReloadJobService.name);
+    this.logger = createLogger({ context: WalletReloadJobService.name });
   }
 
   async scheduleImmediate(input: WalletReloadImmediateInput, options?: { triggeredByDeployment?: boolean }): Promise<boolean> {

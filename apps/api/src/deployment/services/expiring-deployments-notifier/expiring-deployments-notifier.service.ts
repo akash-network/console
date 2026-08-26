@@ -1,7 +1,7 @@
 import { Err, Ok, Result } from "ts-results";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
-import { LoggerService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import type { DryRunOptions } from "@src/core/types/console";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
@@ -20,14 +20,16 @@ import { DeploymentSettingRepository, type ExpiringRuntimeDeployment } from "../
  */
 @singleton()
 export class ExpiringDeploymentsNotifierService {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly userRepository: UserRepository,
     private readonly notificationService: NotificationService,
     private readonly config: DeploymentConfigService,
-    private readonly logger: LoggerService
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    this.logger.setContext(ExpiringDeploymentsNotifierService.name);
+    this.logger = createLogger({ context: ExpiringDeploymentsNotifierService.name });
   }
 
   async notifyExpiringDeployments({ dryRun }: DryRunOptions): Promise<Result<void, unknown[]>> {

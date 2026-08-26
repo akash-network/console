@@ -3,15 +3,15 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { Amplitude } from "@src/core/providers/amplitude.provider";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { AnalyticsService } from "./analytics.service";
 
 describe(AnalyticsService.name, () => {
   describe("constructor", () => {
-    it("sets logger context", () => {
-      const { logger } = setup();
+    it("creates the logger with the service context", () => {
+      const { createLogger } = setup();
 
-      expect(logger.setContext).toHaveBeenCalledWith("AnalyticsService");
+      expect(createLogger).toHaveBeenCalledWith({ context: AnalyticsService.name });
     });
   });
 
@@ -96,12 +96,14 @@ describe(AnalyticsService.name, () => {
     const amplitude = mock<Amplitude>({
       Identify: IdentifyConstructor
     });
-    const logger = mock<LoggerService>();
-    const service = new AnalyticsService(amplitude, logger);
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
+    const service = new AnalyticsService(amplitude, createLogger);
 
     return {
       amplitude,
       logger,
+      createLogger,
       service
     };
   }

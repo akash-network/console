@@ -1,5 +1,5 @@
 import assert from "http-assert";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { centsToUsd, usdToCents } from "@src/billing/lib/currency/currency";
@@ -7,7 +7,7 @@ import { UserWalletRepository, type WalletSettingOutput, WalletSettingRepository
 import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { WithTransaction } from "@src/core";
-import { LoggerService } from "@src/core/providers/logging.provider";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 
@@ -20,6 +20,8 @@ export interface WalletSettingInput {
 
 @singleton()
 export class WalletSettingService {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly walletSettingRepository: WalletSettingRepository,
     private readonly userWalletRepository: UserWalletRepository,
@@ -27,9 +29,9 @@ export class WalletSettingService {
     private readonly paymentMethodService: PaymentMethodService,
     private readonly authService: AuthService,
     private readonly walletReloadJobService: WalletReloadJobService,
-    private readonly logger: LoggerService
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    this.logger.setContext(WalletSettingService.name);
+    this.logger = createLogger({ context: WalletSettingService.name });
   }
 
   async getWalletSetting(userId: string): Promise<WalletSettingOutput | undefined> {

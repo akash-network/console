@@ -4,7 +4,7 @@ import type { Sql } from "postgres";
 import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { CoreConfigService } from "../core-config/core-config.service";
 import type { ExecutionContextService } from "../execution-context/execution-context.service";
 import type { TxService } from "../tx/tx.service";
@@ -394,9 +394,15 @@ describe(JobQueueService.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: JobQueueService.name });
+  });
+
   function setup(input?: { pgBoss?: PgBoss; postgresDbUri?: string }) {
     const mocks = {
-      logger: mock<LoggerService>(),
+      logger: mock<ReturnType<CreateLogger>>(),
       coreConfig: mock<CoreConfigService>({
         get: vi.fn().mockReturnValue(input?.postgresDbUri ?? "postgresql://localhost:5432/test")
       }),
@@ -419,15 +425,17 @@ describe(JobQueueService.name, () => {
       txService: mock<TxService>()
     };
 
+    const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
+
     const service = new JobQueueService(
-      mocks.logger,
+      createLogger,
       mocks.coreConfig,
       mocks.executionContextService,
       mocks.txService,
       input && Object.hasOwn(input, "pgBoss") ? input?.pgBoss : mocks.pgBoss
     );
 
-    return { service, ...mocks };
+    return { service, createLogger, ...mocks };
   }
 
   class TestJob implements Job {

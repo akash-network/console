@@ -11,7 +11,7 @@ import { ChainErrorService } from "@src/billing/services/chain-error/chain-error
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import type { BlockRepository } from "@src/chain/repositories/block.repository";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { ErrorService } from "@src/core/services/error/error.service";
 import type { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { StaleManagedDeploymentsCleanerService } from "./stale-managed-deployments-cleaner.service";
@@ -118,6 +118,18 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     return createError(400, "Deployment escrow cannot be settled yet", { originalError: new Error(UNSETTLEABLE_PANIC) });
   }
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: StaleManagedDeploymentsCleanerService.name });
+  });
+
+  it("creates the error service logger with the service context", () => {
+    const { createErrorLogger } = setup();
+
+    expect(createErrorLogger).toHaveBeenCalledWith({ context: ErrorService.name });
+  });
+
   function setup(input?: { currentHeight?: number; staleDeployments?: { dseq: number }[]; executeDerivedTx?: ManagedSignerService["executeDerivedTx"] }) {
     const wallet = createUserWallet({ id: 123, address: "akash1test" });
 
@@ -134,9 +146,11 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     });
     const managedUserWalletService = mock<ManagedUserWalletService>();
     const config = mock<BillingConfig>({ FEE_ALLOWANCE_REFILL_AMOUNT: 1000 });
-    const logger = mock<LoggerService>();
-    const errorLogger = mock<LoggerService>();
-    const errorService = new ErrorService(errorLogger);
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
+    const errorLogger = mock<ReturnType<CreateLogger>>();
+    const createErrorLogger = vi.fn<CreateLogger>(() => errorLogger);
+    const errorService = new ErrorService(createErrorLogger);
     const chainErrorService = new ChainErrorService(mock<BalanceHttpService>(), mock<BillingConfigService>(), mock<TxManagerService>());
 
     blockRepository.getLatestProcessedHeight.mockResolvedValue(input?.currentHeight ?? 1_000_000);
@@ -152,7 +166,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       managedUserWalletService,
       errorService,
       chainErrorService,
-      logger
+      createLogger
     );
 
     return {
@@ -166,7 +180,9 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       managedUserWalletService,
       chainErrorService,
       logger,
-      errorLogger
+      createLogger,
+      errorLogger,
+      createErrorLogger
     };
   }
 });

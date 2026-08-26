@@ -1,9 +1,9 @@
 import { faker } from "@faker-js/faker";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { ActivateTrial } from "@src/billing/events/activate-trial";
-import type { JobQueueService, LoggerService } from "@src/core";
+import type { CreateLogger, JobQueueService } from "@src/core";
 import { TrialActivationJobService } from "./trial-activation-job.service";
 
 describe(TrialActivationJobService.name, () => {
@@ -45,13 +45,20 @@ describe(TrialActivationJobService.name, () => {
     });
   });
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: TrialActivationJobService.name });
+  });
+
   function setup(input?: { enqueueError?: Error }) {
     const jobQueueService = mock<JobQueueService>();
     if (input?.enqueueError) {
       jobQueueService.enqueue.mockRejectedValue(input.enqueueError);
     }
-    const logger = mock<LoggerService>();
-    const service = new TrialActivationJobService(jobQueueService, logger);
-    return { service, jobQueueService, logger };
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
+    const service = new TrialActivationJobService(jobQueueService, createLogger);
+    return { service, jobQueueService, logger, createLogger };
   }
 });

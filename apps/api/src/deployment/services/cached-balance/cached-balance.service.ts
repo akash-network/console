@@ -1,8 +1,8 @@
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { memoizeAsync } from "@src/caching/helpers";
-import { LoggerService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { denomToUdenom } from "@src/utils/math";
 
@@ -51,12 +51,14 @@ export class CachedBalance {
 export class CachedBalanceService {
   public get = memoizeAsync((address: string) => this.buildForAddress(address), { cacheItemLimit: 10_000 });
 
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly balancesService: BalancesService,
     private readonly deploymentConfig: DeploymentConfigService,
-    private readonly logger: LoggerService
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    this.logger.setContext(CachedBalanceService.name);
+    this.logger = createLogger({ context: CachedBalanceService.name });
   }
 
   /**

@@ -4,7 +4,7 @@ import { Job as PgBossJob, PgBoss, Queue as PgBossQueue, SendOptions as PgBossSe
 import type { Sql } from "postgres";
 import { Disposable, inject, InjectionToken, singleton } from "tsyringe";
 
-import { LoggerService } from "@src/core/providers/logging.provider";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { CoreConfigService } from "../core-config/core-config.service";
 import { ExecutionContextService } from "../execution-context/execution-context.service";
 import { TxService } from "../tx/tx.service";
@@ -16,14 +16,16 @@ export class JobQueueService implements Disposable {
   private readonly pgBoss: PgBoss;
   private handlers?: JobHandler<Job>[];
   private readonly tracer = trace.getTracer("job-queue");
+  private readonly logger: ReturnType<CreateLogger>;
 
   constructor(
-    private readonly logger: LoggerService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger,
     private readonly coreConfig: CoreConfigService,
     private readonly executionContextService: ExecutionContextService,
     private readonly txService: TxService,
     @inject(PG_BOSS_TOKEN, { isOptional: true }) pgBoss?: PgBoss
   ) {
+    this.logger = createLogger({ context: JobQueueService.name });
     this.pgBoss =
       pgBoss ??
       new PgBoss({

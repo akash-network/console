@@ -1,17 +1,19 @@
 import createError from "http-errors";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { ActivateTrial } from "@src/billing/events/activate-trial";
-import { JobQueueService, LoggerService } from "@src/core";
+import { type CreateLogger, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import type { UserOutput } from "@src/user/repositories";
 
 @singleton()
 export class TrialActivationJobService {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly jobQueueService: JobQueueService,
-    private readonly logger: LoggerService
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    this.logger.setContext(TrialActivationJobService.name);
+    this.logger = createLogger({ context: TrialActivationJobService.name });
   }
 
   /**

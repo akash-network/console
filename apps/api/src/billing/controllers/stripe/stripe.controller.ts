@@ -1,7 +1,7 @@
 import { HTTPException } from "hono/http-exception";
 import assert from "http-assert";
 import Stripe from "stripe";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 import type { infer as ZodInfer } from "zod";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
@@ -31,10 +31,12 @@ import { TopUpService } from "@src/billing/services/top-up/top-up.service";
 import { TransactionReportingService } from "@src/billing/services/transaction-reporting/transaction-reporting.service";
 import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import { WalletSettingService } from "@src/billing/services/wallet-settings/wallet-settings.service";
-import { LoggerService } from "@src/core/providers/logging.provider";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 
 @singleton()
 export class StripeController {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly stripe: StripeService,
     private readonly stripeTransaction: StripeTransactionService,
@@ -48,9 +50,9 @@ export class StripeController {
     private readonly couponRedemptionService: CouponRedemptionService,
     private readonly customerService: CustomerService,
     private readonly walletSettingService: WalletSettingService,
-    private readonly logger: LoggerService
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    this.logger.setContext(StripeController.name);
+    this.logger = createLogger({ context: StripeController.name });
   }
 
   @Protected([{ action: "read", subject: "StripePayment" }])

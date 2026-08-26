@@ -1,11 +1,13 @@
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
-import { LoggerService } from "../../providers/logging.provider";
+import { type CreateLogger, LOGGER_FACTORY } from "../../providers/logging.provider";
 
 @singleton()
 export class ErrorService {
-  constructor(private readonly logger: LoggerService) {
-    this.logger.setContext(ErrorService.name);
+  private readonly logger: ReturnType<CreateLogger>;
+
+  constructor(@inject(LOGGER_FACTORY) createLogger: CreateLogger) {
+    this.logger = createLogger({ context: ErrorService.name });
   }
 
   async execWithErrorHandler<T>(extraLog: Record<string, unknown>, cb: () => Promise<T>, onError?: (error: unknown) => void): Promise<T | undefined> {

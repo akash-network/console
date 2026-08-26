@@ -16,13 +16,13 @@ import { AxiosError } from "axios";
 import assert from "http-assert";
 import { InternalServerError } from "http-errors";
 import { Op } from "sequelize";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import type { WalletInitialized } from "@src/billing/repositories";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { Memoize } from "@src/caching/helpers";
-import { LoggerService } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { ConsoleSettings, DeploymentResponse, GetDeploymentResponse, ListDeploymentsItem } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
@@ -35,6 +35,8 @@ import { MessageService } from "../message-service/message.service";
 
 @singleton()
 export class DeploymentReaderService {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly providerService: ProviderService,
     private readonly deploymentHttpService: DeploymentHttpService,
@@ -45,8 +47,10 @@ export class DeploymentReaderService {
     private readonly walletReaderService: WalletReaderService,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly authService: AuthService,
-    private readonly logger: LoggerService
-  ) {}
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.logger = createLogger({ context: DeploymentReaderService.name });
+  }
 
   public async findByUserIdAndDseq(userId: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);

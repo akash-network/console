@@ -8,7 +8,7 @@ import { mock } from "vitest-mock-extended";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { WalletInitialized } from "@src/billing/repositories";
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
-import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { FallbackDeploymentReaderService } from "@src/deployment/services/fallback-deployment-reader/fallback-deployment-reader.service";
 import type { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
@@ -304,6 +304,12 @@ describe(DeploymentReaderService.name, () => {
     });
   }
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: DeploymentReaderService.name });
+  });
+
   function setup(
     input: {
       wallet?: WalletInitialized;
@@ -345,7 +351,7 @@ describe(DeploymentReaderService.name, () => {
       walletReaderService: mock<WalletReaderService>({
         getWalletByUserId: vi.fn().mockResolvedValue(wallet)
       }),
-      logger: mock<LoggerService>()
+      logger: mock<ReturnType<CreateLogger>>()
     };
 
     const recorded = input.recorded === undefined ? { sdl: "version: '2.0'", manifestVersion: "BAUG" } : input.recorded;
@@ -356,6 +362,7 @@ describe(DeploymentReaderService.name, () => {
       accessibleBy: vi.fn().mockReturnValue(scopedDeploymentSettingRepository)
     });
     const authService = mock<AuthService>({ ability: mock<AuthService["ability"]>() });
+    const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
 
     const service = new DeploymentReaderService(
       mocks.providerService,
@@ -367,9 +374,9 @@ describe(DeploymentReaderService.name, () => {
       mocks.walletReaderService,
       deploymentSettingRepository,
       authService,
-      mocks.logger
+      createLogger
     );
 
-    return { service, ...mocks, wallet, deploymentSettingRepository, scopedDeploymentSettingRepository, authService };
+    return { service, createLogger, ...mocks, wallet, deploymentSettingRepository, scopedDeploymentSettingRepository, authService };
   }
 });

@@ -1,8 +1,8 @@
 import { faker } from "@faker-js/faker";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { LoggerService } from "@src/core";
+import type { CreateLogger } from "@src/core";
 import type { DeploymentSettingRepository, ExpiringRuntimeDeployment } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
@@ -134,6 +134,12 @@ describe(ExpiringDeploymentsNotifierService.name, () => {
     };
   }
 
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup({ expiring: [] });
+
+    expect(createLogger).toHaveBeenCalledWith({ context: ExpiringDeploymentsNotifierService.name });
+  });
+
   function setup(input: {
     expiring: ExpiringRuntimeDeployment | ExpiringRuntimeDeployment[];
     claimed?: boolean;
@@ -156,7 +162,8 @@ describe(ExpiringDeploymentsNotifierService.name, () => {
       RUNTIME_LIMIT_WARNING_MIN_LIMIT_IN_H: 12,
       DEPLOY_WEB_BASE_URL: "https://console.example.com"
     });
-    const logger = mock<LoggerService>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
 
     deploymentSettingRepository.findExpiringRuntimeDeployments.mockResolvedValue(expiring);
     deploymentSettingRepository.claimRuntimeEndingNotification.mockResolvedValue(input.claimed ?? true);
@@ -171,8 +178,8 @@ describe(ExpiringDeploymentsNotifierService.name, () => {
       });
     }
 
-    const service = new ExpiringDeploymentsNotifierService(deploymentSettingRepository, userRepository, notificationService, config, logger);
+    const service = new ExpiringDeploymentsNotifierService(deploymentSettingRepository, userRepository, notificationService, config, createLogger);
 
-    return { service, deploymentSettingRepository, userRepository, notificationService, config, logger, expiring, users };
+    return { service, deploymentSettingRepository, userRepository, notificationService, config, logger, createLogger, expiring, users };
   }
 });
