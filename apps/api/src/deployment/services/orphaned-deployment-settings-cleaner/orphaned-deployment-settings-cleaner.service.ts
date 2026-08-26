@@ -8,8 +8,8 @@ import { LoggerService } from "@src/core";
 import type { DryRunOptions } from "@src/core/types/console";
 import {
   DeploymentSettingRepository,
-  type UnbackedDefinitionCandidate,
-  type UnbackedDefinitionCursor
+  type UnbackedDeploymentSetting,
+  type UnbackedDeploymentSettingCursor
 } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 
@@ -17,7 +17,7 @@ import { DeploymentConfigService } from "../deployment-config/deployment-config.
  * Deletes the definition the console remembered for a deployment that was never created, which is the one
  * kind of record nothing else can reach: a definition is written just before the create tx is broadcast, so
  * a failed broadcast leaves a row on a dseq the chain has never heard of. The stale-deployment cleanup
- * starts from on-chain deployments, and the funding sweep skips any remembered dseq it finds no lease for,
+ * starts from on-chain deployments, and the funding cleanup skips any remembered dseq it finds no lease for,
  * so neither ever sees one. Left alone they only accumulate.
  *
  * Records for deployments that reached the chain are kept whatever state they are in, closed included: a
@@ -28,18 +28,18 @@ import { DeploymentConfigService } from "../deployment-config/deployment-config.
  * so every uncertainty resolves to keeping the row and trying again next run.
  */
 @singleton()
-export class OrphanedDefinitionsSweeperService {
+export class OrphanedDeploymentSettingsCleanerService {
   constructor(
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly deploymentHttpService: DeploymentHttpService,
     private readonly config: DeploymentConfigService,
     private readonly logger: LoggerService
   ) {
-    this.logger.setContext(OrphanedDefinitionsSweeperService.name);
+    this.logger.setContext(OrphanedDeploymentSettingsCleanerService.name);
   }
 
   /**
-   * Pages through every candidate rather than taking a fixed number of them. A record the sweep does not
+   * Pages through every candidate rather than taking a fixed number of them. A record the cleanup does not
    * examine is always among the oldest of its cohort, and the next run reads the newest first, so anything a
    * record cap left behind would sit under a waterline that only ever rises — unreachable for good, and
    * worst during the broadcast outage that produces orphans in bulk. Time bounds a run instead: the budget
@@ -56,16 +56,16 @@ export class OrphanedDefinitionsSweeperService {
    * still reports itself truncated, since confirming otherwise would take another read; the next run finds
    * nothing left, so the overstatement corrects itself.
    */
-  async sweep({ dryRun }: DryRunOptions): Promise<Result<void, unknown[]>> {
-    const graceHours = this.config.get("ORPHANED_DEFINITION_SWEEP_GRACE_IN_H");
-    const pageSize = this.config.get("ORPHANED_DEFINITION_SWEEP_PAGE_SIZE");
-    const budgetMs = minutesToMilliseconds(this.config.get("ORPHANED_DEFINITION_SWEEP_BUDGET_IN_MIN"));
+  async cleanup({ dryRun }: DryRunOptions): Promise<Result<void, unknown[]>> {
+    const graceHours = this.config.get("ORPHANED_DEPLOYMENT_SETTINGS_CLEANUP_GRACE_IN_H");
+    const pageSize = this.config.get("ORPHANED_DEPLOYMENT_SETTINGS_CLEANUP_PAGE_SIZE");
+    const budgetMs = minutesToMilliseconds(this.config.get("ORPHANED_DEPLOYMENT_SETTINGS_CLEANUP_BUDGET_IN_MIN"));
     const startedAt = Date.now();
 
-    this.logger.info({ event: "ORPHANED_DEFINITION_SWEEP_START", graceHours, pageSize, budgetMs, dryRun });
+    this.logger.info({ event: "ORPHANED_DEPLOYMENT_SETTINGS_CLEANUP_START", graceHours, pageSize, budgetMs, dryRun });
 
     const errors: unknown[] = [];
-    let olderThan: UnbackedDefinitionCursor | undefined;
+    let olderThan: UnbackedDeploymentSettingCursor | undefined;
     let candidateCount = 0;
     let pageCount = 0;
     let orphanCount = 0;
@@ -73,7 +73,7 @@ export class OrphanedDefinitionsSweeperService {
     let outOfTime = false;
 
     while (true) {
-      const page = await this.deploymentSettingRepository.findUnbackedDefinitionCandidates({ graceHours, pageSize, olderThan });
+      const page = await this.deploymentSettingRepository.findUnbackedDeploymentSettings({ graceHours, pageSize, olderThan });
 
       if (!page.length) {
         break;
@@ -81,7 +81,7 @@ export class OrphanedDefinitionsSweeperService {
 
       pageCount++;
       candidateCount += page.length;
-      const pageResult = await this.#sweepPage(page, dryRun, errors);
+      const pageResult = await this.#cleanupPage(page, dryRun, errors);
       orphanCount += pageResult.orphans;
       deletedCount += pageResult.deleted;
       olderThan = page[page.length - 1];
@@ -98,7 +98,7 @@ export class OrphanedDefinitionsSweeperService {
 
     if (outOfTime) {
       this.logger.warn({
-        event: "ORPHANED_DEFINITION_SWEEP_CAPPED",
+        event: "ORPHANED_DEPLOYMENT_SETTINGS_CLEANUP_CAPPED",
         reason: "TIME_BUDGET_SPENT",
         message: "Stopped before the oldest candidates; the next run starts again from the newest",
         examined: candidateCount,
@@ -108,7 +108,7 @@ export class OrphanedDefinitionsSweeperService {
     }
 
     this.logger.info({
-      event: "ORPHANED_DEFINITION_SWEEP_END",
+      event: "ORPHANED_DEPLOYMENT_SETTINGS_CLEANUP_END",
       pages: pageCount,
       examined: candidateCount,
       orphans: orphanCount,
@@ -121,17 +121,17 @@ export class OrphanedDefinitionsSweeperService {
     return errors.length > 0 ? Err(errors) : Ok(undefined);
   }
 
-  async #sweepPage(page: UnbackedDefinitionCandidate[], dryRun: boolean, errors: unknown[]): Promise<{ orphans: number; deleted: number }> {
+  async #cleanupPage(page: UnbackedDeploymentSetting[], dryRun: boolean, errors: unknown[]): Promise<{ orphans: number; deleted: number }> {
     let orphans = 0;
     let deleted = 0;
 
     for (const [address, owned] of Object.entries(groupBy(page, candidate => candidate.address))) {
-      let unbacked: UnbackedDefinitionCandidate[];
+      let unbacked: UnbackedDeploymentSetting[];
 
       try {
         unbacked = await this.#findUnbacked(address, owned);
       } catch (error) {
-        this.logger.error({ event: "ORPHANED_DEFINITION_SWEEP_OWNER_SKIPPED", reason: "CHAIN_LOOKUP_FAILED", owner: address, error });
+        this.logger.error({ event: "ORPHANED_DEPLOYMENT_SETTINGS_CLEANUP_OWNER_SKIPPED", reason: "CHAIN_LOOKUP_FAILED", owner: address, error });
         errors.push(error);
         continue;
       }
@@ -144,16 +144,16 @@ export class OrphanedDefinitionsSweeperService {
       const dseqs = unbacked.map(orphan => orphan.dseq);
 
       if (dryRun) {
-        this.logger.info({ event: "ORPHANED_DEFINITION_WOULD_SWEEP", owner: address, dseqs });
+        this.logger.info({ event: "ORPHANED_DEPLOYMENT_SETTINGS_WOULD_DELETE", owner: address, dseqs });
         continue;
       }
 
       try {
         await this.#delete(unbacked);
-        this.logger.info({ event: "ORPHANED_DEFINITION_SWEPT", owner: address, dseqs });
+        this.logger.info({ event: "ORPHANED_DEPLOYMENT_SETTINGS_DELETED", owner: address, dseqs });
         deleted += unbacked.length;
       } catch (error) {
-        this.logger.error({ event: "ORPHANED_DEFINITION_SWEEP_OWNER_SKIPPED", reason: "DELETE_FAILED", owner: address, dseqs, error });
+        this.logger.error({ event: "ORPHANED_DEPLOYMENT_SETTINGS_CLEANUP_OWNER_SKIPPED", reason: "DELETE_FAILED", owner: address, dseqs, error });
         errors.push(error);
       }
     }
@@ -166,15 +166,15 @@ export class OrphanedDefinitionsSweeperService {
    * owner in it rather than one per record.
    *
    * The listing is deliberately unfiltered by state, and that is what keeps the record of a closed
-   * deployment: `closed` on the settings row is only ever set by the funding sweep and the runtime-limit
+   * deployment: `closed` on the settings row is only ever set by the funding cleanup and the runtime-limit
    * closer, so a deployment its owner closed by hand still arrives here as a candidate, and only its coming
-   * back in this response tells the sweep to leave it alone. Narrowing to `{ owner, state: "active" }` would
+   * back in this response tells the cleanup to leave it alone. Narrowing to `{ owner, state: "active" }` would
    * report every closed deployment as one that never existed and delete the only copy of its SDL.
    *
    * Throws rather than returning nothing when the lookup fails, because an empty answer already means
    * something else: an owner with nothing on chain, every one of whose candidates is an orphan.
    */
-  async #findUnbacked(address: string, candidates: UnbackedDefinitionCandidate[]): Promise<UnbackedDefinitionCandidate[]> {
+  async #findUnbacked(address: string, candidates: UnbackedDeploymentSetting[]): Promise<UnbackedDeploymentSetting[]> {
     const { deployments } = await this.deploymentHttpService.findAll({ owner: address });
     const onChainDseqs = new Set(deployments.map(({ deployment }) => deployment.id.dseq));
 
@@ -185,10 +185,10 @@ export class OrphanedDefinitionsSweeperService {
    * Neither this delete nor the candidate read above it is routed through `accessibleBy`, and neither may
    * be. This runs from the CLI, whose principal carries an empty ability, and `DrizzleAbility` calls
    * `throwUnlessCan` in a field initializer — so a scoped repository would throw `ForbiddenError` before any
-   * SQL ran, on every owner, and the sweep would never delete anything at all. The integration suite pins it
+   * SQL ran, on every owner, and the cleanup would never delete anything at all. The integration suite pins it
    * by running the real CLI entrypoint inside the context `console.ts` builds.
    */
-  async #delete(orphans: UnbackedDefinitionCandidate[]): Promise<void> {
+  async #delete(orphans: UnbackedDeploymentSetting[]): Promise<void> {
     await this.deploymentSettingRepository.deleteById(orphans.map(orphan => orphan.id));
   }
 }

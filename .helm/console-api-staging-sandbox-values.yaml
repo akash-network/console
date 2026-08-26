@@ -43,11 +43,12 @@ jobs:
       - ./dist/console.js
       - notify-expiring-deployments
   # Daily, and offset from the other deployment_settings sweeps so no two of them share a minute.
+  # Object name kept short on purpose: the chart renders it as console-api-<chain>-<name> and the
+  # CronJob controller caps that at 52 chars, which the CLI command name would exceed.
   - name: sweep-orphaned-definitions
     schedule: "17 3 * * *" # 03:17 every day
-    # One chain listing per owner, run one after another, so a slow or rate-limiting node stretches the run
-    # rather than failing it. Forbid keeps a slow run from being joined by the next night's, and the deadline
-    # ends it instead: the sweep is capped and idempotent, so a run cut short is one that made progress.
+    # Backstop for the cleanup's own time budget, which is set lower so it stops and logs before this fires.
+    # Forbid keeps a slow run from being joined by the next night's.
     concurrencyPolicy: Forbid
     activeDeadlineSeconds: 1800
     command:
@@ -55,7 +56,7 @@ jobs:
       - --require
       - ./dist/instrumentation.js
       - ./dist/console.js
-      - sweep-orphaned-definitions
+      - cleanup-orphaned-deployment-settings
 
 replicas: 2
 

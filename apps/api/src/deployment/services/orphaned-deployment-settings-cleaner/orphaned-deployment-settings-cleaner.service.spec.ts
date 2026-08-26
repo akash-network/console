@@ -5,14 +5,14 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { LoggerService } from "@src/core/providers/logging.provider";
-import type { DeploymentSettingRepository, UnbackedDefinitionCandidate } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import type { DeploymentSettingRepository, UnbackedDeploymentSetting } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
-import { OrphanedDefinitionsSweeperService } from "./orphaned-definitions-sweeper.service";
+import { OrphanedDeploymentSettingsCleanerService } from "./orphaned-deployment-settings-cleaner.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
-describe(OrphanedDefinitionsSweeperService.name, () => {
+describe(OrphanedDeploymentSettingsCleanerService.name, () => {
   it("deletes a definition the chain has never heard of", async () => {
     const owner = createAkashAddress();
     const { service, deploymentSettingRepository } = setup({
@@ -20,7 +20,7 @@ describe(OrphanedDefinitionsSweeperService.name, () => {
       onChainByOwner: { [owner]: [] }
     });
 
-    await service.sweep({ dryRun: false });
+    await service.cleanup({ dryRun: false });
 
     expect(deploymentSettingRepository.deleteById).toHaveBeenCalledWith(["orphan-id"]);
   });
@@ -32,7 +32,7 @@ describe(OrphanedDefinitionsSweeperService.name, () => {
       onChainByOwner: { [owner]: [{ dseq: "2000", state: "active" }] }
     });
 
-    await service.sweep({ dryRun: false });
+    await service.cleanup({ dryRun: false });
 
     expect(deploymentSettingRepository.deleteById).not.toHaveBeenCalled();
   });
@@ -45,14 +45,16 @@ describe(OrphanedDefinitionsSweeperService.name, () => {
       findAll: () => Promise.reject(lookupError)
     });
 
-    const result = await service.sweep({ dryRun: false });
+    const result = await service.cleanup({ dryRun: false });
 
     expect(deploymentSettingRepository.deleteById).not.toHaveBeenCalled();
     expect(result.ok).toBe(false);
-    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "ORPHANED_DEFINITION_SWEEP_OWNER_SKIPPED", owner, error: lookupError }));
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "ORPHANED_DEPLOYMENT_SETTINGS_CLEANUP_OWNER_SKIPPED", owner, error: lookupError })
+    );
   });
 
-  it("keeps sweeping the owners it can reach when one owner's lookup fails", async () => {
+  it("keeps cleaning up the owners it can reach when one owner's lookup fails", async () => {
     const failing = createAkashAddress();
     const reachable = createAkashAddress();
     const { service, deploymentSettingRepository } = setup({
@@ -61,7 +63,7 @@ describe(OrphanedDefinitionsSweeperService.name, () => {
       findAll: ({ owner }) => (owner === failing ? Promise.reject(new Error("chain unreachable")) : undefined)
     });
 
-    await service.sweep({ dryRun: false });
+    await service.cleanup({ dryRun: false });
 
     expect(deploymentSettingRepository.deleteById).toHaveBeenCalledWith(["orphan-id"]);
   });
@@ -78,7 +80,7 @@ describe(OrphanedDefinitionsSweeperService.name, () => {
       onChainByOwner: { [first]: [], [second]: [] }
     });
 
-    await service.sweep({ dryRun: false });
+    await service.cleanup({ dryRun: false });
 
     expect(deploymentHttpService.findAll).toHaveBeenCalledTimes(2);
   });
@@ -90,10 +92,10 @@ describe(OrphanedDefinitionsSweeperService.name, () => {
       onChainByOwner: { [owner]: [] }
     });
 
-    await service.sweep({ dryRun: true });
+    await service.cleanup({ dryRun: true });
 
     expect(deploymentSettingRepository.deleteById).not.toHaveBeenCalled();
-    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "ORPHANED_DEFINITION_WOULD_SWEEP", owner, dseqs: ["6000"] }));
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "ORPHANED_DEPLOYMENT_SETTINGS_WOULD_DELETE", owner, dseqs: ["6000"] }));
   });
 
   it("keeps a definition whose deployment the chain reports as closed", async () => {
@@ -103,7 +105,7 @@ describe(OrphanedDefinitionsSweeperService.name, () => {
       onChainByOwner: { [owner]: [{ dseq: "2500", state: "closed" }] }
     });
 
-    await service.sweep({ dryRun: false });
+    await service.cleanup({ dryRun: false });
 
     expect(deploymentSettingRepository.deleteById).not.toHaveBeenCalled();
   });
@@ -115,7 +117,7 @@ describe(OrphanedDefinitionsSweeperService.name, () => {
       onChainByOwner: { [owner]: [{ dseq: "2600", state: "closed" }] }
     });
 
-    await service.sweep({ dryRun: false });
+    await service.cleanup({ dryRun: false });
 
     expect(deploymentHttpService.findAll).toHaveBeenCalledWith({ owner });
   });
@@ -129,13 +131,15 @@ describe(OrphanedDefinitionsSweeperService.name, () => {
       deleteById: vi.fn().mockRejectedValue(deleteError) as unknown as DeploymentSettingRepository["deleteById"]
     });
 
-    const result = await service.sweep({ dryRun: false });
+    const result = await service.cleanup({ dryRun: false });
 
     expect(result.ok).toBe(false);
-    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "ORPHANED_DEFINITION_SWEEP_OWNER_SKIPPED", reason: "DELETE_FAILED" }));
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "ORPHANED_DEPLOYMENT_SETTINGS_CLEANUP_OWNER_SKIPPED", reason: "DELETE_FAILED" })
+    );
   });
 
-  it("keeps paging until the candidates run out, so an orphan past the first page is still swept", async () => {
+  it("keeps paging until the candidates run out, so an orphan past the first page is still deleted", async () => {
     const owner = createAkashAddress();
     const { service, deploymentSettingRepository } = setup({
       candidates: [
@@ -149,7 +153,7 @@ describe(OrphanedDefinitionsSweeperService.name, () => {
       pageSize: 2
     });
 
-    await service.sweep({ dryRun: false });
+    await service.cleanup({ dryRun: false });
 
     expect(deploymentSettingRepository.deleteById).toHaveBeenCalledTimes(3);
     expect(deploymentSettingRepository.deleteById.mock.calls.flat(2)).toEqual(["page1-a", "page1-b", "page2-a", "page2-b", "page3-a"]);
@@ -163,9 +167,9 @@ describe(OrphanedDefinitionsSweeperService.name, () => {
       pageSize: 1
     });
 
-    await service.sweep({ dryRun: false });
+    await service.cleanup({ dryRun: false });
 
-    const cursors = deploymentSettingRepository.findUnbackedDefinitionCandidates.mock.calls.map(([params]) => params.olderThan?.id);
+    const cursors = deploymentSettingRepository.findUnbackedDeploymentSettings.mock.calls.map(([params]) => params.olderThan?.id);
     expect(cursors).toEqual([undefined, "first", "second"]);
   });
 
@@ -178,11 +182,11 @@ describe(OrphanedDefinitionsSweeperService.name, () => {
       budgetInMin: 0
     });
 
-    await service.sweep({ dryRun: false });
+    await service.cleanup({ dryRun: false });
 
     expect(deploymentSettingRepository.deleteById).toHaveBeenCalledTimes(1);
-    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "ORPHANED_DEFINITION_SWEEP_CAPPED", reason: "TIME_BUDGET_SPENT" }));
-    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "ORPHANED_DEFINITION_SWEEP_END", complete: false }));
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "ORPHANED_DEPLOYMENT_SETTINGS_CLEANUP_CAPPED", reason: "TIME_BUDGET_SPENT" }));
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "ORPHANED_DEPLOYMENT_SETTINGS_CLEANUP_END", complete: false }));
   });
 
   it("reports a run that reached the end of the candidates as complete, even with no budget left", async () => {
@@ -194,28 +198,28 @@ describe(OrphanedDefinitionsSweeperService.name, () => {
       budgetInMin: 0
     });
 
-    await service.sweep({ dryRun: false });
+    await service.cleanup({ dryRun: false });
 
-    expect(logger.warn).not.toHaveBeenCalledWith(expect.objectContaining({ event: "ORPHANED_DEFINITION_SWEEP_CAPPED" }));
-    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "ORPHANED_DEFINITION_SWEEP_END", complete: true }));
+    expect(logger.warn).not.toHaveBeenCalledWith(expect.objectContaining({ event: "ORPHANED_DEPLOYMENT_SETTINGS_CLEANUP_CAPPED" }));
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "ORPHANED_DEPLOYMENT_SETTINGS_CLEANUP_END", complete: true }));
   });
 
   it("asks the chain for nothing when no definition is old enough", async () => {
     const { service, deploymentHttpService, deploymentSettingRepository } = setup({ candidates: [] });
 
-    const result = await service.sweep({ dryRun: false });
+    const result = await service.cleanup({ dryRun: false });
 
     expect(deploymentHttpService.findAll).not.toHaveBeenCalled();
     expect(deploymentSettingRepository.deleteById).not.toHaveBeenCalled();
     expect(result.ok).toBe(true);
   });
 
-  function candidate(overrides: Partial<UnbackedDefinitionCandidate> = {}): UnbackedDefinitionCandidate {
+  function candidate(overrides: Partial<UnbackedDeploymentSetting> = {}): UnbackedDeploymentSetting {
     return { id: "candidate-id", dseq: "1", address: createAkashAddress(), createdAtMarker: "2026-01-01T00:00:00.000000", ...overrides };
   }
 
   function setup(input: {
-    candidates?: UnbackedDefinitionCandidate[];
+    candidates?: UnbackedDeploymentSetting[];
     onChainByOwner?: Record<string, Array<{ dseq: string; state: string }>>;
     findAll?: (params: { owner: string }) => Promise<DeploymentListResponse> | undefined;
     deleteById?: DeploymentSettingRepository["deleteById"];
@@ -223,7 +227,7 @@ describe(OrphanedDefinitionsSweeperService.name, () => {
     pageSize?: number;
     budgetInMin?: number;
   }) {
-    /** Mirrors the chain: unfiltered lists every state, `state` narrows to it. A sweep that filtered would miss closed deployments. */
+    /** Mirrors the chain: unfiltered lists every state, `state` narrows to it. A cleanup that filtered would miss closed deployments. */
     const listFor = (owner: string, state?: string): DeploymentListResponse => {
       const owned = input.onChainByOwner?.[owner] ?? [];
       const visible = state ? owned.filter(deployment => deployment.state === state) : owned;
@@ -236,23 +240,23 @@ describe(OrphanedDefinitionsSweeperService.name, () => {
 
     const all = input.candidates ?? [];
     const deploymentSettingRepository = mock<DeploymentSettingRepository>({
-      findUnbackedDefinitionCandidates: vi.fn(async ({ pageSize, olderThan }) => {
+      findUnbackedDeploymentSettings: vi.fn(async ({ pageSize, olderThan }) => {
         const from = olderThan ? all.findIndex(row => row.id === olderThan.id) + 1 : 0;
         return all.slice(from, from + pageSize);
-      }) as DeploymentSettingRepository["findUnbackedDefinitionCandidates"],
+      }) as DeploymentSettingRepository["findUnbackedDeploymentSettings"],
       deleteById: input.deleteById ?? vi.fn().mockResolvedValue(undefined)
     });
     const deploymentHttpService = mock<DeploymentHttpService>({
       findAll: vi.fn(async ({ owner, state }: { owner: string; state?: string }) => (await input.findAll?.({ owner })) ?? listFor(owner, state))
     });
     const config = mockConfigService<DeploymentConfigService>({
-      ORPHANED_DEFINITION_SWEEP_GRACE_IN_H: input.graceHours ?? 1,
-      ORPHANED_DEFINITION_SWEEP_PAGE_SIZE: input.pageSize ?? 500,
-      ORPHANED_DEFINITION_SWEEP_BUDGET_IN_MIN: input.budgetInMin ?? 20
+      ORPHANED_DEPLOYMENT_SETTINGS_CLEANUP_GRACE_IN_H: input.graceHours ?? 1,
+      ORPHANED_DEPLOYMENT_SETTINGS_CLEANUP_PAGE_SIZE: input.pageSize ?? 500,
+      ORPHANED_DEPLOYMENT_SETTINGS_CLEANUP_BUDGET_IN_MIN: input.budgetInMin ?? 20
     });
     const logger = mock<LoggerService>();
 
-    const service = new OrphanedDefinitionsSweeperService(deploymentSettingRepository, deploymentHttpService, config, logger);
+    const service = new OrphanedDeploymentSettingsCleanerService(deploymentSettingRepository, deploymentHttpService, config, logger);
 
     return { service, deploymentSettingRepository, deploymentHttpService, config, logger };
   }

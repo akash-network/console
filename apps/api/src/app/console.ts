@@ -81,12 +81,12 @@ program
   });
 
 program
-  .command("sweep-orphaned-definitions")
-  .description("Delete remembered definitions whose create transaction never reached the chain")
-  .option("-d, --dry-run", "Log which definitions would be deleted without deleting any", false)
+  .command("cleanup-orphaned-deployment-settings")
+  .description("Delete deployment settings whose create transaction never reached the chain")
+  .option("-d, --dry-run", "Log which deployment settings would be deleted without deleting any", false)
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
-      return container.resolve(TopUpDeploymentsController).sweepOrphanedDefinitions(options);
+      return container.resolve(TopUpDeploymentsController).cleanupOrphanedDeploymentSettings(options);
     });
   });
 

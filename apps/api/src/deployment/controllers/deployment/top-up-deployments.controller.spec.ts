@@ -4,7 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { ExpiredDeploymentsCloserService } from "@src/deployment/services/expired-deployments-closer/expired-deployments-closer.service";
 import type { ExpiringDeploymentsNotifierService } from "@src/deployment/services/expiring-deployments-notifier/expiring-deployments-notifier.service";
-import type { OrphanedDefinitionsSweeperService } from "@src/deployment/services/orphaned-definitions-sweeper/orphaned-definitions-sweeper.service";
+import type { OrphanedDeploymentSettingsCleanerService } from "@src/deployment/services/orphaned-deployment-settings-cleaner/orphaned-deployment-settings-cleaner.service";
 import type { StaleManagedDeploymentsCleanerService } from "@src/deployment/services/stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
 import type { TopUpManagedDeploymentsService } from "@src/deployment/services/top-up-managed-deployments/top-up-managed-deployments.service";
 import { TopUpDeploymentsController } from "./top-up-deployments.controller";
@@ -54,14 +54,14 @@ describe(TopUpDeploymentsController.name, () => {
     });
   });
 
-  describe("sweepOrphanedDefinitions", () => {
-    it("calls the service to sweep orphaned definitions", async () => {
-      const { controller, orphanedDefinitionsSweeperService } = setup();
+  describe("cleanupOrphanedDeploymentSettings", () => {
+    it("calls the service to clean up orphaned deployment settings", async () => {
+      const { controller, orphanedDeploymentSettingsCleanerService } = setup();
       const options = { dryRun: false };
 
-      await controller.sweepOrphanedDefinitions(options);
+      await controller.cleanupOrphanedDeploymentSettings(options);
 
-      expect(orphanedDefinitionsSweeperService.sweep).toHaveBeenCalledWith(options);
+      expect(orphanedDeploymentSettingsCleanerService.cleanup).toHaveBeenCalledWith(options);
     });
   });
 
@@ -71,19 +71,19 @@ describe(TopUpDeploymentsController.name, () => {
     staleDeploymentsCleanerService: MockProxy<StaleManagedDeploymentsCleanerService>;
     expiredDeploymentsCloserService: MockProxy<ExpiredDeploymentsCloserService>;
     expiringDeploymentsNotifierService: MockProxy<ExpiringDeploymentsNotifierService>;
-    orphanedDefinitionsSweeperService: MockProxy<OrphanedDefinitionsSweeperService>;
+    orphanedDeploymentSettingsCleanerService: MockProxy<OrphanedDeploymentSettingsCleanerService>;
   } {
     const topUpManagedDeploymentsService = mock<TopUpManagedDeploymentsService>();
     const staleDeploymentsCleanerService = mock<StaleManagedDeploymentsCleanerService>();
     const expiredDeploymentsCloserService = mock<ExpiredDeploymentsCloserService>();
     const expiringDeploymentsNotifierService = mock<ExpiringDeploymentsNotifierService>();
-    const orphanedDefinitionsSweeperService = mock<OrphanedDefinitionsSweeperService>();
+    const orphanedDeploymentSettingsCleanerService = mock<OrphanedDeploymentSettingsCleanerService>();
     const controller = new TopUpDeploymentsController(
       topUpManagedDeploymentsService,
       staleDeploymentsCleanerService,
       expiredDeploymentsCloserService,
       expiringDeploymentsNotifierService,
-      orphanedDefinitionsSweeperService
+      orphanedDeploymentSettingsCleanerService
     );
 
     return {
@@ -92,7 +92,7 @@ describe(TopUpDeploymentsController.name, () => {
       staleDeploymentsCleanerService,
       expiredDeploymentsCloserService,
       expiringDeploymentsNotifierService,
-      orphanedDefinitionsSweeperService
+      orphanedDeploymentSettingsCleanerService
     };
   }
 });
