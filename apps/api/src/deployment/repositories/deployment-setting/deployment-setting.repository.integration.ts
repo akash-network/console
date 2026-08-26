@@ -93,12 +93,12 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
-  describe("findUnbackedDefinitionCandidates", () => {
+  describe("findUnbackedDeploymentSettings", () => {
     it("returns one page of the newest candidates, not the oldest and not all of them", async () => {
       const { deploymentSettingRepository, rememberDefinitions } = await setup();
       const dseqs = await rememberDefinitions(["oldest", "older", "middle", "newer", "newest"]);
 
-      const page = await deploymentSettingRepository.findUnbackedDefinitionCandidates({ graceHours: 1, pageSize: 3 });
+      const page = await deploymentSettingRepository.findUnbackedDeploymentSettings({ graceHours: 1, pageSize: 3 });
 
       expect(page.map(candidate => candidate.dseq)).toEqual([dseqs.newest, dseqs.newer, dseqs.middle]);
     });
@@ -107,8 +107,8 @@ describe(DeploymentSettingRepository.name, () => {
       const { deploymentSettingRepository, rememberDefinitions } = await setup();
       const dseqs = await rememberDefinitions(["oldest", "older", "middle", "newer", "newest"]);
 
-      const first = await deploymentSettingRepository.findUnbackedDefinitionCandidates({ graceHours: 1, pageSize: 3 });
-      const second = await deploymentSettingRepository.findUnbackedDefinitionCandidates({ graceHours: 1, pageSize: 3, olderThan: first[2] });
+      const first = await deploymentSettingRepository.findUnbackedDeploymentSettings({ graceHours: 1, pageSize: 3 });
+      const second = await deploymentSettingRepository.findUnbackedDeploymentSettings({ graceHours: 1, pageSize: 3, olderThan: first[2] });
 
       expect(second.map(candidate => candidate.dseq)).toEqual([dseqs.older, dseqs.oldest]);
     });
@@ -148,8 +148,8 @@ describe(DeploymentSettingRepository.name, () => {
       const { deploymentSettingRepository, rememberDefinitions } = await setup();
       await rememberDefinitions(["oldest", "newest"]);
 
-      const first = await deploymentSettingRepository.findUnbackedDefinitionCandidates({ graceHours: 1, pageSize: 10 });
-      const exhausted = await deploymentSettingRepository.findUnbackedDefinitionCandidates({ graceHours: 1, pageSize: 10, olderThan: first[1] });
+      const first = await deploymentSettingRepository.findUnbackedDeploymentSettings({ graceHours: 1, pageSize: 10 });
+      const exhausted = await deploymentSettingRepository.findUnbackedDeploymentSettings({ graceHours: 1, pageSize: 10, olderThan: first[1] });
 
       expect(first).toHaveLength(2);
       expect(exhausted).toEqual([]);
@@ -497,7 +497,7 @@ describe(DeploymentSettingRepository.name, () => {
       let olderThan;
 
       while (true) {
-        const page = await deploymentSettingRepository.findUnbackedDefinitionCandidates({ graceHours: 1, pageSize, olderThan });
+        const page = await deploymentSettingRepository.findUnbackedDeploymentSettings({ graceHours: 1, pageSize, olderThan });
 
         if (!page.length) {
           break;

@@ -36,8 +36,8 @@ export type ExpiringRuntimeDeployment = ExpiredRuntimeDeployment & {
   runtimeEndsAtMarker: string;
 };
 
-/** A remembered definition old enough to sweep, with the address its dseq would live under on chain. */
-export type UnbackedDefinitionCandidate = {
+/** A deployment settings row old enough to clean up, with the address its dseq would live under on chain. */
+export type UnbackedDeploymentSetting = {
   id: string;
   dseq: string;
   address: string;
@@ -46,7 +46,7 @@ export type UnbackedDefinitionCandidate = {
 };
 
 /** Where a page of candidates left off. The id breaks ties, so two rows written in the same tick cannot hide each other. */
-export type UnbackedDefinitionCursor = Pick<UnbackedDefinitionCandidate, "id" | "createdAtMarker">;
+export type UnbackedDeploymentSettingCursor = Pick<UnbackedDeploymentSetting, "id" | "createdAtMarker">;
 
 export type AutoTopUpDeployment = {
   id: string;
@@ -300,13 +300,13 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
   }
 
   /**
-   * One page of remembered definitions old enough that the create tx each was written for has either
+   * One page of deployment settings rows old enough that the create tx each was written for has either
    * reached the chain or never will. Answering which of the two happened needs the chain, so this only
    * narrows the field: the caller checks every row it returns against the chain before deleting anything.
    *
    * `closed = false` is a cheap head start, not the protection for closed deployments — that lives in the
    * caller asking the chain for every state. `sdl is not null` skips rows a settings read created lazily,
-   * which remember no definition and carry only the choices their owner made.
+   * which record no SDL at all and carry only the choices their owner made.
    *
    * Pages newest first, through a `(created_at, id)` keyset rather than an offset: newest first so a run cut
    * short has still covered where orphans are, and a keyset so that deleting rows as the caller pages cannot
@@ -318,15 +318,15 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
    * it, would drop every sibling written in the same millisecond, on this page and on every later one. The
    * comparison is written as a single row value so it cannot drift out of step with the ORDER BY beside it.
    */
-  async findUnbackedDefinitionCandidates({
+  async findUnbackedDeploymentSettings({
     graceHours,
     pageSize,
     olderThan
   }: {
     graceHours: number;
     pageSize: number;
-    olderThan?: UnbackedDefinitionCursor;
-  }): Promise<UnbackedDefinitionCandidate[]> {
+    olderThan?: UnbackedDeploymentSettingCursor;
+  }): Promise<UnbackedDeploymentSetting[]> {
     const candidates = await this.pg
       .select({
         id: this.table.id,
@@ -348,7 +348,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .orderBy(desc(this.table.createdAt), desc(this.table.id))
       .limit(pageSize);
 
-    return candidates as UnbackedDefinitionCandidate[];
+    return candidates as UnbackedDeploymentSetting[];
   }
 
   /**
