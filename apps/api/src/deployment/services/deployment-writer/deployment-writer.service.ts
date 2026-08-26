@@ -103,6 +103,11 @@ export class DeploymentWriterService {
    *
    * Only creating needs this. Updating records the same columns, but not before reading the deployment off the
    * chain and failing if it is not there, so a record an update writes is already known to be backed.
+   *
+   * pg-boss inserts with `ON CONFLICT DO NOTHING` and returns no id when it drops a job, so an enqueue that
+   * went nowhere looks exactly like one that worked. No unique index can fire for a `standard` policy queue
+   * today, which is the only reason this cannot happen — so it is checked rather than trusted, and rolls the
+   * record back with it, because the alternative is the unreachable row this whole mechanism exists to prevent.
    */
   private async recordDefinitionWithCompensation(input: {
     userId: string;
@@ -117,13 +122,18 @@ export class DeploymentWriterService {
     await this.txService.transaction(async () => {
       const deploymentSettingId = await this.recordDefinition(definition);
 
-      await this.jobQueueService.enqueue(new DeleteUnbackedDeploymentSetting({ deploymentSettingId, owner, dseq: input.dseq }), {
+      const compensationId = await this.jobQueueService.enqueue(new DeleteUnbackedDeploymentSetting({ deploymentSettingId, owner, dseq: input.dseq }), {
         singletonKey: unbackedDeploymentSettingKeyFor(input),
         startAfter: addMinutes(new Date(), this.deploymentConfig.get("UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN")).toISOString(),
         retryLimit: this.deploymentConfig.get("UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT"),
         retryBackoff: true,
+        retryDelay: this.deploymentConfig.get("UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC"),
         retryDelayMax: this.deploymentConfig.get("UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN") * 60
       });
+
+      if (!compensationId) {
+        throw new Error(`Refusing to record deployment setting ${deploymentSettingId} without a compensation: the queue accepted no job`);
+      }
     });
   }
 

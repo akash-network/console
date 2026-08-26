@@ -32,6 +32,8 @@ const DEPLOYMENT_SETTING_ID = faker.string.uuid();
 const GRACE_IN_MIN = 60;
 const RETRY_LIMIT = 48;
 const RETRY_DELAY_MAX_IN_MIN = 30;
+const RETRY_DELAY_IN_SEC = 30;
+const COMPENSATION_JOB_ID = faker.string.uuid();
 
 /** A complete SDL around a service body, plus an optional placement profile nothing references. */
 function sdlAround(serviceBody: string, extraPlacement = ""): string {
@@ -308,8 +310,27 @@ describe(DeploymentWriterService.name, () => {
 
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(
         expect.anything(),
-        expect.objectContaining({ retryLimit: RETRY_LIMIT, retryBackoff: true, retryDelayMax: RETRY_DELAY_MAX_IN_MIN * 60 })
+        expect.objectContaining({
+          retryLimit: RETRY_LIMIT,
+          retryBackoff: true,
+          retryDelay: RETRY_DELAY_IN_SEC,
+          retryDelayMax: RETRY_DELAY_MAX_IN_MIN * 60
+        })
       );
+    });
+
+    it("refuses the create when the queue accepted no compensation", async () => {
+      const { service } = setup({ compensationEnqueued: false });
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 })).rejects.toThrow(/without a compensation/);
+    });
+
+    it("broadcasts nothing when the queue accepted no compensation", async () => {
+      const { service, signerService } = setup({ compensationEnqueued: false });
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 })).rejects.toThrow();
+
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
     });
 
     it("cancels the compensation once the create tx is broadcast", async () => {
@@ -765,7 +786,7 @@ describe(DeploymentWriterService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: DeploymentWriterService.name });
   });
 
-  function setup(input?: { isManagedDepositEnabled?: boolean; defaultDeposit?: number; transactionRuns?: boolean }) {
+  function setup(input?: { isManagedDepositEnabled?: boolean; defaultDeposit?: number; transactionRuns?: boolean; compensationEnqueued?: boolean }) {
     const signerService = mock<ManagedSignerService>();
     const rpcMessageService = mock<RpcMessageService>();
     const sdlService = mock<SdlService>();
@@ -782,6 +803,7 @@ describe(DeploymentWriterService.name, () => {
       DEPLOYMENT_DEFAULT_DEPOSIT: input?.defaultDeposit ?? 0.5,
       UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN: GRACE_IN_MIN,
       UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT: RETRY_LIMIT,
+      UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC: RETRY_DELAY_IN_SEC,
       UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: RETRY_DELAY_MAX_IN_MIN
     });
     const featureFlagsService = mock<FeatureFlagsService>();
@@ -791,6 +813,7 @@ describe(DeploymentWriterService.name, () => {
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => (input?.transactionRuns === false ? (undefined as never) : await cb()));
     const jobQueueService = mock<JobQueueService>();
+    jobQueueService.enqueue.mockResolvedValue(input?.compensationEnqueued === false ? null : COMPENSATION_JOB_ID);
 
     walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
     sdlService.generateManifest.mockReturnValue({ ok: true, value: manifestValue } as any);

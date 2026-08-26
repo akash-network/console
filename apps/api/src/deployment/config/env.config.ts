@@ -65,12 +65,19 @@ export const envSchema = z
       .default(0.5),
     /**
      * How long a newly recorded deployment setting is left alone before the console asks the chain whether the
-     * create it was written for ever landed. It must comfortably exceed the worst case of broadcasting the create
-     * and the queried node indexing it: check too early and the node answers "not found" for a deployment that is
-     * live, and the row carrying its SDL and its runtime limit is deleted. Waiting longer only ever delays deleting
-     * a row nothing reads, so the value is deliberately orders of magnitude above that worst case.
+     * create it was written for ever landed.
+     *
+     * This is the real invariant protecting a live deployment's row, not the cancellation on a successful
+     * broadcast: `cancelCreatedBy` only cancels a job still in state `created`, so a compensation a worker has
+     * already picked up cannot be called off at all, and the delay is the only thing that keeps it from being
+     * picked up while the create is still in flight. Check too early and the chain has nothing to report yet.
+     *
+     * Waiting longer only ever delays deleting a row nothing reads, so the default is orders of magnitude above
+     * the worst case of broadcasting a create and having it indexed. The floor exists because a value near zero
+     * would turn the compensation into "delete every create whose tx is not yet on chain"; the presence check
+     * enforces its own margin on top, so a short value here costs retries rather than rows.
      */
-    UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN: z.number({ coerce: true }).positive().finite().optional().default(60),
+    UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN: z.number({ coerce: true }).min(15).finite().optional().default(60),
     /**
      * How long the console keeps re-asking the chain about a deployment setting whose create may never have landed.
      * Nothing else can find such a row, so a compensation that exhausts its retries leaks it permanently; the horizon
@@ -78,6 +85,12 @@ export const envSchema = z
      * `UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN` this spans roughly a day.
      */
     UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT: z.number({ coerce: true }).int().positive().optional().default(48),
+    /**
+     * First gap between chain re-checks, doubling from there. pg-boss multiplies its backoff by this value and
+     * defaults it to 0, which collapses every later gap to zero however high the cap is set — so it must be
+     * positive for the horizon below to exist at all.
+     */
+    UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC: z.number({ coerce: true }).int().positive().optional().default(30),
     /** Ceiling on the exponential backoff between chain re-checks, so a long outage is retried steadily rather than ever more rarely. */
     UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: z.number({ coerce: true }).positive().finite().optional().default(30),
     /** How long before a runtime-limited deployment reaches its limit the user is warned by email. */

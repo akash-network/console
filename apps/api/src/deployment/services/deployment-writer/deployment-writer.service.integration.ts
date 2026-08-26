@@ -1,5 +1,6 @@
-import { minutesToMilliseconds } from "date-fns";
+import { minutesToMilliseconds, secondsToMilliseconds } from "date-fns";
 import { eq, sql } from "drizzle-orm";
+import nock from "nock";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -7,6 +8,7 @@ import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { ApiPgDatabase } from "@src/core";
 import { JOB_NAME, JobQueueService, POSTGRES_DB, resolveTable, TxService } from "@src/core";
+import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import {
   DeleteUnbackedDeploymentSetting,
@@ -50,9 +52,10 @@ deployment:
 
 const GRACE_IN_MIN = 60;
 const RETRY_LIMIT = 48;
+const RETRY_DELAY_IN_SECONDS = 30;
 const RETRY_DELAY_MAX_IN_SECONDS = 30 * 60;
 
-let jobQueueReady: Promise<void> | undefined;
+let jobQueueReady: Promise<JobQueueService> | undefined;
 
 /** pg-boss owns its own schema and creates it on start, so the queue this suite enqueues onto is bootstrapped once per file. */
 function bootstrapJobQueue() {
@@ -60,6 +63,8 @@ function bootstrapJobQueue() {
     const jobQueue = container.resolve(JobQueueService);
     await jobQueue.setup();
     await jobQueue.registerHandlers([container.resolve(DeleteUnbackedDeploymentSettingHandler)]);
+
+    return jobQueue;
   })();
 
   return jobQueueReady;
@@ -71,6 +76,7 @@ type CompensationRow = {
   data: { deploymentSettingId: string; owner: string; dseq: string; version: number };
   retry_limit: number;
   retry_backoff: boolean;
+  retry_delay: number;
   retry_delay_max: number | null;
   start_after: string;
 };
@@ -84,6 +90,7 @@ type CompensationRow = {
 describe(DeploymentWriterService.name, () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    nock.cleanAll();
   });
 
   it("enqueues a compensation for the setting it records", async () => {
@@ -171,15 +178,51 @@ describe(DeploymentWriterService.name, () => {
     expect(await findCompensation(user.id, dseq)).toMatchObject({
       retry_limit: RETRY_LIMIT,
       retry_backoff: true,
+      retry_delay: RETRY_DELAY_IN_SECONDS,
       retry_delay_max: RETRY_DELAY_MAX_IN_SECONDS
     });
   });
 
+  /**
+   * The columns above are settings; this is the behaviour they exist to produce. pg-boss multiplies its
+   * backoff by `retry_delay`, whose queue default is 0, so a horizon that sets only the limit and the cap
+   * stores three convincing values and still reschedules every attempt at `now()` — 48 of them back to back,
+   * dead in about a minute. Only an assertion on the rescheduled time can tell the two apart.
+   */
+  it("pushes the next attempt into the future after one that failed", async () => {
+    const { user, createDeployment, findCompensation, makeCompensationDue, failEveryChainQuery, startWorkers, broadcast } = await setup();
+    broadcast.mockRejectedValue(new Error("tx failed"));
+    failEveryChainQuery();
+
+    await expect(createDeployment()).rejects.toThrow("tx failed");
+    const { dseq } = await makeCompensationDue(user.id);
+    await startWorkers();
+
+    const rescheduled = await vi.waitFor(
+      async () => {
+        const compensation = await findCompensation(user.id, dseq);
+        expect(compensation.state).toBe("retry");
+
+        return compensation;
+      },
+      { timeout: 30_000, interval: 250 }
+    );
+
+    const gap = new Date(rescheduled.start_after).getTime() - Date.now();
+    expect(gap).toBeGreaterThan(secondsToMilliseconds(RETRY_DELAY_IN_SECONDS) * 0.8);
+    expect(gap).toBeLessThanOrEqual(secondsToMilliseconds(RETRY_DELAY_MAX_IN_SECONDS));
+  });
+
+  /** pg-boss owns its schema, so the app's configured name is the only correct way to reach its tables. */
+  function jobTable() {
+    return sql`${sql.identifier(container.resolve(CoreConfigService).get("POSTGRES_BACKGROUND_JOBS_SCHEMA"))}.job`;
+  }
+
   async function findCompensations(userId: string): Promise<CompensationRow[]> {
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const rows = await db.execute<CompensationRow>(
-      sql`select state, singleton_key, data, retry_limit, retry_backoff, retry_delay_max, start_after
-          from pgboss.job
+      sql`select state, singleton_key, data, retry_limit, retry_backoff, retry_delay, retry_delay_max, start_after
+          from ${jobTable()}
           where name = ${DeleteUnbackedDeploymentSetting[JOB_NAME]} and singleton_key like ${`%.${userId}.%`}`
     );
 
@@ -193,7 +236,7 @@ describe(DeploymentWriterService.name, () => {
     const deploymentSettingsTable = resolveTable("DeploymentSettings");
     const userWalletsTable = resolveTable("UserWallets");
 
-    await bootstrapJobQueue();
+    const jobQueue = await bootstrapJobQueue();
 
     const broadcast = vi
       .spyOn(container.resolve(ManagedSignerService), "executeDerivedDecodedTxByUserId")
@@ -228,7 +271,7 @@ describe(DeploymentWriterService.name, () => {
 
     async function findCompensationTransactionId(userId: string, dseq: string) {
       const [row] = (await db.execute(
-        sql`select xmin::text as transaction_id from pgboss.job where singleton_key = ${`deleteUnbackedDeploymentSetting.${userId}.${dseq}`}`
+        sql`select xmin::text as transaction_id from ${jobTable()} where singleton_key = ${`deleteUnbackedDeploymentSetting.${userId}.${dseq}`}`
       )) as unknown as { transaction_id: string }[];
 
       return row.transaction_id;
@@ -248,6 +291,23 @@ describe(DeploymentWriterService.name, () => {
 
     async function countCompensations() {
       return (await findCompensations(user.id)).length;
+    }
+
+    /** Brings the grace period forward so a worker will pick the compensation up now instead of in an hour. */
+    async function makeCompensationDue(userId: string) {
+      const [compensation] = await findCompensations(userId);
+      await db.execute(sql`update ${jobTable()} set start_after = now() where singleton_key = ${compensation.singleton_key}`);
+
+      return { dseq: compensation.data.dseq };
+    }
+
+    /** Makes the compensation's very first chain query fail, so the attempt fails for a reason a retry could fix. */
+    function failEveryChainQuery() {
+      nock(container.resolve(CoreConfigService).get("REST_API_NODE_URL"))
+        .persist()
+        .get(/.*/)
+        .query(true)
+        .replyWithError(Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }));
     }
 
     const writer = container.resolve(DeploymentWriterService);
@@ -274,6 +334,9 @@ describe(DeploymentWriterService.name, () => {
       findSetting,
       findSettingTransactionId,
       findCompensationTransactionId,
+      makeCompensationDue,
+      failEveryChainQuery,
+      startWorkers: () => jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 }),
       countSettings,
       countCompensations
     };
