@@ -8,6 +8,7 @@ import { mock } from "vitest-mock-extended";
 import type { BillingConfig } from "@src/billing/providers";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
+import { ConsoleReferenceService } from "@src/deployment/services/console-reference/console-reference.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { stripSdlSecrets } from "./sdl-secret-stripping";
 
@@ -270,6 +271,6 @@ describe(stripSdlSecrets.name, () => {
     const config = mock<BillingConfig>({ DEPLOYMENT_GRANT_DENOM: "uakt", MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: [] });
     const blockedGpuService = new BlockedGpuService(mockConfigService<BillingConfigService>({ MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: [] }));
 
-    return new SdlService(config, blockedGpuService).generateManifest(rawSdl);
+    return new SdlService(config, blockedGpuService, new ConsoleReferenceService()).generateManifest(rawSdl);
   }
 });

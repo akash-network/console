@@ -1,11 +1,14 @@
-import type { GenerateManifestResult, Manifest, SDLInput } from "@akashnetwork/chain-sdk";
+import type { GenerateManifestResult, Manifest, SDLInput, ValidationError } from "@akashnetwork/chain-sdk";
 import { generateManifest, generateManifestVersion, yaml } from "@akashnetwork/chain-sdk";
 import { YAMLException } from "js-yaml";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
+import { ConsoleReferenceService } from "@src/deployment/services/console-reference/console-reference.service";
 import { sdlRequestsGpuInterconnect } from "@src/deployment/utils/gpu-interconnect/gpu-interconnect";
+
+export type SdlParseResult = { ok: true; value: SDLInput } | { ok: false; value: ValidationError[] };
 
 @singleton()
 export class SdlService {
@@ -13,22 +16,37 @@ export class SdlService {
 
   constructor(
     @InjectBillingConfig() config: BillingConfig,
-    private readonly blockedGpuService: BlockedGpuService
+    private readonly blockedGpuService: BlockedGpuService,
+    private readonly consoleReferenceService: ConsoleReferenceService
   ) {
     this.#config = config;
   }
 
+  /** Console References are validated here and never substituted, so no caller of this can hand a resolved value back to a client. */
   generateManifest(rawSDL: string, options: { isTrialing?: boolean } = {}): GenerateManifestResult {
-    let potentiallyInvalidSDL: SDLInput;
+    const parsed = this.parse(rawSDL);
 
+    if (!parsed.ok) return parsed;
+
+    const referenceErrors = this.consoleReferenceService.validate(parsed.value);
+
+    if (referenceErrors.length > 0) return { ok: false, value: referenceErrors };
+
+    return this.generateManifestFrom(parsed.value, options);
+  }
+
+  parse(rawSDL: string): SdlParseResult {
     try {
-      potentiallyInvalidSDL = yaml.raw<SDLInput>(rawSDL);
+      return { ok: true, value: yaml.raw<SDLInput>(rawSDL) };
     } catch (error) {
       if (error instanceof YAMLException) {
         return { ok: false, value: [{ schemaPath: "", instancePath: "", keyword: "yaml", params: {}, message: error.message }] };
       }
       throw error;
     }
+  }
+
+  generateManifestFrom(potentiallyInvalidSDL: SDLInput, options: { isTrialing?: boolean } = {}): GenerateManifestResult {
     const deploymentGrantDenom = this.#config.DEPLOYMENT_GRANT_DENOM;
     const sdlPlacement =
       potentiallyInvalidSDL?.profiles?.placement && typeof potentiallyInvalidSDL?.profiles?.placement === "object"

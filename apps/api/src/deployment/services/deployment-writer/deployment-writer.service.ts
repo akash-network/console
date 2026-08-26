@@ -2,6 +2,7 @@ import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
 import { addMinutes } from "date-fns";
 import { HTTPException } from "hono/http-exception";
 import assert from "http-assert";
+import createError from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import type { UserWalletOutput, WalletInitialized } from "@src/billing/repositories";
@@ -19,6 +20,8 @@ import {
   DeleteUnbackedDeploymentSetting,
   unbackedDeploymentSettingKeyFor
 } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
+import type { ResolvedSdl } from "@src/deployment/services/resolved-sdl/resolved-sdl.service";
+import { ResolvedSdlService } from "@src/deployment/services/resolved-sdl/resolved-sdl.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { stripSdlSecrets } from "@src/deployment/utils/sdl-secret-stripping/sdl-secret-stripping";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -45,7 +48,8 @@ export class DeploymentWriterService {
     private readonly featureFlagsService: FeatureFlagsService,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly txService: TxService,
-    private readonly jobQueueService: JobQueueService
+    private readonly jobQueueService: JobQueueService,
+    private readonly resolvedSdlService: ResolvedSdlService
   ) {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
@@ -57,13 +61,12 @@ export class DeploymentWriterService {
 
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
     const manifest = this.#parseManifest(input.sdl, { isTrialing: !!wallet.isTrialing });
+    const { manifestVersion } = await this.#resolveSdl(input.sdl, { isTrialing: !!wallet.isTrialing });
     const depositInDollars = this.resolveDepositInDollars(input.deposit);
 
     if (wallet.isTrialing) {
       await this.reclaimTrialOrphanedDeployments(wallet);
     }
-
-    const manifestVersion = await this.sdlService.generateManifestVersion(manifest.groups);
 
     await this.recordDefinitionWithCompensation({
       userId: wallet.userId,
@@ -258,9 +261,9 @@ export class DeploymentWriterService {
     const manifest = this.#parseManifest(input.sdl, { isTrialing: !!wallet.isTrialing });
     const sdl = this.#strippedSdlWithinLimit(input.sdl, dseq);
 
-    const [deployment, manifestVersion] = await Promise.all([
+    const [deployment, { manifestVersion }] = await Promise.all([
       this.deploymentReaderService.findByWalletAndDseq(wallet, dseq),
-      this.sdlService.generateManifestVersion(manifest.groups)
+      this.#resolveSdl(input.sdl, { isTrialing: !!wallet.isTrialing })
     ]);
 
     await this.recordDefinition({ userId: wallet.userId, dseq, sdl, manifestVersion });
@@ -276,6 +279,17 @@ export class DeploymentWriterService {
     const manifestResult = this.sdlService.generateManifest(sdl, options);
     assert(manifestResult.ok, 400, `Invalid SDL: ${manifestResult.ok === false ? manifestResult.value.map(e => e.message).join(", ") : ""}`);
     return manifestResult.value;
+  }
+
+  /** Only the manifest version is taken from the resolved SDL: the resolved manifest itself must not leave this call. */
+  async #resolveSdl(sdl: string, options: { isTrialing?: boolean }): Promise<Pick<ResolvedSdl, "manifestVersion">> {
+    const result = await this.resolvedSdlService.resolve({ sdl, secrets: {}, ...options });
+
+    if (!result.ok) {
+      throw createError(400, `Invalid SDL: ${result.value.map(error => error.message).join(", ")}`);
+    }
+
+    return { manifestVersion: result.value.manifestVersion };
   }
 
   private async ensureDeploymentIsUpToDate(wallet: UserWalletOutput, dseq: string, manifestVersion: Uint8Array, deployment: DeploymentResponse): Promise<void> {

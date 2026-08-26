@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { BillingConfig } from "@src/billing/providers";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
+import { ConsoleReferenceService } from "@src/deployment/services/console-reference/console-reference.service";
 import { SdlService } from "./sdl.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
@@ -285,6 +286,8 @@ deployment:
       count: 1
 `;
 
+const SDL_WITH_ENV = (entry: string) => VALID_SDL.replace("    expose:", `    env:\n      - "${entry}"\n    expose:`);
+
 const SDL_WITH_TEE = (tee: string) => `
 version: "2.0"
 services:
@@ -541,6 +544,39 @@ describe(SdlService.name, () => {
         expect(getManifestService(result, "westcoast", "web").params?.tee).toBeUndefined();
       });
     });
+
+    describe("console references", () => {
+      it("keeps a recognized console reference verbatim in the manifest", () => {
+        const { result } = setup({ sdl: SDL_WITH_ENV("TOKEN=ac-secret://TOKEN") });
+
+        expect(result.ok).toBe(true);
+        expect(getManifestService(result, "westcoast", "web").env).toEqual(["TOKEN=ac-secret://TOKEN"]);
+      });
+
+      it("rejects an unknown console reference kind naming the offending value", () => {
+        const { result } = setup({ sdl: SDL_WITH_ENV("TOKEN=ac-var://TOKEN") });
+
+        expect(result).toMatchObject({
+          ok: false,
+          value: [expect.objectContaining({ message: expect.stringContaining("ac-var://TOKEN") })]
+        });
+      });
+
+      it("rejects a value merely beginning with the reserved prefix", () => {
+        const { result } = setup({ sdl: SDL_WITH_ENV("MODE=ac-dc") });
+
+        expect(result).toMatchObject({
+          ok: false,
+          value: [expect.objectContaining({ message: expect.stringContaining("reserved") })]
+        });
+      });
+
+      it("accepts a value merely containing a reference", () => {
+        const { result } = setup({ sdl: SDL_WITH_ENV("MODE=see ac-secret://TOKEN") });
+
+        expect(result.ok).toBe(true);
+      });
+    });
   });
 
   function setup(input?: { sdl?: string; allowedAuditors?: string[]; deploymentGrantDenom?: string; blockedGpuModels?: string[]; isTrialing?: boolean }) {
@@ -553,7 +589,7 @@ describe(SdlService.name, () => {
       MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: input?.blockedGpuModels ?? []
     });
     const blockedGpuService = new BlockedGpuService(blockedGpuConfig);
-    const service = new SdlService(config, blockedGpuService);
+    const service = new SdlService(config, blockedGpuService, new ConsoleReferenceService());
     const result = service.generateManifest(input?.sdl ?? VALID_SDL, { isTrialing: input?.isTrialing });
 
     return { service, result };
