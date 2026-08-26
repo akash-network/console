@@ -179,6 +179,16 @@ describe("DeploymentDetailHeader", () => {
     expect(CostRate).toHaveBeenCalledWith(expect.objectContaining({ perBlockUDenom: 4000, gpuCount: 2 }), {});
   });
 
+  it("hangs the cost breakdown tooltip off the COST label rather than the value", () => {
+    const { CostRate, CostBreakdownTooltip } = setup({
+      leases: [buildPricedLease({ state: "active", amount: "4000", gpuAmount: 2 })]
+    });
+
+    expect(screen.getByText("COST").parentElement).toHaveTextContent("cost-tooltip");
+    expect(CostBreakdownTooltip).toHaveBeenCalledWith(expect.objectContaining({ perBlockUDenom: 4000, gpuCount: 2 }), {});
+    expect(CostRate).toHaveBeenCalledWith(expect.objectContaining({ hideBreakdownTooltip: true }), {});
+  });
+
   it("leaves closed leases out of the cost, so a partly torn-down deployment doesn't over-report", () => {
     const { CostRate } = setup({
       leases: [buildPricedLease({ state: "active", amount: "4000", gpuAmount: 1 }), buildPricedLease({ state: "closed", amount: "9000", gpuAmount: 1 })]
@@ -187,10 +197,11 @@ describe("DeploymentDetailHeader", () => {
     expect(CostRate).toHaveBeenCalledWith(expect.objectContaining({ perBlockUDenom: 4000, gpuCount: 1 }), {});
   });
 
-  it("shows no cost when every lease is closed", () => {
-    const { CostRate } = setup({ leases: [buildPricedLease({ state: "closed", amount: "9000", gpuAmount: 1 })] });
+  it("shows no cost and no breakdown tooltip when every lease is closed", () => {
+    const { CostRate, CostBreakdownTooltip } = setup({ leases: [buildPricedLease({ state: "closed", amount: "9000", gpuAmount: 1 })] });
 
     expect(CostRate).not.toHaveBeenCalled();
+    expect(CostBreakdownTooltip).not.toHaveBeenCalled();
   });
 
   it("keeps redeploy off the header now that it lives on the update tab", () => {
@@ -281,6 +292,7 @@ describe("DeploymentDetailHeader", () => {
         })
       });
     const CostRate = vi.fn(() => <div>cost-rate</div>);
+    const CostBreakdownTooltip = vi.fn(() => <span>cost-tooltip</span>);
     const DeploymentVisitControl = vi.fn(() => <div>visit</div>);
 
     const deployment = mock<DeploymentDto>({
@@ -312,12 +324,13 @@ describe("DeploymentDetailHeader", () => {
           ConfidentialComputeBadge,
           GpuInterconnectBadge,
           CostRate,
+          CostBreakdownTooltip,
           DeploymentVisitControl,
           ...input.dependencies
         })}
       />
     );
 
-    return { changeDeploymentName, CostRate, PriceValue };
+    return { changeDeploymentName, CostRate, CostBreakdownTooltip, PriceValue };
   }
 });
