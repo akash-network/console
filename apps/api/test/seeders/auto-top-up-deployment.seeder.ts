@@ -6,6 +6,7 @@ import { createAkashAddress } from "./akash-address.seeder";
 export function createAutoTopUpDeployment(overrides: Partial<AutoTopUpDeployment> = {}): AutoTopUpDeployment {
   return {
     id: faker.string.uuid(),
+    userId: faker.string.uuid(),
     walletId: faker.number.int(),
     dseq: faker.string.numeric(),
     address: createAkashAddress(),
@@ -13,6 +14,7 @@ export function createAutoTopUpDeployment(overrides: Partial<AutoTopUpDeployment
     walletIsTrialing: false,
     walletCreatedAt: faker.date.recent(),
     walletActivatedAt: faker.date.recent(),
+    walletCreditsLowNotifiedAt: null,
     runtimeLimitHours: null,
     runtimeEndsAt: null,
     ...overrides
