@@ -3083,7 +3083,7 @@
                     "properties": {
                       "autoTopUpEnabled": {
                         "type": "boolean",
-                        "description": "Whether auto top-up is enabled for this deployment"
+                        "description": "Whether auto top-up is enabled for this deployment. An explicit false is rejected once always-on funding is rolled out"
                       },
                       "runtimeLimitHours": {
                         "type": "integer",
@@ -3265,8 +3265,7 @@
                       },
                       "autoTopUpEnabled": {
                         "type": "boolean",
-                        "default": false,
-                        "description": "Whether auto top-up is enabled for this deployment"
+                        "description": "Whether auto top-up is enabled for this deployment. Defaults to enabled when omitted; an explicit false is rejected once always-on funding is rolled out"
                       }
                     },
                     "required": [
@@ -3531,7 +3530,7 @@
                     "properties": {
                       "autoTopUpEnabled": {
                         "type": "boolean",
-                        "description": "Whether auto top-up is enabled for this deployment"
+                        "description": "Whether auto top-up is enabled for this deployment. An explicit false is rejected once always-on funding is rolled out"
                       },
                       "runtimeLimitHours": {
                         "type": "integer",
@@ -3709,8 +3708,7 @@
                       },
                       "autoTopUpEnabled": {
                         "type": "boolean",
-                        "default": false,
-                        "description": "Whether auto top-up is enabled for this deployment"
+                        "description": "Whether auto top-up is enabled for this deployment. Defaults to enabled when omitted; an explicit false is rejected once always-on funding is rolled out"
                       },
                       "userId": {
                         "type": "string",
@@ -7653,6 +7651,108 @@
         }
       }
     },
+    "/v1/sdl-secrets-context": {
+      "get": {
+        "summary": "Get SDL secrets encryption context",
+        "tags": [
+          "SDL Secrets"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns SDL secrets context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sub": {
+                      "type": "string",
+                      "description": "The subject of the SDL secrets context"
+                    },
+                    "kid": {
+                      "type": "string",
+                      "description": "The key ID of the SDL secrets context"
+                    },
+                    "jwk": {
+                      "type": "object",
+                      "properties": {
+                        "kty": {
+                          "type": "string"
+                        },
+                        "n": {
+                          "type": "string"
+                        },
+                        "e": {
+                          "type": "string"
+                        },
+                        "use": {
+                          "type": "string"
+                        },
+                        "alg": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kty",
+                        "n",
+                        "e",
+                        "use",
+                        "alg"
+                      ],
+                      "description": "The JSON Web Key used to encrypt the SDL secrets"
+                    },
+                    "requiredClaims": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "kid",
+                          "sub",
+                          "exp"
+                        ]
+                      },
+                      "description": "The required claims for the SDL secrets context"
+                    }
+                  },
+                  "required": [
+                    "sub",
+                    "kid",
+                    "jwk",
+                    "requiredClaims"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SDL secrets encryption is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/leases": {
       "post": {
         "summary": "Create leases and send manifest",
@@ -10160,6 +10260,108 @@
                       },
                       "featEndpointIp": {
                         "type": "boolean"
+                      },
+                      "verification": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                          "provider": {
+                            "type": "string"
+                          },
+                          "moduleActive": {
+                            "type": "boolean",
+                            "nullable": true
+                          },
+                          "summary": {
+                            "type": "object",
+                            "properties": {
+                              "effectiveTier": {
+                                "type": "string",
+                                "nullable": true,
+                                "enum": [
+                                  "L0",
+                                  "L1",
+                                  "L2",
+                                  "L3",
+                                  "L4",
+                                  "unknown"
+                                ],
+                                "description": "Tier used by the chain tier gate, including active discrepancy grace"
+                              },
+                              "validAuditorCount": {
+                                "type": "integer",
+                                "nullable": true,
+                                "minimum": 0
+                              },
+                              "capabilities": {
+                                "type": "array",
+                                "nullable": true,
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "unspecified",
+                                    "tee_hardware_attestation",
+                                    "confidential_computing",
+                                    "persistent_storage",
+                                    "bare_metal",
+                                    "unknown"
+                                  ]
+                                }
+                              },
+                              "snapshotState": {
+                                "type": "string",
+                                "enum": [
+                                  "unknown",
+                                  "not_posted",
+                                  "current",
+                                  "stale",
+                                  "suspended"
+                                ]
+                              },
+                              "maintenanceState": {
+                                "type": "string",
+                                "enum": [
+                                  "unknown",
+                                  "none",
+                                  "scheduled",
+                                  "active"
+                                ]
+                              },
+                              "reviewState": {
+                                "type": "string",
+                                "enum": [
+                                  "unknown",
+                                  "none",
+                                  "under_review",
+                                  "grace"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "effectiveTier",
+                              "validAuditorCount",
+                              "capabilities",
+                              "snapshotState",
+                              "maintenanceState",
+                              "reviewState"
+                            ]
+                          },
+                          "observedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "observedHeight": {
+                            "type": "string",
+                            "pattern": "^\\d+$"
+                          }
+                        },
+                        "required": [
+                          "provider",
+                          "moduleActive",
+                          "summary",
+                          "observedAt",
+                          "observedHeight"
+                        ]
                       }
                     },
                     "required": [
@@ -10208,7 +10410,8 @@
                       "featEndpointCustomDomain",
                       "workloadSupportChia",
                       "workloadSupportChiaCapabilities",
-                      "featEndpointIp"
+                      "featEndpointIp",
+                      "verification"
                     ]
                   }
                 }
@@ -10596,6 +10799,1029 @@
                     "featEndpointIp": {
                       "type": "boolean"
                     },
+                    "verification": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "provider": {
+                          "type": "string"
+                        },
+                        "providerDeclaredTier": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Legacy, self-declared provider tier attribute; not an AEP-86 attestation"
+                        },
+                        "moduleActive": {
+                          "type": "boolean",
+                          "nullable": true
+                        },
+                        "provenance": {
+                          "type": "object",
+                          "properties": {
+                            "providerTier": {
+                              "type": "string",
+                              "enum": [
+                                "provider self-declared"
+                              ]
+                            },
+                            "inventory": {
+                              "type": "string",
+                              "enum": [
+                                "provider-signed inventory"
+                              ]
+                            },
+                            "attestations": {
+                              "type": "string",
+                              "enum": [
+                                "auditor-attested"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "providerTier",
+                            "inventory",
+                            "attestations"
+                          ]
+                        },
+                        "summary": {
+                          "type": "object",
+                          "properties": {
+                            "bestAttestedTier": {
+                              "type": "string",
+                              "nullable": true,
+                              "enum": [
+                                "L0",
+                                "L1",
+                                "L2",
+                                "L3",
+                                "L4",
+                                "unknown"
+                              ]
+                            },
+                            "effectiveTier": {
+                              "type": "string",
+                              "nullable": true,
+                              "enum": [
+                                "L0",
+                                "L1",
+                                "L2",
+                                "L3",
+                                "L4",
+                                "unknown"
+                              ],
+                              "description": "Tier used by the chain tier gate, including active discrepancy grace"
+                            },
+                            "capabilities": {
+                              "type": "array",
+                              "nullable": true,
+                              "items": {
+                                "type": "string",
+                                "enum": [
+                                  "unspecified",
+                                  "tee_hardware_attestation",
+                                  "confidential_computing",
+                                  "persistent_storage",
+                                  "bare_metal",
+                                  "unknown"
+                                ]
+                              }
+                            },
+                            "validAttestationCount": {
+                              "type": "integer",
+                              "nullable": true,
+                              "minimum": 0
+                            },
+                            "validAuditorCount": {
+                              "type": "integer",
+                              "nullable": true,
+                              "minimum": 0
+                            },
+                            "validAuditors": {
+                              "type": "array",
+                              "nullable": true,
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "snapshotState": {
+                              "type": "string",
+                              "enum": [
+                                "unknown",
+                                "not_posted",
+                                "current",
+                                "stale",
+                                "suspended"
+                              ]
+                            },
+                            "maintenanceState": {
+                              "type": "string",
+                              "enum": [
+                                "unknown",
+                                "none",
+                                "scheduled",
+                                "active"
+                              ]
+                            },
+                            "reviewState": {
+                              "type": "string",
+                              "enum": [
+                                "unknown",
+                                "none",
+                                "under_review",
+                                "grace"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "bestAttestedTier",
+                            "effectiveTier",
+                            "capabilities",
+                            "validAttestationCount",
+                            "validAuditorCount",
+                            "validAuditors",
+                            "snapshotState",
+                            "maintenanceState",
+                            "reviewState"
+                          ]
+                        },
+                        "attestations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "provider": {
+                                "type": "string"
+                              },
+                              "auditor": {
+                                "type": "string"
+                              },
+                              "tier": {
+                                "type": "string",
+                                "enum": [
+                                  "L0",
+                                  "L1",
+                                  "L2",
+                                  "L3",
+                                  "L4",
+                                  "unknown"
+                                ]
+                              },
+                              "capabilities": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "unspecified",
+                                    "tee_hardware_attestation",
+                                    "confidential_computing",
+                                    "persistent_storage",
+                                    "bare_metal",
+                                    "unknown"
+                                  ]
+                                }
+                              },
+                              "evidenceHash": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Base64-encoded bytes, or null when the chain field is empty"
+                              },
+                              "fee": {
+                                "type": "object",
+                                "nullable": true,
+                                "properties": {
+                                  "denom": {
+                                    "type": "string"
+                                  },
+                                  "amount": {
+                                    "type": "string",
+                                    "pattern": "^\\d+$"
+                                  }
+                                },
+                                "required": [
+                                  "denom",
+                                  "amount"
+                                ]
+                              },
+                              "feeStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "unspecified",
+                                  "escrowed",
+                                  "released_to_auditor",
+                                  "returned_to_provider",
+                                  "unknown"
+                                ]
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              },
+                              "expiresAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "unspecified",
+                                  "valid",
+                                  "voided",
+                                  "expired",
+                                  "revoked",
+                                  "removed",
+                                  "unknown"
+                                ]
+                              },
+                              "voidedReason": {
+                                "type": "string",
+                                "enum": [
+                                  "unspecified",
+                                  "discrepancy",
+                                  "governance",
+                                  "bond_withdrawn",
+                                  "bond_slashed",
+                                  "unknown"
+                                ]
+                              },
+                              "deposit": {
+                                "type": "object",
+                                "nullable": true,
+                                "properties": {
+                                  "denom": {
+                                    "type": "string"
+                                  },
+                                  "amount": {
+                                    "type": "string",
+                                    "pattern": "^\\d+$"
+                                  }
+                                },
+                                "required": [
+                                  "denom",
+                                  "amount"
+                                ]
+                              },
+                              "depositStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "unspecified",
+                                  "escrowed",
+                                  "pending_discrepancy",
+                                  "returned_to_auditor",
+                                  "slashed",
+                                  "unknown"
+                                ]
+                              },
+                              "auditEscrowId": {
+                                "type": "string",
+                                "pattern": "^\\d+$"
+                              },
+                              "faultAttribution": {
+                                "type": "string",
+                                "enum": [
+                                  "unspecified",
+                                  "provider_fault",
+                                  "auditor_fault",
+                                  "shared_fault",
+                                  "no_fault",
+                                  "inconclusive",
+                                  "unknown"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "provider",
+                              "auditor",
+                              "tier",
+                              "capabilities",
+                              "evidenceHash",
+                              "fee",
+                              "feeStatus",
+                              "createdAt",
+                              "expiresAt",
+                              "status",
+                              "voidedReason",
+                              "deposit",
+                              "depositStatus",
+                              "auditEscrowId",
+                              "faultAttribution"
+                            ]
+                          }
+                        },
+                        "bond": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "provider": {
+                              "type": "string"
+                            },
+                            "bondedAmount": {
+                              "type": "object",
+                              "nullable": true,
+                              "properties": {
+                                "denom": {
+                                  "type": "string"
+                                },
+                                "amount": {
+                                  "type": "string",
+                                  "pattern": "^\\d+$"
+                                }
+                              },
+                              "required": [
+                                "denom",
+                                "amount"
+                              ]
+                            },
+                            "requiredForCurrentTier": {
+                              "type": "object",
+                              "properties": {
+                                "denom": {
+                                  "type": "string"
+                                },
+                                "amount": {
+                                  "type": "string",
+                                  "pattern": "^\\d+$"
+                                }
+                              },
+                              "required": [
+                                "denom",
+                                "amount"
+                              ]
+                            },
+                            "unbondingEntries": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "amount": {
+                                    "type": "object",
+                                    "nullable": true,
+                                    "properties": {
+                                      "denom": {
+                                        "type": "string"
+                                      },
+                                      "amount": {
+                                        "type": "string",
+                                        "pattern": "^\\d+$"
+                                      }
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount"
+                                    ]
+                                  },
+                                  "completionTime": {
+                                    "type": "string",
+                                    "nullable": true,
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": [
+                                  "amount",
+                                  "completionTime"
+                                ]
+                              }
+                            },
+                            "slashed": {
+                              "type": "boolean"
+                            },
+                            "lastSlashTime": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "provider",
+                            "bondedAmount",
+                            "requiredForCurrentTier",
+                            "unbondingEntries",
+                            "slashed",
+                            "lastSlashTime"
+                          ]
+                        },
+                        "snapshot": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "provider": {
+                              "type": "string"
+                            },
+                            "snapshotHash": {
+                              "type": "string",
+                              "nullable": true,
+                              "description": "Base64-encoded bytes, or null when the chain field is empty"
+                            },
+                            "resourceSummary": {
+                              "type": "object",
+                              "nullable": true,
+                              "properties": {
+                                "totalGpus": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "totalVcpus": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "totalMemoryMb": {
+                                  "type": "string",
+                                  "pattern": "^\\d+$"
+                                },
+                                "totalStorageMb": {
+                                  "type": "string",
+                                  "pattern": "^\\d+$"
+                                },
+                                "activeLeases": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "softwareVersion": {
+                                  "type": "string"
+                                },
+                                "softwareSignature": {
+                                  "type": "string",
+                                  "nullable": true,
+                                  "description": "Base64-encoded bytes, or null when the chain field is empty"
+                                },
+                                "softwareIdentity": {
+                                  "type": "object",
+                                  "nullable": true,
+                                  "properties": {
+                                    "version": {
+                                      "type": "string"
+                                    },
+                                    "artifactRef": {
+                                      "type": "string"
+                                    },
+                                    "digestAlgorithm": {
+                                      "type": "string"
+                                    },
+                                    "digest": {
+                                      "type": "string",
+                                      "nullable": true,
+                                      "description": "Base64-encoded bytes, or null when the chain field is empty"
+                                    },
+                                    "signatureType": {
+                                      "type": "string"
+                                    },
+                                    "signature": {
+                                      "type": "string",
+                                      "nullable": true,
+                                      "description": "Base64-encoded bytes, or null when the chain field is empty"
+                                    },
+                                    "signatureRef": {
+                                      "type": "string"
+                                    },
+                                    "publicKeyRef": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "version",
+                                    "artifactRef",
+                                    "digestAlgorithm",
+                                    "digest",
+                                    "signatureType",
+                                    "signature",
+                                    "signatureRef",
+                                    "publicKeyRef"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "totalGpus",
+                                "totalVcpus",
+                                "totalMemoryMb",
+                                "totalStorageMb",
+                                "activeLeases",
+                                "softwareVersion",
+                                "softwareSignature",
+                                "softwareIdentity"
+                              ]
+                            },
+                            "postedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "snapshotTimestamp": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "complianceDeadline": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "suspended": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "provider",
+                            "snapshotHash",
+                            "resourceSummary",
+                            "postedAt",
+                            "snapshotTimestamp",
+                            "complianceDeadline",
+                            "suspended"
+                          ]
+                        },
+                        "grace": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "pattern": "^\\d+$"
+                            },
+                            "provider": {
+                              "type": "string"
+                            },
+                            "preservedTier": {
+                              "type": "string",
+                              "enum": [
+                                "L0",
+                                "L1",
+                                "L2",
+                                "L3",
+                                "L4",
+                                "unknown"
+                              ]
+                            },
+                            "sourceDiscrepancyIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "pattern": "^\\d+$"
+                              }
+                            },
+                            "startedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "expiresAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "unspecified",
+                                "active",
+                                "expired",
+                                "terminated",
+                                "unknown"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "provider",
+                            "preservedTier",
+                            "sourceDiscrepancyIds",
+                            "startedAt",
+                            "expiresAt",
+                            "status"
+                          ]
+                        },
+                        "auditEscrows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "pattern": "^\\d+$"
+                              },
+                              "provider": {
+                                "type": "string"
+                              },
+                              "consumedByAuditor": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "requestedTier": {
+                                "type": "string",
+                                "enum": [
+                                  "L0",
+                                  "L1",
+                                  "L2",
+                                  "L3",
+                                  "L4",
+                                  "unknown"
+                                ]
+                              },
+                              "requestedCapabilities": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "unspecified",
+                                    "tee_hardware_attestation",
+                                    "confidential_computing",
+                                    "persistent_storage",
+                                    "bare_metal",
+                                    "unknown"
+                                  ]
+                                }
+                              },
+                              "fee": {
+                                "type": "object",
+                                "nullable": true,
+                                "properties": {
+                                  "denom": {
+                                    "type": "string"
+                                  },
+                                  "amount": {
+                                    "type": "string",
+                                    "pattern": "^\\d+$"
+                                  }
+                                },
+                                "required": [
+                                  "denom",
+                                  "amount"
+                                ]
+                              },
+                              "feeStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "unspecified",
+                                  "escrowed",
+                                  "released_to_auditor",
+                                  "returned_to_provider",
+                                  "unknown"
+                                ]
+                              },
+                              "providerDeposit": {
+                                "type": "object",
+                                "nullable": true,
+                                "properties": {
+                                  "denom": {
+                                    "type": "string"
+                                  },
+                                  "amount": {
+                                    "type": "string",
+                                    "pattern": "^\\d+$"
+                                  }
+                                },
+                                "required": [
+                                  "denom",
+                                  "amount"
+                                ]
+                              },
+                              "providerDepositStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "unspecified",
+                                  "escrowed",
+                                  "returned_to_provider",
+                                  "slashed",
+                                  "unknown"
+                                ]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "unspecified",
+                                  "open",
+                                  "consumed",
+                                  "cancelled",
+                                  "expired",
+                                  "settled",
+                                  "unknown"
+                                ]
+                              },
+                              "openedAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              },
+                              "consumedAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              },
+                              "expiresAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              },
+                              "metadataHash": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Base64-encoded bytes, or null when the chain field is empty"
+                              },
+                              "settlementReason": {
+                                "type": "string",
+                                "enum": [
+                                  "unspecified",
+                                  "cancelled_unconsumed",
+                                  "expired_unconsumed",
+                                  "provider_fault",
+                                  "no_fault",
+                                  "unknown"
+                                ]
+                              },
+                              "faultAttribution": {
+                                "type": "string",
+                                "enum": [
+                                  "unspecified",
+                                  "provider_fault",
+                                  "auditor_fault",
+                                  "shared_fault",
+                                  "no_fault",
+                                  "inconclusive",
+                                  "unknown"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "provider",
+                              "consumedByAuditor",
+                              "requestedTier",
+                              "requestedCapabilities",
+                              "fee",
+                              "feeStatus",
+                              "providerDeposit",
+                              "providerDepositStatus",
+                              "status",
+                              "openedAt",
+                              "consumedAt",
+                              "expiresAt",
+                              "metadataHash",
+                              "settlementReason",
+                              "faultAttribution"
+                            ]
+                          }
+                        },
+                        "maintenance": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "record": {
+                                "type": "object",
+                                "nullable": true,
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "pattern": "^\\d+$"
+                                  },
+                                  "provider": {
+                                    "type": "string"
+                                  },
+                                  "maintenanceType": {
+                                    "type": "string",
+                                    "enum": [
+                                      "unspecified",
+                                      "planned",
+                                      "emergency",
+                                      "security",
+                                      "network",
+                                      "capacity",
+                                      "unknown"
+                                    ]
+                                  },
+                                  "startsAt": {
+                                    "type": "string",
+                                    "nullable": true,
+                                    "format": "date-time"
+                                  },
+                                  "expectedEndsAt": {
+                                    "type": "string",
+                                    "nullable": true,
+                                    "format": "date-time"
+                                  },
+                                  "openedAt": {
+                                    "type": "string",
+                                    "nullable": true,
+                                    "format": "date-time"
+                                  },
+                                  "closedAt": {
+                                    "type": "string",
+                                    "nullable": true,
+                                    "format": "date-time"
+                                  },
+                                  "metadataHash": {
+                                    "type": "string",
+                                    "nullable": true,
+                                    "description": "Base64-encoded bytes, or null when the chain field is empty"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "provider",
+                                  "maintenanceType",
+                                  "startsAt",
+                                  "expectedEndsAt",
+                                  "openedAt",
+                                  "closedAt",
+                                  "metadataHash"
+                                ]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "unspecified",
+                                  "scheduled",
+                                  "active",
+                                  "elapsed",
+                                  "closed",
+                                  "unknown"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "record",
+                              "status"
+                            ]
+                          }
+                        },
+                        "discrepancies": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "pattern": "^\\d+$"
+                              },
+                              "provider": {
+                                "type": "string"
+                              },
+                              "auditorA": {
+                                "type": "string"
+                              },
+                              "auditorATier": {
+                                "type": "string",
+                                "enum": [
+                                  "L0",
+                                  "L1",
+                                  "L2",
+                                  "L3",
+                                  "L4",
+                                  "unknown"
+                                ]
+                              },
+                              "auditorB": {
+                                "type": "string"
+                              },
+                              "auditorBTier": {
+                                "type": "string",
+                                "enum": [
+                                  "L0",
+                                  "L1",
+                                  "L2",
+                                  "L3",
+                                  "L4",
+                                  "unknown"
+                                ]
+                              },
+                              "timestamp": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              },
+                              "resolutionStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "unspecified",
+                                  "pending",
+                                  "resolved",
+                                  "timed_out",
+                                  "unknown"
+                                ]
+                              },
+                              "resolutionProposalId": {
+                                "type": "string",
+                                "pattern": "^\\d+$"
+                              },
+                              "graceRecordId": {
+                                "type": "string",
+                                "pattern": "^\\d+$"
+                              },
+                              "resolutionReason": {
+                                "type": "string",
+                                "enum": [
+                                  "unspecified",
+                                  "auditor_a_correct",
+                                  "auditor_b_correct",
+                                  "both_auditors_wrong",
+                                  "provider_fault",
+                                  "shared_fault",
+                                  "evidence_inconclusive",
+                                  "governance_timeout_review",
+                                  "unknown"
+                                ]
+                              },
+                              "faultAttribution": {
+                                "type": "string",
+                                "enum": [
+                                  "unspecified",
+                                  "provider_fault",
+                                  "auditor_fault",
+                                  "shared_fault",
+                                  "no_fault",
+                                  "inconclusive",
+                                  "unknown"
+                                ]
+                              },
+                              "resolutionEvidenceHash": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Base64-encoded bytes, or null when the chain field is empty"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "provider",
+                              "auditorA",
+                              "auditorATier",
+                              "auditorB",
+                              "auditorBTier",
+                              "timestamp",
+                              "resolutionStatus",
+                              "resolutionProposalId",
+                              "graceRecordId",
+                              "resolutionReason",
+                              "faultAttribution",
+                              "resolutionEvidenceHash"
+                            ]
+                          }
+                        },
+                        "observedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "observedHeight": {
+                          "type": "string",
+                          "pattern": "^\\d+$"
+                        },
+                        "completeness": {
+                          "type": "object",
+                          "properties": {
+                            "params": {
+                              "type": "boolean"
+                            },
+                            "attestations": {
+                              "type": "boolean"
+                            },
+                            "graces": {
+                              "type": "boolean"
+                            },
+                            "snapshot": {
+                              "type": "boolean"
+                            },
+                            "bond": {
+                              "type": "boolean"
+                            },
+                            "auditEscrows": {
+                              "type": "boolean"
+                            },
+                            "maintenance": {
+                              "type": "boolean"
+                            },
+                            "discrepancies": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "params",
+                            "attestations",
+                            "graces",
+                            "snapshot",
+                            "bond",
+                            "auditEscrows",
+                            "maintenance",
+                            "discrepancies"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "provider",
+                        "providerDeclaredTier",
+                        "moduleActive",
+                        "provenance",
+                        "summary",
+                        "attestations",
+                        "bond",
+                        "snapshot",
+                        "grace",
+                        "auditEscrows",
+                        "maintenance",
+                        "discrepancies",
+                        "observedAt",
+                        "observedHeight",
+                        "completeness"
+                      ]
+                    },
                     "uptime": {
                       "type": "array",
                       "items": {
@@ -10672,6 +11898,7 @@
                     "workloadSupportChia",
                     "workloadSupportChiaCapabilities",
                     "featEndpointIp",
+                    "verification",
                     "uptime"
                   ]
                 }
@@ -16545,6 +17772,117 @@
                           ]
                         },
                         "default": []
+                      },
+                      "verification": {
+                        "type": "object",
+                        "properties": {
+                          "minTier": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "enum": [
+                                  0
+                                ]
+                              },
+                              {
+                                "type": "number",
+                                "enum": [
+                                  1
+                                ]
+                              },
+                              {
+                                "type": "number",
+                                "enum": [
+                                  2
+                                ]
+                              },
+                              {
+                                "type": "number",
+                                "enum": [
+                                  3
+                                ]
+                              },
+                              {
+                                "type": "number",
+                                "enum": [
+                                  4
+                                ]
+                              }
+                            ]
+                          },
+                          "requiredCapabilities": {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    1
+                                  ]
+                                },
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    2
+                                  ]
+                                },
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    3
+                                  ]
+                                },
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    4
+                                  ]
+                                }
+                              ]
+                            },
+                            "default": []
+                          },
+                          "requiredAuditors": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "default": []
+                          },
+                          "auditorMode": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "enum": [
+                                  0
+                                ]
+                              },
+                              {
+                                "type": "number",
+                                "enum": [
+                                  1
+                                ]
+                              },
+                              {
+                                "type": "number",
+                                "enum": [
+                                  2
+                                ]
+                              }
+                            ],
+                            "default": 0
+                          },
+                          "minAuditorCount": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 4294967295,
+                            "default": 0
+                          }
+                        },
+                        "required": [
+                          "minTier"
+                        ]
                       }
                     },
                     "default": {}
@@ -16754,7 +18092,23 @@
                             "endpoints": {
                               "type": "array",
                               "items": {
-                                "nullable": true
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "SHARED_HTTP",
+                                      "RANDOM_PORT",
+                                      "LEASED_IP",
+                                      "UNRECOGNIZED"
+                                    ]
+                                  },
+                                  "sequenceNumber": {
+                                    "type": "integer",
+                                    "nullable": true,
+                                    "minimum": 0
+                                  }
+                                }
                               }
                             }
                           },
@@ -16863,6 +18217,200 @@
                             "description": "Provider organization from the organization attribute (signed preferred, else self-declared); null if unset",
                             "example": "Akash"
                           },
+                          "verification": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "outcome": {
+                                    "type": "string",
+                                    "enum": [
+                                      "pass"
+                                    ]
+                                  },
+                                  "summary": {
+                                    "type": "object",
+                                    "properties": {
+                                      "bestStatusValidTier": {
+                                        "type": "integer",
+                                        "enum": [
+                                          0,
+                                          1,
+                                          2,
+                                          3,
+                                          4,
+                                          -1
+                                        ]
+                                      },
+                                      "tierGateTier": {
+                                        "type": "integer",
+                                        "enum": [
+                                          0,
+                                          1,
+                                          2,
+                                          3,
+                                          4,
+                                          -1
+                                        ]
+                                      },
+                                      "capabilities": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "integer",
+                                          "enum": [
+                                            0,
+                                            1,
+                                            2,
+                                            3,
+                                            4,
+                                            -1
+                                          ]
+                                        }
+                                      },
+                                      "validAttestationCount": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      "validAuditors": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "snapshotState": {
+                                        "type": "string",
+                                        "enum": [
+                                          "unknown",
+                                          "not_posted",
+                                          "current",
+                                          "stale",
+                                          "suspended"
+                                        ]
+                                      },
+                                      "observedHeight": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "bestStatusValidTier",
+                                      "tierGateTier",
+                                      "capabilities",
+                                      "validAttestationCount",
+                                      "validAuditors",
+                                      "snapshotState",
+                                      "observedHeight"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "outcome",
+                                  "summary"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "outcome": {
+                                    "type": "string",
+                                    "enum": [
+                                      "not_evaluated"
+                                    ]
+                                  },
+                                  "incompleteFacts": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "enum": [
+                                        "params",
+                                        "attestations",
+                                        "graces",
+                                        "snapshot",
+                                        "module_inactive"
+                                      ]
+                                    }
+                                  },
+                                  "summary": {
+                                    "type": "object",
+                                    "properties": {
+                                      "bestStatusValidTier": {
+                                        "type": "integer",
+                                        "enum": [
+                                          0,
+                                          1,
+                                          2,
+                                          3,
+                                          4,
+                                          -1
+                                        ]
+                                      },
+                                      "tierGateTier": {
+                                        "type": "integer",
+                                        "enum": [
+                                          0,
+                                          1,
+                                          2,
+                                          3,
+                                          4,
+                                          -1
+                                        ]
+                                      },
+                                      "capabilities": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "integer",
+                                          "enum": [
+                                            0,
+                                            1,
+                                            2,
+                                            3,
+                                            4,
+                                            -1
+                                          ]
+                                        }
+                                      },
+                                      "validAttestationCount": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      "validAuditors": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "snapshotState": {
+                                        "type": "string",
+                                        "enum": [
+                                          "unknown",
+                                          "not_posted",
+                                          "current",
+                                          "stale",
+                                          "suspended"
+                                        ]
+                                      },
+                                      "observedHeight": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "bestStatusValidTier",
+                                      "tierGateTier",
+                                      "capabilities",
+                                      "validAttestationCount",
+                                      "validAuditors",
+                                      "snapshotState",
+                                      "observedHeight"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "outcome",
+                                  "incompleteFacts",
+                                  "summary"
+                                ]
+                              }
+                            ]
+                          },
                           "incidents": {
                             "type": "array",
                             "items": {
@@ -16904,6 +18452,430 @@
                           "location",
                           "organization",
                           "incidents"
+                        ]
+                      }
+                    },
+                    "exclusions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "owner": {
+                            "type": "string"
+                          },
+                          "firstFailure": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string",
+                                    "enum": [
+                                      "snapshot_not_posted"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "code"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string",
+                                    "enum": [
+                                      "snapshot_suspended"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "code"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string",
+                                    "enum": [
+                                      "snapshot_stale"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "code"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string",
+                                    "enum": [
+                                      "insufficient_tier"
+                                    ]
+                                  },
+                                  "actual": {
+                                    "type": "integer",
+                                    "enum": [
+                                      0,
+                                      1,
+                                      2,
+                                      3,
+                                      4,
+                                      -1
+                                    ]
+                                  },
+                                  "required": {
+                                    "type": "integer",
+                                    "enum": [
+                                      0,
+                                      1,
+                                      2,
+                                      3,
+                                      4,
+                                      -1
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "actual",
+                                  "required"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string",
+                                    "enum": [
+                                      "missing_capability"
+                                    ]
+                                  },
+                                  "capability": {
+                                    "type": "integer",
+                                    "enum": [
+                                      0,
+                                      1,
+                                      2,
+                                      3,
+                                      4,
+                                      -1
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "capability"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string",
+                                    "enum": [
+                                      "insufficient_auditor_count"
+                                    ]
+                                  },
+                                  "actual": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "required": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "actual",
+                                  "required"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string",
+                                    "enum": [
+                                      "required_auditor_not_found"
+                                    ]
+                                  },
+                                  "mode": {
+                                    "type": "integer",
+                                    "enum": [
+                                      0,
+                                      1,
+                                      2,
+                                      -1
+                                    ]
+                                  },
+                                  "missing": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "mode",
+                                  "missing"
+                                ]
+                              }
+                            ]
+                          },
+                          "failures": {
+                            "type": "array",
+                            "items": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "code": {
+                                      "type": "string",
+                                      "enum": [
+                                        "snapshot_not_posted"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "code"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "code": {
+                                      "type": "string",
+                                      "enum": [
+                                        "snapshot_suspended"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "code"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "code": {
+                                      "type": "string",
+                                      "enum": [
+                                        "snapshot_stale"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "code"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "code": {
+                                      "type": "string",
+                                      "enum": [
+                                        "insufficient_tier"
+                                      ]
+                                    },
+                                    "actual": {
+                                      "type": "integer",
+                                      "enum": [
+                                        0,
+                                        1,
+                                        2,
+                                        3,
+                                        4,
+                                        -1
+                                      ]
+                                    },
+                                    "required": {
+                                      "type": "integer",
+                                      "enum": [
+                                        0,
+                                        1,
+                                        2,
+                                        3,
+                                        4,
+                                        -1
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "code",
+                                    "actual",
+                                    "required"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "code": {
+                                      "type": "string",
+                                      "enum": [
+                                        "missing_capability"
+                                      ]
+                                    },
+                                    "capability": {
+                                      "type": "integer",
+                                      "enum": [
+                                        0,
+                                        1,
+                                        2,
+                                        3,
+                                        4,
+                                        -1
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "code",
+                                    "capability"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "code": {
+                                      "type": "string",
+                                      "enum": [
+                                        "insufficient_auditor_count"
+                                      ]
+                                    },
+                                    "actual": {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    "required": {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    }
+                                  },
+                                  "required": [
+                                    "code",
+                                    "actual",
+                                    "required"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "code": {
+                                      "type": "string",
+                                      "enum": [
+                                        "required_auditor_not_found"
+                                      ]
+                                    },
+                                    "mode": {
+                                      "type": "integer",
+                                      "enum": [
+                                        0,
+                                        1,
+                                        2,
+                                        -1
+                                      ]
+                                    },
+                                    "missing": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "code",
+                                    "mode",
+                                    "missing"
+                                  ]
+                                }
+                              ]
+                            },
+                            "minItems": 1
+                          },
+                          "summary": {
+                            "type": "object",
+                            "properties": {
+                              "bestStatusValidTier": {
+                                "type": "integer",
+                                "enum": [
+                                  0,
+                                  1,
+                                  2,
+                                  3,
+                                  4,
+                                  -1
+                                ]
+                              },
+                              "tierGateTier": {
+                                "type": "integer",
+                                "enum": [
+                                  0,
+                                  1,
+                                  2,
+                                  3,
+                                  4,
+                                  -1
+                                ]
+                              },
+                              "capabilities": {
+                                "type": "array",
+                                "items": {
+                                  "type": "integer",
+                                  "enum": [
+                                    0,
+                                    1,
+                                    2,
+                                    3,
+                                    4,
+                                    -1
+                                  ]
+                                }
+                              },
+                              "validAttestationCount": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "validAuditors": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "snapshotState": {
+                                "type": "string",
+                                "enum": [
+                                  "unknown",
+                                  "not_posted",
+                                  "current",
+                                  "stale",
+                                  "suspended"
+                                ]
+                              },
+                              "observedHeight": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "bestStatusValidTier",
+                              "tierGateTier",
+                              "capabilities",
+                              "validAttestationCount",
+                              "validAuditors",
+                              "snapshotState",
+                              "observedHeight"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "owner",
+                          "firstFailure",
+                          "failures",
+                          "summary"
                         ]
                       }
                     }
