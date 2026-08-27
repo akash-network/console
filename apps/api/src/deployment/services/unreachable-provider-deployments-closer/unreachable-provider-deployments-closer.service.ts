@@ -170,7 +170,7 @@ export class UnreachableProviderDeploymentsCloserService {
       throw error;
     }
 
-    await this.deploymentSettingRepository.markClosed({ userId: wallet.userId, dseq: deployment.dseq });
+    await this.#recordClosed(deployment, wallet, errors);
 
     this.logger.info({
       event: "UNREACHABLE_PROVIDER_DEPLOYMENT_CLOSED",
@@ -183,6 +183,24 @@ export class UnreachableProviderDeploymentsCloserService {
     await this.#notifyOwner(deployment, wallet, errors);
 
     return true;
+  }
+
+  /**
+   * Marking the setting happens after the close, so a database that refuses it is collected rather than
+   * thrown: the owner would otherwise lose the email explaining a close that already happened.
+   */
+  async #recordClosed(deployment: DarkDeployment, wallet: { userId: string }, errors: unknown[]): Promise<void> {
+    try {
+      await this.deploymentSettingRepository.markClosed({ userId: wallet.userId, dseq: deployment.dseq });
+    } catch (error) {
+      this.logger.error({
+        event: "UNREACHABLE_PROVIDER_DEPLOYMENT_CLOSE_RECORD_FAILED",
+        dseq: deployment.dseq,
+        owner: deployment.owner,
+        error
+      });
+      errors.push(error);
+    }
   }
 
   /**

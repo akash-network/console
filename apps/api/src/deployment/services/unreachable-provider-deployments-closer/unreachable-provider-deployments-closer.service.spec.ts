@@ -166,6 +166,19 @@ describe(UnreachableProviderDeploymentsCloserService.name, () => {
     expect(result.err).toBe(true);
   });
 
+  it("still tells the owner when recording the close fails", async () => {
+    const { service, deploymentSettingRepository, jobQueueService } = setup({
+      outages: [anOutage({})],
+      leases: [aLease({})]
+    });
+    deploymentSettingRepository.markClosed.mockRejectedValue(new Error("connection terminated"));
+
+    const result = await service.closeUnreachableProviderDeployments({ dryRun: false });
+
+    expect(result.err).toBe(true);
+    expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+  });
+
   it("reports a queue that refuses the closure email without undoing the close", async () => {
     const { service, jobQueueService, deploymentSettingRepository } = setup({
       outages: [anOutage({})],
