@@ -1,7 +1,7 @@
 import type { comet38 } from "@cosmjs/tendermint-rpc";
 import { Comet38Client } from "@cosmjs/tendermint-rpc";
 import { Test } from "@nestjs/testing";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 
@@ -12,6 +12,29 @@ import { MockProvider } from "@test/mocks/provider.mock";
 
 describe(TxEventsService.name, () => {
   describe("getBlockEvents", () => {
+    it("propagates an exhausted block-results failure", async () => {
+      vi.useFakeTimers();
+
+      try {
+        const { module } = await setup();
+        const service = module.get<TxEventsService>(TxEventsService);
+        const cometClient = module.get<MockProxy<Comet38Client>>(Comet38Client);
+        const error = new Error("block results unavailable");
+        cometClient.blockResults.mockRejectedValue(error);
+
+        const result = service.getBlockEvents(1).then(
+          () => undefined,
+          rejection => rejection
+        );
+        await vi.runAllTimersAsync();
+
+        expect(await result).toBe(error);
+        expect(cometClient.blockResults).toHaveBeenCalledTimes(6);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("should extract certain events from tx logs", async () => {
       const { module } = await setup();
       const service = module.get<TxEventsService>(TxEventsService);
@@ -233,6 +256,62 @@ describe(TxEventsService.name, () => {
           provider: "akash1provideraddressxxxxxxxxxxxxxxxxxxxxxx",
           reason: "lease_closed_reason_unstable",
           deadline: "1749398400"
+        }
+      ]);
+    });
+
+    it("extracts a provider maintenance opened event", async () => {
+      const { module } = await setup();
+      const service = module.get<TxEventsService>(TxEventsService);
+      const cometClient = module.get<MockProxy<Comet38Client>>(Comet38Client);
+      const blockResults: comet38.BlockResultsResponse = {
+        height: 1,
+        results: [
+          {
+            code: 0,
+            codespace: "",
+            data: Uint8Array.from([]),
+            events: [
+              {
+                type: "akash.provider.v1beta4.EventProviderMaintenanceOpened",
+                attributes: [
+                  { key: "maintenance_id", value: '"17"' },
+                  { key: "provider", value: '"akash1provideraddressxxxxxxxxxxxxxxxxxxxxxx"' },
+                  { key: "maintenance_type", value: '"provider_maintenance_type_planned"' },
+                  { key: "starts_at", value: '"2026-08-25T12:00:00Z"' },
+                  { key: "expected_ends_at", value: '"2026-08-25T14:00:00Z"' },
+                  { key: "metadata_hash", value: '"AQID"' },
+                  { key: "msg_index", value: "0" }
+                ]
+              }
+            ],
+            gasWanted: 100000n,
+            gasUsed: 80000n
+          }
+        ],
+        validatorUpdates: [],
+        finalizeBlockEvents: []
+      };
+      cometClient.blockResults.mockResolvedValue(blockResults);
+
+      const result = await service.getBlockEvents(1, {
+        source: "akash",
+        module: "provider",
+        version: "v1beta4",
+        action: ["provider-maintenance-opened"]
+      });
+
+      expect(result).toEqual([
+        {
+          type: "akash.v1beta4",
+          module: "provider",
+          action: "provider-maintenance-opened",
+          maintenance_id: "17",
+          provider: "akash1provideraddressxxxxxxxxxxxxxxxxxxxxxx",
+          maintenance_type: "provider_maintenance_type_planned",
+          starts_at: "2026-08-25T12:00:00Z",
+          expected_ends_at: "2026-08-25T14:00:00Z",
+          metadata_hash: "AQID"
         }
       ]);
     });

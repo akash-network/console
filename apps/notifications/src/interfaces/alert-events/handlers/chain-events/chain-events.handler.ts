@@ -5,7 +5,9 @@ import { BrokerService, Handler } from "@src/infrastructure/broker";
 import { ChainBlockCreatedDto } from "@src/modules/alert/dto/chain-block-created.dto";
 import { EventClosedDeploymentDto } from "@src/modules/alert/dto/event-closed-deployment.dto";
 import { EventLeaseReclaimStartedDto } from "@src/modules/alert/dto/event-lease-reclaim-started.dto";
+import { EventProviderMaintenanceOpenedDto } from "@src/modules/alert/dto/event-provider-maintenance-opened.dto";
 import { ChainAlertService } from "@src/modules/alert/services/chain-alert/chain-alert.service";
+import { ProviderMaintenanceAlertService } from "@src/modules/alert/services/provider-maintenance-alert/provider-maintenance-alert.service";
 import { ReclaimAlertService } from "@src/modules/alert/services/reclaim-alert/reclaim-alert.service";
 import { WalletBalanceAlertsService } from "@src/modules/alert/services/wallet-balance-alerts/wallet-balance-alerts.service";
 
@@ -15,6 +17,7 @@ export class ChainEventsHandler {
     private readonly chainMessageAlertService: ChainAlertService,
     private readonly walletBalanceAlertsService: WalletBalanceAlertsService,
     private readonly reclaimAlertService: ReclaimAlertService,
+    private readonly providerMaintenanceAlertService: ProviderMaintenanceAlertService,
     private readonly brokerService: BrokerService
   ) {}
 
@@ -42,5 +45,13 @@ export class ChainEventsHandler {
   })
   async processLeaseReclaimStarted(payload: EventLeaseReclaimStartedDto): Promise<void> {
     await this.reclaimAlertService.alertFor(payload, message => this.brokerService.publish(eventKeyRegistry.createNotification, message));
+  }
+
+  @Handler({
+    key: eventKeyRegistry.eventProviderMaintenanceOpened,
+    dto: EventProviderMaintenanceOpenedDto
+  })
+  async processProviderMaintenanceOpened(payload: EventProviderMaintenanceOpenedDto): Promise<void> {
+    await this.providerMaintenanceAlertService.alertFor(payload, message => this.brokerService.publish(eventKeyRegistry.createNotification, message));
   }
 }

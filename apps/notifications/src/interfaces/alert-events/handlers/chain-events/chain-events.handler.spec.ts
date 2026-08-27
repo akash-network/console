@@ -9,8 +9,10 @@ import { BrokerService } from "@src/infrastructure/broker";
 import { ChainBlockCreatedDto } from "@src/modules/alert/dto/chain-block-created.dto";
 import { EventClosedDeploymentDto } from "@src/modules/alert/dto/event-closed-deployment.dto";
 import { EventLeaseReclaimStartedDto } from "@src/modules/alert/dto/event-lease-reclaim-started.dto";
+import { EventProviderMaintenanceOpenedDto } from "@src/modules/alert/dto/event-provider-maintenance-opened.dto";
 import { ChainAlertService } from "@src/modules/alert/services/chain-alert/chain-alert.service";
 import { DeploymentBalanceAlertsService } from "@src/modules/alert/services/deployment-balance-alerts/deployment-balance-alerts.service";
+import { ProviderMaintenanceAlertService } from "@src/modules/alert/services/provider-maintenance-alert/provider-maintenance-alert.service";
 import { ReclaimAlertService } from "@src/modules/alert/services/reclaim-alert/reclaim-alert.service";
 import { WalletBalanceAlertsService } from "@src/modules/alert/services/wallet-balance-alerts/wallet-balance-alerts.service";
 import { ChainEventsHandler } from "./chain-events.handler";
@@ -65,6 +67,20 @@ describe(ChainEventsHandler.name, () => {
     });
   });
 
+  describe("processProviderMaintenanceOpened", () => {
+    it("routes provider maintenance through the notification broker", async () => {
+      const { controller, providerMaintenanceAlertService, brokerService } = await setup();
+      const event = generateMock(EventProviderMaintenanceOpenedDto.schema);
+      const alertMessage = generateAlertMessage({});
+      providerMaintenanceAlertService.alertFor.mockImplementation((_, callback) => callback(alertMessage));
+
+      await controller.processProviderMaintenanceOpened(event);
+
+      expect(providerMaintenanceAlertService.alertFor).toHaveBeenCalledWith(event, expect.any(Function));
+      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, alertMessage);
+    });
+  });
+
   async function setup() {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -73,7 +89,8 @@ describe(ChainEventsHandler.name, () => {
         MockProvider(ChainAlertService),
         MockProvider(DeploymentBalanceAlertsService),
         MockProvider(WalletBalanceAlertsService),
-        MockProvider(ReclaimAlertService)
+        MockProvider(ReclaimAlertService),
+        MockProvider(ProviderMaintenanceAlertService)
       ]
     }).compile();
 
@@ -83,6 +100,7 @@ describe(ChainEventsHandler.name, () => {
       deploymentBalanceAlertsService: module.get<MockProxy<DeploymentBalanceAlertsService>>(DeploymentBalanceAlertsService),
       walletBalanceAlertsService: module.get<MockProxy<WalletBalanceAlertsService>>(WalletBalanceAlertsService),
       reclaimAlertService: module.get<MockProxy<ReclaimAlertService>>(ReclaimAlertService),
+      providerMaintenanceAlertService: module.get<MockProxy<ProviderMaintenanceAlertService>>(ProviderMaintenanceAlertService),
       brokerService: module.get<MockProxy<BrokerService>>(BrokerService)
     };
   }
