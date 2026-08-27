@@ -16,13 +16,10 @@ export class TopUpDeploymentsController {
     private readonly expiringDeploymentsNotifierService: ExpiringDeploymentsNotifierService
   ) {}
 
-  /** The reconcile runs whatever the funding sweep did, since an RPC blip there would strand a missing close job for another hour. */
+  /** The reconcile goes first because it only needs the database, so a chain-RPC failure in the sweep cannot skip it for the hour. */
   async topUpDeployments(options: DryRunOptions) {
-    try {
-      await this.topUpManagedDeploymentsService.topUpDeployments(options);
-    } finally {
-      await this.deploymentCloseJobService.reconcileExpired(options);
-    }
+    await this.deploymentCloseJobService.reconcileExpired(options);
+    await this.topUpManagedDeploymentsService.topUpDeployments(options);
   }
 
   async cleanUpStaleDeployment(options: CleanUpStaleDeploymentsParams) {

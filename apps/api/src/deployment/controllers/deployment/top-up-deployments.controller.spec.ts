@@ -27,7 +27,7 @@ describe(TopUpDeploymentsController.name, () => {
       expect(deploymentCloseJobService.reconcileExpired).toHaveBeenCalledWith(options);
     });
 
-    it("reconciles close jobs even when the funding sweep fails", async () => {
+    it("reconciles close jobs before the funding sweep so a sweep failure cannot skip them", async () => {
       const { controller, topUpManagedDeploymentsService, deploymentCloseJobService } = setup();
       const error = new Error("chain rpc unavailable");
       topUpManagedDeploymentsService.topUpDeployments.mockRejectedValue(error);
@@ -36,6 +36,9 @@ describe(TopUpDeploymentsController.name, () => {
       await expect(controller.topUpDeployments(options)).rejects.toThrow(error);
 
       expect(deploymentCloseJobService.reconcileExpired).toHaveBeenCalledWith(options);
+      expect(deploymentCloseJobService.reconcileExpired.mock.invocationCallOrder[0]).toBeLessThan(
+        topUpManagedDeploymentsService.topUpDeployments.mock.invocationCallOrder[0]
+      );
     });
   });
 
