@@ -71,6 +71,13 @@
       "when": 1763000000000,
       "tag": "0009_drop_monitored_value",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787570000000,
+      "tag": "0010_add_provider_verification",
+      "breakpoints": true
     }
   ]
 }
