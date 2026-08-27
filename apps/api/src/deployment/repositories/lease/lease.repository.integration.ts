@@ -106,6 +106,51 @@ describe(LeaseRepository.name, () => {
     });
   });
 
+  describe("findActiveLeaseRates", () => {
+    it("sums the price of every open lease a deployment holds", async () => {
+      const { repository } = setup();
+      const [firstProvider, secondProvider] = await Promise.all([seedProvider(), seedProvider()]);
+      const deployment = await seedDeployment();
+      await seedLease(deployment, { providerAddress: firstProvider, gseq: 1, price: 30 });
+      await seedLease(deployment, { providerAddress: secondProvider, gseq: 2, price: 20 });
+
+      const found = await repository.findActiveLeaseRates(deployment.owner, [deployment.dseq]);
+
+      expect(found).toEqual([{ dseq: deployment.dseq, blockRate: 50 }]);
+    });
+
+    it("leaves out closed leases", async () => {
+      const { repository } = setup();
+      const [openProvider, closedProvider] = await Promise.all([seedProvider(), seedProvider()]);
+      const deployment = await seedDeployment();
+      await seedLease(deployment, { providerAddress: openProvider, gseq: 1, price: 30 });
+      await seedLease(deployment, { providerAddress: closedProvider, gseq: 2, price: 20, closedHeight: 10_000 });
+
+      const found = await repository.findActiveLeaseRates(deployment.owner, [deployment.dseq]);
+
+      expect(found).toEqual([{ dseq: deployment.dseq, blockRate: 30 }]);
+    });
+
+    it("omits a deployment whose leases are all closed", async () => {
+      const { repository } = setup();
+      const provider = await seedProvider();
+      const deployment = await seedDeployment();
+      await seedLease(deployment, { providerAddress: provider, price: 30, closedHeight: 10_000 });
+
+      const found = await repository.findActiveLeaseRates(deployment.owner, [deployment.dseq]);
+
+      expect(found).toEqual([]);
+    });
+
+    it("returns nothing when no deployment is given", async () => {
+      const { repository } = setup();
+
+      const found = await repository.findActiveLeaseRates(createAkashAddress(), []);
+
+      expect(found).toEqual([]);
+    });
+  });
+
   function setup() {
     return { repository: container.resolve(LeaseRepository) };
   }
@@ -123,7 +168,7 @@ async function seedDeployment() {
 
 async function seedLease(
   deployment: { id: string; owner: string; dseq: string },
-  overrides: { providerAddress: string; gseq?: number; closedHeight?: number }
+  overrides: { providerAddress: string; gseq?: number; closedHeight?: number; price?: number }
 ) {
   const gseq = overrides.gseq ?? 1;
   const group = await createDeploymentGroup({ deploymentId: deployment.id, owner: deployment.owner, dseq: deployment.dseq, gseq });
@@ -136,6 +181,7 @@ async function seedLease(
     gseq,
     oseq: 1,
     providerAddress: overrides.providerAddress,
-    closedHeight: overrides.closedHeight
+    closedHeight: overrides.closedHeight,
+    price: overrides.price
   });
 }

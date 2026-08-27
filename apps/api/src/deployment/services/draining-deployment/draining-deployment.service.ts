@@ -576,10 +576,6 @@ export class DrainingDeploymentService {
    * @returns Rate per deployment, omitting deployments with no live lease
    */
   async #findActiveLeaseRates(owner: string, dseqs: string[]): Promise<ActiveLeaseRate[]> {
-    if (!dseqs.length) {
-      return [];
-    }
-
     try {
       return await this.rpcService.findActiveLeaseRates(owner, dseqs);
     } catch (error) {
