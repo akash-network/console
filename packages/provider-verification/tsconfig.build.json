@@ -1,0 +1,10 @@
+{
+  "extends": "@akashnetwork/dev-config/tsconfig.base-node.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "noImplicitAny": true,
+    "strict": true,
+    "target": "ES2022"
+  },
+  "include": ["src/**/*"]
+}
