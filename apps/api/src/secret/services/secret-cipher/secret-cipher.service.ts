@@ -31,7 +31,7 @@ export class SecretCipherService {
 
   /** The recorded data key is checked before the key is unwrapped, so reading a value the user cannot own costs no key-service call. */
   async decrypt(userId: string, encrypted: string): Promise<string> {
-    const kid = this.#readDataKeyId(encrypted, userId);
+    const { kid } = this.#readSupportedHeader(encrypted, userId);
     const dataKey = await this.dataKeyUnwrapperService.getDataKey(userId);
 
     if (kid !== dataKey.id) {
@@ -41,9 +41,19 @@ export class SecretCipherService {
     return textDecoder.decode(await this.#open(encrypted, await dataKey.unwrap(), userId));
   }
 
-  #readDataKeyId(encrypted: string, userId: string) {
+  #readSupportedHeader(encrypted: string, userId: string) {
+    const header = this.#decodeHeader(encrypted, userId);
+
+    if (header.alg !== SECRET_AT_REST_KEY_MANAGEMENT || header.enc !== SECRET_AT_REST_CONTENT_ENCRYPTION) {
+      throw this.#rejectUnreadable("SECRET_VALUE_ALGORITHM_UNSUPPORTED", { userId, alg: header.alg, enc: header.enc });
+    }
+
+    return header;
+  }
+
+  #decodeHeader(encrypted: string, userId: string) {
     try {
-      return decodeProtectedHeader(encrypted).kid;
+      return decodeProtectedHeader(encrypted);
     } catch {
       throw this.#rejectUnreadable("SECRET_VALUE_HEADER_UNREADABLE", { userId });
     }

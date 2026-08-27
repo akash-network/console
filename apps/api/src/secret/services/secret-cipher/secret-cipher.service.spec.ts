@@ -127,6 +127,29 @@ describe(SecretCipherService.name, () => {
     await expect(service.decrypt(USER_ID, wrapped)).rejects.toMatchObject({ status: 500 });
   });
 
+  it("spends no unwrap on a value declaring a key management algorithm it does not use", async () => {
+    const { service, unwrap, key, logger } = setup();
+    const wrapped = await new CompactEncrypt(new TextEncoder().encode("value"))
+      .setProtectedHeader({ alg: "A256GCMKW", enc: "A256GCM", kid: DATA_KEY_ID })
+      .encrypt(key);
+
+    await expect(service.decrypt(USER_ID, wrapped)).rejects.toThrow();
+
+    expect(unwrap).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SECRET_VALUE_ALGORITHM_UNSUPPORTED" }));
+  });
+
+  it("spends no unwrap on a value declaring a content encryption it does not use", async () => {
+    const { service, unwrap, key } = setup();
+    const wrapped = await new CompactEncrypt(new TextEncoder().encode("value"))
+      .setProtectedHeader({ alg: "dir", enc: "A128CBC-HS256", kid: DATA_KEY_ID })
+      .encrypt(key);
+
+    await expect(service.decrypt(USER_ID, wrapped)).rejects.toThrow();
+
+    expect(unwrap).not.toHaveBeenCalled();
+  });
+
   it("rejects a value that is not a compact JWE", async () => {
     const { service, logger } = setup();
 
