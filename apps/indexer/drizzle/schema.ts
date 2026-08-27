@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  bigserial,
   boolean,
   customType,
   doublePrecision,
@@ -10,6 +11,7 @@ import {
   jsonb,
   numeric,
   pgTable,
+  primaryKey,
   serial,
   smallint,
   text,
@@ -727,5 +729,443 @@ export const bmeStatusChange = pgTable(
       foreignColumns: [block.height],
       name: "bme_status_change_height_fkey"
     })
+  ]
+);
+
+export const verificationAuditor = pgTable(
+  "verification_auditor",
+  {
+    address: varchar({ length: 255 }).primaryKey().notNull(),
+    status: integer().notNull(),
+    max_attestation_tier: integer().notNull(),
+    bond_denom: varchar({ length: 255 }).notNull(),
+    bond_amount: numeric({ precision: 30, scale: 0 }).notNull(),
+    bond_status: integer().notNull(),
+    metadata_hash: bytea("metadata_hash"),
+    registered_at: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    renewal_deadline: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    discrepancy_count: numeric({ precision: 20, scale: 0 }).notNull(),
+    bond_unbonding_completion_time: timestamp({ withTimezone: true, mode: "string" }),
+    observed_height: integer().notNull(),
+    observed_block_time: timestamp({ withTimezone: true, mode: "string" }).notNull()
+  },
+  table => [
+    index("verification_auditor_status").using("btree", table.status.asc().nullsLast().op("int4_ops")),
+    index("verification_auditor_renewal_deadline").using("btree", table.renewal_deadline.asc().nullsLast().op("timestamptz_ops"))
+  ]
+);
+
+export const verificationAttestation = pgTable(
+  "verification_attestation",
+  {
+    provider: varchar({ length: 255 }).notNull(),
+    auditor: varchar({ length: 255 }).notNull(),
+    tier: integer().notNull(),
+    evidence_hash: bytea("evidence_hash").notNull(),
+    fee_denom: varchar({ length: 255 }).notNull(),
+    fee_amount: numeric({ precision: 30, scale: 0 }).notNull(),
+    fee_status: integer().notNull(),
+    created_at: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    expires_at: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    status: integer().notNull(),
+    voided_reason: integer().notNull(),
+    deposit_denom: varchar({ length: 255 }).notNull(),
+    deposit_amount: numeric({ precision: 30, scale: 0 }).notNull(),
+    deposit_status: integer().notNull(),
+    audit_escrow_id: numeric({ precision: 20, scale: 0 }).notNull(),
+    fault_attribution: integer().notNull(),
+    observed_height: integer().notNull(),
+    observed_block_time: timestamp({ withTimezone: true, mode: "string" }).notNull()
+  },
+  table => [
+    primaryKey({ columns: [table.provider, table.auditor], name: "verification_attestation_provider_auditor" }),
+    index("verification_attestation_provider_status_tier").using(
+      "btree",
+      table.provider.asc().nullsLast().op("text_ops"),
+      table.status.asc().nullsLast().op("int4_ops"),
+      table.tier.asc().nullsLast().op("int4_ops")
+    ),
+    index("verification_attestation_expires_at_status").using(
+      "btree",
+      table.expires_at.asc().nullsLast().op("timestamptz_ops"),
+      table.status.asc().nullsLast().op("int4_ops")
+    ),
+    index("verification_attestation_audit_escrow_id").using("btree", table.audit_escrow_id.asc().nullsLast().op("numeric_ops"))
+  ]
+);
+
+export const verificationAttestationCapability = pgTable(
+  "verification_attestation_capability",
+  {
+    provider: varchar({ length: 255 }).notNull(),
+    auditor: varchar({ length: 255 }).notNull(),
+    capability: integer().notNull(),
+    observed_height: integer().notNull(),
+    observed_block_time: timestamp({ withTimezone: true, mode: "string" }).notNull()
+  },
+  table => [
+    primaryKey({
+      columns: [table.provider, table.auditor, table.capability],
+      name: "verification_attestation_capability_identity"
+    }),
+    index("verification_attestation_capability_capability_provider").using(
+      "btree",
+      table.capability.asc().nullsLast().op("int4_ops"),
+      table.provider.asc().nullsLast().op("text_ops")
+    ),
+    foreignKey({
+      columns: [table.provider, table.auditor],
+      foreignColumns: [verificationAttestation.provider, verificationAttestation.auditor],
+      name: "verification_attestation_capability_attestation_fkey"
+    }).onDelete("cascade")
+  ]
+);
+
+export const verificationAuditEscrow = pgTable(
+  "verification_audit_escrow",
+  {
+    id: numeric({ precision: 20, scale: 0 }).primaryKey().notNull(),
+    provider: varchar({ length: 255 }).notNull(),
+    consumed_by_auditor: varchar({ length: 255 }).notNull(),
+    requested_tier: integer().notNull(),
+    fee_denom: varchar({ length: 255 }).notNull(),
+    fee_amount: numeric({ precision: 30, scale: 0 }).notNull(),
+    fee_status: integer().notNull(),
+    provider_deposit_denom: varchar({ length: 255 }).notNull(),
+    provider_deposit_amount: numeric({ precision: 30, scale: 0 }).notNull(),
+    provider_deposit_status: integer().notNull(),
+    status: integer().notNull(),
+    opened_at: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    consumed_at: timestamp({ withTimezone: true, mode: "string" }),
+    expires_at: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    metadata_hash: bytea("metadata_hash"),
+    settlement_reason: integer().notNull(),
+    fault_attribution: integer().notNull(),
+    observed_height: integer().notNull(),
+    observed_block_time: timestamp({ withTimezone: true, mode: "string" }).notNull()
+  },
+  table => [
+    index("verification_audit_escrow_provider_status").using(
+      "btree",
+      table.provider.asc().nullsLast().op("text_ops"),
+      table.status.asc().nullsLast().op("int4_ops")
+    ),
+    index("verification_audit_escrow_expires_at_status").using(
+      "btree",
+      table.expires_at.asc().nullsLast().op("timestamptz_ops"),
+      table.status.asc().nullsLast().op("int4_ops")
+    )
+  ]
+);
+
+export const verificationAuditEscrowCapability = pgTable(
+  "verification_audit_escrow_capability",
+  {
+    audit_escrow_id: numeric({ precision: 20, scale: 0 }).notNull(),
+    capability: integer().notNull(),
+    observed_height: integer().notNull(),
+    observed_block_time: timestamp({ withTimezone: true, mode: "string" }).notNull()
+  },
+  table => [
+    primaryKey({
+      columns: [table.audit_escrow_id, table.capability],
+      name: "verification_audit_escrow_capability_identity"
+    }),
+    index("verification_audit_escrow_capability_capability").using("btree", table.capability.asc().nullsLast().op("int4_ops")),
+    foreignKey({
+      columns: [table.audit_escrow_id],
+      foreignColumns: [verificationAuditEscrow.id],
+      name: "verification_audit_escrow_capability_escrow_fkey"
+    }).onDelete("cascade")
+  ]
+);
+
+export const verificationDiscrepancy = pgTable(
+  "verification_discrepancy",
+  {
+    id: numeric({ precision: 20, scale: 0 }).primaryKey().notNull(),
+    provider: varchar({ length: 255 }).notNull(),
+    auditor_a: varchar({ length: 255 }).notNull(),
+    auditor_a_tier: integer().notNull(),
+    auditor_b: varchar({ length: 255 }).notNull(),
+    auditor_b_tier: integer().notNull(),
+    detected_at: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    resolution_status: integer().notNull(),
+    resolution_proposal_id: numeric({ precision: 20, scale: 0 }).notNull(),
+    grace_record_id: numeric({ precision: 20, scale: 0 }).notNull(),
+    resolution_reason: integer().notNull(),
+    fault_attribution: integer().notNull(),
+    resolution_evidence_hash: bytea("resolution_evidence_hash"),
+    observed_height: integer().notNull(),
+    observed_block_time: timestamp({ withTimezone: true, mode: "string" }).notNull()
+  },
+  table => [
+    index("verification_discrepancy_provider_resolution_status").using(
+      "btree",
+      table.provider.asc().nullsLast().op("text_ops"),
+      table.resolution_status.asc().nullsLast().op("int4_ops")
+    ),
+    index("verification_discrepancy_auditor_a").using("btree", table.auditor_a.asc().nullsLast().op("text_ops")),
+    index("verification_discrepancy_auditor_b").using("btree", table.auditor_b.asc().nullsLast().op("text_ops"))
+  ]
+);
+
+export const verificationGrace = pgTable(
+  "verification_grace",
+  {
+    id: numeric({ precision: 20, scale: 0 }).primaryKey().notNull(),
+    provider: varchar({ length: 255 }).notNull(),
+    preserved_tier: integer().notNull(),
+    started_at: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    expires_at: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    status: integer().notNull(),
+    observed_height: integer().notNull(),
+    observed_block_time: timestamp({ withTimezone: true, mode: "string" }).notNull()
+  },
+  table => [
+    index("verification_grace_provider_status").using("btree", table.provider.asc().nullsLast().op("text_ops"), table.status.asc().nullsLast().op("int4_ops")),
+    index("verification_grace_expires_at_status").using(
+      "btree",
+      table.expires_at.asc().nullsLast().op("timestamptz_ops"),
+      table.status.asc().nullsLast().op("int4_ops")
+    )
+  ]
+);
+
+export const verificationGraceDiscrepancy = pgTable(
+  "verification_grace_discrepancy",
+  {
+    grace_id: numeric({ precision: 20, scale: 0 }).notNull(),
+    discrepancy_id: numeric({ precision: 20, scale: 0 }).notNull(),
+    observed_height: integer().notNull(),
+    observed_block_time: timestamp({ withTimezone: true, mode: "string" }).notNull()
+  },
+  table => [
+    primaryKey({
+      columns: [table.grace_id, table.discrepancy_id],
+      name: "verification_grace_discrepancy_identity"
+    }),
+    index("verification_grace_discrepancy_discrepancy_id").using("btree", table.discrepancy_id.asc().nullsLast().op("numeric_ops")),
+    foreignKey({
+      columns: [table.grace_id],
+      foreignColumns: [verificationGrace.id],
+      name: "verification_grace_discrepancy_grace_fkey"
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.discrepancy_id],
+      foreignColumns: [verificationDiscrepancy.id],
+      name: "verification_grace_discrepancy_discrepancy_fkey"
+    }).onDelete("cascade")
+  ]
+);
+
+export const verificationProviderBond = pgTable("verification_provider_bond", {
+  provider: varchar({ length: 255 }).primaryKey().notNull(),
+  bonded_denom: varchar({ length: 255 }).notNull(),
+  bonded_amount: numeric({ precision: 30, scale: 0 }).notNull(),
+  required_for_current_tier_denom: varchar({ length: 255 }).notNull(),
+  required_for_current_tier_amount: numeric({ precision: 30, scale: 0 }).notNull(),
+  slashed: boolean().notNull(),
+  last_slash_time: timestamp({ withTimezone: true, mode: "string" }),
+  observed_height: integer().notNull(),
+  observed_block_time: timestamp({ withTimezone: true, mode: "string" }).notNull()
+});
+
+export const verificationProviderBondUnbonding = pgTable(
+  "verification_provider_bond_unbonding",
+  {
+    provider: varchar({ length: 255 }).notNull(),
+    entry_index: integer().notNull(),
+    denom: varchar({ length: 255 }).notNull(),
+    amount: numeric({ precision: 30, scale: 0 }).notNull(),
+    completion_time: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    observed_height: integer().notNull(),
+    observed_block_time: timestamp({ withTimezone: true, mode: "string" }).notNull()
+  },
+  table => [
+    primaryKey({
+      columns: [table.provider, table.entry_index],
+      name: "verification_provider_bond_unbonding_identity"
+    }),
+    index("verification_provider_bond_unbonding_completion_time").using("btree", table.completion_time.asc().nullsLast().op("timestamptz_ops")),
+    foreignKey({
+      columns: [table.provider],
+      foreignColumns: [verificationProviderBond.provider],
+      name: "verification_provider_bond_unbonding_bond_fkey"
+    }).onDelete("cascade")
+  ]
+);
+
+export const verificationProviderObservation = pgTable("verification_provider_observation", {
+  provider: varchar({ length: 255 }).primaryKey().notNull(),
+  observed_height: integer().notNull(),
+  observed_block_time: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+  effective_tier: integer().notNull(),
+  max_placement_tier: integer().notNull(),
+  snapshot_state: varchar({ length: 255 }).notNull()
+});
+
+export const verificationProviderTierStream = pgTable("verification_provider_tier_stream", {
+  id: smallint().primaryKey().notNull(),
+  stream_id: uuid()
+    .default(sql`gen_random_uuid()`)
+    .notNull()
+});
+
+export const verificationProviderTierDemotion = pgTable(
+  "verification_provider_tier_demotion",
+  {
+    id: bigserial({ mode: "bigint" }).primaryKey().notNull(),
+    provider: varchar({ length: 255 }).notNull(),
+    previous_effective_tier: integer().notNull(),
+    previous_max_placement_tier: integer().notNull(),
+    previous_snapshot_state: varchar({ length: 255 }).notNull(),
+    current_effective_tier: integer().notNull(),
+    current_max_placement_tier: integer().notNull(),
+    current_snapshot_state: varchar({ length: 255 }).notNull(),
+    changes: varchar({ length: 255 }).array().notNull(),
+    observed_height: integer().notNull(),
+    observed_block_time: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    created_at: timestamp({ withTimezone: true, mode: "string" }).defaultNow().notNull()
+  },
+  table => [
+    index("verification_provider_tier_demotion_provider_id").using(
+      "btree",
+      table.provider.asc().nullsLast().op("text_ops"),
+      table.id.asc().nullsLast().op("int8_ops")
+    ),
+    index("verification_provider_tier_demotion_observed_height").using("btree", table.observed_height.asc().nullsLast().op("int4_ops"))
+  ]
+);
+
+export const verificationProviderSnapshot = pgTable(
+  "verification_provider_snapshot",
+  {
+    provider: varchar({ length: 255 }).primaryKey().notNull(),
+    snapshot_hash: bytea("snapshot_hash").notNull(),
+    total_gpus: integer().notNull(),
+    total_vcpus: integer().notNull(),
+    total_memory_mb: numeric({ precision: 20, scale: 0 }).notNull(),
+    total_storage_mb: numeric({ precision: 20, scale: 0 }).notNull(),
+    active_leases: integer().notNull(),
+    software_version: varchar({ length: 255 }).notNull(),
+    software_signature: bytea("software_signature"),
+    software_identity_version: varchar({ length: 255 }),
+    software_artifact_ref: text(),
+    software_digest_algorithm: varchar({ length: 255 }),
+    software_digest: bytea("software_digest"),
+    software_signature_type: varchar({ length: 255 }),
+    software_identity_signature: bytea("software_identity_signature"),
+    software_signature_ref: text(),
+    software_public_key_ref: text(),
+    posted_at: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    snapshot_timestamp: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    compliance_deadline: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    suspended: boolean().notNull(),
+    observed_height: integer().notNull(),
+    observed_block_time: timestamp({ withTimezone: true, mode: "string" }).notNull()
+  },
+  table => [
+    index("verification_provider_snapshot_compliance_deadline_suspended").using(
+      "btree",
+      table.compliance_deadline.asc().nullsLast().op("timestamptz_ops"),
+      table.suspended.asc().nullsLast().op("bool_ops")
+    ),
+    index("verification_provider_snapshot_snapshot_timestamp").using("btree", table.snapshot_timestamp.asc().nullsLast().op("timestamptz_ops"))
+  ]
+);
+
+export const providerMaintenance = pgTable(
+  "provider_maintenance",
+  {
+    provider: varchar({ length: 255 }).notNull(),
+    id: numeric({ precision: 20, scale: 0 }).notNull(),
+    maintenance_type: integer().notNull(),
+    starts_at: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    expected_ends_at: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    opened_at: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    closed_at: timestamp({ withTimezone: true, mode: "string" }),
+    metadata_hash: bytea("metadata_hash"),
+    status: integer().notNull(),
+    observed_height: integer().notNull(),
+    observed_block_time: timestamp({ withTimezone: true, mode: "string" }).notNull()
+  },
+  table => [
+    primaryKey({ columns: [table.provider, table.id], name: "provider_maintenance_provider_id" }),
+    index("provider_maintenance_provider_status").using(
+      "btree",
+      table.provider.asc().nullsLast().op("text_ops"),
+      table.status.asc().nullsLast().op("int4_ops")
+    ),
+    index("provider_maintenance_starts_at_expected_ends_at").using(
+      "btree",
+      table.starts_at.asc().nullsLast().op("timestamptz_ops"),
+      table.expected_ends_at.asc().nullsLast().op("timestamptz_ops")
+    )
+  ]
+);
+
+export const verificationParams = pgTable("verification_params", {
+  id: smallint().primaryKey().notNull(),
+  params: jsonb().notNull(),
+  observed_height: integer().notNull(),
+  observed_block_time: timestamp({ withTimezone: true, mode: "string" }).notNull()
+});
+
+export const verificationReconcileTarget = pgTable(
+  "verification_reconcile_target",
+  {
+    target_type: varchar({ length: 255 }).notNull(),
+    target_key: varchar({ length: 255 }).notNull(),
+    requested_height: integer().notNull(),
+    invalidated: boolean().default(true).notNull(),
+    claimed_at: timestamp({ withTimezone: true, mode: "string" }),
+    attempt_count: integer().default(0).notNull(),
+    next_attempt_at: timestamp({ withTimezone: true, mode: "string" }),
+    last_error: text()
+  },
+  table => [
+    primaryKey({
+      columns: [table.target_type, table.target_key],
+      name: "verification_reconcile_target_identity"
+    }),
+    index("verification_reconcile_target_claimed_at_next_attempt_at").using(
+      "btree",
+      table.claimed_at.asc().nullsFirst().op("timestamptz_ops"),
+      table.next_attempt_at.asc().nullsFirst().op("timestamptz_ops")
+    ),
+    index("verification_reconcile_target_requested_height").using("btree", table.requested_height.asc().nullsLast().op("int4_ops"))
+  ]
+);
+
+export const verificationBlockEvent = pgTable(
+  "verification_block_event",
+  {
+    id: uuid()
+      .primaryKey()
+      .notNull()
+      .default(sql`gen_random_uuid()`),
+    height: integer().notNull(),
+    index: integer().notNull(),
+    type: varchar({ length: 255 }).notNull(),
+    data: jsonb().notNull(),
+    is_processed: boolean().default(false).notNull()
+  },
+  table => [
+    uniqueIndex("verification_block_event_height_index").using(
+      "btree",
+      table.height.asc().nullsLast().op("int4_ops"),
+      table.index.asc().nullsLast().op("int4_ops")
+    ),
+    index("verification_block_event_height_is_processed").using(
+      "btree",
+      table.height.asc().nullsLast().op("int4_ops"),
+      table.is_processed.asc().nullsLast().op("bool_ops")
+    ),
+    foreignKey({
+      columns: [table.height],
+      foreignColumns: [block.height],
+      name: "verification_block_event_height_fkey"
+    }).onDelete("cascade")
   ]
 );
