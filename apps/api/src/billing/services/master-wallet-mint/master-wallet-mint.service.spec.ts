@@ -1,5 +1,4 @@
 import { MsgMintACT } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import type { BmeHttpService } from "@akashnetwork/http-sdk";
 import { Ok } from "ts-results";
 import { describe, expect, it } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
@@ -14,7 +13,8 @@ import { MasterWalletMintService } from "./master-wallet-mint.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createBankBalancesResponse } from "@test/seeders/bank-balances-response.seeder";
-import { createBmeLedgerRecord, createBmeLedgerResponse } from "@test/seeders/bme-ledger-record.seeder";
+import type { BmeParamsResponse } from "@test/seeders/bme.seeder";
+import { createBmeLedgerRecord, createBmeLedgerResponse, createBmeParamsResponse } from "@test/seeders/bme.seeder";
 import { createDenomExchangeRate } from "@test/seeders/denom-exchange-rate.seeder";
 
 describe(MasterWalletMintService.name, () => {
@@ -108,12 +108,30 @@ describe(MasterWalletMintService.name, () => {
     });
 
     it("falls back to default minimum mint when uact denom is absent from BME params", async () => {
-      const { service, bmeHttpService, chainSdk, rpcMessageService, masterAddress } = setup({
+      const { service, chainSdk, rpcMessageService, masterAddress } = setup({
         aktReserve: 2_000_000_000,
         balances: { uact: 5_000_000_000, uakt: 2_100_000_000 },
         aktPrice: 0.5
       });
-      bmeHttpService.getParams.mockResolvedValue({ params: { min_mint: [{ denom: "uother", amount: "500000" }] } });
+      chainSdk.akash.bme.v1.getParams.mockResolvedValue(createBmeParamsResponse({ minMint: [{ denom: "uother", amount: "500000" }] }));
+      mockBalancesOnce(chainSdk, { uact: 6_000_000_000, uakt: 2_000_000_000 });
+
+      const result = await service.mintExcessAkt();
+
+      expect(result).toEqual(Ok.EMPTY);
+      expect(rpcMessageService.getMintACTMsg).toHaveBeenCalledWith({
+        owner: masterAddress,
+        amount: 100_000_000
+      });
+    });
+
+    it("falls back to default minimum mint when BME reports no params at all", async () => {
+      const { service, chainSdk, rpcMessageService, masterAddress } = setup({
+        aktReserve: 2_000_000_000,
+        balances: { uact: 5_000_000_000, uakt: 2_100_000_000 },
+        aktPrice: 0.5
+      });
+      chainSdk.akash.bme.v1.getParams.mockResolvedValue(mock<BmeParamsResponse>({ params: undefined }));
       mockBalancesOnce(chainSdk, { uact: 6_000_000_000, uakt: 2_000_000_000 });
 
       const result = await service.mintExcessAkt();
@@ -270,8 +288,7 @@ describe(MasterWalletMintService.name, () => {
       denomExchangeService.getExchangeRateToUSD.mockResolvedValue(createDenomExchangeRate({ price: input.aktPrice }));
     }
 
-    const bmeHttpService = mock<BmeHttpService>();
-    bmeHttpService.getParams.mockResolvedValue({ params: { min_mint: [{ denom: "uact", amount: "10000000" }] } });
+    chainSdk.akash.bme.v1.getParams.mockResolvedValue(createBmeParamsResponse());
 
     const rpcMessageService = mock<RpcMessageService>();
     rpcMessageService.getMintACTMsg.mockReturnValue({
@@ -284,16 +301,8 @@ describe(MasterWalletMintService.name, () => {
     const timerService = mock<TimerService>();
     timerService.delay.mockResolvedValue(undefined);
 
-    const service = new MasterWalletMintService(
-      billingConfig,
-      txManagerService,
-      chainSdk,
-      denomExchangeService,
-      bmeHttpService,
-      rpcMessageService,
-      timerService
-    );
+    const service = new MasterWalletMintService(billingConfig, txManagerService, chainSdk, denomExchangeService, rpcMessageService, timerService);
 
-    return { service, masterAddress, billingConfig, txManagerService, chainSdk, denomExchangeService, bmeHttpService, rpcMessageService, timerService };
+    return { service, masterAddress, billingConfig, txManagerService, chainSdk, denomExchangeService, rpcMessageService, timerService };
   }
 });

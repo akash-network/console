@@ -1,11 +1,13 @@
 import { faker } from "@faker-js/faker";
 import { merge } from "lodash";
+import { mock } from "vitest-mock-extended";
 
 import type { ChainSDK } from "@src/chain/providers/chain-sdk.provider";
 
 type LedgerResponse = Awaited<ReturnType<ChainSDK["akash"]["bme"]["v1"]["getLedgerRecords"]>>;
 type LedgerRecord = LedgerResponse["records"][number];
 type LedgerRecordId = NonNullable<LedgerRecord["id"]>;
+export type BmeParamsResponse = Awaited<ReturnType<ChainSDK["akash"]["bme"]["v1"]["getParams"]>>;
 
 export function createBmeLedgerRecordId(input: Partial<LedgerRecordId> = {}): LedgerRecordId {
   return merge(
@@ -41,4 +43,10 @@ export function createBmeLedgerResponse(input: Partial<LedgerResponse> = {}): Le
     },
     input
   );
+}
+
+export function createBmeParamsResponse(input: { minMint?: Array<{ denom: string; amount: string }> } = {}): BmeParamsResponse {
+  return merge(mock<BmeParamsResponse>(), {
+    params: { minMint: input.minMint ?? [{ denom: "uact", amount: "10000000" }] }
+  });
 }

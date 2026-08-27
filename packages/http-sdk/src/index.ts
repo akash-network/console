@@ -17,7 +17,6 @@ export * from "./lease/lease-http.service";
 export * from "./lease/lease-state";
 export * from "./utils/isHttpError";
 export * from "./git-hub/git-hub-http.service";
-export * from "./bme";
 export * from "./cosmos";
 export * from "./stripe/stripe.service";
 export * from "./stripe/stripe.types";
