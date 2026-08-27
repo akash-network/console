@@ -108,7 +108,7 @@ export class GpuBidsCreatorService {
 
     const doneModels: string[] = [];
     for (const model of models) {
-      const dseq = (await this.blockHttpService.getCurrentHeight()).toString();
+      const dseq = (await this.blockHttpService.getFreshCurrentHeight()).toString();
       this.#logger.info({ event: "CREATING_DEPLOYMENT", ...pick(model, ["vendor", "model", "ram", "interface"]) });
 
       if (doneModels.includes(model.model + "-" + model.ram)) {
