@@ -15,17 +15,12 @@ const QUERY_TIMEOUT_MS = 30_000;
 
 type QueryTransportOptions = NonNullable<Parameters<typeof createChainNodeWebSDK>[0]["query"]["transportOptions"]>;
 
-/**
- * `createGrpcGatewayTransport` reads `defaultTimeoutMs` off the transport options it is handed, but
- * `ChainNodeWebSDKOptions` declares that bag as `{ retry?: RetryOptions }` only. Verified against a live
- * endpoint: a 2s value aborts after ~2s with `DeadlineExceeded`, so the runtime honours the option and the
- * published type is simply behind it.
- *
- * Widened by intersection rather than asserted, so only this one field escapes checking: every other option in
- * the bag stays type-checked, and a misspelling like `defaultTimeoutMS` is a compile error instead of an option
- * silently doing nothing.
- */
-const TRANSPORT_OPTIONS: QueryTransportOptions & { defaultTimeoutMs: number } = { defaultTimeoutMs: QUERY_TIMEOUT_MS };
+const TRANSPORT_OPTIONS: QueryTransportOptions & { defaultTimeoutMs: number } = {
+  defaultTimeoutMs: QUERY_TIMEOUT_MS,
+  retry: {
+    maxAttempts: 3
+  }
+};
 
 export const CHAIN_SDK = Symbol("CHAIN_SDK") as InjectionToken<ChainNodeWebSDK>;
 export type ChainSDK = ChainNodeWebSDK;
