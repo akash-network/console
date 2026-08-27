@@ -84,8 +84,8 @@ export class UnreachableProviderDeploymentsCloserService {
 
   /**
    * A deployment qualifies only when every one of its active leases sits on an unreachable provider.
-   * `downSince` is the latest of those outages — the moment the deployment as a whole went dark — while
-   * the host named in the email is the one that has been gone longest.
+   * Where several are dark, the longest outage is the one reported, so the host named and the age
+   * beside it come from the same outage.
    */
   async #findFullyDarkDeployments(outages: ProviderOutage[]): Promise<DarkDeployment[]> {
     if (outages.length === 0) return [];
@@ -106,13 +106,13 @@ export class UnreachableProviderDeploymentsCloserService {
       if (deploymentOutages.some(outage => !outage)) continue;
 
       const [{ owner, dseq }] = deploymentLeases;
-      const started = (deploymentOutages as ProviderOutage[]).map(outage => outage.startedAt).sort();
+      const longestOutage = (deploymentOutages as ProviderOutage[]).reduce((longest, outage) => (outage.startedAt < longest.startedAt ? outage : longest));
 
       dark.push({
         owner,
         dseq,
-        hostUri: (deploymentOutages as ProviderOutage[]).find(outage => outage.startedAt === started[0])!.hostUri,
-        downSince: started[started.length - 1]
+        hostUri: longestOutage.hostUri,
+        downSince: longestOutage.startedAt
       });
     }
 

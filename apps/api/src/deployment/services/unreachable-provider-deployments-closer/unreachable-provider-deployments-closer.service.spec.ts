@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
@@ -22,8 +22,14 @@ const OTHER_DARK_PROVIDER = "akash1darker";
 const HEALTHY_PROVIDER = "akash1healthy";
 const DOWN_SINCE = "2026-07-24T00:00:00.000Z";
 const LONGER_OUTAGE_SINCE = "2026-07-01T00:00:00.000Z";
+const NOW = "2026-07-31T00:00:00.000Z";
+const DAYS_SINCE_LONGER_OUTAGE = 30;
 
 describe(UnreachableProviderDeploymentsCloserService.name, () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("asks for outages at least the configured number of days old", async () => {
     const { service, providerOutagesHttpService } = setup({});
 
@@ -56,7 +62,8 @@ describe(UnreachableProviderDeploymentsCloserService.name, () => {
     expect(deploymentWriterService.close).not.toHaveBeenCalled();
   });
 
-  it("closes a deployment spread across several providers once all of them are dark, naming the one gone longest", async () => {
+  it("closes a deployment spread across several providers once all of them are dark, naming the one gone longest and for how long", async () => {
+    vi.useFakeTimers({ now: new Date(NOW) });
     const { service, deploymentWriterService, jobQueueService } = setup({
       outages: [anOutage({}), anOutage({ provider: OTHER_DARK_PROVIDER, hostUri: "https://darker:8443", startedAt: LONGER_OUTAGE_SINCE })],
       leases: [aLease({}), aLease({ providerAddress: OTHER_DARK_PROVIDER })]
@@ -66,7 +73,11 @@ describe(UnreachableProviderDeploymentsCloserService.name, () => {
 
     expect(deploymentWriterService.close).toHaveBeenCalledTimes(1);
     expect(jobQueueService.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ vars: expect.objectContaining({ hostUri: "https://darker:8443" }) }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({
+          vars: expect.objectContaining({ hostUri: "https://darker:8443", downForDays: DAYS_SINCE_LONGER_OUTAGE })
+        })
+      }),
       expect.anything()
     );
   });
