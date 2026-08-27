@@ -14,6 +14,8 @@
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
     "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "validate:types": "tsc -p tsconfig.build.json --noEmit && echo"
   },
   "dependencies": {
@@ -23,6 +25,7 @@
     "sequelize-typescript": "^2.1.5"
   },
   "devDependencies": {
-    "@akashnetwork/dev-config": "*"
+    "@akashnetwork/dev-config": "*",
+    "vitest": "^4.1.5"
   }
 }
