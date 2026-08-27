@@ -7,8 +7,9 @@ import { describe, expect, it } from "vitest";
 
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
-import type { ChainProvider } from "@src/types/chain-provider";
+import type { ChainProvider, DiscoveredChainProvider } from "@src/types/chain-provider";
 import type { ClusterState } from "@src/types/inventory";
+import type { StoredProviderVerification } from "@src/types/provider-verification";
 import { ProviderInventoryRepository } from "./provider-inventory.repository";
 
 describe(ProviderInventoryRepository.name, () => {
@@ -225,6 +226,28 @@ describe(ProviderInventoryRepository.name, () => {
     });
   });
 
+  describe("bulkUpdateVerification", () => {
+    it("persists the latest verification observation without advancing the liveness clock", async () => {
+      const { repository, db } = setup();
+      const updatedAt = new Date("2026-01-01T00:00:00.000Z");
+      await seed(db, { owner: "akash1a", updatedAt });
+
+      await repository.bulkUpdateVerification([createDiscoveredProvider({ owner: "akash1a", verification: verificationAt("123") })]);
+
+      const [row] = await db.select().from(providerInventory).where(eq(providerInventory.owner, "akash1a"));
+      expect(row.verification).toEqual(verificationAt("123"));
+      expect(row.updatedAt).toEqual(updatedAt);
+    });
+
+    it("does not insert inventory rows for providers that were not upserted", async () => {
+      const { repository, db } = setup();
+
+      await repository.bulkUpdateVerification([createDiscoveredProvider({ owner: "akash1missing" })]);
+
+      expect(await db.select().from(providerInventory)).toEqual([]);
+    });
+  });
+
   describe("updateInventory", () => {
     it("updates the existing row and never inserts a row for an owner with no attributes row", async () => {
       const { repository, db } = setup();
@@ -423,6 +446,7 @@ interface SeedInput {
   selfAttributes?: { key: string; value: string }[];
   signedAttributes?: { key: string; value: string; auditor: string }[];
   auditedBy?: string[];
+  verification?: StoredProviderVerification | null;
   updatedAt?: Date;
 }
 
@@ -435,6 +459,7 @@ async function seed(db: PostgresJsDatabase, input: SeedInput): Promise<void> {
     selfAttributes: input.selfAttributes ?? [],
     signedAttributes: input.signedAttributes ?? [],
     auditedBy: input.auditedBy ?? [],
+    verification: input.verification ?? null,
     ...(input.updatedAt && { updatedAt: input.updatedAt })
   });
 }
@@ -447,6 +472,27 @@ function createProvider(overrides?: Partial<ChainProvider>): ChainProvider {
     signedAttributes: [],
     auditedBy: [],
     ...overrides
+  };
+}
+
+function createDiscoveredProvider(overrides?: Partial<DiscoveredChainProvider>): DiscoveredChainProvider {
+  return {
+    ...createProvider(overrides),
+    verification: overrides?.verification ?? verificationAt("123")
+  };
+}
+
+function verificationAt(observedHeight: string): StoredProviderVerification {
+  return {
+    moduleActive: true,
+    facts: {
+      attestations: [],
+      completeness: { attestations: true, graces: true, snapshot: true },
+      graces: [],
+      observedAt: "2026-08-24T12:00:00.000Z",
+      observedHeight,
+      snapshot: null
+    }
   };
 }
 

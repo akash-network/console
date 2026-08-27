@@ -18,6 +18,7 @@ export const envSchema = z.object({
     .nonnegative()
     .int()
     .default(10 * ONE_MINUTE),
+  VERIFICATION_QUERY_CONCURRENCY: z.number({ coerce: true }).int().positive().default(20),
   MAX_CONCURRENT_STREAM_CONNECTIONS: z.number({ coerce: true }).positive().default(100),
   STREAM_RECONNECT_INITIAL_DELAY_MS: z.number({ coerce: true }).nonnegative().default(60_000),
   STREAM_RECONNECT_MAX_DELAY_MS: z

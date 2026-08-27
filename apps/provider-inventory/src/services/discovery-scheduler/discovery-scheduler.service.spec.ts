@@ -7,7 +7,7 @@ import type { ProviderIncidentRepository } from "@src/repositories/provider-inci
 import type { ProviderInventory, ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
 import type { ChainProviderPollerService } from "@src/services/chain-provider-poller/chain-provider-poller.service";
 import type { StreamLifecycleManagerService } from "@src/services/stream-lifecycle-manager/stream-lifecycle-manager.service";
-import type { ChainProvider } from "@src/types/chain-provider";
+import type { DiscoveredChainProvider } from "@src/types/chain-provider";
 import type { TimerService } from "../timer/timer.service";
 import { DiscoverySchedulerService } from "./discovery-scheduler.service";
 
@@ -78,6 +78,7 @@ describe(DiscoverySchedulerService.name, () => {
 
     expect(lifecycle.getRegistry).toHaveBeenCalled();
     expect(writer.bulkUpsertProviders).toHaveBeenCalledWith([fresh]);
+    expect(writer.bulkUpdateVerification).toHaveBeenCalledWith([fresh]);
     expect(lifecycle.start).toHaveBeenCalledWith({ ...fresh, offlineSince: null }, expect.any(AbortSignal));
   });
 
@@ -192,6 +193,17 @@ describe(DiscoverySchedulerService.name, () => {
 
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "UPSERT_PROVIDERS_ERROR", owners: [provider.owner] }));
     expect(lifecycle.start).not.toHaveBeenCalled();
+  });
+
+  it("logs verification persistence errors without breaking provider discovery", async () => {
+    const provider = createProvider();
+    const { writer, lifecycle, logger } = setup({ providers: [provider] });
+    writer.bulkUpdateVerification.mockRejectedValueOnce(new Error("DB update failed"));
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "UPSERT_PROVIDER_VERIFICATION_ERROR", owners: [provider.owner] }));
+    expect(lifecycle.start).toHaveBeenCalledWith({ ...provider, offlineSince: null }, expect.any(AbortSignal));
   });
 
   it("prunes incidents older than the configured retention window on the first tick", async () => {
@@ -332,7 +344,7 @@ describe(DiscoverySchedulerService.name, () => {
   });
 
   function setup(input?: {
-    providers?: ChainProvider[];
+    providers?: DiscoveredChainProvider[];
     pollError?: Error;
     pollDelay?: (config: EnvConfig) => number;
     onlineOwners?: Pick<ProviderInventory, "owner" | "hostUri">[];
@@ -348,6 +360,7 @@ describe(DiscoverySchedulerService.name, () => {
     lifecycle.stopAndDelete.mockResolvedValue();
     lifecycle.waitForPendingConnections.mockResolvedValue();
     writer.bulkUpsertProviders.mockResolvedValue([]);
+    writer.bulkUpdateVerification.mockResolvedValue();
     incidentRepository.getOfflineSince.mockResolvedValue(input?.offlineSince ?? new Map());
     incidentRepository.deleteEndedBefore.mockResolvedValue(0);
 
@@ -419,13 +432,24 @@ function asyncIterableThatThrows<T>(error: Error): AsyncGenerator<T> {
   } as AsyncGenerator<T>;
 }
 
-function createProvider(overrides?: Partial<ChainProvider>): ChainProvider {
+function createProvider(overrides?: Partial<DiscoveredChainProvider>): DiscoveredChainProvider {
   return {
     owner: "akash1abc",
     hostUri: "https://provider.example.com:8443",
     selfAttributes: [],
     signedAttributes: [],
     auditedBy: [],
+    verification: {
+      moduleActive: null,
+      facts: {
+        attestations: [],
+        completeness: { attestations: false, graces: false, snapshot: false },
+        graces: [],
+        observedAt: "2026-08-24T12:00:00.000Z",
+        observedHeight: "123",
+        snapshot: null
+      }
+    },
     ...overrides
   };
 }

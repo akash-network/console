@@ -4,6 +4,7 @@ import { inject, singleton } from "tsyringe";
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { type Database, PG_CLIENT } from "@src/providers/postgres.provider";
 import type { ClusterState, RequestedResourceUnit } from "@src/types/inventory";
+import type { StoredProviderVerification } from "@src/types/provider-verification";
 import { aggregateCriteria, type BidScreeningCriteria, type PlacementRequirements } from "./bid-screening.aggregator";
 // TODO(Issue 5): move auditor allowlist into configuration and accept it as a request input.
 export const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
@@ -17,6 +18,8 @@ export interface BidScreeningCandidate {
   updatedAt: string;
   location: string | null;
   organization: string | null;
+  verification: StoredProviderVerification | null;
+  verificationObservedHeight: string | null;
 }
 
 const TABLE = getTableName(providerInventory);
@@ -38,10 +41,11 @@ export class BidScreeningRepository {
     const criteria = aggregateCriteria(resourceUnits, requirements);
     const where = this.#buildWhere(criteria);
 
-    const rows = await sql<Array<{ owner: string; updatedAt: string }>>`
+    const rows = await sql<Array<{ owner: string; updatedAt: string; verificationObservedHeight: string | null }>>`
       SELECT
         ${sql(providerInventory.owner.name)} AS owner,
-        to_char(${sql(providerInventory.updatedAt.name)} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "updatedAt"
+        to_char(${sql(providerInventory.updatedAt.name)} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "updatedAt",
+        ${sql(providerInventory.verification.name)} #>> '{facts,observedHeight}' AS "verificationObservedHeight"
       FROM ${sql(TABLE)}
       WHERE ${where}
     `;
@@ -52,7 +56,7 @@ export class BidScreeningRepository {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const cache = this.#providersInventory.get(row.owner);
-      if (!cache || cache.updatedAt !== row.updatedAt) {
+      if (!cache || cache.updatedAt !== row.updatedAt || cache.verificationObservedHeight !== row.verificationObservedHeight) {
         ownersToFetch.push(row.owner);
         missingFinalCandidatesIndexes.set(row.owner, i);
       } else {
@@ -68,6 +72,8 @@ export class BidScreeningRepository {
           to_char(${sql(providerInventory.createdAt.name)} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "createdAt",
           ${sql(providerInventory.hostUri.name)} AS "hostUri",
           ${sql(providerInventory.inventory.name)} AS cluster,
+          ${sql(providerInventory.verification.name)} AS verification,
+          ${sql(providerInventory.verification.name)} #>> '{facts,observedHeight}' AS "verificationObservedHeight",
           ${sql(providerInventory.auditedBy.name)} @> ARRAY[${AUDITOR}]::text[] AS "isAudited",
           COALESCE(
             (SELECT sa->>'value' FROM jsonb_array_elements(${sql(providerInventory.signedAttributes.name)}) AS sa WHERE sa->>'key' = 'location-region' LIMIT 1),
