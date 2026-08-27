@@ -1,19 +1,14 @@
-import crc32c from "fast-crc32c";
-import { grpc } from "google-gax";
 import createError from "http-errors";
-import { createDecipheriv, createHash } from "node:crypto";
+import { createHash } from "node:crypto";
 import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
-import {
-  SDL_SECRETS_CONTENT_ENCRYPTION,
-  SDL_SECRETS_MAX_SEAL_LIFETIME_MS,
-  SDL_SECRETS_SEAL_ALGORITHM,
-  SDL_SECRETS_WRAPPED_KEY_BYTES
-} from "@src/deployment/config/sdl-secrets.config";
+import { SDL_SECRETS_CONTENT_ENCRYPTION, SDL_SECRETS_MAX_SEAL_LIFETIME_MS, SDL_SECRETS_SEAL_ALGORITHM } from "@src/deployment/config/sdl-secrets.config";
 import type { SdlSecretsKmsTarget } from "@src/deployment/providers/kms.provider";
 import { SDL_SECRETS_KMS_TARGET } from "@src/deployment/providers/kms.provider";
+import type { KmsWrappedJweFailure, ParsedKmsWrappedJwe } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe.service";
+import { KmsWrappedJweError, KmsWrappedJweService } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe.service";
 
 export type SdlSecrets = Record<string, string>;
 
@@ -26,56 +21,50 @@ interface SealHeader {
   sdlHash?: unknown;
 }
 
-interface SealParts {
-  protectedHeader: string;
-  encryptedKey: string;
-  iv: string;
-  ciphertext: string;
-  tag: string;
+interface SealRejection {
+  status: number;
+  event: string;
+  message: string;
+  isServiceFault?: true;
 }
 
-const COMPACT_JWE_PART_COUNT = 5;
-
-/** Buffer.from silently drops characters outside the alphabet, so a garbled segment would decode to a plausible length. */
-const BASE64URL_SEGMENT = /^[A-Za-z0-9_-]+$/;
-
-/** base64url encodes in quanta of four characters; a leftover of exactly one carries no byte, and Buffer.from discards it as silently as it does a stray character. */
-const BASE64URL_ORPHAN_CHARACTER_REMAINDER = 1;
-
-function isBase64Url(segment: string) {
-  return BASE64URL_SEGMENT.test(segment) && segment.length % 4 !== BASE64URL_ORPHAN_CHARACTER_REMAINDER;
-}
-
-/** A256GCM fixes the initialization vector at 96 bits, and Node accepts any other length without complaint. */
-const CONTENT_ENCRYPTION_IV_BYTES = 12;
-
-/** A256GCM fixes the tag at 128 bits, and Node silently accepts shorter ones — 4 bytes of authentication is not authentication. */
-const CONTENT_ENCRYPTION_TAG_BYTES = 16;
+/** How a hostile or stale client input is reported: every shape failure blames the caller, and only an unreachable key service is our fault. */
+const SEAL_REJECTIONS: Record<KmsWrappedJweFailure, SealRejection> = {
+  MALFORMED: { status: 400, event: "SDL_SECRETS_SEAL_MALFORMED", message: "Sealed secrets must be a compact JWE" },
+  HEADER_UNREADABLE: { status: 400, event: "SDL_SECRETS_SEAL_HEADER_UNREADABLE", message: "Sealed secrets carry an unreadable protected header" },
+  ENCRYPTED_KEY_INVALID: { status: 400, event: "SDL_SECRETS_SEAL_ENCRYPTED_KEY_INVALID", message: "Sealed secrets carry a malformed encrypted key" },
+  CIPHERTEXT_INVALID: { status: 400, event: "SDL_SECRETS_SEAL_CIPHERTEXT_INVALID", message: "Sealed secrets carry a malformed ciphertext" },
+  IV_INVALID: { status: 400, event: "SDL_SECRETS_SEAL_IV_INVALID", message: "Sealed secrets carry a malformed initialization vector" },
+  TAG_INVALID: { status: 400, event: "SDL_SECRETS_SEAL_TAG_INVALID", message: "Sealed secrets carry a malformed authentication tag" },
+  ENCRYPTED_KEY_REJECTED: {
+    status: 400,
+    event: "SDL_SECRETS_SEAL_ENCRYPTED_KEY_REJECTED",
+    message: "Sealed secrets carry an encrypted key this key version cannot open"
+  },
+  KEY_SERVICE_REQUEST_CORRUPTED: { status: 503, event: "SDL_SECRETS_CEK_REQUEST_CORRUPTED", message: "SDL secrets could not be unsealed" },
+  KEY_SERVICE_PLAINTEXT_MISSING: { status: 503, event: "SDL_SECRETS_CEK_MISSING", message: "SDL secrets could not be unsealed" },
+  KEY_SERVICE_RESPONSE_CORRUPTED: { status: 503, event: "SDL_SECRETS_CEK_RESPONSE_CORRUPTED", message: "SDL secrets could not be unsealed" },
+  KEY_SERVICE_UNREACHABLE: {
+    status: 503,
+    event: "SDL_SECRETS_CEK_UNWRAP_FAILED",
+    message: "Unable to reach the SDL secrets key management service",
+    isServiceFault: true
+  },
+  AUTHENTICATION_FAILED: { status: 400, event: "SDL_SECRETS_SEAL_TAMPERED", message: "Sealed secrets failed authentication" }
+};
 
 function isSdlBound(header: SealHeader) {
   return header.sdlHash !== undefined;
 }
 
-/** gRPC reports the status of a failed call as a numeric `code` on the rejection. */
-function getGrpcStatus(error: unknown) {
-  return error instanceof Error && "code" in error ? error.code : undefined;
-}
-
-/**
- * Opens a transport seal — one JWE holding all of a deployment's secrets.
- *
- * `jose` cannot delegate key unwrapping to a remote service, so the compact serialization is taken
- * apart by hand and each piece handed to a stock primitive. The only hand-written logic is the
- * split: the encrypted key goes to Cloud KMS, and the content is opened with AES-256-GCM using the
- * protected header's own ASCII as the additional authenticated data. That last detail is what makes
- * the header claims tamper-evident — altering `sub`, `exp` or `sdlHash` breaks the GCM tag.
- */
+/** Holds only what makes a seal a seal — the claims a client must prove and the flat string payload — because the wire format lives in `KmsWrappedJweService`. */
 @singleton()
 export class SdlSecretsUnsealerService {
   readonly #loggerService: ReturnType<CreateLogger>;
 
   constructor(
     @inject(SDL_SECRETS_KMS_TARGET) private readonly kmsTarget: SdlSecretsKmsTarget,
+    private readonly wrappedJweService: KmsWrappedJweService,
     private readonly authService: AuthService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -83,13 +72,11 @@ export class SdlSecretsUnsealerService {
   }
 
   async open({ seal, sdl }: { seal: string; sdl: string }): Promise<SdlSecrets> {
-    const parts = this.#splitSeal(seal);
-    this.#assertSegmentsAreWellFormed(parts);
-    const header = this.#validateHeader(parts.protectedHeader);
+    const parsed = this.#parseSeal(seal);
+    const header = this.#validateHeader(parsed.header);
     this.#assertSdlBinding(header, sdl);
 
-    const contentEncryptionKey = await this.#unwrapContentEncryptionKey(parts.encryptedKey);
-    const secrets = this.#decryptSecrets(parts, contentEncryptionKey);
+    const secrets = this.#parseSecrets(await this.#openSeal(parsed));
 
     this.#loggerService.info({
       event: "SDL_SECRETS_SEAL_OPENED",
@@ -101,22 +88,38 @@ export class SdlSecretsUnsealerService {
     return secrets;
   }
 
-  #splitSeal(seal: string): SealParts {
-    const parts = seal.split(".");
+  #parseSeal(seal: string): ParsedKmsWrappedJwe {
+    try {
+      return this.wrappedJweService.parse(seal);
+    } catch (error) {
+      throw this.#rejectWrappedJweFailure(error);
+    }
+  }
 
-    if (parts.length !== COMPACT_JWE_PART_COUNT) {
-      throw this.#reject(400, "SDL_SECRETS_SEAL_MALFORMED", "Sealed secrets must be a compact JWE", { partCount: parts.length });
+  async #openSeal(parsed: ParsedKmsWrappedJwe): Promise<Buffer> {
+    try {
+      return await this.wrappedJweService.open(parsed);
+    } catch (error) {
+      throw this.#rejectWrappedJweFailure(error);
+    }
+  }
+
+  #rejectWrappedJweFailure(error: unknown) {
+    if (!(error instanceof KmsWrappedJweError)) return error;
+
+    const { status, event, message, isServiceFault } = SEAL_REJECTIONS[error.failure];
+
+    if (isServiceFault) {
+      this.#loggerService.error({ event, ...error.details });
+
+      return createError(status, message);
     }
 
-    const [protectedHeader, encryptedKey, iv, ciphertext, tag] = parts;
-
-    return { protectedHeader, encryptedKey, iv, ciphertext, tag };
+    return this.#reject(status, event, message, error.details);
   }
 
   /** Everything here is free; nothing below it is. A malformed or stale seal must never reach Cloud KMS. */
-  #validateHeader(protectedHeader: string) {
-    const header = this.#parseHeader(protectedHeader);
-
+  #validateHeader(header: SealHeader) {
     if (header.alg !== SDL_SECRETS_SEAL_ALGORITHM || header.enc !== SDL_SECRETS_CONTENT_ENCRYPTION) {
       throw this.#reject(400, "SDL_SECRETS_SEAL_ALGORITHM_UNSUPPORTED", `Seals must use ${SDL_SECRETS_SEAL_ALGORITHM} and ${SDL_SECRETS_CONTENT_ENCRYPTION}`, {
         alg: header.alg,
@@ -169,125 +172,22 @@ export class SdlSecretsUnsealerService {
     }
   }
 
-  /** Also free, and for the same reason: a seal whose own segments cannot be used must never spend an unwrap. */
-  #assertSegmentsAreWellFormed({ protectedHeader, encryptedKey, iv, ciphertext, tag }: SealParts) {
-    this.#assertSegmentIsBase64Url(protectedHeader, "SDL_SECRETS_SEAL_HEADER_UNREADABLE", "Sealed secrets carry an unreadable protected header");
-    this.#assertSegmentIsBase64Url(ciphertext, "SDL_SECRETS_SEAL_CIPHERTEXT_INVALID", "Sealed secrets carry a malformed ciphertext");
-
-    const wrappedKeyBytes = this.#decodedByteLength(encryptedKey);
-
-    if (!SDL_SECRETS_WRAPPED_KEY_BYTES.has(wrappedKeyBytes)) {
-      throw this.#reject(400, "SDL_SECRETS_SEAL_ENCRYPTED_KEY_INVALID", "Sealed secrets carry a malformed encrypted key", { wrappedKeyBytes });
-    }
-
-    this.#assertSegmentDecodesTo(iv, CONTENT_ENCRYPTION_IV_BYTES, "SDL_SECRETS_SEAL_IV_INVALID", "Sealed secrets carry a malformed initialization vector");
-    this.#assertSegmentDecodesTo(tag, CONTENT_ENCRYPTION_TAG_BYTES, "SDL_SECRETS_SEAL_TAG_INVALID", "Sealed secrets carry a malformed authentication tag");
-  }
-
-  #assertSegmentIsBase64Url(segment: string, event: string, message: string) {
-    if (!isBase64Url(segment)) {
-      throw this.#reject(400, event, message, {});
-    }
-  }
-
-  #assertSegmentDecodesTo(segment: string, expectedBytes: number, event: string, message: string) {
-    const decodedBytes = this.#decodedByteLength(segment);
-
-    if (decodedBytes !== expectedBytes) {
-      throw this.#reject(400, event, message, { decodedBytes, expectedBytes });
-    }
-  }
-
-  #decodedByteLength(segment: string) {
-    return isBase64Url(segment) ? Buffer.from(segment, "base64url").length : 0;
-  }
-
-  #parseHeader(protectedHeader: string): SealHeader {
-    const header = this.#decodeHeaderJson(protectedHeader);
-
-    if (!header || typeof header !== "object" || Array.isArray(header)) {
-      throw this.#reject(400, "SDL_SECRETS_SEAL_HEADER_UNREADABLE", "Sealed secrets carry an unreadable protected header", {});
-    }
-
-    return header;
-  }
-
-  #decodeHeaderJson(protectedHeader: string): unknown {
-    try {
-      return JSON.parse(Buffer.from(protectedHeader, "base64url").toString("utf8"));
-    } catch {
-      return null;
-    }
-  }
-
-  async #unwrapContentEncryptionKey(encryptedKey: string): Promise<Buffer> {
-    const ciphertext = Buffer.from(encryptedKey, "base64url");
-
-    const response = await this.#asymmetricDecrypt(ciphertext);
-
-    if (!response.verifiedCiphertextCrc32c) {
-      throw this.#reject(503, "SDL_SECRETS_CEK_REQUEST_CORRUPTED", "SDL secrets could not be unsealed", {});
-    }
-
-    if (!response.plaintext) {
-      throw this.#reject(503, "SDL_SECRETS_CEK_MISSING", "SDL secrets could not be unsealed", {});
-    }
-
-    const contentEncryptionKey = Buffer.from(response.plaintext as Uint8Array);
-
-    if (crc32c.calculate(contentEncryptionKey) !== Number(response.plaintextCrc32c?.value)) {
-      throw this.#reject(503, "SDL_SECRETS_CEK_RESPONSE_CORRUPTED", "SDL secrets could not be unsealed", {});
-    }
-
-    return contentEncryptionKey;
-  }
-
-  async #asymmetricDecrypt(ciphertext: Buffer) {
-    try {
-      const [response] = await this.kmsTarget.client.asymmetricDecrypt({
-        name: this.kmsTarget.versionName,
-        ciphertext,
-        ciphertextCrc32c: { value: crc32c.calculate(ciphertext) }
-      });
-
-      return response;
-    } catch (error) {
-      if (getGrpcStatus(error) === grpc.status.INVALID_ARGUMENT) {
-        throw this.#reject(400, "SDL_SECRETS_SEAL_ENCRYPTED_KEY_REJECTED", "Sealed secrets carry an encrypted key this key version cannot open", {});
-      }
-
-      this.#loggerService.error({ event: "SDL_SECRETS_CEK_UNWRAP_FAILED", versionName: this.kmsTarget.versionName, error });
-
-      throw createError(503, "Unable to reach the SDL secrets key management service");
-    }
-  }
-
-  #decryptSecrets({ protectedHeader, iv, ciphertext, tag }: SealParts, contentEncryptionKey: Buffer): SdlSecrets {
-    try {
-      const decipher = createDecipheriv("aes-256-gcm", contentEncryptionKey, Buffer.from(iv, "base64url"));
-      decipher.setAAD(Buffer.from(protectedHeader, "ascii"));
-      decipher.setAuthTag(Buffer.from(tag, "base64url"));
-
-      const plaintext = Buffer.concat([decipher.update(Buffer.from(ciphertext, "base64url")), decipher.final()]);
-
-      return this.#parseSecrets(plaintext);
-    } catch (error) {
-      if (createError.isHttpError(error)) {
-        throw error;
-      }
-
-      throw this.#reject(400, "SDL_SECRETS_SEAL_TAMPERED", "Sealed secrets failed authentication", {});
-    }
-  }
-
   #parseSecrets(plaintext: Buffer): SdlSecrets {
-    const secrets = JSON.parse(plaintext.toString("utf8"));
+    const secrets = this.#decodeSecretsJson(plaintext);
 
     if (!secrets || typeof secrets !== "object" || Array.isArray(secrets) || Object.values(secrets).some(value => typeof value !== "string")) {
       throw this.#reject(400, "SDL_SECRETS_SEAL_PAYLOAD_INVALID", "Sealed secrets must be a flat object of string values", {});
     }
 
-    return secrets;
+    return secrets as SdlSecrets;
+  }
+
+  #decodeSecretsJson(plaintext: Buffer): unknown {
+    try {
+      return JSON.parse(plaintext.toString("utf8"));
+    } catch {
+      return null;
+    }
   }
 
   #reject(status: number, event: string, message: string, details: Record<string, unknown>) {
