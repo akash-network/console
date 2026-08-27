@@ -43,6 +43,13 @@
       "when": 1762440232870,
       "tag": "0005_left_magus",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787637958458,
+      "tag": "0006_romantic_sasquatch",
+      "breakpoints": true
     }
   ]
 }
