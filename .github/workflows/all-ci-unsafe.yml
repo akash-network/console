@@ -11,8 +11,10 @@ on:
     types: [completed]
   # pull_request: # uncomment to test this workflow in PR
 
+# Keyed on the scanned commit, not the branch: a branch-wide key lets a newer commit's scan cancel an
+# older commit's scan mid-flight, orphaning the check run it already created as permanently pending.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.head_ref }}
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
   cancel-in-progress: true
 
 permissions:
@@ -53,6 +55,17 @@ jobs:
       - name: Decide whether to run scan
         id: decide
         run: | # shell
+          # A cancelled CI run is superseded by a newer one whose own scan reports this commit's verdict;
+          # reporting here as well would race that scan for the same check name on the same commit.
+          if [ "${PARENT_WORKFLOW_CONCLUSION}" == "cancelled" ]; then
+            echo "run_scan=false" >> "$GITHUB_OUTPUT"
+            echo "report_check=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=Upstream CI was cancelled, so the superseding CI run reports instead" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "report_check=true" >> "$GITHUB_OUTPUT"
+
           if [ "${PARENT_WORKFLOW_CONCLUSION}" != "success" ]; then
             echo "run_scan=false" >> "$GITHUB_OUTPUT"
             echo "skip_reason=Upstream CI conclusion is '${PARENT_WORKFLOW_CONCLUSION}'" >> "$GITHUB_OUTPUT"
@@ -68,8 +81,16 @@ jobs:
           echo "run_scan=true" >> "$GITHUB_OUTPUT"
           echo "skip_reason=" >> "$GITHUB_OUTPUT"
 
+      - name: Note skipped check run
+        if: ${{ steps.decide.outputs.report_check != 'true' }}
+        env:
+          SKIP_REASON: ${{ steps.decide.outputs.skip_reason }}
+        run: | # shell
+          echo "No \`security-scan\` check reported for ${PARENT_WORKFLOW_HEAD_SHA}: ${SKIP_REASON}" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Create check run
         id: create_check
+        if: ${{ steps.decide.outputs.report_check == 'true' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: | # js
@@ -252,7 +273,7 @@ jobs:
   finalize:
     runs-on: ubuntu-latest
     needs: [create-check-run, static-analyses, codeql-scan, apps-deps-scan]
-    if: ${{ always() && needs.create-check-run.result == 'success' }}
+    if: ${{ always() && needs.create-check-run.result == 'success' && needs.create-check-run.outputs.check_run_id != '' }}
     steps:
       - name: Final conclusion and summary
         id: final
