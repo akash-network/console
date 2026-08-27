@@ -73,6 +73,14 @@ describe("GET /v1/provider-outages", () => {
     expect(response.status).toBe(400);
   });
 
+  it("rejects an empty age rather than reading it as no age filter at all", async () => {
+    const { request } = await setup();
+
+    const response = await request("/v1/provider-outages?minAgeDays=");
+
+    expect(response.status).toBe(400);
+  });
+
   it("rejects an age too large for postgres to turn into an interval", async () => {
     const { request } = await setup();
 
