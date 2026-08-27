@@ -3,7 +3,7 @@ import { col, fn, Op, QueryTypes, Sequelize, WhereOptions } from "sequelize";
 import { inject, singleton } from "tsyringe";
 
 import { CHAIN_DB } from "@src/chain";
-import { DrainingDeploymentLeaseSource } from "@src/deployment/types/draining-deployment";
+import { ActiveLeaseRate, DrainingDeploymentLeaseSource } from "@src/deployment/types/draining-deployment";
 
 export interface DrainingDeploymentOutput {
   dseq: number;
@@ -132,6 +132,33 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
     }
 
     return [];
+  }
+
+  /**
+   * Per-block spending rate of each given deployment's open leases, whatever its escrow holds.
+   *
+   * @param owner - Owner address
+   * @param dseqs - Array of deployment sequence numbers to filter by
+   * @returns Rate per deployment, omitting deployments with no open lease
+   */
+  async findActiveLeaseRates(owner: string, dseqs: string[]): Promise<ActiveLeaseRate[]> {
+    if (!dseqs.length) return [];
+
+    const leases = await Lease.findAll({
+      where: {
+        owner,
+        dseq: { [Op.in]: dseqs },
+        closedHeight: { [Op.is]: null }
+      },
+      attributes: ["dseq", [fn("sum", col("price")), "blockRate"]],
+      group: ["dseq"],
+      raw: true
+    });
+
+    return (leases as unknown as Array<{ dseq: string; blockRate: string | number }>).map(lease => ({
+      dseq: String(lease.dseq),
+      blockRate: Number(lease.blockRate)
+    }));
   }
 
   /**

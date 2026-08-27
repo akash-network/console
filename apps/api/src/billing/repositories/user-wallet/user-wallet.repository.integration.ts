@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import subMinutes from "date-fns/subMinutes";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
@@ -41,12 +42,74 @@ describe(UserWalletRepository.name, () => {
     });
   });
 
-  async function setup() {
+  describe("clearCreditsLowNotifiedIfRecoveryConfirmed", () => {
+    it("clears the notified stamp once credits have read sufficient for the whole window", async () => {
+      const { userWalletRepository, wallet } = await setup({
+        creditsLowNotifiedAt: subMinutes(new Date(), 90),
+        creditsSufficientSince: subMinutes(new Date(), 31)
+      });
+
+      const isCleared = await userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(wallet.id, 30);
+
+      const updated = await userWalletRepository.findById(wallet.id);
+      expect(isCleared).toBe(true);
+      expect(updated?.creditsLowNotifiedAt).toBeNull();
+      expect(updated?.creditsSufficientSince).toBeNull();
+    });
+
+    it("keeps the notified stamp while the window has not elapsed", async () => {
+      const creditsLowNotifiedAt = subMinutes(new Date(), 90);
+      const { userWalletRepository, wallet } = await setup({
+        creditsLowNotifiedAt,
+        creditsSufficientSince: subMinutes(new Date(), 5)
+      });
+
+      const isCleared = await userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(wallet.id, 30);
+
+      const updated = await userWalletRepository.findById(wallet.id);
+      expect(isCleared).toBe(false);
+      expect(updated?.creditsLowNotifiedAt).toEqual(creditsLowNotifiedAt);
+    });
+
+    it("keeps the notified stamp when no recovery has been recorded", async () => {
+      const { userWalletRepository, wallet } = await setup({ creditsLowNotifiedAt: subMinutes(new Date(), 90) });
+
+      const isCleared = await userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(wallet.id, 30);
+
+      expect(isCleared).toBe(false);
+    });
+
+    it("reports no clear when the wallet was never notified", async () => {
+      const { userWalletRepository, wallet } = await setup({ creditsSufficientSince: subMinutes(new Date(), 90) });
+
+      const isCleared = await userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(wallet.id, 30);
+
+      expect(isCleared).toBe(false);
+    });
+
+    it("clears exactly once across concurrent attempts", async () => {
+      const { userWalletRepository, wallet } = await setup({
+        creditsLowNotifiedAt: subMinutes(new Date(), 90),
+        creditsSufficientSince: subMinutes(new Date(), 31)
+      });
+
+      const results = await Promise.all(Array.from({ length: 5 }, () => userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(wallet.id, 30)));
+
+      expect(results.filter(Boolean)).toHaveLength(1);
+    });
+  });
+
+  async function setup(input: { creditsLowNotifiedAt?: Date; creditsSufficientSince?: Date } = {}) {
     const userRepository = container.resolve(UserRepository);
     const userWalletRepository = container.resolve(UserWalletRepository);
 
     const user = await userRepository.create({ userId: faker.string.uuid() });
-    const wallet = await userWalletRepository.create({ userId: user.id, address: createAkashAddress() });
+    const created = await userWalletRepository.create({ userId: user.id, address: createAkashAddress() });
+    const wallet = await userWalletRepository.updateById(
+      created.id,
+      { creditsLowNotifiedAt: input.creditsLowNotifiedAt ?? null, creditsSufficientSince: input.creditsSufficientSince ?? null },
+      { returning: true }
+    );
 
     return { userRepository, userWalletRepository, user, wallet };
   }

@@ -1,6 +1,6 @@
 import { Trace } from "@akashnetwork/instrumentation";
 import subDays from "date-fns/subDays";
-import { and, count, eq, gt, inArray, isNotNull, isNull, lte, or } from "drizzle-orm";
+import { and, count, eq, gt, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -97,6 +97,29 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
       .returning();
 
     return claimed ? this.toOutput(claimed) : undefined;
+  }
+
+  /**
+   * Unlatches the low-credit email only when credits have read sufficient for the whole window, re-checking
+   * that in SQL so a concurrent check that saw them low still wins by clearing `creditsSufficientSince`.
+   */
+  async clearCreditsLowNotifiedIfRecoveryConfirmed(id: UserWalletOutput["id"], confirmWindowMinutes: number): Promise<boolean> {
+    const [cleared] = await this.cursor
+      .update(this.table)
+      .set({ creditsLowNotifiedAt: null, creditsSufficientSince: null })
+      .where(
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.id, id),
+            isNotNull(this.table.creditsLowNotifiedAt),
+            isNotNull(this.table.creditsSufficientSince),
+            lte(this.table.creditsSufficientSince, sql`now() - ${confirmWindowMinutes} * interval '1 minute'`)
+          )
+        )
+      )
+      .returning({ id: this.table.id });
+
+    return !!cleared;
   }
 
   async findDrainingWallets(thresholds: { fee: number; trialExpirationDays: number }) {

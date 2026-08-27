@@ -6,6 +6,11 @@ export type DrainingDeployment = AutoTopUpDeployment & {
   blockRate: number;
 };
 
+export type ActiveLeaseRate = {
+  dseq: string;
+  blockRate: number;
+};
+
 export type RpcDeploymentInfo = {
   dseq: string;
   escrowBalance: number;
@@ -15,4 +20,5 @@ export type RpcDeploymentInfo = {
 
 export interface DrainingDeploymentLeaseSource {
   findManyByDseqAndOwner(closureHeight: number, owner: string, dseqs: string[]): Promise<DrainingDeploymentOutput[]>;
+  findActiveLeaseRates(owner: string, dseqs: string[]): Promise<ActiveLeaseRate[]>;
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "user_wallets" ADD COLUMN "credits_sufficient_since" timestamp with time zone;

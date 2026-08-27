@@ -144,7 +144,7 @@ export class WalletSettingService {
       if (!prev?.autoReloadEnabled) {
         await this.walletReloadJobService.scheduleForWalletSetting(next, { withCleanup: true });
         await this.walletReloadJobService.cancelCreditsLowCheckByUserId(next.userId);
-        await this.userWalletRepository.updateById(next.walletId, { creditsLowNotifiedAt: null });
+        await this.userWalletRepository.updateById(next.walletId, { creditsLowNotifiedAt: null, creditsSufficientSince: null });
         return;
       }
 

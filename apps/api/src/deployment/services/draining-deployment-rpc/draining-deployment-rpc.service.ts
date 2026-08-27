@@ -1,9 +1,9 @@
-import { DeploymentHttpService, LeaseHttpService, type RpcLease } from "@akashnetwork/http-sdk";
+import { DeploymentHttpService, LeaseHttpService, type LeaseState, type RpcLease } from "@akashnetwork/http-sdk";
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DrainingDeploymentOutput } from "@src/deployment/repositories/lease/lease.repository";
-import { DrainingDeploymentLeaseSource, RpcDeploymentInfo } from "@src/deployment/types/draining-deployment";
+import { ActiveLeaseRate, DrainingDeploymentLeaseSource, RpcDeploymentInfo } from "@src/deployment/types/draining-deployment";
 
 /** The chain rejects a deposit into any escrow account that is not open, so every other state means closed to us. */
 const OPEN_ESCROW_ACCOUNT_STATE = "open";
@@ -48,20 +48,53 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
   }
 
   /**
+   * Per-block spending rate of each given deployment's live leases, whatever its escrow holds.
+   * Excludes leases a provider is reclaiming, which bill for their remaining grace window only.
+   *
+   * @param owner - The owner address to query leases for
+   * @param dseqs - Array of deployment sequence numbers to filter by
+   * @returns Rate per deployment, omitting deployments with no live lease
+   */
+  async findActiveLeaseRates(owner: string, dseqs: string[]): Promise<ActiveLeaseRate[]> {
+    if (!dseqs.length) {
+      return [];
+    }
+
+    const leases = await this.#fetchLeases(owner, new Set(dseqs), "active");
+    const ratesByDseq = new Map<string, number>();
+
+    for (const lease of leases) {
+      const dseq = String(Number(lease.lease.id.dseq));
+      const rateAmount = Number(lease.escrow_payment.state.rate.amount);
+
+      if (!Number.isFinite(rateAmount) || rateAmount <= 0) {
+        this.loggerService.warn({ event: "ACTIVE_LEASE_RATE_INVALID", dseq, owner });
+        continue;
+      }
+
+      ratesByDseq.set(dseq, (ratesByDseq.get(dseq) ?? 0) + rateAmount);
+    }
+
+    return Array.from(ratesByDseq, ([dseq, blockRate]) => ({ dseq, blockRate }));
+  }
+
+  /**
    * Fetches lease data from RPC for the given owner and dseqs.
    * Handles pagination automatically.
    *
    * @param owner - The owner address to query leases for
    * @param dseqSet - Set of deployment sequence numbers to filter by
+   * @param state - Optional lease state to filter on server-side
    * @returns Array of RPC lease data
    */
-  async #fetchLeases(owner: string, dseqSet: Set<string>): Promise<RpcLease[]> {
+  async #fetchLeases(owner: string, dseqSet: Set<string>, state?: LeaseState): Promise<RpcLease[]> {
     const allItems: RpcLease[] = [];
     let nextKey: string | null = null;
 
     do {
       const response = await this.leaseHttpService.list({
         owner,
+        state,
         pagination: { limit: 1000, key: nextKey || undefined }
       });
 
