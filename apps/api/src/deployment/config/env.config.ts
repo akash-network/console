@@ -84,12 +84,7 @@ export const envSchema = z
      * warned about almost as soon as it is set, which tells the user nothing they did not just decide.
      */
     RUNTIME_LIMIT_WARNING_MIN_LIMIT_IN_H: z.number({ coerce: true }).positive().finite().optional().default(12),
-    /**
-     * How recently the provider inventory must have re-checked an outage for the sweeps to act on it.
-     * The inventory re-dials dead providers hourly, so anything older than this means the inventory itself
-     * has stalled and its outages describe the past, not the present. The sweep then does nothing rather
-     * than warn about — or close — deployments on providers that may well have recovered.
-     */
+    /** An outage the inventory has not re-checked within this window describes the past, not the present, so the sweeps refuse it. */
     PROVIDER_OUTAGE_FRESHNESS_WINDOW_IN_H: z.number({ coerce: true }).positive().finite().optional().default(3),
     /** Base URL of the provider inventory service, which owns the record of who is currently unreachable. */
     PROVIDER_INVENTORY_API_URL: z.string().url(),

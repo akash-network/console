@@ -42,14 +42,7 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
     this.#chainDb = chainDb;
   }
 
-  /**
-   * Every active lease of every deployment that has at least one active lease on one of the given
-   * providers — including the leases that deployment holds on providers that are perfectly healthy.
-   *
-   * Callers need the whole picture, not just the dark leases: warning an owner takes one dark lease,
-   * but closing a deployment takes all of its leases being dark, and that can only be decided by
-   * seeing the ones this query would otherwise filter away.
-   */
+  /** Healthy leases come back too, because deciding a deployment is fully dark takes seeing the leases a dark-only filter would drop. */
   async findActiveLeasesOfDeploymentsOnProviders(providers: string[]): Promise<ActiveLeaseOnProvider[]> {
     if (providers.length === 0) return [];
 

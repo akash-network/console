@@ -20,16 +20,7 @@ export interface ProviderOutage {
   startedAt: string;
 }
 
-/**
- * Reads the provider inventory's record of who is currently unreachable — the only place that knows,
- * since it is what holds the streams to every provider.
- *
- * Every failure throws rather than resolving to an empty list. Callers use this to decide whether to
- * warn a user or close their deployment, and an empty list is indistinguishable from "everyone is
- * healthy": swallowing an error here would turn an inventory outage into silence, and a stale record
- * into a wrong close. An outage the inventory has not re-checked within the freshness window means the
- * inventory itself has stopped observing, so the whole answer is refused rather than half-trusted.
- */
+/** Every failure throws rather than resolving to an empty list, which callers cannot tell apart from every provider being healthy. */
 @singleton()
 export class ProviderOutagesHttpService {
   constructor(private readonly config: DeploymentConfigService) {}
