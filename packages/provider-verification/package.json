@@ -1,0 +1,30 @@
+{
+  "name": "@akashnetwork/provider-verification",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared AEP-86 provider verification policy evaluation",
+  "license": "Apache-2.0",
+  "author": "Akash Network",
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "default": "./src/index.ts"
+    }
+  },
+  "main": "src/index.ts",
+  "scripts": {
+    "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "validate:types": "tsc -p tsconfig.build.json --noEmit && echo"
+  },
+  "dependencies": {
+    "@akashnetwork/chain-sdk": "1.0.0-alpha.41"
+  },
+  "devDependencies": {
+    "@akashnetwork/dev-config": "*",
+    "typescript": "~5.8.2",
+    "vitest": "^4.1.5"
+  }
+}
