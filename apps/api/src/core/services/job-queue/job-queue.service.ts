@@ -1,6 +1,13 @@
 import { createMongoAbility, MongoAbility } from "@casl/ability";
 import { context, propagation, SpanStatusCode, trace } from "@opentelemetry/api";
-import { Job as PgBossJob, PgBoss, Queue as PgBossQueue, SendOptions as PgBossSendOptions, WorkOptions as PgBossWorkOptions } from "pg-boss";
+import {
+  Job as PgBossJob,
+  PgBoss,
+  Queue as PgBossQueue,
+  type QueueResult as PgBossQueueResult,
+  SendOptions as PgBossSendOptions,
+  WorkOptions as PgBossWorkOptions
+} from "pg-boss";
 import type { Sql } from "postgres";
 import { Disposable, inject, InjectionToken, singleton } from "tsyringe";
 
@@ -70,31 +77,27 @@ export class JobQueueService implements Disposable {
     this.handlers = handlers.slice(0);
   }
 
-  /**
-   * `createQueue` never touches a queue that already exists, so settings corrected in code reach production only from here.
-   * A failure leaves the queues as they were, which is why it is logged rather than raised: it must not keep workers down.
-   */
+  /** `createQueue` never touches a queue that already exists, so settings corrected in code reach production only from here. */
   async #convergeRetryOptions(handlers: JobHandler<Job>[]): Promise<void> {
-    try {
-      const queueNames = handlers.map(handler => handler.accepts[JOB_NAME]);
-      const liveQueues = new Map((await this.pgBoss.getQueues(queueNames)).map(queue => [queue.name, queue]));
+    const liveQueues = await this.#readLiveQueues(handlers);
 
-      for (const handler of handlers) {
-        const queue = liveQueues.get(handler.accepts[JOB_NAME]);
-        if (!queue) continue;
+    for (const handler of handlers) {
+      const queue = liveQueues.get(handler.accepts[JOB_NAME]);
+      if (!queue) continue;
 
-        const declaredPolicy = handler.policy ?? DEFAULT_QUEUE_POLICY;
-        if (queue.policy !== declaredPolicy) {
-          this.logger.warn({
-            event: "JOB_QUEUE_POLICY_UNCHANGEABLE",
-            queue: queue.name,
-            declared: declaredPolicy,
-            live: queue.policy
-          });
-        }
+      const declaredPolicy = handler.policy ?? DEFAULT_QUEUE_POLICY;
+      if (queue.policy !== declaredPolicy) {
+        this.logger.warn({
+          event: "JOB_QUEUE_POLICY_UNCHANGEABLE",
+          queue: queue.name,
+          declared: declaredPolicy,
+          live: queue.policy
+        });
+      }
 
-        if (retryOptionsOf(queue).every(([key, value]) => value === QUEUE_RETRY_OPTIONS[key])) continue;
+      if (retryOptionsOf(queue).every(([key, value]) => value === QUEUE_RETRY_OPTIONS[key])) continue;
 
+      try {
         await this.pgBoss.updateQueue(queue.name, QUEUE_RETRY_OPTIONS);
         this.logger.info({
           event: "JOB_QUEUE_RETRY_OPTIONS_CONVERGED",
@@ -102,9 +105,20 @@ export class JobQueueService implements Disposable {
           from: Object.fromEntries(retryOptionsOf(queue)),
           to: QUEUE_RETRY_OPTIONS
         });
+      } catch (error) {
+        this.logger.error({ event: "JOB_QUEUE_RETRY_OPTIONS_CONVERGE_FAILED", queue: queue.name, error });
       }
+    }
+  }
+
+  /** Converging is drift correction, so a read that fails leaves every queue as it was rather than keeping the workers down. */
+  async #readLiveQueues(handlers: JobHandler<Job>[]): Promise<Map<string, PgBossQueueResult>> {
+    try {
+      const queues = await this.pgBoss.getQueues(handlers.map(handler => handler.accepts[JOB_NAME]));
+      return new Map(queues.map(queue => [queue.name, queue]));
     } catch (error) {
-      this.logger.error({ event: "JOB_QUEUE_RETRY_OPTIONS_CONVERGE_FAILED", error });
+      this.logger.error({ event: "JOB_QUEUE_READ_FAILED", error });
+      return new Map();
     }
   }
 

@@ -130,7 +130,32 @@ describe(JobQueueService.name, () => {
 
       await service.registerHandlers([new TestHandler(vi.fn())]);
 
-      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_QUEUE_RETRY_OPTIONS_CONVERGE_FAILED", error });
+      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_QUEUE_RETRY_OPTIONS_CONVERGE_FAILED", queue: "test", error });
+      await expect(service.startWorkers()).resolves.toBeUndefined();
+    });
+
+    it("converges the remaining queues when one of them refuses to update", async () => {
+      const error = new Error("update failed");
+      const { service, pgBoss } = setup({
+        queues: [liveQueue({ retryDelay: 0 }), liveQueue({ name: "another", retryDelay: 0 })]
+      });
+      vi.mocked(pgBoss.updateQueue).mockRejectedValueOnce(error).mockResolvedValue(undefined);
+
+      await service.registerHandlers([new TestHandler(vi.fn()), new AnotherTestHandler(vi.fn())]);
+
+      expect(pgBoss.updateQueue).toHaveBeenCalledTimes(2);
+      expect(pgBoss.updateQueue).toHaveBeenLastCalledWith("another", expect.objectContaining({ retryDelay: 30 }));
+    });
+
+    it("starts workers even when it cannot read the live queue settings", async () => {
+      const error = new Error("read failed");
+      const { service, pgBoss, logger } = setup();
+      vi.mocked(pgBoss.getQueues).mockRejectedValue(error);
+
+      await service.registerHandlers([new TestHandler(vi.fn())]);
+
+      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_QUEUE_READ_FAILED", error });
+      expect(pgBoss.updateQueue).not.toHaveBeenCalled();
       await expect(service.startWorkers()).resolves.toBeUndefined();
     });
   });
