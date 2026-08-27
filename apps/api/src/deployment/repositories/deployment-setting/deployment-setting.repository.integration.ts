@@ -65,6 +65,46 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("markAsClosed", () => {
+    it("closes only the rows it is given", async () => {
+      const { deploymentSettingRepository, settingId, createSetting, readClosed } = await setup();
+      const untouchedId = await createSetting();
+
+      await deploymentSettingRepository.markAsClosed([settingId]);
+
+      expect(await readClosed(settingId)).toBe(true);
+      expect(await readClosed(untouchedId)).toBe(false);
+    });
+
+    it("closes every row of a batch", async () => {
+      const { deploymentSettingRepository, settingId, createSetting, readClosed } = await setup();
+      const otherId = await createSetting();
+
+      await deploymentSettingRepository.markAsClosed([settingId, otherId]);
+
+      expect(await readClosed(settingId)).toBe(true);
+      expect(await readClosed(otherId)).toBe(true);
+    });
+
+    it("does nothing when given no ids", async () => {
+      const { deploymentSettingRepository, settingId, readClosed } = await setup();
+
+      await deploymentSettingRepository.markAsClosed([]);
+
+      expect(await readClosed(settingId)).toBe(false);
+    });
+
+    it("leaves a funding claim marker intact so a late release still matches it", async () => {
+      const { deploymentSettingRepository, settingId } = await setup();
+
+      const claims = await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES);
+      await deploymentSettingRepository.markAsClosed([settingId]);
+      await deploymentSettingRepository.releaseFundingClaim(claims);
+
+      expect(await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES)).toEqual([{ id: settingId, claimedAt: expect.any(String) }]);
+    });
+  });
+
   describe("releaseFundingClaim", () => {
     it("makes a claimed deployment immediately claimable again", async () => {
       const { deploymentSettingRepository, settingId } = await setup();
@@ -454,6 +494,12 @@ describe(DeploymentSettingRepository.name, () => {
       return setting;
     }
 
+    async function readClosed(id: string) {
+      const [row] = await db.select({ closed: deploymentSettingsTable.closed }).from(deploymentSettingsTable).where(eq(deploymentSettingsTable.id, id));
+
+      return row.closed;
+    }
+
     async function backdateLastFundedAt(id: string, minutesAgo: number) {
       await db
         .update(deploymentSettingsTable)
@@ -473,7 +519,8 @@ describe(DeploymentSettingRepository.name, () => {
       createSetting,
       createLimitedSetting,
       createAnchoredSetting,
-      backdateLastFundedAt
+      backdateLastFundedAt,
+      readClosed
     };
   }
 });

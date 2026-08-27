@@ -72,6 +72,63 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
     });
   });
 
+  describe("recordDeploymentClosedOnChain", () => {
+    it("warns, credits the marked-closed count, and leaves the run reporting success", () => {
+      const { service, logger, summarizer, countersByName } = setup();
+      service.start(100, { dryRun: false });
+      const deployment = createDrainingDeployment();
+      const error = new Error("Deployment closed");
+
+      service.recordDeploymentClosedOnChain({ owner: deployment.address, deployment, messageIndex: 1, error });
+      service.finish("success", 200);
+
+      expect(summarizer.get("deploymentsMarkedClosedCount")).toBe(1);
+      expect(summarizer.get("deploymentTopUpErrorCount")).toBe(0);
+      expect(summarizer.get("walletsTopUpErrorCount")).toBe(0);
+      expect(countersByName["auto_top_up_deployments_marked_closed_total"].add).toHaveBeenCalledWith(1);
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "TOP_UP_DEPLOYMENT_CLOSED_ON_CHAIN",
+          dseq: deployment.dseq,
+          address: deployment.address,
+          messageIndex: 1,
+          message: "Deployment closed"
+        })
+      );
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "TOP_UP_DEPLOYMENTS_SUMMARY" }));
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("recordDeploymentCloseMarkFailed", () => {
+    it("warns without claiming the deployment was marked closed", () => {
+      const { service, logger, summarizer } = setup();
+      service.start(100, { dryRun: false });
+      const deployment = createDrainingDeployment();
+
+      service.recordDeploymentCloseMarkFailed({ owner: deployment.address, deployment, error: new Error("connection terminated") });
+
+      expect(summarizer.get("deploymentsMarkedClosedCount")).toBe(0);
+      expect(summarizer.get("deploymentTopUpErrorCount")).toBe(0);
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "TOP_UP_DEPLOYMENT_CLOSE_MARK_FAILED", dseq: deployment.dseq }));
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("recordClosedDeploymentRetryLimit", () => {
+    it("warns without counting the deployments it left unfunded as errors", () => {
+      const { service, logger, summarizer } = setup();
+      service.start(100, { dryRun: false });
+      const owner = createDrainingDeployment().address;
+
+      service.recordClosedDeploymentRetryLimit({ owner, remainingCount: 2 });
+
+      expect(summarizer.get("deploymentTopUpErrorCount")).toBe(0);
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "TOP_UP_CLOSED_DEPLOYMENT_RETRY_LIMIT", owner, remainingCount: 2 }));
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+  });
+
   describe("recordMessagePreparationError", () => {
     it("tracks insufficient balance separately", () => {
       const { service, logger, summarizer } = setup();

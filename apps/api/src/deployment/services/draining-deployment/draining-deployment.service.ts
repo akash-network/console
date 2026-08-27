@@ -149,7 +149,7 @@ export class DrainingDeploymentService {
           return acc;
         }
 
-        if (deployment.closedHeight) {
+        if (deployment.isClosed || deployment.closedHeight) {
           acc[1].push(deploymentSetting.id);
         } else {
           acc[0].push({
@@ -164,7 +164,7 @@ export class DrainingDeploymentService {
     );
 
     if (missingIds.length) {
-      await this.deploymentSettingRepository.updateManyById(missingIds, { closed: true });
+      await this.deploymentSettingRepository.markAsClosed(missingIds);
       instrumentation.recordDeploymentsMarkedClosed(missingIds.length);
     }
 

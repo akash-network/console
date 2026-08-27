@@ -10,7 +10,8 @@ export function createDrainingDeployment({
   blockRate = faker.number.int({ min: 1, max: 100 }),
   predictedClosedHeight = faker.number.int({ min: 1, max: 99999999 }),
   owner = faker.string.alpha(),
-  closedHeight = undefined
+  closedHeight = undefined,
+  isClosed = undefined
 }: Partial<DrainingDeploymentOutput> = {}): DrainingDeploymentOutput {
   return {
     dseq,
@@ -18,6 +19,7 @@ export function createDrainingDeployment({
     blockRate,
     predictedClosedHeight,
     owner,
-    closedHeight
+    closedHeight,
+    isClosed
   };
 }

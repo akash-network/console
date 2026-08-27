@@ -196,6 +196,50 @@ describe(FundDrainingDeploymentsInstrumentationService.name, () => {
     });
   });
 
+  describe("recordDeploymentClosedOnChain", () => {
+    it("credits the marked-closed counter and warns rather than reporting a chain tx error", () => {
+      const { service, deploymentsMarkedClosed, chainTxErrors } = setup();
+      const deployment = mock<DrainingDeployment>({ dseq: "42", address: "akash1owner" });
+      const error = new Error("Deployment closed");
+
+      service.recordDeploymentClosedOnChain({ owner: "akash1owner", deployment, messageIndex: 0, error });
+
+      expect(deploymentsMarkedClosed.add).toHaveBeenCalledWith(1);
+      expect(chainTxErrors.add).not.toHaveBeenCalled();
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "FUND_DRAINING_DEPLOYMENT_CLOSED_ON_CHAIN", owner: "akash1owner", dseq: "42", messageIndex: 0, error })
+      );
+      expect(mockLogger.error).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("recordDeploymentCloseMarkFailed", () => {
+    it("warns without claiming the deployment was marked closed", () => {
+      const { service, deploymentsMarkedClosed } = setup();
+      const deployment = mock<DrainingDeployment>({ dseq: "42", address: "akash1owner" });
+
+      service.recordDeploymentCloseMarkFailed({ owner: "akash1owner", deployment, error: new Error("connection terminated") });
+
+      expect(deploymentsMarkedClosed.add).not.toHaveBeenCalled();
+      expect(mockLogger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "FUND_DRAINING_DEPLOYMENT_CLOSE_MARK_FAILED", dseq: "42" }));
+      expect(mockLogger.error).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("recordClosedDeploymentRetryLimit", () => {
+    it("warns without counting the deployments it left unfunded as errors", () => {
+      const { service, chainTxErrors } = setup();
+
+      service.recordClosedDeploymentRetryLimit({ owner: "akash1owner", remainingCount: 2 });
+
+      expect(chainTxErrors.add).not.toHaveBeenCalled();
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "FUND_DRAINING_CLOSED_DEPLOYMENT_RETRY_LIMIT", owner: "akash1owner", remainingCount: 2 })
+      );
+      expect(mockLogger.error).not.toHaveBeenCalled();
+    });
+  });
+
   describe("recordDeploymentPreparation", () => {
     it("records no instrument and does not throw on the stateless path", () => {
       const { service, jobCompletions } = setup();

@@ -376,6 +376,14 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return row?.runtimeEndsAt ?? null;
   }
 
+  async markAsClosed(ids: string[]): Promise<void> {
+    if (!ids.length) {
+      return;
+    }
+
+    await this.updateManyById(ids, { closed: true });
+  }
+
   /**
    * Atomically claims deployments for auto-funding, returning only the claims this caller won.
    * A deployment is claimable when it has never been funded or its last funding is older than

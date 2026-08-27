@@ -12,6 +12,7 @@ export interface DrainingDeploymentOutput {
   blockRate: number;
   predictedClosedHeight: number;
   closedHeight?: number;
+  isClosed?: boolean;
 }
 
 export interface ActiveLeaseOnProvider {
