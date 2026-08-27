@@ -52,6 +52,7 @@
     "@akashnetwork/logging": "*",
     "@akashnetwork/net": "*",
     "@akashnetwork/openapi-sdk": "*",
+    "@akashnetwork/provider-verification": "*",
     "@amplitude/analytics-node": "^1.3.8",
     "@casl/ability": "^6.8.1",
     "@chain-registry/assets": "^1.64.79",

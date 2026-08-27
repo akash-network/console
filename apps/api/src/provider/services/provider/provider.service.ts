@@ -8,8 +8,12 @@ import { Op } from "sequelize";
 import { singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
+import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
 import type { Auditor } from "@src/provider/http-schemas/auditor.schema";
+import type { ProviderVerificationListView, ProviderVerificationView } from "@src/provider/provider-verification/provider-verification.schema";
+import { ProviderVerificationService } from "@src/provider/provider-verification/provider-verification.service";
+import { ProviderVerificationReadinessService } from "@src/provider/provider-verification/provider-verification-readiness.service";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import { ProviderAuth, ProviderIdentity, ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
 import { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-token/provider-jwt-token.service";
@@ -21,6 +25,8 @@ import { AuditorService } from "../auditors/auditors.service";
 import { ProviderAttributesSchemaService } from "../provider-attributes-schema/provider-attributes-schema.service";
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+type ProviderListWithVerificationSummary = Omit<ProviderList, "verification"> & { verification: ProviderVerificationListView | null };
+type WithVerificationView<T extends ProviderList> = Omit<T, "verification"> & { verification: ProviderVerificationView | null };
 
 @singleton()
 export class ProviderService {
@@ -32,7 +38,10 @@ export class ProviderService {
     private readonly providerRepository: ProviderRepository,
     private readonly providerAttributesSchemaService: ProviderAttributesSchemaService,
     private readonly auditorsService: AuditorService,
-    private readonly jwtTokenService: ProviderJwtTokenService
+    private readonly jwtTokenService: ProviderJwtTokenService,
+    private readonly providerVerificationService: ProviderVerificationService,
+    private readonly providerVerificationReadiness: ProviderVerificationReadinessService,
+    private readonly coreConfig: CoreConfigService
   ) {}
 
   async sendManifest(options: { provider: string; dseq: string; manifest: string; auth: ProviderAuth }) {
@@ -127,8 +136,13 @@ export class ProviderService {
     });
   }
 
+  async getProviderList(trial = false): Promise<ProviderListWithVerificationSummary[]> {
+    const providers = await this.getProviderListBase(trial);
+    return this.attachVerificationSummaries(providers);
+  }
+
   @Memoize({ ttlInSeconds: 60 })
-  async getProviderList(trial = false): Promise<ProviderList[]> {
+  private async getProviderListBase(trial = false): Promise<ProviderList[]> {
     // Fetch providers in batches to avoid blocking event loop during Sequelize hydration
     const BATCH_SIZE = 200;
     const providersWithAttributesAndAuditors: Provider[] = [];
@@ -180,7 +194,7 @@ export class ProviderService {
     return finalProviders;
   }
 
-  async getProviderListByAddresses(addresses: string[], trial = false): Promise<ProviderList[]> {
+  async getProviderListByAddresses(addresses: string[], trial = false): Promise<ProviderListWithVerificationSummary[]> {
     const [providersWithAttributesAndAuditors, providerWithNodes, auditors, providerAttributeSchema] = await Promise.all([
       this.providerRepository.getWithAttributesAndAuditors({ trial, addresses }),
       this.providerRepository.getProviderWithNodes({ addresses }),
@@ -188,7 +202,7 @@ export class ProviderService {
       this.providerAttributesSchemaService.getProviderAttributesSchema()
     ]);
 
-    return this.mapProviderResults(providersWithAttributesAndAuditors, providerWithNodes, auditors, providerAttributeSchema);
+    return this.attachVerificationSummaries(this.mapProviderResults(providersWithAttributesAndAuditors, providerWithNodes, auditors, providerAttributeSchema));
   }
 
   private mapProviderResults(
@@ -217,8 +231,17 @@ export class ProviderService {
     });
   }
 
-  @Memoize({ ttlInSeconds: 30 })
   async getProvider(address: string) {
+    const provider = await this.getProviderBase(address);
+
+    if (!provider) return null;
+
+    const [withVerification] = await this.attachVerificationView([provider]);
+    return withVerification;
+  }
+
+  @Memoize({ ttlInSeconds: 30 })
+  private async getProviderBase(address: string) {
     const nowUtc = toUTC(new Date());
     const provider = await this.providerRepository.getProviderByAddressWithAttributes(address);
 
@@ -254,7 +277,7 @@ export class ProviderService {
       this.providerAttributesSchemaService.getProviderAttributesSchema()
     ]);
 
-    return {
+    const mappedProvider = {
       ...mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot ?? undefined),
       uptime: uptimeSnapshots.map(ps => ({
         id: ps.id,
@@ -262,5 +285,29 @@ export class ProviderService {
         checkDate: ps.checkDate
       }))
     };
+
+    return mappedProvider;
+  }
+
+  private async attachVerificationSummaries(providers: ProviderList[]): Promise<ProviderListWithVerificationSummary[]> {
+    if (!this.coreConfig.get("AEP86_PROVIDER_VERIFICATION_ENABLED") || !(await this.providerVerificationReadiness.isReady())) {
+      return providers.map(provider => ({ ...provider, verification: null }));
+    }
+
+    const verificationByProvider = await this.providerVerificationService.getSummaries(providers.map(provider => provider.owner));
+
+    return providers.map(provider => ({ ...provider, verification: verificationByProvider.get(provider.owner) ?? null }));
+  }
+
+  private async attachVerificationView<T extends ProviderList>(providers: T[]): Promise<WithVerificationView<T>[]> {
+    if (!this.coreConfig.get("AEP86_PROVIDER_VERIFICATION_ENABLED") || !(await this.providerVerificationReadiness.isReady())) {
+      return providers.map(provider => ({ ...provider, verification: null }));
+    }
+
+    const verificationByProvider = await this.providerVerificationService.getViews(
+      providers.map(provider => ({ provider: provider.owner, providerDeclaredTier: provider.tier }))
+    );
+
+    return providers.map(provider => ({ ...provider, verification: verificationByProvider.get(provider.owner) ?? null }));
   }
 }
