@@ -48,5 +48,3 @@ export class ManagedWalletHttpService {
 }
 
 export type ApiManagedWalletOutput = ApiWalletOutput & { username: "Managed Wallet"; isWalletConnected: true };
-
-export type ApiManagedWalletOutputBase = ApiWalletOutput;

@@ -1,4 +1,4 @@
-import type { AxiosRequestConfig, AxiosResponse } from "axios";
+import type { AxiosRequestConfig } from "axios";
 
 import { HttpService } from "../http/http.service";
 import type { SendVerificationCodeResponse, VerifyEmailResponse } from "./auth-http.types";
@@ -6,11 +6,6 @@ import type { SendVerificationCodeResponse, VerifyEmailResponse } from "./auth-h
 export class AuthHttpService extends HttpService {
   constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
     super(config);
-  }
-
-  /** @deprecated Use {@link sendVerificationCode} instead. This targets the legacy link-based verification endpoint. */
-  async sendVerificationEmail(userId: string): Promise<AxiosResponse> {
-    return this.post("/v1/send-verification-email", { data: { userId } });
   }
 
   async sendVerificationCode(): Promise<SendVerificationCodeResponse> {

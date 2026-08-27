@@ -147,7 +147,6 @@ export class ApiUrlService {
 }
 
 /**
- * @deprecated use getAllItems utility from @akashnetwork/http-sdk
  * TODO: implement proper pagination on clients
  * Issue: https://github.com/akash-network/console/milestone/7
  */

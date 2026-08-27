@@ -9,8 +9,7 @@ import {
   createHttpClient,
   DeploymentHttpService,
   GitHubHttpService,
-  LeaseHttpService,
-  ProviderHttpService
+  LeaseHttpService
 } from "@akashnetwork/http-sdk";
 import type { InjectionToken } from "tsyringe";
 import { container, instancePerContainerCachingFactory } from "tsyringe";
@@ -36,8 +35,7 @@ const NON_AXIOS_SERVICES: Array<new (httpClient: HttpClient) => unknown> = [
   BlockHttpService,
   BmeHttpService,
   BidHttpService,
-  BalanceHttpService,
-  ProviderHttpService
+  BalanceHttpService
 ];
 NON_AXIOS_SERVICES.forEach(Service =>
   container.register(Service, { useFactory: instancePerContainerCachingFactory(c => new Service(c.resolve(CHAIN_API_HTTP_CLIENT))) })

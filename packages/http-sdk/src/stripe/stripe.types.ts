@@ -23,10 +23,6 @@ export interface CouponResponse {
   };
 }
 
-export interface CustomerDiscountsResponse {
-  discounts: Array<Discount>;
-}
-
 export interface PaymentMethod {
   id: string;
   type: string;
@@ -63,17 +59,6 @@ export interface BillingTransaction {
   stripeInvoiceId?: string | null;
   receiptUrl?: string | null;
   description?: string | null;
-}
-
-export interface Discount {
-  id: string;
-  type: "coupon" | "promotion_code";
-  valid: boolean;
-  percent_off?: number;
-  amount_off?: number;
-  currency?: string;
-  code?: string;
-  name?: string;
 }
 
 export interface SetupIntentResponse {

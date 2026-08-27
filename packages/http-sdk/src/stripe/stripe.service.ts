@@ -6,7 +6,6 @@ import type {
   ConfirmPaymentParams,
   ConfirmPaymentResponse,
   CouponResponse,
-  CustomerDiscountsResponse,
   CustomerTransactionsParams,
   CustomerTransactionsResponse,
   ExportTransactionsCsvParams,
@@ -35,16 +34,8 @@ export class StripeService {
     return extractData(await this.#httpClient.delete(`/v1/stripe/payment-methods/${paymentMethodId}`)).data;
   }
 
-  async updateCustomerOrganization(organization: string): Promise<void> {
-    await this.#httpClient.put("/v1/stripe/customers/organization", { organization });
-  }
-
   async applyCoupon(couponId: string, userId: string): Promise<CouponResponse> {
     return extractData(await this.#httpClient.post("/v1/stripe/coupons/apply", { data: { couponId, userId } })).data;
-  }
-
-  async getCustomerDiscounts(): Promise<CustomerDiscountsResponse> {
-    return extractData(await this.#httpClient.get("/v1/stripe/coupons/customer-discounts")).data;
   }
 
   async confirmPayment(params: ConfirmPaymentParams): Promise<ConfirmPaymentResponse> {
