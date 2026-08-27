@@ -205,7 +205,7 @@ export class DeploymentWriterService {
     }
   }
 
-  public async closeByUserIdAndDseq(userId: string, dseq: string): Promise<void> {
+  public async closeByUserIdAndDseq(userId: string, dseq: string): Promise<boolean> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     return this.close(wallet, dseq);
   }
@@ -214,19 +214,21 @@ export class DeploymentWriterService {
    * Idempotent close: an already-`closed` deployment is a no-op. The state read is a check→broadcast window, so a
    * concurrent close (a user cancel racing the cleanup cron, or two overlapping cleanup runs) can settle it between
    * the read and the broadcast; the losing tx then fails on an already-closed deployment. Re-read once on failure and
-   * treat a now-closed deployment as success, otherwise surface the original error.
+   * treat a now-closed deployment as success, otherwise surface the original error. Returns false when the
+   * deployment was already closed, so a caller can tell a close it performed from one that had already happened.
    */
-  public async close(wallet: WalletInitialized, dseq: string): Promise<void> {
+  public async close(wallet: WalletInitialized, dseq: string): Promise<boolean> {
     const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
-    if (deployment.deployment.state === "closed") return;
+    if (deployment.deployment.state === "closed") return false;
     const message = this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.deployment.id.dseq);
     try {
       await this.signerService.executeDecodedTxByUserWallet(wallet, [message]);
     } catch (error) {
       const latest = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq).catch(() => null);
-      if (latest?.deployment.state === "closed") return;
+      if (latest?.deployment.state === "closed") return false;
       throw error;
     }
+    return true;
   }
 
   public async deposit(options: { userId: string; dseq: string; amount: number }): Promise<DeploymentResponse> {

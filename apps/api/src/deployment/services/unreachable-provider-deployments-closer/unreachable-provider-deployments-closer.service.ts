@@ -140,8 +140,10 @@ export class UnreachableProviderDeploymentsCloserService {
       return false;
     }
 
+    let closedByUs: boolean;
+
     try {
-      await this.deploymentWriterService.close({ ...wallet, address: wallet.address }, deployment.dseq);
+      closedByUs = await this.deploymentWriterService.close({ ...wallet, address: wallet.address }, deployment.dseq);
     } catch (error) {
       if (error instanceof Error && this.chainErrorService.isUnsettleableDeploymentError(error)) {
         this.logger.warn({
@@ -156,6 +158,16 @@ export class UnreachableProviderDeploymentsCloserService {
     }
 
     await this.#recordClosed(deployment, wallet, errors);
+
+    if (!closedByUs) {
+      this.logger.debug({
+        event: "UNREACHABLE_PROVIDER_DEPLOYMENT_CLOSE_SKIPPED",
+        reason: "ALREADY_CLOSED_ON_CHAIN",
+        dseq: deployment.dseq,
+        owner: deployment.owner
+      });
+      return false;
+    }
 
     this.logger.info({
       event: "UNREACHABLE_PROVIDER_DEPLOYMENT_CLOSED",

@@ -87,7 +87,7 @@ describe(UnreachableProviderDeploymentsCloserService.name, () => {
       { provider: darkProvider.owner, hostUri: darkProvider.hostUri, startedAt: DOWN_SINCE }
     ]);
 
-    const close = vi.spyOn(container.resolve(DeploymentWriterService), "close").mockResolvedValue(undefined);
+    const close = vi.spyOn(container.resolve(DeploymentWriterService), "close").mockResolvedValue(true);
     const enqueue = vi.spyOn(container.resolve(JobQueueService), "enqueue").mockResolvedValue("job-id");
 
     return {

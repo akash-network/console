@@ -549,7 +549,7 @@ describe(DeploymentWriterService.name, () => {
       const closeMsg = { typeUrl: "/close", value: MsgCloseDeployment.fromPartial({}) };
       rpcMessageService.getCloseDeploymentMsg.mockReturnValue(closeMsg);
 
-      await service.close(wallet, "100");
+      await expect(service.close(wallet, "100")).resolves.toBe(true);
 
       expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledWith(wallet.address, "100");
       expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(wallet, [closeMsg]);
@@ -562,20 +562,20 @@ describe(DeploymentWriterService.name, () => {
         deployment: { ...deploymentData.deployment, state: "closed" }
       });
 
-      await service.close(wallet, "100");
+      await expect(service.close(wallet, "100")).resolves.toBe(false);
 
       expect(rpcMessageService.getCloseDeploymentMsg).not.toHaveBeenCalled();
       expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
     });
 
-    it("treats a failed close tx as success when a re-read shows the deployment already closed", async () => {
+    it("reports a close it did not make when a re-read shows the deployment already closed", async () => {
       const { service, signerService, deploymentReaderService } = setup();
       signerService.executeDecodedTxByUserWallet.mockRejectedValue(new Error("deployment already closed"));
       deploymentReaderService.findByWalletAndDseq
         .mockResolvedValueOnce(deploymentData)
         .mockResolvedValueOnce({ ...deploymentData, deployment: { ...deploymentData.deployment, state: "closed" } });
 
-      await expect(service.close(wallet, "100")).resolves.toBeUndefined();
+      await expect(service.close(wallet, "100")).resolves.toBe(false);
     });
 
     it("re-throws the original close error when a re-read shows the deployment is still open", async () => {

@@ -201,7 +201,26 @@ describe(UnreachableProviderDeploymentsCloserService.name, () => {
     expect(deploymentWriterService.close).not.toHaveBeenCalled();
   });
 
-  function setup(input: { outages?: ProviderOutage[]; leases?: ActiveLeaseOnProvider[]; wallet?: null; setting?: DeploymentSettingsOutput }) {
+  it("does not tell the owner about a close that had already happened on chain", async () => {
+    const { service, jobQueueService, deploymentSettingRepository } = setup({
+      outages: [anOutage({})],
+      leases: [aLease({})],
+      alreadyClosedOnChain: true
+    });
+
+    await service.closeUnreachableProviderDeployments({ dryRun: false });
+
+    expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    expect(deploymentSettingRepository.markClosed).toHaveBeenCalled();
+  });
+
+  function setup(input: {
+    outages?: ProviderOutage[];
+    leases?: ActiveLeaseOnProvider[];
+    wallet?: null;
+    setting?: DeploymentSettingsOutput;
+    alreadyClosedOnChain?: boolean;
+  }) {
     const providerOutagesHttpService = mock<ProviderOutagesHttpService>();
     providerOutagesHttpService.findOutagesOlderThanDays.mockResolvedValue(input.outages ?? []);
 
@@ -217,6 +236,7 @@ describe(UnreachableProviderDeploymentsCloserService.name, () => {
     deploymentSettingRepository.findOneBy.mockResolvedValue(input.setting);
 
     const deploymentWriterService = mock<DeploymentWriterService>();
+    deploymentWriterService.close.mockResolvedValue(!input.alreadyClosedOnChain);
     const chainErrorService = mock<ChainErrorService>();
     chainErrorService.isUnsettleableDeploymentError.mockReturnValue(false);
     const jobQueueService = mock<JobQueueService>();
