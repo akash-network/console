@@ -214,7 +214,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     });
 
     it("sizes every owner in the sweep from a single block height", async () => {
-      const { service, drainingDeploymentService, cachedBalanceService, blockHttpService } = setup();
+      const { service, drainingDeploymentService, cachedBalanceService, blockHttpService, instrumentation } = setup();
       const deployments = createManyAutoTopUpDeployments(3);
 
       drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() =>
@@ -239,7 +239,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       await service.topUpDeployments({ dryRun: false });
 
-      expect(drainingDeploymentService.findDrainingDeploymentsByOwner).toHaveBeenCalledWith(CURRENT_BLOCK_HEIGHT, { dryRun: false });
+      expect(drainingDeploymentService.findDrainingDeploymentsByOwner).toHaveBeenCalledWith(CURRENT_BLOCK_HEIGHT, instrumentation, { dryRun: false });
       expect(drainingDeploymentService.calculateAmountToTargetRunway).toHaveBeenCalledTimes(deployments.length);
       drainingDeploymentService.calculateAmountToTargetRunway.mock.calls.forEach(([, height]) => {
         expect(height).toBe(CURRENT_BLOCK_HEIGHT);

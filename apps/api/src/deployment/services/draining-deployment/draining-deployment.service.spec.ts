@@ -17,7 +17,6 @@ import type { DeploymentCloseJobService } from "../deployment-close-job/deployme
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DrainingDeploymentRpcService } from "../draining-deployment-rpc/draining-deployment-rpc.service";
 import type { DeploymentTopUpInstrumentation } from "../top-up-managed-deployments/deployment-top-up-instrumentation";
-import type { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed-deployments/top-up-managed-deployments-instrumentation.service";
 import { DrainingDeploymentService } from "./draining-deployment.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
@@ -82,7 +81,7 @@ describe(DrainingDeploymentService.name, () => {
       );
 
       const callback = vi.fn();
-      for await (const result of service.findDrainingDeploymentsByOwner(currentHeight)) {
+      for await (const result of service.findDrainingDeploymentsByOwner(currentHeight, mock<DeploymentTopUpInstrumentation>())) {
         callback(result);
       }
 
@@ -126,7 +125,7 @@ describe(DrainingDeploymentService.name, () => {
       const findLeasesSpy = vi.spyOn(service, "findLeases").mockResolvedValue([farFromClosure]);
 
       const callback = vi.fn();
-      for await (const result of service.findDrainingDeploymentsByOwner(currentHeight)) {
+      for await (const result of service.findDrainingDeploymentsByOwner(currentHeight, mock<DeploymentTopUpInstrumentation>())) {
         callback(result);
       }
 
@@ -142,6 +141,65 @@ describe(DrainingDeploymentService.name, () => {
         activeDeployments: [expect.objectContaining({ dseq: setting.dseq, predictedClosedHeight: farFromClosure.predictedClosedHeight })],
         drainingDeployments: []
       });
+    });
+
+    it("reports marked-closed deployments to the caller's instrumentation", async () => {
+      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const sink = mock<DeploymentTopUpInstrumentation>();
+      const address = createAkashAddress();
+      const closedSetting = createAutoTopUpDeployment({ address, dseq: "4001" });
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+        (async function* () {
+          yield { address, walletId: closedSetting.walletId, deploymentSettings: [closedSetting] };
+        })()
+      );
+      vi.spyOn(service, "findLeases").mockResolvedValue([
+        createDrainingDeployment({
+          dseq: Number(closedSetting.dseq),
+          owner: address,
+          predictedClosedHeight: currentHeight + 500,
+          closedHeight: currentHeight - 100
+        })
+      ]);
+
+      const callback = vi.fn();
+      for await (const result of service.findDrainingDeploymentsByOwner(currentHeight, sink)) {
+        callback(result);
+      }
+
+      expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledWith([closedSetting.id]);
+      expect(sink.recordDeploymentsMarkedClosed).toHaveBeenCalledWith(1);
+      expect(callback).toHaveBeenCalledWith(expect.objectContaining({ address, drainingDeployments: [] }));
+    });
+
+    it("marks no deployment closed during a dry run", async () => {
+      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const sink = mock<DeploymentTopUpInstrumentation>();
+      const address = createAkashAddress();
+      const closedSetting = createAutoTopUpDeployment({ address, dseq: "4002" });
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+        (async function* () {
+          yield { address, walletId: closedSetting.walletId, deploymentSettings: [closedSetting] };
+        })()
+      );
+      vi.spyOn(service, "findLeases").mockResolvedValue([
+        createDrainingDeployment({
+          dseq: Number(closedSetting.dseq),
+          owner: address,
+          predictedClosedHeight: currentHeight + 500,
+          closedHeight: currentHeight - 100
+        })
+      ]);
+
+      const callback = vi.fn();
+      for await (const result of service.findDrainingDeploymentsByOwner(currentHeight, sink, { dryRun: true })) {
+        callback(result);
+      }
+
+      expect(deploymentSettingRepository.markAsClosed).not.toHaveBeenCalled();
+      expect(sink.recordDeploymentsMarkedClosed).not.toHaveBeenCalled();
     });
 
     it("does not persist a runtime countdown during a dry run and still returns a calculated deadline", async () => {
@@ -164,7 +222,7 @@ describe(DrainingDeploymentService.name, () => {
         ]);
 
         const callback = vi.fn();
-        for await (const result of service.findDrainingDeploymentsByOwner(currentHeight, { dryRun: true })) {
+        for await (const result of service.findDrainingDeploymentsByOwner(currentHeight, mock<DeploymentTopUpInstrumentation>(), { dryRun: true })) {
           callback(result);
         }
 
@@ -230,7 +288,7 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     it("marks closed deployments as closed and excludes them from the result", async () => {
-      const { service, deploymentSettingRepository, currentHeight, instrumentation } = setup();
+      const { service, deploymentSettingRepository, currentHeight } = setup();
       const sink = mock<DeploymentTopUpInstrumentation>();
       const address = createAkashAddress();
       const activeSetting = createAutoTopUpDeployment({ address, dseq: "2001" });
@@ -253,7 +311,6 @@ describe(DrainingDeploymentService.name, () => {
       expect(result[0].dseq).toBe(activeSetting.dseq);
       expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledWith([closedSetting.id]);
       expect(sink.recordDeploymentsMarkedClosed).toHaveBeenCalledWith(1);
-      expect(instrumentation.recordDeploymentsMarkedClosed).not.toHaveBeenCalled();
     });
 
     it("drops a deployment already funded to its runtime deadline and records the skip", async () => {
@@ -422,7 +479,7 @@ describe(DrainingDeploymentService.name, () => {
       ]);
 
       const callback = vi.fn();
-      for await (const result of service.findDrainingDeploymentsByOwner(currentHeight, { dryRun: true })) {
+      for await (const result of service.findDrainingDeploymentsByOwner(currentHeight, mock<DeploymentTopUpInstrumentation>(), { dryRun: true })) {
         callback(result);
       }
 
@@ -1331,8 +1388,6 @@ describe(DrainingDeploymentService.name, () => {
       AUTO_TOP_UP_TARGET_RUNWAY_IN_H: 48
     });
 
-    const instrumentation = mock<TopUpManagedDeploymentsInstrumentationService>();
-
     const service = new DrainingDeploymentService(
       blockHttpService,
       leaseRepository,
@@ -1342,8 +1397,7 @@ describe(DrainingDeploymentService.name, () => {
       config,
       createLogger,
       rpcService,
-      balancesService,
-      instrumentation
+      balancesService
     );
 
     return {
@@ -1358,8 +1412,7 @@ describe(DrainingDeploymentService.name, () => {
       createLogger,
       balancesService,
       config,
-      currentHeight,
-      instrumentation
+      currentHeight
     };
   }
 });
