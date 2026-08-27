@@ -23,12 +23,7 @@ const BLOCK_RATE = 50;
 const ESCROW_AMOUNT = "50000";
 /** Mirrors the `AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD` default of $5, in the grant denom's micro units. */
 const HEADROOM_UDENOM = 5000000;
-/** Escrow left on a deployment that closes in well under the funding cooldown, so any capped deposit is declined. */
 const NEARLY_DRAINED_ESCROW_AMOUNT = "1000";
-/**
- * Credits above the headroom floor that buy under an hour of runway at `BLOCK_RATE`, so keeping the floor
- * would leave the deployment unfunded rather than merely underfunded.
- */
 const ALLOWANCE_ABOVE_HEADROOM_BELOW_A_COOLDOWN = 20000;
 
 type DepositMessage = { value: { deposit?: { amount?: { amount: string } } } };

@@ -10,7 +10,6 @@ import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createAkashAddress } from "@test/seeders";
 
 describe(CachedBalanceService.name, () => {
-  /** Mirrors the `DEPLOYMENT_DEFAULT_DEPOSIT` default: the smallest deposit the platform makes, in dollars. */
   const DEFAULT_DEPOSIT_IN_USD = 0.5;
 
   describe("get", () => {

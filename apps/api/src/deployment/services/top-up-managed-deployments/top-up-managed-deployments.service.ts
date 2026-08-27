@@ -270,12 +270,7 @@ export class TopUpManagedDeploymentsService {
     return messageInputs.filter(x => !!x);
   }
 
-  /**
-   * The balance floor must never be what makes a deposit too small to be worth making. Holding credits back
-   * for a create the owner has not asked for, while the deployment they were withheld from closes, leaves an
-   * idle balance and nothing running. So when the floored amount lands below useful runway the floor yields
-   * for the rest of the pass and the deposit is sized again from the whole balance.
-   */
+  /** The floor must never be the reason a deposit is not made, so it yields when the floored amount falls short. */
   #sizeDeposit({
     balance,
     deployment,
@@ -291,7 +286,7 @@ export class TopUpManagedDeploymentsService {
   }): DepositSize {
     const floored = this.#describeDeposit({ deployment, currentHeight, affordableAmount: balance.previewSufficientAmount(desiredAmount) });
 
-    if (!this.#isCappedBelowUsefulRunway({ desiredAmount, ...floored })) {
+    if (!this.#fallsShortOfUsefulDeposit({ desiredAmount, ...floored })) {
       return floored;
     }
 
@@ -301,7 +296,7 @@ export class TopUpManagedDeploymentsService {
       affordableAmount: balance.previewSufficientAmountWithoutHeadroom(desiredAmount)
     });
 
-    if (this.#isCappedBelowUsefulRunway({ desiredAmount, ...conceded })) {
+    if (this.#fallsShortOfUsefulDeposit({ desiredAmount, ...conceded })) {
       return floored;
     }
 
@@ -317,6 +312,11 @@ export class TopUpManagedDeploymentsService {
     });
 
     return conceded;
+  }
+
+  /** An amount of zero falls short too: insufficient balance is the right answer only once the floor has yielded. */
+  #fallsShortOfUsefulDeposit(deposit: { desiredAmount: number; affordableAmount: number; runwayMinutes: number }): boolean {
+    return deposit.affordableAmount <= 0 || this.#isCappedBelowUsefulRunway(deposit);
   }
 
   #describeDeposit({

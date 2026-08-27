@@ -23,7 +23,6 @@ import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 describe(InitialDeploymentFundingService.name, () => {
   const CURRENT_HEIGHT = 1000;
   const LOOK_AHEAD_HEIGHT = CURRENT_HEIGHT + 600 * 24;
-  /** Mirrors the `DEPLOYMENT_DEFAULT_DEPOSIT` default of $0.50: the smallest deposit worth holding a floor for. */
   const MIN_DEPOSIT = 500_000;
 
   it("throws when the lease is not visible on chain yet", async () => {
