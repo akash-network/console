@@ -20,7 +20,7 @@
     "validate:types": "tsc -p tsconfig.build.json --noEmit && echo"
   },
   "dependencies": {
-    "@akashnetwork/chain-sdk": "1.0.0-alpha.41"
+    "@akashnetwork/chain-sdk": "1.0.0-alpha.43"
   },
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
