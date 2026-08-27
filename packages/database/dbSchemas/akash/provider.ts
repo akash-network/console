@@ -1,11 +1,19 @@
 import { DataTypes } from "sequelize";
-import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
+import { BelongsTo, Column, Default, HasMany, HasOne, Model, PrimaryKey, Table } from "sequelize-typescript";
 
 import { Required } from "../decorators/requiredDecorator";
 import { AkashBlock } from "./akashBlock";
 import { ProviderAttribute } from "./providerAttribute";
 import { ProviderAttributeSignature } from "./providerAttributeSignature";
+import { ProviderMaintenance } from "./providerMaintenance"; // eslint-disable-line import-x/no-cycle
 import { ProviderSnapshot } from "./providerSnapshot";
+import { VerificationAttestation } from "./verificationAttestation"; // eslint-disable-line import-x/no-cycle
+import { VerificationAuditEscrow } from "./verificationAuditEscrow"; // eslint-disable-line import-x/no-cycle
+import { VerificationDiscrepancy } from "./verificationDiscrepancy"; // eslint-disable-line import-x/no-cycle
+import { VerificationGrace } from "./verificationGrace"; // eslint-disable-line import-x/no-cycle
+import { VerificationProviderBond } from "./verificationProviderBond"; // eslint-disable-line import-x/no-cycle
+import { VerificationProviderObservation } from "./verificationProviderObservation"; // eslint-disable-line import-x/no-cycle
+import { VerificationProviderSnapshot } from "./verificationProviderSnapshot"; // eslint-disable-line import-x/no-cycle
 
 /**
  * Provider model for Akash
@@ -147,6 +155,14 @@ export class Provider extends Model {
    * The provider snapshots associated with the provider
    */
   @HasMany(() => ProviderSnapshot, "owner") providerSnapshots!: ProviderSnapshot[];
+  @HasMany(() => VerificationAttestation, { foreignKey: "provider", constraints: false }) verificationAttestations!: VerificationAttestation[];
+  @HasMany(() => VerificationAuditEscrow, { foreignKey: "provider", constraints: false }) verificationAuditEscrows!: VerificationAuditEscrow[];
+  @HasMany(() => VerificationDiscrepancy, { foreignKey: "provider", constraints: false }) verificationDiscrepancies!: VerificationDiscrepancy[];
+  @HasMany(() => VerificationGrace, { foreignKey: "provider", constraints: false }) verificationGraceRecords!: VerificationGrace[];
+  @HasMany(() => ProviderMaintenance, { foreignKey: "provider", constraints: false }) maintenanceRecords!: ProviderMaintenance[];
+  @HasOne(() => VerificationProviderBond, { foreignKey: "provider", constraints: false }) verificationBond?: VerificationProviderBond;
+  @HasOne(() => VerificationProviderObservation, { foreignKey: "provider", constraints: false }) verificationObservation?: VerificationProviderObservation;
+  @HasOne(() => VerificationProviderSnapshot, { foreignKey: "provider", constraints: false }) verificationSnapshot?: VerificationProviderSnapshot;
   /**
    * The block at which the provider was created
    */
