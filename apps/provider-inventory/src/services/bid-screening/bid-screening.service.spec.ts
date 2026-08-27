@@ -1,9 +1,12 @@
+import type { VerificationRequirement } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { AttestationStatus, AuditorSelectionMode, CapabilityFlag, VerificationTier } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { LoggerService } from "@akashnetwork/logging";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { BidScreeningCandidate, BidScreeningRepository } from "@src/repositories/bid-screening/bid-screening.repository";
 import type { DailyDowntimeRow, ProviderIncidentRepository } from "@src/repositories/provider-incident/provider-incident.repository";
+import type { StoredProviderVerification } from "@src/types/provider-verification";
 import type { ClusterInventoryMatcherService } from "../cluster-inventory-matcher/cluster-inventory-matcher.service";
 import type { BidScreeningInput } from "./bid-screening.service";
 import { BidScreeningService } from "./bid-screening.service";
@@ -228,6 +231,127 @@ describe(BidScreeningService.name, () => {
       expect(incidentRepository.findDailyDowntimeByProviders).toHaveBeenCalledWith(["akash1abc"], request.timezone);
       expect(results[0].incidents).toEqual([{ date: "2026-06-01", hasOpenIncident: true, incidentCount: 1, downtimeSeconds: 3600 }]);
     });
+
+    it("keeps the existing response shape when no verification requirement is present", async () => {
+      const { service, repository, matcher } = setup();
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc")]);
+      matcher.match.mockReturnValue({ matched: true });
+
+      const result = await service.screenProviders(makeRequest());
+
+      expect(result).toEqual({
+        providers: [
+          expect.objectContaining({
+            owner: "akash1abc"
+          })
+        ]
+      });
+      expect(result.providers[0]).not.toHaveProperty("verification");
+    });
+
+    it("includes providers that pass verification after capacity matching", async () => {
+      const { service, repository, matcher } = setup();
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc", { verification: storedVerification() })]);
+      matcher.match.mockReturnValue({ matched: true });
+
+      const result = await service.screenProviders(
+        makeRequest({
+          verification: verificationRequirement({ requiredCapabilities: [CapabilityFlag.capability_persistent_storage] })
+        })
+      );
+
+      expect(result.exclusions).toEqual([]);
+      expect(result.providers[0].verification).toMatchObject({
+        outcome: "pass",
+        summary: { tierGateTier: VerificationTier.verification_tier_identified }
+      });
+    });
+
+    it("requires both legacy signedBy and verification when both are present", async () => {
+      const { service, repository, matcher } = setup();
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc", { verification: storedVerification() })]);
+      matcher.match.mockReturnValue({ matched: true });
+      const request = makeRequest({
+        signedBy: { allOf: ["akash1legacyauditor"], anyOf: [] },
+        verification: verificationRequirement({ minTier: VerificationTier.verification_tier_verified })
+      });
+
+      const result = await service.screenProviders(request);
+
+      expect(repository.findCandidates).toHaveBeenCalledWith(expect.any(Array), request.requirements);
+      expect(result.providers).toEqual([]);
+      expect(result.exclusions?.[0].firstFailure).toEqual({ code: "snapshot_not_posted" });
+    });
+
+    it("excludes verification failures with the first and complete failure set", async () => {
+      const { service, repository, matcher } = setup();
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc", { verification: storedVerification() })]);
+      matcher.match.mockReturnValue({ matched: true });
+
+      const result = await service.screenProviders(
+        makeRequest({
+          verification: verificationRequirement({
+            minTier: VerificationTier.verification_tier_verified,
+            requiredCapabilities: [CapabilityFlag.capability_bare_metal],
+            minAuditorCount: 2
+          })
+        })
+      );
+
+      expect(result.providers).toEqual([]);
+      expect(result.exclusions).toEqual([
+        expect.objectContaining({
+          owner: "akash1abc",
+          firstFailure: { code: "snapshot_not_posted" },
+          failures: [
+            { code: "snapshot_not_posted" },
+            {
+              code: "insufficient_tier",
+              actual: VerificationTier.verification_tier_identified,
+              required: VerificationTier.verification_tier_verified
+            },
+            { code: "missing_capability", capability: CapabilityFlag.capability_bare_metal },
+            { code: "insufficient_auditor_count", actual: 0, required: 2 }
+          ]
+        })
+      ]);
+    });
+
+    it("fails open and marks unavailable verification facts as not evaluated", async () => {
+      const { service, repository, matcher } = setup();
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc")]);
+      matcher.match.mockReturnValue({ matched: true });
+
+      const result = await service.screenProviders(makeRequest({ verification: verificationRequirement() }));
+
+      expect(result.exclusions).toEqual([]);
+      expect(result.providers[0].verification).toEqual({
+        outcome: "not_evaluated",
+        incompleteFacts: ["params", "attestations", "graces"],
+        summary: expect.any(Object)
+      });
+    });
+
+    it("marks disabled-module screening as not evaluated without excluding the provider", async () => {
+      const { service, repository, matcher } = setup();
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc", { verification: storedVerification({ moduleActive: false, complete: false }) })]);
+      matcher.match.mockReturnValue({ matched: true });
+
+      const result = await service.screenProviders(makeRequest({ verification: verificationRequirement() }));
+
+      expect(result.exclusions).toEqual([]);
+      expect(result.providers[0].verification).toMatchObject({ outcome: "not_evaluated", incompleteFacts: ["module_inactive"] });
+    });
+
+    it("does not report capacity failures as verification exclusions", async () => {
+      const { service, repository, matcher } = setup();
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc", { verification: storedVerification() })]);
+      matcher.match.mockReturnValue({ matched: false, error: "INSUFFICIENT_CAPACITY" });
+
+      const result = await service.screenProviders(makeRequest({ verification: verificationRequirement() }));
+
+      expect(result).toEqual({ providers: [], exclusions: [] });
+    });
   });
 
   function setup() {
@@ -247,7 +371,13 @@ function makeDowntimeRow(provider: string, overrides?: Partial<DailyDowntimeRow>
 
 function makeCandidate(
   owner: string,
-  overrides?: { isAudited?: boolean; createdAt?: string; location?: string | null; organization?: string | null }
+  overrides?: {
+    isAudited?: boolean;
+    createdAt?: string;
+    location?: string | null;
+    organization?: string | null;
+    verification?: StoredProviderVerification | null;
+  }
 ): BidScreeningCandidate {
   return {
     owner,
@@ -255,6 +385,8 @@ function makeCandidate(
     isAudited: overrides?.isAudited ?? false,
     createdAt: overrides?.createdAt ?? "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
+    verification: overrides?.verification ?? null,
+    verificationObservedHeight: overrides?.verification?.facts.observedHeight ?? null,
     location: overrides?.location ?? null,
     organization: overrides?.organization ?? null,
     cluster: {
@@ -278,13 +410,15 @@ function makeRequest(
   overrides?: Partial<{
     attributes: { key: string; value: string }[];
     signedBy: { allOf: string[]; anyOf: string[] };
+    verification: VerificationRequirement;
   }>
 ): BidScreeningInput {
   return {
     timezone: "America/Chicago",
     requirements: {
       signedBy: overrides?.signedBy ?? { allOf: [], anyOf: [] },
-      attributes: overrides?.attributes ?? []
+      attributes: overrides?.attributes ?? [],
+      verification: overrides?.verification
     },
     resources: [
       {
@@ -300,5 +434,40 @@ function makeRequest(
         price: { denom: "uakt", amount: "1000" }
       }
     ]
+  };
+}
+
+function verificationRequirement(overrides: Partial<VerificationRequirement> = {}): VerificationRequirement {
+  return {
+    minTier: VerificationTier.verification_tier_identified,
+    requiredCapabilities: [],
+    requiredAuditors: [],
+    auditorMode: AuditorSelectionMode.auditor_selection_mode_unspecified,
+    minAuditorCount: 0,
+    ...overrides
+  };
+}
+
+function storedVerification(input: { complete?: boolean; moduleActive?: boolean | null } = {}): StoredProviderVerification {
+  const complete = input.complete ?? true;
+  return {
+    moduleActive: input.moduleActive ?? true,
+    facts: {
+      attestations: complete
+        ? [
+            {
+              auditor: "akash1auditor",
+              capabilities: [CapabilityFlag.capability_persistent_storage],
+              status: AttestationStatus.attestation_status_valid,
+              tier: VerificationTier.verification_tier_identified
+            }
+          ]
+        : [],
+      completeness: { attestations: complete, graces: complete, snapshot: complete },
+      graces: [],
+      observedAt: "2026-08-24T12:00:00.000Z",
+      observedHeight: "123",
+      snapshot: null
+    }
   };
 }

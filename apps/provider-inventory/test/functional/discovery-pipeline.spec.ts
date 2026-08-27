@@ -112,6 +112,34 @@ describe("DiscoveryScheduler pipeline", () => {
     let providers: ChainProvider[] = input.providers ?? [];
 
     const chainSDK = mockDeep<ChainNodeWebSDK>();
+    chainSDK.cosmos.base.tendermint.v1beta1.getLatestBlock.mockResolvedValue({
+      blockId: undefined,
+      block: undefined,
+      sdkBlock: {
+        data: undefined,
+        evidence: undefined,
+        lastCommit: undefined,
+        header: {
+          appHash: new Uint8Array(),
+          chainId: "testnet",
+          consensusHash: new Uint8Array(),
+          dataHash: new Uint8Array(),
+          evidenceHash: new Uint8Array(),
+          height: 123n,
+          lastBlockId: undefined,
+          lastCommitHash: new Uint8Array(),
+          lastResultsHash: new Uint8Array(),
+          nextValidatorsHash: new Uint8Array(),
+          proposerAddress: "akashvaloper1proposer",
+          time: new Date("2026-08-24T12:00:00.000Z"),
+          validatorsHash: new Uint8Array(),
+          version: undefined
+        }
+      }
+    });
+    chainSDK.akash.verification.v1.getParams.mockResolvedValue({
+      params: mock<NonNullable<Awaited<ReturnType<ChainNodeWebSDK["akash"]["verification"]["v1"]["getParams"]>>["params"]>>({ verificationModuleActive: false })
+    });
     chainSDK.akash.provider.v1beta4.getProviders.mockImplementation(() => {
       if (pollError) return Promise.reject(pollError);
       return Promise.resolve({
@@ -168,6 +196,7 @@ describe("DiscoveryScheduler pipeline", () => {
 
 function createProvider(overrides: Partial<ChainProvider> & Pick<ChainProvider, "owner" | "hostUri">): ChainProvider {
   return {
+    auditedBy: [],
     selfAttributes: [],
     signedAttributes: [],
     ...overrides

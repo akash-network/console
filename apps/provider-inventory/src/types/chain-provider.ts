@@ -20,3 +20,8 @@ export interface ChainProvider {
 export interface ChainProviderWithOfflineSince extends ChainProvider {
   offlineSince: Date | null;
 }
+
+export interface DiscoveredChainProvider extends ChainProvider {
+  verification: StoredProviderVerification;
+}
+import type { StoredProviderVerification } from "./provider-verification";

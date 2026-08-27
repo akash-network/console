@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { bigint, boolean, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 import { jsonbBigint } from "@src/lib/jsonb-bigint/jsonb-bigint.column";
+import type { StoredProviderVerification } from "@src/types/provider-verification";
 
 export const providerInventory = pgTable(
   "provider_inventory",
@@ -48,6 +49,7 @@ export const providerInventory = pgTable(
     selfAttributes: jsonbBigint("self_attributes").notNull().default([]),
     signedAttributes: jsonbBigint("signed_attributes").notNull().default([]),
     auditedBy: text("audited_by").array().notNull().default([]),
+    verification: jsonbBigint("verification").$type<StoredProviderVerification>(),
 
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()

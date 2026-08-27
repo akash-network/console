@@ -10,6 +10,7 @@ import { parseStorageAttributes } from "@src/mappers/storage-attribute-parser/st
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
 import type { RequestedResourceUnit, ResourceAttribute } from "@src/types/inventory";
+import type { StoredProviderVerification } from "@src/types/provider-verification";
 import type { PlacementRequirements } from "./bid-screening.aggregator";
 import { AUDITOR, BidScreeningRepository } from "./bid-screening.repository";
 
@@ -582,6 +583,21 @@ describe(BidScreeningRepository.name, () => {
       expect(second.updatedAt).not.toBe(first.updatedAt);
     });
 
+    it("re-fetches a fresh candidate when only the verification observation changes", async () => {
+      await seed({ owner: "akash1verification", verification: verificationAt("100") });
+      const [first] = await repository.findCandidates([unit({})], requirements());
+
+      await db
+        .update(providerInventory)
+        .set({ verification: verificationAt("101") })
+        .where(eq(providerInventory.owner, "akash1verification"));
+
+      const [second] = await repository.findCandidates([unit({})], requirements());
+
+      expect(second).not.toBe(first);
+      expect(second.verification?.facts.observedHeight).toBe("101");
+    });
+
     it("reuses cached providers while fetching only the uncached ones in a mixed batch", async () => {
       await seed({ owner: "akash1cacheWarm" });
       const [warm] = await repository.findCandidates([unit({})], requirements());
@@ -620,6 +636,7 @@ describe(BidScreeningRepository.name, () => {
     reclamationWindow?: number | null;
     inventory?: unknown;
     createdAt?: Date;
+    verification?: StoredProviderVerification | null;
   }
 
   async function seed(input: SeedInput): Promise<void> {
@@ -644,7 +661,8 @@ describe(BidScreeningRepository.name, () => {
       storageClasses: input.storageClasses ?? [],
       reclamationWindow: input.reclamationWindow ?? null,
       inventory: input.inventory ?? { nodes: [], storage: {} },
-      createdAt: input.createdAt
+      createdAt: input.createdAt,
+      verification: input.verification ?? null
     });
   }
 });
@@ -696,6 +714,20 @@ function requirements(input?: Partial<PlacementRequirements>): PlacementRequirem
 
 function owners(rows: { owner: string }[]): string[] {
   return rows.map(r => r.owner).sort();
+}
+
+function verificationAt(observedHeight: string): StoredProviderVerification {
+  return {
+    moduleActive: true,
+    facts: {
+      attestations: [],
+      completeness: { attestations: true, graces: true, snapshot: true },
+      graces: [],
+      observedAt: "2026-08-24T12:00:00.000Z",
+      observedHeight,
+      snapshot: null
+    }
+  };
 }
 
 interface RawStorageVolume {

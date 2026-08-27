@@ -11,7 +11,7 @@ import { ProviderIncidentRepository } from "@src/repositories/provider-incident/
 import { ProviderInventoryRepository } from "@src/repositories/provider-inventory/provider-inventory.repository";
 import { ChainProviderPollerService } from "@src/services/chain-provider-poller/chain-provider-poller.service";
 import { StreamLifecycleManagerService } from "@src/services/stream-lifecycle-manager/stream-lifecycle-manager.service";
-import type { ChainProvider } from "@src/types/chain-provider";
+import type { DiscoveredChainProvider } from "@src/types/chain-provider";
 import { TimerService } from "../timer/timer.service";
 
 @singleton()
@@ -215,15 +215,23 @@ export class DiscoverySchedulerService {
     }
   }
 
-  async #upsertProviders(providers: ChainProvider[]) {
+  async #upsertProviders(providers: DiscoveredChainProvider[]) {
     const owners = providers.map(p => p.owner);
+    let updatedProviders: Awaited<ReturnType<ProviderInventoryRepository["bulkUpsertProviders"]>>;
     try {
-      const updatedProviders = await this.#repository.bulkUpsertProviders(providers);
+      updatedProviders = await this.#repository.bulkUpsertProviders(providers);
       this.#logger.debug({ event: "UPSERT_PROVIDERS_UPSERTED", owners });
-      return new Set(updatedProviders?.map(p => p.owner) ?? []);
     } catch (error) {
       this.#logger.error({ event: "UPSERT_PROVIDERS_ERROR", owners, error });
       return null;
     }
+
+    try {
+      await this.#repository.bulkUpdateVerification(providers);
+    } catch (error) {
+      this.#logger.error({ event: "UPSERT_PROVIDER_VERIFICATION_ERROR", owners, error });
+    }
+
+    return new Set(updatedProviders.map(p => p.owner));
   }
 }

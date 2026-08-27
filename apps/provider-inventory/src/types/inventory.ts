@@ -1,3 +1,5 @@
+import type { ProviderVerificationFailure, ProviderVerificationSummary } from "@akashnetwork/provider-verification";
+
 import type { DailyDowntimeRow } from "@src/repositories/provider-incident/provider-incident.repository";
 import type { ParsedGPUAttributes } from "../mappers/gpu-attribute-parser/gpu-attribute-parser";
 import type { ParsedStorageAttributes } from "../mappers/storage-attribute-parser/storage-attribute-parser";
@@ -75,6 +77,25 @@ export interface BidScreeningResult {
   location: string | null;
   organization: string | null;
   incidents: Omit<DailyDowntimeRow, "provider">[];
+  verification?:
+    | { outcome: "pass"; summary: ProviderVerificationSummary }
+    | {
+        outcome: "not_evaluated";
+        incompleteFacts: Array<"params" | "attestations" | "graces" | "snapshot" | "module_inactive">;
+        summary: ProviderVerificationSummary;
+      };
+}
+
+export interface BidScreeningExclusion {
+  owner: string;
+  firstFailure: ProviderVerificationFailure;
+  failures: ProviderVerificationFailure[];
+  summary: ProviderVerificationSummary;
+}
+
+export interface BidScreeningSelection {
+  providers: BidScreeningResult[];
+  exclusions?: BidScreeningExclusion[];
 }
 
 export type ToJSON<T> = T extends Uint8Array ? bigint : T extends object ? { -readonly [K in keyof T]: ToJSON<Exclude<T[K], undefined>> } : T;
