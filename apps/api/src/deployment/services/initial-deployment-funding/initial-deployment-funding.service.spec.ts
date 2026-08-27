@@ -25,6 +25,8 @@ describe(InitialDeploymentFundingService.name, () => {
   const CURRENT_HEIGHT = 1000;
   const LOOK_AHEAD_HEIGHT = CURRENT_HEIGHT + 600 * 24;
   const MIN_DEPOSIT = 500_000;
+  const DEDUP_COOLDOWN_IN_MIN = 60;
+  const CLAIMED_AT = "2026-08-19 06:24:27.123456";
 
   it("throws when the lease is not visible on chain yet", async () => {
     const { service, drainingDeploymentService, managedSignerService } = setup();
@@ -456,6 +458,100 @@ describe(InitialDeploymentFundingService.name, () => {
     expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
   });
 
+  describe("funding claim", () => {
+    it("claims the funding slot before depositing and keeps the claim when the full amount lands", async () => {
+      const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService } = setup();
+      drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+
+      await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+      expect(deploymentSettingRepository.claimForFunding).toHaveBeenCalledExactlyOnceWith(["setting-1"], DEDUP_COOLDOWN_IN_MIN);
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledOnce();
+      expect(deploymentSettingRepository.releaseFundingClaim).not.toHaveBeenCalled();
+    });
+
+    it("skips as recently funded when another pass holds the claim", async () => {
+      const { service, drainingDeploymentService, deploymentSettingRepository, cachedBalanceService, managedSignerService, instrumentation } = setup();
+      drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+      deploymentSettingRepository.claimForFunding.mockResolvedValue([]);
+
+      await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+      expect(instrumentation.recordSkipped).toHaveBeenCalledWith("recently_funded", { dseq: "123", address: "akash1owner" });
+      expect(cachedBalanceService.getFresh).not.toHaveBeenCalled();
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.releaseFundingClaim).not.toHaveBeenCalled();
+    });
+
+    it("releases the claim after a capped deposit lands so landed credits can top the deployment up immediately", async () => {
+      const { service, drainingDeploymentService, deploymentSettingRepository, cachedBalanceService, managedSignerService, instrumentation } = setup();
+      drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+      cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(300000, { headroom: 0, minDeposit: MIN_DEPOSIT }));
+
+      await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledOnce();
+      expect(instrumentation.recordDeposit).toHaveBeenCalledWith(300000, "uakt", expect.anything());
+      expect(deploymentSettingRepository.releaseFundingClaim).toHaveBeenCalledExactlyOnceWith([{ id: "setting-1", claimedAt: CLAIMED_AT }]);
+    });
+
+    it("releases the claim before rethrowing a failed deposit so retries are not read as recently funded", async () => {
+      const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService } = setup();
+      drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+      managedSignerService.executeDerivedTx.mockRejectedValue(new Error("network down"));
+
+      await expect(service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" })).rejects.toThrow("network down");
+
+      expect(deploymentSettingRepository.releaseFundingClaim).toHaveBeenCalledExactlyOnceWith([{ id: "setting-1", claimedAt: CLAIMED_AT }]);
+    });
+
+    it("releases the claim when the balance cannot fund anything", async () => {
+      const { service, drainingDeploymentService, deploymentSettingRepository, cachedBalanceService, instrumentation } = setup();
+      drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+      cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(0, { headroom: 0, minDeposit: MIN_DEPOSIT }));
+
+      await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+      expect(instrumentation.recordSkipped).toHaveBeenCalledWith("insufficient_balance", expect.objectContaining({ dseq: "123" }));
+      expect(deploymentSettingRepository.releaseFundingClaim).toHaveBeenCalledExactlyOnceWith([{ id: "setting-1", claimedAt: CLAIMED_AT }]);
+    });
+
+    it("reports a claim release failure without masking the funding outcome", async () => {
+      const { service, drainingDeploymentService, deploymentSettingRepository, cachedBalanceService, logger } = setup();
+      drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+      cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(0, { headroom: 0, minDeposit: MIN_DEPOSIT }));
+      deploymentSettingRepository.releaseFundingClaim.mockRejectedValue(new Error("connection terminated"));
+
+      await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_CLAIM_RELEASE_FAILED", dseq: "123" }));
+    });
+
+    it("does not claim when the deployment has no settings row", async () => {
+      const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService } = setup();
+      drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
+
+      await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+      expect(deploymentSettingRepository.claimForFunding).not.toHaveBeenCalled();
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledOnce();
+    });
+  });
+
   function createDeploymentSetting(overrides: Partial<DeploymentSettingsOutput> = {}): DeploymentSettingsOutput {
     return {
       id: "setting-1",
@@ -496,7 +592,10 @@ describe(InitialDeploymentFundingService.name, () => {
     const userWalletRepository = mock<UserWalletRepository>();
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     const billingConfig = mockConfigService<BillingConfigService>({ DEPLOYMENT_GRANT_DENOM: "uakt" });
-    const deploymentConfig = mockConfigService<DeploymentConfigService>({ AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 24 });
+    const deploymentConfig = mockConfigService<DeploymentConfigService>({
+      AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 24,
+      AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN: DEDUP_COOLDOWN_IN_MIN
+    });
     const walletReloadJobService = mock<WalletReloadJobService>();
     const deploymentCloseJobService = mock<DeploymentCloseJobService>();
     const chainErrorService = mock<ChainErrorService>();
@@ -510,6 +609,8 @@ describe(InitialDeploymentFundingService.name, () => {
     managedSignerService.ensureFeeGrants.mockResolvedValue(100000);
     managedSignerService.executeDerivedTx.mockResolvedValue({ code: 0, hash: "TESTHASH", rawLog: "[]" });
     chainErrorService.isDeploymentClosedError.mockReturnValue(false);
+    deploymentSettingRepository.claimForFunding.mockImplementation(async (ids: string[]) => ids.map(id => ({ id, claimedAt: CLAIMED_AT })));
+    deploymentSettingRepository.releaseFundingClaim.mockResolvedValue(undefined);
 
     const service = new InitialDeploymentFundingService(
       blockHttpService,
