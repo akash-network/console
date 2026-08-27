@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentCloseJobService } from "@src/deployment/services/deployment-close-job/deployment-close-job.service";
@@ -27,6 +26,17 @@ describe(TopUpDeploymentsController.name, () => {
 
       expect(deploymentCloseJobService.reconcileExpired).toHaveBeenCalledWith(options);
     });
+
+    it("reconciles close jobs even when the funding sweep fails", async () => {
+      const { controller, topUpManagedDeploymentsService, deploymentCloseJobService } = setup();
+      const error = new Error("chain rpc unavailable");
+      topUpManagedDeploymentsService.topUpDeployments.mockRejectedValue(error);
+      const options = { concurrency: 5, dryRun: false };
+
+      await expect(controller.topUpDeployments(options)).rejects.toThrow(error);
+
+      expect(deploymentCloseJobService.reconcileExpired).toHaveBeenCalledWith(options);
+    });
   });
 
   describe("cleanUpStaleDeployment", () => {
@@ -51,13 +61,7 @@ describe(TopUpDeploymentsController.name, () => {
     });
   });
 
-  function setup(): {
-    controller: TopUpDeploymentsController;
-    topUpManagedDeploymentsService: MockProxy<TopUpManagedDeploymentsService>;
-    staleDeploymentsCleanerService: MockProxy<StaleManagedDeploymentsCleanerService>;
-    deploymentCloseJobService: MockProxy<DeploymentCloseJobService>;
-    expiringDeploymentsNotifierService: MockProxy<ExpiringDeploymentsNotifierService>;
-  } {
+  function setup() {
     const topUpManagedDeploymentsService = mock<TopUpManagedDeploymentsService>();
     const staleDeploymentsCleanerService = mock<StaleManagedDeploymentsCleanerService>();
     const deploymentCloseJobService = mock<DeploymentCloseJobService>();
