@@ -13,7 +13,6 @@ import { inject, singleton } from "tsyringe";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { CHAIN_SDK, type ChainSDK } from "@src/chain/providers/chain-sdk.provider";
-import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { DEPLOYMENT_CONFIG, type DeploymentConfig } from "@src/deployment/config/config.provider";
 import { GpuService } from "@src/gpu/services/gpu.service";
@@ -32,7 +31,6 @@ export class GpuBidsCreatorService {
     private readonly config: BillingConfigService,
     @inject(CHAIN_SDK) chainSdk: ChainSDK,
     private readonly gpuService: GpuService,
-    private readonly blockHttpService: BlockHttpService,
     @InjectTypeRegistry() private readonly typeRegistry: Registry,
     @inject(DEPLOYMENT_CONFIG) deploymentConfig: DeploymentConfig,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
@@ -108,7 +106,7 @@ export class GpuBidsCreatorService {
 
     const doneModels: string[] = [];
     for (const model of models) {
-      const dseq = (await this.blockHttpService.getFreshCurrentHeight()).toString();
+      const dseq = Date.now().toString();
       this.#logger.info({ event: "CREATING_DEPLOYMENT", ...pick(model, ["vendor", "model", "ram", "interface"]) });
 
       if (doneModels.includes(model.model + "-" + model.ram)) {

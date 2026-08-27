@@ -6,7 +6,6 @@ import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ChainSDK } from "@src/chain/providers/chain-sdk.provider";
-import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { DeploymentConfig } from "@src/deployment/config/config.provider";
 import type { GpuService } from "@src/gpu/services/gpu.service";
@@ -136,7 +135,7 @@ describe(GpuBidsCreatorService.name, () => {
 
   describe("createBidsForAllModels", () => {
     it("creates deployments for each GPU model, waits for bids, and closes", async () => {
-      const { service, signingClient, chainSdk, blockHttpService } = setup();
+      const { service, signingClient, chainSdk } = setup();
       const gpuModels = {
         gpus: {
           total: { allocatable: 10, allocated: 5 },
@@ -148,9 +147,8 @@ describe(GpuBidsCreatorService.name, () => {
 
       await service["createBidsForAllModels"](gpuModels as any, signingClient, "akash1owner", false);
 
-      expect(blockHttpService.getCurrentHeight).toHaveBeenCalled();
       expect(signingClient.simulate).toHaveBeenCalledTimes(2);
-      expect(chainSdk.akash.market.v1beta5.getBids).toHaveBeenCalledWith({ filters: { owner: "akash1owner", dseq: "100000" } });
+      expect(chainSdk.akash.market.v1beta5.getBids).toHaveBeenCalledWith({ filters: { owner: "akash1owner", dseq: expect.any(String) } });
     });
 
     it("skips duplicate model+ram combos when includeInterface is false", async () => {
@@ -250,9 +248,6 @@ describe(GpuBidsCreatorService.name, () => {
       gpus: { total: { allocatable: 0, allocated: 0 }, details: {} }
     } as any);
 
-    const blockHttpService = mock<BlockHttpService>();
-    blockHttpService.getCurrentHeight.mockResolvedValue(100000);
-
     const typeRegistry = mock<Registry>();
 
     const deploymentConfig = {
@@ -269,14 +264,13 @@ describe(GpuBidsCreatorService.name, () => {
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger: CreateLogger = () => logger;
 
-    const service = new GpuBidsCreatorService(config, chainSdk, gpuService, blockHttpService, typeRegistry, deploymentConfig, createLogger);
+    const service = new GpuBidsCreatorService(config, chainSdk, gpuService, typeRegistry, deploymentConfig, createLogger);
 
     return {
       service,
       config,
       chainSdk,
       gpuService,
-      blockHttpService,
       typeRegistry,
       deploymentConfig,
       signingClient,
