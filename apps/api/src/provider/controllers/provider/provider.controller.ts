@@ -3,6 +3,7 @@ import { singleton } from "tsyringe";
 import { ProviderCleanupService } from "@src/billing/services/provider-cleanup/provider-cleanup.service";
 import { ProviderCleanupParams } from "@src/billing/types/provider-cleanup";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
+import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import type { ProviderListQuery } from "@src/provider/http-schemas/provider.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderStatsService } from "@src/provider/services/provider-stats/provider-stats.service";
@@ -15,7 +16,8 @@ export class ProviderController {
     private readonly trialProvidersService: TrialProvidersService,
     private readonly providerCleanupService: ProviderCleanupService,
     private readonly providerService: ProviderService,
-    private readonly providerStatsService: ProviderStatsService
+    private readonly providerStatsService: ProviderStatsService,
+    private readonly coreConfig: CoreConfigService
   ) {}
 
   async getTrialProviders() {
@@ -28,12 +30,12 @@ export class ProviderController {
 
   async getProviderListBuffer(scope: ProviderListQuery["scope"]): Promise<Uint8Array> {
     const cacheKey = scope === "trial" ? cacheKeys.getTrialProviderListJson : cacheKeys.getProviderListJson;
-
-    return cacheResponse(60, cacheKey, async () => {
+    const load = async () => {
       const data = await this.providerService.getProviderList(scope === "trial");
-      const json = JSON.stringify(data);
-      return encoder.encode(json);
-    });
+      return encoder.encode(JSON.stringify(data));
+    };
+
+    return this.coreConfig.get("AEP86_PROVIDER_VERIFICATION_ENABLED") ? load() : cacheResponse(60, cacheKey, load);
   }
 
   async getFilteredProviderList(scope: ProviderListQuery["scope"], addresses: string[]) {

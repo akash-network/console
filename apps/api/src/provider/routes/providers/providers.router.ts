@@ -2,6 +2,7 @@ import type { TypedResponse } from "hono";
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
+import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
@@ -16,6 +17,8 @@ import {
 } from "@src/provider/http-schemas/provider.schema";
 
 export const providersRouter = new OpenApiHonoHandler();
+
+const isProviderVerificationEnabled = () => container.resolve(CoreConfigService).get("AEP86_PROVIDER_VERIFICATION_ENABLED");
 
 const providerListRoute = createRoute({
   method: "get",
@@ -45,13 +48,17 @@ providersRouter.openapi(providerListRoute, async function routeListProviders(c) 
 
   if (addresses) {
     const data = await controller.getFilteredProviderList(scope, addresses);
+    if (isProviderVerificationEnabled()) c.header("Cache-Control", "public, no-store");
     return c.json(data) as TypedResponse<ProviderListResponse, 200, "json">;
   }
 
   const buffer = await controller.getProviderListBuffer(scope);
   return new Response(buffer, {
     status: 200,
-    headers: { "Content-Type": "application/json" }
+    headers: {
+      "Content-Type": "application/json",
+      ...(isProviderVerificationEnabled() ? { "Cache-Control": "public, no-store" } : {})
+    }
   }) as unknown as TypedResponse<ProviderListResponse, 200, "json">;
 });
 
@@ -94,6 +101,7 @@ providersRouter.openapi(providerRoute, async function routeGetProvider(c) {
     return c.text("Provider not found.", 404);
   }
 
+  if (isProviderVerificationEnabled()) c.header("Cache-Control", "public, no-store");
   return c.json(provider);
 });
 

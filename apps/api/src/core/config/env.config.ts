@@ -39,6 +39,11 @@ export const envSchema = z
       .string()
       .default("false")
       .transform(value => value === "true"),
+    AEP86_PROVIDER_VERIFICATION_ENABLED: z
+      .string()
+      .default("false")
+      .transform(value => value === "true"),
+    AEP86_PROVIDER_VERIFICATION_MAX_INDEXER_LAG_BLOCKS: z.number({ coerce: true }).int().nonnegative().default(2),
     REST_API_NODE_URL: z
       .string()
       .url()
