@@ -17,6 +17,7 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
   private readonly chainTxErrors: Counter;
   private readonly messagePreparationErrors: Counter;
   private readonly deploymentsMarkedClosed: Counter;
+  private readonly deploymentsScanned: Counter;
   private readonly depositAmount: Histogram;
   private readonly predictedCloseBlocks: Histogram;
   private readonly insufficientBalanceWithAutoReload: Counter;
@@ -59,6 +60,10 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
 
     this.deploymentsMarkedClosed = this.metricsService.createCounter(this.meter, "auto_top_up_deployments_marked_closed_total", {
       description: "Total number of deployments marked as closed by the auto top-up job"
+    });
+
+    this.deploymentsScanned = this.metricsService.createCounter(this.meter, "auto_top_up_deployments_scanned_total", {
+      description: "Total number of draining deployments the auto top-up job evaluated for funding"
     });
 
     this.depositAmount = this.metricsService.createHistogram(this.meter, "auto_top_up_deposit_amount", {
@@ -313,6 +318,10 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
     this.topUpSummarizer.inc("deploymentCount");
     this.topUpSummarizer.trackWallet(ownerAddress);
     this.topUpSummarizer.ensurePredictedClosedHeight(predictedClosedHeight);
+
+    this.execWhenEnabled(() => {
+      this.deploymentsScanned.add(1);
+    });
 
     const startHeight = this.topUpSummarizer.get("startBlockHeight");
 

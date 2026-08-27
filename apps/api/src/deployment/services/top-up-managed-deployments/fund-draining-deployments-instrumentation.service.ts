@@ -35,6 +35,7 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
   private readonly jobCompletions: Counter;
   private readonly jobDuration: Histogram;
   private readonly deposits: Counter;
+  private readonly deploymentsScanned: Counter;
   private readonly depositAmount: Histogram;
   private readonly skips: Counter;
   private readonly messagePreparationErrors: Counter;
@@ -61,6 +62,10 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
 
     this.deposits = this.metricsService.createCounter(this.meter, "fund_draining_deployments_deposits_total", {
       description: "Total number of successful immediate draining-deployment deposit transactions"
+    });
+
+    this.deploymentsScanned = this.metricsService.createCounter(this.meter, "fund_draining_deployments_scanned_total", {
+      description: "Total number of draining deployments the immediate funding path evaluated for funding"
     });
 
     this.depositAmount = this.metricsService.createHistogram(this.meter, "fund_draining_deployments_deposit_amount", {
@@ -281,10 +286,12 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
   }
 
   /**
-   * The cron records blocks-until-predicted-close against a run-scoped start height. The stateless
-   * event-driven path has no per-run start height, so there is nothing meaningful to record here.
+   * The cron also records blocks-until-predicted-close against a run-scoped start height; the stateless
+   * event-driven path has no per-run start height, so only the scanned count is meaningful here.
    */
-  recordDeploymentPreparation(_ownerAddress: string, _predictedClosedHeight: number): void {}
+  recordDeploymentPreparation(_ownerAddress: string, _predictedClosedHeight: number): void {
+    this.deploymentsScanned.add(1);
+  }
 
   private serializeDeposits(items: FundingMessageItem[]): { dseq: number | string; amount: number; denom: string }[] {
     return items.map(({ input }) => ({ dseq: input.dseq, amount: input.amount, denom: input.denom }));
