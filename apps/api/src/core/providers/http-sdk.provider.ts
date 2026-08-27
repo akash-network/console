@@ -3,7 +3,6 @@ import {
   AuthzHttpService,
   BalanceHttpService,
   BidHttpService,
-  BlockHttpService,
   BmeHttpService,
   CosmosHttpService,
   createHttpClient,
@@ -32,7 +31,6 @@ const NON_AXIOS_SERVICES: Array<new (httpClient: HttpClient) => unknown> = [
   LeaseHttpService,
   CosmosHttpService,
   AuthzHttpService,
-  BlockHttpService,
   BmeHttpService,
   BidHttpService,
   BalanceHttpService

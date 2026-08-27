@@ -1,6 +1,5 @@
 import { certificateManager, generateManifest, generateManifestVersion, yaml } from "@akashnetwork/chain-sdk";
 import { MsgCreateCertificate, Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import { BlockHttpService } from "@akashnetwork/http-sdk";
 import type { Registry } from "@cosmjs/proto-signing";
 import nock from "nock";
 import fs from "node:fs";
@@ -10,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { BILLING_CONFIG } from "@src/billing/providers";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
+import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { CORE_CONFIG } from "@src/core";
 import { app } from "@src/rest-app";
 import { certVersion, deploymentVersion } from "@src/utils/constants";

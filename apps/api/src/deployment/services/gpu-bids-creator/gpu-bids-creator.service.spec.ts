@@ -1,5 +1,4 @@
 import type { QueryBidsResponse } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
-import type { BlockHttpService } from "@akashnetwork/http-sdk";
 import type { Registry } from "@cosmjs/proto-signing";
 import { calculateFee, type SigningStargateClient } from "@cosmjs/stargate";
 import { describe, expect, it, vi } from "vitest";
@@ -136,7 +135,7 @@ describe(GpuBidsCreatorService.name, () => {
 
   describe("createBidsForAllModels", () => {
     it("creates deployments for each GPU model, waits for bids, and closes", async () => {
-      const { service, signingClient, chainSdk, blockHttpService } = setup();
+      const { service, signingClient, chainSdk } = setup();
       const gpuModels = {
         gpus: {
           total: { allocatable: 10, allocated: 5 },
@@ -148,9 +147,8 @@ describe(GpuBidsCreatorService.name, () => {
 
       await service["createBidsForAllModels"](gpuModels as any, signingClient, "akash1owner", false);
 
-      expect(blockHttpService.getCurrentHeight).toHaveBeenCalled();
       expect(signingClient.simulate).toHaveBeenCalledTimes(2);
-      expect(chainSdk.akash.market.v1beta5.getBids).toHaveBeenCalledWith({ filters: { owner: "akash1owner", dseq: "100000" } });
+      expect(chainSdk.akash.market.v1beta5.getBids).toHaveBeenCalledWith({ filters: { owner: "akash1owner", dseq: expect.any(String) } });
     });
 
     it("skips duplicate model+ram combos when includeInterface is false", async () => {
@@ -235,23 +233,6 @@ describe(GpuBidsCreatorService.name, () => {
     });
   });
 
-  describe("getCurrentHeight", () => {
-    it("returns current height from block service", async () => {
-      const { service } = setup();
-
-      const height = await service["getCurrentHeight"]();
-
-      expect(height).toBe(100000);
-    });
-
-    it("throws when height is NaN", async () => {
-      const { service, blockHttpService } = setup();
-      blockHttpService.getCurrentHeight.mockResolvedValue(NaN);
-
-      await expect(service["getCurrentHeight"]()).rejects.toThrow("Failed to get current height");
-    });
-  });
-
   function setup(input: { gpuBotWalletMnemonic?: string; rpcNodeEndpoint?: string } = {}) {
     const config = mockConfigService<BillingConfigService>({
       NETWORK: "mainnet",
@@ -266,9 +247,6 @@ describe(GpuBidsCreatorService.name, () => {
     gpuService.getGpuList.mockResolvedValue({
       gpus: { total: { allocatable: 0, allocated: 0 }, details: {} }
     } as any);
-
-    const blockHttpService = mock<BlockHttpService>();
-    blockHttpService.getCurrentHeight.mockResolvedValue(100000);
 
     const typeRegistry = mock<Registry>();
 
@@ -286,14 +264,13 @@ describe(GpuBidsCreatorService.name, () => {
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger: CreateLogger = () => logger;
 
-    const service = new GpuBidsCreatorService(config, chainSdk, gpuService, blockHttpService, typeRegistry, deploymentConfig, createLogger);
+    const service = new GpuBidsCreatorService(config, chainSdk, gpuService, typeRegistry, deploymentConfig, createLogger);
 
     return {
       service,
       config,
       chainSdk,
       gpuService,
-      blockHttpService,
       typeRegistry,
       deploymentConfig,
       signingClient,

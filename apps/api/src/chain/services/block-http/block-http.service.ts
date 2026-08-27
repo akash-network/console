@@ -1,15 +1,32 @@
-import { BlockHttpService as BlockHttpServiceCommon } from "@akashnetwork/http-sdk";
-import { singleton } from "tsyringe";
+import { HTTPException } from "hono/http-exception";
+import { inject, singleton } from "tsyringe";
 
-import { Memoize } from "@src/caching/helpers";
+import { memoizeAsync } from "@src/caching/helpers";
+import { CHAIN_SDK, type ChainSDK } from "@src/chain/providers/chain-sdk.provider";
 import { averageBlockTime } from "@src/utils/constants";
 
 @singleton()
 export class BlockHttpService {
-  constructor(private readonly blockHttpService: BlockHttpServiceCommon) {}
+  readonly #chainSdk: ChainSDK;
+  readonly getCurrentHeight = memoizeAsync(this.getFreshCurrentHeight.bind(this), {
+    ttl: averageBlockTime * 1000,
+    cacheItemLimit: 1
+  });
 
-  @Memoize({ ttlInSeconds: averageBlockTime })
-  async getCurrentHeight() {
-    return await this.blockHttpService.getCurrentHeight();
+  constructor(@inject(CHAIN_SDK) chainSdk: ChainSDK) {
+    this.#chainSdk = chainSdk;
+  }
+
+  async getFreshCurrentHeight(): Promise<number> {
+    const { sdkBlock, block } = await this.#chainSdk.cosmos.base.tendermint.v1beta1.getLatestBlock();
+    const height = (sdkBlock ?? block)?.header?.height;
+
+    if (!height) {
+      throw new HTTPException(502, {
+        message: "Latest block response carried no usable header height"
+      });
+    }
+
+    return Number(height);
   }
 }

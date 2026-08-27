@@ -3,7 +3,6 @@ import { generateManifest, generateManifestVersion, yaml as sdlYaml } from "@aka
 import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
-import { BlockHttpService } from "@akashnetwork/http-sdk";
 import { DirectSecp256k1HdWallet, EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { calculateFee, SigningStargateClient } from "@cosmjs/stargate";
 import assert from "http-assert";
@@ -32,7 +31,6 @@ export class GpuBidsCreatorService {
     private readonly config: BillingConfigService,
     @inject(CHAIN_SDK) chainSdk: ChainSDK,
     private readonly gpuService: GpuService,
-    private readonly blockHttpService: BlockHttpService,
     @InjectTypeRegistry() private readonly typeRegistry: Registry,
     @inject(DEPLOYMENT_CONFIG) deploymentConfig: DeploymentConfig,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
@@ -108,7 +106,7 @@ export class GpuBidsCreatorService {
 
     const doneModels: string[] = [];
     for (const model of models) {
-      const dseq = (await this.getCurrentHeight()).toString();
+      const dseq = Date.now().toString();
       this.#logger.info({ event: "CREATING_DEPLOYMENT", ...pick(model, ["vendor", "model", "ram", "interface"]) });
 
       if (doneModels.includes(model.model + "-" + model.ram)) {
@@ -197,12 +195,5 @@ export class GpuBidsCreatorService {
     }
 
     return gpuSdl;
-  }
-
-  private async getCurrentHeight() {
-    const height = await this.blockHttpService.getCurrentHeight();
-    if (Number.isNaN(height)) throw new Error("Failed to get current height");
-
-    return height;
   }
 }
