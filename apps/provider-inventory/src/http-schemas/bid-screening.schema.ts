@@ -1,3 +1,4 @@
+import { AuditorSelectionMode, CapabilityFlag, VerificationTier } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { z } from "@hono/zod-openapi";
 
 const UIntStringSchema = z.string().regex(/^\d+$/, "Must be an unsigned integer string");
@@ -91,9 +92,64 @@ const SignedBySchema = z.object({
   anyOf: z.array(z.string()).default([])
 });
 
+const VerificationTierSchema = z.union([
+  z.literal(VerificationTier.verification_tier_unspecified),
+  z.literal(VerificationTier.verification_tier_identified),
+  z.literal(VerificationTier.verification_tier_verified),
+  z.literal(VerificationTier.verification_tier_established),
+  z.literal(VerificationTier.verification_tier_trusted)
+]);
+
+const CapabilityFlagSchema = z.union([
+  z.literal(CapabilityFlag.capability_tee_hardware_attestation),
+  z.literal(CapabilityFlag.capability_confidential_computing),
+  z.literal(CapabilityFlag.capability_persistent_storage),
+  z.literal(CapabilityFlag.capability_bare_metal)
+]);
+
+const AnyVerificationTierSchema = z.nativeEnum(VerificationTier);
+const AnyCapabilityFlagSchema = z.nativeEnum(CapabilityFlag);
+const AnyAuditorSelectionModeSchema = z.nativeEnum(AuditorSelectionMode);
+
+const AuditorSelectionModeSchema = z.union([
+  z.literal(AuditorSelectionMode.auditor_selection_mode_unspecified),
+  z.literal(AuditorSelectionMode.auditor_selection_mode_any),
+  z.literal(AuditorSelectionMode.auditor_selection_mode_all)
+]);
+
+const ProviderVerificationSummarySchema = z.object({
+  bestStatusValidTier: AnyVerificationTierSchema,
+  tierGateTier: AnyVerificationTierSchema,
+  capabilities: z.array(AnyCapabilityFlagSchema),
+  validAttestationCount: z.number().int().nonnegative(),
+  validAuditors: z.array(z.string()),
+  snapshotState: z.enum(["unknown", "not_posted", "current", "stale", "suspended"]),
+  observedHeight: z.string()
+});
+
+export const VerificationRequirementSchema = z
+  .object({
+    minTier: VerificationTierSchema,
+    requiredCapabilities: z.array(CapabilityFlagSchema).default([]),
+    requiredAuditors: z.array(z.string().min(1)).default([]),
+    auditorMode: AuditorSelectionModeSchema.default(AuditorSelectionMode.auditor_selection_mode_unspecified),
+    minAuditorCount: z.number().int().min(0).max(4_294_967_295).default(0)
+  })
+  .superRefine((requirement, ctx) => {
+    if (requirement.minTier !== VerificationTier.verification_tier_unspecified) return;
+    if (requirement.requiredCapabilities.length === 0 && requirement.requiredAuditors.length === 0 && requirement.minAuditorCount === 0) return;
+
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Tier 0 cannot be combined with capabilities, auditors, or a minimum auditor count"
+    });
+  });
+export type VerificationRequirementInput = z.infer<typeof VerificationRequirementSchema>;
+
 const RequirementsSchema = z.object({
   signedBy: SignedBySchema.default({}),
-  attributes: z.array(AttributeSchema).default([])
+  attributes: z.array(AttributeSchema).default([]),
+  verification: VerificationRequirementSchema.optional()
 });
 
 /**
@@ -140,6 +196,19 @@ const ProviderResultSchema = z.object({
     description: "Provider organization from the organization attribute (signed preferred, else self-declared); null if unset",
     example: "Akash"
   }),
+  verification: z
+    .discriminatedUnion("outcome", [
+      z.object({
+        outcome: z.literal("pass"),
+        summary: ProviderVerificationSummarySchema
+      }),
+      z.object({
+        outcome: z.literal("not_evaluated"),
+        incompleteFacts: z.array(z.enum(["params", "attestations", "graces", "snapshot", "module_inactive"])),
+        summary: ProviderVerificationSummarySchema
+      })
+    ])
+    .optional(),
   incidents: z
     .array(
       z.object({
@@ -152,8 +221,26 @@ const ProviderResultSchema = z.object({
     .openapi({ description: "Per-day downtime over a rolling 7-day window" })
 });
 
+const VerificationFailureSchema = z.discriminatedUnion("code", [
+  z.object({ code: z.literal("snapshot_not_posted") }),
+  z.object({ code: z.literal("snapshot_suspended") }),
+  z.object({ code: z.literal("snapshot_stale") }),
+  z.object({ code: z.literal("insufficient_tier"), actual: AnyVerificationTierSchema, required: AnyVerificationTierSchema }),
+  z.object({ code: z.literal("missing_capability"), capability: AnyCapabilityFlagSchema }),
+  z.object({ code: z.literal("insufficient_auditor_count"), actual: z.number().int().nonnegative(), required: z.number().int().nonnegative() }),
+  z.object({ code: z.literal("required_auditor_not_found"), mode: AnyAuditorSelectionModeSchema, missing: z.array(z.string()) })
+]);
+
+const VerificationExclusionSchema = z.object({
+  owner: z.string(),
+  firstFailure: VerificationFailureSchema,
+  failures: z.array(VerificationFailureSchema).min(1),
+  summary: ProviderVerificationSummarySchema
+});
+
 export const BidScreeningResponseSchema = z.object({
-  providers: z.array(ProviderResultSchema)
+  providers: z.array(ProviderResultSchema),
+  exclusions: z.array(VerificationExclusionSchema).optional()
 });
 export type BidScreeningResponse = z.infer<typeof BidScreeningResponseSchema>;
 

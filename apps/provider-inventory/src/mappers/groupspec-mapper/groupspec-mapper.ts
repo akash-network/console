@@ -22,13 +22,11 @@ export function mapGroupSpecToResourceUnits(request: Omit<GroupSpecJSON, "name">
         memory: {
           quantity: resource.memory.quantity.val
         },
-        storage: resource.storage.map(
-          (s): RequestedStorage => ({
-            name: s.name,
-            quantity: s.quantity.val,
-            attributes: parseStorageAttributes(s.attributes ?? [])
-          })
-        ),
+        storage: resource.storage.map((s): RequestedStorage => ({
+          name: s.name,
+          quantity: s.quantity.val,
+          attributes: parseStorageAttributes(s.attributes ?? [])
+        })),
         // GroupSpecJSON kind is of type string, not enum. It's enum for gRPC response/request. So, can safely cast here.
         endpoints: (resource.endpoints ?? []) as unknown as RequestedResourceUnit["resources"]["endpoints"]
       },
@@ -45,4 +43,10 @@ export function getAttributeFingerprint(attributes: ResourceAttribute[] | undefi
     .join(",");
 }
 
-export type GroupSpecJSON = ToJSON<GroupSpec>;
+type GroupSpecRequirementsJSON = ToJSON<NonNullable<GroupSpec["requirements"]>>;
+
+export type GroupSpecJSON = Omit<ToJSON<GroupSpec>, "requirements"> & {
+  requirements: Omit<GroupSpecRequirementsJSON, "verification"> & {
+    verification?: GroupSpecRequirementsJSON["verification"];
+  };
+};

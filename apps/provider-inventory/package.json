@@ -24,10 +24,11 @@
     "test:unit": "vitest run --project unit"
   },
   "dependencies": {
-    "@akashnetwork/chain-sdk": "1.0.0-alpha.41",
+    "@akashnetwork/chain-sdk": "1.0.0-alpha.43",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/instrumentation": "*",
     "@akashnetwork/logging": "*",
+    "@akashnetwork/provider-verification": "*",
     "@hono/node-server": "^1.19.0",
     "@hono/otel": "~0.4.0",
     "@hono/zod-openapi": "^0.18.4",

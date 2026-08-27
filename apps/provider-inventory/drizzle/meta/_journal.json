@@ -36,6 +36,13 @@
       "when": 1781690088926,
       "tag": "0004_add_reclamation_window",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787631983025,
+      "tag": "0005_add_provider_verification",
+      "breakpoints": true
     }
   ]
 }

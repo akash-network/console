@@ -5,7 +5,7 @@ import { inject, singleton } from "tsyringe";
 import { paginate } from "@src/lib/generators/paginate/paginate";
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { type Database, PG_CLIENT } from "@src/providers/postgres.provider";
-import type { ChainProvider } from "@src/types/chain-provider";
+import type { ChainProvider, DiscoveredChainProvider } from "@src/types/chain-provider";
 import { ClusterState } from "@src/types/inventory";
 import { DbDriver } from "../db-driver/db-driver";
 import { mapToStoredClusterState } from "./stored-cluster-state-mapper/stored-cluster-state-mapper";
@@ -147,5 +147,27 @@ export class ProviderInventoryRepository {
     `;
 
     return rows.map(row => ({ owner: row.owner }));
+  }
+
+  async bulkUpdateVerification(providers: DiscoveredChainProvider[]): Promise<void> {
+    if (providers.length === 0) return;
+
+    const sql = this.#sql;
+    const c = providerInventory;
+    const payload = providers.map(provider => ({
+      [c.owner.name]: provider.owner,
+      [c.verification.name]: provider.verification
+    }));
+
+    await sql`
+      UPDATE ${sql(TABLE)} AS inventory
+      SET ${sql(c.verification.name)} = observations.${sql(c.verification.name)}
+      FROM jsonb_to_recordset(${sql.json(payload as Parameters<typeof sql.json>[0])}::jsonb) AS observations(
+        ${sql(c.owner.name)} text,
+        ${sql(c.verification.name)} jsonb
+      )
+      WHERE inventory.${sql(c.owner.name)} = observations.${sql(c.owner.name)}
+        AND inventory.${sql(c.verification.name)} IS DISTINCT FROM observations.${sql(c.verification.name)}
+    `;
   }
 }
