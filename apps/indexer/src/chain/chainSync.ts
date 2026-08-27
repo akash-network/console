@@ -1,6 +1,6 @@
 import { activeChain, BME_VAULT_ADDRESS, IBC_USDC_DENOMS } from "@akashnetwork/database/chainDefinitions";
 import { Block, Message } from "@akashnetwork/database/dbSchemas";
-import { BmeRawEvent } from "@akashnetwork/database/dbSchemas/akash";
+import { BmeRawEvent, VerificationBlockEvent } from "@akashnetwork/database/dbSchemas/akash";
 import { Day, Transaction, TransactionEvent, TransactionEventAttribute } from "@akashnetwork/database/dbSchemas/base";
 import { fromBase64 } from "@cosmjs/encoding";
 import { decodeTxRaw } from "@cosmjs/proto-signing";
@@ -11,6 +11,7 @@ import { Op } from "sequelize";
 
 import { sequelize } from "@src/db/dbConnection";
 import { BME_BLOCK_EVENT_TYPE_VALUES, BME_EVENT_TYPES } from "@src/indexers/bmeIndexer";
+import { PROVIDER_VERIFICATION_EVENT_TYPES } from "@src/indexers/providerVerification/providerVerificationEvent";
 import { ExecutionMode, executionMode, isProd, lastBlockToSync } from "@src/shared/constants";
 import type { BlockResultType } from "@src/shared/types";
 import { decodeIfBase64 } from "@src/shared/utils/base64";
@@ -77,12 +78,12 @@ export async function getSyncStatus(): Promise<{
     })
   )?.height;
 
-  const latestDateInDb = latestHeightInDb ? (await Block.findOne({ where: { height: latestHeightInDb } }))?.datetime ?? null : null;
-  const latestProcessedDateInDb = latestProcessedHeight ? (await Block.findOne({ where: { height: latestProcessedHeight } }))?.datetime ?? null : null;
+  const latestDateInDb = latestHeightInDb ? ((await Block.findOne({ where: { height: latestHeightInDb } }))?.datetime ?? null) : null;
+  const latestProcessedDateInDb = latestProcessedHeight ? ((await Block.findOne({ where: { height: latestProcessedHeight } }))?.datetime ?? null) : null;
   const latestNotificationProcessedHeight = firstNotificationUnprocessedMessage ? firstNotificationUnprocessedMessage - 1 : latestHeightInDb;
   const latestNotificationProcessedDateInDb =
     !activeChain.startHeight || latestNotificationProcessedHeight > activeChain.startHeight
-      ? (await Block.findOne({ where: { height: latestNotificationProcessedHeight } }))?.datetime ?? null
+      ? ((await Block.findOne({ where: { height: latestNotificationProcessedHeight } }))?.datetime ?? null)
       : null;
 
   return {
@@ -192,6 +193,14 @@ async function insertBlocks(startHeight: number, endHeight: number) {
   let txsEventAttributesToAdd: any[] = [];
   let msgsToAdd: any[] = [];
   let bmeRawEventsToAdd: any[] = [];
+  let verificationBlockEventsToAdd: Array<{
+    id: string;
+    height: number;
+    index: number;
+    type: string;
+    data: Record<string, string | null>;
+    isProcessed: boolean;
+  }> = [];
 
   for (let i = startHeight; i <= endHeight; ++i) {
     const getCachedBlockTimer = benchmark.startTimer("getCachedBlockByHeight");
@@ -292,7 +301,22 @@ async function insertBlocks(startHeight: number, endHeight: number) {
       let bmeEventIndex = 0;
       let migrationBurnDetected = false;
       let migrationBurnedUakt = "0";
-      for (const event of endBlockEvents) {
+      for (const [eventIndex, event] of endBlockEvents.entries()) {
+        if (env.PROVIDER_VERIFICATION_ENABLED && PROVIDER_VERIFICATION_EVENT_TYPES.includes(event.type)) {
+          const data: Record<string, string | null> = {};
+          for (const attr of event.attributes) {
+            data[decodeIfBase64(attr.key)] = attr.value ? decodeIfBase64(attr.value) : null;
+          }
+          verificationBlockEventsToAdd.push({
+            id: randomUUID(),
+            height: i,
+            index: eventIndex,
+            type: event.type,
+            data,
+            isProcessed: false
+          });
+        }
+
         if ((BME_BLOCK_EVENT_TYPE_VALUES as readonly string[]).includes(event.type)) {
           const data: Record<string, string | null> = {};
           for (const attr of event.attributes) {
@@ -431,12 +455,18 @@ async function insertBlocks(startHeight: number, endHeight: number) {
               await BmeRawEvent.bulkCreate(bmeRawEventsToAdd, { transaction: insertDbTransaction });
             });
           }
+          if (verificationBlockEventsToAdd.length > 0) {
+            await benchmark.measureAsync("createVerificationBlockEvents", async () => {
+              await VerificationBlockEvent.bulkCreate(verificationBlockEventsToAdd, { transaction: insertDbTransaction });
+            });
+          }
           blocksToAdd = [];
           txsToAdd = [];
           txsEventsToAdd = [];
           txsEventAttributesToAdd = [];
           msgsToAdd = [];
           bmeRawEventsToAdd = [];
+          verificationBlockEventsToAdd = [];
           console.log(`Blocks added to db: ${i - startHeight + 1} / ${blockCount} (${(((i - startHeight + 1) * 100) / blockCount).toFixed(2)}%)`);
 
           if (lastInsertedBlock) {

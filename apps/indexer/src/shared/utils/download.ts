@@ -1,5 +1,6 @@
 import fs from "fs";
-import http from "https";
+import http from "node:http";
+import https from "node:https";
 import { basename } from "path";
 
 import { bytesToHumanReadableSize } from "./files";
@@ -12,9 +13,10 @@ export async function download(url: string, path: string): Promise<void> {
     path = basename(uri.pathname);
   }
   const file = fs.createWriteStream(path);
+  const client = uri.protocol === "http:" ? http : https;
 
   return new Promise<void>(function (resolve, reject) {
-    http.get(uri.href).on("response", function (res) {
+    client.get(uri.href).on("response", function (res) {
       const len = parseInt(res.headers["content-length"] ?? "0", 10);
       let downloaded = 0;
       let lastProgressLog = Date.now();
