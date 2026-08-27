@@ -47,14 +47,7 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
     return outputs.filter(output => output.isClosed || output.predictedClosedHeight <= closureHeight);
   }
 
-  /**
-   * Per-block spending rate of each given deployment's live leases, whatever its escrow holds.
-   * Excludes leases a provider is reclaiming, which bill for their remaining grace window only.
-   *
-   * @param owner - The owner address to query leases for
-   * @param dseqs - Array of deployment sequence numbers to filter by
-   * @returns Rate per deployment, omitting deployments with no live lease
-   */
+  /** Leaves out leases a provider is reclaiming, which bill for their remaining grace window rather than the week ahead. */
   async findActiveLeaseRates(owner: string, dseqs: string[]): Promise<ActiveLeaseRate[]> {
     if (!dseqs.length) {
       return [];

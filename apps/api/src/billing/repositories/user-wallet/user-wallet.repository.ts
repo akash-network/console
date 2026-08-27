@@ -99,10 +99,7 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return claimed ? this.toOutput(claimed) : undefined;
   }
 
-  /**
-   * Unlatches the low-credit email only when credits have read sufficient for the whole window, re-checking
-   * that in SQL so a concurrent check that saw them low still wins by clearing `creditsSufficientSince`.
-   */
+  /** Re-checks the window in SQL so a concurrent check that read the credits low still wins by clearing `creditsSufficientSince`. */
   async clearCreditsLowNotifiedIfRecoveryConfirmed(id: UserWalletOutput["id"], confirmWindowMinutes: number): Promise<boolean> {
     const [cleared] = await this.cursor
       .update(this.table)
@@ -113,7 +110,7 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
             eq(this.table.id, id),
             isNotNull(this.table.creditsLowNotifiedAt),
             isNotNull(this.table.creditsSufficientSince),
-            lte(this.table.creditsSufficientSince, sql`now() - ${confirmWindowMinutes} * interval '1 minute'`)
+            lte(this.table.creditsSufficientSince, sql`now() - ${confirmWindowMinutes}::double precision * interval '1 minute'`)
           )
         )
       )

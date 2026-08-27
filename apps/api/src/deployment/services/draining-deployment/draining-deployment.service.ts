@@ -436,11 +436,7 @@ export class DrainingDeploymentService {
       address,
       deploymentSettings.map(deployment => deployment.dseq)
     );
-    const settingsByDseq = keyBy(deploymentSettings, s => String(s.dseq));
-    const burns = this.#buildWeeklyBurns(
-      leaseRates.map(leaseRate => ({ ...settingsByDseq[leaseRate.dseq], blockRate: leaseRate.blockRate })),
-      currentHeight
-    );
+    const burns = this.#buildWeeklyBurns(this.#applySettingsToLeaseRates(deploymentSettings, leaseRates, address), currentHeight);
 
     const weeklyCredits = this.#creditsForHours(burns, WEEK_HOURS);
     if (weeklyCredits === 0) {
@@ -451,6 +447,22 @@ export class DrainingDeploymentService {
     const cumulativeDailyCostsUsd = Array.from({ length: 7 }, (_, day) => (this.#creditsForHours(burns, (day + 1) * 24) / weeklyCredits) * weeklyCostUsd);
 
     return { weeklyCostUsd, cumulativeDailyCostsUsd, hasAutoTopUpSettings: true };
+  }
+
+  /** Joins on the numeric value of a dseq, since the two lease-rate sources differ on whether they keep its leading zeros. */
+  #applySettingsToLeaseRates(deploymentSettings: AutoTopUpDeployment[], leaseRates: ActiveLeaseRate[], address: string): WeeklyBurnSource[] {
+    const settingsByDseq = keyBy(deploymentSettings, setting => String(Number(setting.dseq)));
+
+    return leaseRates.flatMap(leaseRate => {
+      const setting = settingsByDseq[String(Number(leaseRate.dseq))];
+
+      if (!setting) {
+        this.loggerService.warn({ event: "ACTIVE_LEASE_RATE_WITHOUT_SETTING", dseq: leaseRate.dseq, address });
+        return [];
+      }
+
+      return [{ ...setting, blockRate: leaseRate.blockRate }];
+    });
   }
 
   /** Comparing this against a credit balance stands in for the handler's USD test: `toFiatAmount` is monotonic, off by at most its cent rounding. */
@@ -568,13 +580,7 @@ export class DrainingDeploymentService {
     }
   }
 
-  /**
-   * Live lease rates for the given deployments, falling back to the indexer database if RPC fails.
-   *
-   * @param owner - The owner address to query leases for
-   * @param dseqs - Array of deployment sequence numbers to filter by
-   * @returns Rate per deployment, omitting deployments with no live lease
-   */
+  /** The indexer fallback counts reclaiming leases the chain source leaves out, which can only overstate the week ahead. */
   async #findActiveLeaseRates(owner: string, dseqs: string[]): Promise<ActiveLeaseRate[]> {
     try {
       return await this.rpcService.findActiveLeaseRates(owner, dseqs);

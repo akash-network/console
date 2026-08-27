@@ -134,13 +134,7 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
     return [];
   }
 
-  /**
-   * Per-block spending rate of each given deployment's open leases, whatever its escrow holds.
-   *
-   * @param owner - Owner address
-   * @param dseqs - Array of deployment sequence numbers to filter by
-   * @returns Rate per deployment, omitting deployments with no open lease
-   */
+  /** Counts every lease the indexer has not seen close, including ones a provider is reclaiming, which the RPC source leaves out. */
   async findActiveLeaseRates(owner: string, dseqs: string[]): Promise<ActiveLeaseRate[]> {
     if (!dseqs.length) return [];
 

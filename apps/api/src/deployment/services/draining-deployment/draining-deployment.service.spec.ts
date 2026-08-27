@@ -1086,6 +1086,31 @@ describe(DrainingDeploymentService.name, () => {
       expect(result.weeklyCostUsd).toBeGreaterThan(0);
     });
 
+    it("bills a deployment whose lease rate comes back with leading zeros", async () => {
+      const blockRate = 50;
+      const { service, address, rpcService, deploymentSettings, balancesService } = await setupWeeklyBurnForAddress({
+        deployments: [{ blockRate }]
+      });
+      rpcService.findActiveLeaseRates.mockResolvedValue([{ dseq: `000${deploymentSettings[0].dseq}`, blockRate }]);
+
+      const result = await service.calculateWeeklyCoverageForAddress(address);
+
+      expect(balancesService.toFiatAmount).toHaveBeenCalledWith(Math.floor(blockRate * averageBlockCountInAnHour * 24 * 7));
+      expect(result.weeklyCostUsd).toBeGreaterThan(0);
+    });
+
+    it("ignores a lease rate that matches no auto top-up deployment", async () => {
+      const { service, address, rpcService, loggerService } = await setupWeeklyBurnForAddress({
+        deployments: [{ blockRate: 50 }]
+      });
+      rpcService.findActiveLeaseRates.mockResolvedValue([{ dseq: "999999", blockRate: 50 }]);
+
+      const result = await service.calculateWeeklyCoverageForAddress(address);
+
+      expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [], hasAutoTopUpSettings: true });
+      expect(loggerService.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "ACTIVE_LEASE_RATE_WITHOUT_SETTING", dseq: "999999", address }));
+    });
+
     it("falls back to the database when the lease rate query fails", async () => {
       const blockRate = 50;
       const rpcError = new Error("RPC error");
