@@ -1,7 +1,8 @@
-import { and, eq, getTableName, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import { and, eq, getTableName, inArray, isNotNull, isNull, lt, lte, sql } from "drizzle-orm";
 import { inject, singleton } from "tsyringe";
 
 import { providerIncidents } from "@src/model-schemas/provider-incident/provider-incident.schema";
+import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { type Database, PG_CLIENT } from "@src/providers/postgres.provider";
 import { DbDriver } from "../db-driver/db-driver";
 
@@ -11,6 +12,18 @@ export interface RecentIncidentRow {
   provider: string;
   startedAt: string;
   endedAt: string | null;
+}
+
+export interface OpenIncident {
+  startedAt: Date;
+  lastAttemptAt: Date;
+}
+
+export interface ProviderOutageRow {
+  provider: string;
+  hostUri: string;
+  startedAt: Date;
+  lastAttemptAt: Date;
 }
 
 export interface DailyDowntimeRow {
@@ -72,8 +85,17 @@ export class ProviderIncidentRepository {
     `;
   }
 
+  /** Re-dialling an open incident bumps lastAttemptAt, which is how consumers tell a live outage from one abandoned by a stalled service. */
   async openIncident(provider: string): Promise<void> {
-    await this.driver.getDb().insert(providerIncidents).values({ provider }).onConflictDoNothing().returning({ provider: providerIncidents.provider });
+    await this.driver
+      .getDb()
+      .insert(providerIncidents)
+      .values({ provider })
+      .onConflictDoUpdate({
+        target: providerIncidents.provider,
+        targetWhere: isNull(providerIncidents.endedAt),
+        set: { lastAttemptAt: sql`now()` }
+      });
   }
 
   async closeIncident(provider: string | string[]): Promise<void> {
@@ -88,20 +110,39 @@ export class ProviderIncidentRepository {
       .where(and(where, isNull(providerIncidents.endedAt)));
   }
 
-  async getOfflineSince(providers: string[]): Promise<Map<string, Date>> {
+  async getOpenIncidents(providers: string[]): Promise<Map<string, OpenIncident>> {
     if (providers.length === 0) return new Map();
 
     const rows = await this.driver
       .getDb()
-      .select({ provider: providerIncidents.provider, startedAt: providerIncidents.startedAt })
+      .select({
+        provider: providerIncidents.provider,
+        startedAt: providerIncidents.startedAt,
+        lastAttemptAt: providerIncidents.lastAttemptAt
+      })
       .from(providerIncidents)
       .where(and(inArray(providerIncidents.provider, providers), isNull(providerIncidents.endedAt)));
 
-    const result = new Map<string, Date>();
+    const result = new Map<string, OpenIncident>();
     for (const row of rows) {
-      result.set(row.provider, row.startedAt);
+      result.set(row.provider, { startedAt: row.startedAt, lastAttemptAt: row.lastAttemptAt });
     }
     return result;
+  }
+
+  async findOutagesStartedBefore(minAgeDays: number): Promise<ProviderOutageRow[]> {
+    return await this.driver
+      .getDb()
+      .select({
+        provider: providerIncidents.provider,
+        hostUri: providerInventory.hostUri,
+        startedAt: providerIncidents.startedAt,
+        lastAttemptAt: providerIncidents.lastAttemptAt
+      })
+      .from(providerIncidents)
+      .innerJoin(providerInventory, eq(providerInventory.owner, providerIncidents.provider))
+      .where(and(isNull(providerIncidents.endedAt), lte(providerIncidents.startedAt, sql`now() - make_interval(days => ${minAgeDays})`)))
+      .orderBy(providerIncidents.startedAt);
   }
 
   async deleteEndedBefore(retentionDays: number): Promise<number> {

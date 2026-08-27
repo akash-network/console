@@ -33,6 +33,11 @@ export const envSchema = z.object({
     .nonnegative()
     .default(2 * 24 * 60 * ONE_MINUTE),
   OFFLINE_PROVIDER_RETRY_MAX_ATTEMPTS: z.number({ coerce: true }).int().positive().default(2),
+  DEAD_PROVIDER_RETRY_INTERVAL_MS: z
+    .number({ coerce: true })
+    .int()
+    .nonnegative()
+    .default(60 * ONE_MINUTE),
   INCIDENT_RETENTION_DAYS: z.number({ coerce: true }).int().positive().default(31),
   INCIDENT_CLEANUP_INTERVAL_MS: z
     .number({ coerce: true })

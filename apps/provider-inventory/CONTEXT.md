@@ -34,6 +34,18 @@ A named pool of persistent storage on a provider (e.g. `beta1` for HDD, `beta2` 
 **RAM storage class**:
 A volume with `attributes.class = "ram"`. Allocated against node memory, not against ephemeral or persistent storage pools. **Persistent + RAM is invalid** and rejected by request validation.
 
+**incident**:
+One continuous stretch of a provider not answering, stored as a row in `provider_incidents`. Opened when the **streamer** exhausts its retries, closed on the first stream message after recovery. `ended_at IS NULL` means the provider is unreachable right now; `last_attempt_at` is when it was last dialled and is what tells a live outage from one left behind by a stalled streamer.
+_Avoid_: downtime, outage record
+
+**dead provider**:
+A provider still registered on chain whose **incident** has been open longer than `DEAD_PROVIDER_UPDATED_THRESHOLD_MS` and whose chain record has not changed since. Dropped from the regular **discovery loop** so it cannot crowd out healthy providers, and re-dialled once every `DEAD_PROVIDER_RETRY_INTERVAL_MS` so a recovery still closes its incident.
+_Avoid_: gone provider, stale provider
+
+**ongoing outage**:
+What `GET /v1/provider-outages` reports — an open **incident** older than the age the caller asks for, paired with the provider's address and `host_uri`. Consumers (today: `apps/api`) use it to decide whether a deployment's provider has been dark long enough to act on.
+_Avoid_: incident feed
+
 ### Requests
 
 **GroupSpec**:

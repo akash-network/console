@@ -1,0 +1,1 @@
+ALTER TABLE "provider_incidents" ADD COLUMN "last_attempt_at" timestamp with time zone DEFAULT now() NOT NULL;

@@ -6,6 +6,8 @@ export const providerIncidents = pgTable(
   {
     provider: text("provider").notNull(),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    /** Last time the provider was dialled while this incident was open. Lets consumers tell a live outage from one left behind by a stalled service. */
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }).notNull().defaultNow(),
     endedAt: timestamp("ended_at", { withTimezone: true })
   },
   table => ({

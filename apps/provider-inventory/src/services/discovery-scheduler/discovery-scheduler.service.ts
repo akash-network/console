@@ -108,14 +108,15 @@ export class DiscoverySchedulerService {
       let restartedProvidersCount = 0;
       let totalProviders = 0;
       let deadProvidersCount = 0;
+      let reverifiedProvidersCount = 0;
       for await (const providers of this.#poller.poll({ signal, batchSize: 500 })) {
         if (signal?.aborted) break;
 
         // important to upsert before starting new stream,
         // otherwise stream will have nothing to update in the db
-        const [updatedProviders, offlineSincePerProvider] = await Promise.all([
+        const [updatedProviders, openIncidentPerProvider] = await Promise.all([
           this.#upsertProviders(providers),
-          this.#incidentRepository.getOfflineSince(providers.map(p => p.owner))
+          this.#incidentRepository.getOpenIncidents(providers.map(p => p.owner))
         ]);
         for (const provider of providers) {
           totalProviders++;
@@ -126,19 +127,32 @@ export class DiscoverySchedulerService {
           providersToStop.delete(provider.owner);
 
           const observedProvider = watchedProviders.get(provider.owner);
-          const offlineSince = offlineSincePerProvider.get(provider.owner);
+          const openIncident = openIncidentPerProvider.get(provider.owner);
+          const offlineSince = openIncident?.startedAt;
 
           if (
             !updatedProviders?.has(provider.owner) &&
-            offlineSince &&
-            Date.now() - offlineSince.getTime() >= this.#config.DEAD_PROVIDER_UPDATED_THRESHOLD_MS
+            openIncident &&
+            Date.now() - openIncident.startedAt.getTime() >= this.#config.DEAD_PROVIDER_UPDATED_THRESHOLD_MS
           ) {
-            this.#logger.debug({
-              event: "DISCOVERY_SKIP_PROVIDER",
-              owner: provider.owner,
-              reason: "provider has an open incident older than the dead-provider threshold"
-            });
             deadProvidersCount++;
+            const isDueForReverification = Date.now() - openIncident.lastAttemptAt.getTime() >= this.#config.DEAD_PROVIDER_RETRY_INTERVAL_MS;
+
+            if (isDueForReverification && !observedProvider) {
+              this.#logger.debug({
+                event: "DISCOVERY_REVERIFY_DEAD_PROVIDER",
+                owner: provider.owner,
+                lastAttemptAt: openIncident.lastAttemptAt
+              });
+              void this.#lifecycle.start({ ...provider, offlineSince: openIncident.startedAt }, signal);
+              reverifiedProvidersCount++;
+            } else {
+              this.#logger.debug({
+                event: "DISCOVERY_SKIP_PROVIDER",
+                owner: provider.owner,
+                reason: observedProvider ? "dead provider is already being dialled" : "dead provider was dialled recently enough"
+              });
+            }
             continue;
           }
 
@@ -164,6 +178,7 @@ export class DiscoverySchedulerService {
         stoppedCount: providersToStop.size,
         startedCount: startedProvidersCount,
         restartedCount: restartedProvidersCount,
+        reverifiedCount: reverifiedProvidersCount,
         completedInMs: Date.now() - startedAt
       });
 
@@ -180,6 +195,7 @@ export class DiscoverySchedulerService {
         stoppedCount: providersToStop.size,
         startedCount: startedProvidersCount,
         restartedCount: restartedProvidersCount,
+        reverifiedCount: reverifiedProvidersCount,
         completedInMs: Date.now() - startedAt
       });
     } catch (error) {
