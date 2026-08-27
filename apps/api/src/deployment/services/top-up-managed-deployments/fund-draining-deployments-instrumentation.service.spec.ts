@@ -127,6 +127,45 @@ describe(FundDrainingDeploymentsInstrumentationService.name, () => {
     });
   });
 
+  describe("recordOwnerInsufficientBalance", () => {
+    it("counts every deployment as insufficient balance and warns once for the owner", () => {
+      const { service, messagePreparationErrors, insufficientBalanceWithAutoReload } = setup();
+      const first = mock<DrainingDeployment>({ dseq: "123", address: "akash1owner", isWalletAutoTopUpEnabled: true });
+      const second = mock<DrainingDeployment>({ dseq: "456", address: "akash1owner", isWalletAutoTopUpEnabled: true });
+
+      service.recordOwnerInsufficientBalance({
+        owner: "akash1owner",
+        spendable: 0,
+        deployments: [
+          { deployment: first, desiredAmount: 1_000_000 },
+          { deployment: second, desiredAmount: 2_000_000 }
+        ]
+      });
+
+      expect(messagePreparationErrors.add).toHaveBeenCalledExactlyOnceWith(2, { error_type: "insufficient_balance" });
+      expect(insufficientBalanceWithAutoReload.add).toHaveBeenCalledExactlyOnceWith(2);
+      expect(mockLogger.warn).toHaveBeenCalledExactlyOnceWith({
+        event: "FUND_DRAINING_OWNER_INSUFFICIENT_BALANCE",
+        owner: "akash1owner",
+        spendable: 0,
+        deploymentCount: 2,
+        deployments: [
+          { dseq: "123", desiredAmount: 1_000_000 },
+          { dseq: "456", desiredAmount: 2_000_000 }
+        ]
+      });
+    });
+
+    it("leaves the auto-reload counter untouched when the wallet has auto top-up disabled", () => {
+      const { service, insufficientBalanceWithAutoReload } = setup();
+      const deployment = mock<DrainingDeployment>({ dseq: "123", address: "akash1owner", isWalletAutoTopUpEnabled: false });
+
+      service.recordOwnerInsufficientBalance({ owner: "akash1owner", spendable: 0, deployments: [{ deployment, desiredAmount: 1_000_000 }] });
+
+      expect(insufficientBalanceWithAutoReload.add).not.toHaveBeenCalled();
+    });
+  });
+
   describe("recordChainTxError", () => {
     it("increments chain tx errors and logs the error", () => {
       const { service, chainTxErrors } = setup();

@@ -53,6 +53,7 @@ export type AutoTopUpDeployment = {
   walletCreditsLowNotifiedAt: Date | null;
   runtimeLimitHours: number | null;
   runtimeEndsAt: Date | null;
+  lastFundedAt: Date | null;
 };
 
 /**
@@ -134,7 +135,8 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         walletActivatedAt: UserWallets.activatedAt,
         walletCreditsLowNotifiedAt: UserWallets.creditsLowNotifiedAt,
         runtimeLimitHours: this.table.runtimeLimitHours,
-        runtimeEndsAt: this.table.runtimeEndsAt
+        runtimeEndsAt: this.table.runtimeEndsAt,
+        lastFundedAt: this.table.lastFundedAt
       })
       .from(this.table)
       .leftJoin(Users, eq(this.table.userId, Users.id))

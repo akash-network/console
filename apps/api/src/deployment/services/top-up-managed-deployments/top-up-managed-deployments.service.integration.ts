@@ -404,12 +404,19 @@ describe(TopUpManagedDeploymentsService.name, () => {
     });
 
     // Owner has a draining deployment but their wallet's deployment allowance is zero.
-    // The CachedBalance.reserveSufficientAmount call throws "Insufficient balance",
-    // which the job catches and counts but does not propagate.
-    // No transactions should be submitted, and the job should still return Ok.
-    it("handles insufficient user balance by skipping the deployment", async () => {
-      const { topUpService, executeDerivedTx, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } =
-        await setup();
+    // The whole owner is skipped in one round: no deposit tx, no funding claim stamped
+    // on the settings row, and the job still returns Ok.
+    it("handles insufficient user balance by skipping the owner without claiming", async () => {
+      const {
+        topUpService,
+        executeDerivedTx,
+        createUserWithWallet,
+        createDeploymentSetting,
+        findSetting,
+        mockLeasesForOwner,
+        mockDeploymentsForOwner,
+        stubGetFreshLimits
+      } = await setup();
       const { user, address } = await createUserWithWallet();
       const drainingDseq = "700001";
 
@@ -423,6 +430,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       expect(result.ok).toBe(true);
       expect(executeDerivedTx).not.toHaveBeenCalled();
+      expect((await findSetting(address, drainingDseq))?.lastFundedAt).toBeNull();
     });
 
     it("caps the deposit at what sits above the headroom floor so a new deployment can still be created", async () => {

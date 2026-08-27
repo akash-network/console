@@ -6,7 +6,7 @@ import { type CreateLogger, LOGGER_FACTORY, MetricsService } from "@src/core";
 import type { DryRunOptions } from "@src/core/types/console";
 import { TopUpSummarizer } from "@src/deployment/lib/top-up-summarizer/top-up-summarizer";
 import { DrainingDeployment } from "@src/deployment/types/draining-deployment";
-import type { DeploymentTopUpInstrumentation } from "./deployment-top-up-instrumentation";
+import type { DeploymentTopUpInstrumentation, OwnerInsufficientBalanceItem } from "./deployment-top-up-instrumentation";
 
 @scoped(Lifecycle.ResolutionScoped)
 export class TopUpManagedDeploymentsInstrumentationService implements DeploymentTopUpInstrumentation {
@@ -217,6 +217,29 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
         this.messagePreparationErrors.add(1, { error_type: "unknown" });
       });
     }
+  }
+
+  recordOwnerInsufficientBalance({ owner, spendable, deployments }: { owner: string; spendable: number; deployments: OwnerInsufficientBalanceItem[] }): void {
+    this.topUpSummarizer.inc("insufficientBalanceCount", deployments.length);
+
+    this.logger.warn({
+      event: "TOP_UP_OWNER_INSUFFICIENT_BALANCE",
+      owner,
+      spendable,
+      deploymentCount: deployments.length,
+      deployments: deployments.map(({ deployment, desiredAmount }) => ({ dseq: deployment.dseq, desiredAmount })),
+      dryRun: this.options?.dryRun
+    });
+
+    this.execWhenEnabled(() => {
+      this.messagePreparationErrors.add(deployments.length, { error_type: "insufficient_balance" });
+
+      const withAutoReloadCount = deployments.filter(({ deployment }) => deployment.isWalletAutoTopUpEnabled).length;
+
+      if (withAutoReloadCount > 0) {
+        this.insufficientBalanceWithAutoReload.add(withAutoReloadCount);
+      }
+    });
   }
 
   recordDepositBelowUsefulRunway(details: { dseq: string; address: string; desiredAmount: number; affordableAmount: number; runwayMinutes: number }): void {

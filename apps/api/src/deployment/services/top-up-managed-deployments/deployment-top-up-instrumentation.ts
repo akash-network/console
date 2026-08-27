@@ -3,6 +3,8 @@ import type { DrainingDeployment } from "@src/deployment/types/draining-deployme
 
 export type FundingMessageItem = { deployment: DrainingDeployment; input: DepositDeploymentMsgOptions };
 
+export type OwnerInsufficientBalanceItem = { deployment: DrainingDeployment; desiredAmount: number };
+
 /**
  * Telemetry sink shared by the two deployment top-up paths: the hourly cron and the event-driven
  * immediate funding that runs when credits land. The cron's summarizer-backed instrumentation and the
@@ -23,6 +25,7 @@ export interface DeploymentTopUpInstrumentation {
     runwayMinutes: number;
   }): void;
   recordMessagePreparationError(details: { deployment: DrainingDeployment; error: unknown }): void;
+  recordOwnerInsufficientBalance(details: { owner: string; spendable: number; deployments: OwnerInsufficientBalanceItem[] }): void;
   recordSkipped(details: { owner: string; deploymentCount: number }): void;
   recordDeposit(details: { owner: string; items: FundingMessageItem[] }): void;
   recordChainTxError(details: { owner: string; items: FundingMessageItem[]; error: unknown }): void;

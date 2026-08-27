@@ -16,7 +16,7 @@ import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import type { JobQueueService } from "@src/core";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
-import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import type { AutoTopUpDeployment, DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type {
   AutoTopUpOwnerDeployments,
@@ -49,8 +49,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
   }
 
   /** Mirrors `CachedBalance` with no floor held: one allowance answers every preview and the reservation. */
-  function createMockCachedBalance(affordableAmount: (desiredAmount: number) => number) {
-    const balance = mock<CachedBalance>();
+  function createMockCachedBalance(affordableAmount: (desiredAmount: number) => number, spendable: number = Number.MAX_SAFE_INTEGER) {
+    const balance = mock<CachedBalance>({ spendable });
     balance.previewSufficientAmount.mockImplementation(affordableAmount);
     balance.previewSufficientAmountWithoutHeadroom.mockImplementation(affordableAmount);
     balance.reserveSufficientAmount.mockImplementation(desiredAmount => {
@@ -93,6 +93,26 @@ describe(TopUpManagedDeploymentsService.name, () => {
     } as DrainingDeployment;
 
     return createOwnerYield([activeDeployment], { drainingDeployments: [], ...overrides });
+  }
+
+  function createZeroBalanceOwnerDeployments(count: number, overrides: Partial<AutoTopUpDeployment>): DrainingDeployment[] {
+    const address = createAkashAddress();
+    const walletId = faker.number.int();
+
+    return Array.from({ length: count }, (_, index) => {
+      const setting = createAutoTopUpDeployment({ address, walletId, dseq: String(5001 + index), ...overrides });
+
+      return {
+        ...setting,
+        ...createDrainingDeployment({
+          dseq: Number(setting.dseq),
+          owner: address,
+          predictedClosedHeight: CURRENT_BLOCK_HEIGHT + 1500,
+          denom: DEPLOYMENT_GRANT_DENOM
+        }),
+        dseq: setting.dseq
+      } as DrainingDeployment;
+    });
   }
 
   function mockOwnerYields(drainingDeploymentService: ReturnType<typeof mock<DrainingDeploymentService>>, ...owners: AutoTopUpOwnerDeployments[]) {
@@ -245,6 +265,74 @@ describe(TopUpManagedDeploymentsService.name, () => {
         expect(height).toBe(CURRENT_BLOCK_HEIGHT);
       });
       expect(blockHttpService.getCurrentHeight).toHaveBeenCalledTimes(2);
+    });
+
+    it("skips a zero-balance owner in one round instead of claiming and releasing per deployment", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, deploymentSettingRepository, managedSignerService, instrumentation } = setup();
+      const desiredAmount = 1_000_000;
+      const deployments = createZeroBalanceOwnerDeployments(3, { isWalletAutoTopUpEnabled: true });
+
+      mockOwnerYields(drainingDeploymentService, createOwnerYield(deployments));
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(desiredAmount);
+      cachedBalanceService.get.mockResolvedValue(mock<CachedBalance>({ spendable: 0 }));
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(deploymentSettingRepository.claimForFunding).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.releaseFundingClaim).not.toHaveBeenCalled();
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+      deployments.forEach(deployment => {
+        expect(instrumentation.recordDeploymentPreparation).toHaveBeenCalledWith(deployment.address, deployment.predictedClosedHeight);
+      });
+      expect(instrumentation.recordOwnerInsufficientBalance).toHaveBeenCalledExactlyOnceWith({
+        owner: deployments[0].address,
+        spendable: 0,
+        deployments: deployments.map(deployment => ({ deployment, desiredAmount }))
+      });
+      expect(instrumentation.recordMessagePreparationError).not.toHaveBeenCalled();
+      expect(instrumentation.recordSkipped).toHaveBeenCalledWith({ owner: deployments[0].address, deploymentCount: deployments.length });
+      expect(instrumentation.finish).toHaveBeenCalledWith("success", CURRENT_BLOCK_HEIGHT);
+    });
+
+    it("leaves a zero-balance owner's deployments inside the funding cooldown out of the reported counts", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, instrumentation } = setup();
+      const desiredAmount = 1_000_000;
+      const [claimable, insideCooldown] = createZeroBalanceOwnerDeployments(2, {});
+      insideCooldown.lastFundedAt = new Date(Date.now() - (DEDUP_COOLDOWN_IN_MIN / 2) * 60 * 1000);
+
+      mockOwnerYields(drainingDeploymentService, createOwnerYield([claimable, insideCooldown]));
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(desiredAmount);
+      cachedBalanceService.get.mockResolvedValue(mock<CachedBalance>({ spendable: 0 }));
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(instrumentation.recordDeploymentPreparation).toHaveBeenCalledExactlyOnceWith(claimable.address, claimable.predictedClosedHeight);
+      expect(instrumentation.recordOwnerInsufficientBalance).toHaveBeenCalledExactlyOnceWith({
+        owner: claimable.address,
+        spendable: 0,
+        deployments: [{ deployment: claimable, desiredAmount }]
+      });
+      expect(instrumentation.recordSkipped).toHaveBeenCalledWith({ owner: claimable.address, deploymentCount: 2 });
+    });
+
+    it("reports a non-positive desired amount instead of insufficient balance for a zero-balance owner", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, instrumentation } = setup();
+      const deployments = createZeroBalanceOwnerDeployments(1, {});
+
+      mockOwnerYields(drainingDeploymentService, createOwnerYield(deployments));
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(0);
+      cachedBalanceService.get.mockResolvedValue(mock<CachedBalance>({ spendable: 0 }));
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(instrumentation.recordInvalidDepositAmount).toHaveBeenCalledExactlyOnceWith({
+        desiredAmount: 0,
+        dseq: deployments[0].dseq,
+        address: deployments[0].address,
+        blockRate: deployments[0].blockRate
+      });
+      expect(instrumentation.recordOwnerInsufficientBalance).not.toHaveBeenCalled();
+      expect(instrumentation.recordSkipped).toHaveBeenCalledWith({ owner: deployments[0].address, deploymentCount: 1 });
     });
 
     it("should handle errors and continue processing", async () => {
@@ -591,7 +679,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     });
 
     it("should log errors when message preparation fails", async () => {
-      const { service, drainingDeploymentService, instrumentation } = setup();
+      const { service, drainingDeploymentService, cachedBalanceService, instrumentation } = setup();
       const deployment = createAutoTopUpDeployment();
       const error = new Error("Failed to calculate amount");
 
@@ -615,6 +703,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       drainingDeploymentService.calculateAmountToTargetRunway.mockImplementation(() => {
         throw error;
       });
+      cachedBalanceService.get.mockResolvedValue(createMockCachedBalance(() => 1_000_000));
 
       await service.topUpDeployments({ dryRun: false });
 
@@ -1008,22 +1097,28 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(fundDrainingInstrumentation.recordMessagePreparationError).not.toHaveBeenCalled();
     });
 
-    it("reports an exhausted allowance as insufficient balance when yielding the headroom releases nothing", async () => {
-      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, fundDrainingInstrumentation } = setup();
+    it("reports an exhausted allowance as insufficient balance once per owner", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, deploymentSettingRepository, fundDrainingInstrumentation } =
+        setup();
       const owner = createAkashAddress();
       const walletId = faker.number.int({ min: 1000000, max: 9999999 });
       const deployment = createDrainingFor(owner, walletId);
+      const desiredAmount = 3_000_000;
 
       drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
-      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(3_000_000);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(desiredAmount);
       cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(0, { headroom: HEADROOM, minDeposit: MIN_DEPOSIT }));
 
       await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
 
       expect(fundDrainingInstrumentation.recordHeadroomConceded).not.toHaveBeenCalled();
-      expect(fundDrainingInstrumentation.recordMessagePreparationError).toHaveBeenCalledWith(
-        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("Insufficient balance") }) })
-      );
+      expect(fundDrainingInstrumentation.recordOwnerInsufficientBalance).toHaveBeenCalledExactlyOnceWith({
+        owner,
+        spendable: 0,
+        deployments: [{ deployment, desiredAmount }]
+      });
+      expect(fundDrainingInstrumentation.recordMessagePreparationError).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.claimForFunding).not.toHaveBeenCalled();
       expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
     });
 

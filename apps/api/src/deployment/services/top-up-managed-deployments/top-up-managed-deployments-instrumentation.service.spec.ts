@@ -185,6 +185,61 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
     });
   });
 
+  describe("recordOwnerInsufficientBalance", () => {
+    it("counts every deployment as insufficient balance and warns once for the owner", () => {
+      const { service, logger, summarizer, countersByName } = setup();
+      service.start(100, { dryRun: false });
+      const first = createDrainingDeployment({ isWalletAutoTopUpEnabled: true });
+      const second = createDrainingDeployment({ isWalletAutoTopUpEnabled: true, address: first.address });
+
+      service.recordOwnerInsufficientBalance({
+        owner: first.address,
+        spendable: 0,
+        deployments: [
+          { deployment: first, desiredAmount: 1_000_000 },
+          { deployment: second, desiredAmount: 2_000_000 }
+        ]
+      });
+
+      expect(summarizer.get("insufficientBalanceCount")).toBe(2);
+      expect(countersByName["auto_top_up_message_preparation_errors_total"].add).toHaveBeenCalledExactlyOnceWith(2, { error_type: "insufficient_balance" });
+      expect(countersByName["auto_top_up_insufficient_balance_with_auto_reload_total"].add).toHaveBeenCalledExactlyOnceWith(2);
+      expect(logger.warn).toHaveBeenCalledExactlyOnceWith({
+        event: "TOP_UP_OWNER_INSUFFICIENT_BALANCE",
+        owner: first.address,
+        spendable: 0,
+        deploymentCount: 2,
+        deployments: [
+          { dseq: first.dseq, desiredAmount: 1_000_000 },
+          { dseq: second.dseq, desiredAmount: 2_000_000 }
+        ],
+        dryRun: false
+      });
+    });
+
+    it("leaves the auto-reload counter untouched when the wallet has auto top-up disabled", () => {
+      const { service, countersByName } = setup();
+      service.start(100, { dryRun: false });
+      const deployment = createDrainingDeployment({ isWalletAutoTopUpEnabled: false });
+
+      service.recordOwnerInsufficientBalance({ owner: deployment.address, spendable: 0, deployments: [{ deployment, desiredAmount: 1_000_000 }] });
+
+      expect(countersByName["auto_top_up_insufficient_balance_with_auto_reload_total"].add).not.toHaveBeenCalled();
+    });
+
+    it("keeps the summary count in dry run without emitting metrics", () => {
+      const { service, summarizer, logger, countersByName } = setup();
+      service.start(100, { dryRun: true });
+      const deployment = createDrainingDeployment();
+
+      service.recordOwnerInsufficientBalance({ owner: deployment.address, spendable: 0, deployments: [{ deployment, desiredAmount: 1_000_000 }] });
+
+      expect(summarizer.get("insufficientBalanceCount")).toBe(1);
+      expect(countersByName["auto_top_up_message_preparation_errors_total"].add).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true }));
+    });
+  });
+
   describe("recordHeadroomConceded", () => {
     it("counts the concession, warns with the amounts either side of it, and carries the dry-run flag", () => {
       const { service, logger, summarizer, countersByName } = setup();

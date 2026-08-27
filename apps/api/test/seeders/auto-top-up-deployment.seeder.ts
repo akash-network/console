@@ -17,6 +17,7 @@ export function createAutoTopUpDeployment(overrides: Partial<AutoTopUpDeployment
     walletCreditsLowNotifiedAt: null,
     runtimeLimitHours: null,
     runtimeEndsAt: null,
+    lastFundedAt: null,
     ...overrides
   };
 }
