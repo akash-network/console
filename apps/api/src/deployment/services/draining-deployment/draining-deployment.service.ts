@@ -59,19 +59,7 @@ export class DrainingDeploymentService {
     this.loggerService = createLogger({ context: DrainingDeploymentService.name });
   }
 
-  /**
-   * Iterates every owner with auto-top-up enabled deployments, resolving each owner's full
-   * active-deployment picture once: `drainingDeployments` is the fundable subset inside the
-   * look-ahead window, `activeDeployments` the complete set the credits-low coverage math
-   * prices. Owners with nothing draining are still yielded so the sweep can evaluate their
-   * coverage from data already in hand instead of re-querying per job.
-   *
-   * The caller passes the block height the whole run is scoped to so the look-ahead window that admits
-   * a deployment and the amount that funds it are derived from the same height.
-   * A dry run still sizes deposits against a runtime deadline but does not persist one.
-   *
-   * @yields Owner wallet state with its active and draining deployments
-   */
+  /** Yields owners with nothing draining too, so the sweep can price their credits-low coverage without re-querying per owner. */
   async *findDrainingDeploymentsByOwner(currentHeight: number, options: DryRunOptions = { dryRun: false }): AsyncGenerator<AutoTopUpOwnerDeployments> {
     for await (const { address, walletId, deploymentSettings } of this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively()) {
       const { activeDeployments, drainingDeployments } = await this.#resolveOwnerDeployments(
@@ -378,16 +366,7 @@ export class DrainingDeploymentService {
     });
   }
 
-  /**
-   * Weekly auto-top-up spending for a user, in USD — the same figure the credits-low email
-   * threshold uses, so the number shown in the product and the warning can never disagree.
-   * CASL guards the wallet lookup; the per-address coverage query is safe once the wallet
-   * is proven to belong to the caller.
-   *
-   * @param userId - The user ID to calculate the deployment costs for
-   * @param ability - CASL ability instance for authorization checks
-   * @returns The total weekly cost in USD for all deployments with auto top-up enabled
-   */
+  /** CASL scopes only the wallet lookup; the coverage query below is unscoped, which the already-proven-owned address makes safe. */
   async calculateWeeklyDeploymentCost(userId: string, ability: AnyAbility): Promise<number> {
     const userWallet = await this.userWalletRepository.accessibleBy(ability, "read").findOneByUserId(userId);
 
@@ -436,14 +415,7 @@ export class DrainingDeploymentService {
     return { weeklyCostUsd, cumulativeDailyCostsUsd };
   }
 
-  /**
-   * Seven-day burn in credits for deployments whose lease data is already in hand — lets the
-   * hourly funding sweep price an owner's coverage without re-querying settings or leases.
-   * Applies the same runtime-limit capping as `calculateWeeklyCoverageForAddress`; comparing
-   * the result against a credit balance is equivalent to the credits-low handler's USD
-   * comparison because `toFiatAmount` is monotonic (identity for uact), off by at most its
-   * cent rounding.
-   */
+  /** Comparing this against a credit balance stands in for the handler's USD test: `toFiatAmount` is monotonic, off by at most its cent rounding. */
   calculateWeeklyCoverageCredits(deployments: WeeklyBurnSource[], currentHeight: number): number {
     return this.#creditsForHours(this.#buildWeeklyBurns(deployments, currentHeight), WEEK_HOURS);
   }

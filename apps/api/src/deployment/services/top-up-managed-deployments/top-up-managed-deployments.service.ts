@@ -108,12 +108,7 @@ export class TopUpManagedDeploymentsService {
     }
   }
 
-  /**
-   * Credits just landed on this wallet, so the credits-low verdict may flip — typically clearing
-   * the low stamp. Runs whether or not anything was draining, and best-effort: a schedule failure
-   * must not fail the funding job after a landed deposit, where retries would burn against the
-   * funding-claim cooldown.
-   */
+  /** Best-effort after a landed deposit: failing the job here would burn a retry against the funding-claim cooldown. */
   async #scheduleCreditsLowCheckOnLandedCredits(walletId: number): Promise<void> {
     try {
       await this.walletReloadService.scheduleCreditsLowCheckIfAutoReloadOff({ walletId });
@@ -185,13 +180,7 @@ export class TopUpManagedDeploymentsService {
     await this.walletReloadService.scheduleImmediate({ walletId });
   }
 
-  /**
-   * Best-effort: the sweep only schedules credits-low email checks, so failures here are
-   * recorded and kept out of the funding run's status and result, which report on funding
-   * alone. Runs after the funding attempt regardless of its outcome — an owner whose funding
-   * just failed is among the most likely to be low. A funded owner is enqueued without an
-   * inline verdict: the deposits just moved its balance, so the handler recomputes fresh state.
-   */
+  /** Runs after the funding attempt whatever its outcome, since an owner whose funding just failed is among the likeliest to be low. */
   async #ensureCreditsLowTransitionChecked(owner: AutoTopUpOwnerDeployments, currentHeight: number): Promise<void> {
     try {
       if (owner.autoReloadEnabled || owner.isTrialing) {
@@ -212,14 +201,7 @@ export class TopUpManagedDeploymentsService {
     }
   }
 
-  /**
-   * Decides from data already in hand whether the credits-low state machine needs to move;
-   * anything enqueued is re-verified by the handler against fresh state, so a stale row here
-   * costs at most a no-op job, and an evaluation failure falls back to enqueueing so the
-   * handler's retries absorb transient errors. Compares in credits: `toFiatAmount` is
-   * monotonic (identity for uact), so this matches the handler's USD comparison except
-   * inside its cent-rounding band, where the mismatch is a harmless enqueue.
-   */
+  /** Safe to answer from stale rows: the handler re-verifies anything enqueued against fresh state, so a wrong yes costs a no-op job. */
   async #needsCreditsLowTransition(owner: AutoTopUpOwnerDeployments, currentHeight: number): Promise<boolean> {
     const isNotified = Boolean(owner.creditsLowNotifiedAt);
     const weeklyCredits = this.drainingDeploymentService.calculateWeeklyCoverageCredits(owner.activeDeployments, currentHeight);

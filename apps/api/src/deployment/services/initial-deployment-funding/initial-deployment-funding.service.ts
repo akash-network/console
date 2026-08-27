@@ -63,11 +63,7 @@ export class InitialDeploymentFundingService {
     }
   }
 
-  /**
-   * A lease just started, so the account's weekly burn changed and the credits-low verdict may
-   * flip — including when the funding itself skipped (sufficient runway, insufficient balance).
-   * Best-effort for the same reason as the wallet reload: it must never affect the funding outcome.
-   */
+  /** Runs even when funding skipped, since a lease start moves the credits-low verdict either way, and never affects the funding outcome. */
   async #scheduleCreditsLowCheck({ walletId, dseq, address }: FundOnLeaseStartedInput): Promise<void> {
     try {
       await this.walletReloadJobService.scheduleCreditsLowCheckIfAutoReloadOff({ walletId });

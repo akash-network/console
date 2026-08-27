@@ -198,12 +198,7 @@ export class ManagedSignerService {
     }
   }
 
-  /**
-   * A close changes the account's running-deployment set, so the credits-low verdict may flip —
-   * typically clearing the low stamp once the burn drops. Every managed close funnels through this
-   * method: the UI broadcasts MsgCloseDeployment via POST /v1/tx, and the deployment writer and
-   * system closers sign through it too. Best-effort so a schedule failure never fails a landed close.
-   */
+  /** Best-effort: a schedule failure must never fail a close that already landed on chain. */
   async #scheduleCreditsLowCheckOnClose(userWallet: UserWalletOutput, messages: EncodeObject[]) {
     if (!messages.some(message => message.typeUrl.endsWith(".MsgCloseDeployment"))) {
       return;
