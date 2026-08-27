@@ -31,7 +31,7 @@ describe(SecretCipherService.name, () => {
     const clientSecrets = {
       DB_URL: `postgres://app:${randomUUID()}@db.internal/app`,
       API_TOKEN: randomBytes(20).toString("hex"),
-      PRIVATE_KEY: "-----BEGIN KEY-----\nдані 🔐\n-----END KEY-----\n",
+      PRIVATE_KEY: `-----BEGIN KEY-----\nдані: ${randomUUID()} 🔐\n-----END KEY-----\n`,
       EMPTY: ""
     };
 
