@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 
-import type { ExpiredDeploymentsCloserService } from "@src/deployment/services/expired-deployments-closer/expired-deployments-closer.service";
+import type { DeploymentCloseJobService } from "@src/deployment/services/deployment-close-job/deployment-close-job.service";
 import type { ExpiringDeploymentsNotifierService } from "@src/deployment/services/expiring-deployments-notifier/expiring-deployments-notifier.service";
 import type { StaleManagedDeploymentsCleanerService } from "@src/deployment/services/stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
 import type { TopUpManagedDeploymentsService } from "@src/deployment/services/top-up-managed-deployments/top-up-managed-deployments.service";
@@ -18,6 +17,29 @@ describe(TopUpDeploymentsController.name, () => {
 
       expect(topUpManagedDeploymentsService.topUpDeployments).toHaveBeenCalledWith(options);
     });
+
+    it("reconciles close jobs for deployments already past their deadline", async () => {
+      const { controller, deploymentCloseJobService } = setup();
+      const options = { concurrency: 5, dryRun: false };
+
+      await controller.topUpDeployments(options);
+
+      expect(deploymentCloseJobService.reconcileExpired).toHaveBeenCalledWith(options);
+    });
+
+    it("reconciles close jobs before the funding sweep so a sweep failure cannot skip them", async () => {
+      const { controller, topUpManagedDeploymentsService, deploymentCloseJobService } = setup();
+      const error = new Error("chain rpc unavailable");
+      topUpManagedDeploymentsService.topUpDeployments.mockRejectedValue(error);
+      const options = { concurrency: 5, dryRun: false };
+
+      await expect(controller.topUpDeployments(options)).rejects.toThrow(error);
+
+      expect(deploymentCloseJobService.reconcileExpired).toHaveBeenCalledWith(options);
+      expect(deploymentCloseJobService.reconcileExpired.mock.invocationCallOrder[0]).toBeLessThan(
+        topUpManagedDeploymentsService.topUpDeployments.mock.invocationCallOrder[0]
+      );
+    });
   });
 
   describe("cleanUpStaleDeployment", () => {
@@ -28,17 +50,6 @@ describe(TopUpDeploymentsController.name, () => {
       await controller.cleanUpStaleDeployment(options);
 
       expect(staleDeploymentsCleanerService.cleanup).toHaveBeenCalledWith(options);
-    });
-  });
-
-  describe("closeExpiredDeployments", () => {
-    it("should call the service to close expired deployments", async () => {
-      const { controller, expiredDeploymentsCloserService } = setup();
-      const options = { dryRun: false };
-
-      await controller.closeExpiredDeployments(options);
-
-      expect(expiredDeploymentsCloserService.closeExpiredDeployments).toHaveBeenCalledWith(options);
     });
   });
 
@@ -53,21 +64,15 @@ describe(TopUpDeploymentsController.name, () => {
     });
   });
 
-  function setup(): {
-    controller: TopUpDeploymentsController;
-    topUpManagedDeploymentsService: MockProxy<TopUpManagedDeploymentsService>;
-    staleDeploymentsCleanerService: MockProxy<StaleManagedDeploymentsCleanerService>;
-    expiredDeploymentsCloserService: MockProxy<ExpiredDeploymentsCloserService>;
-    expiringDeploymentsNotifierService: MockProxy<ExpiringDeploymentsNotifierService>;
-  } {
+  function setup() {
     const topUpManagedDeploymentsService = mock<TopUpManagedDeploymentsService>();
     const staleDeploymentsCleanerService = mock<StaleManagedDeploymentsCleanerService>();
-    const expiredDeploymentsCloserService = mock<ExpiredDeploymentsCloserService>();
+    const deploymentCloseJobService = mock<DeploymentCloseJobService>();
     const expiringDeploymentsNotifierService = mock<ExpiringDeploymentsNotifierService>();
     const controller = new TopUpDeploymentsController(
       topUpManagedDeploymentsService,
       staleDeploymentsCleanerService,
-      expiredDeploymentsCloserService,
+      deploymentCloseJobService,
       expiringDeploymentsNotifierService
     );
 
@@ -75,7 +80,7 @@ describe(TopUpDeploymentsController.name, () => {
       controller,
       topUpManagedDeploymentsService,
       staleDeploymentsCleanerService,
-      expiredDeploymentsCloserService,
+      deploymentCloseJobService,
       expiringDeploymentsNotifierService
     };
   }

@@ -12,6 +12,7 @@ import type { CreateLogger } from "@src/core";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DrainingDeploymentOutput } from "@src/deployment/repositories/lease/lease.repository";
 import { CachedBalance, type CachedBalanceService } from "@src/deployment/services/cached-balance/cached-balance.service";
+import type { DeploymentCloseJobService } from "@src/deployment/services/deployment-close-job/deployment-close-job.service";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { InitialDeploymentFundingService } from "./initial-deployment-funding.service";
@@ -180,7 +181,7 @@ describe(InitialDeploymentFundingService.name, () => {
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_SKIPPED", reason: "AUTO_TOP_UP_DISABLED" }));
   });
 
-  it("anchors the runtime deadline even when auto top-up is off, so the closer can still honour it", async () => {
+  it("anchors the runtime deadline even when auto top-up is off, so the close job can still honour it", async () => {
     const { service, drainingDeploymentService, userWalletRepository, deploymentSettingRepository, managedSignerService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     userWalletRepository.findById.mockResolvedValue(createUserWallet({ id: 1, address: "akash1owner", userId: "user-1" }));
@@ -388,6 +389,45 @@ describe(InitialDeploymentFundingService.name, () => {
     expect(drainingDeploymentService.calculateAmountToTargetRunway).toHaveBeenCalledWith({ ...deployment, runtimeEndsAt }, CURRENT_HEIGHT);
   });
 
+  it("schedules the close job at the deadline it just anchored", async () => {
+    const { service, drainingDeploymentService, deploymentSettingRepository, deploymentCloseJobService } = setup();
+    const runtimeEndsAt = new Date("2026-08-21T12:00:00.000Z");
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+    deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt: null }));
+    deploymentSettingRepository.startRuntimeCountdown.mockResolvedValue(runtimeEndsAt);
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(deploymentCloseJobService.schedule).toHaveBeenCalledWith(
+      { deploymentSettingId: "setting-1", userId: "user-1", dseq: "123" },
+      { startAfter: runtimeEndsAt, withCleanup: true }
+    );
+  });
+
+  it("schedules no close job for a deployment without a runtime limit", async () => {
+    const { service, drainingDeploymentService, deploymentSettingRepository, deploymentCloseJobService } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+    deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: null }));
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(deploymentCloseJobService.schedule).not.toHaveBeenCalled();
+  });
+
+  it("fails the funding job when the close job cannot be scheduled", async () => {
+    const { service, drainingDeploymentService, deploymentSettingRepository, deploymentCloseJobService, managedSignerService } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt: null }));
+    deploymentSettingRepository.startRuntimeCountdown.mockResolvedValue(new Date("2026-08-21T12:00:00.000Z"));
+    deploymentCloseJobService.schedule.mockRejectedValue(new Error("queue unavailable"));
+
+    await expect(service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" })).rejects.toThrow("queue unavailable");
+
+    expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+  });
+
   it("reuses an already anchored runtime deadline without rewriting it", async () => {
     const { service, drainingDeploymentService, deploymentSettingRepository } = setup();
     const deployment = createDrainingDeployment();
@@ -457,6 +497,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const billingConfig = mockConfigService<BillingConfigService>({ DEPLOYMENT_GRANT_DENOM: "uakt" });
     const deploymentConfig = mockConfigService<DeploymentConfigService>({ AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 24 });
     const walletReloadJobService = mock<WalletReloadJobService>();
+    const deploymentCloseJobService = mock<DeploymentCloseJobService>();
     const chainErrorService = mock<ChainErrorService>();
     const instrumentation = mock<InitialDeploymentFundingInstrumentationService>();
     const logger = mock<ReturnType<CreateLogger>>();
@@ -480,6 +521,7 @@ describe(InitialDeploymentFundingService.name, () => {
       billingConfig,
       deploymentConfig,
       walletReloadJobService,
+      deploymentCloseJobService,
       chainErrorService,
       instrumentation,
       createLogger
@@ -495,6 +537,7 @@ describe(InitialDeploymentFundingService.name, () => {
       userWalletRepository,
       deploymentSettingRepository,
       walletReloadJobService,
+      deploymentCloseJobService,
       chainErrorService,
       instrumentation,
       logger

@@ -25,15 +25,7 @@ jobs:
       - ./dist/instrumentation.js
       - ./dist/console.js
       - cleanup-stale-deployments
-  - name: close-expired-deployments
-    schedule: "*/15 * * * *" # every 15 minutes
-    command:
-      - node
-      - --require
-      - ./dist/instrumentation.js
-      - ./dist/console.js
-      - close-expired-deployments
-  # Offset from close-expired-deployments so the two sweeps do not hit deployment_settings on the same minute.
+  # Offset off the hour so it does not hit deployment_settings on the same minute as top-up-deployments.
   - name: notify-expiring-deployments
     schedule: "7,22,37,52 * * * *" # every 15 minutes
     command:

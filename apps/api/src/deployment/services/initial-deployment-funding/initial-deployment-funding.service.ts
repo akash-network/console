@@ -10,6 +10,7 @@ import { BlockHttpService } from "@src/chain/services/block-http/block-http.serv
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { CachedBalanceService } from "@src/deployment/services/cached-balance/cached-balance.service";
+import { DeploymentCloseJobService } from "@src/deployment/services/deployment-close-job/deployment-close-job.service";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { InitialDeploymentFundingInstrumentationService } from "@src/deployment/services/initial-deployment-funding/initial-deployment-funding-instrumentation.service";
@@ -41,6 +42,7 @@ export class InitialDeploymentFundingService {
     private readonly billingConfig: BillingConfigService,
     private readonly deploymentConfig: DeploymentConfigService,
     private readonly walletReloadJobService: WalletReloadJobService,
+    private readonly deploymentCloseJobService: DeploymentCloseJobService,
     private readonly chainErrorService: ChainErrorService,
     private readonly instrumentation: InitialDeploymentFundingInstrumentationService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
@@ -100,6 +102,13 @@ export class InitialDeploymentFundingService {
 
     const deploymentSetting = await this.deploymentSettingRepository.findOneBy({ userId: userWallet.userId, dseq });
     const runtimeEndsAt = await this.startRuntimeCountdown(deploymentSetting);
+
+    if (deploymentSetting && runtimeEndsAt) {
+      await this.deploymentCloseJobService.schedule(
+        { deploymentSettingId: deploymentSetting.id, userId: deploymentSetting.userId, dseq },
+        { startAfter: runtimeEndsAt, withCleanup: true }
+      );
+    }
 
     if (deploymentSetting && !deploymentSetting.autoTopUpEnabled) {
       this.logger.info({ event: "INITIAL_FUNDING_SKIPPED", reason: "AUTO_TOP_UP_DISABLED", dseq, address });
@@ -187,10 +196,11 @@ export class InitialDeploymentFundingService {
    * new lease still anchors at lease start. The anchor is a set-if-unset, so job retries and the
    * top-up sweep's late fallback all agree on the deadline the first anchoring wrote.
    *
-   * It also runs ahead of the auto-top-up gate that follows it. A limit with funding turned off is still a deadline
-   * the user asked for, and the closer honours it by design, ignoring `autoTopUpEnabled`; but it only
-   * sees deployments whose deadline is anchored, and the sweep's late fallback skips funding-off rows.
-   * Anchoring here is what makes that deadline reachable at all.
+   * It also runs ahead of the auto-top-up gate that follows it, as does the close job scheduled off its
+   * result. A limit with funding turned off is still a deadline the user asked for, and the close job
+   * honours it by design, ignoring `autoTopUpEnabled`; but a deadline nothing anchored has no job to
+   * schedule, and the draining sweep's late fallback skips funding-off rows. Anchoring here is what
+   * makes that deadline reachable at all.
    */
   private async startRuntimeCountdown(deploymentSetting: DeploymentSettingsOutput | undefined): Promise<Date | null> {
     if (!deploymentSetting?.runtimeLimitHours) {

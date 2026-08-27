@@ -61,16 +61,6 @@ program
   });
 
 program
-  .command("close-expired-deployments")
-  .description("Close deployments that reached their runtime limit")
-  .option("-d, --dry-run", "Log which deployments would be closed without broadcasting", false)
-  .action(async (options, command) => {
-    await executeCliHandler(command.name(), async () => {
-      return container.resolve(TopUpDeploymentsController).closeExpiredDeployments(options);
-    });
-  });
-
-program
   .command("notify-expiring-deployments")
   .description("Warn users whose runtime-limited deployments are about to reach their limit")
   .option("-d, --dry-run", "Log which users would be warned without sending any email", false)

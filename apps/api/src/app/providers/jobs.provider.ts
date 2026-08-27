@@ -9,6 +9,7 @@ import { JobQueueService } from "@src/core/services/job-queue/job-queue.service"
 import { DeleteUnbackedDeploymentSettingHandler } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import { NotificationHandler } from "@src/notifications/services/notification-handler/notification.handler";
 import { AutoRechargeSucceededHandler } from "../services/auto-recharge-succeeded/auto-recharge-succeeded.handler";
+import { CloseExpiredDeploymentHandler } from "../services/close-expired-deployment/close-expired-deployment.handler";
 import { CloseTrialDeploymentHandler } from "../services/close-trial-deployment/close-trial-deployment.handler";
 import { EnableDeploymentAlertHandler } from "../services/enable-deployment-alert/enable-deployment-alert.handler";
 import { FirstPurchaseBonusGrantedHandler } from "../services/first-purchase-bonus-granted/first-purchase-bonus-granted.handler";
@@ -25,6 +26,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(TrialStartedHandler),
     container.resolve(NotificationHandler),
     container.resolve(CloseTrialDeploymentHandler),
+    container.resolve(CloseExpiredDeploymentHandler),
     container.resolve(TrialDeploymentLeaseCreatedHandler),
     container.resolve(EnableDeploymentAlertHandler),
     container.resolve(FundDeploymentHandler),

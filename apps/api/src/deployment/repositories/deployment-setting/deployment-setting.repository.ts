@@ -23,12 +23,16 @@ export type FundingClaim = {
 
 export type ExpiredRuntimeDeployment = {
   id: string;
+  userId: string;
+  dseq: string;
+  runtimeEndsAt: Date;
+};
+
+export type ExpiringRuntimeDeployment = {
+  id: string;
   dseq: string;
   walletId: number;
   address: string;
-};
-
-export type ExpiringRuntimeDeployment = ExpiredRuntimeDeployment & {
   userId: string;
   runtimeLimitHours: number;
   runtimeEndsAt: Date;
@@ -145,19 +149,21 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
   /**
    * Deployments whose runtime limit has run out and that have not been marked closed yet. Deliberately
    * ignores `autoTopUpEnabled`: a user who turned funding off after setting a limit still asked for the
-   * deployment to end at the deadline, and the closer is what honours that.
+   * deployment to end at the deadline, and closing it is what honours that.
+   *
+   * Feeds the hourly reconcile that backstops the per-deployment close jobs, so it selects only what a
+   * job payload needs. The owner wallet is resolved when the job runs rather than joined here, which
+   * also keeps a row whose wallet is missing visible instead of silently dropping it from the sweep.
    */
   async findExpiredRuntimeDeployments(): Promise<ExpiredRuntimeDeployment[]> {
     const deployments = await this.pg
       .select({
         id: this.table.id,
+        userId: this.table.userId,
         dseq: this.table.dseq,
-        walletId: UserWallets.id,
-        address: UserWallets.address
+        runtimeEndsAt: this.table.runtimeEndsAt
       })
       .from(this.table)
-      .leftJoin(Users, eq(this.table.userId, Users.id))
-      .innerJoin(UserWallets, eq(Users.id, UserWallets.userId))
       .where(and(eq(this.table.closed, false), isNotNull(this.table.runtimeEndsAt), lt(this.table.runtimeEndsAt, sql`now()`)))
       .orderBy(desc(this.table.id));
 

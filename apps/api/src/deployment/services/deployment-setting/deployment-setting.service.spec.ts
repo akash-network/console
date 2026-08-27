@@ -11,6 +11,7 @@ import type { WalletReloadJobService } from "@src/billing/services/wallet-reload
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import type { DeploymentCloseJobService } from "../deployment-close-job/deployment-close-job.service";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DrainingDeploymentService } from "../draining-deployment/draining-deployment.service";
 import type { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed-deployments/top-up-managed-deployments-instrumentation.service";
@@ -404,6 +405,104 @@ describe(DeploymentSettingService.name, () => {
     });
   });
 
+  describe("syncing the close job with a runtime limit change", () => {
+    it("moves the close job to the new deadline when an anchored limit is extended", async () => {
+      const { service, deploymentSettingRepository, userWalletRepository, deploymentCloseJobService } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      const runtimeEndsAt = faker.date.future();
+      const extended = createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 24, runtimeEndsAt });
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12 }));
+      deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(extended);
+      userWalletRepository.findOneByUserId.mockResolvedValue(createUserWallet({ userId: params.userId }));
+
+      await service.upsert(params, { runtimeLimitHours: 24 });
+
+      expect(deploymentCloseJobService.schedule).toHaveBeenCalledWith(
+        { deploymentSettingId: extended.id, userId: extended.userId, dseq: extended.dseq },
+        { startAfter: runtimeEndsAt, withCleanup: true }
+      );
+    });
+
+    it("schedules no close job when the extended limit is not anchored yet", async () => {
+      const { service, deploymentSettingRepository, deploymentCloseJobService } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12 }));
+      deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(
+        createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 24, runtimeEndsAt: null })
+      );
+
+      await service.upsert(params, { runtimeLimitHours: 24 });
+
+      expect(deploymentCloseJobService.schedule).not.toHaveBeenCalled();
+    });
+
+    it("cancels the close job when an anchored limit is removed", async () => {
+      const { service, deploymentSettingRepository, userWalletRepository, deploymentCloseJobService } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      const existing = createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12, runtimeEndsAt: faker.date.future() });
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(existing);
+      deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: null }) as never);
+      userWalletRepository.findOneByUserId.mockResolvedValue(createUserWallet({ userId: params.userId }));
+
+      await service.upsert(params, { runtimeLimitHours: null });
+
+      expect(deploymentCloseJobService.cancel).toHaveBeenCalledWith(existing.id);
+    });
+
+    it("cancels no close job when the removed limit was never anchored", async () => {
+      const { service, deploymentSettingRepository, deploymentCloseJobService } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12, runtimeEndsAt: null }));
+      deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: null }) as never);
+
+      await service.upsert(params, { runtimeLimitHours: null });
+
+      expect(deploymentCloseJobService.cancel).not.toHaveBeenCalled();
+    });
+
+    it("still fulfils an extension when the close job cannot be rescheduled", async () => {
+      const { service, deploymentSettingRepository, userWalletRepository, deploymentCloseJobService } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12 }));
+      deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(
+        createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 24, runtimeEndsAt: faker.date.future() })
+      );
+      userWalletRepository.findOneByUserId.mockResolvedValue(createUserWallet({ userId: params.userId }));
+      deploymentCloseJobService.schedule.mockRejectedValue(new Error("queue unavailable"));
+
+      const result = await service.upsert(params, { runtimeLimitHours: 24 });
+
+      expect(result).toEqual(expect.objectContaining({ runtimeLimitHours: 24 }));
+    });
+
+    it("still fulfils a removal when the close job cannot be cancelled", async () => {
+      const { service, deploymentSettingRepository, userWalletRepository, deploymentCloseJobService } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(
+        createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12, runtimeEndsAt: faker.date.future() })
+      );
+      deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: null }) as never);
+      userWalletRepository.findOneByUserId.mockResolvedValue(createUserWallet({ userId: params.userId }));
+      deploymentCloseJobService.cancel.mockRejectedValue(new Error("queue unavailable"));
+
+      const result = await service.upsert(params, { runtimeLimitHours: null });
+
+      expect(result).toEqual(expect.objectContaining({ runtimeLimitHours: null }));
+    });
+  });
+
   describe("funding an extended runtime limit", () => {
     it("publishes a funding command when the extended deployment is already anchored", async () => {
       const { service, deploymentSettingRepository, userWalletRepository, domainEvents } = setup();
@@ -593,6 +692,7 @@ describe(DeploymentSettingService.name, () => {
     const authService = mock<AuthService>();
     const drainingDeploymentService = mock<DrainingDeploymentService>();
     const walletReloadJobService = mock<WalletReloadJobService>();
+    const deploymentCloseJobService = mock<DeploymentCloseJobService>();
     const userWalletRepository = mock<UserWalletRepository>();
     const instrumentation = mock<TopUpManagedDeploymentsInstrumentationService>();
     const domainEvents = mock<DomainEventsService>();
@@ -608,6 +708,7 @@ describe(DeploymentSettingService.name, () => {
       authService,
       drainingDeploymentService,
       walletReloadJobService,
+      deploymentCloseJobService,
       config,
       userWalletRepository,
       instrumentation,
@@ -621,6 +722,7 @@ describe(DeploymentSettingService.name, () => {
       authService,
       drainingDeploymentService,
       walletReloadJobService,
+      deploymentCloseJobService,
       config,
       userWalletRepository,
       instrumentation,

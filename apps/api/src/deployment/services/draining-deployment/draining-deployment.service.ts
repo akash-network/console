@@ -12,6 +12,7 @@ import { AutoTopUpDeployment, DeploymentSettingRepository } from "@src/deploymen
 import { DrainingDeploymentOutput, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { DrainingDeployment } from "@src/deployment/types/draining-deployment";
 import { averageBlockCountInAnHour } from "@src/utils/constants";
+import { DeploymentCloseJobService } from "../deployment-close-job/deployment-close-job.service";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DrainingDeploymentRpcService } from "../draining-deployment-rpc/draining-deployment-rpc.service";
 import type { DeploymentTopUpInstrumentation } from "../top-up-managed-deployments/deployment-top-up-instrumentation";
@@ -50,6 +51,7 @@ export class DrainingDeploymentService {
     private readonly leaseRepository: LeaseRepository,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
+    private readonly deploymentCloseJobService: DeploymentCloseJobService,
     private readonly config: DeploymentConfigService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger,
     private readonly rpcService: DrainingDeploymentRpcService,
@@ -173,7 +175,7 @@ export class DrainingDeploymentService {
    * Drops runtime-limited deployments already funded up to their deadline before claims are taken,
    * so they drain and close on chain instead of burning claim churn and non-positive-amount telemetry
    * on every sweep of their final window. Deployments the initial-funding job never anchored (it
-   * failed or raced) get their countdown started here, inside the look-ahead window — late, which
+   * failed or raced) get their countdown started here, inside the look-ahead window, late, which
    * only errs toward extra runtime. A dry run uses an in-memory deadline and does not persist one.
    */
   async #dropDeploymentsFundedToRuntimeLimit(
@@ -190,11 +192,7 @@ export class DrainingDeploymentService {
         continue;
       }
 
-      const runtimeEndsAt =
-        deployment.runtimeEndsAt ??
-        (dryRun
-          ? new Date(Date.now() + deployment.runtimeLimitHours * millisecondsInHour)
-          : await this.deploymentSettingRepository.startRuntimeCountdown(deployment.id));
+      const runtimeEndsAt = deployment.runtimeEndsAt ?? (await this.#startRuntimeCountdown(deployment, deployment.runtimeLimitHours, dryRun));
 
       if (!runtimeEndsAt) {
         fundable.push(deployment);
@@ -210,6 +208,39 @@ export class DrainingDeploymentService {
     }
 
     return fundable;
+  }
+
+  /**
+   * Anchors a deadline the initial-funding job never got to, and gives it the close job that anchoring
+   * owes it. Only a first anchor schedules here: a deployment already carrying a deadline already has
+   * its job, and one whose job went missing is picked back up by the hourly reconcile rather than being
+   * rescheduled on every sweep.
+   *
+   * The scheduling is best-effort, because throwing would cost more than it buys. The anchor is already
+   * committed, so a retry of this sweep takes the already-anchored path and never reaches the schedule
+   * again; all a throw would do is abandon funding for the rest of this owner's deployments. The hourly
+   * reconcile picks the deployment up once its deadline passes, which is the same guarantee it gives
+   * every other way a job can go missing.
+   */
+  async #startRuntimeCountdown(deployment: DrainingDeployment, runtimeLimitHours: number, dryRun: boolean): Promise<Date | null> {
+    if (dryRun) {
+      return new Date(Date.now() + runtimeLimitHours * millisecondsInHour);
+    }
+
+    const runtimeEndsAt = await this.deploymentSettingRepository.startRuntimeCountdown(deployment.id);
+
+    if (runtimeEndsAt) {
+      try {
+        await this.deploymentCloseJobService.schedule(
+          { deploymentSettingId: deployment.id, userId: deployment.userId, dseq: deployment.dseq },
+          { startAfter: runtimeEndsAt, withCleanup: true }
+        );
+      } catch (error) {
+        this.loggerService.error({ event: "LATE_ANCHOR_CLOSE_JOB_SCHEDULE_FAILED", dseq: deployment.dseq, address: deployment.address, error });
+      }
+    }
+
+    return runtimeEndsAt;
   }
 
   #isFundedToRuntimeLimit(predictedClosedHeight: number, runtimeEndsAt: Date, currentHeight: number): boolean {
