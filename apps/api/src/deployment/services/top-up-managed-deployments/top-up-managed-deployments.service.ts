@@ -421,7 +421,14 @@ export class TopUpManagedDeploymentsService {
     }
 
     const { address, walletIsTrialing: isTrialing, walletCreatedAt: createdAt, walletActivatedAt: activatedAt } = ownerInputs[0].deployment;
-    const feeAllowance = await this.managedSignerService.ensureFeeGrants({ address, isTrialing, createdAt, activatedAt });
+    let feeAllowance: number;
+
+    try {
+      feeAllowance = await this.managedSignerService.ensureFeeGrants({ address, isTrialing, createdAt, activatedAt });
+    } catch (error: unknown) {
+      await this.#recordOwnerFundingFailure({ owner, items: ownerInputs, error, instrumentation });
+      return false;
+    }
 
     if (feeAllowance <= 0) {
       instrumentation.recordChainTxError({
@@ -447,26 +454,40 @@ export class TopUpManagedDeploymentsService {
       const closedIndex = this.#findClosedDeploymentIndex(failure, remaining);
 
       if (closedIndex === undefined) {
-        instrumentation.recordChainTxError({ owner, items: remaining, error: failure });
-
-        if (failure instanceof Error && (await this.chainErrorService.isMasterWalletInsufficientFundsError(failure))) {
-          instrumentation.recordMasterWalletInsufficientFundsError({ owner, items: remaining, error: failure });
-          throw failure;
-        }
-
+        await this.#recordOwnerFundingFailure({ owner, items: remaining, error: failure, instrumentation });
         return false;
       }
 
       await this.#markDeploymentClosed({ owner, item: remaining[closedIndex], messageIndex: closedIndex, error: failure, instrumentation });
       remaining = remaining.filter((_, index) => index !== closedIndex);
 
-      if (++closedDeploymentsDropped > MAX_CLOSED_DEPLOYMENT_DROPS && remaining.length) {
+      if (++closedDeploymentsDropped >= MAX_CLOSED_DEPLOYMENT_DROPS && remaining.length) {
         instrumentation.recordClosedDeploymentRetryLimit({ owner, remainingCount: remaining.length });
         return false;
       }
     }
 
     return false;
+  }
+
+  /** Runs the master-wallet classification for every failure that stops an owner's funding, whichever chain call raised it. */
+  async #recordOwnerFundingFailure({
+    owner,
+    items,
+    error,
+    instrumentation
+  }: {
+    owner: string;
+    items: CollectedMessage[];
+    error: unknown;
+    instrumentation: DeploymentTopUpInstrumentation;
+  }): Promise<void> {
+    instrumentation.recordChainTxError({ owner, items, error });
+
+    if (error instanceof Error && (await this.chainErrorService.isMasterWalletInsufficientFundsError(error))) {
+      instrumentation.recordMasterWalletInsufficientFundsError({ owner, items, error });
+      throw error;
+    }
   }
 
   /** Returns the failure rather than throwing it so the caller classifies a rejected estimate and a reverted tx alike. */

@@ -93,8 +93,6 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(closedSetting?.closed).toBe(true);
     });
 
-    // The chain rejects a batched deposit because one of its deployments closed between the sweep reading
-    // the chain and broadcasting. That deployment's setting is closed and the rest of the batch still lands.
     it("drops a deployment the chain rejects as closed and funds the rest of the batch in the same pass", async () => {
       const {
         topUpService,

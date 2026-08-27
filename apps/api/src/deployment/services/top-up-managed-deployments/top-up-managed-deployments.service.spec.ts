@@ -1522,10 +1522,37 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       await expect(service.topUpDeployments({ dryRun: false })).resolves.toEqual(expect.objectContaining({ ok: true }));
 
-      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(4);
-      expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledTimes(4);
-      expect(instrumentation.recordClosedDeploymentRetryLimit).toHaveBeenCalledWith({ owner, remainingCount: 2 });
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(3);
+      expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledTimes(3);
+      expect(instrumentation.recordClosedDeploymentRetryLimit).toHaveBeenCalledWith({ owner, remainingCount: 3 });
       expect(instrumentation.recordChainTxError).not.toHaveBeenCalled();
+    });
+
+    it("reports a fee grant refill failure as a chain tx error", async () => {
+      const { service, chainErrorService, managedSignerService, instrumentation, owner } = setupDrainingOwner({ deploymentCount: 2 });
+      const error = new Error("fee grant refill failed");
+
+      chainErrorService.isMasterWalletInsufficientFundsError.mockResolvedValue(false);
+      managedSignerService.ensureFeeGrants.mockRejectedValue(error);
+
+      await expect(service.topUpDeployments({ dryRun: false })).resolves.toEqual(expect.objectContaining({ ok: true }));
+
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+      expect(instrumentation.recordChainTxError).toHaveBeenCalledWith(expect.objectContaining({ owner, error }));
+      expect(instrumentation.recordMasterWalletInsufficientFundsError).not.toHaveBeenCalled();
+    });
+
+    it("reports master wallet insufficient funds when the fee grant refill drains the master wallet", async () => {
+      const { service, chainErrorService, managedSignerService, instrumentation, owner } = setupDrainingOwner({ deploymentCount: 2 });
+      const error = new Error("insufficient funds: 10uakt is smaller than 20uakt");
+
+      chainErrorService.isMasterWalletInsufficientFundsError.mockResolvedValue(true);
+      managedSignerService.ensureFeeGrants.mockRejectedValue(error);
+
+      await expect(service.topUpDeployments({ dryRun: false })).resolves.toEqual(expect.objectContaining({ err: true, val: [error] }));
+
+      expect(instrumentation.recordChainTxError).toHaveBeenCalledWith(expect.objectContaining({ owner, error }));
+      expect(instrumentation.recordMasterWalletInsufficientFundsError).toHaveBeenCalledWith(expect.objectContaining({ owner, error }));
     });
 
     it("neither broadcasts nor marks anything closed on a dry run", async () => {
@@ -1572,11 +1599,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const walletId = faker.number.int({ min: 1000000, max: 9999999 });
       const deployments = createDrainingDeployments(owner, walletId, input.deploymentCount);
 
-      context.drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() =>
-        (async function* () {
-          yield { address: owner, walletId, deployments };
-        })()
-      );
+      mockOwnerYields(context.drainingDeploymentService, createOwnerYield(deployments));
       context.drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
       context.cachedBalanceService.get.mockResolvedValue(createMockCachedBalance(() => 1000000));
 
