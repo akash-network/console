@@ -23,7 +23,7 @@ import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { isLeaseLive } from "@src/utils/leaseUtils";
 import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
-import { formatRuntimeLimit } from "@src/utils/runtimeLimitUtils";
+import { getRuntimeLimitCountdown } from "@src/utils/runtimeLimitUtils";
 import { formatByteSize } from "@src/utils/unitUtils";
 import {
   countPlacementServices,
@@ -34,6 +34,7 @@ import {
 } from "./DeploymentPlacements/placementModel";
 import { DeploymentVisitControl } from "./DeploymentVisitControl/DeploymentVisitControl";
 import { DeploymentStatusBadge } from "./DeploymentStatusBadge";
+import { RuntimeLimitMeter } from "./RuntimeLimitMeter";
 
 export const DEPENDENCIES = {
   useLocalNotes,
@@ -82,6 +83,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
 
   const runtimeEndsAt = settings?.runtimeEndsAt ?? null;
   const now = useTickingNow(!!runtimeEndsAt);
+  const runtimeLimitCountdown = settings?.runtimeLimitHours ? getRuntimeLimitCountdown(settings.runtimeLimitHours, runtimeEndsAt, now) : null;
 
   const storedDeployment = getDeploymentData(deployment.dseq);
   const storedManifest = storedDeployment?.manifest;
@@ -138,7 +140,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
                 <d.PriceValue denom={denom} value={udenomToDenom(balanceUdenom, 6)} />
               </SummaryItem>
             )}
-            {settings?.runtimeLimitHours ? (
+            {runtimeLimitCountdown ? (
               <SummaryItem
                 label={
                   <span className="inline-flex items-center gap-1">
@@ -149,7 +151,15 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
                   </span>
                 }
               >
-                {formatRuntimeLimit(settings.runtimeLimitHours, runtimeEndsAt, now)}
+                <div className="min-w-24 space-y-1.5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span>{runtimeLimitCountdown.remainingLabel}</span>
+                    {runtimeLimitCountdown.status !== "unanchored" && (
+                      <span className="text-xs font-normal text-muted-foreground">{runtimeLimitCountdown.limitLabel}</span>
+                    )}
+                  </div>
+                  <RuntimeLimitMeter countdown={runtimeLimitCountdown} />
+                </div>
               </SummaryItem>
             ) : (
               !isEscrowAbstracted && (

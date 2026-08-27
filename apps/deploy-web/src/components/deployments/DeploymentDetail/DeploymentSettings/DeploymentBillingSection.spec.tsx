@@ -52,10 +52,20 @@ describe("DeploymentBillingSection", () => {
       expect(screen.queryByRole("switch", { name: "Auto Top-Up" })).not.toBeInTheDocument();
     });
 
-    it("shows the limit and its countdown under the balance", () => {
+    it("shows the limit alone, with no meter, before the countdown is anchored to a lease", () => {
       setup({ state: "active", runtimeLimitHours: 12, runtimeEndsAt: null });
 
-      expect(screen.getByText("Runtime limit: 12h")).toBeInTheDocument();
+      expect(screen.getByText("12h")).toBeInTheDocument();
+      expect(screen.getByText("runtime limit")).toBeInTheDocument();
+      expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    });
+
+    it("meters the remaining time against the limit once the countdown is anchored", () => {
+      setup({ state: "active", runtimeLimitHours: 1, runtimeEndsAt: "2026-08-21T12:36:00.000Z" });
+
+      expect(screen.getByText("36m left")).toBeInTheDocument();
+      expect(screen.getByText("of 1h limit")).toBeInTheDocument();
+      expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "60");
     });
 
     it("sends the new total when hours are added", async () => {
@@ -143,7 +153,7 @@ describe("DeploymentBillingSection", () => {
     it("keeps the runtime-limit controls on a limited deployment while hiding the balance", () => {
       setup({ state: "active", runtimeLimitHours: 12, isEscrowAbstracted: true });
 
-      expect(screen.getByText("Runtime limit: 12h")).toBeInTheDocument();
+      expect(screen.getByText("12h")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Add hours" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Switch to always on" })).toBeInTheDocument();
       expect(screen.queryByText("Current balance")).not.toBeInTheDocument();
