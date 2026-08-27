@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
@@ -223,7 +223,7 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
       PROVIDER_UNREACHABLE_NOTIFY_AFTER_DAYS: NOTIFY_AFTER_DAYS,
       DEPLOY_WEB_BASE_URL
     });
-    const createLogger = (() => mock<ReturnType<CreateLogger>>()) as unknown as CreateLogger;
+    const createLogger = vi.fn<CreateLogger>(() => mock<ReturnType<CreateLogger>>());
 
     const service = new UnreachableProviderDeploymentsNotifierService(
       providerOutagesHttpService,

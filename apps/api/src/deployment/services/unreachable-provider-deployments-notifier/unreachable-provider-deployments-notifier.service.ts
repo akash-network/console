@@ -20,17 +20,7 @@ interface DarkDeployment {
   downSince: string;
 }
 
-/**
- * Tells owners that the provider hosting their deployment has stopped answering, which today nothing
- * does: escrow keeps draining toward a provider that is no longer serving the workload, and the owner
- * finds out only when they happen to open the deployment.
- *
- * One email per outage. A provider that recovers and goes dark again is worth telling the owner about
- * a second time; a single outage dragging on for weeks is not.
- *
- * Managed wallets only. A self-custody deployment has no account behind its address, so there is no
- * one to email.
- */
+/** Managed wallets only, since a self-custody deployment has no account behind its address and so nobody to email. */
 @singleton()
 export class UnreachableProviderDeploymentsNotifierService {
   private readonly logger: ReturnType<CreateLogger>;
@@ -79,11 +69,7 @@ export class UnreachableProviderDeploymentsNotifierService {
     return errors.length > 0 ? Err(errors) : Ok(undefined);
   }
 
-  /**
-   * A deployment counts as dark as soon as one of its leases sits on an unreachable provider — a
-   * workload split across providers is already broken when one of them disappears. Where several are
-   * dark, the longest outage is the one reported, so the age the owner reads is the age of the problem.
-   */
+  /** One dark lease is enough, and where several are dark the longest outage is reported so the age the owner reads is the age of the problem. */
   async #findDarkDeployments(outages: ProviderOutage[]): Promise<DarkDeployment[]> {
     if (outages.length === 0) return [];
 
@@ -201,11 +187,7 @@ export class UnreachableProviderDeploymentsNotifierService {
     return true;
   }
 
-  /**
-   * A claim whose email never went out is given back so the next sweep retries it. A failed release is
-   * logged rather than thrown: it would replace the send error the caller reports, and the cost is one
-   * owner warned late or not at all, which is what the claim was already risking.
-   */
+  /** A failed release is logged rather than thrown, because it would replace the send error the caller reports. */
   async #releaseClaim(deployment: DarkDeployment, claim: { userId: string; dseq: string; downSinceMarker: string }): Promise<void> {
     try {
       await this.deploymentSettingRepository.releaseProviderUnreachableClaim(claim);
