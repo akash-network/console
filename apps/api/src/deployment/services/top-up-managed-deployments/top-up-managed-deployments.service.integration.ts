@@ -649,6 +649,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
         fee: 5000000,
         deployment: balanceByAddress[wallet.address!] ?? 0
       }));
+      vi.spyOn(balances, "retrieveDeploymentLimit").mockImplementation(async (wallet: { address: string | null }) => balanceByAddress[wallet.address!] ?? 0);
       vi.spyOn(balances, "retrieveAndCalcFeeLimit").mockResolvedValue(5000000);
     }
 

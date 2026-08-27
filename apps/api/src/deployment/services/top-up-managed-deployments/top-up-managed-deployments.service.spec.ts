@@ -8,6 +8,7 @@ import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-rel
 import { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-low-check";
 import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
 import { RpcMessageService } from "@src/billing/services";
+import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
@@ -17,7 +18,11 @@ import type { JobQueueService } from "@src/core";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
-import type { DrainingDeployment, DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
+import type {
+  AutoTopUpOwnerDeployments,
+  DrainingDeployment,
+  DrainingDeploymentService
+} from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { mockConfigService } from "../../../../test/mocks/config-service.mock";
 import { CachedBalance, type CachedBalanceService } from "../cached-balance/cached-balance.service";
 import type { FundDrainingDeploymentsInstrumentationService } from "./fund-draining-deployments-instrumentation.service";
@@ -27,7 +32,6 @@ import type { TopUpManagedDeploymentsInstrumentationService } from "./top-up-man
 import { createAkashAddress } from "@test/seeders";
 import { createAutoTopUpDeployment, createManyAutoTopUpDeployments } from "@test/seeders/auto-top-up-deployment.seeder";
 import { createDrainingDeployment } from "@test/seeders/draining-deployment.seeder";
-import { generateWalletSetting } from "@test/seeders/wallet-setting.seeder";
 
 describe(TopUpManagedDeploymentsService.name, () => {
   const DEPLOYMENT_GRANT_DENOM = "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1";
@@ -59,6 +63,46 @@ describe(TopUpManagedDeploymentsService.name, () => {
       return amount;
     });
     return balance;
+  }
+
+  function createOwnerYield(deployments: DrainingDeployment[], overrides?: Partial<AutoTopUpOwnerDeployments>): AutoTopUpOwnerDeployments {
+    return {
+      address: deployments[0].address,
+      walletId: deployments[0].walletId,
+      userId: deployments[0].userId,
+      autoReloadEnabled: deployments[0].isWalletAutoTopUpEnabled,
+      isTrialing: deployments[0].walletIsTrialing,
+      creditsLowNotifiedAt: deployments[0].walletCreditsLowNotifiedAt,
+      activeDeployments: deployments,
+      drainingDeployments: deployments,
+      ...overrides
+    };
+  }
+
+  function createNonDrainingOwner(overrides?: Partial<AutoTopUpOwnerDeployments>): AutoTopUpOwnerDeployments {
+    const setting = createAutoTopUpDeployment();
+    const activeDeployment = {
+      ...setting,
+      ...createDrainingDeployment({
+        dseq: Number(setting.dseq),
+        owner: setting.address,
+        predictedClosedHeight: CURRENT_BLOCK_HEIGHT + 1_000_000,
+        denom: DEPLOYMENT_GRANT_DENOM
+      }),
+      dseq: setting.dseq
+    } as DrainingDeployment;
+
+    return createOwnerYield([activeDeployment], { drainingDeployments: [], ...overrides });
+  }
+
+  function mockOwnerYields(drainingDeploymentService: ReturnType<typeof mock<DrainingDeploymentService>>, ...owners: AutoTopUpOwnerDeployments[]) {
+    drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() =>
+      (async function* () {
+        for (const owner of owners) {
+          yield owner;
+        }
+      })()
+    );
   }
 
   describe("topUpDeployments", () => {
@@ -100,8 +144,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
             {} as Record<string, DrainingDeployment[]>
           );
 
-          for (const [address, items] of Object.entries(byAddress)) {
-            yield { address, walletId: items[0].walletId, deployments: items };
+          for (const items of Object.values(byAddress)) {
+            yield createOwnerYield(items);
           }
         })()
       );
@@ -186,7 +230,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
               }),
               dseq: deployment.dseq
             } as DrainingDeployment;
-            yield { address: deployment.address, walletId: deployment.walletId, deployments: [draining] };
+            yield createOwnerYield([draining]);
           }
         })()
       );
@@ -229,8 +273,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
             {} as Record<string, DrainingDeployment[]>
           );
 
-          for (const [address, items] of Object.entries(byAddress)) {
-            yield { address, walletId: items[0].walletId, deployments: items };
+          for (const items of Object.values(byAddress)) {
+            yield createOwnerYield(items);
           }
         })()
       );
@@ -272,8 +316,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
             {} as Record<string, DrainingDeployment[]>
           );
 
-          for (const [address, items] of Object.entries(byAddress)) {
-            yield { address, walletId: items[0].walletId, deployments: items };
+          for (const items of Object.values(byAddress)) {
+            yield createOwnerYield(items);
           }
         })()
       );
@@ -296,70 +340,174 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
     });
 
-    it("does not enqueue a reload job for a non-draining owner with Auto Recharge on", async () => {
-      const { service, drainingDeploymentService, deploymentSettingRepository, jobQueueService, walletSettingRepository, managedSignerService } =
-        setupWithWalletReloadJobs();
-      const owner = createAkashAddress();
-      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
-      const walletSetting = generateWalletSetting({ walletId, autoReloadEnabled: true });
-
-      mockNonDrainingAutoTopUpOwner(drainingDeploymentService, deploymentSettingRepository, owner, walletId);
-      walletSettingRepository.findOneBy.mockResolvedValue(walletSetting);
+    it("skips coverage evaluation for a non-draining owner with Auto Recharge on", async () => {
+      const { service, drainingDeploymentService, walletReloadService, balancesService, managedSignerService } = setup();
+      mockOwnerYields(drainingDeploymentService, createNonDrainingOwner({ autoReloadEnabled: true }));
 
       await service.topUpDeployments({ dryRun: false });
 
-      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(walletReloadService.scheduleCreditsLowCheck).not.toHaveBeenCalled();
+      expect(drainingDeploymentService.calculateWeeklyCoverageCredits).not.toHaveBeenCalled();
+      expect(balancesService.retrieveDeploymentLimit).not.toHaveBeenCalled();
       expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
     });
 
-    it("enqueues a credits-low check for a non-draining owner with Auto Recharge off", async () => {
-      const { service, drainingDeploymentService, deploymentSettingRepository, jobQueueService, walletSettingRepository } = setupWithWalletReloadJobs();
-      const owner = createAkashAddress();
-      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
-      const walletSetting = generateWalletSetting({ walletId, autoReloadEnabled: false });
-
-      mockNonDrainingAutoTopUpOwner(drainingDeploymentService, deploymentSettingRepository, owner, walletId);
-      walletSettingRepository.findOneBy.mockResolvedValue(walletSetting);
+    it("skips coverage evaluation for a trialing non-draining owner", async () => {
+      const { service, drainingDeploymentService, walletReloadService } = setup();
+      mockOwnerYields(drainingDeploymentService, createNonDrainingOwner({ isTrialing: true }));
 
       await service.topUpDeployments({ dryRun: false });
 
+      expect(walletReloadService.scheduleCreditsLowCheck).not.toHaveBeenCalled();
+      expect(drainingDeploymentService.calculateWeeklyCoverageCredits).not.toHaveBeenCalled();
+    });
+
+    it("enqueues a credits-low check for a non-draining owner below a week of coverage", async () => {
+      const { service, drainingDeploymentService, balancesService, jobQueueService } = setupWithWalletReloadJobs();
+      const owner = createNonDrainingOwner();
+
+      mockOwnerYields(drainingDeploymentService, owner);
+      drainingDeploymentService.calculateWeeklyCoverageCredits.mockReturnValue(700);
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(100);
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(drainingDeploymentService.calculateWeeklyCoverageCredits).toHaveBeenCalledWith(owner.activeDeployments, CURRENT_BLOCK_HEIGHT);
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(
         expect.any(WalletCreditsLowCheck),
         expect.objectContaining({
-          singletonKey: `${WalletCreditsLowCheck.name}.${walletSetting.userId}`
+          singletonKey: `${WalletCreditsLowCheck.name}.${owner.userId}`
         })
       );
       expect(jobQueueService.enqueue).not.toHaveBeenCalledWith(expect.any(WalletBalanceReloadCheck), expect.anything());
     });
 
-    it("keeps a failed credits-low sweep out of the funding run's status and result", async () => {
-      const { service, drainingDeploymentService, deploymentSettingRepository, walletSettingRepository, instrumentation } = setupWithWalletReloadJobs();
-      const owner = createAkashAddress();
-      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+    it("does not enqueue for a low owner already stamped notified", async () => {
+      const { service, drainingDeploymentService, balancesService, walletReloadService } = setup();
+      mockOwnerYields(drainingDeploymentService, createNonDrainingOwner({ creditsLowNotifiedAt: faker.date.recent() }));
+      drainingDeploymentService.calculateWeeklyCoverageCredits.mockReturnValue(700);
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(100);
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(walletReloadService.scheduleCreditsLowCheck).not.toHaveBeenCalled();
+    });
+
+    it("enqueues a clearing check for a notified owner whose balance recovered", async () => {
+      const { service, drainingDeploymentService, balancesService, walletReloadService } = setup();
+      const owner = createNonDrainingOwner({ creditsLowNotifiedAt: faker.date.recent() });
+
+      mockOwnerYields(drainingDeploymentService, owner);
+      drainingDeploymentService.calculateWeeklyCoverageCredits.mockReturnValue(700);
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(1000);
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(walletReloadService.scheduleCreditsLowCheck).toHaveBeenCalledWith(owner.userId, { withCleanup: true });
+    });
+
+    it("does not enqueue for a covered owner that was never notified", async () => {
+      const { service, drainingDeploymentService, balancesService, walletReloadService } = setup();
+      mockOwnerYields(drainingDeploymentService, createNonDrainingOwner());
+      drainingDeploymentService.calculateWeeklyCoverageCredits.mockReturnValue(700);
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(1000);
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(walletReloadService.scheduleCreditsLowCheck).not.toHaveBeenCalled();
+    });
+
+    it("skips the balance read for a zero-cost owner and only enqueues to clear a stale stamp", async () => {
+      const { service, drainingDeploymentService, balancesService, walletReloadService } = setup();
+      const unnotified = createNonDrainingOwner();
+      const notified = createNonDrainingOwner({ creditsLowNotifiedAt: faker.date.recent() });
+
+      mockOwnerYields(drainingDeploymentService, unnotified, notified);
+      drainingDeploymentService.calculateWeeklyCoverageCredits.mockReturnValue(0);
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(balancesService.retrieveDeploymentLimit).not.toHaveBeenCalled();
+      expect(walletReloadService.scheduleCreditsLowCheck).toHaveBeenCalledTimes(1);
+      expect(walletReloadService.scheduleCreditsLowCheck).toHaveBeenCalledWith(notified.userId, { withCleanup: true });
+    });
+
+    it("falls back to enqueueing the check when the inline evaluation fails", async () => {
+      const { service, drainingDeploymentService, balancesService, walletReloadService, instrumentation } = setup();
+      const owner = createNonDrainingOwner();
       const error = new Error("connection reset");
 
-      mockNonDrainingAutoTopUpOwner(drainingDeploymentService, deploymentSettingRepository, owner, walletId);
-      walletSettingRepository.findOneBy.mockRejectedValue(error);
+      mockOwnerYields(drainingDeploymentService, owner);
+      drainingDeploymentService.calculateWeeklyCoverageCredits.mockReturnValue(700);
+      balancesService.retrieveDeploymentLimit.mockRejectedValue(error);
 
       const result = await service.topUpDeployments({ dryRun: false });
 
       expect(result.ok).toBe(true);
-      expect(instrumentation.recordCreditsLowScheduleError).toHaveBeenCalledWith({ walletId, error });
+      expect(instrumentation.recordCreditsLowScheduleError).toHaveBeenCalledWith({ walletId: owner.walletId, error });
+      expect(walletReloadService.scheduleCreditsLowCheck).toHaveBeenCalledWith(owner.userId, { withCleanup: true });
       expect(instrumentation.finish).toHaveBeenCalledWith("success", CURRENT_BLOCK_HEIGHT);
     });
 
-    it("does not schedule extra checks for auto-top-up owners on dry run", async () => {
-      const { service, drainingDeploymentService, deploymentSettingRepository, jobQueueService, walletSettingRepository } = setupWithWalletReloadJobs();
-      const owner = createAkashAddress();
-      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
-      const walletSetting = generateWalletSetting({ walletId, autoReloadEnabled: false });
-
-      mockNonDrainingAutoTopUpOwner(drainingDeploymentService, deploymentSettingRepository, owner, walletId);
-      walletSettingRepository.findOneBy.mockResolvedValue(walletSetting);
+    it("does not evaluate coverage or schedule checks on dry run", async () => {
+      const { service, drainingDeploymentService, balancesService, walletReloadService } = setup();
+      mockOwnerYields(drainingDeploymentService, createNonDrainingOwner());
+      drainingDeploymentService.calculateWeeklyCoverageCredits.mockReturnValue(700);
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(100);
 
       await service.topUpDeployments({ dryRun: true });
 
-      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(drainingDeploymentService.calculateWeeklyCoverageCredits).not.toHaveBeenCalled();
+      expect(walletReloadService.scheduleCreditsLowCheck).not.toHaveBeenCalled();
+    });
+
+    it("enqueues a post-funding credits-low check for a funded owner without an inline verdict", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, balancesService, walletReloadService, managedSignerService } = setup();
+      const deployment = createAutoTopUpDeployment();
+      const draining = {
+        ...deployment,
+        ...createDrainingDeployment({
+          dseq: Number(deployment.dseq),
+          owner: deployment.address,
+          predictedClosedHeight: CURRENT_BLOCK_HEIGHT + 1500,
+          denom: DEPLOYMENT_GRANT_DENOM
+        }),
+        dseq: deployment.dseq
+      } as DrainingDeployment;
+
+      mockOwnerYields(drainingDeploymentService, createOwnerYield([draining]));
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
+      cachedBalanceService.get.mockResolvedValue(createMockCachedBalance(() => 1000000));
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
+      expect(walletReloadService.scheduleCreditsLowCheck).toHaveBeenCalledWith(deployment.userId, { withCleanup: true });
+      expect(drainingDeploymentService.calculateWeeklyCoverageCredits).not.toHaveBeenCalled();
+      expect(balancesService.retrieveDeploymentLimit).not.toHaveBeenCalled();
+    });
+
+    it("still schedules the credits-low check when funding an owner throws", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, walletReloadService } = setup();
+      const deployment = createAutoTopUpDeployment();
+      const draining = {
+        ...deployment,
+        ...createDrainingDeployment({
+          dseq: Number(deployment.dseq),
+          owner: deployment.address,
+          predictedClosedHeight: CURRENT_BLOCK_HEIGHT + 1500,
+          denom: DEPLOYMENT_GRANT_DENOM
+        }),
+        dseq: deployment.dseq
+      } as DrainingDeployment;
+
+      mockOwnerYields(drainingDeploymentService, createOwnerYield([draining]));
+      cachedBalanceService.get.mockRejectedValue(new Error("balance fetch failed"));
+
+      const result = await service.topUpDeployments({ dryRun: false });
+
+      expect(result.ok).toBe(false);
+      expect(walletReloadService.scheduleCreditsLowCheck).toHaveBeenCalledWith(deployment.userId, { withCleanup: true });
     });
 
     it("should top up draining deployments for the same owner in the same tx", async () => {
@@ -392,8 +540,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
             {} as Record<string, DrainingDeployment[]>
           );
 
-          for (const [address, items] of Object.entries(byAddress)) {
-            yield { address, walletId: items[0].walletId, deployments: items };
+          for (const items of Object.values(byAddress)) {
+            yield createOwnerYield(items);
           }
         })()
       );
@@ -460,7 +608,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
               dseq: deployment.dseq
             } as DrainingDeployment
           ];
-          yield { address: deployment.address, walletId: deployment.walletId, deployments: items };
+          yield createOwnerYield(items);
         })()
       );
 
@@ -514,8 +662,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
             {} as Record<string, DrainingDeployment[]>
           );
 
-          for (const [address, items] of Object.entries(byAddress)) {
-            yield { address, walletId: items[0].walletId, deployments: items };
+          for (const items of Object.values(byAddress)) {
+            yield createOwnerYield(items);
           }
         })()
       );
@@ -570,8 +718,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
             {} as Record<string, DrainingDeployment[]>
           );
 
-          for (const [address, items] of Object.entries(byAddress)) {
-            yield { address, walletId: items[0].walletId, deployments: items };
+          for (const items of Object.values(byAddress)) {
+            yield createOwnerYield(items);
           }
         })()
       );
@@ -591,17 +739,13 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() =>
         (async function* () {
-          yield {
-            address: deployment.address,
-            walletId: deployment.walletId,
-            deployments: [
-              {
-                ...deployment,
-                ...createDrainingDeployment({ dseq: Number(deployment.dseq), owner: deployment.address, predictedClosedHeight }),
-                dseq: deployment.dseq
-              } as DrainingDeployment
-            ]
-          };
+          yield createOwnerYield([
+            {
+              ...deployment,
+              ...createDrainingDeployment({ dseq: Number(deployment.dseq), owner: deployment.address, predictedClosedHeight }),
+              dseq: deployment.dseq
+            } as DrainingDeployment
+          ]);
         })()
       );
       drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
@@ -625,17 +769,13 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() =>
         (async function* () {
-          yield {
-            address: deployment.address,
-            walletId: deployment.walletId,
-            deployments: [
-              {
-                ...deployment,
-                ...createDrainingDeployment({ dseq: Number(deployment.dseq), owner: deployment.address, predictedClosedHeight }),
-                dseq: deployment.dseq
-              } as DrainingDeployment
-            ]
-          };
+          yield createOwnerYield([
+            {
+              ...deployment,
+              ...createDrainingDeployment({ dseq: Number(deployment.dseq), owner: deployment.address, predictedClosedHeight }),
+              dseq: deployment.dseq
+            } as DrainingDeployment
+          ]);
         })()
       );
       drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
@@ -659,17 +799,13 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() =>
         (async function* () {
-          yield {
-            address: deployment.address,
-            walletId: deployment.walletId,
-            deployments: [
-              {
-                ...deployment,
-                ...createDrainingDeployment({ dseq: Number(deployment.dseq), owner: deployment.address, predictedClosedHeight }),
-                dseq: deployment.dseq
-              } as DrainingDeployment
-            ]
-          };
+          yield createOwnerYield([
+            {
+              ...deployment,
+              ...createDrainingDeployment({ dseq: Number(deployment.dseq), owner: deployment.address, predictedClosedHeight }),
+              dseq: deployment.dseq
+            } as DrainingDeployment
+          ]);
         })()
       );
       drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
@@ -743,6 +879,30 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(cachedBalanceService.getFresh).not.toHaveBeenCalled();
       expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
       expect(walletReloadService.scheduleImmediate).not.toHaveBeenCalled();
+    });
+
+    it("schedules a credits-low check even when the owner has nothing to fund", async () => {
+      const { service, drainingDeploymentService, walletReloadService } = setup();
+      const owner = createAkashAddress();
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([]);
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId: 1, address: owner });
+
+      expect(walletReloadService.scheduleCreditsLowCheckIfAutoReloadOff).toHaveBeenCalledWith({ walletId: 1 });
+    });
+
+    it("records a failed credits-low schedule without failing the funding job", async () => {
+      const { service, drainingDeploymentService, walletReloadService, fundDrainingInstrumentation } = setup();
+      const owner = createAkashAddress();
+      const error = new Error("connection reset");
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([]);
+      vi.mocked(walletReloadService.scheduleCreditsLowCheckIfAutoReloadOff).mockRejectedValue(error);
+
+      await expect(service.topUpDrainingDeploymentsForOwner({ walletId: 1, address: owner })).resolves.toBeUndefined();
+
+      expect(fundDrainingInstrumentation.recordCreditsLowScheduleError).toHaveBeenCalledWith({ walletId: 1, error });
     });
 
     it("records a non-positive-amount skip without reporting a false insufficient-balance error", async () => {
@@ -1226,20 +1386,6 @@ describe(TopUpManagedDeploymentsService.name, () => {
     }
   });
 
-  function mockNonDrainingAutoTopUpOwner(
-    drainingDeploymentService: ReturnType<typeof mock<DrainingDeploymentService>>,
-    deploymentSettingRepository: ReturnType<typeof mock<DeploymentSettingRepository>>,
-    owner: string,
-    walletId: number
-  ) {
-    drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() => (async function* () {})());
-    deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
-      (async function* () {
-        yield { address: owner, walletId, deploymentSettings: [createAutoTopUpDeployment({ address: owner, walletId })] };
-      })()
-    );
-  }
-
   function setupWithWalletReloadJobs(input?: { currentBlockHeight?: number; feeAllowance?: number }) {
     const walletSettingRepository = mock<WalletSettingRepository>();
     const userWalletRepository = mock<UserWalletRepository>();
@@ -1288,6 +1434,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     deploymentSettingRepository.releaseFundingClaim.mockResolvedValue(undefined);
     deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() => (async function* () {})());
     const deploymentConfig = mockConfigService<DeploymentConfigService>({ AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN: DEDUP_COOLDOWN_IN_MIN });
+    const balancesService = mock<BalancesService>();
 
     const service = new TopUpManagedDeploymentsService(
       managedSignerService,
@@ -1301,7 +1448,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
       fundDrainingInstrumentation,
       walletReloadService,
       deploymentSettingRepository,
-      deploymentConfig
+      deploymentConfig,
+      balancesService
     );
 
     return {
@@ -1317,7 +1465,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
       fundDrainingInstrumentation,
       walletReloadService,
       deploymentSettingRepository,
-      deploymentConfig
+      deploymentConfig,
+      balancesService
     };
   }
 });

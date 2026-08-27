@@ -38,6 +38,7 @@ export type ExpiringRuntimeDeployment = ExpiredRuntimeDeployment & {
 
 export type AutoTopUpDeployment = {
   id: string;
+  userId: string;
   walletId: number;
   dseq: string;
   address: string;
@@ -45,6 +46,7 @@ export type AutoTopUpDeployment = {
   walletIsTrialing: boolean;
   walletCreatedAt: Date;
   walletActivatedAt: Date | null;
+  walletCreditsLowNotifiedAt: Date | null;
   runtimeLimitHours: number | null;
   runtimeEndsAt: Date | null;
 };
@@ -118,6 +120,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     const deployments = await this.pg
       .select({
         id: this.table.id,
+        userId: this.table.userId,
         dseq: this.table.dseq,
         walletId: UserWallets.id,
         address: UserWallets.address,
@@ -125,6 +128,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         walletIsTrialing: sql<boolean>`coalesce(${UserWallets.isTrialing}, true)`,
         walletCreatedAt: UserWallets.createdAt,
         walletActivatedAt: UserWallets.activatedAt,
+        walletCreditsLowNotifiedAt: UserWallets.creditsLowNotifiedAt,
         runtimeLimitHours: this.table.runtimeLimitHours,
         runtimeEndsAt: this.table.runtimeEndsAt
       })

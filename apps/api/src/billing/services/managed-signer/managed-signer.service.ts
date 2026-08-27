@@ -178,6 +178,7 @@ export class ManagedSignerService {
 
     await this.balancesService.refreshUserWalletLimits(userWallet);
     await this.#ensureAutoReloadSchedule(userWallet.userId, messages);
+    await this.#scheduleCreditsLowCheckOnClose(userWallet, messages);
 
     const result = pick(tx, ["code", "hash", "transactionHash", "rawLog"]) as Pick<IndexedTx, "code" | "hash" | "rawLog">;
 
@@ -194,6 +195,19 @@ export class ManagedSignerService {
   async #ensureAutoReloadSchedule(userId: UserWalletOutput["userId"], messages: EncodeObject[]) {
     if (this.#hasSpendingTx(messages)) {
       await this.walletReloadJobService.scheduleImmediate({ userId });
+    }
+  }
+
+  /** Best-effort: a schedule failure must never fail a close that already landed on chain. */
+  async #scheduleCreditsLowCheckOnClose(userWallet: UserWalletOutput, messages: EncodeObject[]) {
+    if (!messages.some(message => message.typeUrl.endsWith(".MsgCloseDeployment"))) {
+      return;
+    }
+
+    try {
+      await this.walletReloadJobService.scheduleCreditsLowCheckIfAutoReloadOff({ walletId: userWallet.id });
+    } catch (error) {
+      this.logger.error({ event: "CREDITS_LOW_CHECK_ON_CLOSE_SCHEDULE_FAILED", walletId: userWallet.id, error });
     }
   }
 

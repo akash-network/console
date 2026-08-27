@@ -1,5 +1,5 @@
 import { MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { LeaseHttpService } from "@akashnetwork/http-sdk";
 import type { MongoAbility } from "@casl/ability";
@@ -738,6 +738,72 @@ describe(ManagedSignerService.name, () => {
       await service.executeDerivedEncodedTxByUserId("user-123", [leaseMessage]);
 
       expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
+    });
+
+    it("schedules a credits-low check when a successful transaction closes a deployment", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100 });
+      const user = createUser({ userId: "user-123" });
+      const closeMessage = {
+        typeUrl: MsgCloseDeployment.$type,
+        value: Buffer.from(JSON.stringify({ id: { dseq: "123", owner: wallet.address } })).toString("base64")
+      };
+
+      const { service, walletReloadJobService } = setup({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
+        decode: vi.fn().mockReturnValue({ id: { dseq: "123", owner: wallet.address } })
+      });
+
+      await service.executeDerivedEncodedTxByUserId("user-123", [closeMessage]);
+
+      expect(walletReloadJobService.scheduleCreditsLowCheckIfAutoReloadOff).toHaveBeenCalledWith({ walletId: wallet.id });
+      expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
+    });
+
+    it("does not schedule a credits-low check for a transaction without a close message", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100 });
+      const user = createUser({ userId: "user-123" });
+      const deploymentMessage = {
+        typeUrl: MsgCreateDeployment.$type,
+        value: Buffer.from(JSON.stringify({ id: { dseq: "123", owner: wallet.address } })).toString("base64")
+      };
+
+      const { service, walletReloadJobService } = setup({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
+        decode: vi.fn().mockReturnValue({ id: { dseq: "123", owner: wallet.address } })
+      });
+
+      await service.executeDerivedEncodedTxByUserId("user-123", [deploymentMessage]);
+
+      expect(walletReloadJobService.scheduleCreditsLowCheckIfAutoReloadOff).not.toHaveBeenCalled();
+    });
+
+    it("returns the close result even when the credits-low schedule fails", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100 });
+      const user = createUser({ userId: "user-123" });
+      const closeMessage = {
+        typeUrl: MsgCloseDeployment.$type,
+        value: Buffer.from(JSON.stringify({ id: { dseq: "123", owner: wallet.address } })).toString("base64")
+      };
+
+      const { service, walletReloadJobService, logger } = setup({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
+        decode: vi.fn().mockReturnValue({ id: { dseq: "123", owner: wallet.address } })
+      });
+      walletReloadJobService.scheduleCreditsLowCheckIfAutoReloadOff.mockRejectedValue(new Error("connection reset"));
+
+      const result = await service.executeDerivedEncodedTxByUserId("user-123", [closeMessage]);
+
+      expect(result.code).toBe(0);
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_ON_CLOSE_SCHEDULE_FAILED", walletId: wallet.id }));
     });
 
     it("delegates spend-time activation to the guard and surfaces its retriable 409", async () => {

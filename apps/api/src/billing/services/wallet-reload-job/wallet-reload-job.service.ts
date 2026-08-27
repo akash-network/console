@@ -19,6 +19,7 @@ export class WalletReloadJobService {
     this.logger = createLogger({ context: WalletReloadJobService.name });
   }
 
+  /** Deliberately does not fall through to a credits-low check: this runs on every managed spend, which CON-896 moved off that path. */
   async scheduleImmediate(input: WalletReloadImmediateInput, options?: { triggeredByDeployment?: boolean }): Promise<boolean> {
     const walletSetting =
       "userId" in input
@@ -30,12 +31,6 @@ export class WalletReloadJobService {
       return true;
     }
 
-    const userId = await this.#resolveUserId(input, walletSetting);
-    if (!userId) {
-      return false;
-    }
-
-    await this.scheduleCreditsLowCheck(userId, { withCleanup: true });
     return false;
   }
 
@@ -88,10 +83,7 @@ export class WalletReloadJobService {
     await this.jobQueueService.cancelCreatedBy({ name: WalletBalanceReloadCheck.name, singletonKey: `${WalletBalanceReloadCheck.name}.${userId}` });
   }
 
-  /**
-   * Best-effort: a failed schedule is logged instead of thrown so it never fails the
-   * spend or funding operation that triggered it, and the next spend re-schedules the check.
-   */
+  /** Best-effort: a failed schedule is logged rather than thrown, because the hourly funding sweep re-evaluates every eligible account anyway. */
   async scheduleCreditsLowCheck(userId: string, options?: { withCleanup?: boolean }): Promise<string | null> {
     try {
       if (options?.withCleanup) {

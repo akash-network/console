@@ -125,6 +125,47 @@ describe(InitialDeploymentFundingService.name, () => {
     expect(instrumentation.recordDeposit).toHaveBeenCalledWith(500000, "uakt", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
   });
 
+  it("schedules a credits-low check after a successful deposit", async () => {
+    const { service, drainingDeploymentService, walletReloadJobService } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(walletReloadJobService.scheduleCreditsLowCheckIfAutoReloadOff).toHaveBeenCalledWith({ walletId: 1 });
+  });
+
+  it("schedules a credits-low check when funding skips on sufficient runway", async () => {
+    const { service, drainingDeploymentService, walletReloadJobService } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ predictedClosedHeight: LOOK_AHEAD_HEIGHT + 1 })]);
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(walletReloadJobService.scheduleCreditsLowCheckIfAutoReloadOff).toHaveBeenCalledWith({ walletId: 1 });
+  });
+
+  it("schedules a credits-low check when funding skips on insufficient balance", async () => {
+    const { service, drainingDeploymentService, cachedBalanceService, walletReloadJobService } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+    cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(0, 0));
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(walletReloadJobService.scheduleCreditsLowCheckIfAutoReloadOff).toHaveBeenCalledWith({ walletId: 1 });
+  });
+
+  it("tolerates a credits-low schedule failure without failing the job", async () => {
+    const { service, drainingDeploymentService, walletReloadJobService, logger } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+    walletReloadJobService.scheduleCreditsLowCheckIfAutoReloadOff.mockRejectedValue(new Error("connection reset"));
+
+    await expect(service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" })).resolves.toBeUndefined();
+
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_CREDITS_LOW_SCHEDULE_FAILED", walletId: 1, dseq: "123" }));
+  });
+
   it("skips funding when auto top-up is disabled for the deployment", async () => {
     const { service, drainingDeploymentService, userWalletRepository, deploymentSettingRepository, managedSignerService, logger } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);

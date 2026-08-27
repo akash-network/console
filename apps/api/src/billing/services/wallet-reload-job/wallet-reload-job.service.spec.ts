@@ -14,31 +14,31 @@ import { generateWalletSetting } from "@test/seeders/wallet-setting.seeder";
 
 describe(WalletReloadJobService.name, () => {
   describe("scheduleImmediate", () => {
-    it("enqueues a credits-low check when walletSetting does not exist", async () => {
+    it("schedules nothing when walletSetting does not exist", async () => {
       const { service, walletSettingRepository, jobQueueService } = setup();
       const userId = faker.string.uuid();
       walletSettingRepository.findByUserId.mockResolvedValue(undefined);
-      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
 
       const result = await service.scheduleImmediate({ userId });
 
       expect(result).toBe(false);
       expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(userId);
-      expectCreditsLowCheckScheduled(jobQueueService, userId);
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(jobQueueService.cancelCreatedBy).not.toHaveBeenCalled();
     });
 
-    it("enqueues a credits-low check when autoReloadEnabled is false", async () => {
+    it("schedules nothing when autoReloadEnabled is false", async () => {
       const { service, walletSettingRepository, jobQueueService } = setup();
       const userId = faker.string.uuid();
       const walletSetting = generateWalletSetting({ autoReloadEnabled: false, userId });
       walletSettingRepository.findByUserId.mockResolvedValue(walletSetting);
-      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
 
       const result = await service.scheduleImmediate({ userId });
 
       expect(result).toBe(false);
       expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(userId);
-      expectCreditsLowCheckScheduled(jobQueueService, walletSetting.userId);
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(jobQueueService.cancelCreatedBy).not.toHaveBeenCalled();
     });
 
     it("calls scheduleForWalletSetting when conditions are met", async () => {
@@ -104,42 +104,17 @@ describe(WalletReloadJobService.name, () => {
       );
     });
 
-    it("enqueues a credits-low check by walletId when no wallet setting exists", async () => {
+    it("schedules nothing by walletId when no wallet setting exists", async () => {
       const { service, walletSettingRepository, userWalletRepository, jobQueueService } = setup();
       const walletId = faker.number.int({ min: 1, max: 1000000 });
-      const userWallet = createUserWallet({ id: walletId });
       walletSettingRepository.findOneBy.mockResolvedValue(undefined);
-      userWalletRepository.findOneBy.mockResolvedValue(userWallet);
-      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
 
       const result = await service.scheduleImmediate({ walletId });
 
       expect(result).toBe(false);
       expect(walletSettingRepository.findOneBy).toHaveBeenCalledWith({ walletId });
-      expect(userWalletRepository.findOneBy).toHaveBeenCalledWith({ id: walletId });
-      expectCreditsLowCheckScheduled(jobQueueService, userWallet.userId);
-    });
-
-    it("does not throw when the job queue is unavailable and a credits-low check is due", async () => {
-      const { service, walletSettingRepository, jobQueueService, logger } = setup();
-      const userId = faker.string.uuid();
-      walletSettingRepository.findByUserId.mockResolvedValue(generateWalletSetting({ autoReloadEnabled: false, userId }));
-      jobQueueService.cancelCreatedBy.mockRejectedValue(new Error("Database not opened. Call open() before executing SQL."));
-
-      await expect(service.scheduleImmediate({ userId })).resolves.toBe(false);
-
-      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SCHEDULE_FAILED", userId }));
-    });
-
-    it("does not throw when a credits-low enqueue collides with an existing singleton", async () => {
-      const { service, walletSettingRepository, jobQueueService, logger } = setup();
-      const userId = faker.string.uuid();
-      walletSettingRepository.findByUserId.mockResolvedValue(generateWalletSetting({ autoReloadEnabled: false, userId }));
-      jobQueueService.enqueue.mockResolvedValue(null);
-
-      await expect(service.scheduleImmediate({ userId })).resolves.toBe(false);
-
-      expect(logger.error).not.toHaveBeenCalled();
+      expect(userWalletRepository.findOneBy).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
   });
 
