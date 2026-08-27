@@ -104,6 +104,24 @@ describe(DeploymentCloseJobService.name, () => {
       expect(jobQueueService.enqueue).toHaveBeenCalledTimes(2);
     });
 
+    it("leaves a deployment that still holds a job alone so its retry delay is not reset", async () => {
+      const expired = [createExpiredRuntimeDeployment(), createExpiredRuntimeDeployment()];
+      const { service, jobQueueService } = setup({ expired, pendingSettingIds: [expired[0].id] });
+
+      await service.reconcileExpired({ dryRun: false });
+
+      expect(jobQueueService.findPendingSingletonKeys).toHaveBeenCalledWith(CloseExpiredDeploymentCommand[JOB_NAME]);
+      expect(jobQueueService.cancelCreatedBy).not.toHaveBeenCalledWith({
+        name: CloseExpiredDeploymentCommand[JOB_NAME],
+        singletonKey: DeploymentCloseJobService.singletonKey(expired[0].id)
+      });
+      expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ deploymentSettingId: expired[1].id }) }),
+        expect.anything()
+      );
+    });
+
     it("schedules nothing on a dry run", async () => {
       const { service, jobQueueService } = setup({ expired: [createExpiredRuntimeDeployment()] });
 
@@ -131,7 +149,7 @@ describe(DeploymentCloseJobService.name, () => {
     };
   }
 
-  function setup(input: { expired?: ExpiredRuntimeDeployment[] } = {}) {
+  function setup(input: { expired?: ExpiredRuntimeDeployment[]; pendingSettingIds?: string[] } = {}) {
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     const jobQueueService = mock<JobQueueService>();
     const logger = mock<ReturnType<CreateLogger>>();
@@ -139,6 +157,7 @@ describe(DeploymentCloseJobService.name, () => {
 
     deploymentSettingRepository.findExpiredRuntimeDeployments.mockResolvedValue(input.expired ?? []);
     jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+    jobQueueService.findPendingSingletonKeys.mockResolvedValue(new Set((input.pendingSettingIds ?? []).map(DeploymentCloseJobService.singletonKey)));
 
     const service = new DeploymentCloseJobService(deploymentSettingRepository, jobQueueService, createLogger);
 

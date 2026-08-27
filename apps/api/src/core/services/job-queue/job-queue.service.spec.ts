@@ -179,6 +179,31 @@ describe(JobQueueService.name, () => {
     });
   });
 
+  describe("findPendingSingletonKeys", () => {
+    it("returns the singleton keys of the queue's unfinished jobs", async () => {
+      const { service, pgBoss, txService } = setup();
+      txService.getConnection.mockReturnValue(undefined);
+      const executeSql = vi.fn().mockResolvedValue({ rows: [{ singleton_key: "singleton-1" }, { singleton_key: "singleton-2" }] });
+      vi.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql });
+
+      await expect(service.findPendingSingletonKeys("test-job")).resolves.toEqual(new Set(["singleton-1", "singleton-2"]));
+
+      expect(executeSql).toHaveBeenCalledWith(expect.stringContaining("state IN ('created', 'retry', 'active')"), ["test-job"]);
+    });
+
+    it("reads the singleton keys on the ambient transaction connection when one is active", async () => {
+      const { service, pgBoss, txService } = setup();
+      const unsafe = vi.fn().mockResolvedValue([{ singleton_key: "singleton-1" }]);
+      txService.getConnection.mockReturnValue({ unsafe } as unknown as Sql);
+      const getDb = vi.spyOn(pgBoss, "getDb");
+
+      await expect(service.findPendingSingletonKeys("test-job")).resolves.toEqual(new Set(["singleton-1"]));
+
+      expect(unsafe).toHaveBeenCalledWith(expect.stringContaining("SELECT DISTINCT singleton_key"), ["test-job"]);
+      expect(getDb).not.toHaveBeenCalled();
+    });
+  });
+
   describe("cancelCreatedBy", () => {
     it("cancels created jobs on the pg-boss connection when no transaction is active", async () => {
       const { service, pgBoss, txService } = setup();

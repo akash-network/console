@@ -73,7 +73,8 @@ export class DeploymentCloseJobService {
    * Backstops the event-driven scheduling: any deployment already past its deadline gets a close job
    * regardless of why it has none, whether that is an enqueue that failed, a job that ran out of
    * retries, or a row nothing ever anchored a job for. Runs alongside the hourly funding sweep, so a
-   * deployment the events missed still closes within the hour.
+   * deployment the events missed still closes within the hour. A deployment that still holds one is left
+   * alone, because rescheduling would drop the handler's retry delay back to now on every pass.
    */
   async reconcileExpired({ dryRun }: DryRunOptions): Promise<void> {
     const expired = await this.deploymentSettingRepository.findExpiredRuntimeDeployments();
@@ -84,10 +85,17 @@ export class DeploymentCloseJobService {
       return;
     }
 
+    const pendingKeys = await this.jobQueueService.findPendingSingletonKeys(CloseExpiredDeploymentCommand[JOB_NAME]);
     let scheduled = 0;
+    let alreadyScheduled = 0;
     let failed = 0;
 
     for (const deployment of expired) {
+      if (pendingKeys.has(DeploymentCloseJobService.singletonKey(deployment.id))) {
+        alreadyScheduled++;
+        continue;
+      }
+
       try {
         await this.schedule(
           { deploymentSettingId: deployment.id, userId: deployment.userId, dseq: deployment.dseq },
@@ -100,6 +108,6 @@ export class DeploymentCloseJobService {
       }
     }
 
-    this.logger.info({ event: "EXPIRED_DEPLOYMENTS_RECONCILE_END", found: expired.length, scheduled, failed });
+    this.logger.info({ event: "EXPIRED_DEPLOYMENTS_RECONCILE_END", found: expired.length, scheduled, alreadyScheduled, failed });
   }
 }
