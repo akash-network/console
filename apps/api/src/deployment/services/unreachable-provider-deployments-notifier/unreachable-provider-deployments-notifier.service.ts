@@ -18,6 +18,7 @@ interface DarkDeployment {
   dseq: string;
   hostUri: string;
   downSince: string;
+  isFullyDark: boolean;
 }
 
 /** Managed wallets only, since a self-custody deployment has no account behind its address and so nobody to email. */
@@ -75,25 +76,32 @@ export class UnreachableProviderDeploymentsNotifierService {
 
     const outageByProvider = new Map(outages.map(outage => [outage.provider, outage]));
     const leases = await this.leaseRepository.findActiveLeasesOfDeploymentsOnProviders([...outageByProvider.keys()]);
-    const darkByDeployment = new Map<string, DarkDeployment>();
+    const leasesByDeployment = new Map<string, ActiveLeaseOnProvider[]>();
 
     for (const lease of leases) {
-      const outage = outageByProvider.get(lease.providerAddress);
-      if (!outage) continue;
-
       const key = this.#deploymentKey(lease);
-      const known = darkByDeployment.get(key);
-      if (known && known.downSince <= outage.startedAt) continue;
+      leasesByDeployment.set(key, [...(leasesByDeployment.get(key) ?? []), lease]);
+    }
 
-      darkByDeployment.set(key, {
-        owner: lease.owner,
-        dseq: lease.dseq,
-        hostUri: outage.hostUri,
-        downSince: outage.startedAt
+    const dark: DarkDeployment[] = [];
+
+    for (const deploymentLeases of leasesByDeployment.values()) {
+      const deploymentOutages = deploymentLeases.map(lease => outageByProvider.get(lease.providerAddress)).filter(outage => !!outage);
+      if (deploymentOutages.length === 0) continue;
+
+      const [{ owner, dseq }] = deploymentLeases;
+      const longestOutage = deploymentOutages.reduce((longest, outage) => (outage.startedAt < longest.startedAt ? outage : longest));
+
+      dark.push({
+        owner,
+        dseq,
+        hostUri: longestOutage.hostUri,
+        downSince: longestOutage.startedAt,
+        isFullyDark: deploymentOutages.length === deploymentLeases.length
       });
     }
 
-    return [...darkByDeployment.values()];
+    return dark;
   }
 
   #deploymentKey(lease: ActiveLeaseOnProvider): string {
@@ -168,7 +176,7 @@ export class UnreachableProviderDeploymentsNotifierService {
           owner: deployment.owner,
           hostUri: deployment.hostUri,
           downSince: deployment.downSince,
-          closeAfterDays: this.config.get("PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS"),
+          closeAfterDays: deployment.isFullyDark ? this.config.get("PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS") : undefined,
           deploymentUrl: this.#deploymentUrl(deployment.dseq)
         })
       );

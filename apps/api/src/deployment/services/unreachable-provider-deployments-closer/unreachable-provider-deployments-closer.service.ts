@@ -21,18 +21,7 @@ interface DarkDeployment {
   downSince: string;
 }
 
-/**
- * Closes deployments whose provider has been gone for weeks. Left alone, the chain only closes such a
- * deployment when its escrow finally drains, so the owner keeps paying a provider that stopped serving
- * long ago for as long as the money lasts. Closing settles the escrow and returns the remainder.
- *
- * Only when the whole deployment is dark. A deployment still holding a lease on a provider that answers
- * may well be doing useful work, and closing it would take that away over a problem the owner can see
- * and act on themselves.
- *
- * Owners are warned first: `PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS` is held above the warning threshold
- * by the config schema, so nobody's first word about an outage is the closure email.
- */
+/** Only fully dark deployments are closed, because one lease still answering may well be doing useful work the owner can see. */
 @singleton()
 export class UnreachableProviderDeploymentsCloserService {
   private readonly logger: ReturnType<CreateLogger>;
@@ -82,11 +71,7 @@ export class UnreachableProviderDeploymentsCloserService {
     return errors.length > 0 ? Err(errors) : Ok(undefined);
   }
 
-  /**
-   * A deployment qualifies only when every one of its active leases sits on an unreachable provider.
-   * Where several are dark, the longest outage is the one reported, so the host named and the age
-   * beside it come from the same outage.
-   */
+  /** Where several leases are dark, the longest outage is the one reported, so the host named and the age beside it come from the same outage. */
   async #findFullyDarkDeployments(outages: ProviderOutage[]): Promise<DarkDeployment[]> {
     if (outages.length === 0) return [];
 
@@ -185,10 +170,7 @@ export class UnreachableProviderDeploymentsCloserService {
     return true;
   }
 
-  /**
-   * Marking the setting happens after the close, so a database that refuses it is collected rather than
-   * thrown: the owner would otherwise lose the email explaining a close that already happened.
-   */
+  /** A database that refuses the marking is collected rather than thrown, or the owner loses the email explaining a close that already happened. */
   async #recordClosed(deployment: DarkDeployment, wallet: { userId: string }, errors: unknown[]): Promise<void> {
     try {
       await this.deploymentSettingRepository.markClosed({ userId: wallet.userId, dseq: deployment.dseq });
@@ -203,11 +185,7 @@ export class UnreachableProviderDeploymentsCloserService {
     }
   }
 
-  /**
-   * The deployment is already closed on chain by the time this runs, so a queue that refuses the job is
-   * collected rather than thrown: reversing the close is not on the table, and the sweep must not report
-   * a close that happened as a close that failed.
-   */
+  /** The close is already on chain by the time this runs, so a queue that refuses the job is collected rather than thrown. */
   async #notifyOwner(deployment: DarkDeployment, wallet: { id: number; userId: string }, errors: unknown[]): Promise<void> {
     try {
       await this.jobQueueService.enqueue(

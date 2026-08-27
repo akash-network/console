@@ -78,6 +78,30 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
     expect(notificationService.createNotification).toHaveBeenCalledTimes(1);
   });
 
+  it("promises an automatic close when every lease of the deployment is dark", async () => {
+    const { service, notificationService } = setup({
+      outages: [anOutage({})],
+      leases: [aLease({})]
+    });
+
+    await service.notifyUnreachableProviderDeployments({ dryRun: false });
+
+    const [{ payload }] = notificationService.createNotification.mock.calls[0];
+    expect(payload.description).toContain(`${CLOSE_AFTER_DAYS} days`);
+  });
+
+  it("promises no automatic close when the deployment still holds a lease on a healthy provider", async () => {
+    const { service, notificationService } = setup({
+      outages: [anOutage({})],
+      leases: [aLease({}), aLease({ providerAddress: HEALTHY_PROVIDER })]
+    });
+
+    await service.notifyUnreachableProviderDeployments({ dryRun: false });
+
+    const [{ payload }] = notificationService.createNotification.mock.calls[0];
+    expect(payload.description).not.toContain("we will close the deployment for you");
+  });
+
   it("reports the longest of several outages so the age names the real problem", async () => {
     const { service, deploymentSettingRepository } = setup({
       outages: [anOutage({}), anOutage({ provider: HEALTHY_PROVIDER, hostUri: "https://other:8443", startedAt: LONGER_OUTAGE_SINCE })],
