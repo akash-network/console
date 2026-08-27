@@ -216,7 +216,7 @@ describe(SdlSecretsUnsealerService.name, () => {
     const parts = (await seal({ TOKEN: "t" })).split(".");
     parts[3] = Buffer.from("tampered").toString("base64url");
 
-    await expect(open(parts.join("."))).rejects.toThrow();
+    await expect(open(parts.join("."))).rejects.toMatchObject({ status: 400 });
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "SDL_SECRETS_SEAL_TAMPERED" }));
   });
 
