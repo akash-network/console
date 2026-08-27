@@ -53,12 +53,12 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     expect(close).not.toHaveBeenCalled();
   });
 
-  it("records a close the chain had already settled without telling the owner about it", async () => {
+  it("still tells the owner when the close had already landed on chain", async () => {
     const { handler, enqueue, deploymentSettingRepository, deployment, user } = await setup({ alreadyClosedOnChain: true });
 
     await handler.handle({ owner: deployment.owner, dseq: deployment.dseq, version: 1 });
 
-    expect(enqueue).not.toHaveBeenCalled();
+    expect(enqueue).toHaveBeenCalledTimes(1);
     const setting = await deploymentSettingRepository.findOneBy({ userId: user.id, dseq: deployment.dseq });
     expect(setting?.closed).toBe(true);
   });

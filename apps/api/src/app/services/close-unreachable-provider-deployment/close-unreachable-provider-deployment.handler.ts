@@ -19,7 +19,7 @@ import { NotificationJob } from "@src/notifications/services/notification-handle
 /** How long a close the chain is not ready to settle waits before it is tried again. */
 const RETRY_DELAY_MS = minutesToMilliseconds(15);
 
-/** The job carries only the deployment's identity, so one that waited out a long escrow retry decides on what is true when it runs. */
+/** Whether the deployment is still ours to close is re-read here, so a job that waited out a long escrow retry decides on what is true when it runs. */
 @singleton()
 export class CloseUnreachableProviderDeploymentHandler implements JobHandler<CloseUnreachableProviderDeploymentCommand> {
   public readonly accepts = CloseUnreachableProviderDeploymentCommand;
@@ -87,11 +87,10 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
       throw error;
     }
 
-    await this.#recordAndNotify(deployment, wallet, closedByUs);
+    await this.#recordAndNotify(deployment, wallet);
 
     if (!closedByUs) {
-      this.logger.debug({ event: "UNREACHABLE_PROVIDER_DEPLOYMENT_CLOSE_SKIPPED", reason: "ALREADY_CLOSED_ON_CHAIN", dseq, owner });
-      return;
+      this.logger.info({ event: "UNREACHABLE_PROVIDER_DEPLOYMENT_CLOSE_LANDED_ELSEWHERE", dseq, owner });
     }
 
     this.logger.info({
@@ -103,12 +102,10 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
     });
   }
 
-  /** One transaction, so a deployment is never recorded as closed without the email explaining it queued alongside. */
-  async #recordAndNotify(deployment: DarkDeployment, wallet: { id: number; userId: string }, closedByUs: boolean): Promise<void> {
+  /** One transaction, so a deployment is never recorded as closed without the email explaining it queued alongside, and never told twice. */
+  async #recordAndNotify(deployment: DarkDeployment, wallet: { id: number; userId: string }): Promise<void> {
     await this.txService.transaction(async () => {
       await this.deploymentSettingRepository.markClosed({ userId: wallet.userId, dseq: deployment.dseq });
-
-      if (!closedByUs) return;
 
       await this.jobQueueService.enqueue(
         new NotificationJob({

@@ -113,12 +113,21 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     expect(closeJobService.schedule).not.toHaveBeenCalled();
   });
 
-  it("records a close that had already happened on chain without telling the owner about it", async () => {
+  it("still tells the owner when the close had already landed on chain, since a retry of its own broadcast looks the same", async () => {
     const { handler, deploymentSettingRepository, jobQueueService } = setup({ alreadyClosedOnChain: true });
 
     await handler.handle(aPayload());
 
     expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: USER_ID, dseq: DSEQ });
+    expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it("queues the email in the same transaction as the record, so neither can land without the other", async () => {
+    const { handler, deploymentSettingRepository, jobQueueService, txService } = setup();
+    txService.transaction.mockRejectedValue(new Error("deadlock detected"));
+
+    await expect(handler.handle(aPayload())).rejects.toThrow("deadlock detected");
+    expect(deploymentSettingRepository.markClosed).not.toHaveBeenCalled();
     expect(jobQueueService.enqueue).not.toHaveBeenCalled();
   });
 
