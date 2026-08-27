@@ -225,7 +225,7 @@ describe(UnreachableProviderDeploymentsCloserService.name, () => {
       PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS: CLOSE_AFTER_DAYS,
       DEPLOY_WEB_BASE_URL
     });
-    const createLogger = (() => mock<ReturnType<CreateLogger>>()) as unknown as CreateLogger;
+    const createLogger = vi.fn<CreateLogger>(() => mock<ReturnType<CreateLogger>>());
 
     const service = new UnreachableProviderDeploymentsCloserService(
       providerOutagesHttpService,

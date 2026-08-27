@@ -32,7 +32,7 @@ describe(providerUnreachableNotification.name, () => {
     expect(result.user).toEqual({ id: "user-123", email: "user@example.com" });
   });
 
-  it("leaves out the closure promise when only part of the deployment is dark", () => {
+  it("makes the closure promise conditional on every provider staying dark", () => {
     const user = createUser({ id: "user-123", email: "user@example.com" });
 
     const result = providerUnreachableNotification(user, {
@@ -40,11 +40,11 @@ describe(providerUnreachableNotification.name, () => {
       owner: "akash1owner",
       hostUri: "https://dark:8443",
       downSince: subDays(new Date(), 5).toISOString(),
+      closeAfterDays: CLOSE_AFTER_DAYS,
       deploymentUrl: DEPLOYMENT_URL
     });
 
-    expect(result.payload.description).not.toContain("we will close the deployment for you");
-    expect(result.payload.description).toContain(`<a href="${DEPLOYMENT_URL}">Close the deployment</a>`);
+    expect(result.payload.description).toContain("If every provider hosting this deployment is still unreachable");
   });
 
   it("escapes a host uri the provider declared with markup in it", () => {

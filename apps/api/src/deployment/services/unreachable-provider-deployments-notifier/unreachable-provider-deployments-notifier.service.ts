@@ -18,7 +18,6 @@ interface DarkDeployment {
   dseq: string;
   hostUri: string;
   downSince: string;
-  isFullyDark: boolean;
 }
 
 /** Managed wallets only, since a self-custody deployment has no account behind its address and so nobody to email. */
@@ -96,8 +95,7 @@ export class UnreachableProviderDeploymentsNotifierService {
         owner,
         dseq,
         hostUri: longestOutage.hostUri,
-        downSince: longestOutage.startedAt,
-        isFullyDark: deploymentOutages.length === deploymentLeases.length
+        downSince: longestOutage.startedAt
       });
     }
 
@@ -176,7 +174,7 @@ export class UnreachableProviderDeploymentsNotifierService {
           owner: deployment.owner,
           hostUri: deployment.hostUri,
           downSince: deployment.downSince,
-          closeAfterDays: deployment.isFullyDark ? this.config.get("PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS") : undefined,
+          closeAfterDays: this.config.get("PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS"),
           deploymentUrl: this.#deploymentUrl(deployment.dseq)
         })
       );
