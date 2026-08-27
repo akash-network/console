@@ -10,7 +10,7 @@ import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import type { PlacementVerificationRefType } from "./PlacementVerificationFormControl";
 import { PlacementVerificationFormControl } from "./PlacementVerificationFormControl";
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(PlacementVerificationFormControl.name, () => {
@@ -42,11 +42,12 @@ describe(PlacementVerificationFormControl.name, () => {
     expect(screen.getByText("Any provider may bid")).toBeInTheDocument();
   });
 
-  it("updates the tier and its concise meaning", () => {
+  it("updates the tier and its concise meaning", async () => {
+    const user = userEvent.setup();
     const { form } = setup({ verification: buildVerification() });
 
-    fireEvent.click(screen.getByRole("combobox", { name: "Minimum verification tier" }));
-    fireEvent.click(screen.getByRole("option", { name: "L3 - Established" }));
+    await user.click(screen.getByRole("combobox", { name: "Minimum verification tier" }));
+    await user.click(screen.getByRole("option", { name: "L3 - Established" }));
 
     expect(form().getValues("placements.0.verification.minTier")).toBe(3);
     expect(screen.getByText("Sustained reliability checked")).toBeInTheDocument();
@@ -85,8 +86,8 @@ describe(PlacementVerificationFormControl.name, () => {
 
     await user.click(screen.getByRole("button", { name: "Add auditor" }));
     await user.type(screen.getByRole("textbox", { name: "Auditor 1" }), "akash1auditor");
-    fireEvent.click(screen.getByRole("combobox", { name: "Named auditor policy" }));
-    fireEvent.click(screen.getByRole("option", { name: "All listed auditors" }));
+    await user.click(screen.getByRole("combobox", { name: "Named auditor policy" }));
+    await user.click(screen.getByRole("option", { name: "All listed auditors" }));
 
     expect(form().getValues("placements.0.verification.auditors.0.value")).toBe("akash1auditor");
     expect(form().getValues("placements.0.verification.auditorMode")).toBe("all");
