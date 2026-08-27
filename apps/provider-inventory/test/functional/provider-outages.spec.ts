@@ -73,6 +73,14 @@ describe("GET /v1/provider-outages", () => {
     expect(response.status).toBe(400);
   });
 
+  it("rejects an age too large for postgres to turn into an interval", async () => {
+    const { request } = await setup();
+
+    const response = await request("/v1/provider-outages?minAgeDays=9007199254740991");
+
+    expect(response.status).toBe(400);
+  });
+
   async function setup() {
     const app = new Hono<AppEnv>();
     app.route("/", providerOutagesRouter);

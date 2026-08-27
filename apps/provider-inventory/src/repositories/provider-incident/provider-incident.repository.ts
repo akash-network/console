@@ -85,11 +85,7 @@ export class ProviderIncidentRepository {
     `;
   }
 
-  /**
-   * Opens an incident for a provider that just failed to answer, or — when one is already open —
-   * records that the provider was dialled again, which is how consumers tell an outage that is
-   * still being observed from one abandoned by a stalled service.
-   */
+  /** Re-dialling an open incident bumps lastAttemptAt, which is how consumers tell a live outage from one abandoned by a stalled service. */
   async openIncident(provider: string): Promise<void> {
     await this.driver
       .getDb()

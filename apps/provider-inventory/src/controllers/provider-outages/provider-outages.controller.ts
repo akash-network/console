@@ -1,7 +1,7 @@
 import { singleton } from "tsyringe";
 
+import type { ProviderOutagesRequest, ProviderOutagesResponse } from "@src/http-schemas/provider-outages.schema";
 import { ProviderIncidentRepository } from "@src/repositories/provider-incident/provider-incident.repository";
-import type { ProviderOutagesRequest, ProviderOutagesResponse } from "../../http-schemas/provider-outages.schema";
 
 @singleton()
 export class ProviderOutagesController {

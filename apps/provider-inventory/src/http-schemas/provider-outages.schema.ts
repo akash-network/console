@@ -1,10 +1,13 @@
 import { z } from "@hono/zod-openapi";
 
+const MAX_OUTAGE_AGE_DAYS = 365;
+
 export const ProviderOutagesRequestSchema = z.object({
   minAgeDays: z
     .number({ coerce: true })
     .int()
     .nonnegative()
+    .max(MAX_OUTAGE_AGE_DAYS)
     .openapi({ description: "Only return outages that started at least this many days ago", example: 3 })
 });
 export type ProviderOutagesRequest = z.infer<typeof ProviderOutagesRequestSchema>;
