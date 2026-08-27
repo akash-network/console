@@ -1,0 +1,1 @@
+ALTER TABLE "provider_inventory" ADD COLUMN "verification" jsonb;
