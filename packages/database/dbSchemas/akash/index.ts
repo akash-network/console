@@ -14,6 +14,24 @@ export { Bid } from "./bid";
 export { BmeLedgerRecord } from "./bmeLedgerRecord";
 export { BmeRawEvent } from "./bmeRawEvent";
 export { BmeStatusChange } from "./bmeStatusChange";
+export { ProviderMaintenance } from "./providerMaintenance";
+export { VerificationAttestation } from "./verificationAttestation";
+export { VerificationAttestationCapability } from "./verificationAttestationCapability";
+export { VerificationAuditEscrow } from "./verificationAuditEscrow";
+export { VerificationAuditEscrowCapability } from "./verificationAuditEscrowCapability";
+export { VerificationAuditor } from "./verificationAuditor";
+export { VerificationBlockEvent } from "./verificationBlockEvent";
+export { VerificationDiscrepancy } from "./verificationDiscrepancy";
+export { VerificationGrace } from "./verificationGrace";
+export { VerificationGraceDiscrepancy } from "./verificationGraceDiscrepancy";
+export { VerificationParams } from "./verificationParams";
+export { VerificationProviderBond } from "./verificationProviderBond";
+export { VerificationProviderBondUnbonding } from "./verificationProviderBondUnbonding";
+export { VerificationProviderObservation } from "./verificationProviderObservation";
+export { VerificationProviderSnapshot } from "./verificationProviderSnapshot";
+export { VerificationProviderTierDemotion } from "./verificationProviderTierDemotion";
+export { VerificationProviderTierStream } from "./verificationProviderTierStream";
+export { VerificationReconcileTarget } from "./verificationReconcileTarget";
 
 // Overrides
 export { AkashBlock } from "./akashBlock";
