@@ -2,6 +2,8 @@
 import { useMemo } from "react";
 
 import { DynamicReactJson } from "../DynamicJsonView";
+import { Aep86RecordView } from "./akash/aep86/Aep86RecordView";
+import { isAep86MessageType } from "./akash/aep86/aep86Types";
 import * as akashMessages from "./akash";
 import * as cosmosMessages from "./generic";
 
@@ -53,6 +55,10 @@ type TxMessageProps = {
   message: TransactionMessage;
 };
 const TxMessage: React.FunctionComponent<TxMessageProps> = ({ message }) => {
+  if (isAep86MessageType(message.type)) {
+    return <Aep86RecordView data={message.data} />;
+  }
+
   const [namespace, ...typeDetails] = message.type.split(".");
   const version = typeDetails[typeDetails.length - 2];
   const name = typeDetails[typeDetails.length - 1];
