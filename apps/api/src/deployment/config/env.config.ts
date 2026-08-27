@@ -90,6 +90,10 @@ export const envSchema = z
      * warned about almost as soon as it is set, which tells the user nothing they did not just decide.
      */
     RUNTIME_LIMIT_WARNING_MIN_LIMIT_IN_H: z.number({ coerce: true }).positive().finite().optional().default(12),
+    /** An outage the inventory has not re-checked within this window describes the past, not the present, so the sweeps refuse it. */
+    PROVIDER_OUTAGE_FRESHNESS_WINDOW_IN_H: z.number({ coerce: true }).positive().finite().optional().default(3),
+    /** Base URL of the provider inventory service, which owns the record of who is currently unreachable. */
+    PROVIDER_INVENTORY_API_URL: z.string().url(),
     /** Base URL of the web console, used to deep-link emails at a deployment or account page. */
     DEPLOY_WEB_BASE_URL: z.string().url(),
     PROVIDER_PROXY_URL: z.string().url(),
