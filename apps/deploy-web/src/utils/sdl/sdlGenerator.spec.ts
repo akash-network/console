@@ -94,6 +94,51 @@ describe("sdlGenerator", () => {
       expect(parsedAny.profiles.placement["dcloud"].attributes?.["location-region"]).toBeUndefined();
     });
 
+    it("emits verification requirements alongside legacy signedBy", () => {
+      const formValues = buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" }));
+      formValues.placements[0].signedBy = { anyOf: [{ value: "akash1legacy" }], allOf: [] };
+      formValues.placements[0].verification = {
+        minTier: 3,
+        capabilities: ["persistent_storage", "bare_metal"],
+        auditors: [{ value: "akash1auditor1" }, { value: "akash1auditor2" }],
+        auditorMode: "all",
+        minAuditorCount: 2
+      };
+
+      const parsed = yaml.load(generateSdl(formValues)) as {
+        profiles: { placement: Record<string, { signedBy?: unknown; verification?: unknown }> };
+      };
+
+      expect(parsed.profiles.placement.dcloud).toMatchObject({
+        signedBy: { anyOf: ["akash1legacy"] },
+        verification: {
+          min_tier: 3,
+          capabilities: ["persistent_storage", "bare_metal"],
+          auditors: ["akash1auditor1", "akash1auditor2"],
+          auditor_mode: "all",
+          min_auditor_count: 2
+        }
+      });
+    });
+
+    it("omits verification when the placement has no requirement", () => {
+      const parsed = yaml.load(generateSdl(buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" })))) as {
+        profiles: { placement: Record<string, { verification?: unknown }> };
+      };
+
+      expect(parsed.profiles.placement.dcloud.verification).toBeUndefined();
+    });
+
+    it("omits empty optional verification collections", () => {
+      const formValues = buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" }));
+      formValues.placements[0].verification = { minTier: 1, capabilities: [], auditors: [] };
+      const parsed = yaml.load(generateSdl(formValues)) as {
+        profiles: { placement: Record<string, { verification: Record<string, unknown> }> };
+      };
+
+      expect(parsed.profiles.placement.dcloud.verification).toEqual({ min_tier: 1 });
+    });
+
     it("throws when a service references a placementId that does not exist", () => {
       const formValues = {
         placements: [{ id: "p-1", name: "dcloud" }],

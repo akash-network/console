@@ -1,4 +1,5 @@
 import type { FC, ReactNode } from "react";
+import { useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Button, CustomTooltip, Snackbar } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
@@ -18,6 +19,7 @@ import { useDeploymentCost } from "../useDeploymentCost/useDeploymentCost";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import type { QuoteExpiry } from "../useQuoteExpiry/useQuoteExpiry";
 import { useQuoteExpiry } from "../useQuoteExpiry/useQuoteExpiry";
+import { useVerificationProviderPreflight } from "./verificationProviderPreflight";
 
 export const DEPENDENCIES = {
   useDeploymentResourceSummary,
@@ -32,7 +34,8 @@ export const DEPENDENCIES = {
   PriceValue,
   useQuoteExpiry,
   CustomTooltip,
-  useTrialGate
+  useTrialGate,
+  useVerificationProviderPreflight
 };
 
 type Props = { flow: DeploymentFlow; sdl: string; onDeploy: () => void; allPlacementsHaveBids: boolean; dependencies?: typeof DEPENDENCIES };
@@ -43,6 +46,8 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, onDeploy, allP
   const { control, handleSubmit, getValues } = useFormContext<SdlBuilderFormValuesType>();
   const { enqueueSnackbar } = d.useSnackbar();
   const { isRestricted } = d.useTrialGate();
+  const checkVerificationProviderAvailability = d.useVerificationProviderPreflight();
+  const [isCheckingProviders, setIsCheckingProviders] = useState(false);
   const placements = useWatch({ control, name: "placements" });
   const cost = d.useDeploymentCost({ dseq: flow.dseq, sdl, placements, selections: flow.selections });
   const expiry = d.useQuoteExpiry({ dseq: flow.dseq, enabled: flow.phase === "quoting" });
@@ -71,7 +76,7 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, onDeploy, allP
    * Either failure surfaces the errors to the user; otherwise the same freshly generated SDL is what gets
    * submitted, so validation and creation can never disagree about which spec they acted on.
    */
-  const onRequestQuotes = handleSubmit(values => {
+  const onRequestQuotes = handleSubmit(async values => {
     const sdl = d.generateSdl(values);
     const errors = [...d.validateGeneratedSdl(sdl)];
     // Load-bearing trial guard: enabling the GPU card leaves the model at the empty default without ever
@@ -97,6 +102,38 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, onDeploy, allP
       );
       return;
     }
+
+    if (values.placements.some(placement => placement.verification !== undefined)) {
+      setIsCheckingProviders(true);
+      try {
+        const unavailablePlacements = await checkVerificationProviderAvailability({ sdl, placements: values.placements });
+        if (unavailablePlacements.length > 0) {
+          enqueueSnackbar(
+            <d.Snackbar
+              title="No matching providers"
+              subTitle={
+                <ul className="list-disc pl-4">
+                  {unavailablePlacements.map(placement => (
+                    <li key={placement}>{placement}: No providers currently meet its resources and verification requirements.</li>
+                  ))}
+                </ul>
+              }
+              iconVariant="error"
+            />,
+            { variant: "error" }
+          );
+          return;
+        }
+      } catch {
+        enqueueSnackbar(<d.Snackbar title="Provider availability couldn't be checked" subTitle="Try again before requesting quotes." iconVariant="error" />, {
+          variant: "error"
+        });
+        return;
+      } finally {
+        setIsCheckingProviders(false);
+      }
+    }
+
     flow.actions.requestQuotes(sdl);
   });
 
@@ -125,8 +162,9 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, onDeploy, allP
           </div>
         </div>
         {isEditable ? (
-          <Button type="button" onClick={onRequestQuotes} className="h-9 shrink-0 px-3 md:h-10 md:px-8">
-            Request quotes
+          <Button type="button" onClick={onRequestQuotes} disabled={isCheckingProviders} className="h-9 shrink-0 gap-2 px-3 md:h-10 md:px-8">
+            {isCheckingProviders && <LoaderCircle className="h-4 w-4 animate-spin text-current" aria-hidden="true" />}
+            {isCheckingProviders ? "Checking providers…" : "Request quotes"}
           </Button>
         ) : quotesExpired && !hasOpenBids ? (
           <Button type="button" onClick={flow.actions.cancelAndEdit} className="h-9 shrink-0 px-3 md:h-10 md:px-8">

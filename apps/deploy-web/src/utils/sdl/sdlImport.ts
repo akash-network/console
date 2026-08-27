@@ -7,6 +7,15 @@ import { CustomValidationError } from "../deploymentData";
 import { capitalizeFirstLetter } from "../stringUtils";
 import { defaultHttpOptions } from "./data";
 
+type PlacementVerification = NonNullable<PlacementType["verification"]>;
+type SdlVerificationRequirement = {
+  min_tier: number;
+  capabilities?: PlacementVerification["capabilities"];
+  auditors?: string[];
+  auditor_mode?: PlacementVerification["auditorMode"];
+  min_auditor_count?: number;
+};
+
 /** YAML parses unquoted scalars like `0` or `false` into native types, so tokens are stringified instead of filtered as falsy. */
 export const parseSvcCommand = (command?: string | (string | number | boolean)[]): string => {
   if (!command) {
@@ -271,6 +280,23 @@ function hydratePlacement(id: string, name: string, profile: any): PlacementType
     signedBy: {
       anyOf: profile.signedBy?.anyOf ? profile.signedBy.anyOf.map((x: string) => ({ id: nanoid(), value: x })) : [],
       allOf: profile.signedBy?.allOf ? profile.signedBy.allOf.map((x: string) => ({ id: nanoid(), value: x })) : []
-    }
+    },
+    verification: hydrateVerification(profile.verification as SdlVerificationRequirement | undefined)
   };
+}
+
+function hydrateVerification(verification: SdlVerificationRequirement | undefined): PlacementType["verification"] {
+  if (!verification || isVacuousVerification(verification)) return undefined;
+
+  return {
+    minTier: verification.min_tier,
+    capabilities: verification.capabilities,
+    auditors: verification.auditors?.map(value => ({ id: nanoid(), value })),
+    auditorMode: verification.auditor_mode,
+    minAuditorCount: verification.min_auditor_count
+  };
+}
+
+function isVacuousVerification(verification: SdlVerificationRequirement): boolean {
+  return verification.min_tier === 0 && !verification.capabilities?.length && !verification.auditors?.length && (verification.min_auditor_count ?? 0) === 0;
 }

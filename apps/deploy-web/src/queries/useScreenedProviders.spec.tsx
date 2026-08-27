@@ -1,3 +1,4 @@
+import { AuditorSelectionMode, CapabilityFlag, VerificationTier } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { createProxy } from "@akashnetwork/react-query-proxy";
 import { keepPreviousData, type UseQueryResult } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
@@ -44,13 +45,29 @@ deployment:
       count: 1
 `;
 
+const VERIFICATION_SDL = HELLO_WORLD_SDL.replace(
+  "      pricing:",
+  `      signedBy:
+        anyOf:
+          - akash1legacy
+      verification:
+        min_tier: 2
+        capabilities:
+          - persistent_storage
+        auditors:
+          - akash1auditor
+        auditor_mode: all
+        min_auditor_count: 1
+      pricing:`
+);
+
 describe("useScreenedProviders", () => {
-  it("screens the given placement's group spec, audited-only", () => {
+  it("screens the given placement without adding an auditor policy", () => {
     const { useQuery } = setup({ placementName: "dcloud" });
 
     expect(useQuery).toHaveBeenCalledWith(
       expect.objectContaining({
-        requirements: { signedBy: { allOf: [AUDITOR] }, attributes: [] },
+        requirements: { signedBy: { allOf: [], anyOf: [] }, attributes: [] },
         resources: expect.arrayContaining([expect.objectContaining({ count: 1 })])
       }),
       expect.anything()
@@ -76,6 +93,28 @@ describe("useScreenedProviders", () => {
     const { result } = setup({ placementName: "dcloud", providers });
 
     expect(result.current.providers).toEqual(providers);
+  });
+
+  it("returns structured verification exclusions from the query result", () => {
+    const exclusion = {
+      owner: "akash1excluded",
+      firstFailure: { code: "snapshot_stale" as const },
+      failures: [{ code: "snapshot_stale" as const }],
+      summary: {
+        bestStatusValidTier: VerificationTier.verification_tier_verified,
+        tierGateTier: VerificationTier.verification_tier_verified,
+        capabilities: [],
+        validAttestationCount: 1,
+        validAuditors: ["akash1auditor"],
+        snapshotState: "stale" as const,
+        observedHeight: "123"
+      }
+    };
+    const { result } = setup({ placementName: "dcloud", exclusions: [exclusion] });
+
+    expect(result.current.exclusions).toHaveLength(1);
+    expect(result.current.exclusions[0].owner).toBe("akash1excluded");
+    expect(result.current.exclusions[0].firstFailure.code).toBe("snapshot_stale");
   });
 
   it("requests the previous data as a placeholder so the list refines in place instead of blanking", () => {
@@ -120,10 +159,17 @@ describe("useScreenedProviders", () => {
     }
   });
 
-  function setup(input: { placementName: string; sdl?: string; region?: string; providers?: ScreenedProvider[]; enabled?: boolean }) {
+  function setup(input: {
+    placementName: string;
+    sdl?: string;
+    region?: string;
+    providers?: ScreenedProvider[];
+    exclusions?: ScreenedProvidersResponse["exclusions"];
+    enabled?: boolean;
+  }) {
     const useQuery = vi.fn().mockReturnValue(
       mock<UseQueryResult<ScreenedProvidersResponse>>({
-        data: { providers: input.providers ?? [] },
+        data: { providers: input.providers ?? [], exclusions: input.exclusions },
         isLoading: false,
         isError: false
       })
@@ -179,11 +225,27 @@ deployment:
 `;
 
 describe("buildPlacementScreeningRequest", () => {
-  it("builds an audited request from the matching placement group spec", () => {
+  it("builds a request from the matching placement without adding signedBy", () => {
     const request = buildPlacementScreeningRequest(HELLO_WORLD_SDL, "dcloud");
 
-    expect(request).toMatchObject({ requirements: { signedBy: { allOf: [AUDITOR] } } });
+    expect(request).toMatchObject({ requirements: { signedBy: { allOf: [], anyOf: [] } } });
     expect(request?.resources[0].resource.cpu.units.val).toBeTruthy();
+  });
+
+  it("preserves signedBy and verification as independent placement policies", () => {
+    const request = buildPlacementScreeningRequest(VERIFICATION_SDL, "dcloud");
+
+    expect(request?.requirements).toEqual({
+      signedBy: { allOf: [], anyOf: ["akash1legacy"] },
+      attributes: [],
+      verification: {
+        minTier: VerificationTier.verification_tier_verified,
+        requiredCapabilities: [CapabilityFlag.capability_persistent_storage],
+        requiredAuditors: ["akash1auditor"],
+        auditorMode: AuditorSelectionMode.auditor_selection_mode_all,
+        minAuditorCount: 1
+      }
+    });
   });
 
   it("substitutes a placeholder image so an image-less spec still screens its own resources", () => {

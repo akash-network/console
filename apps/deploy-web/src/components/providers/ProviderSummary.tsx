@@ -8,6 +8,7 @@ import { Uptime } from "@src/components/providers/Uptime";
 import { FavoriteButton } from "@src/components/shared/FavoriteButton";
 import { LabelValue } from "@src/components/shared/LabelValue";
 import { StatusPill } from "@src/components/shared/StatusPill";
+import { useFlag } from "@src/hooks/useFlag";
 import type { ApiProviderList, ClientProviderDetailWithStatus } from "@src/types/provider";
 import { ProviderMap } from "./ProviderMap";
 
@@ -17,6 +18,7 @@ type Props = {
 
 export const ProviderSummary: React.FunctionComponent<Props> = ({ provider }) => {
   const { favoriteProviders, updateFavoriteProviders } = useLocalNotes();
+  const isProviderVerificationEnabled = useFlag("provider_verification");
   const isFavorite = favoriteProviders.some(x => provider.owner === x);
 
   const onStarClick: MouseEventHandler = event => {
@@ -50,7 +52,7 @@ export const ProviderSummary: React.FunctionComponent<Props> = ({ provider }) =>
 
             <LabelValue label="Favorite" value={<FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />} />
             <LabelValue
-              label="Audited"
+              label={isProviderVerificationEnabled ? "Legacy audit" : "Audited"}
               value={
                 provider.isAudited ? (
                   <div className="inline-flex items-center space-x-2">

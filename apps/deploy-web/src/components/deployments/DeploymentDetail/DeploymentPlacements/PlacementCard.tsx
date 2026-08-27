@@ -4,8 +4,10 @@ import { useState } from "react";
 import { MapPin, NavArrowRight, Server } from "iconoir-react";
 import Link from "next/link";
 
+import { useFlag } from "@src/hooks/useFlag";
 import { useTeeResourceCarveouts } from "@src/hooks/useTeeResourceCarveouts";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
+import { useProviderDetail } from "@src/queries/useProvidersQuery";
 import { isProviderUnavailableError } from "@src/services/query-error-policy/query-error-policy";
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
@@ -25,14 +27,19 @@ import { formatGpuLabel, getPlacementGpuModels, getPlacementName, getProviderReg
 import { PlacementServiceRow } from "./PlacementServiceRow";
 import type { PlacementStat } from "./PlacementStats";
 import { PlacementStats } from "./PlacementStats";
+import { getPlacementSecurityPolicy } from "./placementVerificationModel";
+import { PlacementVerificationPanel } from "./PlacementVerificationPanel";
 
 export const DEPENDENCIES = {
+  useFlag,
   useLeaseStatus,
+  useProviderDetail,
   useTeeResourceCarveouts,
   ReclamationCard,
   ConfidentialComputeResources,
   DownloadAttestationEvidence,
-  PlacementServiceRow
+  PlacementServiceRow,
+  PlacementVerificationPanel
 };
 
 export interface PlacementCardProps {
@@ -66,6 +73,10 @@ export const PlacementCard: FC<PlacementCardProps> = ({
   const isLeaseStatusPending = isLeaseActive && !!provider && isLoading;
   const isProviderUnreachable = isLeaseActive && isProviderUnavailableError(leaseStatusError);
   const carveouts = d.useTeeResourceCarveouts(lease);
+  const isProviderVerificationEnabled = d.useFlag("provider_verification");
+  const { data: providerDetail } = d.useProviderDetail(provider?.owner ?? "", {
+    enabled: isProviderVerificationEnabled && !!provider?.owner
+  });
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
 
   const isReclaimed = isProviderReclaimed(lease);
@@ -76,6 +87,7 @@ export const PlacementCard: FC<PlacementCardProps> = ({
   const services = placementServices ?? manifestServices;
   const serviceNames = leaseStatus ? Object.keys(leaseStatus.services) : Object.keys(services);
   const providerName = provider ? providerDisplayName(provider) : undefined;
+  const securityPolicy = getPlacementSecurityPolicy(lease.group);
   const allExpanded = serviceNames.length > 0 && serviceNames.every(serviceName => expanded.has(serviceName));
 
   function toggleAll() {
@@ -128,6 +140,10 @@ export const PlacementCard: FC<PlacementCardProps> = ({
           <PlacementStats stats={buildPlacementStats(lease, serviceNames.length, gpuModels)} />
         </div>
       </div>
+
+      {isProviderVerificationEnabled && (
+        <d.PlacementVerificationPanel placementName={name} policy={securityPolicy} verification={providerDetail?.verification} />
+      )}
 
       {(isReclaimed || carveouts.length > 0 || (isLeaseActive && !!provider && !!teeType)) && (
         <div className="space-y-4 px-6 pt-6">

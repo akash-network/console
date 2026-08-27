@@ -9,6 +9,7 @@ import { InfoCircle } from "iconoir-react";
 
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { useSupportedDenoms } from "@src/hooks/useDenom";
+import { useFlag } from "@src/hooks/useFlag";
 import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth, toReadableDenom, uaktToAKT } from "@src/utils/priceUtils";
@@ -17,6 +18,8 @@ import { USDLabel } from "../shared/UsdLabel";
 import type { AttributesRefType } from "./AttributesFormControl";
 import { AttributesFormControl } from "./AttributesFormControl";
 import { FormPaper } from "./FormPaper";
+import type { PlacementVerificationRefType } from "./PlacementVerificationFormControl";
+import { PlacementVerificationFormControl } from "./PlacementVerificationFormControl";
 import type { SignedByRefType } from "./SignedByFormControl";
 import { SignedByFormControl } from "./SignedByFormControl";
 
@@ -32,6 +35,8 @@ type Props = {
 export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, services, serviceIndex, onClose, placement: _placement }) => {
   const signedByRef = useRef<SignedByRefType>(null);
   const attritubesRef = useRef<AttributesRefType>(null);
+  const verificationRef = useRef<PlacementVerificationRefType>(null);
+  const isProviderVerificationEnabled = useFlag("provider_verification");
   const supportedSdlDenoms = useSupportedDenoms();
   const currentService = services[serviceIndex];
   const placementIndex = usePlacementIndexForService(control, serviceIndex);
@@ -41,6 +46,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
     const attributesToRemove: number[] = [];
     const signedByAnyToRemove: number[] = [];
     const signedByAllToRemove: number[] = [];
+    const verificationAuditorsToRemove: number[] = [];
 
     _placement.attributes?.forEach((e, i) => {
       if (!e.key.trim() || !e.value?.trim()) {
@@ -60,9 +66,16 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
       }
     });
 
+    _placement.verification?.auditors?.forEach((auditor, index) => {
+      if (!auditor.value.trim()) {
+        verificationAuditorsToRemove.push(index);
+      }
+    });
+
     attritubesRef.current?._removeAttribute(attributesToRemove);
     signedByRef.current?._removeSignedByAnyOf(signedByAnyToRemove);
     signedByRef.current?._removeSignedByAllOf(signedByAllToRemove);
+    verificationRef.current?.removeAuditors(verificationAuditorsToRemove);
 
     onClose();
   };
@@ -176,6 +189,8 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
               <AttributesFormControl control={control} placementIndex={placementIndex} attributes={_placement.attributes || []} ref={attritubesRef} />
             </div>
           </div>
+
+          {isProviderVerificationEnabled && <PlacementVerificationFormControl ref={verificationRef} control={control} placementIndex={placementIndex} />}
         </div>
       </FormPaper>
     </Popup>

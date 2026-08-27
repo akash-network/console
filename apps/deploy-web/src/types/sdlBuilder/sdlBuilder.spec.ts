@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { CredentialsSchema, EndpointSchema, EnvironmentVariableSchema, SdlBuilderFormValuesSchema, ServiceSchema, ServiceStorageSchema } from "./sdlBuilder";
+import {
+  CredentialsSchema,
+  EndpointSchema,
+  EnvironmentVariableSchema,
+  PlacementSchema,
+  SdlBuilderFormValuesSchema,
+  ServiceSchema,
+  ServiceStorageSchema
+} from "./sdlBuilder";
 
 describe("ServiceStorageSchema", () => {
   it("surfaces a friendly required message instead of the raw type error when size is cleared", () => {
@@ -54,6 +62,67 @@ describe("EnvironmentVariableSchema", () => {
     const result = EnvironmentVariableSchema.safeParse({ id: "user-1", key: "FOO", value: "bar" });
 
     expect(result.success).toBe(true);
+  });
+});
+
+describe("PlacementSchema", () => {
+  it("accepts verification requirements independently of legacy signedBy", () => {
+    const result = PlacementSchema.safeParse({
+      id: "p-1",
+      name: "dcloud",
+      signedBy: { anyOf: [{ value: "akash1legacy" }], allOf: [] },
+      verification: {
+        minTier: 3,
+        capabilities: ["persistent_storage", "bare_metal"],
+        auditors: [{ value: "akash1auditor" }],
+        auditorMode: "all",
+        minAuditorCount: 2
+      }
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it.each([0, 5, 1.5])("rejects verification tier %s at the form schema boundary", minTier => {
+    const result = PlacementSchema.safeParse({ id: "p-1", name: "dcloud", verification: { minTier } });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["verification", "minTier"] }));
+  });
+
+  it("rejects unknown verification capabilities at the form schema boundary", () => {
+    const result = PlacementSchema.safeParse({
+      id: "p-1",
+      name: "dcloud",
+      verification: { minTier: 1, capabilities: ["unknown_capability"] }
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["verification", "capabilities", 0] }));
+  });
+
+  it.each([4_294_967_296, -1, 1.5])("rejects verification auditor count %s outside protobuf uint32", minAuditorCount => {
+    const result = PlacementSchema.safeParse({ id: "p-1", name: "dcloud", verification: { minTier: 1, minAuditorCount } });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["verification", "minAuditorCount"] }));
+  });
+
+  it("accepts the maximum protobuf uint32 auditor count", () => {
+    const result = PlacementSchema.safeParse({ id: "p-1", name: "dcloud", verification: { minTier: 1, minAuditorCount: 4_294_967_295 } });
+
+    expect(result.success).toBe(true);
+  });
+
+  it.each([" auditor", "auditor ", "cosmos1auditor"])('rejects verification auditor address "%s" like the Go SDL parser', value => {
+    const result = PlacementSchema.safeParse({ id: "p-1", name: "dcloud", verification: { minTier: 1, auditors: [{ value }] } });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["verification", "auditors", 0, "value"] }));
   });
 });
 

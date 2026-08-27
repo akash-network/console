@@ -1,14 +1,25 @@
 import type { FC } from "react";
+import { useMemo } from "react";
 
+import { useFlag } from "@src/hooks/useFlag";
 import { useIsOnboarded } from "@src/hooks/useIsOnboarded";
 import { usePlacementOffers } from "@src/queries/usePlacementOffers";
+import { hasPlacementVerificationRequirement } from "@src/queries/useScreenedProviders";
 import { useDeploymentGpuCount } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
 import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
 import { MarketplaceProvidersTable } from "./MarketplaceProvidersTable/MarketplaceProvidersTable";
 import { useProviderSearch } from "./MarketplaceProvidersTable/useProviderSearch/useProviderSearch";
 import { ProviderSearchInput } from "./ProviderSearchInput/ProviderSearchInput";
 
-export const DEPENDENCIES = { usePlacementOffers, useProviderSearch, MarketplaceProvidersTable, ProviderSearchInput, useDeploymentGpuCount, useIsOnboarded };
+export const DEPENDENCIES = {
+  usePlacementOffers,
+  useProviderSearch,
+  MarketplaceProvidersTable,
+  ProviderSearchInput,
+  useDeploymentGpuCount,
+  useIsOnboarded,
+  useFlag
+};
 
 interface Props {
   sdl: string;
@@ -33,9 +44,18 @@ export const MarketplacePane: FC<Props> = ({
   onSelectProvider,
   dependencies: d = DEPENDENCIES
 }) => {
-  const { offers, isLoading, isError, isInvalid } = d.usePlacementOffers({ phase, dseq: dseq ?? undefined, sdl, placementName, region });
+  const isProviderVerificationEnabled = d.useFlag("provider_verification");
+  const { offers, exclusions, isLoading, isError, isInvalid } = d.usePlacementOffers({
+    phase,
+    dseq: dseq ?? undefined,
+    sdl,
+    placementName,
+    region,
+    verificationEnabled: isProviderVerificationEnabled
+  });
   const { query, setQuery, clear, filteredProviders, isSearchActive } = d.useProviderSearch(offers);
   const hasFailedWithoutData = isError && offers.length === 0;
+  const verificationRequired = useMemo(() => hasPlacementVerificationRequirement(sdl, placementName), [placementName, sdl]);
   const gpuCount = d.useDeploymentGpuCount(selectedPlacementId);
   /** Provider names link out only once the user is onboarded: the route gate bounces a not-yet-onboarded user back into the funnel, so the link would dead-end. */
   const showProviderLink = d.useIsOnboarded();
@@ -66,6 +86,9 @@ export const MarketplacePane: FC<Props> = ({
         ) : (
           <d.MarketplaceProvidersTable
             providers={filteredProviders}
+            exclusions={exclusions}
+            verificationEnabled={isProviderVerificationEnabled}
+            verificationRequired={verificationRequired}
             isLoading={isLoading}
             isSearchActive={isSearchActive}
             onClearSearch={clear}
