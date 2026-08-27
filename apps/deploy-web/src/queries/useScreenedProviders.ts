@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import type { VerificationRequirement } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { AuditorSelectionMode, CapabilityFlag, VerificationTier } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { generateManifest, type SDLInput, yaml } from "@akashnetwork/chain-sdk/web";
 import type { paths } from "@akashnetwork/console-api-types";
@@ -8,14 +10,52 @@ import { useServices } from "@src/context/ServicesProvider";
 import { usePacedValue } from "@src/hooks/usePacedValue/usePacedValue";
 import { AUDITOR } from "@src/utils/deploymentData/v1beta3";
 
-type ScreeningRequest = NonNullable<paths["/v1/bid-screening"]["post"]["requestBody"]>["content"]["application/json"];
+export type ScreeningRequest = NonNullable<paths["/v1/bid-screening"]["post"]["requestBody"]>["content"]["application/json"];
+type VerificationRequirementRequest = NonNullable<NonNullable<ScreeningRequest["requirements"]>["verification"]>;
 
 /** The screening request minus `timezone`, which the hook attaches from the client's resolved locale. */
-type ScreeningRequestBody = Omit<ScreeningRequest, "timezone">;
+export type ScreeningRequestBody = Omit<ScreeningRequest, "timezone" | "requirements"> & {
+  requirements: ScreeningRequest["requirements"] & { verification?: VerificationRequirementRequest };
+};
 
-export type ScreenedProvidersResponse = paths["/v1/bid-screening"]["post"]["responses"][200]["content"]["application/json"];
+type GeneratedScreenedProvidersResponse = paths["/v1/bid-screening"]["post"]["responses"][200]["content"]["application/json"];
+type GeneratedScreenedProvider = GeneratedScreenedProvidersResponse["providers"][number];
 
-export type ScreenedProvider = ScreenedProvidersResponse["providers"][number];
+export interface ProviderVerificationSummary {
+  bestStatusValidTier: number;
+  tierGateTier: number;
+  capabilities: number[];
+  validAttestationCount: number;
+  validAuditors: string[];
+  snapshotState: "unknown" | "not_posted" | "current" | "stale" | "suspended";
+  observedHeight: string;
+}
+
+export type ProviderVerificationFailure =
+  | { code: "snapshot_not_posted" }
+  | { code: "snapshot_suspended" }
+  | { code: "snapshot_stale" }
+  | { code: "insufficient_tier"; actual: number; required: number }
+  | { code: "missing_capability"; capability: number }
+  | { code: "insufficient_auditor_count"; actual: number; required: number }
+  | { code: "required_auditor_not_found"; mode: number; missing: string[] };
+
+export interface ProviderVerificationExclusion {
+  owner: string;
+  firstFailure: ProviderVerificationFailure;
+  failures: ProviderVerificationFailure[];
+  summary: ProviderVerificationSummary;
+}
+
+export type ScreenedProvider = GeneratedScreenedProvider & {
+  verification?:
+    { outcome: "pass"; summary: ProviderVerificationSummary } | { outcome: "not_evaluated"; incompleteFacts: string[]; summary: ProviderVerificationSummary };
+};
+
+export type ScreenedProvidersResponse = Omit<GeneratedScreenedProvidersResponse, "providers"> & {
+  providers: ScreenedProvider[];
+  exclusions?: ProviderVerificationExclusion[];
+};
 
 interface UseScreenedProvidersInput {
   sdl: string;
@@ -36,6 +76,7 @@ interface UseScreenedProvidersInput {
 
 interface UseScreenedProvidersResult {
   providers: ScreenedProvider[];
+  exclusions: ProviderVerificationExclusion[];
   isLoading: boolean;
   isError: boolean;
   /**
@@ -66,7 +107,8 @@ const SKIPPED_SCREENING_REQUEST: ScreeningRequest = { ...buildCatalogScreeningRe
  * the current SDL to group specs and queries the one matching `placementName`. When the SDL can't be turned
  * into a screening request (invalid or incomplete spec) it does NOT fall back to the full catalog — no
  * provider would bid on an unusable spec — instead it reports `isInvalid` so the marketplace shows a message.
- * A selected region travels in the SDL, so a valid spec already screens by region. Audited-only via signedBy.
+ * A selected region travels in the SDL, so a valid spec already screens by region. The placement's legacy
+ * signedBy and AEP-86 verification policies are forwarded independently.
  */
 export function useScreenedProviders({ sdl, placementName, enabled = true }: UseScreenedProvidersInput): UseScreenedProvidersResult {
   const { api } = useServices();
@@ -83,7 +125,8 @@ export function useScreenedProviders({ sdl, placementName, enabled = true }: Use
   });
 
   return {
-    providers: isInvalid ? [] : query.data?.providers ?? [],
+    providers: isInvalid ? [] : (query.data?.providers ?? []),
+    exclusions: isInvalid ? [] : ((query.data as ScreenedProvidersResponse | undefined)?.exclusions ?? []),
     isLoading: !isInvalid && query.isLoading,
     isError: !isInvalid && query.isError,
     isInvalid
@@ -92,10 +135,9 @@ export function useScreenedProviders({ sdl, placementName, enabled = true }: Use
 
 /**
  * Converts the current SDL into a screening request for a single placement's group spec. Returns null
- * when the SDL is incomplete/invalid (e.g. mid-edit) or the placement isn't in it yet, so the caller can
- * fall back to the full catalog. `signedBy` forces audited-only screening; `attributes` are passed through
- * from the placement and carry the `location-region` filter (and any other declared attribute). The proto
- * JSON encodes resource values as decimal integer strings, which the screening endpoint accepts.
+ * when the SDL is incomplete/invalid (e.g. mid-edit) or the placement isn't in it yet. `signedBy`,
+ * verification, and attributes are copied from the generated group spec without combining their semantics.
+ * The proto JSON encodes resource values as decimal integer strings, which the screening endpoint accepts.
  */
 export function buildPlacementScreeningRequest(rawSdl: string, placementName: string): ScreeningRequestBody | null {
   if (!rawSdl) return null;
@@ -112,21 +154,87 @@ export function buildPlacementScreeningRequest(rawSdl: string, placementName: st
     const group = manifest.groupSpecs.find(candidate => candidate.name === placementName);
     if (!group) return null;
 
-    const groupJson = GroupSpec.toJSON(group) as {
-      resources: ScreeningRequest["resources"];
-      requirements?: { attributes?: Array<{ key: string; value: string }> };
-    };
+    const groupJson = GroupSpec.toJSON(group) as { resources: ScreeningRequest["resources"] };
+    const requirements = group.requirements;
+    const verification = requirements?.verification ? toVerificationRequirementRequest(requirements.verification) : null;
+    if (requirements?.verification && !verification) return null;
 
     return {
       requirements: {
-        signedBy: { allOf: [AUDITOR] },
-        attributes: groupJson.requirements?.attributes ?? []
+        signedBy: {
+          allOf: requirements?.signedBy?.allOf ?? [],
+          anyOf: requirements?.signedBy?.anyOf ?? []
+        },
+        attributes: requirements?.attributes ?? [],
+        ...(verification ? { verification } : {})
       },
       resources: groupJson.resources,
       reclamationWindow: manifest.reclamation?.minWindow?.seconds ? Number(manifest.reclamation?.minWindow?.seconds) : undefined
     };
   } catch {
     return null;
+  }
+}
+
+export function hasPlacementVerificationRequirement(rawSdl: string, placementName: string): boolean {
+  return buildPlacementScreeningRequest(rawSdl, placementName)?.requirements.verification !== undefined;
+}
+
+function toVerificationRequirementRequest(requirement: VerificationRequirement): VerificationRequirementRequest | null {
+  const minTier = toVerificationTierRequest(requirement.minTier);
+  const auditorMode = toAuditorSelectionModeRequest(requirement.auditorMode);
+  if (minTier === null || auditorMode === null) return null;
+
+  const requiredCapabilities: NonNullable<VerificationRequirementRequest["requiredCapabilities"]> = [];
+  for (const capability of requirement.requiredCapabilities) {
+    const mappedCapability = toCapabilityFlagRequest(capability);
+    if (mappedCapability === null) return null;
+    requiredCapabilities.push(mappedCapability);
+  }
+
+  return {
+    minTier,
+    requiredCapabilities,
+    requiredAuditors: requirement.requiredAuditors,
+    auditorMode,
+    minAuditorCount: requirement.minAuditorCount
+  };
+}
+
+function toVerificationTierRequest(tier: VerificationTier): VerificationRequirementRequest["minTier"] | null {
+  switch (tier) {
+    case VerificationTier.verification_tier_unspecified:
+    case VerificationTier.verification_tier_identified:
+    case VerificationTier.verification_tier_verified:
+    case VerificationTier.verification_tier_established:
+    case VerificationTier.verification_tier_trusted:
+      return tier;
+    case VerificationTier.UNRECOGNIZED:
+      return null;
+  }
+}
+
+function toCapabilityFlagRequest(capability: CapabilityFlag): NonNullable<VerificationRequirementRequest["requiredCapabilities"]>[number] | null {
+  switch (capability) {
+    case CapabilityFlag.capability_tee_hardware_attestation:
+    case CapabilityFlag.capability_confidential_computing:
+    case CapabilityFlag.capability_persistent_storage:
+    case CapabilityFlag.capability_bare_metal:
+      return capability;
+    case CapabilityFlag.capability_unspecified:
+    case CapabilityFlag.UNRECOGNIZED:
+      return null;
+  }
+}
+
+function toAuditorSelectionModeRequest(mode: AuditorSelectionMode): VerificationRequirementRequest["auditorMode"] | null {
+  switch (mode) {
+    case AuditorSelectionMode.auditor_selection_mode_unspecified:
+    case AuditorSelectionMode.auditor_selection_mode_any:
+    case AuditorSelectionMode.auditor_selection_mode_all:
+      return mode;
+    case AuditorSelectionMode.UNRECOGNIZED:
+      return null;
   }
 }
 

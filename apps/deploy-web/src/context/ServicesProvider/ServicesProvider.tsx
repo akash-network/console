@@ -1,7 +1,8 @@
 import React, { useContext, useMemo } from "react";
-import type { NetworkId } from "@akashnetwork/chain-sdk/web";
+import { type NetworkId, SANDBOX_ID } from "@akashnetwork/chain-sdk/web";
 import { AuthzHttpService, BmeHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { netConfig } from "@akashnetwork/net";
+import { type AkashSandboxNetworkOverride, getAkashSandboxNetworkOverrideFromEnv } from "@akashnetwork/network-store";
 
 import { UACT_DENOM, UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
 import { services as rootContainer } from "@src/services/app-di-container/browser-di-container";
@@ -50,7 +51,7 @@ function createAppContainer<T extends Factories>(blockchainStatus: BlockchainSta
       let isBlockchainDown = blockchainStatus.isBlockchainDown;
       const chainApiHttpClient: FallbackableHttpClient = rootContainer.applyAxiosInterceptors(
         createFallbackableHttpClient(rootContainer.createAxios, rootContainer.fallbackChainApiHttpClient, {
-          baseURL: netConfig.getBaseAPIUrl(rootContainer.networkStore.selectedNetworkId),
+          baseURL: resolveChainApiBaseUrl({ networkId: rootContainer.networkStore.selectedNetworkId }),
           shouldFallback: () => isBlockchainDown || blockchainStatus.isBlockchainDown,
           onUnavailableError: (error): Promise<void> | void => {
             if (isBlockchainDown) return;
@@ -92,4 +93,15 @@ function createAppContainer<T extends Factories>(blockchainStatus: BlockchainSta
   });
 
   return di;
+}
+
+export function resolveChainApiBaseUrl({
+  networkId,
+  akashSandboxOverride = getAkashSandboxNetworkOverrideFromEnv()
+}: {
+  networkId: NetworkId;
+  akashSandboxOverride?: AkashSandboxNetworkOverride;
+}): string {
+  if (networkId === SANDBOX_ID && akashSandboxOverride) return akashSandboxOverride.restApiUrl;
+  return netConfig.getBaseAPIUrl(networkId);
 }

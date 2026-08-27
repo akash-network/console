@@ -561,3 +561,131 @@ describe("importSimpleSdl reclamation", () => {
     expect(parsed.reclamation).toEqual({ min_window: minWindow });
   });
 });
+
+describe("importSimpleSdl verification", () => {
+  it("imports and regenerates the complete verification requirement independently of signedBy", () => {
+    const yml = placementRequirementSdl([
+      "      signedBy:",
+      "        anyOf:",
+      "          - akash1legacy",
+      "      verification:",
+      "        min_tier: 3",
+      "        capabilities:",
+      "          - persistent_storage",
+      "          - bare_metal",
+      "        auditors:",
+      "          - akash1auditor1",
+      "          - akash1auditor2",
+      "        auditor_mode: all",
+      "        min_auditor_count: 2"
+    ]);
+
+    const imported = importSimpleSdl(yml);
+    expect(SdlBuilderFormValuesSchema.safeParse(imported).success).toBe(true);
+    expect(imported.placements[0]).toMatchObject({
+      signedBy: { anyOf: [{ value: "akash1legacy" }], allOf: [] },
+      verification: {
+        minTier: 3,
+        capabilities: ["persistent_storage", "bare_metal"],
+        auditors: [{ value: "akash1auditor1" }, { value: "akash1auditor2" }],
+        auditorMode: "all",
+        minAuditorCount: 2
+      }
+    });
+
+    const parsed = yaml.load(generateSdl(imported)) as {
+      profiles: { placement: Record<string, { signedBy?: unknown; verification?: unknown }> };
+    };
+    expect(parsed.profiles.placement.dcloud).toMatchObject({
+      signedBy: { anyOf: ["akash1legacy"] },
+      verification: {
+        min_tier: 3,
+        capabilities: ["persistent_storage", "bare_metal"],
+        auditors: ["akash1auditor1", "akash1auditor2"],
+        auditor_mode: "all",
+        min_auditor_count: 2
+      }
+    });
+  });
+
+  it("leaves verification absent when the SDL has no requirement", () => {
+    const imported = importSimpleSdl(placementRequirementSdl([]));
+
+    expect(imported.placements[0].verification).toBeUndefined();
+    const parsed = yaml.load(generateSdl(imported)) as {
+      profiles: { placement: Record<string, { verification?: unknown }> };
+    };
+    expect(parsed.profiles.placement.dcloud.verification).toBeUndefined();
+  });
+
+  it("leaves invalid verification values to the form schema validation boundary", () => {
+    const imported = importSimpleSdl(
+      placementRequirementSdl(["      verification:", "        min_tier: 5", "        capabilities:", "          - unknown_capability"])
+    );
+
+    const result = SdlBuilderFormValuesSchema.safeParse(imported);
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: ["placements", 0, "verification", "minTier"] }),
+        expect.objectContaining({ path: ["placements", 0, "verification", "capabilities", 0] })
+      ])
+    );
+  });
+
+  it.each(["any", "all"])("collapses a vacuous tier-zero verification block with auditor mode %s", auditorMode => {
+    const imported = importSimpleSdl(
+      placementRequirementSdl([
+        "      verification:",
+        "        min_tier: 0",
+        "        capabilities: []",
+        "        auditors: []",
+        `        auditor_mode: ${auditorMode}`,
+        "        min_auditor_count: 0"
+      ])
+    );
+
+    expect(imported.placements[0].verification).toBeUndefined();
+    const parsed = yaml.load(generateSdl(imported)) as {
+      profiles: { placement: Record<string, { verification?: unknown }> };
+    };
+    expect(parsed.profiles.placement.dcloud.verification).toBeUndefined();
+  });
+});
+
+const placementRequirementSdl = (placementLines: string[]) =>
+  [
+    "version: '2.0'",
+    "services:",
+    "  web:",
+    "    image: nginx:latest",
+    "    expose:",
+    "      - port: 80",
+    "        as: 80",
+    "        to:",
+    "          - global: true",
+    "profiles:",
+    "  compute:",
+    "    web:",
+    "      resources:",
+    "        cpu:",
+    "          units: 0.5",
+    "        memory:",
+    "          size: 512Mi",
+    "        storage:",
+    "          - size: 512Mi",
+    "  placement:",
+    "    dcloud:",
+    ...placementLines,
+    "      pricing:",
+    "        web:",
+    "          denom: uakt",
+    "          amount: 1000",
+    "deployment:",
+    "  web:",
+    "    dcloud:",
+    "      profile: web",
+    "      count: 1"
+  ].join("\n");

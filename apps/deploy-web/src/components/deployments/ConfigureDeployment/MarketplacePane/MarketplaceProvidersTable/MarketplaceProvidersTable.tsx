@@ -1,5 +1,6 @@
 import type { FC } from "react";
 import { useMemo, useState } from "react";
+import { AuditorSelectionMode, CapabilityFlag, VerificationTier } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { Badge, Button, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import type { Column, Row, SortingState } from "@tanstack/react-table";
@@ -8,6 +9,7 @@ import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 
 import { CostRate } from "@src/components/shared/CostRate";
 import type { PlacementOffer } from "@src/queries/usePlacementOffers";
+import type { ProviderVerificationExclusion, ProviderVerificationFailure } from "@src/queries/useScreenedProviders";
 import { providerDisplayName } from "@src/utils/providerUtils";
 import type { ProviderUptime } from "./ProviderUptimeCell/deriveProviderUptime";
 import { useProvidersUptime } from "./ProviderUptimeCell/deriveProviderUptime";
@@ -36,6 +38,9 @@ const COLUMN_WIDTH_CLASS: Record<string, string | undefined> = {
 
 interface Props {
   providers: PlacementOffer[];
+  exclusions?: ProviderVerificationExclusion[];
+  verificationEnabled?: boolean;
+  verificationRequired?: boolean;
   isLoading?: boolean;
   isSearchActive?: boolean;
   onClearSearch?: () => void;
@@ -51,6 +56,9 @@ interface Props {
 
 export const MarketplaceProvidersTable: FC<Props> = ({
   providers,
+  exclusions = [],
+  verificationEnabled = false,
+  verificationRequired = false,
   isLoading,
   isSearchActive,
   onClearSearch,
@@ -68,8 +76,18 @@ export const MarketplaceProvidersTable: FC<Props> = ({
   /** Cost only makes sense once bids arrive: a submitted bid is priced and a closed/expired one keeps its last price, but a screened-only candidate has none. */
   const showCost = providers.some(provider => !!provider.price);
   const columns = useMemo(
-    () => buildColumns(uptimeByOwner, { selectedBidId, onSelect, isSelectable, showCost, showStatus: isMerged, gpuCount, showProviderLink }),
-    [uptimeByOwner, selectedBidId, onSelect, isSelectable, showCost, isMerged, gpuCount, showProviderLink]
+    () =>
+      buildColumns(uptimeByOwner, {
+        selectedBidId,
+        onSelect,
+        isSelectable,
+        showCost,
+        showStatus: isMerged,
+        gpuCount,
+        showProviderLink,
+        verificationEnabled
+      }),
+    [uptimeByOwner, selectedBidId, onSelect, isSelectable, showCost, isMerged, gpuCount, showProviderLink, verificationEnabled]
   );
 
   const table = useReactTable({
@@ -98,6 +116,25 @@ export const MarketplaceProvidersTable: FC<Props> = ({
         </div>
       );
     }
+    if (verificationRequired && exclusions.length > 0) {
+      return (
+        <div className="space-y-3">
+          <div role="status" className="space-y-1 p-4">
+            <p className="text-sm font-medium">No providers currently meet this verification policy.</p>
+            <p className="text-sm text-muted-foreground">Review the exclusions below or relax the placement requirements.</p>
+          </div>
+          <VerificationExclusions exclusions={exclusions} />
+        </div>
+      );
+    }
+    if (verificationRequired) {
+      return (
+        <div role="status" className="space-y-1 p-4">
+          <p className="text-sm font-medium">No providers currently meet this verification policy.</p>
+          <p className="text-sm text-muted-foreground">Try a lower tier, fewer required capabilities, or different resource requirements.</p>
+        </div>
+      );
+    }
     return <p className="p-4 text-sm text-muted-foreground">No providers found.</p>;
   }
 
@@ -112,35 +149,38 @@ export const MarketplaceProvidersTable: FC<Props> = ({
   const columnCount = table.getVisibleFlatColumns().length;
 
   return (
-    <div className="overflow-hidden rounded-lg border border-zinc-300 bg-card shadow-sm dark:border-zinc-700">
-      <Table className="table-fixed">
-        <TableHeader>
-          {table.getHeaderGroups().map(headerGroup => (
-            <TableRow key={headerGroup.id} className="bg-muted/40 hover:bg-muted/40">
-              {headerGroup.headers.map(header => (
-                <TableHead key={header.id} className={cn("h-10 pl-4 pr-2", COLUMN_WIDTH_CLASS[header.column.id])}>
-                  {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {biddableRows.map(row => (
-            <OfferRow key={row.id} row={row} />
-          ))}
-          {noBidRows.length > 0 && biddableRows.length > 0 && (
-            <TableRow key="didnt-bid-divider" className="hover:bg-transparent">
-              <TableCell colSpan={columnCount} className="h-8 bg-muted/30 py-1 pl-4 font-mono text-xs uppercase tracking-wide text-muted-foreground">
-                didn&apos;t bid
-              </TableCell>
-            </TableRow>
-          )}
-          {noBidRows.map(row => (
-            <OfferRow key={row.id} row={row} />
-          ))}
-        </TableBody>
-      </Table>
+    <div className="space-y-3">
+      <div className="overflow-hidden rounded-lg border border-zinc-300 bg-card shadow-sm dark:border-zinc-700">
+        <Table className="table-fixed">
+          <TableHeader>
+            {table.getHeaderGroups().map(headerGroup => (
+              <TableRow key={headerGroup.id} className="bg-muted/40 hover:bg-muted/40">
+                {headerGroup.headers.map(header => (
+                  <TableHead key={header.id} className={cn("h-10 pl-4 pr-2", COLUMN_WIDTH_CLASS[header.column.id])}>
+                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {biddableRows.map(row => (
+              <OfferRow key={row.id} row={row} />
+            ))}
+            {noBidRows.length > 0 && biddableRows.length > 0 && (
+              <TableRow key="didnt-bid-divider" className="hover:bg-transparent">
+                <TableCell colSpan={columnCount} className="h-8 bg-muted/30 py-1 pl-4 font-mono text-xs uppercase tracking-wide text-muted-foreground">
+                  didn&apos;t bid
+                </TableCell>
+              </TableRow>
+            )}
+            {noBidRows.map(row => (
+              <OfferRow key={row.id} row={row} />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      {verificationEnabled && exclusions.length > 0 && <VerificationExclusions exclusions={exclusions} />}
     </div>
   );
 };
@@ -241,13 +281,16 @@ function buildColumns(
     showStatus: boolean;
     gpuCount: number;
     showProviderLink: boolean;
+    verificationEnabled: boolean;
   }
 ) {
   return [
     columnHelper.accessor(providerDisplayName, {
       id: "hostUri",
       header: ({ column }) => <SortableHeader column={column} title="Provider" />,
-      cell: info => <MarketplaceProviderCell offer={info.row.original} showProviderLink={selection.showProviderLink} />
+      cell: info => (
+        <MarketplaceProviderCell offer={info.row.original} showProviderLink={selection.showProviderLink} verificationEnabled={selection.verificationEnabled} />
+      )
     }),
     columnHelper.accessor("location", {
       header: ({ column }) => <SortableHeader column={column} title="Region" />,
@@ -299,4 +342,85 @@ function buildColumns(
         ]
       : [])
   ];
+}
+
+function VerificationExclusions({ exclusions }: { exclusions: ProviderVerificationExclusion[] }) {
+  return (
+    <section aria-label="Providers excluded by verification policy" className="border-t border-zinc-300 pt-3 dark:border-zinc-700">
+      <h3 className="font-mono text-xs font-medium uppercase text-muted-foreground">Excluded by verification policy ({exclusions.length})</h3>
+      <div className="mt-2 divide-y divide-zinc-200 border-y border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+        {exclusions.map(exclusion => (
+          <div key={exclusion.owner} className="py-2 text-sm">
+            <p>
+              <span className="font-medium">{exclusion.owner}</span>
+              <span className="text-muted-foreground">: {formatVerificationFailure(exclusion.firstFailure)}</span>
+            </p>
+            {exclusion.failures.length > 1 && (
+              <details className="mt-1 text-xs text-muted-foreground">
+                <summary className="cursor-pointer">View all {exclusion.failures.length} reasons</summary>
+                <ul className="mt-1 space-y-1 pl-4">
+                  {exclusion.failures.map((failure, index) => (
+                    <li key={`${failure.code}-${index}`}>{formatVerificationFailure(failure)}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function formatVerificationFailure(failure: ProviderVerificationFailure): string {
+  switch (failure.code) {
+    case "snapshot_not_posted":
+      return "No provider-signed inventory snapshot is posted";
+    case "snapshot_suspended":
+      return "Provider-signed inventory snapshot is suspended";
+    case "snapshot_stale":
+      return "Provider-signed inventory snapshot is stale";
+    case "insufficient_tier":
+      return `Auditor-attested tier is ${formatTier(failure.actual)}; ${formatTier(failure.required)} is required`;
+    case "missing_capability":
+      return `Missing auditor-attested capability: ${formatCapability(failure.capability)}`;
+    case "insufficient_auditor_count":
+      return `${failure.actual} qualifying auditors; ${failure.required} required`;
+    case "required_auditor_not_found":
+      return `${formatAuditorMode(failure.mode)} named-auditor policy is not satisfied`;
+  }
+}
+
+function formatTier(tier: number): string {
+  switch (tier) {
+    case VerificationTier.verification_tier_identified:
+      return "L1";
+    case VerificationTier.verification_tier_verified:
+      return "L2";
+    case VerificationTier.verification_tier_established:
+      return "L3";
+    case VerificationTier.verification_tier_trusted:
+      return "L4";
+    default:
+      return "L0";
+  }
+}
+
+function formatCapability(capability: number): string {
+  switch (capability) {
+    case CapabilityFlag.capability_tee_hardware_attestation:
+      return "TEE hardware attestation";
+    case CapabilityFlag.capability_confidential_computing:
+      return "Confidential computing";
+    case CapabilityFlag.capability_persistent_storage:
+      return "Persistent storage";
+    case CapabilityFlag.capability_bare_metal:
+      return "Bare metal";
+    default:
+      return "Unknown capability";
+  }
+}
+
+function formatAuditorMode(mode: number): string {
+  return mode === AuditorSelectionMode.auditor_selection_mode_all ? "All" : "Any";
 }

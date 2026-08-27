@@ -66,6 +66,28 @@ export interface RpcDeployment {
 
 export type DeploymentGroup = DeploymentGroup_v2 | DeploymentGroup_v3;
 
+export type RpcVerificationTier =
+  | "verification_tier_identified"
+  | "verification_tier_verified"
+  | "verification_tier_established"
+  | "verification_tier_trusted"
+  | "verification_tier_unspecified";
+
+export type RpcVerificationCapability =
+  | "capability_unspecified"
+  | "capability_tee_hardware_attestation"
+  | "capability_confidential_computing"
+  | "capability_persistent_storage"
+  | "capability_bare_metal";
+
+export interface RpcVerificationRequirement {
+  min_tier: RpcVerificationTier;
+  required_capabilities: RpcVerificationCapability[];
+  required_auditors: string[];
+  auditor_mode: "auditor_selection_mode_unspecified" | "auditor_selection_mode_any" | "auditor_selection_mode_all";
+  min_auditor_count: number;
+}
+
 export type DeploymentResource_V2 = DeploymentResource;
 export type DeploymentResource_V3 = DeploymentResource;
 
@@ -83,6 +105,7 @@ interface DeploymentGroup_v2 {
         all_of: string[];
         any_of: string[];
       };
+      verification?: RpcVerificationRequirement;
       attributes: Array<{
         key: string;
         value: string;
@@ -157,6 +180,7 @@ interface DeploymentGroup_v3 {
         all_of: string[];
         any_of: string[];
       };
+      verification?: RpcVerificationRequirement;
       attributes: Array<{
         key: string;
         value: string;

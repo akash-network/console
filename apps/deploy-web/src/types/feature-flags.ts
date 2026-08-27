@@ -9,4 +9,5 @@ export type FeatureFlag =
   | "ui_build_and_deploy"
   | "ui_agent_mode_deploy"
   | "hackathons"
-  | "deployment_runtime_limit";
+  | "deployment_runtime_limit"
+  | "provider_verification";

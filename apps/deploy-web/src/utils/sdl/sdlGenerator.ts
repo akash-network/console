@@ -29,6 +29,34 @@ const buildGpuAttributes = (interconnect: { group?: string } | undefined): Recor
   return attributes;
 };
 
+type PlacementVerification = NonNullable<PlacementType["verification"]>;
+type SdlVerificationRequirement = {
+  min_tier: PlacementVerification["minTier"];
+  capabilities?: PlacementVerification["capabilities"];
+  auditors?: string[];
+  auditor_mode?: PlacementVerification["auditorMode"];
+  min_auditor_count?: PlacementVerification["minAuditorCount"];
+};
+
+const buildVerificationRequirement = (verification: PlacementVerification): SdlVerificationRequirement => {
+  const requirement: SdlVerificationRequirement = { min_tier: verification.minTier };
+
+  if (verification.capabilities?.length) {
+    requirement.capabilities = verification.capabilities;
+  }
+  if (verification.auditors?.length) {
+    requirement.auditors = verification.auditors.map(auditor => auditor.value);
+  }
+  if (verification.auditorMode) {
+    requirement.auditor_mode = verification.auditorMode;
+  }
+  if (verification.minAuditorCount !== undefined) {
+    requirement.min_auditor_count = verification.minAuditorCount;
+  }
+
+  return requirement;
+};
+
 export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
   const sdl: Record<string, any> = { version: "2.0", services: {}, profiles: { compute: {}, placement: {} }, deployment: {} };
 
@@ -52,6 +80,10 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
     if ((placement.signedBy?.allOf?.length || 0) > 0) {
       sdl.profiles.placement[placement.name].signedBy = sdl.profiles.placement[placement.name].signedBy || {};
       sdl.profiles.placement[placement.name].signedBy.allOf = placement.signedBy?.allOf.map(x => x.value);
+    }
+
+    if (placement.verification) {
+      sdl.profiles.placement[placement.name].verification = buildVerificationRequirement(placement.verification);
     }
 
     if ((placement.attributes?.length || 0) > 0) {

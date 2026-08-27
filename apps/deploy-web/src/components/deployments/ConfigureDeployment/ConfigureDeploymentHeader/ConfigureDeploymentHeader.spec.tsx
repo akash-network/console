@@ -20,12 +20,62 @@ const GENERATED_SDL = 'version: "2.0" # generated';
 describe(ConfigureDeploymentHeader.name, () => {
   it("requests quotes with the SDL generated from the submitted form values, not a stale snapshot", async () => {
     const requestQuotes = vi.fn();
-    const { enqueueSnackbar } = setup({ phase: "configuring", requestQuotes });
+    const { enqueueSnackbar, checkVerificationProviderAvailability } = setup({ phase: "configuring", requestQuotes });
 
     fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
 
     await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL));
     expect(enqueueSnackbar).not.toHaveBeenCalled();
+    expect(checkVerificationProviderAvailability).not.toHaveBeenCalled();
+  });
+
+  it("checks verified placements before requesting quotes", async () => {
+    const requestQuotes = vi.fn();
+    const { checkVerificationProviderAvailability } = setup({
+      phase: "configuring",
+      requestQuotes,
+      placements: [verifiedPlacement("west")]
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /request quotes/i }));
+
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL));
+    expect(checkVerificationProviderAvailability).toHaveBeenCalledWith({ sdl: GENERATED_SDL, placements: [verifiedPlacement("west")] });
+  });
+
+  it("blocks quote requests when a verified placement has no matching provider", async () => {
+    const requestQuotes = vi.fn();
+    const { enqueueSnackbar } = setup({
+      phase: "configuring",
+      requestQuotes,
+      placements: [verifiedPlacement("west")],
+      unavailablePlacements: ["west"]
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /request quotes/i }));
+
+    await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledTimes(1));
+    expect(requestQuotes).not.toHaveBeenCalled();
+    render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
+    expect(screen.getByText("No matching providers")).toBeInTheDocument();
+    expect(screen.getByText(/west: No providers currently meet/i)).toBeInTheDocument();
+  });
+
+  it("blocks quote requests when verified provider availability cannot be checked", async () => {
+    const requestQuotes = vi.fn();
+    const { enqueueSnackbar } = setup({
+      phase: "configuring",
+      requestQuotes,
+      placements: [verifiedPlacement("west")],
+      availabilityError: new Error("screening unavailable")
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /request quotes/i }));
+
+    await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledTimes(1));
+    expect(requestQuotes).not.toHaveBeenCalled();
+    render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
+    expect(screen.getByText("Provider availability couldn't be checked")).toBeInTheDocument();
   });
 
   it("blocks a trial deployment whose GPU resolves to a blocked selection and surfaces the trial message", async () => {
@@ -236,7 +286,7 @@ describe(ConfigureDeploymentHeader.name, () => {
     phase: DeploymentFlow["phase"];
     requestQuotes?: (sdl: string) => void;
     validationErrors?: string[];
-    placements?: { id: string }[];
+    placements?: TestPlacement[];
     selections?: Record<string, string>;
     onDeploy?: () => void;
     allPlacementsHaveBids?: boolean;
@@ -249,6 +299,8 @@ describe(ConfigureDeploymentHeader.name, () => {
     cancelAndEdit?: () => void;
     isRestricted?: boolean;
     services?: Array<{ profile: { hasGpu?: boolean; gpuModels?: Array<{ vendor: string; name?: string }> } }>;
+    unavailablePlacements?: string[];
+    availabilityError?: Error;
   }) {
     const flow = mock<DeploymentFlow>({
       phase: input.phase,
@@ -263,6 +315,10 @@ describe(ConfigureDeploymentHeader.name, () => {
     flow.selections = input.selections ?? {};
     const enqueueSnackbar = vi.fn();
     const useDeploymentCost = vi.fn(() => input.cost ?? null);
+    const checkVerificationProviderAvailability = vi.fn(async () => {
+      if (input.availabilityError) throw input.availabilityError;
+      return input.unavailablePlacements ?? [];
+    });
     const dependencies: typeof DEPENDENCIES = {
       useDeploymentResourceSummary: (() => "1 vCPU") as never,
       useDeploymentHasGpu: () => input.hasGpu ?? true,
@@ -274,7 +330,8 @@ describe(ConfigureDeploymentHeader.name, () => {
       PriceValue: ({ value }) => <span data-testid="price">{String(value)}</span>,
       useQuoteExpiry: () => input.expiry ?? null,
       CustomTooltip: ({ children }) => <>{children}</>,
-      useTrialGate: () => ({ isRestricted: input.isRestricted ?? false, isWalletReady: true })
+      useTrialGate: () => ({ isRestricted: input.isRestricted ?? false, isWalletReady: true }),
+      useVerificationProviderPreflight: () => checkVerificationProviderAvailability
     };
     render(
       <Wrapper placements={input.placements} services={input.services}>
@@ -287,7 +344,7 @@ describe(ConfigureDeploymentHeader.name, () => {
         />
       </Wrapper>
     );
-    return { enqueueSnackbar, useDeploymentCost };
+    return { enqueueSnackbar, useDeploymentCost, checkVerificationProviderAvailability };
   }
 
   function Wrapper({
@@ -296,10 +353,20 @@ describe(ConfigureDeploymentHeader.name, () => {
     services
   }: {
     children: ReactNode;
-    placements?: { id: string }[];
+    placements?: TestPlacement[];
     services?: Array<{ profile: { hasGpu?: boolean; gpuModels?: Array<{ vendor: string; name?: string }> } }>;
   }) {
     const form = useForm({ defaultValues: { placements: placements ?? [], services: services ?? [] } });
     return <FormProvider {...form}>{children}</FormProvider>;
   }
 });
+
+type TestPlacement = {
+  id: string;
+  name?: string;
+  verification?: { minTier: number; capabilities: []; auditors: [] };
+};
+
+function verifiedPlacement(name: string): TestPlacement {
+  return { id: name, name, verification: { minTier: 1, capabilities: [], auditors: [] } };
+}

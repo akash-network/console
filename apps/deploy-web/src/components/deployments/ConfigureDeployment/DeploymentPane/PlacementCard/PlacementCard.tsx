@@ -5,6 +5,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { Plus, Trash } from "iconoir-react";
 
 import { RegionSelect } from "@src/components/sdl/RegionSelect/RegionSelect";
+import { useFlag } from "@src/hooks/useFlag";
 import type { PlacementType } from "@src/types";
 import { ConfigStatusIcon } from "../ConfigStatusIcon/ConfigStatusIcon";
 import type { PlacementSelectionState } from "../PlacementSelectionBadge/PlacementSelectionBadge";
@@ -12,8 +13,9 @@ import { PlacementSelectionBadge } from "../PlacementSelectionBadge/PlacementSel
 import { ServiceRow } from "../ServiceRow/ServiceRow";
 import type { IndexedService } from "../usePlacementManager/usePlacementManager";
 import { usePlacementStatus } from "../usePlacementStatus/usePlacementStatus";
+import { PlacementVerificationEditor } from "./PlacementVerificationEditor";
 
-export const DEPENDENCIES = { InlineEditInput, RegionSelect, ServiceRow, usePlacementStatus, useFieldError };
+export const DEPENDENCIES = { InlineEditInput, PlacementVerificationEditor, RegionSelect, ServiceRow, useFlag, usePlacementStatus, useFieldError };
 
 type Props = {
   placement: PlacementType;
@@ -50,6 +52,7 @@ export const PlacementCard: FC<Props> = ({
   const status = d.usePlacementStatus(placement.id as string);
   const { error } = d.useFieldError(`placements.${placementIndex}.name`);
   const errorId = useId();
+  const isProviderVerificationEnabled = d.useFlag("provider_verification");
   const isSelected = services.some(({ service }) => service.id === selectedServiceId);
   const firstServiceId = services[0]?.service.id as string | undefined;
 
@@ -97,6 +100,7 @@ export const PlacementCard: FC<Props> = ({
       <fieldset disabled={locked} className="m-0 min-w-0 border-0 p-0 disabled:pointer-events-none">
         <d.RegionSelect placementIndex={placementIndex} disabled={locked} />
       </fieldset>
+      {isProviderVerificationEnabled && <d.PlacementVerificationEditor placementName={placement.name} placementIndex={placementIndex} locked={locked} />}
       <ul aria-label={`${placement.name} services`} className="mt-2 space-y-2">
         {services.map(({ service, index }) => (
           <d.ServiceRow

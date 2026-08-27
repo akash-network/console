@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { PlacementOffer } from "@src/queries/usePlacementOffers";
+import type { ProviderVerificationExclusion } from "@src/queries/useScreenedProviders";
 import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
 import { ProviderSearchInput } from "./ProviderSearchInput/ProviderSearchInput";
 import type { DEPENDENCIES } from "./MarketplacePane";
@@ -14,7 +16,14 @@ describe(MarketplacePane.name, () => {
   it("reads offers for the current phase, dseq, sdl, placement and region", () => {
     const { usePlacementOffers } = setup({ sdl: "version: 2.0", placementName: "dcloud", region: "na-us-west", phase: "quoting", dseq: "100" });
 
-    expect(usePlacementOffers).toHaveBeenCalledWith({ sdl: "version: 2.0", placementName: "dcloud", region: "na-us-west", phase: "quoting", dseq: "100" });
+    expect(usePlacementOffers).toHaveBeenCalledWith({
+      sdl: "version: 2.0",
+      placementName: "dcloud",
+      region: "na-us-west",
+      phase: "quoting",
+      dseq: "100",
+      verificationEnabled: false
+    });
   });
 
   it("shows the placement name in the header", () => {
@@ -28,6 +37,13 @@ describe(MarketplacePane.name, () => {
     const { MarketplaceProvidersTable } = setup({ offers, isLoading: false });
 
     expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ providers: offers, isLoading: false }), expect.anything());
+  });
+
+  it("passes verification exclusions to the table only when the feature is enabled", () => {
+    const exclusions = [mock<ProviderVerificationExclusion>({ owner: "akash1excluded" })];
+    const { MarketplaceProvidersTable } = setup({ providerVerificationEnabled: true, exclusions });
+
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ exclusions, verificationEnabled: true }), expect.anything());
   });
 
   it("passes the spec's GPU count to the table", () => {
@@ -131,6 +147,8 @@ describe(MarketplacePane.name, () => {
       isSearchActive?: boolean;
       gpuCount?: number;
       isOnboarded?: boolean;
+      providerVerificationEnabled?: boolean;
+      exclusions?: ReturnType<typeof DEPENDENCIES.usePlacementOffers>["exclusions"];
       selectedPlacementId?: string;
       selectedBidId?: string;
       onSelectProvider?: (placementId: string, bidId: string) => void;
@@ -138,6 +156,7 @@ describe(MarketplacePane.name, () => {
   ) {
     const usePlacementOffers = vi.fn(() => ({
       offers: input.offers ?? [],
+      exclusions: input.exclusions ?? [],
       isLoading: input.isLoading ?? false,
       isError: input.isError ?? false,
       isInvalid: input.isInvalid ?? false
@@ -161,7 +180,8 @@ describe(MarketplacePane.name, () => {
       MarketplaceProvidersTable: MarketplaceProvidersTable as never,
       ProviderSearchInput,
       useDeploymentGpuCount,
-      useIsOnboarded: () => input.isOnboarded ?? true
+      useIsOnboarded: () => input.isOnboarded ?? true,
+      useFlag: () => input.providerVerificationEnabled ?? false
     };
     const user = userEvent.setup();
 

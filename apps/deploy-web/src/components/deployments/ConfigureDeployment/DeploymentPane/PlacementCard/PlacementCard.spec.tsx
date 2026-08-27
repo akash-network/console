@@ -113,6 +113,25 @@ describe("PlacementCard", () => {
     expect(RegionSelect.mock.calls[0][0]).toEqual(expect.objectContaining({ disabled: true }));
   });
 
+  it("shows the provider verification editor behind its feature flag", () => {
+    const PlacementVerificationEditor = vi.fn(() => null);
+    setup({
+      serviceTitles: ["web"],
+      verificationEnabled: true,
+      dependencies: { PlacementVerificationEditor }
+    });
+
+    expect(PlacementVerificationEditor).toHaveBeenCalledOnce();
+    expect(PlacementVerificationEditor.mock.calls[0][0]).toEqual(expect.objectContaining({ placementName: "placement-1", placementIndex: 0, locked: false }));
+  });
+
+  it("hides the provider verification editor while its feature flag is disabled", () => {
+    const PlacementVerificationEditor = vi.fn(() => null);
+    setup({ serviceTitles: ["web"], verificationEnabled: false, dependencies: { PlacementVerificationEditor } });
+
+    expect(PlacementVerificationEditor).not.toHaveBeenCalled();
+  });
+
   it("shows the DONE badge when the placement has a selection", () => {
     setup({ serviceTitles: ["web"], selectionState: "done" });
     expect(screen.getByText("DONE")).toBeInTheDocument();
@@ -124,6 +143,7 @@ describe("PlacementCard", () => {
     status?: ConfigStatus;
     error?: string;
     locked?: boolean;
+    verificationEnabled?: boolean;
     selectionState?: PlacementSelectionState;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
@@ -158,6 +178,7 @@ describe("PlacementCard", () => {
           onRemoveService={onRemoveService}
           onRemove={onRemove}
           dependencies={MockComponents(DEPENDENCIES, {
+            useFlag: () => input.verificationEnabled ?? false,
             usePlacementStatus: () => input.status ?? "incomplete",
             useFieldError: () => ({ error: input.error }),
             ...input.dependencies
@@ -166,6 +187,6 @@ describe("PlacementCard", () => {
       </Wrapper>
     );
 
-    return { onAddService, onRemove, onSelectService, onRemoveService, services, container };
+    return { onAddService, onRemove, onSelectService, onRemoveService, placement, services, container };
   }
 });
