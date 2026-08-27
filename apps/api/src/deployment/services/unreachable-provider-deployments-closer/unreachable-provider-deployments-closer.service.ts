@@ -1,27 +1,22 @@
-import { differenceInDays } from "date-fns";
 import { Err, Ok, Result } from "ts-results";
 import { inject, singleton } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
-import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
-import { type CreateLogger, JobQueueService, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import type { DryRunOptions } from "@src/core/types/console";
+import { CloseUnreachableProviderDeploymentCommand } from "@src/deployment/commands/close-unreachable-provider-deployment.command";
+import { type DarkDeployment, resolveFullyDarkDeployment } from "@src/deployment/lib/dark-deployment/dark-deployment";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { type ActiveLeaseOnProvider, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
-import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { type ProviderOutage, ProviderOutagesHttpService } from "@src/deployment/services/provider-outages-http/provider-outages-http.service";
-import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 
-/** A deployment whose every active lease sits on a provider that stopped answering. */
-interface DarkDeployment {
+export type CloseUnreachableProviderDeploymentTarget = {
   owner: string;
   dseq: string;
-  hostUri: string;
-  downSince: string;
-}
+};
 
-/** Only fully dark deployments are closed, because one lease still answering may well be doing useful work the owner can see. */
+/** Only fully dark deployments qualify, because one lease still answering may well be doing useful work the owner can see. */
 @singleton()
 export class UnreachableProviderDeploymentsCloserService {
   private readonly logger: ReturnType<CreateLogger>;
@@ -31,8 +26,6 @@ export class UnreachableProviderDeploymentsCloserService {
     private readonly leaseRepository: LeaseRepository,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
-    private readonly deploymentWriterService: DeploymentWriterService,
-    private readonly chainErrorService: ChainErrorService,
     private readonly jobQueueService: JobQueueService,
     private readonly config: DeploymentConfigService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
@@ -40,6 +33,11 @@ export class UnreachableProviderDeploymentsCloserService {
     this.logger = createLogger({ context: UnreachableProviderDeploymentsCloserService.name });
   }
 
+  static singletonKey(target: CloseUnreachableProviderDeploymentTarget): string {
+    return `${CloseUnreachableProviderDeploymentCommand[JOB_NAME]}.${target.owner}.${target.dseq}`;
+  }
+
+  /** A dry run enqueues nothing, which gates the whole pipeline because this sweep is the only thing that creates these jobs. */
   async closeUnreachableProviderDeployments({ dryRun }: DryRunOptions): Promise<Result<void, unknown[]>> {
     const outages = await this.providerOutagesHttpService.findOutagesOlderThanDays(this.config.get("PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS"));
     const deployments = await this.#findFullyDarkDeployments(outages);
@@ -47,15 +45,34 @@ export class UnreachableProviderDeploymentsCloserService {
     this.logger.info({ event: "UNREACHABLE_PROVIDER_DEPLOYMENTS_CLOSE_SWEEP_START", outages: outages.length, count: deployments.length, dryRun });
 
     const errors: unknown[] = [];
-    let closedCount = 0;
+    let scheduledCount = 0;
+    let alreadyScheduledCount = 0;
+    const pendingKeys = dryRun ? new Set<string>() : await this.jobQueueService.findPendingSingletonKeys(CloseUnreachableProviderDeploymentCommand[JOB_NAME]);
 
     for (const deployment of deployments) {
+      if (!(await this.#isCloseable(deployment))) continue;
+
+      if (dryRun) {
+        this.logger.info({
+          event: "UNREACHABLE_PROVIDER_DEPLOYMENT_WOULD_CLOSE",
+          dseq: deployment.dseq,
+          owner: deployment.owner,
+          hostUri: deployment.hostUri,
+          downSince: deployment.downSince
+        });
+        continue;
+      }
+
+      if (pendingKeys.has(UnreachableProviderDeploymentsCloserService.singletonKey(deployment))) {
+        alreadyScheduledCount++;
+        continue;
+      }
+
       try {
-        if (await this.#closeDeployment(deployment, dryRun, errors)) {
-          closedCount++;
-        }
+        await this.schedule(deployment);
+        scheduledCount++;
       } catch (error) {
-        this.logger.error({ event: "UNREACHABLE_PROVIDER_DEPLOYMENT_CLOSE_FAILED", dseq: deployment.dseq, owner: deployment.owner, error });
+        this.logger.error({ event: "UNREACHABLE_PROVIDER_DEPLOYMENT_CLOSE_SCHEDULE_FAILED", dseq: deployment.dseq, owner: deployment.owner, error });
         errors.push(error);
       }
     }
@@ -63,7 +80,8 @@ export class UnreachableProviderDeploymentsCloserService {
     this.logger.info({
       event: "UNREACHABLE_PROVIDER_DEPLOYMENTS_CLOSE_SWEEP_END",
       found: deployments.length,
-      closed: closedCount,
+      scheduled: scheduledCount,
+      alreadyScheduled: alreadyScheduledCount,
       failed: errors.length,
       dryRun
     });
@@ -71,40 +89,35 @@ export class UnreachableProviderDeploymentsCloserService {
     return errors.length > 0 ? Err(errors) : Ok(undefined);
   }
 
-  /** Where several leases are dark, the longest outage is the one reported, so the host named and the age beside it come from the same outage. */
-  async #findFullyDarkDeployments(outages: ProviderOutage[]): Promise<DarkDeployment[]> {
-    if (outages.length === 0) return [];
+  /** A duplicate that slips past the pending-key check is harmless: the handler re-reads the outage and the row, so it closes nothing twice. */
+  async schedule(target: CloseUnreachableProviderDeploymentTarget, options: { startAfter?: Date } = {}): Promise<string> {
+    const startAfter = options.startAfter && new Date(Math.max(options.startAfter.getTime(), Date.now()));
 
-    const outageByProvider = new Map(outages.map(outage => [outage.provider, outage]));
-    const leases = await this.leaseRepository.findActiveLeasesOfDeploymentsOnProviders([...outageByProvider.keys()]);
-    const leasesByDeployment = new Map<string, ActiveLeaseOnProvider[]>();
+    const createdJobId = await this.jobQueueService.enqueue(new CloseUnreachableProviderDeploymentCommand({ owner: target.owner, dseq: target.dseq }), {
+      singletonKey: UnreachableProviderDeploymentsCloserService.singletonKey(target),
+      ...(startAfter && { startAfter: startAfter.toISOString() })
+    });
 
-    for (const lease of leases) {
-      const key = `${lease.owner}/${lease.dseq}`;
-      leasesByDeployment.set(key, [...(leasesByDeployment.get(key) ?? []), lease]);
+    if (!createdJobId) {
+      throw new Error(`Failed to schedule unreachable-provider close for deployment ${target.dseq} of ${target.owner}`);
     }
 
-    const dark: DarkDeployment[] = [];
-
-    for (const deploymentLeases of leasesByDeployment.values()) {
-      const deploymentOutages = deploymentLeases.map(lease => outageByProvider.get(lease.providerAddress));
-      if (deploymentOutages.some(outage => !outage)) continue;
-
-      const [{ owner, dseq }] = deploymentLeases;
-      const longestOutage = (deploymentOutages as ProviderOutage[]).reduce((longest, outage) => (outage.startedAt < longest.startedAt ? outage : longest));
-
-      dark.push({
-        owner,
-        dseq,
-        hostUri: longestOutage.hostUri,
-        downSince: longestOutage.startedAt
-      });
-    }
-
-    return dark;
+    return createdJobId;
   }
 
-  async #closeDeployment(deployment: DarkDeployment, dryRun: boolean, errors: unknown[]): Promise<boolean> {
+  /** Re-checked per job because the unsettleable-escrow path can retry for hours, and closing a deployment whose provider came back cannot be undone. */
+  async findStillDarkDeployment(target: CloseUnreachableProviderDeploymentTarget): Promise<DarkDeployment | null> {
+    const leases = await this.leaseRepository.findActiveLeasesOfDeployment(target.owner, target.dseq);
+
+    if (leases.length === 0) return null;
+
+    const outages = await this.providerOutagesHttpService.findOutagesOlderThanDays(this.config.get("PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS"));
+
+    return resolveFullyDarkDeployment(leases, new Map(outages.map(outage => [outage.provider, outage])));
+  }
+
+  /** Screens out what the handler would skip anyway, so a dry run's count is the count that would really be closed. */
+  async #isCloseable(deployment: DarkDeployment): Promise<boolean> {
     const wallet = await this.userWalletRepository.findOneByAddress(deployment.owner);
 
     if (!wallet?.address) {
@@ -129,99 +142,23 @@ export class UnreachableProviderDeploymentsCloserService {
       return false;
     }
 
-    if (dryRun) {
-      this.logger.info({
-        event: "UNREACHABLE_PROVIDER_DEPLOYMENT_WOULD_CLOSE",
-        dseq: deployment.dseq,
-        owner: deployment.owner,
-        hostUri: deployment.hostUri,
-        downSince: deployment.downSince
-      });
-      return false;
-    }
-
-    let closedByUs: boolean;
-
-    try {
-      closedByUs = await this.deploymentWriterService.close({ ...wallet, address: wallet.address }, deployment.dseq);
-    } catch (error) {
-      if (error instanceof Error && this.chainErrorService.isUnsettleableDeploymentError(error)) {
-        this.logger.warn({
-          event: "UNREACHABLE_PROVIDER_DEPLOYMENT_UNSETTLEABLE",
-          reason: "Deployment escrow cannot be settled yet; chain rejects close until it settles",
-          dseq: deployment.dseq,
-          owner: deployment.owner
-        });
-        return false;
-      }
-      throw error;
-    }
-
-    await this.#recordClosed(deployment, wallet, errors);
-
-    if (!closedByUs) {
-      this.logger.debug({
-        event: "UNREACHABLE_PROVIDER_DEPLOYMENT_CLOSE_SKIPPED",
-        reason: "ALREADY_CLOSED_ON_CHAIN",
-        dseq: deployment.dseq,
-        owner: deployment.owner
-      });
-      return false;
-    }
-
-    this.logger.info({
-      event: "UNREACHABLE_PROVIDER_DEPLOYMENT_CLOSED",
-      dseq: deployment.dseq,
-      owner: deployment.owner,
-      hostUri: deployment.hostUri,
-      downSince: deployment.downSince
-    });
-
-    await this.#notifyOwner(deployment, wallet, errors);
-
     return true;
   }
 
-  /** A database that refuses the marking is collected rather than thrown, or the owner loses the email explaining a close that already happened. */
-  async #recordClosed(deployment: DarkDeployment, wallet: { userId: string }, errors: unknown[]): Promise<void> {
-    try {
-      await this.deploymentSettingRepository.markClosed({ userId: wallet.userId, dseq: deployment.dseq });
-    } catch (error) {
-      this.logger.error({
-        event: "UNREACHABLE_PROVIDER_DEPLOYMENT_CLOSE_RECORD_FAILED",
-        dseq: deployment.dseq,
-        owner: deployment.owner,
-        error
-      });
-      errors.push(error);
-    }
-  }
+  async #findFullyDarkDeployments(outages: ProviderOutage[]): Promise<DarkDeployment[]> {
+    if (outages.length === 0) return [];
 
-  /** The close is already on chain by the time this runs, so a queue that refuses the job is collected rather than thrown. */
-  async #notifyOwner(deployment: DarkDeployment, wallet: { id: number; userId: string }, errors: unknown[]): Promise<void> {
-    try {
-      await this.jobQueueService.enqueue(
-        new NotificationJob({
-          template: "providerUnreachableClosed",
-          userId: wallet.userId,
-          vars: {
-            dseq: deployment.dseq,
-            owner: deployment.owner,
-            hostUri: deployment.hostUri,
-            downForDays: differenceInDays(new Date(), new Date(deployment.downSince)),
-            redeployUrl: `${this.config.get("DEPLOY_WEB_BASE_URL")}/new-deployment`
-          }
-        }),
-        { singletonKey: `notification.providerUnreachableClosed.${deployment.dseq}.${wallet.id}` }
-      );
-    } catch (error) {
-      this.logger.error({
-        event: "UNREACHABLE_PROVIDER_DEPLOYMENT_CLOSE_NOTIFICATION_FAILED",
-        dseq: deployment.dseq,
-        owner: deployment.owner,
-        error
-      });
-      errors.push(error);
+    const outageByProvider = new Map(outages.map(outage => [outage.provider, outage]));
+    const leases = await this.leaseRepository.findActiveLeasesOfDeploymentsOnProviders([...outageByProvider.keys()]);
+    const leasesByDeployment = new Map<string, ActiveLeaseOnProvider[]>();
+
+    for (const lease of leases) {
+      const key = `${lease.owner}/${lease.dseq}`;
+      leasesByDeployment.set(key, [...(leasesByDeployment.get(key) ?? []), lease]);
     }
+
+    return [...leasesByDeployment.values()]
+      .map(deploymentLeases => resolveFullyDarkDeployment(deploymentLeases, outageByProvider))
+      .filter(deployment => !!deployment);
   }
 }

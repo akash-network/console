@@ -11,6 +11,7 @@ import { NotificationHandler } from "@src/notifications/services/notification-ha
 import { AutoRechargeSucceededHandler } from "../services/auto-recharge-succeeded/auto-recharge-succeeded.handler";
 import { CloseExpiredDeploymentHandler } from "../services/close-expired-deployment/close-expired-deployment.handler";
 import { CloseTrialDeploymentHandler } from "../services/close-trial-deployment/close-trial-deployment.handler";
+import { CloseUnreachableProviderDeploymentHandler } from "../services/close-unreachable-provider-deployment/close-unreachable-provider-deployment.handler";
 import { EnableDeploymentAlertHandler } from "../services/enable-deployment-alert/enable-deployment-alert.handler";
 import { FirstPurchaseBonusGrantedHandler } from "../services/first-purchase-bonus-granted/first-purchase-bonus-granted.handler";
 import { FundDeploymentHandler } from "../services/fund-deployment/fund-deployment.handler";
@@ -27,6 +28,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(NotificationHandler),
     container.resolve(CloseTrialDeploymentHandler),
     container.resolve(CloseExpiredDeploymentHandler),
+    container.resolve(CloseUnreachableProviderDeploymentHandler),
     container.resolve(TrialDeploymentLeaseCreatedHandler),
     container.resolve(EnableDeploymentAlertHandler),
     container.resolve(FundDeploymentHandler),

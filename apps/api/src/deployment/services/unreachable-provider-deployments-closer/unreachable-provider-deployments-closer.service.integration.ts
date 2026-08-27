@@ -6,7 +6,6 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { CHAIN_DB } from "@src/chain";
 import { JobQueueService } from "@src/core";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { UserRepository } from "@src/user/repositories";
 import { ProviderOutagesHttpService } from "../provider-outages-http/provider-outages-http.service";
 import { UnreachableProviderDeploymentsCloserService } from "./unreachable-provider-deployments-closer.service";
@@ -24,43 +23,41 @@ describe(UnreachableProviderDeploymentsCloserService.name, () => {
     vi.restoreAllMocks();
   });
 
-  it("closes a fully dark deployment, records it and tells the owner", async () => {
-    const { service, close, enqueue, deploymentSettingRepository, deployment, user } = await setup();
+  it("hands a fully dark deployment to its own close job", async () => {
+    const { service, enqueue, deployment } = await setup();
 
     const result = await service.closeUnreachableProviderDeployments({ dryRun: false });
 
     expect(result.ok).toBe(true);
-    expect(close).toHaveBeenCalledWith(expect.objectContaining({ address: deployment.owner }), deployment.dseq);
-    expect(enqueue).toHaveBeenCalledTimes(1);
-    const setting = await deploymentSettingRepository.findOneBy({ userId: user.id, dseq: deployment.dseq });
-    expect(setting?.closed).toBe(true);
-  });
-
-  it("leaves the deployment alone on a second sweep", async () => {
-    const { service, close } = await setup();
-
-    await service.closeUnreachableProviderDeployments({ dryRun: false });
-    await service.closeUnreachableProviderDeployments({ dryRun: false });
-
-    expect(close).toHaveBeenCalledTimes(1);
+    expect(enqueue).toHaveBeenCalledWith(expect.objectContaining({ data: { owner: deployment.owner, dseq: deployment.dseq } }), {
+      singletonKey: `CloseUnreachableProviderDeploymentCommand.${deployment.owner}.${deployment.dseq}`
+    });
   });
 
   it("leaves a deployment with a surviving lease on a healthy provider alone", async () => {
-    const { service, close } = await setup({ alsoOnHealthyProvider: true });
+    const { service, enqueue } = await setup({ alsoOnHealthyProvider: true });
 
     await service.closeUnreachableProviderDeployments({ dryRun: false });
 
-    expect(close).not.toHaveBeenCalled();
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
-  it("writes nothing on a dry run", async () => {
-    const { service, close, enqueue, deploymentSettingRepository, deployment, user } = await setup();
+  it("schedules nothing on a dry run", async () => {
+    const { service, enqueue, deploymentSettingRepository, deployment, user } = await setup();
 
     await service.closeUnreachableProviderDeployments({ dryRun: true });
 
-    expect(close).not.toHaveBeenCalled();
     expect(enqueue).not.toHaveBeenCalled();
     expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq: deployment.dseq })).toBeUndefined();
+  });
+
+  it("leaves a deployment already recorded as closed alone", async () => {
+    const { service, enqueue, deploymentSettingRepository, deployment, user } = await setup();
+    await deploymentSettingRepository.markClosed({ userId: user.id, dseq: deployment.dseq });
+
+    await service.closeUnreachableProviderDeployments({ dryRun: false });
+
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   async function setup(input: { alsoOnHealthyProvider?: boolean } = {}) {
@@ -87,13 +84,13 @@ describe(UnreachableProviderDeploymentsCloserService.name, () => {
       { provider: darkProvider.owner, hostUri: darkProvider.hostUri, startedAt: DOWN_SINCE }
     ]);
 
-    const close = vi.spyOn(container.resolve(DeploymentWriterService), "close").mockResolvedValue(true);
-    const enqueue = vi.spyOn(container.resolve(JobQueueService), "enqueue").mockResolvedValue("job-id");
+    const jobQueueService = container.resolve(JobQueueService);
+    const enqueue = vi.spyOn(jobQueueService, "enqueue").mockResolvedValue("job-id");
+    vi.spyOn(jobQueueService, "findPendingSingletonKeys").mockResolvedValue(new Set());
 
     return {
       service: container.resolve(UnreachableProviderDeploymentsCloserService),
       deploymentSettingRepository,
-      close,
       enqueue,
       deployment,
       user
