@@ -50,25 +50,25 @@ export class UnreachableProviderDeploymentsCloserService {
     const pendingKeys = dryRun ? new Set<string>() : await this.jobQueueService.findPendingSingletonKeys(CloseUnreachableProviderDeploymentCommand[JOB_NAME]);
 
     for (const deployment of deployments) {
-      if (!(await this.#isCloseable(deployment))) continue;
-
-      if (dryRun) {
-        this.logger.info({
-          event: "UNREACHABLE_PROVIDER_DEPLOYMENT_WOULD_CLOSE",
-          dseq: deployment.dseq,
-          owner: deployment.owner,
-          hostUri: deployment.hostUri,
-          downSince: deployment.downSince
-        });
-        continue;
-      }
-
-      if (pendingKeys.has(UnreachableProviderDeploymentsCloserService.singletonKey(deployment))) {
-        alreadyScheduledCount++;
-        continue;
-      }
-
       try {
+        if (!(await this.#isCloseable(deployment))) continue;
+
+        if (dryRun) {
+          this.logger.info({
+            event: "UNREACHABLE_PROVIDER_DEPLOYMENT_WOULD_CLOSE",
+            dseq: deployment.dseq,
+            owner: deployment.owner,
+            hostUri: deployment.hostUri,
+            downSince: deployment.downSince
+          });
+          continue;
+        }
+
+        if (pendingKeys.has(UnreachableProviderDeploymentsCloserService.singletonKey(deployment))) {
+          alreadyScheduledCount++;
+          continue;
+        }
+
         await this.schedule(deployment);
         scheduledCount++;
       } catch (error) {

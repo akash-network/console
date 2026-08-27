@@ -115,6 +115,19 @@ describe(UnreachableProviderDeploymentsCloserService.name, () => {
       expect(result.err).toBe(true);
     });
 
+    it("keeps screening the other deployments after one lookup fails", async () => {
+      const { service, userWalletRepository, jobQueueService } = setup({
+        outages: [anOutage({})],
+        leases: [aLease({}), aLease({ owner: "akash1other", dseq: "999" })]
+      });
+      userWalletRepository.findOneByAddress.mockRejectedValueOnce(new Error("connection reset"));
+
+      const result = await service.closeUnreachableProviderDeployments({ dryRun: false });
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+      expect(result.err).toBe(true);
+    });
+
     it("schedules nothing when the outage record cannot be trusted", async () => {
       const { service, providerOutagesHttpService, leaseRepository, jobQueueService } = setup({});
       providerOutagesHttpService.findOutagesOlderThanDays.mockRejectedValue(new Error("stale"));
