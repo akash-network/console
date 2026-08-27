@@ -23,6 +23,8 @@ const BLOCK_RATE = 50;
 const ESCROW_AMOUNT = "50000";
 /** Mirrors the `AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD` default of $5, in the grant denom's micro units. */
 const HEADROOM_UDENOM = 5000000;
+const NEARLY_DRAINED_ESCROW_AMOUNT = "1000";
+const ALLOWANCE_ABOVE_HEADROOM_BELOW_A_COOLDOWN = 20000;
 
 type DepositMessage = { value: { deposit?: { amount?: { amount: string } } } };
 
@@ -387,6 +389,27 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(depositedAmounts(executeDerivedTx)).toEqual([500000]);
     });
 
+    it("spends into the headroom floor rather than leave a deployment minutes from closing unfunded", async () => {
+      const { topUpService, executeDerivedTx, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } =
+        await setup();
+      const { user, address } = await createUserWithWallet();
+      const drainingDseq = "900003";
+      const available = HEADROOM_UDENOM + ALLOWANCE_ABOVE_HEADROOM_BELOW_A_COOLDOWN;
+
+      await createDeploymentSetting(user.id, drainingDseq);
+
+      mockLeasesForOwner(address, [createActiveLease(address, drainingDseq)]);
+      mockDeploymentsForOwner(address, [createActiveDeployment(address, drainingDseq, NEARLY_DRAINED_ESCROW_AMOUNT)]);
+      stubGetFreshLimits({ [address]: available });
+
+      await topUpService.topUpDeployments({ dryRun: false });
+
+      const [deposited] = depositedAmounts(executeDerivedTx);
+      expect(executeDerivedTx).toHaveBeenCalledOnce();
+      expect(deposited).toBeGreaterThan(ALLOWANCE_ABOVE_HEADROOM_BELOW_A_COOLDOWN);
+      expect(deposited).toBeLessThanOrEqual(available);
+    });
+
     it("funds a draining deployment from the whole balance when it sits below the headroom floor", async () => {
       const { topUpService, executeDerivedTx, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } =
         await setup();
@@ -511,12 +534,12 @@ describe(TopUpManagedDeploymentsService.name, () => {
     });
   }
 
-  function createActiveDeployment(owner: string, dseq: string) {
+  function createActiveDeployment(owner: string, dseq: string, escrowAmount = ESCROW_AMOUNT) {
     return createDeploymentInfoSeed({
       owner,
       dseq,
       state: "active",
-      amount: ESCROW_AMOUNT,
+      amount: escrowAmount,
       denom: DENOM,
       createdAt: String(CURRENT_HEIGHT - 1000)
     });

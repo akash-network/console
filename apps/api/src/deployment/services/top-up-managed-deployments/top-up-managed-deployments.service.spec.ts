@@ -37,15 +37,18 @@ describe(TopUpManagedDeploymentsService.name, () => {
   const DEDUP_COOLDOWN_IN_MIN = 60;
   /** A deposit that reaches the 48h target runway, so it is never declined for being too small to outlast the cooldown. */
   const RUNWAY_MINUTES_AT_TARGET = 48 * 60;
+  const MIN_DEPOSIT = 500_000;
+  const HEADROOM = 5_000_000;
 
   function createFundingClaim(id: string) {
     return { id, claimedAt: CLAIMED_AT };
   }
 
-  /** Mirrors `CachedBalance`: one allowance answers both the preview and the reservation, and reserving nothing throws. */
+  /** Mirrors `CachedBalance` with no floor held: one allowance answers every preview and the reservation. */
   function createMockCachedBalance(affordableAmount: (desiredAmount: number) => number) {
     const balance = mock<CachedBalance>();
     balance.previewSufficientAmount.mockImplementation(affordableAmount);
+    balance.previewSufficientAmountWithoutHeadroom.mockImplementation(affordableAmount);
     balance.reserveSufficientAmount.mockImplementation(desiredAmount => {
       const amount = affordableAmount(desiredAmount);
 
@@ -790,6 +793,117 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(walletReloadService.scheduleImmediate).not.toHaveBeenCalled();
     });
 
+    it("yields the balance headroom rather than decline a deposit the headroom alone made too small", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, fundDrainingInstrumentation } = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const deployment = createDrainingFor(owner, walletId);
+      const available = HEADROOM + 600_000;
+      const desiredAmount = 50_000_000;
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(desiredAmount);
+      drainingDeploymentService.calculateRunwayMinutesAfterDeposit.mockImplementation((_deployment, amount) =>
+        amount >= available ? RUNWAY_MINUTES_AT_TARGET : DEDUP_COOLDOWN_IN_MIN - 1
+      );
+      cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(available, { headroom: HEADROOM, minDeposit: MIN_DEPOSIT }));
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
+
+      const [, messages] = managedSignerService.executeDerivedTx.mock.calls[0];
+      expect(messages[0].value.deposit?.amount?.amount).toBe(String(available));
+      expect(fundDrainingInstrumentation.recordHeadroomConceded).toHaveBeenCalledWith({
+        dseq: deployment.dseq,
+        address: deployment.address,
+        desiredAmount,
+        flooredAmount: 600_000,
+        affordableAmount: available,
+        runwayMinutes: RUNWAY_MINUTES_AT_TARGET
+      });
+      expect(fundDrainingInstrumentation.recordDepositBelowUsefulRunway).not.toHaveBeenCalled();
+    });
+
+    it("yields the balance headroom to a deployment the rest of the batch left nothing for", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, fundDrainingInstrumentation } = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const first = createDrainingFor(owner, walletId);
+      const second = createDrainingFor(owner, walletId);
+      const aboveHeadroom = 5_600_000;
+      const secondDesiredAmount = 3_000_000;
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([first, second]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockImplementation(deployment => (deployment === first ? aboveHeadroom : secondDesiredAmount));
+      cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(HEADROOM + aboveHeadroom, { headroom: HEADROOM, minDeposit: MIN_DEPOSIT }));
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
+
+      const [, messages] = managedSignerService.executeDerivedTx.mock.calls[0];
+      expect(messages.map(message => message.value.deposit?.amount?.amount)).toEqual([String(aboveHeadroom), String(secondDesiredAmount)]);
+      expect(fundDrainingInstrumentation.recordHeadroomConceded).toHaveBeenCalledWith(
+        expect.objectContaining({ dseq: second.dseq, flooredAmount: 0, affordableAmount: secondDesiredAmount })
+      );
+      expect(fundDrainingInstrumentation.recordMessagePreparationError).not.toHaveBeenCalled();
+    });
+
+    it("reports an exhausted allowance as insufficient balance when yielding the headroom releases nothing", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, fundDrainingInstrumentation } = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const deployment = createDrainingFor(owner, walletId);
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(3_000_000);
+      cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(0, { headroom: HEADROOM, minDeposit: MIN_DEPOSIT }));
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
+
+      expect(fundDrainingInstrumentation.recordHeadroomConceded).not.toHaveBeenCalled();
+      expect(fundDrainingInstrumentation.recordMessagePreparationError).toHaveBeenCalledWith(
+        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("Insufficient balance") }) })
+      );
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+    });
+
+    it("keeps the balance headroom when the deposit it allows is already worth making", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, fundDrainingInstrumentation } = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const deployment = createDrainingFor(owner, walletId);
+      const available = HEADROOM + 600_000;
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(50_000_000);
+      drainingDeploymentService.calculateRunwayMinutesAfterDeposit.mockReturnValue(RUNWAY_MINUTES_AT_TARGET);
+      cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(available, { headroom: HEADROOM, minDeposit: MIN_DEPOSIT }));
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
+
+      const [, messages] = managedSignerService.executeDerivedTx.mock.calls[0];
+      expect(messages[0].value.deposit?.amount?.amount).toBe("600000");
+      expect(fundDrainingInstrumentation.recordHeadroomConceded).not.toHaveBeenCalled();
+    });
+
+    it("holds the balance headroom when yielding it would not make the deposit worth making either", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, fundDrainingInstrumentation } = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const deployment = createDrainingFor(owner, walletId);
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(50_000_000);
+      drainingDeploymentService.calculateRunwayMinutesAfterDeposit.mockReturnValue(DEDUP_COOLDOWN_IN_MIN - 1);
+      cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(HEADROOM + 600_000, { headroom: HEADROOM, minDeposit: MIN_DEPOSIT }));
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
+
+      expect(fundDrainingInstrumentation.recordHeadroomConceded).not.toHaveBeenCalled();
+      expect(fundDrainingInstrumentation.recordDepositBelowUsefulRunway).toHaveBeenCalledWith(
+        expect.objectContaining({ dseq: deployment.dseq, affordableAmount: 600_000 })
+      );
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+    });
+
     it("releases the claim of a deposit it declined so credits landing later can fund it", async () => {
       const { service, drainingDeploymentService, cachedBalanceService, deploymentSettingRepository } = setup();
       const owner = createAkashAddress();
@@ -874,7 +988,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       drainingDeploymentService.calculateRunwayMinutesAfterDeposit.mockImplementation(deployment =>
         deployment === declined ? DEDUP_COOLDOWN_IN_MIN - 1 : RUNWAY_MINUTES_AT_TARGET
       );
-      cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(ALLOWANCE, NO_HEADROOM));
+      cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(ALLOWANCE, { headroom: NO_HEADROOM, minDeposit: MIN_DEPOSIT }));
 
       await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
 

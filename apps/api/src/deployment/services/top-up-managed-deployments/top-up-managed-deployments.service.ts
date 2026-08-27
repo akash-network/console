@@ -19,6 +19,11 @@ import type { DeploymentTopUpInstrumentation } from "./deployment-top-up-instrum
 import { FundDrainingDeploymentsInstrumentationService } from "./fund-draining-deployments-instrumentation.service";
 import { TopUpManagedDeploymentsInstrumentationService } from "./top-up-managed-deployments-instrumentation.service";
 
+type DepositSize = {
+  affordableAmount: number;
+  runwayMinutes: number;
+};
+
 type CollectedMessage = {
   message: { typeUrl: string; value: MsgAccountDeposit };
   input: DepositDeploymentMsgOptions;
@@ -223,8 +228,7 @@ export class TopUpManagedDeploymentsService {
             });
             return;
           }
-          const affordableAmount = balance.previewSufficientAmount(desiredAmount);
-          const runwayMinutes = this.drainingDeploymentService.calculateRunwayMinutesAfterDeposit(deployment, affordableAmount, currentHeight);
+          const { affordableAmount, runwayMinutes } = this.#sizeDeposit({ balance, deployment, desiredAmount, currentHeight, instrumentation });
 
           if (this.#isCappedBelowUsefulRunway({ desiredAmount, affordableAmount, runwayMinutes })) {
             instrumentation.recordDepositBelowUsefulRunway({
@@ -264,6 +268,70 @@ export class TopUpManagedDeploymentsService {
     );
 
     return messageInputs.filter(x => !!x);
+  }
+
+  /** The floor must never be the reason a deposit is not made, so it yields when the floored amount falls short. */
+  #sizeDeposit({
+    balance,
+    deployment,
+    desiredAmount,
+    currentHeight,
+    instrumentation
+  }: {
+    balance: CachedBalance;
+    deployment: DrainingDeployment;
+    desiredAmount: number;
+    currentHeight: number;
+    instrumentation: DeploymentTopUpInstrumentation;
+  }): DepositSize {
+    const floored = this.#describeDeposit({ deployment, currentHeight, affordableAmount: balance.previewSufficientAmount(desiredAmount) });
+
+    if (!this.#fallsShortOfUsefulDeposit({ desiredAmount, ...floored })) {
+      return floored;
+    }
+
+    const conceded = this.#describeDeposit({
+      deployment,
+      currentHeight,
+      affordableAmount: balance.previewSufficientAmountWithoutHeadroom(desiredAmount)
+    });
+
+    if (this.#fallsShortOfUsefulDeposit({ desiredAmount, ...conceded })) {
+      return floored;
+    }
+
+    balance.waiveHeadroom();
+
+    instrumentation.recordHeadroomConceded({
+      dseq: deployment.dseq,
+      address: deployment.address,
+      desiredAmount,
+      flooredAmount: floored.affordableAmount,
+      affordableAmount: conceded.affordableAmount,
+      runwayMinutes: conceded.runwayMinutes
+    });
+
+    return conceded;
+  }
+
+  /** An amount of zero falls short too: insufficient balance is the right answer only once the floor has yielded. */
+  #fallsShortOfUsefulDeposit(deposit: { desiredAmount: number; affordableAmount: number; runwayMinutes: number }): boolean {
+    return deposit.affordableAmount <= 0 || this.#isCappedBelowUsefulRunway(deposit);
+  }
+
+  #describeDeposit({
+    deployment,
+    affordableAmount,
+    currentHeight
+  }: {
+    deployment: DrainingDeployment;
+    affordableAmount: number;
+    currentHeight: number;
+  }): DepositSize {
+    return {
+      affordableAmount,
+      runwayMinutes: this.drainingDeploymentService.calculateRunwayMinutesAfterDeposit(deployment, affordableAmount, currentHeight)
+    };
   }
 
   /**

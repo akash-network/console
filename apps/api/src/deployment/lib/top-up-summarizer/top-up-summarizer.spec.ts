@@ -1,20 +1,16 @@
 import "reflect-metadata";
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { TopUpSummarizer } from "./top-up-summarizer";
 
 import { createAkashAddress } from "@test/seeders";
 
 describe(TopUpSummarizer.name, () => {
-  let summarizer: TopUpSummarizer;
-
-  beforeEach(() => {
-    summarizer = new TopUpSummarizer();
-  });
-
   describe("inc", () => {
     it("should increment counters", () => {
+      const { summarizer } = setup();
+
       summarizer.inc("deploymentCount");
       summarizer.inc("deploymentTopUpCount");
       summarizer.inc("deploymentTopUpErrorCount");
@@ -27,6 +23,8 @@ describe(TopUpSummarizer.name, () => {
     });
 
     it("should increment by specified value", () => {
+      const { summarizer } = setup();
+
       summarizer.inc("deploymentCount", 2);
       expect(summarizer.get("deploymentCount")).toBe(2);
     });
@@ -37,6 +35,8 @@ describe(TopUpSummarizer.name, () => {
     const WALLET_2 = createAkashAddress();
 
     it("should track unique wallets", () => {
+      const { summarizer } = setup();
+
       summarizer.trackWallet(WALLET_1);
       summarizer.trackWallet(WALLET_2);
       summarizer.trackWallet(WALLET_1); // Duplicate
@@ -45,6 +45,8 @@ describe(TopUpSummarizer.name, () => {
     });
 
     it("should track successful wallets", () => {
+      const { summarizer } = setup();
+
       summarizer.trackWallet(WALLET_1);
       summarizer.trackWallet(WALLET_2);
       summarizer.trackSuccessfulWallet(WALLET_1);
@@ -56,6 +58,8 @@ describe(TopUpSummarizer.name, () => {
     });
 
     it("should track failed wallets", () => {
+      const { summarizer } = setup();
+
       summarizer.trackWallet(WALLET_1);
       summarizer.trackWallet(WALLET_2);
       summarizer.trackFailedWallet(WALLET_1);
@@ -66,6 +70,8 @@ describe(TopUpSummarizer.name, () => {
     });
 
     it("should track mixed success and failure", () => {
+      const { summarizer } = setup();
+
       summarizer.trackWallet(WALLET_1);
       summarizer.trackWallet(WALLET_2);
       summarizer.trackSuccessfulWallet(WALLET_1);
@@ -79,6 +85,8 @@ describe(TopUpSummarizer.name, () => {
 
   describe("addTopUpAmount", () => {
     it("should accumulate top-up amounts", () => {
+      const { summarizer } = setup();
+
       summarizer.addTopUpAmount(100);
       summarizer.addTopUpAmount(200);
 
@@ -88,6 +96,8 @@ describe(TopUpSummarizer.name, () => {
 
   describe("set", () => {
     it("should set block heights", () => {
+      const { summarizer } = setup();
+
       summarizer.set("startBlockHeight", 1000);
       summarizer.set("endBlockHeight", 2000);
 
@@ -98,6 +108,8 @@ describe(TopUpSummarizer.name, () => {
 
   describe("ensurePredictedClosedHeight", () => {
     it("should track minimum predicted closed height", () => {
+      const { summarizer } = setup();
+
       summarizer.ensurePredictedClosedHeight(2000);
       summarizer.ensurePredictedClosedHeight(1000);
 
@@ -105,6 +117,8 @@ describe(TopUpSummarizer.name, () => {
     });
 
     it("should track maximum predicted closed height", () => {
+      const { summarizer } = setup();
+
       summarizer.ensurePredictedClosedHeight(1000);
       summarizer.ensurePredictedClosedHeight(2000);
 
@@ -112,6 +126,8 @@ describe(TopUpSummarizer.name, () => {
     });
 
     it("should handle single height", () => {
+      const { summarizer } = setup();
+
       summarizer.ensurePredictedClosedHeight(1000);
 
       expect(summarizer.get("minPredictedClosedHeight")).toBe(1000);
@@ -121,6 +137,8 @@ describe(TopUpSummarizer.name, () => {
 
   describe("summarize", () => {
     it("should return complete summary", () => {
+      const { summarizer } = setup();
+
       const WALLET_1 = createAkashAddress();
       const WALLET_2 = createAkashAddress();
 
@@ -129,6 +147,7 @@ describe(TopUpSummarizer.name, () => {
       summarizer.inc("deploymentTopUpErrorCount");
       summarizer.inc("insufficientBalanceCount");
       summarizer.inc("depositsBelowUsefulRunwayCount");
+      summarizer.inc("headroomConcessionCount");
       summarizer.set("startBlockHeight", 1000);
       summarizer.set("endBlockHeight", 2000);
       summarizer.ensurePredictedClosedHeight(1500);
@@ -146,6 +165,7 @@ describe(TopUpSummarizer.name, () => {
         deploymentsMarkedClosedCount: 0,
         insufficientBalanceCount: 1,
         depositsBelowUsefulRunwayCount: 1,
+        headroomConcessionCount: 1,
         walletsCount: 2,
         walletsTopUpCount: 1,
         walletsTopUpErrorCount: 1,
@@ -158,6 +178,8 @@ describe(TopUpSummarizer.name, () => {
     });
 
     it("should handle empty state", () => {
+      const { summarizer } = setup();
+
       expect(summarizer.summarize()).toEqual({
         deploymentCount: 0,
         deploymentTopUpCount: 0,
@@ -165,6 +187,7 @@ describe(TopUpSummarizer.name, () => {
         deploymentsMarkedClosedCount: 0,
         insufficientBalanceCount: 0,
         depositsBelowUsefulRunwayCount: 0,
+        headroomConcessionCount: 0,
         walletsCount: 0,
         walletsTopUpCount: 0,
         walletsTopUpErrorCount: 0,
@@ -176,4 +199,8 @@ describe(TopUpSummarizer.name, () => {
       });
     });
   });
+
+  function setup() {
+    return { summarizer: new TopUpSummarizer() };
+  }
 });

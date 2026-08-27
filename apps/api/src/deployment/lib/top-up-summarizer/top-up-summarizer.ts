@@ -7,6 +7,7 @@ interface TopUpSummary {
   deploymentsMarkedClosedCount: number;
   insufficientBalanceCount: number;
   depositsBelowUsefulRunwayCount: number;
+  headroomConcessionCount: number;
   walletsCount: number;
   walletsTopUpCount: number;
   walletsTopUpErrorCount: number;
@@ -26,6 +27,8 @@ export class TopUpSummarizer {
   private insufficientBalanceCount = 0;
 
   private depositsBelowUsefulRunwayCount = 0;
+
+  private headroomConcessionCount = 0;
 
   private deploymentTopUpErrorCount = 0;
 
@@ -56,6 +59,7 @@ export class TopUpSummarizer {
       | "deploymentsMarkedClosedCount"
       | "insufficientBalanceCount"
       | "depositsBelowUsefulRunwayCount"
+      | "headroomConcessionCount"
     >,
     value = 1
   ) {
@@ -115,6 +119,7 @@ export class TopUpSummarizer {
       deploymentsMarkedClosedCount: this.deploymentsMarkedClosedCount,
       insufficientBalanceCount: this.insufficientBalanceCount,
       depositsBelowUsefulRunwayCount: this.depositsBelowUsefulRunwayCount,
+      headroomConcessionCount: this.headroomConcessionCount,
       walletsCount: this.walletAddresses.size,
       walletsTopUpCount: this.successfulWalletAddresses.size,
       walletsTopUpErrorCount: this.failedWalletAddresses.size,

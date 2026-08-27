@@ -23,6 +23,7 @@ import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 describe(InitialDeploymentFundingService.name, () => {
   const CURRENT_HEIGHT = 1000;
   const LOOK_AHEAD_HEIGHT = CURRENT_HEIGHT + 600 * 24;
+  const MIN_DEPOSIT = 500_000;
 
   it("throws when the lease is not visible on chain yet", async () => {
     const { service, drainingDeploymentService, managedSignerService } = setup();
@@ -227,7 +228,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const { service, drainingDeploymentService, rpcMessageService, cachedBalanceService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-    cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(200000, 0));
+    cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(200000, { headroom: 0, minDeposit: MIN_DEPOSIT }));
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
@@ -238,7 +239,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const { service, drainingDeploymentService, managedSignerService, instrumentation, cachedBalanceService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-    cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(0, 0));
+    cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(0, { headroom: 0, minDeposit: MIN_DEPOSIT }));
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
@@ -253,7 +254,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const { service, drainingDeploymentService, rpcMessageService, cachedBalanceService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(10_000_000);
-    cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(10_000_000, 5_000_000));
+    cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(10_000_000, { headroom: 5_000_000, minDeposit: MIN_DEPOSIT }));
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
@@ -264,7 +265,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const { service, drainingDeploymentService, rpcMessageService, cachedBalanceService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(10_000_000);
-    cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(4_000_000, 5_000_000));
+    cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(4_000_000, { headroom: 5_000_000, minDeposit: MIN_DEPOSIT }));
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
@@ -275,11 +276,22 @@ describe(InitialDeploymentFundingService.name, () => {
     const { service, drainingDeploymentService, rpcMessageService, cachedBalanceService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(10_000_000);
-    cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(5_000_000, 5_000_000));
+    cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(5_000_000, { headroom: 5_000_000, minDeposit: MIN_DEPOSIT }));
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
     expect(rpcMessageService.getDepositDeploymentMsg).toHaveBeenCalledWith(expect.objectContaining({ amount: 5_000_000 }));
+  });
+
+  it("funds the full balance when what sits above the headroom is too small to be a deposit", async () => {
+    const { service, drainingDeploymentService, rpcMessageService, cachedBalanceService } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(10_000_000);
+    cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(5_300_000, { headroom: 5_000_000, minDeposit: MIN_DEPOSIT }));
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(rpcMessageService.getDepositDeploymentMsg).toHaveBeenCalledWith(expect.objectContaining({ amount: 5_300_000 }));
   });
 
   it("skips funding when the wallet is not found", async () => {
@@ -410,7 +422,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const createLogger: CreateLogger = () => logger;
 
     blockHttpService.getCurrentHeight.mockResolvedValue(CURRENT_HEIGHT);
-    cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(1000000, 0));
+    cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(1000000, { headroom: 0, minDeposit: MIN_DEPOSIT }));
     userWalletRepository.findById.mockResolvedValue(createUserWallet({ id: 1, address: "akash1owner" }));
     managedSignerService.ensureFeeGrants.mockResolvedValue(100000);
     managedSignerService.executeDerivedTx.mockResolvedValue({ code: 0, hash: "TESTHASH", rawLog: "[]" });
