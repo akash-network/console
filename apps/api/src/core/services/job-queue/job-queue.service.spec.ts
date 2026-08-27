@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import type { Job as PgBossJob, PgBoss, WorkHandler } from "pg-boss";
+import type { Job as PgBossJob, PgBoss, QueueResult, WorkHandler } from "pg-boss";
 import type { Sql } from "postgres";
 import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
@@ -21,6 +21,7 @@ describe(JobQueueService.name, () => {
 
       expect(pgBoss.createQueue).toHaveBeenCalledWith("test", {
         retryBackoff: true,
+        retryDelay: 30,
         retryDelayMax: 5 * 60,
         retryLimit: 5,
         policy: undefined
@@ -28,24 +29,8 @@ describe(JobQueueService.name, () => {
     });
 
     it("handles multiple handlers", async () => {
-      const handleFn1 = vi.fn().mockResolvedValue(undefined);
-      const handleFn2 = vi.fn().mockResolvedValue(undefined);
-
-      class AnotherTestJob implements Job {
-        static readonly [JOB_NAME] = "another";
-        readonly name = AnotherTestJob[JOB_NAME];
-        readonly version = 1;
-
-        constructor(public readonly data: { type: string }) {}
-      }
-
-      class AnotherHandler implements JobHandler<AnotherTestJob> {
-        readonly accepts = AnotherTestJob;
-        readonly handle: JobHandler<AnotherTestJob>["handle"] = handleFn2;
-      }
-
-      const handler1 = new TestHandler(handleFn1);
-      const handler2 = new AnotherHandler();
+      const handler1 = new TestHandler(vi.fn().mockResolvedValue(undefined));
+      const handler2 = new AnotherTestHandler(vi.fn().mockResolvedValue(undefined));
       const { service, pgBoss } = setup();
 
       await service.registerHandlers([handler1, handler2]);
@@ -53,12 +38,14 @@ describe(JobQueueService.name, () => {
       expect(pgBoss.createQueue).toHaveBeenCalledTimes(2);
       expect(pgBoss.createQueue).toHaveBeenCalledWith("test", {
         retryBackoff: true,
+        retryDelay: 30,
         retryDelayMax: 5 * 60,
         retryLimit: 5,
         policy: undefined
       });
       expect(pgBoss.createQueue).toHaveBeenCalledWith("another", {
         retryBackoff: true,
+        retryDelay: 30,
         retryDelayMax: 5 * 60,
         retryLimit: 5,
         policy: undefined
@@ -73,6 +60,78 @@ describe(JobQueueService.name, () => {
       const { service } = setup();
 
       await expect(service.registerHandlers([handler1, handler2])).rejects.toThrow("JobQueue does not support multiple handlers for the same queue: test");
+    });
+
+    it("creates the queue with its handler's policy", async () => {
+      const { service, pgBoss } = setup();
+
+      await service.registerHandlers([new SingletonTestHandler(vi.fn())]);
+
+      expect(pgBoss.createQueue).toHaveBeenCalledWith("test", expect.objectContaining({ policy: "singleton" }));
+    });
+
+    it("converges an existing queue onto the current retry settings", async () => {
+      const { service, pgBoss, logger } = setup({ queues: [liveQueue({ retryDelay: 0 })] });
+
+      await service.registerHandlers([new TestHandler(vi.fn())]);
+
+      expect(pgBoss.updateQueue).toHaveBeenCalledWith("test", {
+        retryBackoff: true,
+        retryDelay: 30,
+        retryDelayMax: 5 * 60,
+        retryLimit: 5
+      });
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "JOB_QUEUE_RETRY_OPTIONS_CONVERGED", queue: "test" }));
+    });
+
+    it("never asks pg-boss to change a policy it refuses to change", async () => {
+      const { service, pgBoss } = setup({ queues: [liveQueue({ retryDelay: 0 })] });
+
+      await service.registerHandlers([new SingletonTestHandler(vi.fn())]);
+
+      const [, options] = vi.mocked(pgBoss.updateQueue).mock.calls[0];
+      expect(Object.keys(options as object)).not.toContain("policy");
+    });
+
+    it("leaves a queue that already carries the current retry settings alone", async () => {
+      const { service, pgBoss } = setup({ queues: [liveQueue()] });
+
+      await service.registerHandlers([new TestHandler(vi.fn())]);
+
+      expect(pgBoss.updateQueue).not.toHaveBeenCalled();
+    });
+
+    it("reads the live queue settings once for all handlers", async () => {
+      const { service, pgBoss } = setup();
+
+      await service.registerHandlers([new TestHandler(vi.fn()), new AnotherTestHandler(vi.fn())]);
+
+      expect(pgBoss.getQueues).toHaveBeenCalledTimes(1);
+      expect(pgBoss.getQueues).toHaveBeenCalledWith(["test", "another"]);
+    });
+
+    it("warns when a handler declares a policy the live queue does not carry", async () => {
+      const { service, logger } = setup({ queues: [liveQueue({ policy: "standard" })] });
+
+      await service.registerHandlers([new SingletonTestHandler(vi.fn())]);
+
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "JOB_QUEUE_POLICY_UNCHANGEABLE",
+        queue: "test",
+        declared: "singleton",
+        live: "standard"
+      });
+    });
+
+    it("starts workers even when it cannot converge the queue settings", async () => {
+      const error = new Error("update failed");
+      const { service, pgBoss, logger } = setup({ queues: [liveQueue({ retryDelay: 0 })] });
+      vi.mocked(pgBoss.updateQueue).mockRejectedValue(error);
+
+      await service.registerHandlers([new TestHandler(vi.fn())]);
+
+      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_QUEUE_RETRY_OPTIONS_CONVERGE_FAILED", error });
+      await expect(service.startWorkers()).resolves.toBeUndefined();
     });
   });
 
@@ -217,6 +276,17 @@ describe(JobQueueService.name, () => {
       expect(executeSql).toHaveBeenCalledWith(expect.stringContaining("state = 'cancelled'"), ["test-job", "singleton-1"]);
     });
 
+    it("cancels a job waiting on a retry, not only one that has never run", async () => {
+      const { service, pgBoss, txService } = setup();
+      txService.getConnection.mockReturnValue(undefined);
+      const executeSql = vi.fn().mockResolvedValue({ rows: [] });
+      vi.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql });
+
+      await service.cancelCreatedBy({ name: "test-job", singletonKey: "singleton-1" });
+
+      expect(executeSql).toHaveBeenCalledWith(expect.stringContaining("state IN ('created', 'retry')"), ["test-job", "singleton-1"]);
+    });
+
     it("cancels created jobs on the ambient transaction connection when one is active", async () => {
       const { service, pgBoss, txService } = setup();
       const unsafe = vi.fn().mockResolvedValue([{ id: "job-1" }]);
@@ -299,6 +369,7 @@ describe(JobQueueService.name, () => {
 
       expect(pgBoss.createQueue).toHaveBeenCalledWith("test", {
         retryBackoff: true,
+        retryDelay: 30,
         retryDelayMax: 5 * 60,
         retryLimit: 5,
         policy: undefined
@@ -425,7 +496,7 @@ describe(JobQueueService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: JobQueueService.name });
   });
 
-  function setup(input?: { pgBoss?: PgBoss; postgresDbUri?: string }) {
+  function setup(input?: { pgBoss?: PgBoss; postgresDbUri?: string; queues?: QueueResult[] }) {
     const mocks = {
       logger: mock<ReturnType<CreateLogger>>(),
       coreConfig: mock<CoreConfigService>({
@@ -435,6 +506,8 @@ describe(JobQueueService.name, () => {
         input?.pgBoss ??
         mockDeep<PgBoss>({
           createQueue: vi.fn().mockResolvedValue(undefined),
+          updateQueue: vi.fn().mockResolvedValue(undefined),
+          getQueues: vi.fn().mockResolvedValue(input?.queues ?? []),
           send: vi.fn().mockResolvedValue("job-id"),
           work: vi.fn().mockResolvedValue(undefined),
           start: vi.fn().mockResolvedValue(undefined),
@@ -479,5 +552,36 @@ describe(JobQueueService.name, () => {
   class TestHandler implements JobHandler<TestJob> {
     readonly accepts = TestJob;
     constructor(public readonly handle: JobHandler<TestJob>["handle"]) {}
+  }
+
+  class SingletonTestHandler implements JobHandler<TestJob> {
+    readonly accepts = TestJob;
+    readonly policy = "singleton" as const;
+    constructor(public readonly handle: JobHandler<TestJob>["handle"]) {}
+  }
+
+  class AnotherTestJob implements Job {
+    static readonly [JOB_NAME] = "another";
+    readonly name = AnotherTestJob[JOB_NAME];
+    readonly version = 1;
+
+    constructor(public readonly data: { type: string }) {}
+  }
+
+  class AnotherTestHandler implements JobHandler<AnotherTestJob> {
+    readonly accepts = AnotherTestJob;
+    constructor(public readonly handle: JobHandler<AnotherTestJob>["handle"]) {}
+  }
+
+  function liveQueue(overrides?: Partial<QueueResult>) {
+    return mock<QueueResult>({
+      name: TestJob[JOB_NAME],
+      policy: "standard",
+      retryLimit: 5,
+      retryBackoff: true,
+      retryDelay: 30,
+      retryDelayMax: 5 * 60,
+      ...overrides
+    });
   }
 });

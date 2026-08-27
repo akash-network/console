@@ -11,6 +11,24 @@ import { TxService } from "../tx/tx.service";
 
 export const PG_BOSS_TOKEN: InjectionToken<PgBoss> = Symbol("pgBoss");
 
+type QueueRetryOptions = Pick<PgBossQueue, "retryLimit" | "retryBackoff" | "retryDelay" | "retryDelayMax">;
+
+/** pg-boss multiplies its backoff by `retryDelay` and defaults it to 0, which would collapse every retry gap to zero. */
+const QUEUE_RETRY_OPTIONS: QueueRetryOptions = {
+  retryLimit: 5,
+  retryBackoff: true,
+  retryDelay: 30,
+  retryDelayMax: 5 * 60
+};
+
+const DEFAULT_QUEUE_POLICY: PgBossQueue["policy"] = "standard";
+
+const RETRY_OPTION_KEYS = Object.keys(QUEUE_RETRY_OPTIONS) as (keyof QueueRetryOptions)[];
+
+function retryOptionsOf(queue: QueueRetryOptions) {
+  return RETRY_OPTION_KEYS.map(key => [key, queue[key]] as const);
+}
+
 @singleton()
 export class JobQueueService implements Disposable {
   private readonly pgBoss: PgBoss;
@@ -45,15 +63,49 @@ export class JobQueueService implements Disposable {
         throw new Error(`JobQueue does not support multiple handlers for the same queue: ${queueName}`);
       }
       seenJobs.add(queueName);
-      await this.pgBoss.createQueue(queueName, {
-        retryLimit: 5,
-        retryBackoff: true,
-        retryDelayMax: 5 * 60,
-        policy: handler.policy
-      });
+      await this.pgBoss.createQueue(queueName, { ...QUEUE_RETRY_OPTIONS, policy: handler.policy });
     });
     await Promise.all(promises);
+    await this.#convergeRetryOptions(handlers);
     this.handlers = handlers.slice(0);
+  }
+
+  /**
+   * `createQueue` never touches a queue that already exists, so settings corrected in code reach production only from here.
+   * A failure leaves the queues as they were, which is why it is logged rather than raised: it must not keep workers down.
+   */
+  async #convergeRetryOptions(handlers: JobHandler<Job>[]): Promise<void> {
+    try {
+      const queueNames = handlers.map(handler => handler.accepts[JOB_NAME]);
+      const liveQueues = new Map((await this.pgBoss.getQueues(queueNames)).map(queue => [queue.name, queue]));
+
+      for (const handler of handlers) {
+        const queue = liveQueues.get(handler.accepts[JOB_NAME]);
+        if (!queue) continue;
+
+        const declaredPolicy = handler.policy ?? DEFAULT_QUEUE_POLICY;
+        if (queue.policy !== declaredPolicy) {
+          this.logger.warn({
+            event: "JOB_QUEUE_POLICY_UNCHANGEABLE",
+            queue: queue.name,
+            declared: declaredPolicy,
+            live: queue.policy
+          });
+        }
+
+        if (retryOptionsOf(queue).every(([key, value]) => value === QUEUE_RETRY_OPTIONS[key])) continue;
+
+        await this.pgBoss.updateQueue(queue.name, QUEUE_RETRY_OPTIONS);
+        this.logger.info({
+          event: "JOB_QUEUE_RETRY_OPTIONS_CONVERGED",
+          queue: queue.name,
+          from: Object.fromEntries(retryOptionsOf(queue)),
+          to: QUEUE_RETRY_OPTIONS
+        });
+      }
+    } catch (error) {
+      this.logger.error({ event: "JOB_QUEUE_RETRY_OPTIONS_CONVERGE_FAILED", error });
+    }
   }
 
   /**
@@ -165,7 +217,7 @@ export class JobQueueService implements Disposable {
           SET completed_on = now(),
             state = 'cancelled'
           WHERE name = $1
-            AND state = 'created'
+            AND state IN ('created', 'retry')
             AND singleton_key = $2
           RETURNING id
         )
