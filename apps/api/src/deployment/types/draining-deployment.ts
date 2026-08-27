@@ -10,6 +10,7 @@ export type RpcDeploymentInfo = {
   dseq: string;
   escrowBalance: number;
   createdHeight: number;
+  isEscrowOpen: boolean;
 };
 
 export interface DrainingDeploymentLeaseSource {

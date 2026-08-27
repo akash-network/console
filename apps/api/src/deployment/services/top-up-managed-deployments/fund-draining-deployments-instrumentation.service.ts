@@ -220,6 +220,48 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
     this.emitLog("error", { event: "FUND_DRAINING_CREDITS_LOW_SCHEDULE_ERROR", walletId, error });
   }
 
+  recordDeploymentClosedOnChain({
+    owner,
+    deployment,
+    messageIndex,
+    error
+  }: {
+    owner: string;
+    deployment: DrainingDeployment;
+    messageIndex?: number;
+    error: unknown;
+  }): void {
+    this.recordDeploymentsMarkedClosed(1);
+
+    this.emitLog("warn", {
+      event: "FUND_DRAINING_DEPLOYMENT_CLOSED_ON_CHAIN",
+      owner,
+      dseq: deployment.dseq,
+      address: deployment.address,
+      messageIndex,
+      error
+    });
+  }
+
+  /** The count stays uncredited so telemetry never reports a row as closed that the database still has open. */
+  recordDeploymentCloseMarkFailed({ owner, deployment, error }: { owner: string; deployment: DrainingDeployment; error: unknown }): void {
+    this.emitLog("warn", {
+      event: "FUND_DRAINING_DEPLOYMENT_CLOSE_MARK_FAILED",
+      owner,
+      dseq: deployment.dseq,
+      address: deployment.address,
+      error
+    });
+  }
+
+  recordClosedDeploymentRetryLimit({ owner, remainingCount }: { owner: string; remainingCount: number }): void {
+    this.emitLog("warn", {
+      event: "FUND_DRAINING_CLOSED_DEPLOYMENT_RETRY_LIMIT",
+      owner,
+      remainingCount
+    });
+  }
+
   /**
    * The cron records blocks-until-predicted-close against a run-scoped start height. The stateless
    * event-driven path has no per-run start height, so there is nothing meaningful to record here.

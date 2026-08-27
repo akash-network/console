@@ -198,6 +198,39 @@ describe(DrainingDeploymentRpcService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: DrainingDeploymentRpcService.name });
   });
 
+  describe("when the escrow account is no longer open", () => {
+    it.each(["closed", "overdrawn"])("flags a %s escrow account so its setting can be marked closed", async escrowState => {
+      const { service, owner, dseqs, closureHeight } = setup({
+        inputs: [{ leases: [{ blockRate: 10 }], deployment: { escrowState, funds: 0, transferred: 0 } }]
+      });
+
+      const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
+
+      expect(result).toEqual([expect.objectContaining({ dseq: Number(dseqs[0]), isClosed: true })]);
+    });
+
+    it("keeps an open escrow account unflagged", async () => {
+      const { service, owner, dseqs, closureHeight } = setup({
+        inputs: [{ leases: [{ blockRate: 100 }], deployment: { escrowState: "open" } }]
+      });
+
+      const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
+
+      expect(result).toEqual([expect.objectContaining({ dseq: Number(dseqs[0]) })]);
+      expect(result[0]).not.toHaveProperty("isClosed");
+    });
+
+    it("keeps a flagged deployment that an open lease would place beyond the closure window", async () => {
+      const { service, owner, dseqs } = setup({
+        inputs: [{ leases: [{ blockRate: 1 }], deployment: { escrowState: "closed", funds: 10_000_000, transferred: 0 } }]
+      });
+
+      const result = await service.findManyByDseqAndOwner(1, owner, dseqs);
+
+      expect(result).toEqual([expect.objectContaining({ dseq: Number(dseqs[0]), isClosed: true })]);
+    });
+  });
+
   function setup({
     inputs = []
   }: {
@@ -213,6 +246,7 @@ describe(DrainingDeploymentRpcService.name, () => {
         createdHeight?: number;
         funds?: number;
         transferred?: number;
+        escrowState?: string;
       };
     }>;
   } = {}) {
@@ -263,6 +297,7 @@ describe(DrainingDeploymentRpcService.name, () => {
         if ("escrow_account" in deploymentInfo) {
           deploymentInfo.escrow_account.state.funds = [{ denom: "uakt", amount: String(funds) }];
           deploymentInfo.escrow_account.state.transferred = [{ denom: "uakt", amount: String(transferred) }];
+          deploymentInfo.escrow_account.state.state = input.deployment.escrowState ?? "open";
         }
         deployments.push(deployment);
       }

@@ -689,6 +689,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const error = new Error(`insufficient funds: 10uakt is smaller than 20uakt`);
 
       chainErrorService.isMasterWalletInsufficientFundsError.mockResolvedValue(false);
+      chainErrorService.isDeploymentClosedError.mockReturnValue(false);
+      chainErrorService.getFailedMessageIndex.mockReturnValue(undefined);
       const mockTx = mock<IndexedTx>({
         code: 0,
         hash: "tx-hash",
@@ -1386,6 +1388,226 @@ describe(TopUpManagedDeploymentsService.name, () => {
     }
   });
 
+  describe("when the chain reports a deployment closed", () => {
+    it("marks the closed deployment, drops it, and funds the rest of the batch in the same pass", async () => {
+      const { service, chainErrorService, managedSignerService, deploymentSettingRepository, instrumentation, owner, walletId, deployments } =
+        setupDrainingOwner({ deploymentCount: 3 });
+      const error = createDeploymentClosedError(1);
+
+      chainErrorService.isDeploymentClosedError.mockReturnValue(true);
+      chainErrorService.getFailedMessageIndex.mockReturnValue(1);
+      managedSignerService.executeDerivedTx.mockRejectedValueOnce(error);
+
+      await expect(service.topUpDeployments({ dryRun: false })).resolves.toEqual(expect.objectContaining({ ok: true }));
+
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(2);
+      expect(managedSignerService.executeDerivedTx).toHaveBeenLastCalledWith(walletId, [
+        expect.objectContaining({ value: expect.objectContaining({ id: { scope: Scope.deployment, xid: `${owner}/${deployments[0].dseq}` } }) }),
+        expect.objectContaining({ value: expect.objectContaining({ id: { scope: Scope.deployment, xid: `${owner}/${deployments[2].dseq}` } }) })
+      ]);
+      expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledWith([deployments[1].id]);
+      expect(instrumentation.recordDeploymentClosedOnChain).toHaveBeenCalledWith({
+        owner,
+        deployment: expect.objectContaining({ id: deployments[1].id }),
+        messageIndex: 1,
+        error
+      });
+      expect(instrumentation.recordChainTxError).not.toHaveBeenCalled();
+      expect(instrumentation.recordDeposit.mock.calls[0][0].items).toHaveLength(2);
+      expect(instrumentation.finish).toHaveBeenCalledWith("success", CURRENT_BLOCK_HEIGHT);
+    });
+
+    it("resolves each retry's message index against the shrunken batch rather than the original one", async () => {
+      const { service, chainErrorService, managedSignerService, deploymentSettingRepository, instrumentation, deployments } = setupDrainingOwner({
+        deploymentCount: 4
+      });
+
+      chainErrorService.isDeploymentClosedError.mockReturnValue(true);
+      chainErrorService.getFailedMessageIndex.mockReturnValueOnce(0).mockReturnValueOnce(1);
+      managedSignerService.executeDerivedTx.mockRejectedValueOnce(createDeploymentClosedError(0)).mockRejectedValueOnce(createDeploymentClosedError(1));
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(3);
+      expect(deploymentSettingRepository.markAsClosed).toHaveBeenNthCalledWith(1, [deployments[0].id]);
+      expect(deploymentSettingRepository.markAsClosed).toHaveBeenNthCalledWith(2, [deployments[2].id]);
+      expect(instrumentation.recordDeposit.mock.calls[0][0].items.map(item => item.deployment.id)).toEqual([deployments[1].id, deployments[3].id]);
+    });
+
+    it("marks every deployment closed and reports no error when the whole batch is closed", async () => {
+      const { service, chainErrorService, managedSignerService, deploymentSettingRepository, instrumentation, deployments } = setupDrainingOwner({
+        deploymentCount: 2
+      });
+
+      chainErrorService.isDeploymentClosedError.mockReturnValue(true);
+      chainErrorService.getFailedMessageIndex.mockReturnValue(0);
+      managedSignerService.executeDerivedTx.mockRejectedValue(createDeploymentClosedError(0));
+
+      await expect(service.topUpDeployments({ dryRun: false })).resolves.toEqual(expect.objectContaining({ ok: true }));
+
+      expect(deploymentSettingRepository.markAsClosed).toHaveBeenNthCalledWith(1, [deployments[0].id]);
+      expect(deploymentSettingRepository.markAsClosed).toHaveBeenNthCalledWith(2, [deployments[1].id]);
+      expect(instrumentation.recordDeposit).not.toHaveBeenCalled();
+      expect(instrumentation.recordChainTxError).not.toHaveBeenCalled();
+      expect(instrumentation.finish).toHaveBeenCalledWith("success", CURRENT_BLOCK_HEIGHT);
+    });
+
+    it("drops a deployment a broadcast tx reverted on rather than only a rejected estimate", async () => {
+      const { service, chainErrorService, managedSignerService, deploymentSettingRepository, instrumentation, deployments } = setupDrainingOwner({
+        deploymentCount: 2
+      });
+
+      chainErrorService.isDeploymentClosedError.mockReturnValue(true);
+      chainErrorService.getFailedMessageIndex.mockReturnValue(0);
+      managedSignerService.executeDerivedTx.mockResolvedValueOnce(
+        mock<IndexedTx>({ code: 8, hash: "tx-hash", rawLog: "failed to execute message; message index: 0: Deployment closed" })
+      );
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(2);
+      expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledWith([deployments[0].id]);
+      expect(instrumentation.recordChainTxError).not.toHaveBeenCalled();
+    });
+
+    it("reports a chain tx error and marks nothing when the failing message cannot be located in the batch", async () => {
+      const { service, chainErrorService, managedSignerService, deploymentSettingRepository, instrumentation } = setupDrainingOwner({
+        deploymentCount: 2
+      });
+      const error = createDeploymentClosedError(7);
+
+      chainErrorService.isDeploymentClosedError.mockReturnValue(true);
+      chainErrorService.getFailedMessageIndex.mockReturnValue(7);
+      managedSignerService.executeDerivedTx.mockRejectedValue(error);
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
+      expect(deploymentSettingRepository.markAsClosed).not.toHaveBeenCalled();
+      expect(instrumentation.recordDeploymentClosedOnChain).not.toHaveBeenCalled();
+      expect(instrumentation.recordChainTxError).toHaveBeenCalledWith(expect.objectContaining({ error }));
+    });
+
+    it("keeps funding the rest of the batch when the closed deployment cannot be written to the database", async () => {
+      const { service, chainErrorService, managedSignerService, deploymentSettingRepository, instrumentation, owner, deployments } = setupDrainingOwner({
+        deploymentCount: 2
+      });
+      const markError = new Error("connection terminated");
+
+      chainErrorService.isDeploymentClosedError.mockReturnValue(true);
+      chainErrorService.getFailedMessageIndex.mockReturnValue(0);
+      managedSignerService.executeDerivedTx.mockRejectedValueOnce(createDeploymentClosedError(0));
+      deploymentSettingRepository.markAsClosed.mockRejectedValue(markError);
+
+      await expect(service.topUpDeployments({ dryRun: false })).resolves.toEqual(expect.objectContaining({ ok: true }));
+
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(2);
+      expect(instrumentation.recordDeploymentCloseMarkFailed).toHaveBeenCalledWith({
+        owner,
+        deployment: expect.objectContaining({ id: deployments[0].id }),
+        error: markError
+      });
+      expect(instrumentation.recordDeploymentClosedOnChain).not.toHaveBeenCalled();
+      expect(instrumentation.recordChainTxError).not.toHaveBeenCalled();
+    });
+
+    it("stops retrying once too many deployments of one owner turn out closed, without reporting an error", async () => {
+      const { service, chainErrorService, managedSignerService, deploymentSettingRepository, instrumentation, owner } = setupDrainingOwner({
+        deploymentCount: 6
+      });
+
+      chainErrorService.isDeploymentClosedError.mockReturnValue(true);
+      chainErrorService.getFailedMessageIndex.mockReturnValue(0);
+      managedSignerService.executeDerivedTx.mockRejectedValue(createDeploymentClosedError(0));
+
+      await expect(service.topUpDeployments({ dryRun: false })).resolves.toEqual(expect.objectContaining({ ok: true }));
+
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(4);
+      expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledTimes(4);
+      expect(instrumentation.recordClosedDeploymentRetryLimit).toHaveBeenCalledWith({ owner, remainingCount: 2 });
+      expect(instrumentation.recordChainTxError).not.toHaveBeenCalled();
+    });
+
+    it("neither broadcasts nor marks anything closed on a dry run", async () => {
+      const { service, managedSignerService, deploymentSettingRepository } = setupDrainingOwner({ deploymentCount: 2 });
+
+      await service.topUpDeployments({ dryRun: true });
+
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.markAsClosed).not.toHaveBeenCalled();
+    });
+
+    it("reports to the event-driven instrumentation when immediate funding hits a closed deployment", async () => {
+      const {
+        service,
+        chainErrorService,
+        drainingDeploymentService,
+        cachedBalanceService,
+        managedSignerService,
+        deploymentSettingRepository,
+        instrumentation,
+        fundDrainingInstrumentation
+      } = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const deployments = createDrainingDeployments(owner, walletId, 2);
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue(deployments);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
+      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
+      chainErrorService.isDeploymentClosedError.mockReturnValue(true);
+      chainErrorService.getFailedMessageIndex.mockReturnValue(0);
+      managedSignerService.executeDerivedTx.mockRejectedValueOnce(createDeploymentClosedError(0));
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
+
+      expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledWith([deployments[0].id]);
+      expect(fundDrainingInstrumentation.recordDeploymentClosedOnChain).toHaveBeenCalledWith(expect.objectContaining({ owner, messageIndex: 0 }));
+      expect(instrumentation.recordDeploymentClosedOnChain).not.toHaveBeenCalled();
+    });
+
+    function setupDrainingOwner(input: { deploymentCount: number }) {
+      const context = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const deployments = createDrainingDeployments(owner, walletId, input.deploymentCount);
+
+      context.drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() =>
+        (async function* () {
+          yield { address: owner, walletId, deployments };
+        })()
+      );
+      context.drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
+      context.cachedBalanceService.get.mockResolvedValue(createMockCachedBalance(() => 1000000));
+
+      return { ...context, owner, walletId, deployments };
+    }
+  });
+
+  function createDeploymentClosedError(messageIndex: number) {
+    const error: Error & { originalError?: Error } = new Error("Deployment closed");
+    error.originalError = new Error(
+      `Query failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: ${messageIndex}: Deployment closed`
+    );
+    return error;
+  }
+
+  function createDrainingDeployments(owner: string, walletId: number, count: number): DrainingDeployment[] {
+    return Array.from({ length: count }, () => {
+      const setting = createAutoTopUpDeployment({ address: owner, walletId });
+      return {
+        ...setting,
+        ...createDrainingDeployment({
+          dseq: Number(setting.dseq),
+          owner,
+          predictedClosedHeight: CURRENT_BLOCK_HEIGHT + 1500,
+          denom: DEPLOYMENT_GRANT_DENOM
+        }),
+        dseq: setting.dseq
+      } as DrainingDeployment;
+    });
+  }
+
   function setupWithWalletReloadJobs(input?: { currentBlockHeight?: number; feeAllowance?: number }) {
     const walletSettingRepository = mock<WalletSettingRepository>();
     const userWalletRepository = mock<UserWalletRepository>();
@@ -1432,6 +1654,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.claimForFunding.mockImplementation(async (ids: string[]) => ids.map(createFundingClaim));
     deploymentSettingRepository.releaseFundingClaim.mockResolvedValue(undefined);
+    deploymentSettingRepository.markAsClosed.mockResolvedValue(undefined);
     deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() => (async function* () {})());
     const deploymentConfig = mockConfigService<DeploymentConfigService>({ AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN: DEDUP_COOLDOWN_IN_MIN });
     const balancesService = mock<BalancesService>();

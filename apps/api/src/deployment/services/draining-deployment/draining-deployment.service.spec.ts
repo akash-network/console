@@ -87,7 +87,7 @@ describe(DrainingDeploymentService.name, () => {
 
       expect(leaseRepository.findManyByDseqAndOwner).not.toHaveBeenCalled();
       expect(loggerService.error).not.toHaveBeenCalled();
-      expect(deploymentSettingRepository.updateManyById).toHaveBeenCalledWith(expect.arrayContaining([expect.any(String)]), { closed: true });
+      expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledWith(expect.arrayContaining([expect.any(String)]));
 
       expect(callback).toHaveBeenCalledTimes(deploymentSettings.length);
       [activeBatches[0][0], activeBatches[1][0]].forEach(deployment => {
@@ -207,6 +207,27 @@ describe(DrainingDeploymentService.name, () => {
       );
     });
 
+    it("marks a deployment whose escrow account is no longer open even though its lease still reads open", async () => {
+      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const sink = mock<DeploymentTopUpInstrumentation>();
+      const address = createAkashAddress();
+      const activeSetting = createAutoTopUpDeployment({ address, dseq: "3001" });
+      const closedSetting = createAutoTopUpDeployment({ address, dseq: "3002" });
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([activeSetting, closedSetting]);
+      vi.spyOn(service, "findLeases").mockResolvedValue([
+        createDrainingDeployment({ dseq: Number(activeSetting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 }),
+        createDrainingDeployment({ dseq: Number(closedSetting.dseq), owner: address, predictedClosedHeight: currentHeight + 500, isClosed: true })
+      ]);
+
+      const result = await service.findDrainingDeploymentsForOwner(address, sink, currentHeight);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].dseq).toBe(activeSetting.dseq);
+      expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledWith([closedSetting.id]);
+      expect(sink.recordDeploymentsMarkedClosed).toHaveBeenCalledWith(1);
+    });
+
     it("marks closed deployments as closed and excludes them from the result", async () => {
       const { service, deploymentSettingRepository, currentHeight, instrumentation } = setup();
       const sink = mock<DeploymentTopUpInstrumentation>();
@@ -229,7 +250,7 @@ describe(DrainingDeploymentService.name, () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].dseq).toBe(activeSetting.dseq);
-      expect(deploymentSettingRepository.updateManyById).toHaveBeenCalledWith([closedSetting.id], { closed: true });
+      expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledWith([closedSetting.id]);
       expect(sink.recordDeploymentsMarkedClosed).toHaveBeenCalledWith(1);
       expect(instrumentation.recordDeploymentsMarkedClosed).not.toHaveBeenCalled();
     });

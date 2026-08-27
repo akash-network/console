@@ -29,4 +29,7 @@ export interface DeploymentTopUpInstrumentation {
   recordMasterWalletInsufficientFundsError(details: { owner: string; items: FundingMessageItem[]; error: unknown }): void;
   recordClaimReleaseError(details: { owner: string; deploymentIds: string[]; error: unknown }): void;
   recordDeploymentsMarkedClosed(count: number): void;
+  recordDeploymentClosedOnChain(details: { owner: string; deployment: DrainingDeployment; messageIndex?: number; error: unknown }): void;
+  recordDeploymentCloseMarkFailed(details: { owner: string; deployment: DrainingDeployment; error: unknown }): void;
+  recordClosedDeploymentRetryLimit(details: { owner: string; remainingCount: number }): void;
 }

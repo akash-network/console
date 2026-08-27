@@ -126,6 +126,28 @@ export class ChainErrorService {
     return /account closed|deployment closed/i.test(error.message);
   }
 
+  /**
+   * `toAppError` replaces the raw chain message with a mapped one, so on that path the index survives only
+   * on `originalError`, which is read first because it is the rawest message available.
+   */
+  public getFailedMessageIndex(error: Error): number | undefined {
+    const originalError = (error as { originalError?: unknown }).originalError;
+
+    return this.parseMessageIndex(originalError instanceof Error ? originalError.message : undefined) ?? this.parseMessageIndex(error.message);
+  }
+
+  private parseMessageIndex(message: string | undefined): number | undefined {
+    const match = message?.match(/message index: (\d+)/)?.[1];
+
+    if (match === undefined) {
+      return undefined;
+    }
+
+    const index = parseInt(match, 10);
+
+    return Number.isNaN(index) ? undefined : index;
+  }
+
   public isUnsettleableDeploymentError(error: Error): boolean {
     const originalError = (error as { originalError?: unknown }).originalError;
     const messages = [error.message, originalError instanceof Error ? originalError.message : undefined];
@@ -180,12 +202,12 @@ export class ChainErrorService {
   }
 
   private getMessagePrefix(error: Error, messages: readonly EncodeObject[]) {
-    const messageIndexStr = error.message.match(/message index: (\d+)/)?.[1];
-    if (!messageIndexStr) {
+    const messageIndex = this.getFailedMessageIndex(error);
+
+    if (messageIndex === undefined) {
       return "";
     }
 
-    const messageIndex = parseInt(messageIndexStr);
     const messageType = messages[messageIndex]?.typeUrl;
 
     if (!messageType) {

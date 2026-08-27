@@ -291,6 +291,43 @@ describe(ChainErrorService.name, () => {
     });
   });
 
+  describe("getFailedMessageIndex", () => {
+    it("reads the index from a raw chain message", () => {
+      const { service } = setup();
+      const err = new Error("Query failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: 2: deployment closed");
+
+      expect(service.getFailedMessageIndex(err)).toBe(2);
+    });
+
+    it("reads the index off the original error once toAppError has replaced the message", async () => {
+      const { service } = setup();
+      const rawError = new Error("Query failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: 2: Deployment closed");
+      const appError = await service.toAppError(rawError, []);
+
+      expect(appError.message).toBe("Deployment closed");
+      expect(service.getFailedMessageIndex(appError)).toBe(2);
+    });
+
+    it("returns zero rather than collapsing the first message into a missing index", () => {
+      const { service } = setup();
+
+      expect(service.getFailedMessageIndex(new Error("failed to execute message; message index: 0: deployment closed"))).toBe(0);
+    });
+
+    it("returns undefined when the message carries no index", () => {
+      const { service } = setup();
+
+      expect(service.getFailedMessageIndex(new Error("Deployment closed"))).toBeUndefined();
+    });
+
+    it("falls back to the error's own message when originalError is not an error", () => {
+      const { service } = setup();
+      const err = Object.assign(new Error("failed to execute message; message index: 1: deployment closed"), { originalError: "not an error" });
+
+      expect(service.getFailedMessageIndex(err)).toBe(1);
+    });
+  });
+
   describe("isUnsettleableDeploymentError", () => {
     it("returns true for the escrow settlement underflow panic", () => {
       const { service } = setup();

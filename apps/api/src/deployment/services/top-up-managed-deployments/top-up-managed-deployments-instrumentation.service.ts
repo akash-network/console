@@ -241,6 +241,51 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
     });
   }
 
+  recordDeploymentClosedOnChain({
+    owner,
+    deployment,
+    messageIndex,
+    error
+  }: {
+    owner: string;
+    deployment: DrainingDeployment;
+    messageIndex?: number;
+    error: unknown;
+  }): void {
+    this.recordDeploymentsMarkedClosed(1);
+
+    this.logger.warn({
+      event: "TOP_UP_DEPLOYMENT_CLOSED_ON_CHAIN",
+      owner,
+      dseq: deployment.dseq,
+      address: deployment.address,
+      messageIndex,
+      ...this.serializeError(error),
+      dryRun: this.options?.dryRun
+    });
+  }
+
+  /** The count stays uncredited so the summary never reports a row as closed that the database still has open. */
+  recordDeploymentCloseMarkFailed({ owner, deployment, error }: { owner: string; deployment: DrainingDeployment; error: unknown }): void {
+    this.logger.warn({
+      event: "TOP_UP_DEPLOYMENT_CLOSE_MARK_FAILED",
+      owner,
+      dseq: deployment.dseq,
+      address: deployment.address,
+      ...this.serializeError(error),
+      dryRun: this.options?.dryRun
+    });
+  }
+
+  recordClosedDeploymentRetryLimit({ owner, remainingCount }: { owner: string; remainingCount: number }): void {
+    this.logger.warn({
+      event: "TOP_UP_CLOSED_DEPLOYMENT_RETRY_LIMIT",
+      owner,
+      remainingCount,
+      dryRun: this.options?.dryRun
+    });
+  }
+
   recordDeploymentPreparation(ownerAddress: string, predictedClosedHeight: number): void {
     this.topUpSummarizer.inc("deploymentCount");
     this.topUpSummarizer.trackWallet(ownerAddress);

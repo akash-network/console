@@ -21,6 +21,9 @@ import type { DeploymentTopUpInstrumentation } from "./deployment-top-up-instrum
 import { FundDrainingDeploymentsInstrumentationService } from "./fund-draining-deployments-instrumentation.service";
 import { TopUpManagedDeploymentsInstrumentationService } from "./top-up-managed-deployments-instrumentation.service";
 
+/** Bounds how long one owner's backlog of closed deployments can hold the sweep, which converges over the passes that follow. */
+const MAX_CLOSED_DEPLOYMENT_DROPS = 3;
+
 type DepositSize = {
   affordableAmount: number;
   runwayMinutes: number;
@@ -400,56 +403,127 @@ export class TopUpManagedDeploymentsService {
     return isCapped && runwayMinutes < this.deploymentConfig.get("AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN");
   }
 
+  /**
+   * Re-broadcasting without a closed deployment is safe only because both classified shapes prove the tx was
+   * rejected whole: a fee estimation never broadcasts, and a non-zero tx code means every message reverted.
+   * The closed deployment keeps the balance it reserved, which only leaves the survivors a smaller allowance
+   * than they were already sized against before the batch was sent.
+   */
   private async topUpForOwner(
     owner: string,
     ownerInputs: CollectedMessage[],
     options: DryRunOptions,
     instrumentation: DeploymentTopUpInstrumentation
   ): Promise<boolean> {
-    const walletId = ownerInputs[0].deployment.walletId;
+    if (options.dryRun) {
+      this.#recordDeposit(instrumentation, { owner, items: ownerInputs });
+      return true;
+    }
 
-    try {
-      if (!options.dryRun) {
-        const { address, walletIsTrialing: isTrialing, walletCreatedAt: createdAt, walletActivatedAt: activatedAt } = ownerInputs[0].deployment;
-        const feeAllowance = await this.managedSignerService.ensureFeeGrants({ address, isTrialing, createdAt, activatedAt });
+    const { address, walletIsTrialing: isTrialing, walletCreatedAt: createdAt, walletActivatedAt: activatedAt } = ownerInputs[0].deployment;
+    const feeAllowance = await this.managedSignerService.ensureFeeGrants({ address, isTrialing, createdAt, activatedAt });
 
-        if (feeAllowance <= 0) {
-          instrumentation.recordChainTxError({
-            owner,
-            items: ownerInputs,
-            error: new Error(`Fee grant missing for wallet ${owner}, unable to top up deployments`)
-          });
-          return false;
-        }
-
-        const tx = await this.managedSignerService.executeDerivedTx(
-          walletId,
-          ownerInputs.map(i => i.message)
-        );
-
-        if (tx.code !== COSMOS_TX_CODE_OK) {
-          instrumentation.recordChainTxError({
-            owner,
-            items: ownerInputs,
-            error: new Error(`Deposit tx ${tx.hash} failed on-chain with code ${tx.code}: ${tx.rawLog}`)
-          });
-          return false;
-        }
-      }
-    } catch (error: unknown) {
-      instrumentation.recordChainTxError({ owner, items: ownerInputs, error });
-
-      if (error instanceof Error && (await this.chainErrorService.isMasterWalletInsufficientFundsError(error))) {
-        instrumentation.recordMasterWalletInsufficientFundsError({ owner, items: ownerInputs, error });
-        throw error;
-      }
-
+    if (feeAllowance <= 0) {
+      instrumentation.recordChainTxError({
+        owner,
+        items: ownerInputs,
+        error: new Error(`Fee grant missing for wallet ${owner}, unable to top up deployments`)
+      });
       return false;
     }
 
-    this.#recordDeposit(instrumentation, { owner, items: ownerInputs });
+    const walletId = ownerInputs[0].deployment.walletId;
+    let remaining = ownerInputs;
+    let closedDeploymentsDropped = 0;
 
-    return true;
+    while (remaining.length) {
+      const failure = await this.#depositForOwner(walletId, remaining);
+
+      if (!failure) {
+        this.#recordDeposit(instrumentation, { owner, items: remaining });
+        return true;
+      }
+
+      const closedIndex = this.#findClosedDeploymentIndex(failure, remaining);
+
+      if (closedIndex === undefined) {
+        instrumentation.recordChainTxError({ owner, items: remaining, error: failure });
+
+        if (failure instanceof Error && (await this.chainErrorService.isMasterWalletInsufficientFundsError(failure))) {
+          instrumentation.recordMasterWalletInsufficientFundsError({ owner, items: remaining, error: failure });
+          throw failure;
+        }
+
+        return false;
+      }
+
+      await this.#markDeploymentClosed({ owner, item: remaining[closedIndex], messageIndex: closedIndex, error: failure, instrumentation });
+      remaining = remaining.filter((_, index) => index !== closedIndex);
+
+      if (++closedDeploymentsDropped > MAX_CLOSED_DEPLOYMENT_DROPS && remaining.length) {
+        instrumentation.recordClosedDeploymentRetryLimit({ owner, remainingCount: remaining.length });
+        return false;
+      }
+    }
+
+    return false;
+  }
+
+  /** Returns the failure rather than throwing it so the caller classifies a rejected estimate and a reverted tx alike. */
+  async #depositForOwner(walletId: number, items: CollectedMessage[]): Promise<unknown> {
+    try {
+      const tx = await this.managedSignerService.executeDerivedTx(
+        walletId,
+        items.map(item => item.message)
+      );
+
+      if (tx.code !== COSMOS_TX_CODE_OK) {
+        return new Error(`Deposit tx ${tx.hash} failed on-chain with code ${tx.code}: ${tx.rawLog}`);
+      }
+
+      return undefined;
+    } catch (error: unknown) {
+      return error;
+    }
+  }
+
+  /** An index outside the batch is not resolved to a neighbour: closing the wrong deployment is worse than alerting. */
+  #findClosedDeploymentIndex(error: unknown, items: CollectedMessage[]): number | undefined {
+    if (!(error instanceof Error) || !this.chainErrorService.isDeploymentClosedError(error)) {
+      return undefined;
+    }
+
+    const messageIndex = this.chainErrorService.getFailedMessageIndex(error);
+
+    if (messageIndex !== undefined) {
+      return messageIndex >= 0 && messageIndex < items.length ? messageIndex : undefined;
+    }
+
+    return items.length === 1 ? 0 : undefined;
+  }
+
+  /** A failed write is reported rather than thrown, which would strand the survivors the retry exists to fund. */
+  async #markDeploymentClosed({
+    owner,
+    item,
+    messageIndex,
+    error,
+    instrumentation
+  }: {
+    owner: string;
+    item: CollectedMessage;
+    messageIndex: number;
+    error: unknown;
+    instrumentation: DeploymentTopUpInstrumentation;
+  }): Promise<void> {
+    try {
+      await this.deploymentSettingRepository.markAsClosed([item.deployment.id]);
+    } catch (markError: unknown) {
+      instrumentation.recordDeploymentCloseMarkFailed({ owner, deployment: item.deployment, error: markError });
+      return;
+    }
+
+    instrumentation.recordDeploymentClosedOnChain({ owner, deployment: item.deployment, messageIndex, error });
   }
 
   /**

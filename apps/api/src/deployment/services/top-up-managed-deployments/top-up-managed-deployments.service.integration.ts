@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { UserWalletRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
+import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { ApiPgDatabase } from "@src/core";
 import { CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
@@ -27,6 +28,10 @@ const NEARLY_DRAINED_ESCROW_AMOUNT = "1000";
 const ALLOWANCE_ABOVE_HEADROOM_BELOW_A_COOLDOWN = 20000;
 
 type DepositMessage = { value: { deposit?: { amount?: { amount: string } } } };
+
+function dseqOf(message: unknown): string {
+  return String((message as { value: { id: { xid: string } } }).value.id.xid).split("/")[1];
+}
 
 /** Flattens every deposit message broadcast across all txs into the numeric amounts they carry. */
 function depositedAmounts(executeDerivedTx: { mock: { calls: unknown[][] } }): number[] {
@@ -86,6 +91,53 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       const closedSetting = await findSetting(address, closedOnChainDseq);
       expect(closedSetting?.closed).toBe(true);
+    });
+
+    // The chain rejects a batched deposit because one of its deployments closed between the sweep reading
+    // the chain and broadcasting. That deployment's setting is closed and the rest of the batch still lands.
+    it("drops a deployment the chain rejects as closed and funds the rest of the batch in the same pass", async () => {
+      const {
+        topUpService,
+        executeDerivedTx,
+        chainErrorService,
+        createUserWithWallet,
+        createDeploymentSetting,
+        findSetting,
+        mockLeasesForOwner,
+        mockDeploymentsForOwner,
+        stubGetFreshLimits
+      } = await setup();
+      const { user, address } = await createUserWithWallet();
+      const firstDseq = "400001";
+      const secondDseq = "400002";
+
+      await createDeploymentSetting(user.id, firstDseq);
+      await createDeploymentSetting(user.id, secondDseq);
+
+      mockLeasesForOwner(address, [createActiveLease(address, firstDseq), createActiveLease(address, secondDseq)], { persist: true });
+      mockDeploymentsForOwner(address, [createActiveDeployment(address, firstDseq), createActiveDeployment(address, secondDseq)], { persist: true });
+      stubGetFreshLimits({ [address]: 10000000 });
+
+      let closedDseq: string | undefined;
+      executeDerivedTx.mockImplementationOnce(async (_walletId, messages) => {
+        closedDseq = dseqOf(messages[1]);
+        throw await chainErrorService.toAppError(
+          new Error(
+            "Query failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: 1: Deployment closed with gas used: '33317': unknown request"
+          ),
+          messages
+        );
+      });
+
+      const result = await topUpService.topUpDeployments({ dryRun: false });
+
+      expect(result.ok).toBe(true);
+      expect(executeDerivedTx).toHaveBeenCalledTimes(2);
+
+      const survivingDseq = closedDseq === firstDseq ? secondDseq : firstDseq;
+      expect(executeDerivedTx.mock.calls[1][1].map(dseqOf)).toEqual([survivingDseq]);
+      expect((await findSetting(address, closedDseq as string))?.closed).toBe(true);
+      expect((await findSetting(address, survivingDseq))?.closed).toBe(false);
     });
 
     // Owner has two active deployments on chain. One has low escrow and is predicted
@@ -565,6 +617,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     const topUpService = container.resolve(TopUpManagedDeploymentsService);
     const signerService = container.resolve(ManagedSignerService);
     const balances = container.resolve(BalancesService);
+    const chainErrorService = container.resolve(ChainErrorService);
 
     nock(apiNodeUrl)
       .get("/cosmos/base/tendermint/v1beta1/blocks/latest")
@@ -656,6 +709,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     return {
       topUpService,
       executeDerivedTx,
+      chainErrorService,
       createUserWithWallet,
       createDeploymentSetting,
       findSetting,
