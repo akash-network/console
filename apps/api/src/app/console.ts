@@ -71,7 +71,7 @@ program
   });
 
 program
-  .command("notify-unreachable-provider-deployments")
+  .command("notify-unreachable-deployments")
   .description("Warn users whose deployments run on a provider that has been unreachable for days")
   .option("-d, --dry-run", "Log which users would be warned without sending any email", false)
   .action(async (options, command) => {
@@ -81,7 +81,7 @@ program
   });
 
 program
-  .command("close-unreachable-provider-deployments")
+  .command("close-unreachable-deployments")
   .description("Close deployments whose every provider has been unreachable for weeks")
   .option("-d, --dry-run", "Log which deployments would be closed without broadcasting", false)
   .action(async (options, command) => {

@@ -35,23 +35,23 @@ jobs:
       - ./dist/console.js
       - notify-expiring-deployments
   # Offset from the two runtime-limit sweeps so no two of them hit deployment_settings on the same minute.
-  - name: notify-unreachable-provider-deployments
+  - name: notify-unreachable-deployments
     schedule: "11,41 * * * *" # every 30 minutes
     command:
       - node
       - --require
       - ./dist/instrumentation.js
       - ./dist/console.js
-      - notify-unreachable-provider-deployments
+      - notify-unreachable-deployments
   # Offset from the sweeps above so no two of them hit deployment_settings on the same minute.
-  - name: close-unreachable-provider-deployments
+  - name: close-unreachable-deployments
     schedule: "26 * * * *" # hourly
     command:
       - node
       - --require
       - ./dist/instrumentation.js
       - ./dist/console.js
-      - close-unreachable-provider-deployments
+      - close-unreachable-deployments
 
 replicas: 2
 
