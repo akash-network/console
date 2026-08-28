@@ -9,6 +9,7 @@ import { ChainErrorService } from "@src/billing/services/chain-error/chain-error
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { ApiPgDatabase } from "@src/core";
 import { CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
+import { TopUpSummarizer } from "@src/deployment/lib/top-up-summarizer/top-up-summarizer";
 import { UserRepository } from "@src/user/repositories";
 import { averageBlockCountInAnHour } from "@src/utils/constants";
 import { TopUpManagedDeploymentsService } from "./top-up-managed-deployments.service";
@@ -76,6 +77,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       mockLeasesForOwner(address, [createActiveLease(address, drainingDseq), createClosedLease(address, closedOnChainDseq)]);
       mockDeploymentsForOwner(address, [createActiveDeployment(address, drainingDseq), createClosedDeployment(address, closedOnChainDseq)]);
       stubGetFreshLimits({ [address]: 10000000 });
+      const inc = vi.spyOn(TopUpSummarizer.prototype, "inc");
 
       await topUpService.topUpDeployments({ dryRun: false });
 
@@ -91,6 +93,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       const closedSetting = await findSetting(address, closedOnChainDseq);
       expect(closedSetting?.closed).toBe(true);
+      expect(inc).toHaveBeenCalledWith("deploymentsMarkedClosedCount", 1);
+      expect(inc).toHaveBeenCalledWith("deploymentTopUpCount", 1);
     });
 
     it("drops a deployment the chain rejects as closed and funds the rest of the batch in the same pass", async () => {

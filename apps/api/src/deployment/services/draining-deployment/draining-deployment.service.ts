@@ -16,7 +16,6 @@ import { DeploymentCloseJobService } from "../deployment-close-job/deployment-cl
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DrainingDeploymentRpcService } from "../draining-deployment-rpc/draining-deployment-rpc.service";
 import type { DeploymentTopUpInstrumentation } from "../top-up-managed-deployments/deployment-top-up-instrumentation";
-import { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed-deployments/top-up-managed-deployments-instrumentation.service";
 
 export type { DrainingDeployment } from "@src/deployment/types/draining-deployment";
 
@@ -55,20 +54,23 @@ export class DrainingDeploymentService {
     private readonly config: DeploymentConfigService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger,
     private readonly rpcService: DrainingDeploymentRpcService,
-    private readonly balancesService: BalancesService,
-    private readonly instrumentation: TopUpManagedDeploymentsInstrumentationService
+    private readonly balancesService: BalancesService
   ) {
     this.loggerService = createLogger({ context: DrainingDeploymentService.name });
   }
 
   /** Yields owners with nothing draining too, so the sweep can price their credits-low coverage without re-querying per owner. */
-  async *findDrainingDeploymentsByOwner(currentHeight: number, options: DryRunOptions = { dryRun: false }): AsyncGenerator<AutoTopUpOwnerDeployments> {
+  async *findDrainingDeploymentsByOwner(
+    currentHeight: number,
+    instrumentation: DeploymentTopUpInstrumentation,
+    options: DryRunOptions = { dryRun: false }
+  ): AsyncGenerator<AutoTopUpOwnerDeployments> {
     for await (const { address, walletId, deploymentSettings } of this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively()) {
       const { activeDeployments, drainingDeployments } = await this.#resolveOwnerDeployments(
         deploymentSettings,
         address,
         currentHeight,
-        this.instrumentation,
+        instrumentation,
         options.dryRun
       );
 
@@ -113,7 +115,7 @@ export class DrainingDeploymentService {
     dryRun: boolean
   ): Promise<{ activeDeployments: DrainingDeployment[]; drainingDeployments: DrainingDeployment[] }> {
     const expectedClosureHeight = this.#getExpectedClosureHeight(currentHeight);
-    const activeDeployments = await this.#resolveActiveDeployments(deploymentSettings, address, instrumentation);
+    const activeDeployments = await this.#resolveActiveDeployments(deploymentSettings, address, instrumentation, dryRun);
     const drainingDeployments = await this.#dropDeploymentsFundedToRuntimeLimit(
       activeDeployments.filter(deployment => deployment.predictedClosedHeight <= expectedClosureHeight),
       currentHeight,
@@ -127,7 +129,8 @@ export class DrainingDeploymentService {
   async #resolveActiveDeployments(
     deploymentSettings: AutoTopUpDeployment[],
     address: string,
-    instrumentation: DeploymentTopUpInstrumentation
+    instrumentation: DeploymentTopUpInstrumentation,
+    dryRun: boolean
   ): Promise<DrainingDeployment[]> {
     if (deploymentSettings.length === 0) {
       return [];
@@ -163,7 +166,7 @@ export class DrainingDeploymentService {
       [[], []]
     );
 
-    if (missingIds.length) {
+    if (missingIds.length && !dryRun) {
       await this.deploymentSettingRepository.markAsClosed(missingIds);
       instrumentation.recordDeploymentsMarkedClosed(missingIds.length);
     }
