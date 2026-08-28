@@ -4,7 +4,7 @@ import { singleton } from "tsyringe";
 
 import { MetricsService } from "@src/core";
 import type { DrainingDeployment } from "@src/deployment/types/draining-deployment";
-import type { DeploymentTopUpInstrumentation, FundingMessageItem } from "./deployment-top-up-instrumentation";
+import type { DeploymentTopUpInstrumentation, FundingMessageItem, OwnerInsufficientBalanceItem } from "./deployment-top-up-instrumentation";
 
 export type FundDrainingFailureReason = "master_wallet_insufficient_funds" | "deposit_tx_failed" | "unknown";
 
@@ -179,6 +179,24 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
       dseq: deployment.dseq,
       address: deployment.address,
       error
+    });
+  }
+
+  recordOwnerInsufficientBalance({ owner, spendable, deployments }: { owner: string; spendable: number; deployments: OwnerInsufficientBalanceItem[] }): void {
+    this.messagePreparationErrors.add(deployments.length, { error_type: "insufficient_balance" });
+
+    const withAutoReloadCount = deployments.filter(({ deployment }) => deployment.isWalletAutoTopUpEnabled).length;
+
+    if (withAutoReloadCount > 0) {
+      this.insufficientBalanceWithAutoReload.add(withAutoReloadCount);
+    }
+
+    this.emitLog("warn", {
+      event: "FUND_DRAINING_OWNER_INSUFFICIENT_BALANCE",
+      owner,
+      spendable,
+      deploymentCount: deployments.length,
+      deployments: deployments.map(({ deployment, desiredAmount }) => ({ dseq: deployment.dseq, desiredAmount }))
     });
   }
 

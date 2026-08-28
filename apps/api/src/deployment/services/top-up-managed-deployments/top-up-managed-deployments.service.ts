@@ -1,4 +1,5 @@
 import { MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { millisecondsInMinute } from "date-fns/constants";
 import { Err, Ok, Result } from "ts-results";
 import { singleton } from "tsyringe";
 
@@ -17,7 +18,7 @@ import { DrainingDeploymentService } from "@src/deployment/services/draining-dep
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { CachedBalance, CachedBalanceService } from "../cached-balance/cached-balance.service";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
-import type { DeploymentTopUpInstrumentation } from "./deployment-top-up-instrumentation";
+import type { DeploymentTopUpInstrumentation, OwnerInsufficientBalanceItem } from "./deployment-top-up-instrumentation";
 import { FundDrainingDeploymentsInstrumentationService } from "./fund-draining-deployments-instrumentation.service";
 import { TopUpManagedDeploymentsInstrumentationService } from "./top-up-managed-deployments-instrumentation.service";
 
@@ -132,6 +133,11 @@ export class TopUpManagedDeploymentsService {
     instrumentation: DeploymentTopUpInstrumentation,
     currentHeight: number
   ): Promise<void> {
+    if (balance.spendable <= 0) {
+      this.#skipOwnerWithoutSpendableBalance({ address, deployments }, balance, instrumentation, currentHeight);
+      return;
+    }
+
     if (options.dryRun) {
       const messageInputs = await this.collectMessages(deployments, balance, instrumentation, currentHeight);
 
@@ -221,6 +227,47 @@ export class TopUpManagedDeploymentsService {
     const balance = await this.balancesService.retrieveDeploymentLimit({ address: owner.address });
 
     return needsCreditsLowTransition({ balance, weeklyCost: weeklyCredits, isNotified });
+  }
+
+  /** Mirrors the preparation loop's telemetry without claiming rows, so the cooldown filter here must keep matching the claim query's. */
+  #skipOwnerWithoutSpendableBalance(
+    { address, deployments }: { address: string; deployments: DrainingDeployment[] },
+    balance: CachedBalance,
+    instrumentation: DeploymentTopUpInstrumentation,
+    currentHeight: number
+  ): void {
+    const insufficient: OwnerInsufficientBalanceItem[] = [];
+
+    for (const deployment of this.#filterClaimable(deployments)) {
+      instrumentation.recordDeploymentPreparation(deployment.address, deployment.predictedClosedHeight);
+
+      const desiredAmount = this.drainingDeploymentService.calculateAmountToTargetRunway(deployment, currentHeight);
+
+      if (desiredAmount <= 0) {
+        instrumentation.recordInvalidDepositAmount({
+          desiredAmount,
+          dseq: deployment.dseq,
+          address: deployment.address,
+          blockRate: deployment.blockRate
+        });
+        continue;
+      }
+
+      insufficient.push({ deployment, desiredAmount });
+    }
+
+    if (insufficient.length) {
+      instrumentation.recordOwnerInsufficientBalance({ owner: address, spendable: balance.spendable, deployments: insufficient });
+    }
+
+    instrumentation.recordSkipped({ owner: address, deploymentCount: deployments.length });
+  }
+
+  #filterClaimable(deployments: DrainingDeployment[]): DrainingDeployment[] {
+    const cooldownMs = this.deploymentConfig.get("AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN") * millisecondsInMinute;
+    const claimableBefore = new Date(Date.now() - cooldownMs);
+
+    return deployments.filter(deployment => !deployment.lastFundedAt || deployment.lastFundedAt < claimableBefore);
   }
 
   /**
