@@ -22,6 +22,7 @@ export const DeploymentSettings = pgTable(
     manifestVersion: varchar("manifest_version", { length: 64 }),
     runtimeEndsAt: timestamp("runtime_ends_at", { withTimezone: true }),
     runtimeEndingNotifiedFor: timestamp("runtime_ending_notified_for", { withTimezone: true }),
+    providerUnreachableNotifiedFor: timestamp("provider_unreachable_notified_for", { withTimezone: true }),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow()
   },

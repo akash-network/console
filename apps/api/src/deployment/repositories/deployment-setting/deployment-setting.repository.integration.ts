@@ -16,6 +16,8 @@ import { DeploymentSettingRepository } from "./deployment-setting.repository";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 const COOLDOWN_MINUTES = 60;
+const OUTAGE_STARTED_AT = "2026-08-01T00:00:00.000Z";
+const LATER_OUTAGE_STARTED_AT = "2026-08-20T00:00:00.000Z";
 const WARNING_WINDOW = { leadHours: 6, minLimitHours: 12 };
 
 /** Rows created with a `Date` store exactly that value, so its ISO form is the marker the claim matches on. */
@@ -350,6 +352,89 @@ describe(DeploymentSettingRepository.name, () => {
       const claimed = await deploymentSettingRepository.claimRuntimeEndingNotification(setting.id, markerFor(staleDeadline));
 
       expect(claimed).toBe(false);
+    });
+  });
+
+  describe("claimProviderUnreachableNotification", () => {
+    it("awards the claim to exactly one caller across concurrent attempts", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const claim = { userId: user.id, dseq: newDseq(), downSinceMarker: OUTAGE_STARTED_AT };
+
+      const results = await Promise.all(Array.from({ length: 5 }, () => deploymentSettingRepository.claimProviderUnreachableNotification(claim)));
+
+      expect(results.filter(Boolean)).toHaveLength(1);
+    });
+
+    it("refuses a second claim for the same outage", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const claim = { userId: user.id, dseq: newDseq(), downSinceMarker: OUTAGE_STARTED_AT };
+      await deploymentSettingRepository.claimProviderUnreachableNotification(claim);
+
+      const claimed = await deploymentSettingRepository.claimProviderUnreachableNotification(claim);
+
+      expect(claimed).toBe(false);
+    });
+
+    it("claims again once the provider recovers and goes dark a second time", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.claimProviderUnreachableNotification({ userId: user.id, dseq, downSinceMarker: OUTAGE_STARTED_AT });
+
+      const claimed = await deploymentSettingRepository.claimProviderUnreachableNotification({
+        userId: user.id,
+        dseq,
+        downSinceMarker: LATER_OUTAGE_STARTED_AT
+      });
+
+      expect(claimed).toBe(true);
+    });
+
+    it("records the outage on a deployment that has no settings row yet, without turning funding on", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+
+      await deploymentSettingRepository.claimProviderUnreachableNotification({ userId: user.id, dseq, downSinceMarker: OUTAGE_STARTED_AT });
+
+      const setting = await deploymentSettingRepository.findOneBy({ userId: user.id, dseq });
+      expect(setting).toMatchObject({ autoTopUpEnabled: false });
+      expect(setting?.providerUnreachableNotifiedFor?.toISOString()).toBe(OUTAGE_STARTED_AT);
+    });
+
+    it("leaves the funding setting of an existing row alone", async () => {
+      const { deploymentSettingRepository, user, createLimitedSetting } = await setup();
+      const setting = await createLimitedSetting(24, { autoTopUpEnabled: true });
+
+      await deploymentSettingRepository.claimProviderUnreachableNotification({
+        userId: user.id,
+        dseq: setting.dseq,
+        downSinceMarker: OUTAGE_STARTED_AT
+      });
+
+      const updated = await deploymentSettingRepository.findOneBy({ userId: user.id, dseq: setting.dseq });
+      expect(updated).toMatchObject({ autoTopUpEnabled: true });
+    });
+  });
+
+  describe("releaseProviderUnreachableClaim", () => {
+    it("lets the next sweep report the same outage again", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const claim = { userId: user.id, dseq: newDseq(), downSinceMarker: OUTAGE_STARTED_AT };
+      await deploymentSettingRepository.claimProviderUnreachableNotification(claim);
+
+      await deploymentSettingRepository.releaseProviderUnreachableClaim(claim);
+
+      expect(await deploymentSettingRepository.claimProviderUnreachableNotification(claim)).toBe(true);
+    });
+
+    it("leaves a stamp written for a later outage untouched", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.claimProviderUnreachableNotification({ userId: user.id, dseq, downSinceMarker: LATER_OUTAGE_STARTED_AT });
+
+      await deploymentSettingRepository.releaseProviderUnreachableClaim({ userId: user.id, dseq, downSinceMarker: OUTAGE_STARTED_AT });
+
+      const setting = await deploymentSettingRepository.findOneBy({ userId: user.id, dseq });
+      expect(setting?.providerUnreachableNotifiedFor?.toISOString()).toBe(LATER_OUTAGE_STARTED_AT);
     });
   });
 

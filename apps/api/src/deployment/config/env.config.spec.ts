@@ -134,12 +134,20 @@ describe("deployment envSchema", () => {
     });
   });
 
-  describe("PROVIDER_OUTAGE_FRESHNESS_WINDOW_IN_H", () => {
-    it("defaults to trusting outages the inventory re-checked within 3 hours", () => {
+  describe("PROVIDER_UNREACHABLE_NOTIFY_AFTER_DAYS", () => {
+    it("defaults to warning after 3 dark days and trusting outages re-checked within 3 hours", () => {
       const result = envSchema.safeParse(setup());
 
       expect(result.success).toBe(true);
+      expect(result.success && result.data.PROVIDER_UNREACHABLE_NOTIFY_AFTER_DAYS).toBe(3);
       expect(result.success && result.data.PROVIDER_OUTAGE_FRESHNESS_WINDOW_IN_H).toBe(3);
+    });
+
+    it("rejects warning after zero days, which would report every blip", () => {
+      const result = envSchema.safeParse(setup({ PROVIDER_UNREACHABLE_NOTIFY_AFTER_DAYS: 0 }));
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues.some(issue => issue.path[0] === "PROVIDER_UNREACHABLE_NOTIFY_AFTER_DAYS")).toBe(true);
     });
 
     it("rejects an unbounded freshness window, which would trust an outage record nobody maintains", () => {

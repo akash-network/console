@@ -90,6 +90,8 @@ export const envSchema = z
      * warned about almost as soon as it is set, which tells the user nothing they did not just decide.
      */
     RUNTIME_LIMIT_WARNING_MIN_LIMIT_IN_H: z.number({ coerce: true }).positive().finite().optional().default(12),
+    /** Long enough that a provider working through an outage is not announced as dead to the owners running on it. */
+    PROVIDER_UNREACHABLE_NOTIFY_AFTER_DAYS: z.number({ coerce: true }).positive().finite().optional().default(3),
     /** An outage the inventory has not re-checked within this window describes the past, not the present, so the sweeps refuse it. */
     PROVIDER_OUTAGE_FRESHNESS_WINDOW_IN_H: z.number({ coerce: true }).positive().finite().optional().default(3),
     /** Base URL of the provider inventory service, which owns the record of who is currently unreachable. */

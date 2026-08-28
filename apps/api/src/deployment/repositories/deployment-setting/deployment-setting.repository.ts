@@ -429,6 +429,36 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .where(or(...claims.map(claim => and(eq(this.table.id, claim.id), eq(this.table.lastFundedAt, sql`${claim.claimedAt}::timestamp`)))));
   }
 
+  /** Claimed before the email goes out, not stamped after, because the sweep runs many times an hour while an outage lasts days. */
+  async claimProviderUnreachableNotification({ userId, dseq, downSinceMarker }: { userId: string; dseq: string; downSinceMarker: string }): Promise<boolean> {
+    const [claimed] = await this.cursor
+      .insert(this.table)
+      .values({
+        userId,
+        dseq,
+        autoTopUpEnabled: false,
+        providerUnreachableNotifiedFor: sql`${downSinceMarker}::timestamptz`
+      })
+      .onConflictDoUpdate({
+        target: [this.table.dseq, this.table.userId],
+        set: { providerUnreachableNotifiedFor: sql`${downSinceMarker}::timestamptz`, updatedAt: sql`now()` },
+        setWhere: sql`${this.table.providerUnreachableNotifiedFor} is distinct from ${downSinceMarker}::timestamptz`
+      })
+      .returning({ id: this.table.id });
+
+    return !!claimed;
+  }
+
+  /** Scoped to the exact outage the claim was taken against, so a late release cannot clear the stamp a later pass wrote for a newer outage. */
+  async releaseProviderUnreachableClaim({ userId, dseq, downSinceMarker }: { userId: string; dseq: string; downSinceMarker: string }): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({ providerUnreachableNotifiedFor: null, updatedAt: sql`now()` })
+      .where(
+        and(eq(this.table.userId, userId), eq(this.table.dseq, dseq), eq(this.table.providerUnreachableNotifiedFor, sql`${downSinceMarker}::timestamptz`))
+      );
+  }
+
   protected toInput(payload: Partial<DeploymentSettingsInput>): Partial<DeploymentSettingsInput> {
     if (!payload.updatedAt) {
       payload.updatedAt = new Date();
