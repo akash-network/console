@@ -280,7 +280,15 @@ describe(FundDrainingDeploymentsInstrumentationService.name, () => {
   });
 
   describe("recordDeploymentPreparation", () => {
-    it("records no instrument and does not throw on the stateless path", () => {
+    it("counts the scanned deployment", () => {
+      const { service, scanned } = setup();
+
+      service.recordDeploymentPreparation("akash1owner", 200);
+
+      expect(scanned.add).toHaveBeenCalledExactlyOnceWith(1);
+    });
+
+    it("leaves the job-completion instruments untouched", () => {
       const { service, jobCompletions } = setup();
 
       expect(() => service.recordDeploymentPreparation("akash1owner", 1000500)).not.toThrow();
@@ -365,6 +373,7 @@ describe(FundDrainingDeploymentsInstrumentationService.name, () => {
       service,
       jobCompletions: counters["fund_draining_deployments_job_completions_total"],
       deposits: counters["fund_draining_deployments_deposits_total"],
+      scanned: counters["fund_draining_deployments_scanned_total"],
       skips: counters["fund_draining_deployments_skips_total"],
       messagePreparationErrors: counters["fund_draining_deployments_message_preparation_errors_total"],
       insufficientBalanceWithAutoReload: counters["fund_draining_deployments_insufficient_balance_with_auto_reload_total"],

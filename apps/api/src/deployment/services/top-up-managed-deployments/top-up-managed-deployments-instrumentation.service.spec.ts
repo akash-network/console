@@ -290,6 +290,24 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
       expect(summarizer.get("deploymentCount")).toBe(1);
     });
 
+    it("counts the scanned deployment so the summary's deployment count has a metric counterpart", () => {
+      const { service, countersByName } = setup();
+      service.start(100, { dryRun: false });
+
+      service.recordDeploymentPreparation("owner1", 200);
+
+      expect(countersByName["auto_top_up_deployments_scanned_total"].add).toHaveBeenCalledExactlyOnceWith(1);
+    });
+
+    it("does not emit the scanned counter in dry run mode", () => {
+      const { service, countersByName } = setup();
+      service.start(100, { dryRun: true });
+
+      service.recordDeploymentPreparation("owner1", 200);
+
+      expect(countersByName["auto_top_up_deployments_scanned_total"].add).not.toHaveBeenCalled();
+    });
+
     it("skips predicted close blocks when start height is not set", () => {
       const { service, summarizer } = setup();
 
