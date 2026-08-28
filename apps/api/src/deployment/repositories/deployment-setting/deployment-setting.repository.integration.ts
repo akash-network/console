@@ -438,6 +438,28 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("markClosed", () => {
+    it("records a deployment that had no settings row as closed, without turning funding on", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+
+      await deploymentSettingRepository.markClosed({ userId: user.id, dseq });
+
+      const setting = await deploymentSettingRepository.findOneBy({ userId: user.id, dseq });
+      expect(setting).toMatchObject({ closed: true, autoTopUpEnabled: false });
+    });
+
+    it("closes an existing row without disturbing its funding setting", async () => {
+      const { deploymentSettingRepository, user, createLimitedSetting } = await setup();
+      const setting = await createLimitedSetting(24, { autoTopUpEnabled: true });
+
+      await deploymentSettingRepository.markClosed({ userId: user.id, dseq: setting.dseq });
+
+      const updated = await deploymentSettingRepository.findOneBy({ userId: user.id, dseq: setting.dseq });
+      expect(updated).toMatchObject({ closed: true, autoTopUpEnabled: true });
+    });
+  });
+
   describe("upsertDefinition", () => {
     it("records the sdl and the manifest version of a deployment with no row yet", async () => {
       const { deploymentSettingRepository, user } = await setup();

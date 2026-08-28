@@ -92,6 +92,8 @@ export const envSchema = z
     RUNTIME_LIMIT_WARNING_MIN_LIMIT_IN_H: z.number({ coerce: true }).positive().finite().optional().default(12),
     /** Long enough that a provider working through an outage is not announced as dead to the owners running on it. */
     PROVIDER_UNREACHABLE_NOTIFY_AFTER_DAYS: z.number({ coerce: true }).positive().finite().optional().default(3),
+    /** Must stay above the warning threshold so an owner is always told before anything of theirs is closed. */
+    PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS: z.number({ coerce: true }).positive().finite().optional().default(14),
     /** An outage the inventory has not re-checked within this window describes the past, not the present, so the sweeps refuse it. */
     PROVIDER_OUTAGE_FRESHNESS_WINDOW_IN_H: z.number({ coerce: true }).positive().finite().optional().default(3),
     /** Base URL of the provider inventory service, which owns the record of who is currently unreachable. */
@@ -112,6 +114,14 @@ export const envSchema = z
         code: z.ZodIssueCode.custom,
         path: ["RUNTIME_LIMIT_WARNING_MIN_LIMIT_IN_H"],
         message: `RUNTIME_LIMIT_WARNING_MIN_LIMIT_IN_H (${env.RUNTIME_LIMIT_WARNING_MIN_LIMIT_IN_H}) must be at least twice RUNTIME_LIMIT_WARNING_LEAD_IN_H (${env.RUNTIME_LIMIT_WARNING_LEAD_IN_H}), otherwise the shortest warned limit is warned about almost as soon as it is set`
+      });
+    }
+
+    if (env.PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS <= env.PROVIDER_UNREACHABLE_NOTIFY_AFTER_DAYS) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS"],
+        message: `PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS (${env.PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS}) must be greater than PROVIDER_UNREACHABLE_NOTIFY_AFTER_DAYS (${env.PROVIDER_UNREACHABLE_NOTIFY_AFTER_DAYS}), otherwise a deployment can be closed before its owner has been warned`
       });
     }
 

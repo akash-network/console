@@ -14,6 +14,7 @@ import { UnreachableProviderDeploymentsNotifierService } from "./unreachable-pro
 import { mockConfigService } from "@test/mocks/config-service.mock";
 
 const NOTIFY_AFTER_DAYS = 3;
+const CLOSE_AFTER_DAYS = 14;
 const DEPLOY_WEB_BASE_URL = "https://console.akash.network";
 const OWNER = "akash1owner";
 const DSEQ = "1784768430632";
@@ -75,6 +76,18 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
     await service.notifyUnreachableProviderDeployments({ dryRun: false });
 
     expect(notificationService.createNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it("tells the owner how long the deployment has before it is closed for them", async () => {
+    const { service, notificationService } = setup({
+      outages: [anOutage({})],
+      leases: [aLease({})]
+    });
+
+    await service.notifyUnreachableProviderDeployments({ dryRun: false });
+
+    const [{ payload }] = notificationService.createNotification.mock.calls[0];
+    expect(payload.description).toContain(`${CLOSE_AFTER_DAYS} days`);
   });
 
   it("reports the longest of several outages so the age names the real problem", async () => {
@@ -221,6 +234,7 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
     const notificationService = mock<NotificationService>();
     const config = mockConfigService<DeploymentConfigService>({
       PROVIDER_UNREACHABLE_NOTIFY_AFTER_DAYS: NOTIFY_AFTER_DAYS,
+      PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS: CLOSE_AFTER_DAYS,
       DEPLOY_WEB_BASE_URL
     });
     const createLogger = vi.fn<CreateLogger>(() => mock<ReturnType<CreateLogger>>());

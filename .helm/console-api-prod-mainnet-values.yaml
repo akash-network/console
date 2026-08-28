@@ -60,6 +60,19 @@ jobs:
       - ./dist/console.js
       - notify-unreachable-provider-deployments
       - --dry-run
+  # Ships in dry-run and stays that way until the warning email above has been live for longer than the
+  # gap between the two thresholds (14 - 3 = 11 days), so no owner's first word about an outage is the
+  # closure notice. Check that every UNREACHABLE_PROVIDER_DEPLOYMENT_WOULD_CLOSE was warned first.
+  # Offset from the sweeps above so no two of them hit deployment_settings on the same minute.
+  - name: close-unreachable-provider-deployments
+    schedule: "26 * * * *" # hourly
+    command:
+      - node
+      - --require
+      - ./dist/instrumentation.js
+      - ./dist/console.js
+      - close-unreachable-provider-deployments
+      - --dry-run
   - name: mint-act
     schedule: "*/10 * * * *" # every 10 minutes
     concurrencyPolicy: Forbid

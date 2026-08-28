@@ -459,6 +459,22 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       );
   }
 
+  /**
+   * Records that a deployment is closed, creating the row when the deployment has none — a deployment
+   * created before settings existed, or outside the web app, still has to be remembered as closed or
+   * every later sweep would try to close it again. Such a row is written with funding off, since a
+   * closed deployment has nothing to fund.
+   */
+  async markClosed({ userId, dseq }: { userId: string; dseq: string }): Promise<void> {
+    await this.cursor
+      .insert(this.table)
+      .values({ userId, dseq, autoTopUpEnabled: false, closed: true })
+      .onConflictDoUpdate({
+        target: [this.table.dseq, this.table.userId],
+        set: { closed: true, updatedAt: sql`now()` }
+      });
+  }
+
   protected toInput(payload: Partial<DeploymentSettingsInput>): Partial<DeploymentSettingsInput> {
     if (!payload.updatedAt) {
       payload.updatedAt = new Date();

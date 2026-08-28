@@ -150,6 +150,27 @@ describe("deployment envSchema", () => {
       expect(!result.success && result.error.issues.some(issue => issue.path[0] === "PROVIDER_UNREACHABLE_NOTIFY_AFTER_DAYS")).toBe(true);
     });
 
+    it("defaults to closing after 14 dark days", () => {
+      const result = envSchema.safeParse(setup());
+
+      expect(result.success).toBe(true);
+      expect(result.success && result.data.PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS).toBe(14);
+    });
+
+    it("rejects closing on the same day the owner is warned", () => {
+      const result = envSchema.safeParse(setup({ PROVIDER_UNREACHABLE_NOTIFY_AFTER_DAYS: 5, PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS: 5 }));
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues[0].path).toEqual(["PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS"]);
+    });
+
+    it("rejects closing before the owner has been warned", () => {
+      const result = envSchema.safeParse(setup({ PROVIDER_UNREACHABLE_NOTIFY_AFTER_DAYS: 5, PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS: 4 }));
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues[0].path).toEqual(["PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS"]);
+    });
+
     it("rejects an unbounded freshness window, which would trust an outage record nobody maintains", () => {
       const result = envSchema.safeParse(setup({ PROVIDER_OUTAGE_FRESHNESS_WINDOW_IN_H: Infinity }));
 

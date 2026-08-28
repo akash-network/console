@@ -14,6 +14,7 @@ import { afterTrialEndsNotification } from "../notification-templates/after-tria
 import { beforeCloseTrialDeploymentNotification } from "../notification-templates/before-close-trial-deployment";
 import { beforeTrialEndsNotification } from "../notification-templates/before-trial-ends-notification";
 import { firstPurchaseBonusGrantedNotification } from "../notification-templates/first-purchase-bonus-granted-notification";
+import { providerUnreachableClosedNotification } from "../notification-templates/provider-unreachable-closed";
 import { startTrialNotification } from "../notification-templates/start-trial-notification";
 import { trialDeploymentClosedNotification } from "../notification-templates/trial-deployment-closed";
 import { trialEndedNotification } from "../notification-templates/trial-ended-notification";
@@ -27,7 +28,8 @@ const notificationTemplates = {
   beforeCloseTrialDeployment: beforeCloseTrialDeploymentNotification,
   trialDeploymentClosed: trialDeploymentClosedNotification,
   trialFirstDeploymentLeaseCreated: trialFirstDeploymentLeaseCreatedNotification,
-  firstPurchaseBonusGranted: firstPurchaseBonusGrantedNotification
+  firstPurchaseBonusGranted: firstPurchaseBonusGrantedNotification,
+  providerUnreachableClosed: providerUnreachableClosedNotification
 };
 
 type NotificationTemplates = typeof notificationTemplates;

@@ -68,6 +68,44 @@ describe(LeaseRepository.name, () => {
     });
   });
 
+  describe("findActiveLeasesOfDeployment", () => {
+    it("returns every active lease of the deployment, dark provider or not", async () => {
+      const { repository } = setup();
+      const [darkProvider, healthyProvider] = await Promise.all([seedProvider(), seedProvider()]);
+      const deployment = await seedDeployment();
+      await seedLease(deployment, { providerAddress: darkProvider, gseq: 1 });
+      await seedLease(deployment, { providerAddress: healthyProvider, gseq: 2 });
+
+      const found = await repository.findActiveLeasesOfDeployment(deployment.owner, deployment.dseq);
+
+      expect(found.map(lease => lease.providerAddress).sort()).toEqual([darkProvider, healthyProvider].sort());
+    });
+
+    it("ignores leases that have already been closed", async () => {
+      const { repository } = setup();
+      const darkProvider = await seedProvider();
+      const deployment = await seedDeployment();
+      await seedLease(deployment, { providerAddress: darkProvider, closedHeight: 10_000 });
+
+      const found = await repository.findActiveLeasesOfDeployment(deployment.owner, deployment.dseq);
+
+      expect(found).toEqual([]);
+    });
+
+    it("leaves out the leases of other deployments the owner holds", async () => {
+      const { repository } = setup();
+      const darkProvider = await seedProvider();
+      const deployment = await seedDeployment();
+      const otherDeployment = await seedDeployment();
+      await seedLease(deployment, { providerAddress: darkProvider });
+      await seedLease(otherDeployment, { providerAddress: darkProvider });
+
+      const found = await repository.findActiveLeasesOfDeployment(deployment.owner, deployment.dseq);
+
+      expect(found).toEqual([{ owner: deployment.owner, dseq: deployment.dseq, providerAddress: darkProvider }]);
+    });
+  });
+
   function setup() {
     return { repository: container.resolve(LeaseRepository) };
   }

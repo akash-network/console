@@ -62,6 +62,19 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
     );
   }
 
+  /** Every active lease of a single deployment, so a close can re-check that all of them are still dark before it broadcasts. */
+  async findActiveLeasesOfDeployment(owner: string, dseq: string): Promise<ActiveLeaseOnProvider[]> {
+    return await this.#chainDb.query<ActiveLeaseOnProvider>(
+      `/* lease:activeOfDeployment */
+      SELECT l."owner", l."dseq"::text AS "dseq", l."providerAddress"
+      FROM lease l
+      WHERE l."closedHeight" IS NULL
+        AND l."owner" = :owner
+        AND l."dseq" = :dseq`,
+      { type: QueryTypes.SELECT, replacements: { owner, dseq } }
+    );
+  }
+
   async findOneByDseqAndOwner(dseq: string, owner: string): Promise<DrainingDeploymentOutput | null> {
     const leases = await Lease.findAll({
       where: { dseq, owner },
