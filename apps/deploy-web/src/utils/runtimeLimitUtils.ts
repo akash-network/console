@@ -7,34 +7,63 @@ export const MAX_RUNTIME_LIMIT_INCREMENT_HOURS = 48;
 /** Ceiling on a runtime limit's total, reachable only by repeated extensions. Mirrors the API's cap. */
 export const MAX_RUNTIME_LIMIT_HOURS = 8760;
 
-/**
- * The runtime-limit tile's value: the requested hours, plus how long remains once the countdown is
- * anchored (it anchors when the lease starts, so a not-yet-leased deployment shows only the hours).
- *
- * The wall clock is read through the `now` parameter rather than `Date.now()` directly. That keeps the
- * output deterministic under fake timers in tests and lets callers stay fresh on pages that never refetch
- * by passing a ticking clock (`useTickingNow`) — without one, the "2h 10m left" / "limit reached" verdict
- * would freeze at first render.
- *
- * @param runtimeLimitHours The limit the user requested, shown as-is (e.g. "12h").
- * @param runtimeEndsAt When the deployment is closed automatically, ISO-encoded; null while the countdown
- * is unanchored, in which case only the limit itself is shown.
- * @param now The instant to measure remaining time against; defaults to the real present.
- */
-export function formatRuntimeLimit(runtimeLimitHours: number, runtimeEndsAt: string | null, now: number = Date.now()): string {
-  const limit = `${runtimeLimitHours}h`;
-  if (!runtimeEndsAt) {
-    return limit;
-  }
-  const millisecondsRemaining = new Date(runtimeEndsAt).getTime() - now;
-  if (millisecondsRemaining <= 0) {
-    return `${limit} · limit reached`;
-  }
-  return `${limit} · ${formatTimeRemaining(millisecondsRemaining)} left`;
-}
+export type RuntimeLimitStatus = "unanchored" | "running" | "reached";
+
+export type RuntimeLimitCountdown = {
+  status: RuntimeLimitStatus;
+  limitLabel: string;
+  remainingLabel: string;
+  /** Names what the remaining time is measured against, e.g. "of 12h limit". */
+  captionLabel: string;
+  /** Spells out both quantities for screen readers, e.g. "2h 10m of 12h left". */
+  accessibleLabel: string;
+  percentRemaining: number;
+};
 
 const MILLISECONDS_PER_MINUTE = 60 * 1000;
 const MINUTES_PER_HOUR = 60;
+const MILLISECONDS_PER_HOUR = MINUTES_PER_HOUR * MILLISECONDS_PER_MINUTE;
+
+/** The remaining share is measured against the granted limit itself, since no lease-start timestamp is stored. */
+export function getRuntimeLimitCountdown(runtimeLimitHours: number, runtimeEndsAt: string | null, now: number = Date.now()): RuntimeLimitCountdown {
+  const limitLabel = `${runtimeLimitHours}h`;
+  const deadline = runtimeEndsAt ? new Date(runtimeEndsAt).getTime() : NaN;
+
+  if (!Number.isFinite(deadline)) {
+    return {
+      status: "unanchored",
+      limitLabel,
+      remainingLabel: limitLabel,
+      captionLabel: "runtime limit",
+      accessibleLabel: `${limitLabel} limit, not started`,
+      percentRemaining: 100
+    };
+  }
+
+  const millisecondsRemaining = deadline - now;
+
+  if (millisecondsRemaining <= 0) {
+    return {
+      status: "reached",
+      limitLabel,
+      remainingLabel: "Limit reached",
+      captionLabel: `${limitLabel} limit`,
+      accessibleLabel: `${limitLabel} limit reached`,
+      percentRemaining: 0
+    };
+  }
+
+  const remainingLabel = formatTimeRemaining(millisecondsRemaining);
+
+  return {
+    status: "running",
+    limitLabel,
+    remainingLabel: `${remainingLabel} left`,
+    captionLabel: `of ${limitLabel} limit`,
+    accessibleLabel: `${remainingLabel} of ${limitLabel} left`,
+    percentRemaining: toPercentRemaining(millisecondsRemaining, runtimeLimitHours)
+  };
+}
 
 /**
  * The remaining time as the coarsest honest reading: minutes alone below an hour, hours alone on the hour,
@@ -49,4 +78,11 @@ function formatTimeRemaining(milliseconds: number): string {
   if (hours === 0) return `${minutes}m`;
   if (minutes === 0) return `${hours}h`;
   return `${hours}h ${minutes}m`;
+}
+
+/** Clamped to 1-100 so a limit still counting down never reads as empty and a deadline beyond the limit never overflows the track. */
+function toPercentRemaining(millisecondsRemaining: number, runtimeLimitHours: number): number {
+  const limitMilliseconds = runtimeLimitHours * MILLISECONDS_PER_HOUR;
+  if (limitMilliseconds <= 0) return 100;
+  return Math.min(100, Math.max(1, Math.round((millisecondsRemaining / limitMilliseconds) * 100)));
 }

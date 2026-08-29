@@ -3,6 +3,7 @@ import type { FC } from "react";
 import { useCallback, useState } from "react";
 import { Button, CustomTooltip, Snackbar, Spinner, Switch } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
+import { cn } from "@akashnetwork/ui/utils";
 import formatDuration from "date-fns/formatDuration";
 import intervalToDuration from "date-fns/intervalToDuration";
 import { InfoCircle } from "iconoir-react";
@@ -21,8 +22,9 @@ import type { AppError } from "@src/types";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { extractErrorMessage } from "@src/utils/errorUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import { formatRuntimeLimit } from "@src/utils/runtimeLimitUtils";
+import { getRuntimeLimitCountdown } from "@src/utils/runtimeLimitUtils";
 import { DeploymentDepositModal } from "../../DeploymentDepositModal/DeploymentDepositModal";
+import { RuntimeLimitMeter } from "../RuntimeLimitMeter";
 import { AddRuntimeHoursModal } from "./AddRuntimeHoursModal";
 
 export const DEPENDENCIES = {
@@ -73,6 +75,7 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
 
   const isRuntimeLimited = !!runtimeLimitHours;
   const now = d.useTickingNow(!!runtimeEndsAt);
+  const runtimeLimitCountdown = runtimeLimitHours ? getRuntimeLimitCountdown(runtimeLimitHours, runtimeEndsAt, now) : null;
 
   const openDepositModal = useCallback(() => {
     setIsDepositing(true);
@@ -142,7 +145,7 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
   return (
     <div className="rounded-xl border bg-card p-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="space-y-1">
+        <div className="min-w-0 flex-1 space-y-1 sm:max-w-sm">
           {!isEscrowAbstracted && (
             <>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Current balance</div>
@@ -151,7 +154,15 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
               </div>
             </>
           )}
-          {isRuntimeLimited && <div className="text-sm text-muted-foreground">Runtime limit: {formatRuntimeLimit(runtimeLimitHours, runtimeEndsAt, now)}</div>}
+          {runtimeLimitCountdown && (
+            <div className="space-y-1.5 pt-1">
+              <div className={cn("flex items-baseline gap-2", runtimeLimitCountdown.status !== "unanchored" && "justify-between")}>
+                <span className="text-sm font-semibold">{runtimeLimitCountdown.remainingLabel}</span>
+                <span className="text-xs text-muted-foreground">{runtimeLimitCountdown.captionLabel}</span>
+              </div>
+              <RuntimeLimitMeter countdown={runtimeLimitCountdown} />
+            </div>
+          )}
         </div>
         {isActive && (isRuntimeLimited || !isEscrowAbstracted) && (
           <Button variant="outline" size="md" onClick={isRuntimeLimited ? openAddHoursModal : openDepositModal}>

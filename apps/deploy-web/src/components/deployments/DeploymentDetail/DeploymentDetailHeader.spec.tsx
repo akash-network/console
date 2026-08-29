@@ -71,31 +71,50 @@ describe("DeploymentDetailHeader", () => {
     expect(screen.getByText("Off")).toBeInTheDocument();
   });
 
-  it("shows the runtime limit tile when the deployment has one", () => {
+  it("shows the limit alone, with no meter, before the countdown is anchored to a lease", () => {
     setup({ runtimeLimitHours: 12 });
 
     expect(screen.getByText("RUNTIME LIMIT")).toBeInTheDocument();
     expect(screen.getByText("12h")).toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   });
 
-  it("keeps the remaining-time label ticking as time passes, without any query refetch", async () => {
+  it("keeps the remaining time and the limit it is measured against apart, rather than in one string", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-21T12:00:00.000Z"));
 
     try {
       setup({ runtimeLimitHours: 12, runtimeEndsAt: "2026-08-21T14:00:00.000Z" });
 
-      expect(screen.getByText("12h · 2h left")).toBeInTheDocument();
+      expect(screen.getByText("2h left")).toBeInTheDocument();
+      expect(screen.getByText("12h")).toBeInTheDocument();
+      expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuetext", "2h of 12h left");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the remaining time and its meter draining as time passes, without any query refetch", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-21T12:00:00.000Z"));
+
+    try {
+      setup({ runtimeLimitHours: 12, runtimeEndsAt: "2026-08-21T14:00:00.000Z" });
+
+      expect(screen.getByText("2h left")).toBeInTheDocument();
+      expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "17");
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(61 * 60 * 1000);
       });
-      expect(screen.getByText("12h · 59m left")).toBeInTheDocument();
+      expect(screen.getByText("59m left")).toBeInTheDocument();
+      expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "8");
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
       });
-      expect(screen.getByText("12h · limit reached")).toBeInTheDocument();
+      expect(screen.getByText("Limit reached")).toBeInTheDocument();
+      expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "0");
     } finally {
       vi.useRealTimers();
     }
