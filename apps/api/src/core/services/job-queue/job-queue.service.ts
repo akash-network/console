@@ -1,6 +1,13 @@
 import { createMongoAbility, MongoAbility } from "@casl/ability";
 import { context, propagation, SpanStatusCode, trace } from "@opentelemetry/api";
-import { Job as PgBossJob, PgBoss, Queue as PgBossQueue, SendOptions as PgBossSendOptions, WorkOptions as PgBossWorkOptions } from "pg-boss";
+import {
+  Job as PgBossJob,
+  PgBoss,
+  Queue as PgBossQueue,
+  type QueueResult as PgBossQueueResult,
+  SendOptions as PgBossSendOptions,
+  WorkOptions as PgBossWorkOptions
+} from "pg-boss";
 import type { Sql } from "postgres";
 import { Disposable, inject, InjectionToken, singleton } from "tsyringe";
 
@@ -10,6 +17,24 @@ import { ExecutionContextService } from "../execution-context/execution-context.
 import { TxService } from "../tx/tx.service";
 
 export const PG_BOSS_TOKEN: InjectionToken<PgBoss> = Symbol("pgBoss");
+
+type QueueRetryOptions = Pick<PgBossQueue, "retryLimit" | "retryBackoff" | "retryDelay" | "retryDelayMax">;
+
+/** pg-boss multiplies its backoff by `retryDelay` and defaults it to 0, which would collapse every retry gap to zero. */
+const QUEUE_RETRY_OPTIONS: QueueRetryOptions = {
+  retryLimit: 5,
+  retryBackoff: true,
+  retryDelay: 30,
+  retryDelayMax: 5 * 60
+};
+
+const DEFAULT_QUEUE_POLICY: PgBossQueue["policy"] = "standard";
+
+const RETRY_OPTION_KEYS = Object.keys(QUEUE_RETRY_OPTIONS) as (keyof QueueRetryOptions)[];
+
+function retryOptionsOf(queue: QueueRetryOptions) {
+  return RETRY_OPTION_KEYS.map(key => [key, queue[key]] as const);
+}
 
 @singleton()
 export class JobQueueService implements Disposable {
@@ -45,15 +70,56 @@ export class JobQueueService implements Disposable {
         throw new Error(`JobQueue does not support multiple handlers for the same queue: ${queueName}`);
       }
       seenJobs.add(queueName);
-      await this.pgBoss.createQueue(queueName, {
-        retryLimit: 5,
-        retryBackoff: true,
-        retryDelayMax: 5 * 60,
-        policy: handler.policy
-      });
+      await this.pgBoss.createQueue(queueName, { ...QUEUE_RETRY_OPTIONS, policy: handler.policy });
     });
     await Promise.all(promises);
+    await this.#convergeRetryOptions(handlers);
     this.handlers = handlers.slice(0);
+  }
+
+  /** `createQueue` never touches a queue that already exists, so settings corrected in code reach production only from here. */
+  async #convergeRetryOptions(handlers: JobHandler<Job>[]): Promise<void> {
+    const liveQueues = await this.#readLiveQueues(handlers);
+
+    for (const handler of handlers) {
+      const queue = liveQueues.get(handler.accepts[JOB_NAME]);
+      if (!queue) continue;
+
+      const declaredPolicy = handler.policy ?? DEFAULT_QUEUE_POLICY;
+      if (queue.policy !== declaredPolicy) {
+        this.logger.warn({
+          event: "JOB_QUEUE_POLICY_UNCHANGEABLE",
+          queue: queue.name,
+          declared: declaredPolicy,
+          live: queue.policy
+        });
+      }
+
+      if (retryOptionsOf(queue).every(([key, value]) => value === QUEUE_RETRY_OPTIONS[key])) continue;
+
+      try {
+        await this.pgBoss.updateQueue(queue.name, QUEUE_RETRY_OPTIONS);
+        this.logger.info({
+          event: "JOB_QUEUE_RETRY_OPTIONS_CONVERGED",
+          queue: queue.name,
+          from: Object.fromEntries(retryOptionsOf(queue)),
+          to: QUEUE_RETRY_OPTIONS
+        });
+      } catch (error) {
+        this.logger.error({ event: "JOB_QUEUE_RETRY_OPTIONS_CONVERGE_FAILED", queue: queue.name, error });
+      }
+    }
+  }
+
+  /** Converging is drift correction, so a read that fails leaves every queue as it was rather than keeping the workers down. */
+  async #readLiveQueues(handlers: JobHandler<Job>[]): Promise<Map<string, PgBossQueueResult>> {
+    try {
+      const queues = await this.pgBoss.getQueues(handlers.map(handler => handler.accepts[JOB_NAME]));
+      return new Map(queues.map(queue => [queue.name, queue]));
+    } catch (error) {
+      this.logger.error({ event: "JOB_QUEUE_READ_FAILED", error });
+      return new Map();
+    }
   }
 
   /**
@@ -165,7 +231,7 @@ export class JobQueueService implements Disposable {
           SET completed_on = now(),
             state = 'cancelled'
           WHERE name = $1
-            AND state = 'created'
+            AND state IN ('created', 'retry')
             AND singleton_key = $2
           RETURNING id
         )

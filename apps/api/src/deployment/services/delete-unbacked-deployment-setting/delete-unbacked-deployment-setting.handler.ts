@@ -47,7 +47,7 @@ export class DeleteUnbackedDeploymentSettingHandler implements JobHandler<Delete
 
   /**
    * Running is not evidence that the deployment is missing — the broadcast may have landed and the process died
-   * before cancelling, and `cancelCreatedBy` only cancels a job still in state `created`, so a compensation a
+   * before cancelling, and `cancelCreatedBy` only cancels a job still waiting, so a compensation a
    * worker has already picked up cannot be called off at all. What keeps a live deployment's row safe in that
    * window is not the cancellation but the two things below, and anything short of a chain answer escapes,
    * because the queue retrying costs a row's extra lifetime while a wrong delete costs the only stored copy of
