@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { ProviderVerificationListViewSchema, ProviderVerificationViewSchema } from "@src/provider/provider-verification/provider-verification.schema";
 import { openApiExampleProviderAddress } from "@src/utils/constants";
 import { AkashAddressSchema } from "@src/utils/schema";
 
@@ -84,7 +85,8 @@ export const ProviderListResponseSchema = z.array(
     featEndpointCustomDomain: z.boolean(),
     workloadSupportChia: z.boolean(),
     workloadSupportChiaCapabilities: z.array(z.string()).nullable(),
-    featEndpointIp: z.boolean()
+    featEndpointIp: z.boolean(),
+    verification: ProviderVerificationListViewSchema.nullable()
   })
 );
 
@@ -175,6 +177,7 @@ export const ProviderResponseSchema = z.object({
   workloadSupportChia: z.boolean(),
   workloadSupportChiaCapabilities: z.array(z.string()),
   featEndpointIp: z.boolean(),
+  verification: ProviderVerificationViewSchema.nullable(),
   uptime: z.array(
     z.object({
       id: z.string(),

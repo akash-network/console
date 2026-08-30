@@ -1,3 +1,5 @@
+import type { ProviderVerificationView } from "@src/provider/provider-verification/provider-verification.schema";
+
 export interface ProviderList {
   owner: string;
   name: string | null;
@@ -62,6 +64,7 @@ export interface ProviderList {
   workloadSupportChia: boolean;
   workloadSupportChiaCapabilities: string[] | null;
   featEndpointIp: boolean;
+  verification: ProviderVerificationView | null;
 }
 
 export interface ProviderCapacityStats {

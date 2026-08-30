@@ -103,7 +103,8 @@ export const mapProviderToList = (
     featEndpointCustomDomain: getBooleanAttribute("feat-endpoint-custom-domain", attrMap, providerAttributeSchema),
     workloadSupportChia: getBooleanAttribute("workload-support-chia", attrMap, providerAttributeSchema),
     workloadSupportChiaCapabilities: getStringArrayAttribute("workload-support-chia-capabilities", provider, providerAttributeSchema),
-    featEndpointIp: getBooleanAttribute("feat-endpoint-ip", attrMap, providerAttributeSchema)
+    featEndpointIp: getBooleanAttribute("feat-endpoint-ip", attrMap, providerAttributeSchema),
+    verification: null
   };
 };
 

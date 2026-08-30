@@ -1,5 +1,5 @@
 import type { JwtTokenPayload } from "@akashnetwork/chain-sdk";
-import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
+import { type Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import type { ProviderAttributesSchema } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { AxiosError } from "axios";
@@ -8,7 +8,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { cacheEngine } from "@src/caching/helpers";
+import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { AUDITOR } from "@src/deployment/config/provider.config";
+import type { ProviderVerificationListView, ProviderVerificationView } from "@src/provider/provider-verification/provider-verification.schema";
+import type { ProviderVerificationService } from "@src/provider/provider-verification/provider-verification.service";
+import type { ProviderVerificationReadinessService } from "@src/provider/provider-verification/provider-verification-readiness.service";
 import { createLeaseStatus } from "../../../../test/seeders/lease-status.seeder";
 import { createProviderSeed, createProviderWithAttributeSignatures } from "../../../../test/seeders/provider.seeder";
 import { createUserWallet } from "../../../../test/seeders/user-wallet.seeder";
@@ -18,6 +22,8 @@ import type { ProviderAttributesSchemaService } from "../provider-attributes-sch
 import type { ProviderJwtTokenService } from "../provider-jwt-token/provider-jwt-token.service";
 import { ProviderService } from "./provider.service";
 import type { ProviderProxyService } from "./provider-proxy.service";
+
+import { mockConfigService } from "@test/mocks/config-service.mock";
 
 const schemaDetail = { key: "test", type: "string" as const, required: false, description: "test", values: null };
 const providerAttributeSchemaStub: ProviderAttributesSchema = {
@@ -441,6 +447,77 @@ describe(ProviderService.name, () => {
 
       expect(result).toHaveLength(1);
     });
+
+    it("returns a stable null verification field while AEP-86 is disabled", async () => {
+      const { service, providerRepository, auditorsService, providerAttributesSchemaService, providerVerificationService } = setup();
+      const provider = createProviderWithAttributeSignatures(AUDITOR) as unknown as Provider;
+      providerRepository.getWithAttributesAndAuditors.mockResolvedValue([provider]);
+      providerRepository.getProviderWithNodes.mockResolvedValue([]);
+      auditorsService.getAuditors.mockResolvedValue([]);
+      providerAttributesSchemaService.getProviderAttributesSchema.mockResolvedValue(providerAttributeSchemaStub);
+
+      const result = await service.getProviderList();
+
+      expect(result[0].verification).toBeNull();
+      expect(providerVerificationService.getSummaries).not.toHaveBeenCalled();
+      expect(providerVerificationService.getViews).not.toHaveBeenCalled();
+    });
+
+    it("batch-attaches indexed verification when AEP-86 is enabled", async () => {
+      const { service, providerRepository, auditorsService, providerAttributesSchemaService, providerVerificationService } = setup({
+        verificationEnabled: true
+      });
+      const provider = createProviderWithAttributeSignatures(AUDITOR) as unknown as Provider;
+      const verification = { provider: provider.owner } as ProviderVerificationListView;
+      providerRepository.getWithAttributesAndAuditors.mockResolvedValue([provider]);
+      providerRepository.getProviderWithNodes.mockResolvedValue([]);
+      auditorsService.getAuditors.mockResolvedValue([]);
+      providerAttributesSchemaService.getProviderAttributesSchema.mockResolvedValue(providerAttributeSchemaStub);
+      providerVerificationService.getSummaries.mockResolvedValue(new Map([[provider.owner, verification]]));
+
+      const result = await service.getProviderList();
+
+      expect(providerVerificationService.getSummaries).toHaveBeenCalledWith([provider.owner]);
+      expect(providerVerificationService.getViews).not.toHaveBeenCalled();
+      expect(result[0].verification).toBe(verification);
+    });
+
+    it("returns null verification while the indexer is behind the connected chain", async () => {
+      const { service, providerRepository, auditorsService, providerAttributesSchemaService, providerVerificationService, providerVerificationReadiness } =
+        setup({ verificationEnabled: true, verificationReady: false });
+      const provider = createProviderWithAttributeSignatures(AUDITOR) as unknown as Provider;
+      providerRepository.getWithAttributesAndAuditors.mockResolvedValue([provider]);
+      providerRepository.getProviderWithNodes.mockResolvedValue([]);
+      auditorsService.getAuditors.mockResolvedValue([]);
+      providerAttributesSchemaService.getProviderAttributesSchema.mockResolvedValue(providerAttributeSchemaStub);
+
+      const result = await service.getProviderList();
+
+      expect(providerVerificationReadiness.isReady).toHaveBeenCalledOnce();
+      expect(providerVerificationService.getSummaries).not.toHaveBeenCalled();
+      expect(result[0].verification).toBeNull();
+    });
+
+    it("attaches verification immediately after indexer readiness recovers", async () => {
+      const { service, providerRepository, auditorsService, providerAttributesSchemaService, providerVerificationService, providerVerificationReadiness } =
+        setup({ verificationEnabled: true });
+      const provider = createProviderWithAttributeSignatures(AUDITOR) as unknown as Provider;
+      const verification = { provider: provider.owner } as ProviderVerificationListView;
+      providerRepository.getWithAttributesAndAuditors.mockResolvedValue([provider]);
+      providerRepository.getProviderWithNodes.mockResolvedValue([]);
+      auditorsService.getAuditors.mockResolvedValue([]);
+      providerAttributesSchemaService.getProviderAttributesSchema.mockResolvedValue(providerAttributeSchemaStub);
+      providerVerificationReadiness.isReady.mockResolvedValueOnce(false).mockResolvedValue(true);
+      providerVerificationService.getSummaries.mockResolvedValue(new Map([[provider.owner, verification]]));
+
+      const beforeRecovery = await service.getProviderList();
+      const afterRecovery = await service.getProviderList();
+
+      expect(beforeRecovery[0].verification).toBeNull();
+      expect(afterRecovery[0].verification).toBe(verification);
+      expect(providerRepository.getWithAttributesAndAuditors).toHaveBeenCalledOnce();
+      expect(providerVerificationService.getSummaries).toHaveBeenCalledOnce();
+    });
   });
 
   describe("getProviderListByAddresses", () => {
@@ -508,7 +585,58 @@ describe(ProviderService.name, () => {
     });
   });
 
-  function setup() {
+  describe("getProvider", () => {
+    beforeEach(() => {
+      cacheEngine.clearAllKeyInCache();
+    });
+
+    it("attaches the same persisted verification view to provider detail", async () => {
+      const { service, providerRepository, auditorsService, providerAttributesSchemaService, providerVerificationService } = setup({
+        verificationEnabled: true
+      });
+      const provider = createProviderWithAttributeSignatures(AUDITOR) as unknown as Provider;
+      const verification = { provider: provider.owner } as ProviderVerificationView;
+      providerRepository.getProviderByAddressWithAttributes.mockResolvedValue(provider);
+      auditorsService.getAuditors.mockResolvedValue([]);
+      providerAttributesSchemaService.getProviderAttributesSchema.mockResolvedValue(providerAttributeSchemaStub);
+      providerVerificationService.getViews.mockResolvedValue(new Map([[provider.owner, verification]]));
+      const findSnapshots = vi.spyOn(ProviderSnapshot, "findAll").mockResolvedValue([]);
+      const findSnapshot = vi.spyOn(ProviderSnapshot, "findOne").mockResolvedValue(null);
+
+      const result = await service.getProvider(provider.owner);
+
+      expect(result?.verification).toBe(verification);
+      expect(providerVerificationService.getViews).toHaveBeenCalledWith([{ provider: provider.owner, providerDeclaredTier: result?.tier ?? null }]);
+      findSnapshots.mockRestore();
+      findSnapshot.mockRestore();
+    });
+
+    it("attaches verification immediately after indexer readiness recovers", async () => {
+      const { service, providerRepository, auditorsService, providerAttributesSchemaService, providerVerificationService, providerVerificationReadiness } =
+        setup({ verificationEnabled: true });
+      const provider = createProviderWithAttributeSignatures(AUDITOR) as unknown as Provider;
+      const verification = { provider: provider.owner } as ProviderVerificationView;
+      providerRepository.getProviderByAddressWithAttributes.mockResolvedValue(provider);
+      auditorsService.getAuditors.mockResolvedValue([]);
+      providerAttributesSchemaService.getProviderAttributesSchema.mockResolvedValue(providerAttributeSchemaStub);
+      providerVerificationReadiness.isReady.mockResolvedValueOnce(false).mockResolvedValue(true);
+      providerVerificationService.getViews.mockResolvedValue(new Map([[provider.owner, verification]]));
+      const findSnapshots = vi.spyOn(ProviderSnapshot, "findAll").mockResolvedValue([]);
+      const findSnapshot = vi.spyOn(ProviderSnapshot, "findOne").mockResolvedValue(null);
+
+      const beforeRecovery = await service.getProvider(provider.owner);
+      const afterRecovery = await service.getProvider(provider.owner);
+
+      expect(beforeRecovery?.verification).toBeNull();
+      expect(afterRecovery?.verification).toBe(verification);
+      expect(providerRepository.getProviderByAddressWithAttributes).toHaveBeenCalledOnce();
+      expect(providerVerificationService.getViews).toHaveBeenCalledOnce();
+      findSnapshots.mockRestore();
+      findSnapshot.mockRestore();
+    });
+  });
+
+  function setup({ verificationEnabled = false, verificationReady = true }: { verificationEnabled?: boolean; verificationReady?: boolean } = {}) {
     const providerProxyService = mock<ProviderProxyService>();
     const providerRepository = mock<ProviderRepository>();
     const providerAttributesSchemaService = mock<ProviderAttributesSchemaService>();
@@ -516,8 +644,23 @@ describe(ProviderService.name, () => {
     const jwtTokenService = mock<ProviderJwtTokenService>({
       generateJwtToken: vi.fn().mockResolvedValue(Ok("mock-jwt-token"))
     });
+    const providerVerificationService = mock<ProviderVerificationService>({
+      getSummaries: vi.fn().mockResolvedValue(new Map()),
+      getViews: vi.fn().mockResolvedValue(new Map())
+    });
+    const providerVerificationReadiness = mock<ProviderVerificationReadinessService>({ isReady: vi.fn().mockResolvedValue(verificationReady) });
+    const coreConfig = mockConfigService<CoreConfigService>({ AEP86_PROVIDER_VERIFICATION_ENABLED: verificationEnabled });
 
-    const service = new ProviderService(providerProxyService, providerRepository, providerAttributesSchemaService, auditorsService, jwtTokenService);
+    const service = new ProviderService(
+      providerProxyService,
+      providerRepository,
+      providerAttributesSchemaService,
+      auditorsService,
+      jwtTokenService,
+      providerVerificationService,
+      providerVerificationReadiness,
+      coreConfig
+    );
 
     return {
       service,
@@ -525,7 +668,9 @@ describe(ProviderService.name, () => {
       providerAttributesSchemaService,
       auditorsService,
       jwtTokenService,
-      providerProxyService
+      providerProxyService,
+      providerVerificationService,
+      providerVerificationReadiness
     };
   }
 });
