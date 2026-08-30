@@ -244,7 +244,11 @@ export class InitialDeploymentFundingService {
     }
 
     await this.deploymentSettingRepository.releaseFundingClaim(claims).catch((error: unknown) => {
-      this.logger.error({ event: "INITIAL_FUNDING_CLAIM_RELEASE_FAILED", ...logContext, error });
+      try {
+        this.logger.error({ event: "INITIAL_FUNDING_CLAIM_RELEASE_FAILED", ...logContext, error });
+      } catch {
+        return;
+      }
     });
   }
 

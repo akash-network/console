@@ -539,6 +539,20 @@ describe(InitialDeploymentFundingService.name, () => {
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_CLAIM_RELEASE_FAILED", dseq: "123" }));
     });
 
+    it("preserves the deposit error when logging a claim release failure itself throws", async () => {
+      const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService, logger } = setup();
+      drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+      managedSignerService.executeDerivedTx.mockRejectedValue(new Error("Bad status on response: 503"));
+      deploymentSettingRepository.releaseFundingClaim.mockRejectedValue(new Error("connection terminated"));
+      logger.error.mockImplementation(() => {
+        throw new Error("logger transport failure");
+      });
+
+      await expect(service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" })).rejects.toThrow("Bad status on response: 503");
+    });
+
     it("does not claim when the deployment has no settings row", async () => {
       const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService } = setup();
       drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
