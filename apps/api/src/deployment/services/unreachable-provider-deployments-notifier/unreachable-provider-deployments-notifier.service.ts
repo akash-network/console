@@ -1,7 +1,7 @@
 import { Err, Ok, Result } from "ts-results";
 import { inject, singleton } from "tsyringe";
 
-import { UserWalletRepository } from "@src/billing/repositories";
+import { isWalletInitialized, UserWalletRepository, type WalletInitialized } from "@src/billing/repositories";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import type { DryRunOptions } from "@src/core/types/console";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
@@ -46,10 +46,11 @@ export class UnreachableProviderDeploymentsNotifierService {
 
     const errors: unknown[] = [];
     let notifiedCount = 0;
+    const walletsByOwner = await this.#findManagedWalletsByOwner(deployments);
 
     for (const deployment of deployments) {
       try {
-        if (await this.#notifyOwner(deployment, dryRun)) {
+        if (await this.#notifyOwner(deployment, walletsByOwner.get(deployment.owner), dryRun)) {
           notifiedCount++;
         }
       } catch (error) {
@@ -106,9 +107,15 @@ export class UnreachableProviderDeploymentsNotifierService {
     return `${lease.owner}/${lease.dseq}`;
   }
 
-  async #notifyOwner(deployment: DarkDeployment, dryRun: boolean): Promise<boolean> {
-    const wallet = await this.userWalletRepository.findOneByAddress(deployment.owner);
+  /** One lookup for the whole sweep, because most dark deployments are self-custody and a per-deployment query spends the run discovering that. */
+  async #findManagedWalletsByOwner(deployments: DarkDeployment[]): Promise<Map<string, WalletInitialized>> {
+    const owners = [...new Set(deployments.map(deployment => deployment.owner))];
+    const wallets = await this.userWalletRepository.findByAddresses(owners);
 
+    return new Map(wallets.filter(isWalletInitialized).map(wallet => [wallet.address, wallet]));
+  }
+
+  async #notifyOwner(deployment: DarkDeployment, wallet: WalletInitialized | undefined, dryRun: boolean): Promise<boolean> {
     if (!wallet) {
       this.logger.debug({
         event: "UNREACHABLE_PROVIDER_DEPLOYMENT_SKIPPED",

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { UserWalletRepository } from "@src/billing/repositories";
+import type { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import type { CreateLogger, JobQueueService } from "@src/core";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { ActiveLeaseOnProvider, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
@@ -116,16 +116,36 @@ describe(UnreachableProviderDeploymentsCloserService.name, () => {
     });
 
     it("keeps screening the other deployments after one lookup fails", async () => {
-      const { service, userWalletRepository, jobQueueService } = setup({
+      const { service, deploymentSettingRepository, jobQueueService } = setup({
         outages: [anOutage({})],
         leases: [aLease({}), aLease({ owner: "akash1other", dseq: "999" })]
       });
-      userWalletRepository.findOneByAddress.mockRejectedValueOnce(new Error("connection reset"));
+      deploymentSettingRepository.findOneBy.mockRejectedValueOnce(new Error("connection reset"));
 
       const result = await service.closeUnreachableProviderDeployments({ dryRun: false });
 
       expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
       expect(result.err).toBe(true);
+    });
+
+    it("looks up every owner's wallet in a single query", async () => {
+      const { service, userWalletRepository } = setup({
+        outages: [anOutage({})],
+        leases: [aLease({}), aLease({ owner: "akash1other", dseq: "999" })]
+      });
+
+      await service.closeUnreachableProviderDeployments({ dryRun: false });
+
+      expect(userWalletRepository.findByAddresses).toHaveBeenCalledTimes(1);
+      expect(userWalletRepository.findByAddresses).toHaveBeenCalledWith([OWNER, "akash1other"]);
+    });
+
+    it("asks for an owner once when several of its deployments are dark", async () => {
+      const { service, userWalletRepository } = setup({ outages: [anOutage({})], leases: [aLease({}), aLease({ dseq: "999" })] });
+
+      await service.closeUnreachableProviderDeployments({ dryRun: false });
+
+      expect(userWalletRepository.findByAddresses).toHaveBeenCalledWith([OWNER]);
     });
 
     it("schedules nothing when the outage record cannot be trusted", async () => {
@@ -199,8 +219,8 @@ describe(UnreachableProviderDeploymentsCloserService.name, () => {
     leaseRepository.findActiveLeasesOfDeployment.mockResolvedValue(input.deploymentLeases ?? []);
 
     const userWalletRepository = mock<UserWalletRepository>();
-    userWalletRepository.findOneByAddress.mockImplementation(async address =>
-      input.wallet === null ? undefined : mock<Awaited<ReturnType<UserWalletRepository["findOneByAddress"]>>>({ id: 7, userId: "user-1", address })
+    userWalletRepository.findByAddresses.mockImplementation(async addresses =>
+      input.wallet === null ? [] : addresses.map(address => mock<UserWalletOutput>({ id: 7, userId: "user-1", address }))
     );
 
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();

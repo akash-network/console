@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { UserWalletRepository } from "@src/billing/repositories";
+import type { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import type { CreateLogger } from "@src/core";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { ActiveLeaseOnProvider, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
@@ -220,8 +220,8 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
     leaseRepository.findActiveLeasesOfDeploymentsOnProviders.mockResolvedValue(input.leases ?? []);
 
     const userWalletRepository = mock<UserWalletRepository>();
-    userWalletRepository.findOneByAddress.mockResolvedValue(
-      input.wallet === null ? undefined : mock<Awaited<ReturnType<UserWalletRepository["findOneByAddress"]>>>({ userId: "user-1" })
+    userWalletRepository.findByAddresses.mockImplementation(async addresses =>
+      input.wallet === null ? [] : addresses.map(address => mock<UserWalletOutput>({ userId: "user-1", address }))
     );
 
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();

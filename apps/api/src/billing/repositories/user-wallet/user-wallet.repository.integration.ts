@@ -99,6 +99,32 @@ describe(UserWalletRepository.name, () => {
     });
   });
 
+  describe("findByAddresses", () => {
+    it("returns every wallet matching the given addresses", async () => {
+      const first = await setup();
+      const second = await setup();
+
+      const wallets = await first.userWalletRepository.findByAddresses([first.wallet.address as string, second.wallet.address as string]);
+
+      expect(wallets.map(wallet => wallet.address).sort()).toEqual([first.wallet.address, second.wallet.address].sort());
+    });
+
+    it("skips addresses that have no wallet", async () => {
+      const { userWalletRepository, wallet } = await setup();
+
+      const wallets = await userWalletRepository.findByAddresses([wallet.address as string, createAkashAddress()]);
+
+      expect(wallets).toHaveLength(1);
+      expect(wallets[0].address).toBe(wallet.address);
+    });
+
+    it("returns nothing when given no addresses", async () => {
+      const { userWalletRepository } = await setup();
+
+      expect(await userWalletRepository.findByAddresses([])).toEqual([]);
+    });
+  });
+
   async function setup(input: { creditsLowNotifiedAt?: Date; creditsSufficientSince?: Date } = {}) {
     const userRepository = container.resolve(UserRepository);
     const userWalletRepository = container.resolve(UserWalletRepository);

@@ -1,7 +1,7 @@
 import { Err, Ok, Result } from "ts-results";
 import { inject, singleton } from "tsyringe";
 
-import { UserWalletRepository } from "@src/billing/repositories";
+import { isWalletInitialized, UserWalletRepository, type WalletInitialized } from "@src/billing/repositories";
 import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import type { DryRunOptions } from "@src/core/types/console";
 import { CloseUnreachableProviderDeploymentCommand } from "@src/deployment/commands/close-unreachable-provider-deployment.command";
@@ -48,10 +48,11 @@ export class UnreachableProviderDeploymentsCloserService {
     let scheduledCount = 0;
     let alreadyScheduledCount = 0;
     const pendingKeys = dryRun ? new Set<string>() : await this.jobQueueService.findPendingSingletonKeys(CloseUnreachableProviderDeploymentCommand[JOB_NAME]);
+    const walletsByOwner = await this.#findManagedWalletsByOwner(deployments);
 
     for (const deployment of deployments) {
       try {
-        if (!(await this.#isCloseable(deployment))) continue;
+        if (!(await this.#isCloseable(deployment, walletsByOwner.get(deployment.owner)))) continue;
 
         if (dryRun) {
           this.logger.info({
@@ -116,11 +117,17 @@ export class UnreachableProviderDeploymentsCloserService {
     return resolveFullyDarkDeployment(leases, new Map(outages.map(outage => [outage.provider, outage])));
   }
 
-  /** Screens out what the handler would skip anyway, so a dry run's count is the count that would really be closed. */
-  async #isCloseable(deployment: DarkDeployment): Promise<boolean> {
-    const wallet = await this.userWalletRepository.findOneByAddress(deployment.owner);
+  /** One lookup for the whole sweep, because most dark deployments are self-custody and a per-deployment query spends the run discovering that. */
+  async #findManagedWalletsByOwner(deployments: DarkDeployment[]): Promise<Map<string, WalletInitialized>> {
+    const owners = [...new Set(deployments.map(deployment => deployment.owner))];
+    const wallets = await this.userWalletRepository.findByAddresses(owners);
 
-    if (!wallet?.address) {
+    return new Map(wallets.filter(isWalletInitialized).map(wallet => [wallet.address, wallet]));
+  }
+
+  /** Screens out what the handler would skip anyway, so a dry run's count is the count that would really be closed. */
+  async #isCloseable(deployment: DarkDeployment, wallet: WalletInitialized | undefined): Promise<boolean> {
+    if (!wallet) {
       this.logger.debug({
         event: "UNREACHABLE_PROVIDER_DEPLOYMENT_CLOSE_SKIPPED",
         reason: "NOT_A_MANAGED_WALLET",
