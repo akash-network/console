@@ -30,10 +30,10 @@ export type FundingImpact =
       state: FundingImpactState;
       reserveUsd: number;
       availableNowUsd: number;
-      /** Null when the reserve exceeds what is available, where an "available after" figure would be a lie. */
+      /** Null when the remaining reserve exceeds what is available, where an "available after" figure would be a lie. */
       availableAfterUsd: number | null;
-      /** How much runtime the reserve pays for: the funding target, bounded by the runtime limit. */
-      fundedHours: number;
+      /** How much runtime the reserve pays for, bounded by the runtime limit; null when the bids are free. */
+      runtimeCoveredHours: number | null;
       thresholdUsd: number | null;
       chargeUsd: number;
       cardLabel: string | null;
@@ -47,8 +47,9 @@ type Input = {
 
 /**
  * Estimates what confirming the reviewed deployment does to the account's money: automatic funding
- * reserves the target runway's worth of the reviewed bid prices (bounded by the runtime limit), so the
- * reserve, the available balance left after it, and the auto-top-up consequences are all knowable here.
+ * reserves the target runway's worth of the reviewed bid prices (bounded by the runtime limit), floored
+ * at the bootstrap deposit the deployment already holds from creation. Since that bootstrap already left
+ * the available balance, only the difference up to the reserve is drawn at confirm time.
  */
 export function useFundingImpact({ rows, runtimeLimitHours, dependencies: d = DEPENDENCIES }: Input): FundingImpact {
   const isEscrowAbstracted = d.useIsEscrowAbstracted();
@@ -65,14 +66,17 @@ export function useFundingImpact({ rows, runtimeLimitHours, dependencies: d = DE
   if (overview.isError || fundingConfig.isError) return { kind: "unavailable" };
   if (overview.isLoading || !fundingConfig.data || defaultPaymentMethod.isLoading) return { kind: "hidden" };
 
+  const { targetRunwayHours, defaultDepositUsd } = fundingConfig.data;
   const perBlockUdenom = pricedRows.reduce((sum, row) => sum + Number(row.price.amount), 0);
   const hourlyCostUsd = udenomToUsd(perBlockUdenom * API_BLOCKS_PER_HOUR, pricedRows[0].price.denom);
-  const fundedHours =
-    runtimeLimitHours === undefined ? fundingConfig.data.targetRunwayHours : Math.min(fundingConfig.data.targetRunwayHours, runtimeLimitHours);
-  const reserveUsd = hourlyCostUsd * fundedHours;
+  const fundedHours = runtimeLimitHours === undefined ? targetRunwayHours : Math.min(targetRunwayHours, runtimeLimitHours);
+  const reserveUsd = Math.max(defaultDepositUsd, hourlyCostUsd * fundedHours);
+  /** The bootstrap deposit was drawn at creation and already counts as reserved, so confirming only draws the rest. */
+  const remainingDrawUsd = reserveUsd - defaultDepositUsd;
+  const runtimeCoveredHours = hourlyCostUsd > 0 ? Math.min(reserveUsd / hourlyCostUsd, runtimeLimitHours ?? Infinity) : null;
 
   const availableNowUsd = overview.available;
-  const availableAfterUsd = availableNowUsd >= reserveUsd ? availableNowUsd - reserveUsd : null;
+  const availableAfterUsd = availableNowUsd >= remainingDrawUsd ? availableNowUsd - remainingDrawUsd : null;
   const thresholdUsd = overview.autoReloadThreshold;
   const hasPaymentMethod = !isTrialing && !!defaultPaymentMethod.data;
   const card = defaultPaymentMethod.data?.card;
@@ -83,7 +87,7 @@ export function useFundingImpact({ rows, runtimeLimitHours, dependencies: d = DE
     reserveUsd,
     availableNowUsd,
     availableAfterUsd,
-    fundedHours,
+    runtimeCoveredHours,
     thresholdUsd,
     chargeUsd: Math.max(walletSettings?.autoReloadAmount ?? DEFAULT_AUTO_RELOAD_AMOUNT, AUTO_RELOAD_AMOUNT_MIN_USD),
     cardLabel: card ? `${capitalizeFirstLetter(card.brand || "card")} **** ${card.last4 || ""}`.trim() : null

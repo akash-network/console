@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AccountBalanceOverview } from "@src/components/billing-usage/AccountBalanceOverview/useAccountBalanceOverview";
-import type { DEPENDENCIES } from "./useFundingImpact";
+import type { DEPENDENCIES, FundingImpact } from "./useFundingImpact";
 import { useFundingImpact } from "./useFundingImpact";
 import type { ReviewRow } from "./useReviewRows";
 
@@ -44,7 +44,7 @@ describe(useFundingImpact.name, () => {
     expect(result.current).toEqual({ kind: "unavailable" });
   });
 
-  it("reserves the target runway's worth of the priced rows", () => {
+  it("reserves the target runway's worth of the priced rows, drawing only what the bootstrap deposit left", () => {
     const { result } = setup({ overview: { available: 200 } });
 
     expect(result.current).toMatchObject({
@@ -52,9 +52,17 @@ describe(useFundingImpact.name, () => {
       state: "funded",
       reserveUsd: 144,
       availableNowUsd: 200,
-      availableAfterUsd: 56,
-      fundedHours: 48
+      availableAfterUsd: 56.5,
+      runtimeCoveredHours: 48
     });
+  });
+
+  it("floors the reserve at the bootstrap deposit for a deployment cheaper than the target runway", () => {
+    const { result } = setup({ rows: [pricedRow("0.00001")] });
+
+    expect(result.current).toMatchObject({ state: "funded", reserveUsd: 0.5, availableAfterUsd: 200 });
+    const impact = result.current as Extract<FundingImpact, { kind: "visible" }>;
+    expect(impact.runtimeCoveredHours).toBeCloseTo(83.3, 1);
   });
 
   it("sums every priced row into the reserve", () => {
@@ -64,21 +72,26 @@ describe(useFundingImpact.name, () => {
 
   it("bounds the reserve by a runtime limit shorter than the target runway", () => {
     const { result } = setup({ runtimeLimitHours: 12 });
-    expect(result.current).toMatchObject({ reserveUsd: 36, fundedHours: 12 });
+    expect(result.current).toMatchObject({ reserveUsd: 36, runtimeCoveredHours: 12 });
   });
 
   it("keeps the target runway when the runtime limit exceeds it", () => {
     const { result } = setup({ runtimeLimitHours: 96 });
-    expect(result.current).toMatchObject({ reserveUsd: 144, fundedHours: 48 });
+    expect(result.current).toMatchObject({ reserveUsd: 144, runtimeCoveredHours: 48 });
+  });
+
+  it("caps the covered runtime at the runtime limit when the bootstrap deposit outlasts it", () => {
+    const { result } = setup({ rows: [pricedRow("0.00001")], runtimeLimitHours: 12 });
+    expect(result.current).toMatchObject({ reserveUsd: 0.5, runtimeCoveredHours: 12 });
   });
 
   it("crosses the threshold when available after reserving lands exactly on it", () => {
-    const { result } = setup({ overview: { available: 200, autoReloadThreshold: 56 } });
-    expect(result.current).toMatchObject({ state: "crosses-threshold", thresholdUsd: 56 });
+    const { result } = setup({ overview: { available: 200, autoReloadThreshold: 56.5 } });
+    expect(result.current).toMatchObject({ state: "crosses-threshold", thresholdUsd: 56.5 });
   });
 
   it("stays funded when available after reserving is above the threshold", () => {
-    const { result } = setup({ overview: { available: 200, autoReloadThreshold: 55 } });
+    const { result } = setup({ overview: { available: 200, autoReloadThreshold: 56 } });
     expect(result.current).toMatchObject({ state: "funded" });
   });
 

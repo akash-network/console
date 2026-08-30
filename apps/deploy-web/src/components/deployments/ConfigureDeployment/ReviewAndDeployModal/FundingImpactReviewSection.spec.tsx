@@ -34,8 +34,13 @@ describe("FundingImpactReviewSection", () => {
   });
 
   it("summarizes a sub-runway runtime limit in hours", () => {
-    setup({ impact: visible({ fundedHours: 12 }) });
+    setup({ impact: visible({ runtimeCoveredHours: 12 }) });
     expect(screen.getByRole("button")).toHaveTextContent("≈12 hours of runtime");
+  });
+
+  it("drops the runtime part of the summary when no runtime can be quoted", () => {
+    setup({ impact: visible({ runtimeCoveredHours: null }) });
+    expect(screen.getByRole("button")).not.toHaveTextContent("of runtime");
   });
 
   it("shows a dash for available after when the balance cannot cover the reserve", () => {
@@ -113,7 +118,7 @@ describe("FundingImpactReviewSection", () => {
       reserveUsd: 144,
       availableNowUsd: 200,
       availableAfterUsd: 56,
-      fundedHours: 48,
+      runtimeCoveredHours: 48,
       thresholdUsd: null,
       chargeUsd: 100,
       cardLabel: "Visa **** 4242",
