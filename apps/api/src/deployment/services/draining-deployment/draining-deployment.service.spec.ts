@@ -942,8 +942,7 @@ describe(DrainingDeploymentService.name, () => {
 
       baseSetup.deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue(deploymentSettings);
 
-      baseSetup.rpcService.findActiveLeaseRates.mockRejectedValue(new Error("RPC error"));
-      baseSetup.leaseRepository.findActiveLeaseRates.mockResolvedValue(leaseRates);
+      baseSetup.rpcService.findActiveLeaseRates.mockResolvedValue(leaseRates);
 
       baseSetup.balancesService.toFiatAmount.mockImplementation(async (uaktAmount: number) => {
         if (uaktAmount === 0) {
