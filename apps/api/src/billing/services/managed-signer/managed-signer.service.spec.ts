@@ -428,6 +428,33 @@ describe(ManagedSignerService.name, () => {
       expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(RecordDeploymentSetting), expect.anything());
     });
 
+    it("records the deployment after the lease side effects, so failing to record cannot suppress funding", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: false });
+      const user = createUser({ userId: "user-123" });
+      const messages: EncodeObject[] = [
+        { typeUrl: MsgCreateDeployment.$type, value: MsgCreateDeployment.fromPartial({ id: { owner: "akash1test", dseq: 123 } }) },
+        {
+          typeUrl: MsgCreateLease.$type,
+          value: MsgCreateLease.fromPartial({ bidId: { dseq: 123, owner: "akash1test", gseq: 1, oseq: 1, provider: "akash1test" } })
+        }
+      ];
+
+      const { service, domainEvents } = setup({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
+        publish: vi.fn().mockImplementation(async (event: unknown) => {
+          if (event instanceof RecordDeploymentSetting) throw new Error("queue unavailable");
+        })
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", messages)).rejects.toThrow("queue unavailable");
+
+      expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(FundDeploymentCommand), expect.anything());
+      expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(EnableDeploymentAlertCommand));
+    });
+
     it("records nothing for a transaction that creates no deployment", async () => {
       const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: false });
       const user = createUser({ userId: "user-123" });

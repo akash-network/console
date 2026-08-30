@@ -144,8 +144,6 @@ export class ManagedSignerService {
       throw error;
     }
 
-    await this.#recordCreatedDeployments(userWallet, messages);
-
     if (hasCreateTrialLeaseMessage) {
       await this.domainEvents.publish(
         new TrialDeploymentLeaseCreated({
@@ -178,6 +176,8 @@ export class ManagedSignerService {
         );
       }
     }
+
+    await this.#recordCreatedDeployments(userWallet, messages);
 
     await this.balancesService.refreshUserWalletLimits(userWallet);
     await this.#ensureAutoReloadSchedule(userWallet.userId, messages);

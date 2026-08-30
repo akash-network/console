@@ -30,6 +30,9 @@ export function recordDeploymentSettingKeyFor({ userId, dseq }: { userId: string
 export class RecordDeploymentSettingHandler implements JobHandler<RecordDeploymentSetting> {
   public readonly accepts = RecordDeploymentSetting;
 
+  /** Gives the command's per-deployment singletonKey its meaning: without it the key is inert and a retried broadcast queues a second job. */
+  public readonly policy = "singleton";
+
   private readonly logger: ReturnType<CreateLogger>;
 
   constructor(
