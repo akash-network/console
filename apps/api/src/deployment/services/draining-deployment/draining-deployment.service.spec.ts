@@ -559,6 +559,42 @@ describe(DrainingDeploymentService.name, () => {
     });
   });
 
+  describe("isCappedByRuntimeLimit", () => {
+    it("reports a cap for a runtime deadline that lands inside the runway target", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
+
+      try {
+        const { service, currentHeight } = setup();
+        const runtimeEndsAt = new Date(Date.now() + 12 * millisecondsInHour);
+
+        expect(service.isCappedByRuntimeLimit({ runtimeEndsAt }, currentHeight)).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("reports no cap for a runtime deadline beyond the runway target", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
+
+      try {
+        const { service, currentHeight } = setup();
+        const runtimeEndsAt = new Date(Date.now() + 100 * millisecondsInHour);
+
+        expect(service.isCappedByRuntimeLimit({ runtimeEndsAt }, currentHeight)).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("reports no cap when the deployment has no runtime deadline", () => {
+      const { service, currentHeight } = setup();
+
+      expect(service.isCappedByRuntimeLimit({ runtimeEndsAt: null }, currentHeight)).toBe(false);
+    });
+  });
+
   describe("calculateAmountToTargetRunway", () => {
     it("funds only the gap when the deployment already holds part of the target runway", () => {
       const { service, currentHeight } = setup();

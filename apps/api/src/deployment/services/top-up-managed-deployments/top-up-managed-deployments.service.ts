@@ -177,18 +177,17 @@ export class TopUpManagedDeploymentsService {
       return;
     }
 
+    const preparedClaims = claims.filter(claim => preparedIds.has(claim.id));
     let deposited = false;
 
     try {
       deposited = await this.topUpForOwner(address, messageInputs, options, instrumentation);
     } finally {
-      if (!deposited) {
-        await this.#releaseFundingClaims(
-          address,
-          claims.filter(claim => preparedIds.has(claim.id)),
-          instrumentation
-        );
-      }
+      await this.#releaseFundingClaims(
+        address,
+        deposited ? this.#runtimeCappedClaims(preparedClaims, messageInputs, currentHeight) : preparedClaims,
+        instrumentation
+      );
     }
 
     await this.walletReloadService.scheduleImmediate({ walletId });
@@ -280,6 +279,15 @@ export class TopUpManagedDeploymentsService {
       deployments.map(deployment => deployment.id),
       this.deploymentConfig.get("AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN")
     );
+  }
+
+  /** A deposit the runtime limit shortened must not hold the cooldown, or a user extending that limit goes unfunded until the claim ages out. */
+  #runtimeCappedClaims(preparedClaims: FundingClaim[], messageInputs: CollectedMessage[], currentHeight: number): FundingClaim[] {
+    const cappedIds = new Set(
+      messageInputs.filter(input => this.drainingDeploymentService.isCappedByRuntimeLimit(input.deployment, currentHeight)).map(input => input.deployment.id)
+    );
+
+    return preparedClaims.filter(claim => cappedIds.has(claim.id));
   }
 
   /**

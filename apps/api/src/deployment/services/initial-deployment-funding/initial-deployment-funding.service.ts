@@ -1,6 +1,6 @@
 import { inject, singleton } from "tsyringe";
 
-import { UserWalletRepository } from "@src/billing/repositories";
+import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { RpcMessageService } from "@src/billing/services";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
@@ -8,7 +8,12 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
-import { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import {
+  DeploymentSettingRepository,
+  DeploymentSettingsOutput,
+  type FundingClaim
+} from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import type { DrainingDeploymentOutput } from "@src/deployment/repositories/lease/lease.repository";
 import { CachedBalanceService } from "@src/deployment/services/cached-balance/cached-balance.service";
 import { DeploymentCloseJobService } from "@src/deployment/services/deployment-close-job/deployment-close-job.service";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
@@ -132,6 +137,38 @@ export class InitialDeploymentFundingService {
       return;
     }
 
+    const claims = await this.#claimForFunding(deploymentSetting);
+
+    if (deploymentSetting && !claims.length) {
+      this.instrumentation.recordSkipped("recently_funded", { dseq, address });
+      return;
+    }
+
+    let keepClaim = false;
+
+    try {
+      const fundedToTarget = await this.#depositToTarget({ walletId, address, dseq, deployment, userWallet, desiredAmount });
+      keepClaim = fundedToTarget && !this.drainingDeploymentService.isCappedByRuntimeLimit({ runtimeEndsAt }, currentHeight);
+    } finally {
+      if (!keepClaim) {
+        await this.#releaseFundingClaims(claims, { dseq, address });
+      }
+    }
+  }
+
+  /** Returns whether the full desired amount landed, since a balance-capped deposit's wallet reload must be able to top up before the cooldown ends. */
+  async #depositToTarget({
+    walletId,
+    address,
+    dseq,
+    deployment,
+    userWallet,
+    desiredAmount
+  }: FundOnLeaseStartedInput & {
+    deployment: DrainingDeploymentOutput;
+    userWallet: UserWalletOutput;
+    desiredAmount: number;
+  }): Promise<boolean> {
     const balance = await this.cachedBalanceService.getFresh(address);
     const amount = Math.min(desiredAmount, balance.spendable);
 
@@ -143,14 +180,14 @@ export class InitialDeploymentFundingService {
         available: balance.available,
         spendable: balance.spendable
       });
-      return;
+      return false;
     }
 
     const feeAllowance = await this.managedSignerService.ensureFeeGrants(userWallet);
 
     if (feeAllowance <= 0) {
       this.instrumentation.recordSkipped("no_fee_allowance", { dseq, address });
-      return;
+      return false;
     }
 
     const denom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
@@ -168,7 +205,7 @@ export class InitialDeploymentFundingService {
     } catch (error) {
       if (error instanceof Error && this.chainErrorService.isDeploymentClosedError(error)) {
         this.instrumentation.recordSkipped("deployment_closed", { dseq, address, error: error.message });
-        return;
+        return false;
       }
       throw error;
     }
@@ -178,7 +215,7 @@ export class InitialDeploymentFundingService {
 
       if (this.chainErrorService.isDeploymentClosedError(txError)) {
         this.instrumentation.recordSkipped("deployment_closed", { dseq, address, txHash: tx.hash });
-        return;
+        return false;
       }
 
       this.logger.error({ event: "INITIAL_FUNDING_TX_FAILED", dseq, address, txHash: tx.hash, code: tx.code, rawLog: tx.rawLog });
@@ -188,6 +225,32 @@ export class InitialDeploymentFundingService {
     this.instrumentation.recordDeposit(amount, denom, { dseq, address, blockRate: deployment.blockRate });
 
     await this.scheduleWalletReload({ walletId, dseq, address });
+
+    return amount === desiredAmount;
+  }
+
+  /** Serializes the deposit against the sweep and the credits-landed pass; a deployment with no settings row funds unclaimed, since neither pass can see it. */
+  async #claimForFunding(deploymentSetting: DeploymentSettingsOutput | undefined): Promise<FundingClaim[]> {
+    if (!deploymentSetting) {
+      return [];
+    }
+
+    return await this.deploymentSettingRepository.claimForFunding([deploymentSetting.id], this.deploymentConfig.get("AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN"));
+  }
+
+  /** Never throws: it runs in a finally, where a rejection would replace the error the job queue classifies for retry. */
+  async #releaseFundingClaims(claims: FundingClaim[], logContext: { dseq: string; address: string }): Promise<void> {
+    if (!claims.length) {
+      return;
+    }
+
+    await this.deploymentSettingRepository.releaseFundingClaim(claims).catch((error: unknown) => {
+      try {
+        this.logger.error({ event: "INITIAL_FUNDING_CLAIM_RELEASE_FAILED", ...logContext, error });
+      } catch {
+        return;
+      }
+    });
   }
 
   /**
