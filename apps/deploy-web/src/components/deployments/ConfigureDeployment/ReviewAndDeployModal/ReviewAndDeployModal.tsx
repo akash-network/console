@@ -24,6 +24,7 @@ import { extractErrorMessage } from "@src/utils/errorUtils";
 import { PRICE_DISPLAY_PRECISION, udenomToDenom } from "@src/utils/mathHelpers";
 import { useTrialGate } from "../ConfigurationPane/HardwareSection/useTrialGate/useTrialGate";
 import { useDeploymentHasGpu } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
+import { FundingImpactReviewSection } from "./FundingImpactReviewSection";
 import { RuntimeLimitReviewSection } from "./RuntimeLimitReviewSection";
 import type { ReviewRow } from "./useReviewRows";
 import { useReviewRows } from "./useReviewRows";
@@ -32,6 +33,7 @@ export const DEPENDENCIES = {
   useReviewRows,
   PricePerTimeUnit,
   useDeploymentHasGpu,
+  FundingImpactReviewSection,
   RuntimeLimitReviewSection,
   useFlag,
   useTrialGate,
@@ -208,6 +210,8 @@ export const ReviewAndDeployModal: FC<Props> = ({
             </div>
             <TotalPrice rows={rows} showAsHourly={showAsHourly} PricePerTimeUnit={d.PricePerTimeUnit} />
           </div>
+
+          <d.FundingImpactReviewSection rows={rows} runtimeLimitHours={effectiveRuntimeLimitHours} />
 
           {isRuntimeLimitOffered && (
             <d.RuntimeLimitReviewSection

@@ -55,6 +55,16 @@ describe(ReviewAndDeployModal.name, () => {
     expect(screen.getByRole("button", { name: /confirm and deploy/i })).toBeDisabled();
   });
 
+  it("shows the funding impact for the reviewed rows and the effective runtime limit", () => {
+    setup({ runtimeLimitHours: 12 });
+    expect(screen.getByTestId("funding-impact-section")).toHaveTextContent("1 rows · limit 12");
+  });
+
+  it("shows the funding impact without a limit when runtime limits are not offered", () => {
+    setup({ runtimeLimitHours: 12, isRuntimeLimitEnabled: false });
+    expect(screen.getByTestId("funding-impact-section")).toHaveTextContent("1 rows · no limit");
+  });
+
   describe("runtime limit", () => {
     it("offers the runtime limit section by default", () => {
       setup({});
@@ -262,6 +272,11 @@ describe(ReviewAndDeployModal.name, () => {
         {isLimited ? "Turn off runtime limit" : "Turn on runtime limit"}
       </button>
     );
+    const FundingImpactReviewSection: typeof DEPENDENCIES.FundingImpactReviewSection = ({ rows: fundingRows, runtimeLimitHours }) => (
+      <div data-testid="funding-impact-section">
+        {fundingRows.length} rows · {runtimeLimitHours === undefined ? "no limit" : `limit ${runtimeLimitHours}`}
+      </div>
+    );
     const useFlag: typeof DEPENDENCIES.useFlag = () => input.isRuntimeLimitEnabled ?? true;
     const useTrialGate: typeof DEPENDENCIES.useTrialGate = () => ({ isRestricted: input.isRestricted ?? false, isWalletReady: true });
 
@@ -307,6 +322,7 @@ describe(ReviewAndDeployModal.name, () => {
           useReviewRows,
           PricePerTimeUnit,
           useDeploymentHasGpu,
+          FundingImpactReviewSection,
           RuntimeLimitReviewSection,
           useFlag,
           useTrialGate,

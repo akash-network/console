@@ -96,6 +96,14 @@ export const operations = {
       queryParams: ["timezone", "startDate", "endDate"],
       hasBody: false
     },
+    getDeploymentFundingConfig: {
+      path: "/v1/deployment-funding-config",
+      method: "get",
+      operationId: "getDeploymentFundingConfig",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
     getDeployment: { path: "/v1/deployments/{dseq}", method: "get", operationId: "getDeployment", pathParams: ["dseq"], queryParams: [], hasBody: false },
     closeDeployment: {
       path: "/v1/deployments/{dseq}",

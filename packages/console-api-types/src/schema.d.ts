@@ -1436,6 +1436,34 @@ export interface paths {
           };
           content?: never;
         };
+        /** @description The email or password was rejected */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Account could not be created */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Too many attempts */
+        429: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Account creation is temporarily unavailable */
+        502: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
       };
     };
     delete?: never;
@@ -1563,6 +1591,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/deployment-funding-config": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get deployment funding config */
+    get: operations["getDeploymentFundingConfig"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/deployment-settings/{userId}/{dseq}": {
     parameters: {
       query?: never;
@@ -1646,8 +1691,10 @@ export interface paths {
         content: {
           "application/json": {
             data: {
-              /** @description Whether auto top-up is enabled for this deployment */
-              autoTopUpEnabled: boolean;
+              /** @description Whether auto top-up is enabled for this deployment. An explicit false is rejected once always-on funding is rolled out */
+              autoTopUpEnabled?: boolean;
+              /** @description Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most 48. Extending an existing limit must raise it by at most 48 hours per request; send the new total rather than the increment. Lowering a limit is not supported. Send null to remove the limit and return the deployment to always-on funding. */
+              runtimeLimitHours?: number | null;
             };
           };
         };
@@ -1683,8 +1730,30 @@ export interface paths {
             };
           };
         };
+        /** @description Invalid runtime limit change */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              message: string;
+            };
+          };
+        };
         /** @description Deployment settings not found */
         404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              message: string;
+            };
+          };
+        };
+        /** @description Runtime limit changed concurrently */
+        409: {
           headers: {
             [name: string]: unknown;
           };
@@ -1723,10 +1792,7 @@ export interface paths {
               userId: string;
               /** @description Deployment sequence number */
               dseq: string;
-              /**
-               * @description Whether auto top-up is enabled for this deployment
-               * @default false
-               */
+              /** @description Whether auto top-up is enabled for this deployment. Defaults to enabled when omitted; an explicit false is rejected once always-on funding is rolled out */
               autoTopUpEnabled?: boolean;
             };
           };
@@ -1856,8 +1922,10 @@ export interface paths {
         content: {
           "application/json": {
             data: {
-              /** @description Whether auto top-up is enabled for this deployment */
-              autoTopUpEnabled: boolean;
+              /** @description Whether auto top-up is enabled for this deployment. An explicit false is rejected once always-on funding is rolled out */
+              autoTopUpEnabled?: boolean;
+              /** @description Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most 48. Extending an existing limit must raise it by at most 48 hours per request; send the new total rather than the increment. Lowering a limit is not supported. Send null to remove the limit and return the deployment to always-on funding. */
+              runtimeLimitHours?: number | null;
             };
           };
         };
@@ -1893,8 +1961,30 @@ export interface paths {
             };
           };
         };
+        /** @description Invalid runtime limit change */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              message: string;
+            };
+          };
+        };
         /** @description Deployment settings not found */
         404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              message: string;
+            };
+          };
+        };
+        /** @description Runtime limit changed concurrently */
+        409: {
           headers: {
             [name: string]: unknown;
           };
@@ -1931,10 +2021,7 @@ export interface paths {
             data: {
               /** @description Deployment sequence number */
               dseq: string;
-              /**
-               * @description Whether auto top-up is enabled for this deployment
-               * @default false
-               */
+              /** @description Whether auto top-up is enabled for this deployment. Defaults to enabled when omitted; an explicit false is rejected once always-on funding is rolled out */
               autoTopUpEnabled?: boolean;
               /**
                * Format: uuid
@@ -2668,6 +2755,68 @@ export interface paths {
                 /** @description Total weekly cost in USD for all deployments with auto top-up enabled */
                 weeklyCost: number;
               };
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/sdl-secrets-context": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get SDL secrets encryption context */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Returns SDL secrets context */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /** @description The subject of the SDL secrets context */
+              sub: string;
+              /** @description The key ID of the SDL secrets context */
+              kid: string;
+              /** @description The JSON Web Key used to encrypt the SDL secrets */
+              jwk: {
+                kty: string;
+                n: string;
+                e: string;
+                use: string;
+                alg: string;
+              };
+              /** @description The required claims for the SDL secrets context */
+              requiredClaims: ("kid" | "sub" | "exp")[];
+            };
+          };
+        };
+        /** @description SDL secrets encryption is unavailable */
+        503: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              message: string;
             };
           };
         };
@@ -7755,6 +7904,35 @@ export interface operations {
       };
     };
   };
+  getDeploymentFundingConfig: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns the platform constants automatic deployment funding runs on */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description Hours of runtime automatic funding reserves for a deployment once its lease starts */
+              targetRunwayHours: number;
+              /** @description USD amount automatic funding leaves untouched in the available balance so new deployments can still be created */
+              balanceHeadroomUsd: number;
+              /** @description USD amount every deployment is bootstrapped with at creation, before funding tops it up toward the target runway */
+              defaultDepositUsd: number;
+            };
+          };
+        };
+      };
+    };
+  };
   getDeployment: {
     parameters: {
       query?: never;
@@ -8127,7 +8305,7 @@ export interface operations {
              * @description Deposit in dollars. Ignored when managed deposits are enabled for your account, in which case the platform sets it automatically; otherwise it is required.
              */
             deposit?: number;
-            /** @description Optional runtime limit in hours, counted from lease start. Automatic funding keeps the deployment running until the limit, then stops so the deployment drains and closes. Omit for always-on funding. */
+            /** @description Optional runtime limit in hours (1 to 48), counted from lease start. Automatic funding keeps the deployment running until the limit, then the deployment is closed automatically and unused funds are returned. Extend a limit with PATCH /v2/deployment-settings/{dseq}. Omit for always-on funding. */
             runtimeLimitHours?: number;
           };
         };

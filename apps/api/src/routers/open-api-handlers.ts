@@ -30,6 +30,7 @@ import {
   marketDataRouter,
   networkCapacityRouter
 } from "@src/dashboard";
+import { deploymentFundingConfigRouter } from "@src/deployment/routes/deployment-funding-config/deployment-funding-config.router";
 import { deploymentSettingRouter } from "@src/deployment/routes/deployment-setting/deployment-setting.router";
 import { deploymentsRouter } from "@src/deployment/routes/deployments/deployments.router";
 import { getSDLSecretsContextRouter } from "@src/deployment/routes/get-sdl-secrets-context/get-sdl-secrets-context.router";
@@ -74,6 +75,7 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   signupRouter,
   verifyEmailCodeRouter,
   verifyEmailRouter,
+  deploymentFundingConfigRouter,
   deploymentSettingRouter,
   deploymentsRouter,
   getSDLSecretsContextRouter,

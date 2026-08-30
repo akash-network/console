@@ -90,7 +90,9 @@ export const BalanceBreakdownBar: React.FunctionComponent<{
   hoveredKey?: string | null;
   onHover?: (key: string | null) => void;
   threshold?: number | null;
-}> = ({ segments, hoveredKey = null, onHover, threshold = null }) => {
+  /** Hides the "Tops up at $X" caption for hosts that explain the threshold in their own copy. */
+  hideThresholdCaption?: boolean;
+}> = ({ segments, hoveredKey = null, onHover, threshold = null, hideThresholdCaption = false }) => {
   const intl = useIntl();
   const formatUsd = (value: number) => intl.formatNumber(value, { style: "currency", currency: "USD" });
   const label = segments.map(segment => `${segment.label} ${formatUsd(segment.amountUsd)}`).join(", ");
@@ -98,7 +100,7 @@ export const BalanceBreakdownBar: React.FunctionComponent<{
   const marker = threshold !== null && threshold > 0 && available > 0 ? buildThresholdMarker(threshold, available) : null;
 
   return (
-    <div className={marker === null ? undefined : "pb-6"}>
+    <div className={marker === null || hideThresholdCaption ? undefined : "pb-6"}>
       <div className="flex h-3 w-full gap-[2px]" role="img" aria-label={`Balance breakdown: ${label}`}>
         {segments.map(segment => (
           <div
@@ -122,16 +124,18 @@ export const BalanceBreakdownBar: React.FunctionComponent<{
                   data-testid="balance-threshold-line"
                   aria-hidden
                 />
-                <div
-                  className="pointer-events-none absolute top-full mt-2 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap text-xs text-muted-foreground"
-                  style={{ left: `${marker.positionPct}%` }}
-                  data-testid="balance-threshold-caption"
-                >
-                  <Flash className="h-3 w-3 shrink-0" />
-                  <span>
-                    Tops up at <span className="font-medium text-foreground">{formatUsd(marker.amountUsd)}</span>
-                  </span>
-                </div>
+                {!hideThresholdCaption && (
+                  <div
+                    className="pointer-events-none absolute top-full mt-2 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap text-xs text-muted-foreground"
+                    style={{ left: `${marker.positionPct}%` }}
+                    data-testid="balance-threshold-caption"
+                  >
+                    <Flash className="h-3 w-3 shrink-0" />
+                    <span>
+                      Tops up at <span className="font-medium text-foreground">{formatUsd(marker.amountUsd)}</span>
+                    </span>
+                  </div>
+                )}
               </>
             )}
           </div>
