@@ -110,7 +110,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
   async #findAutoTopUpDeployments(address?: string): Promise<AutoTopUpDeployment[]> {
     const clauses = [eq(this.table.autoTopUpEnabled, true), eq(this.table.closed, false), isNotNull(UserWallets.address)];
 
-    if (address) {
+    if (address !== undefined) {
       clauses.push(eq(UserWallets.address, address));
     }
 
