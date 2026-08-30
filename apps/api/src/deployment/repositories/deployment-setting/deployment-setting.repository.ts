@@ -86,41 +86,33 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return super.create({ ...input, autoTopUpEnabled: input.autoTopUpEnabled ?? AUTO_TOP_UP_ENABLED_BY_DEFAULT });
   }
 
+  /** Reads every owner in one query, because the per-owner lookup this used to repeat selects from the same tables under the same filters. */
   async *findAutoTopUpDeploymentsByOwnerIteratively(): AsyncGenerator<{
     address: string;
     walletId: number;
     deploymentSettings: AutoTopUpDeployment[];
   }> {
-    const baseClauses = [eq(this.table.autoTopUpEnabled, true), eq(this.table.closed, false)];
+    const deploymentsByOwner = new Map<string, AutoTopUpDeployment[]>();
 
-    const distinctOwnersQuery = this.pg
-      .selectDistinctOn([UserWallets.address], {
-        walletId: UserWallets.id,
-        address: UserWallets.address
-      })
-      .from(this.table)
-      .leftJoin(Users, eq(this.table.userId, Users.id))
-      .leftJoin(UserWallets, eq(Users.id, UserWallets.userId));
+    for (const deployment of await this.#findAutoTopUpDeployments()) {
+      deploymentsByOwner.set(deployment.address, [...(deploymentsByOwner.get(deployment.address) ?? []), deployment]);
+    }
 
-    const distinctClauses = [...baseClauses, isNotNull(UserWallets.address)];
-
-    const distinctOwners = await distinctOwnersQuery.where(and(...distinctClauses));
-
-    for (const { address, walletId } of distinctOwners) {
-      if (!address || !walletId) {
-        continue;
-      }
-
-      const deployments = await this.findAutoTopUpDeploymentsByOwner(address);
-
-      if (deployments.length > 0) {
-        yield { address, walletId, deploymentSettings: deployments as AutoTopUpDeployment[] };
-      }
+    for (const [address, deploymentSettings] of deploymentsByOwner) {
+      yield { address, walletId: deploymentSettings[0].walletId, deploymentSettings };
     }
   }
 
-  async findAutoTopUpDeploymentsByOwner(address: string): Promise<AutoTopUpDeployment[]> {
-    const clauses = [eq(this.table.autoTopUpEnabled, true), eq(this.table.closed, false), eq(UserWallets.address, address)];
+  findAutoTopUpDeploymentsByOwner(address: string): Promise<AutoTopUpDeployment[]> {
+    return this.#findAutoTopUpDeployments(address);
+  }
+
+  async #findAutoTopUpDeployments(address?: string): Promise<AutoTopUpDeployment[]> {
+    const clauses = [eq(this.table.autoTopUpEnabled, true), eq(this.table.closed, false), isNotNull(UserWallets.address)];
+
+    if (address) {
+      clauses.push(eq(UserWallets.address, address));
+    }
 
     const deployments = await this.pg
       .select({
