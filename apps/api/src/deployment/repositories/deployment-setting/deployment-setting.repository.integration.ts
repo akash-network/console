@@ -601,6 +601,40 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("createDefaultIfMissing", () => {
+    it("records a deployment nothing had recorded yet, with funding on", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+
+      const created = await deploymentSettingRepository.createDefaultIfMissing({ userId: user.id, dseq });
+
+      expect(created).toBe(true);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toEqual(expect.objectContaining({ autoTopUpEnabled: true }));
+    });
+
+    it("leaves the choices of a row another path already wrote", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: false, runtimeLimitHours: 12 });
+
+      const created = await deploymentSettingRepository.createDefaultIfMissing({ userId: user.id, dseq });
+
+      expect(created).toBe(false);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toEqual(
+        expect.objectContaining({ autoTopUpEnabled: false, runtimeLimitHours: 12 })
+      );
+    });
+
+    it("writes one row across concurrent attempts for the same deployment", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+
+      const results = await Promise.all(Array.from({ length: 5 }, () => deploymentSettingRepository.createDefaultIfMissing({ userId: user.id, dseq })));
+
+      expect(results.filter(Boolean)).toHaveLength(1);
+    });
+  });
+
   function newDseq() {
     return faker.number.int({ min: 100000, max: 999999 }).toString();
   }
