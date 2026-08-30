@@ -536,6 +536,71 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("findAutoTopUpDeploymentsByOwnerIteratively", () => {
+    it("gathers every deployment of an owner into a single yield", async () => {
+      const { createSetting, wallet, findAutoTopUpOwners } = await setup();
+      await createSetting();
+
+      const owners = await findAutoTopUpOwners([wallet.address]);
+
+      expect(owners).toHaveLength(1);
+      expect(owners[0].deploymentSettings).toHaveLength(2);
+    });
+
+    it("reports the wallet each owner funds from", async () => {
+      const { wallet, findAutoTopUpOwners } = await setup();
+
+      const owners = await findAutoTopUpOwners([wallet.address]);
+
+      expect(owners[0]).toMatchObject({ address: wallet.address, walletId: wallet.walletId });
+    });
+
+    it("keeps two owners apart", async () => {
+      const { createSetting, trialUser, wallet, trialWallet, findAutoTopUpOwners } = await setup();
+      await createSetting(trialUser.id);
+
+      const owners = await findAutoTopUpOwners([wallet.address, trialWallet.address]);
+
+      expect(owners.map(owner => owner.address).sort()).toEqual([wallet.address, trialWallet.address].sort());
+      expect(owners.map(owner => owner.deploymentSettings.length)).toEqual([1, 1]);
+    });
+
+    it("passes over a deployment whose owner turned auto top-up off", async () => {
+      const { deploymentSettingRepository, user, wallet, findAutoTopUpOwners } = await setup();
+      await deploymentSettingRepository.create({ userId: user.id, dseq: newDseq(), autoTopUpEnabled: false });
+
+      const owners = await findAutoTopUpOwners([wallet.address]);
+
+      expect(owners[0].deploymentSettings).toHaveLength(1);
+    });
+
+    it("passes over a deployment already marked closed", async () => {
+      const { deploymentSettingRepository, createSetting, wallet, findAutoTopUpOwners } = await setup();
+      const closedId = await createSetting();
+      await deploymentSettingRepository.markAsClosed([closedId]);
+
+      const owners = await findAutoTopUpOwners([wallet.address]);
+
+      expect(owners[0].deploymentSettings.map(deployment => deployment.id)).not.toContain(closedId);
+    });
+
+    it("drops an owner whose only deployment is closed", async () => {
+      const { deploymentSettingRepository, settingId, wallet, findAutoTopUpOwners } = await setup();
+      await deploymentSettingRepository.markAsClosed([settingId]);
+
+      expect(await findAutoTopUpOwners([wallet.address])).toEqual([]);
+    });
+
+    it("yields the same deployments the per-owner lookup returns", async () => {
+      const { deploymentSettingRepository, createSetting, wallet, findAutoTopUpOwners } = await setup();
+      await createSetting();
+
+      const owners = await findAutoTopUpOwners([wallet.address]);
+
+      expect(owners[0].deploymentSettings).toEqual(await deploymentSettingRepository.findAutoTopUpDeploymentsByOwner(wallet.address));
+    });
+  });
+
   function newDseq() {
     return faker.number.int({ min: 100000, max: 999999 }).toString();
   }
@@ -551,23 +616,41 @@ describe(DeploymentSettingRepository.name, () => {
     const trialUser = await userRepository.create({ userId: faker.string.uuid() });
 
     async function createWallet(userId: string, isTrialing: boolean) {
-      await db.insert(userWalletsTable).values({ userId, address: createAkashAddress(), deploymentAllowance: "10000000", feeAllowance: "5000000", isTrialing });
+      const address = createAkashAddress();
+      const [wallet] = await db
+        .insert(userWalletsTable)
+        .values({ userId, address, deploymentAllowance: "10000000", feeAllowance: "5000000", isTrialing })
+        .returning({ id: userWalletsTable.id });
+
+      return { address, walletId: wallet.id };
     }
 
-    await createWallet(user.id, false);
-    await createWallet(trialUser.id, true);
+    const wallet = await createWallet(user.id, false);
+    const trialWallet = await createWallet(trialUser.id, true);
 
     function abilityFor(owner: UserOutput) {
       return abilityService.getAbilityFor("REGULAR_USER", owner);
     }
 
-    async function createSetting() {
+    async function createSetting(userId: string = user.id) {
       const setting = await deploymentSettingRepository.create({
-        userId: user.id,
+        userId,
         dseq: faker.number.int({ min: 100000, max: 999999 }).toString(),
         autoTopUpEnabled: true
       });
       return setting.id;
+    }
+
+    async function findAutoTopUpOwners(addresses: string[]) {
+      const owners = [];
+
+      for await (const owner of deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively()) {
+        if (addresses.includes(owner.address)) {
+          owners.push(owner);
+        }
+      }
+
+      return owners;
     }
 
     async function createLimitedSetting(runtimeLimitHours: number, overrides: { autoTopUpEnabled?: boolean } = {}) {
@@ -621,11 +704,14 @@ describe(DeploymentSettingRepository.name, () => {
       deploymentSettingRepository,
       user,
       trialUser,
+      wallet,
+      trialWallet,
       settingId,
       abilityFor,
       createSetting,
       createLimitedSetting,
       createAnchoredSetting,
+      findAutoTopUpOwners,
       backdateLastFundedAt,
       readClosed
     };
