@@ -48,7 +48,7 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
       })
     );
     const [{ payload }] = notificationService.createNotification.mock.calls[0];
-    expect(payload.description).toContain("https://dark:8443");
+    expect(payload.description).toContain("<strong>dark</strong>");
     expect(payload.description).toContain(`${DEPLOY_WEB_BASE_URL}/deployments/${DSEQ}`);
   });
 

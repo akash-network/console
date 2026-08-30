@@ -1,5 +1,6 @@
 import escapeHtml from "lodash/escape";
 
+import { toProviderHostName } from "@src/notifications/lib/provider-host-name/provider-host-name";
 import type { UserOutput } from "@src/user/repositories";
 import type { CreateNotificationInput } from "../notification/notification.service";
 
@@ -17,7 +18,7 @@ export function providerUnreachableClosedNotification(
       summary: "Your Akash deployment was closed: provider unreachable",
       description:
         `Deployment <strong>${vars.dseq}</strong> has been closed. Its provider, ` +
-        `<strong>${escapeHtml(vars.hostUri)}</strong>, stopped responding ${vars.downForDays} days ago and never came back, ` +
+        `<strong>${escapeHtml(toProviderHostName(vars.hostUri))}</strong>, stopped responding ${vars.downForDays} days ago and never came back, ` +
         `so the deployment was costing you money without running anything. What was left of its funds has been returned ` +
         `to your account. <a href="${vars.redeployUrl}">Deploy it again</a> whenever you are ready.`
     },
