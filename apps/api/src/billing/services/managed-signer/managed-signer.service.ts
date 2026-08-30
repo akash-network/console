@@ -195,10 +195,7 @@ export class ManagedSignerService {
     return result as Pick<IndexedTx, "code" | "hash" | "rawLog"> & { transactionHash: string };
   }
 
-  /**
-   * A deployment created here is created by broadcasting its message rather than through the deployment API,
-   * which is what would otherwise record it, so the record is written from the landed transaction instead.
-   */
+  /** A create broadcast here never passes through the deployment API that would record it, so the record is written from the landed transaction. */
   async #recordCreatedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[]) {
     const createdDseqs = messages
       .filter((message): message is { typeUrl: string; value: MsgCreateDeployment } => message.typeUrl.endsWith(".MsgCreateDeployment"))

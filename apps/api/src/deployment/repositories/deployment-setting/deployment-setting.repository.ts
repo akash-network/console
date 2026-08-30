@@ -294,11 +294,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return row.id;
   }
 
-  /**
-   * Records the identity of a deployment created by broadcasting its message directly, where nothing but
-   * that identity is known: no SDL, no manifest version, no runtime limit. Conflicts are ignored rather
-   * than merged, so a row any other path already wrote keeps every choice its writer made.
-   */
+  /** Conflicts are ignored rather than merged, so a row another path already wrote keeps every choice its writer made. */
   async createDefaultIfMissing({ userId, dseq }: { userId: string; dseq: string }): Promise<boolean> {
     const rows = await this.cursor
       .insert(this.table)

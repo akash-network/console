@@ -3,11 +3,7 @@ import { inject, singleton } from "tsyringe";
 import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, LOGGER_FACTORY } from "@src/core";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 
-/**
- * Records a deployment created by broadcasting `MsgCreateDeployment` through the transaction endpoint, which
- * bypasses the deployment API and so writes no settings row of its own; without one the funding sweep, which
- * works from those rows, never sees the deployment.
- */
+/** Records a deployment created through the transaction endpoint, which bypasses the deployment API and so leaves the funding sweep with no row to find. */
 export class RecordDeploymentSetting implements Job {
   static readonly [JOB_NAME] = "RecordDeploymentSetting";
   readonly name = RecordDeploymentSetting[JOB_NAME];
@@ -42,10 +38,7 @@ export class RecordDeploymentSettingHandler implements JobHandler<RecordDeployme
     this.logger = createLogger({ context: RecordDeploymentSettingHandler.name });
   }
 
-  /**
-   * The repository is used unscoped because job execution runs under an empty ability, and it needs no chain
-   * check before writing: the job is only ever enqueued after the create transaction has already landed.
-   */
+  /** Unscoped because job execution runs under an empty ability, which a scoped read would throw on before any SQL ran. */
   async handle(payload: JobPayload<RecordDeploymentSetting>): Promise<void> {
     const created = await this.deploymentSettingRepository.createDefaultIfMissing(payload);
 
