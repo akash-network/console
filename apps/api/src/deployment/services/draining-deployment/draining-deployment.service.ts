@@ -10,7 +10,7 @@ import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import type { DryRunOptions } from "@src/core/types/console";
 import { AutoTopUpDeployment, DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DrainingDeploymentOutput, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
-import { DrainingDeployment } from "@src/deployment/types/draining-deployment";
+import { ActiveLeaseRate, DrainingDeployment } from "@src/deployment/types/draining-deployment";
 import { averageBlockCountInAnHour } from "@src/utils/constants";
 import { DeploymentCloseJobService } from "../deployment-close-job/deployment-close-job.service";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
@@ -22,10 +22,11 @@ export type { DrainingDeployment } from "@src/deployment/types/draining-deployme
 export type WeeklyCoverage = {
   weeklyCostUsd: number;
   cumulativeDailyCostsUsd: number[];
+  /** Distinguishes a zero cost the database is certain of from one a chain read could have gotten wrong. */
+  hasAutoTopUpSettings: boolean;
 };
 
-export type WeeklyBurnSource = Pick<DrainingDeployment, "predictedClosedHeight" | "blockRate"> &
-  Partial<Pick<AutoTopUpDeployment, "runtimeLimitHours" | "runtimeEndsAt">>;
+export type WeeklyBurnSource = Pick<DrainingDeployment, "blockRate"> & Partial<Pick<AutoTopUpDeployment, "runtimeLimitHours" | "runtimeEndsAt">>;
 
 export type AutoTopUpOwnerDeployments = {
   address: string;
@@ -421,22 +422,21 @@ export class DrainingDeploymentService {
    * balance can be translated into covered days without assuming the capped weekly total
    * is a uniform seven-day burn rate.
    * Not CASL-scoped — the credits-low job calls this with the wallet address.
+   * Bills a deployment whose escrow has run dry too, since it keeps running on auto top-up.
    */
   async calculateWeeklyCoverageForAddress(address: string): Promise<WeeklyCoverage> {
-    const noCoverage: WeeklyCoverage = { weeklyCostUsd: 0, cumulativeDailyCostsUsd: [] };
-
     const deploymentSettings = await this.#findAutoTopUpDeploymentSettings(address);
     if (deploymentSettings.length === 0) {
-      return noCoverage;
+      return { weeklyCostUsd: 0, cumulativeDailyCostsUsd: [], hasAutoTopUpSettings: false };
     }
 
+    const noCoverage: WeeklyCoverage = { weeklyCostUsd: 0, cumulativeDailyCostsUsd: [], hasAutoTopUpSettings: true };
     const currentHeight = await this.blockHttpService.getCurrentHeight();
-    const leases = await this.#findDrainingDeployments(deploymentSettings, address, Number.MAX_SAFE_INTEGER);
-    const settingsByDseq = keyBy(deploymentSettings, s => String(s.dseq));
-    const burns = this.#buildWeeklyBurns(
-      leases.map(lease => ({ ...settingsByDseq[String(lease.dseq)], predictedClosedHeight: lease.predictedClosedHeight, blockRate: lease.blockRate })),
-      currentHeight
+    const leaseRates = await this.#findActiveLeaseRates(
+      address,
+      deploymentSettings.map(deployment => deployment.dseq)
     );
+    const burns = this.#buildWeeklyBurns(this.#applySettingsToLeaseRates(deploymentSettings, leaseRates, address), currentHeight);
 
     const weeklyCredits = this.#creditsForHours(burns, WEEK_HOURS);
     if (weeklyCredits === 0) {
@@ -446,7 +446,23 @@ export class DrainingDeploymentService {
     const weeklyCostUsd = await this.balancesService.toFiatAmount(weeklyCredits);
     const cumulativeDailyCostsUsd = Array.from({ length: 7 }, (_, day) => (this.#creditsForHours(burns, (day + 1) * 24) / weeklyCredits) * weeklyCostUsd);
 
-    return { weeklyCostUsd, cumulativeDailyCostsUsd };
+    return { weeklyCostUsd, cumulativeDailyCostsUsd, hasAutoTopUpSettings: true };
+  }
+
+  /** Joins on the numeric value of a dseq, since the two lease-rate sources differ on whether they keep its leading zeros. */
+  #applySettingsToLeaseRates(deploymentSettings: AutoTopUpDeployment[], leaseRates: ActiveLeaseRate[], address: string): WeeklyBurnSource[] {
+    const settingsByDseq = keyBy(deploymentSettings, setting => String(Number(setting.dseq)));
+
+    return leaseRates.flatMap(leaseRate => {
+      const setting = settingsByDseq[String(Number(leaseRate.dseq))];
+
+      if (!setting) {
+        this.loggerService.warn({ event: "ACTIVE_LEASE_RATE_WITHOUT_SETTING", dseq: leaseRate.dseq, address });
+        return [];
+      }
+
+      return [{ ...setting, blockRate: leaseRate.blockRate }];
+    });
   }
 
   /** Comparing this against a credit balance stands in for the handler's USD test: `toFiatAmount` is monotonic, off by at most its cent rounding. */
@@ -456,7 +472,7 @@ export class DrainingDeploymentService {
 
   #buildWeeklyBurns(deployments: WeeklyBurnSource[], currentHeight: number): Array<{ hourlyCredits: number; coverageHours: number }> {
     return deployments.flatMap(deployment => {
-      if (!deployment.predictedClosedHeight || deployment.predictedClosedHeight <= currentHeight || deployment.blockRate <= 0) {
+      if (!Number.isFinite(deployment.blockRate) || deployment.blockRate <= 0) {
         return [];
       }
 
@@ -561,6 +577,21 @@ export class DrainingDeploymentService {
         error
       });
       return await this.leaseRepository.findManyByDseqAndOwner(closureHeight, owner, dseqs);
+    }
+  }
+
+  /** The indexer fallback counts reclaiming leases the chain source leaves out, which can only overstate the week ahead. */
+  async #findActiveLeaseRates(owner: string, dseqs: string[]): Promise<ActiveLeaseRate[]> {
+    try {
+      return await this.rpcService.findActiveLeaseRates(owner, dseqs);
+    } catch (error) {
+      this.loggerService.error({
+        event: "ACTIVE_LEASE_RATE_RPC_QUERY_FAILED_FALLBACK_TO_DB",
+        message: `RPC query failed for owner ${owner}, falling back to database`,
+        owner,
+        error
+      });
+      return await this.leaseRepository.findActiveLeaseRates(owner, dseqs);
     }
   }
 }

@@ -3,7 +3,7 @@ import { col, fn, Op, QueryTypes, Sequelize, WhereOptions } from "sequelize";
 import { inject, singleton } from "tsyringe";
 
 import { CHAIN_DB } from "@src/chain";
-import { DrainingDeploymentLeaseSource } from "@src/deployment/types/draining-deployment";
+import { ActiveLeaseRate, DrainingDeploymentLeaseSource } from "@src/deployment/types/draining-deployment";
 
 export interface DrainingDeploymentOutput {
   dseq: number;
@@ -132,6 +132,27 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
     }
 
     return [];
+  }
+
+  /** Counts every lease the indexer has not seen close, including ones a provider is reclaiming, which the RPC source leaves out. */
+  async findActiveLeaseRates(owner: string, dseqs: string[]): Promise<ActiveLeaseRate[]> {
+    if (!dseqs.length) return [];
+
+    const leases = await Lease.findAll({
+      where: {
+        owner,
+        dseq: { [Op.in]: dseqs },
+        closedHeight: { [Op.is]: null }
+      },
+      attributes: ["dseq", [fn("sum", col("price")), "blockRate"]],
+      group: ["dseq"],
+      raw: true
+    });
+
+    return (leases as unknown as Array<{ dseq: string; blockRate: string | number }>).map(lease => ({
+      dseq: String(lease.dseq),
+      blockRate: Number(lease.blockRate)
+    }));
   }
 
   /**

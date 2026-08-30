@@ -231,6 +231,78 @@ describe(DrainingDeploymentRpcService.name, () => {
     });
   });
 
+  describe("findActiveLeaseRates", () => {
+    it("sums the rate of every live lease of a deployment, asking the chain for active ones only", async () => {
+      const { service, leaseHttpService, owner, dseqs } = setup({
+        inputs: [
+          {
+            leases: [
+              { blockRate: 50, gseq: 1 },
+              { blockRate: 25, gseq: 2 }
+            ]
+          }
+        ]
+      });
+
+      const result = await service.findActiveLeaseRates(owner, dseqs);
+
+      expect(leaseHttpService.list).toHaveBeenCalledWith(expect.objectContaining({ owner, state: "active" }));
+      expect(result).toEqual([{ dseq: dseqs[0], blockRate: 75 }]);
+    });
+
+    it("omits deployments the caller did not ask about", async () => {
+      const { service, owner, dseqs } = setup({
+        inputs: [{ leases: [{ blockRate: 50 }] }, { leases: [{ blockRate: 30 }] }]
+      });
+
+      const result = await service.findActiveLeaseRates(owner, [dseqs[0]]);
+
+      expect(result).toEqual([{ dseq: dseqs[0], blockRate: 50 }]);
+    });
+
+    it("collects leases across every page", async () => {
+      const { service, leaseHttpService, owner, dseqs, leaseList } = setup({
+        inputs: [
+          {
+            leases: [
+              { blockRate: 50, gseq: 1 },
+              { blockRate: 25, gseq: 2 }
+            ]
+          }
+        ]
+      });
+      leaseHttpService.list
+        .mockResolvedValueOnce({ leases: [leaseList[0]], pagination: { next_key: "page-2", total: "2" } })
+        .mockResolvedValueOnce({ leases: [leaseList[1]], pagination: { next_key: null, total: "2" } });
+
+      const result = await service.findActiveLeaseRates(owner, dseqs);
+
+      expect(leaseHttpService.list).toHaveBeenCalledTimes(2);
+      expect(leaseHttpService.list).toHaveBeenLastCalledWith(expect.objectContaining({ pagination: { limit: 1000, key: "page-2" } }));
+      expect(result).toEqual([{ dseq: dseqs[0], blockRate: 75 }]);
+    });
+
+    it("omits a lease with a non-positive rate", async () => {
+      const { service, loggerService, owner, dseqs } = setup({
+        inputs: [{ leases: [{ blockRate: 0 }] }]
+      });
+
+      const result = await service.findActiveLeaseRates(owner, dseqs);
+
+      expect(result).toEqual([]);
+      expect(loggerService.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "ACTIVE_LEASE_RATE_INVALID", dseq: dseqs[0], owner }));
+    });
+
+    it("queries nothing when no deployment is given", async () => {
+      const { service, leaseHttpService, owner } = setup();
+
+      const result = await service.findActiveLeaseRates(owner, []);
+
+      expect(result).toEqual([]);
+      expect(leaseHttpService.list).not.toHaveBeenCalled();
+    });
+  });
+
   function setup({
     inputs = []
   }: {
@@ -326,6 +398,7 @@ describe(DrainingDeploymentRpcService.name, () => {
       createLogger,
       owner,
       dseqs,
+      leaseList,
       closureHeight
     };
   }

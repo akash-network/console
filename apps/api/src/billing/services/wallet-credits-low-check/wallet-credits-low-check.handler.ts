@@ -12,6 +12,8 @@ import { type UserOutput, UserRepository } from "@src/user/repositories";
 
 type SkipReason = "auto_reload_enabled" | "no_wallet" | "trialing" | "no_email" | "zero_cost" | "sufficient_balance" | "already_notified";
 
+type NotLowReason = Extract<SkipReason, "zero_cost" | "sufficient_balance">;
+
 const UNEXPECTED_SKIP_REASONS: ReadonlySet<SkipReason> = new Set(["no_wallet", "no_email"]);
 
 @singleton()
@@ -45,21 +47,22 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
 
     const { wallet, user } = resources;
     const balanceUsd = await this.balancesService.getDeploymentBalanceInFiat(wallet.address);
-    const { weeklyCostUsd, cumulativeDailyCostsUsd } = await this.drainingDeploymentService.calculateWeeklyCoverageForAddress(wallet.address);
+    const { weeklyCostUsd, cumulativeDailyCostsUsd, hasAutoTopUpSettings } = await this.drainingDeploymentService.calculateWeeklyCoverageForAddress(
+      wallet.address
+    );
 
     if (weeklyCostUsd === 0) {
-      await this.#clearNotifiedIfSet(wallet);
-      this.#skip("zero_cost", payload.userId);
+      await this.#handleCreditsNotLow(wallet, payload.userId, "zero_cost", { canUnlatchImmediately: !hasAutoTopUpSettings });
       return;
     }
 
     if (balanceUsd >= weeklyCostUsd) {
-      await this.#clearNotifiedIfSet(wallet);
-      this.#skip("sufficient_balance", payload.userId);
+      await this.#handleCreditsNotLow(wallet, payload.userId, "sufficient_balance", { canUnlatchImmediately: false });
       return;
     }
 
     if (wallet.creditsLowNotifiedAt) {
+      await this.#endRecoveryStreak(wallet);
       this.#skip("already_notified", payload.userId);
       return;
     }
@@ -95,7 +98,7 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
    */
   async #stampNotified(wallet: UserWalletOutput, userId: UserOutput["id"]): Promise<void> {
     try {
-      await this.userWalletRepository.updateById(wallet.id, { creditsLowNotifiedAt: new Date() });
+      await this.userWalletRepository.updateById(wallet.id, { creditsLowNotifiedAt: new Date(), creditsSufficientSince: null });
     } catch (error) {
       this.logger.error({ event: "CREDITS_LOW_NOTIFIED_STAMP_FAILED", userId, error });
     }
@@ -128,12 +131,49 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
     return { wallet, user };
   }
 
-  async #clearNotifiedIfSet(wallet: UserWalletOutput): Promise<void> {
+  /** Nothing re-checks a wallet with no auto-top-up deployment left, so that verdict unlatches at once while a chain-derived one must hold for the window. */
+  async #handleCreditsNotLow(
+    wallet: UserWalletOutput,
+    userId: UserOutput["id"],
+    reason: NotLowReason,
+    { canUnlatchImmediately }: { canUnlatchImmediately: boolean }
+  ): Promise<void> {
     if (!wallet.creditsLowNotifiedAt) {
+      this.#skip(reason, userId);
       return;
     }
 
-    await this.userWalletRepository.updateById(wallet.id, { creditsLowNotifiedAt: null });
+    if (canUnlatchImmediately) {
+      await this.userWalletRepository.updateById(wallet.id, { creditsLowNotifiedAt: null, creditsSufficientSince: null });
+      this.logger.info({ event: "CREDITS_LOW_NOTIFIED_CLEARED", userId, reason });
+      this.#skip(reason, userId);
+      return;
+    }
+
+    if (!wallet.creditsSufficientSince) {
+      await this.userWalletRepository.updateById(wallet.id, { creditsSufficientSince: new Date() });
+      this.#skip(reason, userId);
+      return;
+    }
+
+    const isCleared = await this.userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(
+      wallet.id,
+      this.billingConfig.get("CREDITS_LOW_RECOVERY_CONFIRM_WINDOW_MIN")
+    );
+
+    if (isCleared) {
+      this.logger.info({ event: "CREDITS_LOW_NOTIFIED_CLEARED", userId, reason, creditsSufficientSince: wallet.creditsSufficientSince });
+    }
+
+    this.#skip(reason, userId);
+  }
+
+  async #endRecoveryStreak(wallet: UserWalletOutput): Promise<void> {
+    if (!wallet.creditsSufficientSince) {
+      return;
+    }
+
+    await this.userWalletRepository.updateById(wallet.id, { creditsSufficientSince: null });
   }
 
   #skip(reason: SkipReason, userId: UserOutput["id"]): void {

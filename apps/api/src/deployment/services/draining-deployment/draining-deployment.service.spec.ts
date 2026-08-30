@@ -851,16 +851,8 @@ describe(DrainingDeploymentService.name, () => {
 
   describe("calculateWeeklyDeploymentCost", () => {
     it("calculates weekly cost for all active deployments", async () => {
-      const blockRate1 = 50;
-      const blockRate2 = 75;
-      const baseSetup = setup();
-      const deployments = [
-        { predictedClosedHeight: baseSetup.currentHeight + 100, blockRate: blockRate1 },
-        { predictedClosedHeight: baseSetup.currentHeight + 200, blockRate: blockRate2 }
-      ];
-
       const { service, userId, ability } = await setupCalculateWeeklyCost({
-        deployments,
+        deployments: [{ blockRate: 50 }, { blockRate: 75 }],
         expectedFiatAmount: 12.5
       });
 
@@ -869,29 +861,10 @@ describe(DrainingDeploymentService.name, () => {
       expect(result).toBe(12.5);
     });
 
-    it("includes deployments closing after 7 days", async () => {
-      const blockRate = 50;
-      const baseSetup = setup();
-      const blocksInAWeek = Math.floor(averageBlockCountInAnHour * 24 * 7);
-      const deploymentClosingAfterWeek = {
-        predictedClosedHeight: baseSetup.currentHeight + blocksInAWeek + 1000,
-        blockRate
-      };
-
-      const { service, userId, ability } = await setupCalculateWeeklyCost({
-        deployments: [deploymentClosingAfterWeek],
-        expectedFiatAmount: 5.0
-      });
-
-      const result = await service.calculateWeeklyDeploymentCost(userId, ability);
-
-      expect(result).toBe(5.0);
-    });
-
     it("returns 0 when user wallet not found", async () => {
       const { service, userId, ability } = await setupCalculateWeeklyCost({
         userWallet: undefined,
-        deployments: [{ predictedClosedHeight: 1000100, blockRate: 50 }]
+        deployments: [{ blockRate: 50 }]
       });
 
       const result = await service.calculateWeeklyDeploymentCost(userId, ability);
@@ -902,7 +875,7 @@ describe(DrainingDeploymentService.name, () => {
     it("returns 0 when user wallet has no address", async () => {
       const { service, userId, ability } = await setupCalculateWeeklyCost({
         userWallet: createUserWallet({ address: null }),
-        deployments: [{ predictedClosedHeight: 1000100, blockRate: 50 }]
+        deployments: [{ blockRate: 50 }]
       });
 
       const result = await service.calculateWeeklyDeploymentCost(userId, ability);
@@ -920,37 +893,9 @@ describe(DrainingDeploymentService.name, () => {
       expect(result).toBe(0);
     });
 
-    it("excludes deployments with null predictedClosedHeight", async () => {
-      const { service, userId, ability } = await setupCalculateWeeklyCost({
-        deployments: [{ predictedClosedHeight: null as unknown as number, blockRate: 50 }]
-      });
-
-      const result = await service.calculateWeeklyDeploymentCost(userId, ability);
-
-      expect(result).toBe(0);
-    });
-
-    it("excludes deployments closing at or before currentHeight", async () => {
-      const baseSetup = setup();
-      const { service, userId, ability } = await setupCalculateWeeklyCost({
-        deployments: [
-          { predictedClosedHeight: baseSetup.currentHeight - 100, blockRate: 50 },
-          { predictedClosedHeight: baseSetup.currentHeight, blockRate: 75 }
-        ]
-      });
-
-      const result = await service.calculateWeeklyDeploymentCost(userId, ability);
-
-      expect(result).toBe(0);
-    });
-
     it("excludes deployments with blockRate <= 0", async () => {
-      const baseSetup = setup();
       const { service, userId, ability } = await setupCalculateWeeklyCost({
-        deployments: [
-          { predictedClosedHeight: baseSetup.currentHeight + 100, blockRate: 0 },
-          { predictedClosedHeight: baseSetup.currentHeight + 200, blockRate: -10 }
-        ]
+        deployments: [{ blockRate: 0 }, { blockRate: -10 }]
       });
 
       const result = await service.calculateWeeklyDeploymentCost(userId, ability);
@@ -961,9 +906,8 @@ describe(DrainingDeploymentService.name, () => {
     it("caps a runtime-limited deployment at its remaining hours like the credits-low threshold", async () => {
       const blockRate = 50;
       const runtimeLimitHours = 12;
-      const baseSetup = setup();
       const { service, userId, ability, balancesService } = await setupCalculateWeeklyCost({
-        deployments: [{ predictedClosedHeight: baseSetup.currentHeight + 1_000_000, blockRate, runtimeLimitHours }],
+        deployments: [{ blockRate, runtimeLimitHours }],
         expectedFiatAmount: 3.6
       });
 
@@ -975,7 +919,7 @@ describe(DrainingDeploymentService.name, () => {
 
     async function setupCalculateWeeklyCost(input: {
       userWallet?: ReturnType<typeof createUserWallet> | undefined;
-      deployments: Array<{ predictedClosedHeight: number | null; blockRate: number; runtimeLimitHours?: number }>;
+      deployments: Array<{ blockRate: number; runtimeLimitHours?: number }>;
       expectedFiatAmount?: number;
     }) {
       const userId = faker.string.uuid();
@@ -991,22 +935,14 @@ describe(DrainingDeploymentService.name, () => {
       const deploymentSettings = input.deployments.map(deployment =>
         createAutoTopUpDeployment({ address, runtimeLimitHours: deployment.runtimeLimitHours ?? null })
       );
-
-      const drainingDeployments = deploymentSettings.map((setting, idx) => {
-        const deployment = input.deployments[idx];
-        const predictedClosedHeight = deployment?.predictedClosedHeight;
-        return createDrainingDeployment({
-          dseq: Number(setting.dseq),
-          owner: address,
-          blockRate: deployment?.blockRate ?? 0,
-          predictedClosedHeight: predictedClosedHeight === null ? baseSetup.currentHeight - 1 : predictedClosedHeight ?? baseSetup.currentHeight + 100
-        });
-      });
+      const leaseRates = deploymentSettings.map((setting, idx) => ({
+        dseq: setting.dseq,
+        blockRate: input.deployments[idx]?.blockRate ?? 0
+      }));
 
       baseSetup.deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue(deploymentSettings);
 
-      baseSetup.rpcService.findManyByDseqAndOwner.mockRejectedValue(new Error("RPC error"));
-      baseSetup.leaseRepository.findManyByDseqAndOwner.mockImplementation((_closureHeight, _owner, _dseqs) => Promise.resolve(drainingDeployments));
+      baseSetup.rpcService.findActiveLeaseRates.mockResolvedValue(leaseRates);
 
       baseSetup.balancesService.toFiatAmount.mockImplementation(async (uaktAmount: number) => {
         if (uaktAmount === 0) {
@@ -1090,7 +1026,7 @@ describe(DrainingDeploymentService.name, () => {
 
         const result = await service.calculateWeeklyCoverageForAddress(address);
 
-        expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [] });
+        expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [], hasAutoTopUpSettings: true });
         expect(balancesService.toFiatAmount).not.toHaveBeenCalled();
       } finally {
         vi.useRealTimers();
@@ -1136,36 +1072,92 @@ describe(DrainingDeploymentService.name, () => {
       );
     });
 
-    it("returns 0 when user wallet is not found", async () => {
+    it("bills a deployment whose escrow has already run dry, since it keeps running and keeps billing", async () => {
+      const blockRate = 50;
+      const { service, address, balancesService, rpcService } = await setupWeeklyBurnForAddress({
+        deployments: [{ blockRate }]
+      });
+
+      const result = await service.calculateWeeklyCoverageForAddress(address);
+
+      expect(rpcService.findManyByDseqAndOwner).not.toHaveBeenCalled();
+      expect(balancesService.toFiatAmount).toHaveBeenCalledWith(Math.floor(blockRate * averageBlockCountInAnHour * 24 * 7));
+      expect(result.weeklyCostUsd).toBeGreaterThan(0);
+    });
+
+    it("bills a deployment whose lease rate comes back with leading zeros", async () => {
+      const blockRate = 50;
+      const { service, address, rpcService, deploymentSettings, balancesService } = await setupWeeklyBurnForAddress({
+        deployments: [{ blockRate }]
+      });
+      rpcService.findActiveLeaseRates.mockResolvedValue([{ dseq: `000${deploymentSettings[0].dseq}`, blockRate }]);
+
+      const result = await service.calculateWeeklyCoverageForAddress(address);
+
+      expect(balancesService.toFiatAmount).toHaveBeenCalledWith(Math.floor(blockRate * averageBlockCountInAnHour * 24 * 7));
+      expect(result.weeklyCostUsd).toBeGreaterThan(0);
+    });
+
+    it("ignores a lease rate that matches no auto top-up deployment", async () => {
+      const { service, address, rpcService, loggerService } = await setupWeeklyBurnForAddress({
+        deployments: [{ blockRate: 50 }]
+      });
+      rpcService.findActiveLeaseRates.mockResolvedValue([{ dseq: "999999", blockRate: 50 }]);
+
+      const result = await service.calculateWeeklyCoverageForAddress(address);
+
+      expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [], hasAutoTopUpSettings: true });
+      expect(loggerService.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "ACTIVE_LEASE_RATE_WITHOUT_SETTING", dseq: "999999", address }));
+    });
+
+    it("falls back to the database when the lease rate query fails", async () => {
+      const blockRate = 50;
+      const rpcError = new Error("RPC error");
+      const { service, address, leaseRepository, loggerService, deploymentSettings } = await setupWeeklyBurnForAddress({
+        deployments: [{ blockRate }],
+        rpcError
+      });
+
+      const result = await service.calculateWeeklyCoverageForAddress(address);
+
+      expect(leaseRepository.findActiveLeaseRates).toHaveBeenCalledWith(
+        address,
+        deploymentSettings.map(setting => setting.dseq)
+      );
+      expect(loggerService.error).toHaveBeenCalledWith(expect.objectContaining({ event: "ACTIVE_LEASE_RATE_RPC_QUERY_FAILED_FALLBACK_TO_DB" }));
+      expect(result.weeklyCostUsd).toBe(usdFromCredits(Math.floor(blockRate * averageBlockCountInAnHour * 24 * 7)));
+    });
+
+    it("reports no auto top-up settings when user wallet is not found", async () => {
       const { service, address } = await setupWeeklyBurnForAddress({
         userWallet: undefined,
-        deployments: [{ predictedClosedHeight: 1000100, blockRate: 50 }]
+        deployments: [{ blockRate: 50 }]
       });
 
       const result = await service.calculateWeeklyCoverageForAddress(address);
 
-      expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [] });
+      expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [], hasAutoTopUpSettings: false });
     });
 
-    it("returns 0 when user wallet has no address", async () => {
+    it("reports no auto top-up settings when user wallet has no address", async () => {
       const { service, address } = await setupWeeklyBurnForAddress({
         userWallet: createUserWallet({ address: null }),
-        deployments: [{ predictedClosedHeight: 1000100, blockRate: 50 }]
+        deployments: [{ blockRate: 50 }]
       });
 
       const result = await service.calculateWeeklyCoverageForAddress(address);
 
-      expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [] });
+      expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [], hasAutoTopUpSettings: false });
     });
 
-    it("returns 0 when no deployments are found", async () => {
+    it("reports no auto top-up settings when no deployments are found", async () => {
       const { service, address } = await setupWeeklyBurnForAddress({
         deployments: []
       });
 
       const result = await service.calculateWeeklyCoverageForAddress(address);
 
-      expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [] });
+      expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [], hasAutoTopUpSettings: false });
     });
 
     it("returns 0 when block rate is zero", async () => {
@@ -1175,7 +1167,7 @@ describe(DrainingDeploymentService.name, () => {
 
       const result = await service.calculateWeeklyCoverageForAddress(address);
 
-      expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [] });
+      expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [], hasAutoTopUpSettings: true });
       expect(balancesService.toFiatAmount).not.toHaveBeenCalled();
     });
 
@@ -1186,11 +1178,11 @@ describe(DrainingDeploymentService.name, () => {
     async function setupWeeklyBurnForAddress(input: {
       userWallet?: ReturnType<typeof createUserWallet> | undefined;
       deployments: Array<{
-        predictedClosedHeight?: number | null;
         blockRate: number;
         runtimeLimitHours?: number | null;
         runtimeEndsAt?: Date | null;
       }>;
+      rpcError?: Error;
     }) {
       const address = createAkashAddress();
       const userWallet = "userWallet" in input ? input.userWallet : createUserWallet({ address });
@@ -1206,24 +1198,26 @@ describe(DrainingDeploymentService.name, () => {
           runtimeEndsAt: deployment.runtimeEndsAt ?? null
         })
       );
-
-      const drainingDeployments = deploymentSettings.map((setting, idx) => {
-        const deployment = input.deployments[idx];
-        return createDrainingDeployment({
-          dseq: Number(setting.dseq),
-          owner: address,
-          blockRate: deployment?.blockRate ?? 0,
-          predictedClosedHeight: deployment?.predictedClosedHeight ?? baseSetup.currentHeight + 100
-        });
-      });
+      const leaseRates = deploymentSettings.map((setting, idx) => ({
+        dseq: setting.dseq,
+        blockRate: input.deployments[idx]?.blockRate ?? 0
+      }));
 
       baseSetup.deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue(deploymentSettings);
-      baseSetup.rpcService.findManyByDseqAndOwner.mockResolvedValue(drainingDeployments);
+
+      if (input.rpcError) {
+        baseSetup.rpcService.findActiveLeaseRates.mockRejectedValue(input.rpcError);
+        baseSetup.leaseRepository.findActiveLeaseRates.mockResolvedValue(leaseRates);
+      } else {
+        baseSetup.rpcService.findActiveLeaseRates.mockResolvedValue(leaseRates);
+      }
+
       baseSetup.balancesService.toFiatAmount.mockImplementation(async (uaktAmount: number) => usdFromCredits(uaktAmount));
 
       return {
         ...baseSetup,
-        address
+        address,
+        deploymentSettings
       };
     }
   });

@@ -43,6 +43,8 @@ export const envSchema = z.object({
    * has no disable semantics).
    */
   AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN: z.number({ coerce: true }).min(0).default(60),
+  /** How long credits must keep reading sufficient before the low-credit email unlatches, so a single misread cannot unlatch it. */
+  CREDITS_LOW_RECOVERY_CONFIRM_WINDOW_MIN: z.number({ coerce: true }).min(0).default(30),
   MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: z
     .string()
     .default("nvidia/b300,nvidia/b200,nvidia/h200,nvidia/h100,nvidia/pro6000se,nvidia/pro6000we,nvidia/a100,nvidia/rtx5090,nvidia/rtx4090,nvidia/rtx3090")
