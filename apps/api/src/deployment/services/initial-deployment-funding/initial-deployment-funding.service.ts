@@ -147,7 +147,8 @@ export class InitialDeploymentFundingService {
     let keepClaim = false;
 
     try {
-      keepClaim = await this.#depositToTarget({ walletId, address, dseq, deployment, userWallet, desiredAmount });
+      const fundedToTarget = await this.#depositToTarget({ walletId, address, dseq, deployment, userWallet, desiredAmount });
+      keepClaim = fundedToTarget && !this.drainingDeploymentService.isCappedByRuntimeLimit({ runtimeEndsAt }, currentHeight);
     } finally {
       if (!keepClaim) {
         await this.#releaseFundingClaims(claims, { dseq, address });
@@ -155,7 +156,7 @@ export class InitialDeploymentFundingService {
     }
   }
 
-  /** Returns whether the claim outlives the call: only a full-amount deposit keeps it, so a capped one's wallet reload can top up before the cooldown ends. */
+  /** Returns whether the full desired amount landed, since a balance-capped deposit's wallet reload must be able to top up before the cooldown ends. */
   async #depositToTarget({
     walletId,
     address,

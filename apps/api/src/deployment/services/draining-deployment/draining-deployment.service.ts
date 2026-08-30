@@ -312,13 +312,26 @@ export class DrainingDeploymentService {
       return 0;
     }
 
-    const runwayTargetHeight = currentHeight + averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_TARGET_RUNWAY_IN_H");
+    const runwayTargetHeight = this.#getRunwayTargetHeight(currentHeight);
     const targetHeight = deployment.runtimeEndsAt
       ? Math.min(runwayTargetHeight, this.#getRuntimeLimitHeight(deployment.runtimeEndsAt, currentHeight))
       : runwayTargetHeight;
     const fundedUntil = Math.max(currentHeight, predictedClosedHeight);
 
     return Math.max(0, Math.floor(blockRate * (targetHeight - fundedUntil)));
+  }
+
+  /** A deposit the runtime limit shortened must not hold the funding cooldown, or extending that limit goes unfunded until the claim ages out. */
+  isCappedByRuntimeLimit(deployment: { runtimeEndsAt?: Date | null }, currentHeight: number): boolean {
+    if (!deployment.runtimeEndsAt) {
+      return false;
+    }
+
+    return this.#getRuntimeLimitHeight(deployment.runtimeEndsAt, currentHeight) < this.#getRunwayTargetHeight(currentHeight);
+  }
+
+  #getRunwayTargetHeight(currentHeight: number): number {
+    return currentHeight + averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_TARGET_RUNWAY_IN_H");
   }
 
   /**

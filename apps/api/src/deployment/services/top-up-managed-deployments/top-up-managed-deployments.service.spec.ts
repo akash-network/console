@@ -1417,6 +1417,24 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(deploymentSettingRepository.releaseFundingClaim).not.toHaveBeenCalled();
     });
 
+    it("releases the claim when the runtime limit capped the deposit so extending that limit can be funded", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, deploymentSettingRepository, fundDrainingInstrumentation } = setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const deployment = createDrainingFor(owner, walletId);
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
+      drainingDeploymentService.isCappedByRuntimeLimit.mockReturnValue(true);
+      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
+      deploymentSettingRepository.claimForFunding.mockResolvedValue([createFundingClaim(deployment.id)]);
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
+
+      expect(fundDrainingInstrumentation.recordDeposit).toHaveBeenCalledWith(expect.objectContaining({ owner }));
+      expect(deploymentSettingRepository.releaseFundingClaim).toHaveBeenCalledWith([createFundingClaim(deployment.id)]);
+    });
+
     it("releases the claim and does not record a deposit when the tx lands with a non-OK code", async () => {
       const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, deploymentSettingRepository, fundDrainingInstrumentation } =
         setup();

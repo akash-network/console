@@ -472,6 +472,20 @@ describe(InitialDeploymentFundingService.name, () => {
       expect(deploymentSettingRepository.releaseFundingClaim).not.toHaveBeenCalled();
     });
 
+    it("releases the claim when the runtime limit capped the deposit so extending that limit can be funded", async () => {
+      const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService, instrumentation } = setup();
+      drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+      drainingDeploymentService.isCappedByRuntimeLimit.mockReturnValue(true);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+
+      await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledOnce();
+      expect(instrumentation.recordDeposit).toHaveBeenCalledWith(500000, "uakt", expect.anything());
+      expect(deploymentSettingRepository.releaseFundingClaim).toHaveBeenCalledExactlyOnceWith([{ id: "setting-1", claimedAt: CLAIMED_AT }]);
+    });
+
     it("skips as recently funded when another pass holds the claim", async () => {
       const { service, drainingDeploymentService, deploymentSettingRepository, cachedBalanceService, managedSignerService, instrumentation } = setup();
       drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
