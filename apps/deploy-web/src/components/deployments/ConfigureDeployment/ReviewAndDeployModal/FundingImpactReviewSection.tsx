@@ -85,7 +85,7 @@ export const FundingImpactReviewSection: FC<Props> = ({ rows, runtimeLimitHours,
           ) : (
             <span className="font-medium text-success">{usd(impact.availableAfterUsd)}</span>
           )}
-          {impact.runtimeCoveredHours !== null && <span className="text-muted-foreground"> · ≈{formatRuntime(impact.runtimeCoveredHours)} of runtime</span>}
+          {runtimeLimitHours !== undefined && <span className="text-muted-foreground"> · {formatRuntime(runtimeLimitHours)} of runtime</span>}
         </span>
         <span className="flex shrink-0 items-center gap-3">
           {badge && (

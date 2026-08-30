@@ -31,23 +31,18 @@ describe("FundingImpactReviewSection", () => {
     expect(screen.getByRole("link", { name: "Check Billing" })).toHaveAttribute("href", UrlService.billing());
   });
 
-  it("summarizes the reserve, the available after it, and the runtime it covers", () => {
+  it("summarizes the reserve and the available after it, without a runtime figure while funding is open-ended", () => {
     setup({ impact: visible() });
 
     const trigger = screen.getByRole("button");
     expect(trigger).toHaveTextContent("Reserved ~$144");
     expect(trigger).toHaveTextContent("available after $56");
-    expect(trigger).toHaveTextContent("≈2 days of runtime");
+    expect(trigger).not.toHaveTextContent("of runtime");
   });
 
-  it("summarizes a sub-runway runtime limit in hours", () => {
-    setup({ impact: visible({ runtimeCoveredHours: 12 }) });
-    expect(screen.getByRole("button")).toHaveTextContent("≈12 hours of runtime");
-  });
-
-  it("drops the runtime part of the summary when no runtime can be quoted", () => {
-    setup({ impact: visible({ runtimeCoveredHours: null }) });
-    expect(screen.getByRole("button")).not.toHaveTextContent("of runtime");
+  it("summarizes the runtime limit when one is set", () => {
+    setup({ impact: visible(), runtimeLimitHours: 12 });
+    expect(screen.getByRole("button")).toHaveTextContent("12 hours of runtime");
   });
 
   it("shows a dash for available after when the balance cannot cover the reserve", () => {
@@ -125,7 +120,6 @@ describe("FundingImpactReviewSection", () => {
       reserveUsd: 144,
       availableNowUsd: 200,
       availableAfterUsd: 56,
-      runtimeCoveredHours: 48,
       thresholdUsd: null,
       chargeUsd: 100,
       cardLabel: "Visa **** 4242",
@@ -133,7 +127,7 @@ describe("FundingImpactReviewSection", () => {
     };
   }
 
-  function setup(input: { impact: FundingImpact }) {
+  function setup(input: { impact: FundingImpact; runtimeLimitHours?: number }) {
     const useFundingImpact: typeof DEPENDENCIES.useFundingImpact = () => input.impact;
     const BalanceBreakdownBar: typeof DEPENDENCIES.BalanceBreakdownBar = ({ segments, threshold }) => (
       <div data-testid="balance-bar" data-threshold={threshold ?? undefined}>
@@ -149,7 +143,7 @@ describe("FundingImpactReviewSection", () => {
     return render(
       <FundingImpactReviewSection
         rows={[mock<ReviewRow>({ price: { amount: "0.005", denom: "uakt" } })]}
-        runtimeLimitHours={undefined}
+        runtimeLimitHours={input.runtimeLimitHours}
         dependencies={{ useFundingImpact, BalanceBreakdownBar, UsdValue, Link, Skeleton }}
       />
     );

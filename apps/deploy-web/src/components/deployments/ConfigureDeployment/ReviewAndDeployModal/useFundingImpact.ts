@@ -33,8 +33,6 @@ export type FundingImpact =
       availableNowUsd: number;
       /** Null when the remaining reserve exceeds what is available, where an "available after" figure would be a lie. */
       availableAfterUsd: number | null;
-      /** How much runtime the reserve pays for, bounded by the runtime limit; null when the bids are free. */
-      runtimeCoveredHours: number | null;
       thresholdUsd: number | null;
       chargeUsd: number;
       cardLabel: string | null;
@@ -74,7 +72,6 @@ export function useFundingImpact({ rows, runtimeLimitHours, dependencies: d = DE
   const reserveUsd = Math.max(defaultDepositUsd, hourlyCostUsd * fundedHours);
   /** The bootstrap deposit was drawn at creation and already counts as reserved, so confirming only draws the rest. */
   const remainingDrawUsd = reserveUsd - defaultDepositUsd;
-  const runtimeCoveredHours = hourlyCostUsd > 0 ? Math.min(reserveUsd / hourlyCostUsd, runtimeLimitHours ?? Infinity) : null;
 
   const availableNowUsd = overview.available;
   const availableAfterUsd = availableNowUsd >= remainingDrawUsd ? availableNowUsd - remainingDrawUsd : null;
@@ -88,7 +85,6 @@ export function useFundingImpact({ rows, runtimeLimitHours, dependencies: d = DE
     reserveUsd,
     availableNowUsd,
     availableAfterUsd,
-    runtimeCoveredHours,
     thresholdUsd,
     chargeUsd: Math.max(walletSettings?.autoReloadAmount ?? DEFAULT_AUTO_RELOAD_AMOUNT, AUTO_RELOAD_AMOUNT_MIN_USD),
     cardLabel: card ? `${capitalizeFirstLetter(card.brand || "card")} **** ${card.last4 || ""}`.trim() : null

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AccountBalanceOverview } from "@src/components/billing-usage/AccountBalanceOverview/useAccountBalanceOverview";
-import type { DEPENDENCIES, FundingImpact } from "./useFundingImpact";
+import type { DEPENDENCIES } from "./useFundingImpact";
 import { useFundingImpact } from "./useFundingImpact";
 import type { ReviewRow } from "./useReviewRows";
 
@@ -52,8 +52,7 @@ describe(useFundingImpact.name, () => {
       state: "funded",
       reserveUsd: 144,
       availableNowUsd: 200,
-      availableAfterUsd: 56.5,
-      runtimeCoveredHours: 48
+      availableAfterUsd: 56.5
     });
   });
 
@@ -61,8 +60,6 @@ describe(useFundingImpact.name, () => {
     const { result } = setup({ rows: [pricedRow("0.00001")] });
 
     expect(result.current).toMatchObject({ state: "funded", reserveUsd: 0.5, availableAfterUsd: 200 });
-    const impact = result.current as Extract<FundingImpact, { kind: "visible" }>;
-    expect(impact.runtimeCoveredHours).toBeCloseTo(83.3, 1);
   });
 
   it("sums every priced row into the reserve", () => {
@@ -72,17 +69,12 @@ describe(useFundingImpact.name, () => {
 
   it("bounds the reserve by a runtime limit shorter than the target runway", () => {
     const { result } = setup({ runtimeLimitHours: 12 });
-    expect(result.current).toMatchObject({ reserveUsd: 36, runtimeCoveredHours: 12 });
+    expect(result.current).toMatchObject({ reserveUsd: 36 });
   });
 
   it("keeps the target runway when the runtime limit exceeds it", () => {
     const { result } = setup({ runtimeLimitHours: 96 });
-    expect(result.current).toMatchObject({ reserveUsd: 144, runtimeCoveredHours: 48 });
-  });
-
-  it("caps the covered runtime at the runtime limit when the bootstrap deposit outlasts it", () => {
-    const { result } = setup({ rows: [pricedRow("0.00001")], runtimeLimitHours: 12 });
-    expect(result.current).toMatchObject({ reserveUsd: 0.5, runtimeCoveredHours: 12 });
+    expect(result.current).toMatchObject({ reserveUsd: 144 });
   });
 
   it("crosses the threshold when available after reserving lands exactly on it", () => {
