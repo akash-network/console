@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
-import { FUND_DEPLOYMENT_RETRY_OPTIONS, FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
+import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
@@ -387,7 +387,7 @@ describe(DeploymentSettingService.name, () => {
 
       expect(domainEvents.publish).toHaveBeenCalledWith(
         expect.objectContaining({ data: { walletId: wallet.id, address: wallet.address, dseq: params.dseq } }),
-        { singletonKey: `${FundDeploymentCommand.name}.${params.dseq}.${wallet.id}`, ...FUND_DEPLOYMENT_RETRY_OPTIONS }
+        { singletonKey: `${FundDeploymentCommand.name}.${params.dseq}.${wallet.id}` }
       );
     });
 
@@ -520,7 +520,7 @@ describe(DeploymentSettingService.name, () => {
 
       expect(domainEvents.publish).toHaveBeenCalledWith(
         expect.objectContaining({ data: { walletId: wallet.id, address: wallet.address, dseq: params.dseq } }),
-        { singletonKey: `${FundDeploymentCommand.name}.${params.dseq}.${wallet.id}`, ...FUND_DEPLOYMENT_RETRY_OPTIONS }
+        { singletonKey: `${FundDeploymentCommand.name}.${params.dseq}.${wallet.id}` }
       );
     });
 

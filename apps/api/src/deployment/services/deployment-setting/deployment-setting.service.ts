@@ -5,7 +5,7 @@ import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import { FUND_DEPLOYMENT_RETRY_OPTIONS, FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
+import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
@@ -323,8 +323,7 @@ export class DeploymentSettingService {
       }
 
       await this.domainEvents.publish(new FundDeploymentCommand({ walletId: wallet.id, address: wallet.address, dseq }), {
-        singletonKey: `${FundDeploymentCommand.name}.${dseq}.${wallet.id}`,
-        ...FUND_DEPLOYMENT_RETRY_OPTIONS
+        singletonKey: `${FundDeploymentCommand.name}.${dseq}.${wallet.id}`
       });
     } catch (error) {
       this.logger.error({ event: "RUNTIME_LIMIT_FUNDING_FAILED", dseq, userId, error });

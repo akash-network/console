@@ -11,7 +11,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
-import { FUND_DEPLOYMENT_RETRY_OPTIONS, FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
+import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
@@ -380,7 +380,7 @@ describe(ManagedSignerService.name, () => {
         address: wallet.address,
         dseq: "123"
       });
-      expect(options).toEqual({ singletonKey: `FundDeploymentCommand.123.${wallet.id}`, ...FUND_DEPLOYMENT_RETRY_OPTIONS });
+      expect(options).toEqual({ singletonKey: `FundDeploymentCommand.123.${wallet.id}` });
     });
 
     it("does not publish FundDeploymentCommand when a trialing wallet creates a lease", async () => {

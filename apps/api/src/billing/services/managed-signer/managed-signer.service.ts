@@ -13,7 +13,7 @@ import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
-import { FUND_DEPLOYMENT_RETRY_OPTIONS, FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
+import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
@@ -171,7 +171,7 @@ export class ManagedSignerService {
             address: userWallet.address!,
             dseq
           }),
-          { singletonKey: `${FundDeploymentCommand.name}.${dseq}.${userWallet.id}`, ...FUND_DEPLOYMENT_RETRY_OPTIONS }
+          { singletonKey: `${FundDeploymentCommand.name}.${dseq}.${userWallet.id}` }
         );
       }
     }
