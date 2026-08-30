@@ -155,12 +155,7 @@ export class InitialDeploymentFundingService {
     }
   }
 
-  /**
-   * Returns whether the claim taken for this deposit should outlive the call. Only a deposit that landed
-   * at the full desired amount keeps it: a capped deposit schedules a wallet reload whose credits should
-   * top the deployment up the moment they land, so leaving the claim would lock that follow-up out for
-   * the whole cooldown, and any skip or failure must free the hourly sweep to take over.
-   */
+  /** Returns whether the claim outlives the call: only a full-amount deposit keeps it, so a capped one's wallet reload can top up before the cooldown ends. */
   async #depositToTarget({
     walletId,
     address,
@@ -233,12 +228,7 @@ export class InitialDeploymentFundingService {
     return amount === desiredAmount;
   }
 
-  /**
-   * The claim serializes this deposit against the hourly sweep and the credits-landed pass through the
-   * shared `lastFundedAt` marker, so the paths can no longer fund the same deployment twice off reads
-   * that predate each other's deposit. A deployment without a settings row is funded unclaimed: neither
-   * of the other passes can see it, so there is nothing to serialize against.
-   */
+  /** Serializes the deposit against the sweep and the credits-landed pass; a deployment with no settings row funds unclaimed, since neither pass can see it. */
   async #claimForFunding(deploymentSetting: DeploymentSettingsOutput | undefined): Promise<FundingClaim[]> {
     if (!deploymentSetting) {
       return [];
