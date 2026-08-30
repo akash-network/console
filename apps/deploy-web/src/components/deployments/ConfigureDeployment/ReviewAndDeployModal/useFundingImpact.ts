@@ -24,6 +24,7 @@ export type FundingImpactState = "funded" | "crosses-threshold" | "no-payment-me
 
 export type FundingImpact =
   | { kind: "hidden" }
+  | { kind: "loading" }
   | { kind: "unavailable" }
   | {
       kind: "visible";
@@ -64,7 +65,7 @@ export function useFundingImpact({ rows, runtimeLimitHours, dependencies: d = DE
 
   if (!isEscrowAbstracted || pricedRows.length === 0) return { kind: "hidden" };
   if (overview.isError || fundingConfig.isError) return { kind: "unavailable" };
-  if (overview.isLoading || !fundingConfig.data || defaultPaymentMethod.isLoading) return { kind: "hidden" };
+  if (overview.isLoading || !fundingConfig.data || defaultPaymentMethod.isLoading) return { kind: "loading" };
 
   const { targetRunwayHours, defaultDepositUsd } = fundingConfig.data;
   const perBlockUdenom = pricedRows.reduce((sum, row) => sum + Number(row.price.amount), 0);

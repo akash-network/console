@@ -1,7 +1,7 @@
 "use client";
 import type { FC, ReactNode } from "react";
 import { useState } from "react";
-import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
+import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Skeleton } from "@akashnetwork/ui/components";
 import { Flash, NavArrowDown } from "iconoir-react";
 import Link from "next/link";
 
@@ -16,7 +16,8 @@ export const DEPENDENCIES = {
   useFundingImpact,
   BalanceBreakdownBar,
   UsdValue,
-  Link
+  Link,
+  Skeleton
 };
 
 type Props = {
@@ -44,6 +45,15 @@ export const FundingImpactReviewSection: FC<Props> = ({ rows, runtimeLimitHours,
   const usd = (value: number) => <d.UsdValue value={value} />;
 
   if (impact.kind === "hidden") return null;
+
+  if (impact.kind === "loading") {
+    return (
+      <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+        <d.Skeleton className="h-4 w-72 max-w-full" />
+        <d.Skeleton className="h-4 w-4 shrink-0" />
+      </div>
+    );
+  }
 
   if (impact.kind === "unavailable") {
     return (

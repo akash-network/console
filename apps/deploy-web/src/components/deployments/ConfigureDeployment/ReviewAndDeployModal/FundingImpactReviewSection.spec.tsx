@@ -17,6 +17,13 @@ describe("FundingImpactReviewSection", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("renders a skeleton of the summary row while loading", () => {
+    setup({ impact: { kind: "loading" } });
+
+    expect(screen.getAllByTestId("skeleton").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
   it("points at Billing without blocking when the balance is unavailable", () => {
     setup({ impact: { kind: "unavailable" } });
 
@@ -137,12 +144,13 @@ describe("FundingImpactReviewSection", () => {
     const Link: typeof DEPENDENCIES.Link = (({ href, children }: { href: string; children: ReactNode }) => (
       <a href={href}>{children}</a>
     )) as typeof DEPENDENCIES.Link;
+    const Skeleton: typeof DEPENDENCIES.Skeleton = () => <div data-testid="skeleton" />;
 
     return render(
       <FundingImpactReviewSection
         rows={[mock<ReviewRow>({ price: { amount: "0.005", denom: "uakt" } })]}
         runtimeLimitHours={undefined}
-        dependencies={{ useFundingImpact, BalanceBreakdownBar, UsdValue, Link }}
+        dependencies={{ useFundingImpact, BalanceBreakdownBar, UsdValue, Link, Skeleton }}
       />
     );
   }

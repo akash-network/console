@@ -19,19 +19,19 @@ describe(useFundingImpact.name, () => {
     expect(result.current).toEqual({ kind: "hidden" });
   });
 
-  it("hides while the balance overview is loading", () => {
+  it("reports loading while the balance overview is loading", () => {
     const { result } = setup({ overview: { isLoading: true } });
-    expect(result.current).toEqual({ kind: "hidden" });
+    expect(result.current).toEqual({ kind: "loading" });
   });
 
-  it("hides while the funding config has not loaded", () => {
+  it("reports loading while the funding config has not loaded", () => {
     const { result } = setup({ fundingConfig: undefined });
-    expect(result.current).toEqual({ kind: "hidden" });
+    expect(result.current).toEqual({ kind: "loading" });
   });
 
-  it("hides while the default payment method is loading", () => {
+  it("reports loading while the default payment method is loading", () => {
     const { result } = setup({ isPaymentMethodLoading: true });
-    expect(result.current).toEqual({ kind: "hidden" });
+    expect(result.current).toEqual({ kind: "loading" });
   });
 
   it("reports the balance as unavailable when the overview errors", () => {
