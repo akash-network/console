@@ -303,6 +303,41 @@ describe(TrialValidationService.name, () => {
     });
   });
 
+  describe("getTrialEndsAt", () => {
+    it("returns null when the wallet is no longer trialing", () => {
+      const { service } = setupTrialWindow({ trialDurationDays: 30 });
+      const wallet = createUserWallet({ isTrialing: false, activatedAt: new Date("2026-08-01T00:00:00.000Z") });
+
+      expect(service.getTrialEndsAt(wallet)).toBeNull();
+    });
+
+    it("counts the trial from activation when the wallet is activated", () => {
+      const { service } = setupTrialWindow({ trialDurationDays: 30 });
+      const wallet = createUserWallet({
+        isTrialing: true,
+        createdAt: new Date("2026-08-01T00:00:00.000Z"),
+        activatedAt: new Date("2026-08-10T00:00:00.000Z")
+      });
+
+      expect(service.getTrialEndsAt(wallet)).toEqual(new Date("2026-09-09T00:00:00.000Z"));
+    });
+
+    it("falls back to wallet creation when activation has not been stamped", () => {
+      const { service } = setupTrialWindow({ trialDurationDays: 30 });
+      const wallet = createUserWallet({ isTrialing: true, createdAt: new Date("2026-08-01T00:00:00.000Z"), activatedAt: null });
+
+      expect(service.getTrialEndsAt(wallet)).toEqual(new Date("2026-08-31T00:00:00.000Z"));
+    });
+  });
+
+  function setupTrialWindow(input: { trialDurationDays: number }) {
+    const config = mockConfigService<BillingConfigService>({
+      TRIAL_ALLOWANCE_EXPIRATION_DAYS: input.trialDurationDays
+    });
+    const service = new TrialValidationService(config, mock<ProviderRepository>(), mock<BidHttpService>(), mock<BlockedGpuService>());
+    return { service };
+  }
+
   function setupTopUp(input: { trialMin: number }) {
     const providerRepository = mock<ProviderRepository>();
     const bidHttpService = mock<BidHttpService>();

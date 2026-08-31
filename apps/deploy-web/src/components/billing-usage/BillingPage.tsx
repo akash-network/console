@@ -9,6 +9,7 @@ import { BillingContainer } from "@src/components/billing-usage/BillingContainer
 import { BillingView } from "@src/components/billing-usage/BillingView/BillingView";
 import { PaymentMethodsContainer } from "@src/components/billing-usage/PaymentMethodsContainer/PaymentMethodsContainer";
 import { PaymentMethodsView } from "@src/components/billing-usage/PaymentMethodsView/PaymentMethodsView";
+import { TrialStatusPanel } from "@src/components/billing-usage/TrialStatusPanel/TrialStatusPanel";
 import { useBillingBackgroundLoading } from "@src/components/billing-usage/useBillingBackgroundLoading";
 import Layout from "@src/components/layout/Layout";
 import { SettingsLayout } from "@src/components/layout/SettingsLayout/SettingsLayout";
@@ -26,6 +27,7 @@ export const BillingPage: FC = () => {
         description="Manage your balance, payment methods, and payment history."
         headerActions={isAutoCreditReloadEnabled ? <AddToBalanceButton /> : undefined}
       >
+        <TrialStatusPanel />
         {isAutoCreditReloadEnabled ? (
           <BillingActionsProvider>
             <AccountBalanceOverview />

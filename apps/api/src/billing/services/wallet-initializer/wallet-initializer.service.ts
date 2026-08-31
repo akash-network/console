@@ -6,6 +6,7 @@ import { isWalletInitialized, type UserWalletPublicOutput, UserWalletRepository,
 import { TrialActivationInstrumentationService } from "@src/billing/services/activate-trial/trial-activation-instrumentation.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
+import { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
@@ -22,7 +23,8 @@ export class WalletInitializerService {
     private readonly featureFlagsService: FeatureFlagsService,
     private readonly stripeService: StripeService,
     private readonly userRepository: UserRepository,
-    private readonly trialActivationInstrumentation: TrialActivationInstrumentationService
+    private readonly trialActivationInstrumentation: TrialActivationInstrumentationService,
+    private readonly trialValidationService: TrialValidationService
   ) {}
 
   async #assertNoDuplicateFingerprint(user: UserOutput): Promise<void> {
@@ -52,7 +54,7 @@ export class WalletInitializerService {
     await this.#assertNoDuplicateFingerprint(user);
 
     const userWallet = await this.ensureWallet(userId);
-    if (userWallet.activatedAt) return this.userWalletRepository.toPublic(userWallet);
+    if (userWallet.activatedAt) return this.#toPublic(userWallet);
 
     const chainWallet = await this.walletManager.createAndAuthorizeTrialSpending(this.managedSignerService, { addressIndex: userWallet.id });
     const activatedWallet = await this.userWalletRepository.updateById(
@@ -68,7 +70,11 @@ export class WalletInitializerService {
     await this.domainEvents.publish(new TrialStarted({ userId }));
     this.trialActivationInstrumentation.recordActivated(userId, Date.now() - new Date(activatedWallet.createdAt).getTime());
 
-    return this.userWalletRepository.toPublic({ ...activatedWallet, address: userWallet.address });
+    return this.#toPublic({ ...activatedWallet, address: userWallet.address });
+  }
+
+  #toPublic(wallet: WalletInitialized): UserWalletPublicOutput {
+    return this.userWalletRepository.toPublic(wallet, { trialEndsAt: this.trialValidationService.getTrialEndsAt(wallet) });
   }
 
   /**

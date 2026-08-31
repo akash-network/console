@@ -18,6 +18,7 @@ import { TrialActivationInstrumentationService } from "../activate-trial/trial-a
 import { ManagedSignerService } from "../managed-signer/managed-signer.service";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
 import { StripeService } from "../stripe/stripe.service";
+import { TrialValidationService } from "../trial-validation/trial-validation.service";
 import { WalletInitializerService } from "./wallet-initializer.service";
 
 import { createChainWallet } from "@test/seeders/chain-wallet.seeder";
@@ -222,9 +223,10 @@ describe(WalletInitializerService.name, () => {
         accessibleBy() {
           return this as unknown as UserWalletRepository;
         },
-        toPublic: value => ({
+        toPublic: (value, options) => ({
           ...value,
-          isTrialing: !!value.isTrialing
+          isTrialing: !!value.isTrialing,
+          trialEndsAt: options?.trialEndsAt ?? null
         })
       }) as unknown as UserWalletRepository
     );
@@ -264,6 +266,7 @@ describe(WalletInitializerService.name, () => {
       })
     );
     di.registerInstance(TrialActivationInstrumentationService, mock<TrialActivationInstrumentationService>());
+    di.registerInstance(TrialValidationService, mock<TrialValidationService>());
 
     container.clearInstances();
 
