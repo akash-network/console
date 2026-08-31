@@ -76,8 +76,13 @@ describe(ReviewAndDeployModal.name, () => {
       expect(screen.queryByTestId("runtime-limit-section")).not.toBeInTheDocument();
     });
 
-    it("hides the runtime limit section for a trial user", () => {
-      setup({ isRestricted: true });
+    it("offers the runtime limit section to a trial user", () => {
+      setup({ isTrialing: true });
+      expect(screen.getByTestId("runtime-limit-section")).toBeInTheDocument();
+    });
+
+    it("hides the runtime limit section until the wallet is provisioned", () => {
+      setup({ isWalletReady: false });
       expect(screen.queryByTestId("runtime-limit-section")).not.toBeInTheDocument();
     });
 
@@ -121,9 +126,9 @@ describe(ReviewAndDeployModal.name, () => {
       expect(onConfirm).toHaveBeenCalled();
     });
 
-    it("does not patch a leftover limit for a trial user", async () => {
+    it("does not patch a leftover limit before the wallet is provisioned", async () => {
       const onConfirm = vi.fn();
-      const { mutateAsync } = setup({ onConfirm, runtimeLimitHours: 12, isRestricted: true });
+      const { mutateAsync } = setup({ onConfirm, runtimeLimitHours: 12, isWalletReady: false });
 
       await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
 
@@ -246,7 +251,8 @@ describe(ReviewAndDeployModal.name, () => {
     isStoredSettingLoading?: boolean;
     storedSettingError?: Error;
     isRuntimeLimitEnabled?: boolean;
-    isRestricted?: boolean;
+    isTrialing?: boolean;
+    isWalletReady?: boolean;
     isPatchPending?: boolean;
     patchError?: Error;
     secondPatchError?: Error;
@@ -278,7 +284,10 @@ describe(ReviewAndDeployModal.name, () => {
       </div>
     );
     const useFlag: typeof DEPENDENCIES.useFlag = () => input.isRuntimeLimitEnabled ?? true;
-    const useTrialGate: typeof DEPENDENCIES.useTrialGate = () => ({ isRestricted: input.isRestricted ?? false, isWalletReady: true });
+    const useTrialGate: typeof DEPENDENCIES.useTrialGate = () => ({
+      isRestricted: input.isTrialing ?? false,
+      isWalletReady: input.isWalletReady ?? true
+    });
 
     let patchCalls = 0;
     const mutateAsync = vi.fn().mockImplementation(() => {

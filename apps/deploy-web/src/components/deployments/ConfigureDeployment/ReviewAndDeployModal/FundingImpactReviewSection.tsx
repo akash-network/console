@@ -133,7 +133,7 @@ export const FundingImpactReviewSection: FC<Props> = ({ rows, runtimeLimitHours,
           deployment closes.
         </p>
 
-        <d.Link href={UrlService.billing()} className="inline-block text-sm text-success hover:underline">
+        <d.Link href={UrlService.billing()} className="inline-block text-sm text-primary hover:underline">
           Full balance breakdown in Billing →
         </d.Link>
       </CollapsibleContent>

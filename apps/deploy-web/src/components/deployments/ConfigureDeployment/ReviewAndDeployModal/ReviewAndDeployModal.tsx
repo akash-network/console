@@ -77,13 +77,13 @@ export const ReviewAndDeployModal: FC<Props> = ({
   const { enqueueSnackbar } = d.useSnackbar();
   const updateSetting = d.useUpdateDeploymentSettingMutation({ dseq: dseq ?? "" });
   /**
-   * Runtime limits sit behind a flag, and mean nothing for trial users whose deployments are never
-   * auto-funded. Gating the submitted value too, not just the control, keeps a draft saved while the flag
-   * was on from silently applying a limit after it is turned off.
+   * Runtime limits sit behind a flag and need a provisioned wallet to store a setting against. Gating the
+   * submitted value too, not just the control, keeps a draft saved while the flag was on from silently
+   * applying a limit after it is turned off.
    */
   const isRuntimeLimitEnabled = d.useFlag("deployment_runtime_limit");
-  const { isRestricted } = d.useTrialGate();
-  const isRuntimeLimitOffered = isRuntimeLimitEnabled && !isRestricted;
+  const { isWalletReady } = d.useTrialGate();
+  const isRuntimeLimitOffered = isRuntimeLimitEnabled && isWalletReady;
   const effectiveRuntimeLimitHours = isRuntimeLimitOffered && runtimeLimitHours ? runtimeLimitHours : undefined;
   /**
    * Read only while a limit is on offer. With the feature off nothing here may touch the stored setting,
