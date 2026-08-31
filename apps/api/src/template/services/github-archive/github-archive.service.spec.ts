@@ -1,12 +1,17 @@
 import { gzipSync } from "node:zlib";
 import tar from "tar";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { CreateLogger } from "@src/core";
 import { GitHubArchiveService } from "./github-archive.service";
 
 describe(GitHubArchiveService.name, () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
   describe("getArchive with fileFilter", () => {
     it("only stores content for files matching the filter", async () => {
       const { service, installArchive } = setup();
@@ -82,22 +87,101 @@ describe(GitHubArchiveService.name, () => {
     });
   });
 
+  describe("download resilience", () => {
+    it("retries when a download fails and succeeds on a later attempt", async () => {
+      const { service, fetchSpy, archiveResponse } = setup();
+      fetchSpy.mockRejectedValueOnce(new Error("socket hang up")).mockResolvedValueOnce(archiveResponse({ "root/readme.md": "# Hello" }));
+
+      const reader = await service.getArchive("owner", "repo", "ref");
+
+      expect(await reader.readFile("readme.md")).toBe("# Hello");
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("gives up after exhausting all attempts and reports the last error", async () => {
+      const { service, fetchSpy } = setup();
+      fetchSpy.mockRejectedValue(new Error("socket hang up"));
+
+      await expect(service.getArchive("owner", "repo", "ref")).rejects.toThrow("socket hang up");
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
+    });
+
+    it("does not retry when github reports the archive is unavailable", async () => {
+      const { service, fetchSpy } = setup();
+      fetchSpy.mockResolvedValue(new Response(null, { status: 404, statusText: "Not Found" }));
+
+      await expect(service.getArchive("owner", "repo", "ref")).rejects.toThrow("404 Not Found");
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("aborts a download that stops producing data", async () => {
+      const { service, fetchSpy } = setup();
+      fetchSpy.mockImplementation(
+        (_url, init) =>
+          new Promise((_resolve, reject) => {
+            const signal = (init as RequestInit).signal!;
+            signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+          })
+      );
+
+      const stalled = expect(service.getArchive("owner", "repo", "ref")).rejects.toThrow("received no data for 30000ms");
+      await vi.advanceTimersByTimeAsync(3 * 30_000);
+
+      await stalled;
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
+    });
+
+    it("keeps downloading while data keeps arriving past the stall timeout", async () => {
+      const { service, fetchSpy, tarGzChunks } = setup();
+      const chunks = tarGzChunks({ "root/readme.md": "# Hello" });
+      fetchSpy.mockImplementation(() =>
+        Promise.resolve(
+          new Response(
+            new ReadableStream({
+              async pull(controller) {
+                const chunk = chunks.shift();
+                if (!chunk) return controller.close();
+                await vi.advanceTimersByTimeAsync(20_000);
+                controller.enqueue(chunk);
+              }
+            })
+          )
+        )
+      );
+
+      const reader = await service.getArchive("owner", "repo", "ref");
+
+      expect(await reader.readFile("readme.md")).toBe("# Hello");
+    });
+  });
+
   function setup() {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     const logger = mock<ReturnType<CreateLogger>>();
     const service = new GitHubArchiveService(logger);
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
 
-    async function installArchive(files: Record<string, string>) {
-      const tarGzBuffer = createTarGzBuffer(files);
-
-      vi.spyOn(globalThis, "fetch").mockResolvedValue(
-        new Response(new Uint8Array(tarGzBuffer), {
-          status: 200,
-          headers: { "Content-Type": "application/gzip" }
-        })
-      );
+    function archiveResponse(files: Record<string, string>) {
+      return new Response(new Uint8Array(createTarGzBuffer(files)), {
+        status: 200,
+        headers: { "Content-Type": "application/gzip" }
+      });
     }
 
-    return { service, logger, installArchive };
+    function tarGzChunks(files: Record<string, string>, chunkSize = 64) {
+      const buffer = createTarGzBuffer(files);
+      const chunks: Uint8Array[] = [];
+      for (let offset = 0; offset < buffer.length; offset += chunkSize) {
+        chunks.push(new Uint8Array(buffer.subarray(offset, offset + chunkSize)));
+      }
+      return chunks;
+    }
+
+    async function installArchive(files: Record<string, string>) {
+      fetchSpy.mockResolvedValue(archiveResponse(files));
+    }
+
+    return { service, logger, installArchive, fetchSpy, archiveResponse, tarGzChunks };
   }
 
   function createTarGzBuffer(files: Record<string, string>): Buffer {
