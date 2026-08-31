@@ -44,6 +44,14 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       expect(deploymentRepository.findStaleDeployments).toHaveBeenCalledWith({ owner: wallet.address, createdHeight: 1_000_000 });
     });
 
+    it("reads the chain height itself when called for a single wallet", async () => {
+      const { service, blockRepository, wallet } = setup();
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(blockRepository.getLatestProcessedHeight).toHaveBeenCalledTimes(1);
+    });
+
     it("does not broadcast when there are no stale deployments", async () => {
       const { service, managedSignerService, wallet } = setup({ staleDeployments: [] });
 
@@ -99,6 +107,25 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       expect(logger.error).toHaveBeenCalledWith(UNSETTLEABLE_LOG);
     });
 
+    it("reads the chain height once for the whole sweep", async () => {
+      const { service, blockRepository, deploymentRepository } = setup({ pages: 4, walletsPerPage: 3 });
+
+      await service.cleanup({ concurrency: 3 });
+
+      expect(blockRepository.getLatestProcessedHeight).toHaveBeenCalledTimes(1);
+      expect(deploymentRepository.findStaleDeployments).toHaveBeenCalledTimes(12);
+    });
+
+    it("screens every wallet against the same cutoff", async () => {
+      const { service, deploymentRepository } = setup({ currentHeight: 1_000_000, pages: 3, walletsPerPage: 2 });
+
+      await service.cleanup({ concurrency: 2 });
+
+      const cutoffs = new Set(deploymentRepository.findStaleDeployments.mock.calls.map(([{ createdHeight }]) => createdHeight));
+      expect(cutoffs.size).toBe(1);
+      expect([...cutoffs][0]).toBeLessThan(1_000_000);
+    });
+
     it("rethrows unrelated errors into the wallet error handler without retrying", async () => {
       const unexpectedError = new Error("some unexpected failure");
       const { service, managedSignerService, managedUserWalletService, logger, errorLogger } = setup({
@@ -130,12 +157,26 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     expect(createErrorLogger).toHaveBeenCalledWith({ context: ErrorService.name });
   });
 
-  function setup(input?: { currentHeight?: number; staleDeployments?: { dseq: number }[]; executeDerivedTx?: ManagedSignerService["executeDerivedTx"] }) {
+  function setup(input?: {
+    currentHeight?: number;
+    staleDeployments?: { dseq: number }[];
+    executeDerivedTx?: ManagedSignerService["executeDerivedTx"];
+    pages?: number;
+    walletsPerPage?: number;
+  }) {
     const wallet = createUserWallet({ id: 123, address: "akash1test" });
+
+    const walletPages = Array.from({ length: input?.pages ?? 1 }, (_, page) =>
+      Array.from({ length: input?.walletsPerPage ?? 1 }, (_, index) =>
+        page === 0 && index === 0 ? wallet : createUserWallet({ id: 1000 + page * 10 + index, address: `akash1owner${page}${index}` })
+      )
+    );
 
     const userWalletRepository = mock<UserWalletRepository>({
       paginate: vi.fn(async (_options, cb) => {
-        await cb([wallet]);
+        for (const page of walletPages) {
+          await cb(page);
+        }
       }) as UserWalletRepository["paginate"]
     });
     const deploymentRepository = mock<DeploymentRepository>();
