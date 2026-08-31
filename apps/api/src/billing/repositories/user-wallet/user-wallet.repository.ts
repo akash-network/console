@@ -119,7 +119,7 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return !!cleared;
   }
 
-  /** Re-reads the window in SQL so a concurrent check that read the credits sufficient still wins by clearing `creditsLowSince`. */
+  /** Re-reads the window in SQL so a concurrent check that already cleared `creditsLowSince` still wins. */
   async isCreditsLowConfirmed(id: UserWalletOutput["id"], confirmWindowMinutes: number): Promise<boolean> {
     const [confirmed] = await this.cursor
       .select({ id: this.table.id })
