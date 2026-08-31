@@ -36,6 +36,8 @@ export class StaleManagedDeploymentsCleanerService {
   }
 
   async cleanup(options: CleanUpStaleDeploymentsParams) {
+    const staleBeforeHeight = await this.#resolveStaleBeforeHeight(this.MAX_LIVE_BLOCKS);
+
     await this.userWalletRepository.paginate({ limit: options.concurrency || 10 }, async wallets => {
       const cleanUpAllWallets = wallets.map(async wallet => {
         await this.errorService.execWithErrorHandler(
@@ -44,7 +46,7 @@ export class StaleManagedDeploymentsCleanerService {
             event: "DEPLOYMENT_CLEAN_UP_ERROR",
             context: StaleManagedDeploymentsCleanerService.name
           },
-          () => this.cleanUpForWallet(wallet)
+          () => this.#closeLeaselessDeployments(wallet, staleBeforeHeight)
         );
       });
 
@@ -53,10 +55,18 @@ export class StaleManagedDeploymentsCleanerService {
   }
 
   async cleanUpForWallet(wallet: UserWalletOutput, maxLiveBlocks: number = this.MAX_LIVE_BLOCKS) {
-    const currentHeight = await this.blockRepository.getLatestProcessedHeight();
+    await this.#closeLeaselessDeployments(wallet, await this.#resolveStaleBeforeHeight(maxLiveBlocks));
+  }
+
+  /** Read once per sweep instead of per wallet: the tip is the same for every one of them, and the sweep walks the whole managed-wallet table. */
+  async #resolveStaleBeforeHeight(maxLiveBlocks: number): Promise<number> {
+    return (await this.blockRepository.getLatestProcessedHeight()) - maxLiveBlocks;
+  }
+
+  async #closeLeaselessDeployments(wallet: UserWalletOutput, staleBeforeHeight: number) {
     const deployments = await this.deploymentRepository.findStaleDeployments({
       owner: wallet.address!,
-      createdHeight: currentHeight - maxLiveBlocks
+      createdHeight: staleBeforeHeight
     });
 
     const messages = deployments.map(deployment => this.rpcMessageService.getCloseDeploymentMsg(wallet.address!, deployment.dseq));
