@@ -46,7 +46,8 @@ describe(UserWalletRepository.name, () => {
     it("clears the notified stamp once credits have read sufficient for the whole window", async () => {
       const { userWalletRepository, wallet } = await setup({
         creditsLowNotifiedAt: subMinutes(new Date(), 90),
-        creditsSufficientSince: subMinutes(new Date(), 31)
+        creditsSufficientSince: subMinutes(new Date(), 31),
+        creditsLowSince: subMinutes(new Date(), 120)
       });
 
       const isCleared = await userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(wallet.id, 30);
@@ -55,6 +56,7 @@ describe(UserWalletRepository.name, () => {
       expect(isCleared).toBe(true);
       expect(updated?.creditsLowNotifiedAt).toBeNull();
       expect(updated?.creditsSufficientSince).toBeNull();
+      expect(updated?.creditsLowSince).toBeNull();
     });
 
     it("keeps the notified stamp while the window has not elapsed", async () => {
@@ -99,6 +101,41 @@ describe(UserWalletRepository.name, () => {
     });
   });
 
+  describe("isCreditsLowConfirmed", () => {
+    it("confirms once credits have read low for the whole window", async () => {
+      const { userWalletRepository, wallet } = await setup({ creditsLowSince: subMinutes(new Date(), 31) });
+
+      expect(await userWalletRepository.isCreditsLowConfirmed(wallet.id, 30)).toBe(true);
+    });
+
+    it("withholds confirmation while the window has not elapsed", async () => {
+      const { userWalletRepository, wallet } = await setup({ creditsLowSince: subMinutes(new Date(), 5) });
+
+      expect(await userWalletRepository.isCreditsLowConfirmed(wallet.id, 30)).toBe(false);
+    });
+
+    it("withholds confirmation when no low reading has been recorded", async () => {
+      const { userWalletRepository, wallet } = await setup();
+
+      expect(await userWalletRepository.isCreditsLowConfirmed(wallet.id, 30)).toBe(false);
+    });
+
+    it("withholds confirmation when the wallet was already notified", async () => {
+      const { userWalletRepository, wallet } = await setup({
+        creditsLowNotifiedAt: subMinutes(new Date(), 90),
+        creditsLowSince: subMinutes(new Date(), 91)
+      });
+
+      expect(await userWalletRepository.isCreditsLowConfirmed(wallet.id, 30)).toBe(false);
+    });
+
+    it("confirms immediately when the window is disabled", async () => {
+      const { userWalletRepository, wallet } = await setup({ creditsLowSince: new Date() });
+
+      expect(await userWalletRepository.isCreditsLowConfirmed(wallet.id, 0)).toBe(true);
+    });
+  });
+
   describe("findByAddresses", () => {
     it("returns every wallet matching the given addresses", async () => {
       const first = await setup();
@@ -125,7 +162,7 @@ describe(UserWalletRepository.name, () => {
     });
   });
 
-  async function setup(input: { creditsLowNotifiedAt?: Date; creditsSufficientSince?: Date } = {}) {
+  async function setup(input: { creditsLowNotifiedAt?: Date; creditsSufficientSince?: Date; creditsLowSince?: Date } = {}) {
     const userRepository = container.resolve(UserRepository);
     const userWalletRepository = container.resolve(UserWalletRepository);
 
@@ -133,7 +170,11 @@ describe(UserWalletRepository.name, () => {
     const created = await userWalletRepository.create({ userId: user.id, address: createAkashAddress() });
     const wallet = await userWalletRepository.updateById(
       created.id,
-      { creditsLowNotifiedAt: input.creditsLowNotifiedAt ?? null, creditsSufficientSince: input.creditsSufficientSince ?? null },
+      {
+        creditsLowNotifiedAt: input.creditsLowNotifiedAt ?? null,
+        creditsSufficientSince: input.creditsSufficientSince ?? null,
+        creditsLowSince: input.creditsLowSince ?? null
+      },
       { returning: true }
     );
 

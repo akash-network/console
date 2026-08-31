@@ -16,6 +16,7 @@ export const UserWallets = pgTable("user_wallets", {
   activatedAt: timestamp("activated_at", { withTimezone: true }),
   creditsLowNotifiedAt: timestamp("credits_low_notified_at", { withTimezone: true }),
   creditsSufficientSince: timestamp("credits_sufficient_since", { withTimezone: true }),
+  creditsLowSince: timestamp("credits_low_since", { withTimezone: true }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });

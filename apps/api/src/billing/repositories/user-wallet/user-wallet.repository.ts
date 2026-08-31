@@ -104,7 +104,7 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
   async clearCreditsLowNotifiedIfRecoveryConfirmed(id: UserWalletOutput["id"], confirmWindowMinutes: number): Promise<boolean> {
     const [cleared] = await this.cursor
       .update(this.table)
-      .set({ creditsLowNotifiedAt: null, creditsSufficientSince: null })
+      .set({ creditsLowNotifiedAt: null, creditsSufficientSince: null, creditsLowSince: null })
       .where(
         this.whereAccessibleBy(
           and(
@@ -118,6 +118,25 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
       .returning({ id: this.table.id });
 
     return !!cleared;
+  }
+
+  /** Re-reads the window in SQL so a concurrent check that already cleared `creditsLowSince` still wins. */
+  async isCreditsLowConfirmed(id: UserWalletOutput["id"], confirmWindowMinutes: number): Promise<boolean> {
+    const [confirmed] = await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.id, id),
+            isNull(this.table.creditsLowNotifiedAt),
+            isNotNull(this.table.creditsLowSince),
+            lte(this.table.creditsLowSince, sql`now() - ${confirmWindowMinutes}::double precision * interval '1 minute'`)
+          )
+        )
+      );
+
+    return !!confirmed;
   }
 
   async findDrainingWallets(thresholds: { fee: number; trialExpirationDays: number }) {
