@@ -36,6 +36,18 @@ describe("Get Wallet List", () => {
       expect(body.data[0].trialEndsAt).toBe(addDays(activatedAt, billingConfig.get("TRIAL_ALLOWANCE_EXPIRATION_DAYS")).toISOString());
     });
 
+    it("reports the trial length the expiry was counted from", async () => {
+      const { user, token } = await setup({ isTrialing: true, activatedAt: new Date("2026-08-01T00:00:00.000Z") });
+
+      const response = await app.request(`/v1/wallets?userId=${user.id}`, {
+        headers: { authorization: `Bearer ${token}` }
+      });
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.data[0].trialDurationDays).toBe(billingConfig.get("TRIAL_ALLOWANCE_EXPIRATION_DAYS"));
+    });
+
     it("returns no trial expiry once the wallet has stopped trialing", async () => {
       const { user, token } = await setup({ isTrialing: false, activatedAt: new Date("2026-08-01T00:00:00.000Z") });
 
@@ -47,6 +59,7 @@ describe("Get Wallet List", () => {
       expect(response.status).toBe(200);
       expect(body.data[0].isTrialing).toBe(false);
       expect(body.data[0].trialEndsAt).toBeNull();
+      expect(body.data[0].trialDurationDays).toBeNull();
     });
   });
 

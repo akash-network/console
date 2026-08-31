@@ -32,16 +32,17 @@ describe(WalletReaderService.name, () => {
       expect(result).toEqual([]);
     });
 
-    it("exposes the trial expiry computed for the wallet", async () => {
+    it("exposes the trial window computed for the wallet", async () => {
       const userId = "test-user-id";
       const trialEndsAt = new Date("2026-09-30T00:00:00.000Z");
       const wallet = createUserWallet({ userId, activatedAt: new Date(), isTrialing: true });
-      const { service, trialValidationService } = setup({ wallets: [wallet], trialEndsAt });
+      const { service, trialValidationService } = setup({ wallets: [wallet], trialEndsAt, trialDurationDays: 45 });
 
       const result = await service.getWallets({ userId });
 
       expect(result[0].trialEndsAt).toEqual(trialEndsAt);
-      expect(trialValidationService.getTrialEndsAt).toHaveBeenCalledWith(wallet);
+      expect(result[0].trialDurationDays).toBe(45);
+      expect(trialValidationService.getTrialWindow).toHaveBeenCalledWith(wallet);
     });
 
     it("returns an empty list when the user only has a non-activated wallet", async () => {
@@ -55,25 +56,26 @@ describe(WalletReaderService.name, () => {
     });
   });
 
-  function setup(input: { wallets: UserWalletOutput[]; trialEndsAt?: Date | null }) {
+  function setup(input: { wallets: UserWalletOutput[]; trialEndsAt?: Date | null; trialDurationDays?: number | null }) {
     const userWalletRepository = mock<UserWalletRepository>({
       find: vi.fn().mockResolvedValue(input.wallets),
       accessibleBy() {
         return this as unknown as UserWalletRepository;
       },
-      toPublic: (value, options) => ({
+      toPublic: (value, trialWindow) => ({
         id: value.id,
         userId: value.userId,
         address: value.address,
         creditAmount: value.creditAmount,
         isTrialing: !!value.isTrialing,
-        trialEndsAt: options?.trialEndsAt ?? null,
+        trialEndsAt: trialWindow?.trialEndsAt ?? null,
+        trialDurationDays: trialWindow?.trialDurationDays ?? null,
         createdAt: value.createdAt
       })
     }) as unknown as UserWalletRepository;
     const authService = mock<AuthService>({ ability: {} });
     const trialValidationService = mock<TrialValidationService>({
-      getTrialEndsAt: vi.fn().mockReturnValue(input.trialEndsAt ?? null)
+      getTrialWindow: vi.fn().mockReturnValue({ trialEndsAt: input.trialEndsAt ?? null, trialDurationDays: input.trialDurationDays ?? null })
     });
 
     const service = new WalletReaderService(userWalletRepository, authService as AuthService, trialValidationService);

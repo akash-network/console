@@ -29,7 +29,7 @@ export class WalletReaderService {
 
     return wallets
       .filter((wallet): wallet is WalletInitialized => wallet.activatedAt !== null && isWalletInitialized(wallet))
-      .map(wallet => this.userWalletRepository.toPublic(wallet, { trialEndsAt: this.trialValidationService.getTrialEndsAt(wallet) }));
+      .map(wallet => this.userWalletRepository.toPublic(wallet, this.trialValidationService.getTrialWindow(wallet)));
   }
 
   async getWalletByUserId(userId: string): Promise<WalletInitialized>;

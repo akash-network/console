@@ -49,22 +49,37 @@ describe(useTrialStatus.name, () => {
   });
 
   it("drains the bar in step with the days left", () => {
-    const { result } = setup({ trialEndsAt: addDays(new Date(), 15), totalDays: 30 });
+    const { result } = setup({ trialEndsAt: addDays(new Date(), 15), trialDurationDays: 30 });
 
     expect(result.current.daysRemainingPercent).toBe(50);
   });
 
-  it("keeps the bar full while the expiry is still unknown", () => {
-    const { result } = setup({ trialEndsAt: null });
+  it("takes the trial length from the wallet rather than a local default", () => {
+    const { result } = setup({ trialEndsAt: addDays(new Date(), 45), trialDurationDays: 45 });
+
+    expect(result.current.totalDays).toBe(45);
+    expect(result.current.daysLeft).toBe(45);
+    expect(result.current.daysRemainingPercent).toBe(100);
+  });
+
+  it("keeps the bar full while the trial window is still unknown", () => {
+    const { result } = setup({ trialEndsAt: null, trialDurationDays: null });
 
     expect(result.current.daysRemainingPercent).toBe(100);
   });
 
-  it("leaves the countdown unknown when the wallet reports no expiry", () => {
-    const { result } = setup({ trialEndsAt: null });
+  it("leaves the countdown unknown when the wallet reports no trial window", () => {
+    const { result } = setup({ trialEndsAt: null, trialDurationDays: null });
 
+    expect(result.current.totalDays).toBeNull();
     expect(result.current.daysLeft).toBeNull();
     expect(result.current.isExpired).toBe(false);
+  });
+
+  it("leaves the countdown unknown when the wallet reports an expiry without a duration", () => {
+    const { result } = setup({ trialEndsAt: addDays(new Date(), 12), trialDurationDays: null });
+
+    expect(result.current.daysLeft).toBeNull();
   });
 
   function pinClockTo(now: Date) {
@@ -73,18 +88,20 @@ describe(useTrialStatus.name, () => {
     return now;
   }
 
-  function setup(input: { trialEndsAt: Date | null; totalDays?: number; isTrialing?: boolean }) {
+  function setup(input: { trialEndsAt: Date | null; trialDurationDays?: number | null; isTrialing?: boolean }) {
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? true });
 
     const useManagedWallet: typeof DEPENDENCIES.useManagedWallet = () =>
       mock<ReturnType<typeof DEPENDENCIES.useManagedWallet>>({
-        wallet: mock<ApiManagedWalletOutput>({ trialEndsAt: input.trialEndsAt ? input.trialEndsAt.toISOString() : null })
+        wallet: mock<ApiManagedWalletOutput>({
+          trialEndsAt: input.trialEndsAt ? input.trialEndsAt.toISOString() : null,
+          trialDurationDays: input.trialDurationDays === undefined ? 30 : input.trialDurationDays
+        })
       });
 
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({
         publicConfig: mock<ReturnType<typeof DEPENDENCIES.useServices>["publicConfig"]>({
-          NEXT_PUBLIC_TRIAL_DURATION_DAYS: input.totalDays ?? 30,
           NEXT_PUBLIC_TRIAL_DEPLOYMENTS_DURATION_HOURS: 24
         })
       });

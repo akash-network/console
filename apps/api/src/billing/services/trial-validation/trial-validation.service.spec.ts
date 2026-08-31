@@ -303,12 +303,12 @@ describe(TrialValidationService.name, () => {
     });
   });
 
-  describe("getTrialEndsAt", () => {
-    it("returns null when the wallet is no longer trialing", () => {
+  describe("getTrialWindow", () => {
+    it("returns an empty window when the wallet is no longer trialing", () => {
       const { service } = setupTrialWindow({ trialDurationDays: 30 });
       const wallet = createUserWallet({ isTrialing: false, activatedAt: new Date("2026-08-01T00:00:00.000Z") });
 
-      expect(service.getTrialEndsAt(wallet)).toBeNull();
+      expect(service.getTrialWindow(wallet)).toEqual({ trialEndsAt: null, trialDurationDays: null });
     });
 
     it("counts the trial from activation when the wallet is activated", () => {
@@ -319,14 +319,21 @@ describe(TrialValidationService.name, () => {
         activatedAt: new Date("2026-08-10T00:00:00.000Z")
       });
 
-      expect(service.getTrialEndsAt(wallet)).toEqual(new Date("2026-09-09T00:00:00.000Z"));
+      expect(service.getTrialWindow(wallet)).toEqual({ trialEndsAt: new Date("2026-09-09T00:00:00.000Z"), trialDurationDays: 30 });
     });
 
     it("falls back to wallet creation when activation has not been stamped", () => {
       const { service } = setupTrialWindow({ trialDurationDays: 30 });
       const wallet = createUserWallet({ isTrialing: true, createdAt: new Date("2026-08-01T00:00:00.000Z"), activatedAt: null });
 
-      expect(service.getTrialEndsAt(wallet)).toEqual(new Date("2026-08-31T00:00:00.000Z"));
+      expect(service.getTrialWindow(wallet)).toEqual({ trialEndsAt: new Date("2026-08-31T00:00:00.000Z"), trialDurationDays: 30 });
+    });
+
+    it("reports the configured duration alongside the expiry it produced", () => {
+      const { service } = setupTrialWindow({ trialDurationDays: 45 });
+      const wallet = createUserWallet({ isTrialing: true, createdAt: new Date("2026-08-01T00:00:00.000Z"), activatedAt: null });
+
+      expect(service.getTrialWindow(wallet)).toEqual({ trialEndsAt: new Date("2026-09-15T00:00:00.000Z"), trialDurationDays: 45 });
     });
   });
 

@@ -44,7 +44,7 @@ export const TrialStatusPanel: React.FunctionComponent<{ dependencies?: typeof D
           <d.Badge variant="info">Trial</d.Badge>
         </d.CardHeader>
         <d.CardContent className="space-y-4">
-          {trial.daysLeft === null ? (
+          {trial.daysLeft === null || trial.totalDays === null ? (
             <div className="space-y-2">
               <d.Skeleton className="h-2 w-full" />
               <d.Skeleton className="h-4 w-64" />

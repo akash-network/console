@@ -30,6 +30,7 @@ describe("WalletController", () => {
           creditAmount: 100,
           isTrialing: true,
           trialEndsAt: faker.date.future(),
+          trialDurationDays: 30,
           createdAt: new Date()
         },
         {
@@ -39,6 +40,7 @@ describe("WalletController", () => {
           creditAmount: 200,
           isTrialing: false,
           trialEndsAt: null,
+          trialDurationDays: null,
           createdAt: new Date()
         }
       ];
