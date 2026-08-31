@@ -10,7 +10,7 @@ import { NotificationService } from "@src/notifications/services/notification/no
 import { creditsRunningLowNotification } from "@src/notifications/services/notification-templates/credits-running-low-notification";
 import { type UserOutput, UserRepository } from "@src/user/repositories";
 
-type SkipReason = "auto_reload_enabled" | "no_wallet" | "trialing" | "no_email" | "zero_cost" | "sufficient_balance" | "already_notified";
+type SkipReason = "auto_reload_enabled" | "no_wallet" | "trialing" | "no_email" | "zero_cost" | "sufficient_balance" | "already_notified" | "low_unconfirmed";
 
 type NotLowReason = Extract<SkipReason, "zero_cost" | "sufficient_balance">;
 
@@ -67,6 +67,11 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
       return;
     }
 
+    if (!(await this.#isLowStreakConfirmed(wallet))) {
+      this.#skip("low_unconfirmed", payload.userId);
+      return;
+    }
+
     const paymentLink = this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK");
     const daysRemaining = cumulativeDailyCostsUsd.filter(costUsd => costUsd <= balanceUsd).length;
 
@@ -98,10 +103,20 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
    */
   async #stampNotified(wallet: UserWalletOutput, userId: UserOutput["id"]): Promise<void> {
     try {
-      await this.userWalletRepository.updateById(wallet.id, { creditsLowNotifiedAt: new Date(), creditsSufficientSince: null });
+      await this.userWalletRepository.updateById(wallet.id, { creditsLowNotifiedAt: new Date(), creditsSufficientSince: null, creditsLowSince: null });
     } catch (error) {
       this.logger.error({ event: "CREDITS_LOW_NOTIFIED_STAMP_FAILED", userId, error });
     }
+  }
+
+  /** Mirrors the recovery latch on the sending side: a lone low reading only opens the window, so one misread cannot send an email by itself. */
+  async #isLowStreakConfirmed(wallet: UserWalletOutput): Promise<boolean> {
+    if (!wallet.creditsLowSince) {
+      await this.userWalletRepository.updateById(wallet.id, { creditsLowSince: new Date() });
+      return false;
+    }
+
+    return await this.userWalletRepository.isCreditsLowConfirmed(wallet.id, this.billingConfig.get("CREDITS_LOW_CONFIRM_WINDOW_MIN"));
   }
 
   async #getValidWalletResources(userId: UserOutput["id"]) {
@@ -139,12 +154,13 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
     { canUnlatchImmediately }: { canUnlatchImmediately: boolean }
   ): Promise<void> {
     if (!wallet.creditsLowNotifiedAt) {
+      await this.#endLowStreak(wallet);
       this.#skip(reason, userId);
       return;
     }
 
     if (canUnlatchImmediately) {
-      await this.userWalletRepository.updateById(wallet.id, { creditsLowNotifiedAt: null, creditsSufficientSince: null });
+      await this.userWalletRepository.updateById(wallet.id, { creditsLowNotifiedAt: null, creditsSufficientSince: null, creditsLowSince: null });
       this.logger.info({ event: "CREDITS_LOW_NOTIFIED_CLEARED", userId, reason });
       this.#skip(reason, userId);
       return;
@@ -174,6 +190,14 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
     }
 
     await this.userWalletRepository.updateById(wallet.id, { creditsSufficientSince: null });
+  }
+
+  async #endLowStreak(wallet: UserWalletOutput): Promise<void> {
+    if (!wallet.creditsLowSince) {
+      return;
+    }
+
+    await this.userWalletRepository.updateById(wallet.id, { creditsLowSince: null });
   }
 
   #skip(reason: SkipReason, userId: UserOutput["id"]): void {

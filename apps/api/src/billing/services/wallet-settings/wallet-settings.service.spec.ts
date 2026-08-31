@@ -40,7 +40,11 @@ describe(WalletSettingService.name, () => {
         { withCleanup: true }
       );
       expect(walletReloadJobService.cancelCreditsLowCheckByUserId).toHaveBeenCalledWith(user.id);
-      expect(userWalletRepository.updateById).toHaveBeenCalledWith(enabledSetting.walletId, { creditsLowNotifiedAt: null, creditsSufficientSince: null });
+      expect(userWalletRepository.updateById).toHaveBeenCalledWith(enabledSetting.walletId, {
+        creditsLowNotifiedAt: null,
+        creditsSufficientSince: null,
+        creditsLowSince: null
+      });
     });
 
     it("enqueues a credits-low check when Auto Recharge is disabled", async () => {

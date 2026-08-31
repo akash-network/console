@@ -330,6 +330,13 @@
       "when": 1788075327869,
       "tag": "0046_credits_low_recovery_latch",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1788162567618,
+      "tag": "0047_credits_low_confirm_window",
+      "breakpoints": true
     }
   ]
 }

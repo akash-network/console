@@ -95,7 +95,8 @@ describe(WalletCreditsLowCheckHandler.name, () => {
 
   it("does not send when weekly cost is 0", async () => {
     const { handler, notificationService, userWalletRepository, logger, job } = setup({
-      weeklyCostUsd: 0
+      weeklyCostUsd: 0,
+      creditsLowSince: null
     });
 
     await handler.handle(job);
@@ -109,7 +110,8 @@ describe(WalletCreditsLowCheckHandler.name, () => {
   it("does not send when balance is at or above weekly cost", async () => {
     const { handler, notificationService, userWalletRepository, logger, job } = setup({
       balanceUsd: 35,
-      weeklyCostUsd: 35
+      weeklyCostUsd: 35,
+      creditsLowSince: null
     });
 
     await handler.handle(job);
@@ -131,6 +133,60 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     expect(userWalletRepository.updateById).not.toHaveBeenCalled();
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "already_notified" }));
     expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it("starts the low window instead of sending when credits first read low", async () => {
+    const { handler, notificationService, userWalletRepository, wallet, logger, job } = setup({ creditsLowSince: null });
+
+    await handler.handle(job);
+
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(userWalletRepository.updateById).toHaveBeenCalledWith(wallet.id, { creditsLowSince: expect.any(Date) });
+    expect(userWalletRepository.isCreditsLowConfirmed).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "low_unconfirmed" }));
+  });
+
+  it("does not send while credits have not read low for the whole confirmation window", async () => {
+    const { handler, notificationService, userWalletRepository, wallet, logger, job } = setup({ isLowConfirmed: false });
+
+    await handler.handle(job);
+
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(userWalletRepository.isCreditsLowConfirmed).toHaveBeenCalledWith(wallet.id, 30);
+    expect(userWalletRepository.updateById).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "low_unconfirmed" }));
+  });
+
+  it("sends once credits have read low for the whole confirmation window", async () => {
+    const { handler, notificationService, userWalletRepository, wallet, job } = setup({ confirmWindowMinutes: 45 });
+
+    await handler.handle(job);
+
+    expect(userWalletRepository.isCreditsLowConfirmed).toHaveBeenCalledWith(wallet.id, 45);
+    expect(notificationService.createNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it("restarts the low window when credits read sufficient before the email goes out", async () => {
+    const { handler, notificationService, userWalletRepository, wallet, logger, job } = setup({
+      balanceUsd: 40,
+      weeklyCostUsd: 35
+    });
+
+    await handler.handle(job);
+
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(userWalletRepository.updateById).toHaveBeenCalledWith(wallet.id, { creditsLowSince: null });
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "sufficient_balance" }));
+  });
+
+  it("keeps the low window running when the wallet is already notified", async () => {
+    const { handler, userWalletRepository, job } = setup({
+      creditsLowNotifiedAt: new Date("2026-01-01T00:00:00.000Z")
+    });
+
+    await handler.handle(job);
+
+    expect(userWalletRepository.isCreditsLowConfirmed).not.toHaveBeenCalled();
   });
 
   it("starts the recovery window instead of clearing creditsLowNotifiedAt when the balance first reads recovered", async () => {
@@ -169,7 +225,11 @@ describe(WalletCreditsLowCheckHandler.name, () => {
 
     await handler.handle(job);
 
-    expect(userWalletRepository.updateById).toHaveBeenCalledWith(wallet.id, { creditsLowNotifiedAt: null, creditsSufficientSince: null });
+    expect(userWalletRepository.updateById).toHaveBeenCalledWith(wallet.id, {
+      creditsLowNotifiedAt: null,
+      creditsSufficientSince: null,
+      creditsLowSince: null
+    });
     expect(userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed).not.toHaveBeenCalled();
     expect(logger.info).toHaveBeenCalledWith({ event: "CREDITS_LOW_NOTIFIED_CLEARED", userId: user.id, reason: "zero_cost" });
   });
@@ -266,7 +326,11 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     await handler.handle(job);
 
     expect(notificationService.createNotification).toHaveBeenCalled();
-    expect(userWalletRepository.updateById).toHaveBeenCalledWith(wallet.id, { creditsLowNotifiedAt: expect.any(Date), creditsSufficientSince: null });
+    expect(userWalletRepository.updateById).toHaveBeenCalledWith(wallet.id, {
+      creditsLowNotifiedAt: expect.any(Date),
+      creditsSufficientSince: null,
+      creditsLowSince: null
+    });
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_EMAIL_SENT" }));
   });
 
@@ -280,7 +344,8 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     expect(notificationService.createNotification).toHaveBeenCalled();
     expect(userWalletRepository.updateById).toHaveBeenCalledWith(expect.any(Number), {
       creditsLowNotifiedAt: expect.any(Date),
-      creditsSufficientSince: null
+      creditsSufficientSince: null,
+      creditsLowSince: null
     });
   });
 
@@ -296,6 +361,8 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     isTrialing?: boolean;
     creditsLowNotifiedAt?: Date | null;
     creditsSufficientSince?: Date | null;
+    creditsLowSince?: Date | null;
+    isLowConfirmed?: boolean;
     user?: ReturnType<typeof createUser>;
     balanceUsd?: number;
     weeklyCostUsd?: number;
@@ -309,7 +376,8 @@ describe(WalletCreditsLowCheckHandler.name, () => {
       userId: user.id,
       isTrialing: input?.isTrialing ?? false,
       creditsLowNotifiedAt: input?.creditsLowNotifiedAt ?? null,
-      creditsSufficientSince: input?.creditsSufficientSince ?? null
+      creditsSufficientSince: input?.creditsSufficientSince ?? null,
+      creditsLowSince: input?.creditsLowSince === undefined ? new Date("2026-01-01T00:00:00.000Z") : input.creditsLowSince
     });
     const walletSetting = generateWalletSetting({
       userId: user.id,
@@ -336,7 +404,8 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     });
     const billingConfig = mockConfigService<BillingConfigService>({
       CONSOLE_WEB_PAYMENT_LINK: paymentLink,
-      CREDITS_LOW_RECOVERY_CONFIRM_WINDOW_MIN: input?.confirmWindowMinutes ?? 30
+      CREDITS_LOW_RECOVERY_CONFIRM_WINDOW_MIN: input?.confirmWindowMinutes ?? 30,
+      CREDITS_LOW_CONFIRM_WINDOW_MIN: input?.confirmWindowMinutes ?? 30
     });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
@@ -353,6 +422,7 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     });
     userWalletRepository.updateById.mockResolvedValue(undefined);
     userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed.mockResolvedValue(false);
+    userWalletRepository.isCreditsLowConfirmed.mockResolvedValue(input?.isLowConfirmed ?? true);
 
     const handler = new WalletCreditsLowCheckHandler(
       walletSettingRepository,

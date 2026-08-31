@@ -14,7 +14,8 @@ export function createUserWallet({
   updatedAt = faker.date.past(),
   activatedAt = createdAt,
   creditsLowNotifiedAt = null,
-  creditsSufficientSince = null
+  creditsSufficientSince = null,
+  creditsLowSince = null
 }: Partial<UserWalletOutput> = {}): UserWalletOutput {
   return {
     id,
@@ -28,7 +29,8 @@ export function createUserWallet({
     updatedAt,
     activatedAt,
     creditsLowNotifiedAt,
-    creditsSufficientSince
+    creditsSufficientSince,
+    creditsLowSince
   };
 }
 
