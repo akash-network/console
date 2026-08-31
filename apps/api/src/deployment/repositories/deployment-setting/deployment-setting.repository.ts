@@ -294,6 +294,17 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return row.id;
   }
 
+  /** Conflicts are ignored rather than merged, so a row another path already wrote keeps every choice its writer made. */
+  async createDefaultIfMissing({ userId, dseq }: { userId: string; dseq: string }): Promise<boolean> {
+    const rows = await this.cursor
+      .insert(this.table)
+      .values({ userId, dseq, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT })
+      .onConflictDoNothing({ target: [this.table.dseq, this.table.userId] })
+      .returning({ id: this.table.id });
+
+    return rows.length > 0;
+  }
+
   /**
    * Raises a deployment's runtime limit and shifts an anchored deadline by the same delta in one
    * guarded UPDATE. The WHERE clause re-checks every rule the service validated, plus the caller's

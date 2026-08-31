@@ -23,6 +23,7 @@ import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.se
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import { RecordDeploymentSetting, recordDeploymentSettingKeyFor } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { UserRepository } from "@src/user/repositories";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { BalancesService } from "../balances/balances.service";
@@ -176,6 +177,8 @@ export class ManagedSignerService {
       }
     }
 
+    await this.#recordCreatedDeployments(userWallet, messages);
+
     await this.balancesService.refreshUserWalletLimits(userWallet);
     await this.#ensureAutoReloadSchedule(userWallet.userId, messages);
     await this.#scheduleCreditsLowCheckOnClose(userWallet, messages);
@@ -190,6 +193,19 @@ export class ManagedSignerService {
     }
 
     return result as Pick<IndexedTx, "code" | "hash" | "rawLog"> & { transactionHash: string };
+  }
+
+  /** A create broadcast here never passes through the deployment API that would record it, so the record is written from the landed transaction. */
+  async #recordCreatedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[]) {
+    const createdDseqs = messages
+      .filter((message): message is { typeUrl: string; value: MsgCreateDeployment } => message.typeUrl.endsWith(".MsgCreateDeployment"))
+      .map(message => message.value.id?.dseq)
+      .filter(dseq => dseq !== undefined);
+
+    for (const dseq of createdDseqs) {
+      const key = { userId: userWallet.userId, dseq: dseq.toString() };
+      await this.domainEvents.publish(new RecordDeploymentSetting(key), { singletonKey: recordDeploymentSettingKeyFor(key) });
+    }
   }
 
   async #ensureAutoReloadSchedule(userId: UserWalletOutput["userId"], messages: EncodeObject[]) {
