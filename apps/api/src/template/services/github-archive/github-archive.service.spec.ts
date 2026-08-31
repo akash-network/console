@@ -6,6 +6,8 @@ import { mock } from "vitest-mock-extended";
 import type { CreateLogger } from "@src/core";
 import { GitHubArchiveService } from "./github-archive.service";
 
+const BEYOND_ALL_RETRY_BACKOFFS_MS = 60_000;
+
 describe(GitHubArchiveService.name, () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -92,7 +94,9 @@ describe(GitHubArchiveService.name, () => {
       const { service, fetchSpy, archiveResponse } = setup();
       fetchSpy.mockRejectedValueOnce(new Error("socket hang up")).mockResolvedValueOnce(archiveResponse({ "root/readme.md": "# Hello" }));
 
-      const reader = await service.getArchive("owner", "repo", "ref");
+      const archive = service.getArchive("owner", "repo", "ref");
+      await vi.advanceTimersByTimeAsync(BEYOND_ALL_RETRY_BACKOFFS_MS);
+      const reader = await archive;
 
       expect(await reader.readFile("readme.md")).toBe("# Hello");
       expect(fetchSpy).toHaveBeenCalledTimes(2);
@@ -102,7 +106,10 @@ describe(GitHubArchiveService.name, () => {
       const { service, fetchSpy } = setup();
       fetchSpy.mockRejectedValue(new Error("socket hang up"));
 
-      await expect(service.getArchive("owner", "repo", "ref")).rejects.toThrow("socket hang up");
+      const failed = expect(service.getArchive("owner", "repo", "ref")).rejects.toThrow("socket hang up");
+      await vi.advanceTimersByTimeAsync(BEYOND_ALL_RETRY_BACKOFFS_MS);
+
+      await failed;
       expect(fetchSpy).toHaveBeenCalledTimes(3);
     });
 
@@ -112,6 +119,59 @@ describe(GitHubArchiveService.name, () => {
 
       await expect(service.getArchive("owner", "repo", "ref")).rejects.toThrow("404 Not Found");
       expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("retries when the response body fails part way through the download", async () => {
+      const { service, fetchSpy, archiveResponse, tarGzChunks } = setup();
+      const truncated = tarGzChunks({ "root/readme.md": "# Hello" }).slice(0, 2);
+      fetchSpy
+        .mockResolvedValueOnce(
+          new Response(
+            new ReadableStream({
+              pull(controller) {
+                const chunk = truncated.shift();
+                if (chunk) return controller.enqueue(chunk);
+                controller.error(new TypeError("terminated"));
+              }
+            })
+          )
+        )
+        .mockResolvedValueOnce(archiveResponse({ "root/readme.md": "# Hello" }));
+
+      const archive = service.getArchive("owner", "repo", "ref");
+      await vi.advanceTimersByTimeAsync(BEYOND_ALL_RETRY_BACKOFFS_MS);
+      const reader = await archive;
+
+      expect(await reader.readFile("readme.md")).toBe("# Hello");
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("retries when fetch itself fails at the transport level", async () => {
+      const { service, fetchSpy, archiveResponse } = setup();
+      const transportFailure = new TypeError("fetch failed");
+      transportFailure.cause = new Error("HeadersTimeoutError");
+      fetchSpy.mockRejectedValueOnce(transportFailure).mockResolvedValueOnce(archiveResponse({ "root/readme.md": "# Hello" }));
+
+      const archive = service.getArchive("owner", "repo", "ref");
+      await vi.advanceTimersByTimeAsync(BEYOND_ALL_RETRY_BACKOFFS_MS);
+      const reader = await archive;
+
+      expect(await reader.readFile("readme.md")).toBe("# Hello");
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("retries a TimeoutError raised by an aborted fetch", async () => {
+      const { service, fetchSpy, archiveResponse } = setup();
+      fetchSpy
+        .mockRejectedValueOnce(new DOMException("The operation was aborted due to timeout", "TimeoutError"))
+        .mockResolvedValueOnce(archiveResponse({ "root/readme.md": "# Hello" }));
+
+      const archive = service.getArchive("owner", "repo", "ref");
+      await vi.advanceTimersByTimeAsync(BEYOND_ALL_RETRY_BACKOFFS_MS);
+      const reader = await archive;
+
+      expect(await reader.readFile("readme.md")).toBe("# Hello");
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
 
     it("aborts a download that stops producing data", async () => {
@@ -125,7 +185,7 @@ describe(GitHubArchiveService.name, () => {
       );
 
       const stalled = expect(service.getArchive("owner", "repo", "ref")).rejects.toThrow("received no data for 30000ms");
-      await vi.advanceTimersByTimeAsync(3 * 30_000);
+      await vi.advanceTimersByTimeAsync(3 * 30_000 + BEYOND_ALL_RETRY_BACKOFFS_MS);
 
       await stalled;
       expect(fetchSpy).toHaveBeenCalledTimes(3);

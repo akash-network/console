@@ -1,3 +1,4 @@
+import { ExponentialBackoff, handleWhen, retry, type RetryPolicy } from "cockatiel";
 import { LRUCache } from "lru-cache";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -9,7 +10,9 @@ import type { CreateLogger } from "@src/core";
 /** The template repo archives are ~70 MB each, so the download budget has to bound stalls rather than total transfer time. */
 const DOWNLOAD_STALL_TIMEOUT_MS = 30_000;
 
-const MAX_DOWNLOAD_ATTEMPTS = 3;
+const MAX_DOWNLOAD_RETRIES = 2;
+const RETRY_INITIAL_DELAY_MS = 1_000;
+const RETRY_MAX_DELAY_MS = 10_000;
 
 class ArchiveNotAvailableError extends Error {}
 
@@ -45,9 +48,17 @@ async function* streamWhileMakingProgress(body: ReadableStream<Uint8Array>, onPr
 export class GitHubArchiveService {
   readonly #cache = new LRUCache<string, Promise<ArchiveReader>>({ max: 10 });
   readonly #logger: ReturnType<CreateLogger>;
+  readonly #downloadPolicy: RetryPolicy;
 
   constructor(logger: ReturnType<CreateLogger>) {
     this.#logger = logger;
+    this.#downloadPolicy = retry(
+      handleWhen(error => !(error instanceof ArchiveNotAvailableError)),
+      {
+        maxAttempts: MAX_DOWNLOAD_RETRIES,
+        backoff: new ExponentialBackoff({ initialDelay: RETRY_INITIAL_DELAY_MS, maxDelay: RETRY_MAX_DELAY_MS })
+      }
+    );
   }
 
   async getArchive(owner: string, repo: string, ref: string, fileFilter?: (relativePath: string) => boolean): Promise<ArchiveReader> {
@@ -74,26 +85,23 @@ export class GitHubArchiveService {
 
   async #downloadAndParse(owner: string, repo: string, ref: string, fileFilter?: (relativePath: string) => boolean): Promise<ArchiveReader> {
     const url = `https://github.com/${owner}/${repo}/archive/${ref}.tar.gz`;
-    let lastError: unknown;
 
-    for (let attempt = 1; attempt <= MAX_DOWNLOAD_ATTEMPTS; attempt++) {
+    const parsedArchive = await this.#downloadPolicy.execute(async ({ attempt }) => {
       try {
-        return this.#createArchiveReader(await this.#downloadAndExtract(url, fileFilter));
+        return await this.#downloadAndExtract(url, fileFilter);
       } catch (error) {
-        if (error instanceof ArchiveNotAvailableError) throw error;
-
-        lastError = error;
         this.#logger.warn({
           event: "ARCHIVE_DOWNLOAD_ATTEMPT_FAILED",
           url,
-          attempt,
-          maxAttempts: MAX_DOWNLOAD_ATTEMPTS,
+          attempt: attempt + 1,
+          maxAttempts: MAX_DOWNLOAD_RETRIES + 1,
           error
         });
+        throw error;
       }
-    }
+    });
 
-    throw lastError;
+    return this.#createArchiveReader(parsedArchive);
   }
 
   async #downloadAndExtract(url: string, fileFilter?: (relativePath: string) => boolean): Promise<ParsedArchive> {
