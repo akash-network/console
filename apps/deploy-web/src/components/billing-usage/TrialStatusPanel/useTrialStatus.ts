@@ -1,5 +1,5 @@
 "use client";
-import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
+import differenceInMilliseconds from "date-fns/differenceInMilliseconds";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
@@ -10,6 +10,8 @@ export const DEPENDENCIES = {
   useManagedWallet,
   useServices
 };
+
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export type TrialStatus = {
   isTrialing: boolean;
@@ -29,14 +31,15 @@ export function useTrialStatus({ dependencies: d = DEPENDENCIES }: { dependencie
 
   const totalDays = publicConfig.NEXT_PUBLIC_TRIAL_DURATION_DAYS;
   const trialEndsAt = wallet?.trialEndsAt ? new Date(wallet.trialEndsAt) : null;
-  const daysLeft = trialEndsAt ? Math.min(Math.max(differenceInCalendarDays(trialEndsAt, new Date()), 0), totalDays) : null;
+  const millisecondsLeft = trialEndsAt ? differenceInMilliseconds(trialEndsAt, new Date()) : null;
+  const daysLeft = millisecondsLeft === null ? null : Math.min(Math.max(Math.ceil(millisecondsLeft / MILLISECONDS_PER_DAY), 0), totalDays);
 
   return {
     isTrialing,
     totalDays,
     daysLeft,
     daysRemainingPercent: daysLeft === null ? 100 : (daysLeft / totalDays) * 100,
-    isExpired: daysLeft === 0,
+    isExpired: millisecondsLeft !== null && millisecondsLeft <= 0,
     deploymentDurationHours: publicConfig.NEXT_PUBLIC_TRIAL_DEPLOYMENTS_DURATION_HOURS
   };
 }

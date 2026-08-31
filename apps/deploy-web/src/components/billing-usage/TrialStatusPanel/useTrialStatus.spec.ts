@@ -1,7 +1,9 @@
 import type { ApiManagedWalletOutput } from "@akashnetwork/http-sdk";
 import addDays from "date-fns/addDays";
+import addHours from "date-fns/addHours";
 import subDays from "date-fns/subDays";
-import { describe, expect, it } from "vitest";
+import subHours from "date-fns/subHours";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DEPENDENCIES } from "./useTrialStatus";
@@ -10,11 +12,33 @@ import { useTrialStatus } from "./useTrialStatus";
 import { renderHook } from "@testing-library/react";
 
 describe(useTrialStatus.name, () => {
-  it("reports the calendar days left until the trial expires", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("reports the days left until the trial expires", () => {
     const { result } = setup({ trialEndsAt: addDays(new Date(), 12) });
 
     expect(result.current.daysLeft).toBe(12);
     expect(result.current.isExpired).toBe(false);
+  });
+
+  it("keeps a trial expiring later the same day running", () => {
+    const now = pinClockTo(new Date(2026, 5, 5, 9, 0, 0));
+
+    const { result } = setup({ trialEndsAt: addHours(now, 6) });
+
+    expect(result.current.daysLeft).toBe(1);
+    expect(result.current.isExpired).toBe(false);
+  });
+
+  it("marks the trial expired once its timestamp has passed", () => {
+    const now = pinClockTo(new Date(2026, 5, 5, 9, 0, 0));
+
+    const { result } = setup({ trialEndsAt: subHours(now, 1) });
+
+    expect(result.current.daysLeft).toBe(0);
+    expect(result.current.isExpired).toBe(true);
   });
 
   it("clamps an elapsed trial to zero days left", () => {
@@ -42,6 +66,12 @@ describe(useTrialStatus.name, () => {
     expect(result.current.daysLeft).toBeNull();
     expect(result.current.isExpired).toBe(false);
   });
+
+  function pinClockTo(now: Date) {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    return now;
+  }
 
   function setup(input: { trialEndsAt: Date | null; totalDays?: number; isTrialing?: boolean }) {
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? true });
