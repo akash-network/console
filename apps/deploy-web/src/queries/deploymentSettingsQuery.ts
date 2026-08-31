@@ -10,7 +10,8 @@ import { QueryKeys } from "./queryKeys";
 /**
  * Patches a deployment's settings and writes the response straight back into the settings query, so a
  * caller that has no query of its own (the review modal, which patches a deployment it is about to
- * deploy) still leaves the detail page's cache correct.
+ * deploy) still leaves the detail page's cache correct. An in-flight fetch is cancelled first, since one
+ * resolving after the write would put its pre-update snapshot back.
  */
 export function useUpdateDeploymentSettingMutation(params: { dseq: string }) {
   const queryKey = useMemo(() => QueryKeys.getDeploymentSettingKey(params.dseq), [params.dseq]);
@@ -19,6 +20,7 @@ export function useUpdateDeploymentSettingMutation(params: { dseq: string }) {
 
   return useMutation({
     mutationFn: (input: UpdateDeploymentSettingInput) => deploymentSetting.updateByDseq(params.dseq, input),
+    onMutate: () => queryClient.cancelQueries({ queryKey }),
     onSuccess: data => {
       queryClient.setQueryData(queryKey, data);
     }

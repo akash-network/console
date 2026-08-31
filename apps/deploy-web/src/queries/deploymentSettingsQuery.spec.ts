@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { getRuntimeAnchorPollInterval, RUNTIME_ANCHOR_POLL_MS, useDeploymentSettingQuery } from "./deploymentSettingsQuery";
+import { QueryKeys } from "./queryKeys";
 
 import { act } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
@@ -126,6 +127,29 @@ describe("useDeploymentSettingQuery", () => {
         expect(result.current.data?.autoTopUpEnabled).toBe(true);
       });
       expect(deploymentSettingService.updateByDseq).toHaveBeenCalledWith(dseq, { autoTopUpEnabled: true });
+    });
+  });
+
+  it("drops an in-flight settings fetch before writing an update, so a slow poll cannot restore the pre-update snapshot", async () => {
+    const dseq = faker.string.numeric(6);
+    const deploymentSettingService = mock<DeploymentSettingHttpService>({
+      findByDseq: vi.fn().mockResolvedValue(buildDeploymentSetting({ dseq, runtimeLimitHours: 2, runtimeEndsAt: null })),
+      updateByDseq: vi.fn().mockResolvedValue(buildDeploymentSetting({ dseq, runtimeLimitHours: null }))
+    });
+    const queryClient = new QueryClient();
+    const cancelQueries = vi.spyOn(queryClient, "cancelQueries");
+
+    const { result } = setup({
+      dseq,
+      services: { deploymentSetting: () => deploymentSettingService, queryClient: () => queryClient }
+    });
+
+    await act(async () => {
+      result.current.update({ runtimeLimitHours: null });
+    });
+
+    await vi.waitFor(() => {
+      expect(cancelQueries).toHaveBeenCalledWith({ queryKey: QueryKeys.getDeploymentSettingKey(dseq) });
     });
   });
 
