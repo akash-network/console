@@ -16,7 +16,8 @@ export type TrialStatus = {
   totalDays: number;
   /** null until the API reports an expiry, which keeps the panel from guessing a countdown it doesn't know. */
   daysLeft: number | null;
-  daysElapsedPercent: number;
+  /** Drains as the trial runs down: full on day one, empty once it expires. */
+  daysRemainingPercent: number;
   isExpired: boolean;
   deploymentDurationHours: number;
 };
@@ -34,7 +35,7 @@ export function useTrialStatus({ dependencies: d = DEPENDENCIES }: { dependencie
     isTrialing,
     totalDays,
     daysLeft,
-    daysElapsedPercent: daysLeft === null ? 0 : ((totalDays - daysLeft) / totalDays) * 100,
+    daysRemainingPercent: daysLeft === null ? 100 : (daysLeft / totalDays) * 100,
     isExpired: daysLeft === 0,
     deploymentDurationHours: publicConfig.NEXT_PUBLIC_TRIAL_DEPLOYMENTS_DURATION_HOURS
   };

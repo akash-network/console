@@ -24,10 +24,16 @@ describe(useTrialStatus.name, () => {
     expect(result.current.isExpired).toBe(true);
   });
 
-  it("reports the share of the trial already spent", () => {
+  it("drains the bar in step with the days left", () => {
     const { result } = setup({ trialEndsAt: addDays(new Date(), 15), totalDays: 30 });
 
-    expect(result.current.daysElapsedPercent).toBe(50);
+    expect(result.current.daysRemainingPercent).toBe(50);
+  });
+
+  it("keeps the bar full while the expiry is still unknown", () => {
+    const { result } = setup({ trialEndsAt: null });
+
+    expect(result.current.daysRemainingPercent).toBe(100);
   });
 
   it("leaves the countdown unknown when the wallet reports no expiry", () => {

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
-import { Button, Card, CardContent, CardHeader, Progress } from "@akashnetwork/ui/components";
-import { Clock, Cpu, ShieldCheck } from "iconoir-react";
+import { Button, Card, CardContent, CardHeader, Progress, Skeleton } from "@akashnetwork/ui/components";
+import { Clock, Cpu, Lock } from "iconoir-react";
 
 import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
 import { BONUS_PERCENT, MAX_BONUS } from "@src/components/billing-usage/FirstPurchaseBonusAlert/FirstPurchaseBonusAlert";
@@ -15,9 +15,10 @@ export const DEPENDENCIES = {
   CardContent,
   CardHeader,
   Progress,
+  Skeleton,
   Clock,
   Cpu,
-  ShieldCheck
+  Lock
 };
 
 const UNLOCK_SHEET_DESCRIPTION = "Purchase credits to unlock GPUs, unlimited runtime, and the full Console.";
@@ -30,8 +31,8 @@ export const TrialStatusPanel: React.FunctionComponent<{ dependencies?: typeof D
 
   const limitations = [
     { icon: <d.Clock className="h-4 w-4 text-muted-foreground" />, text: `Deployments close automatically after ${trial.deploymentDurationHours} hours` },
-    { icon: <d.Cpu className="h-4 w-4 text-muted-foreground" />, text: "High-end GPUs stay locked, so trials run on CPU" },
-    { icon: <d.ShieldCheck className="h-4 w-4 text-muted-foreground" />, text: "Only providers approved for trials can host your workloads" }
+    { icon: <d.Cpu className="h-4 w-4 text-muted-foreground" />, text: "High-end GPUs are locked, though lower-end GPUs stay available" },
+    { icon: <d.Lock className="h-4 w-4 text-muted-foreground" />, text: "GPU interconnect and GPU-backed confidential compute are unavailable" }
   ];
 
   return (
@@ -42,15 +43,21 @@ export const TrialStatusPanel: React.FunctionComponent<{ dependencies?: typeof D
           <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">Trial</span>
         </d.CardHeader>
         <d.CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <span className="text-2xl font-bold leading-none" aria-label="Trial days remaining">
-                {trial.isExpired ? "Your free trial has ended" : trial.daysLeft === null ? "Trial in progress" : `${trial.daysLeft} days left`}
-              </span>
-              {!trial.isExpired && trial.daysLeft !== null && <span className="text-sm text-muted-foreground">{`of your ${trial.totalDays} day trial`}</span>}
+          {trial.daysLeft === null ? (
+            <div className="space-y-2">
+              <d.Skeleton className="h-2 w-full" />
+              <d.Skeleton className="h-4 w-64" />
             </div>
-            <d.Progress value={trial.isExpired ? 100 : trial.daysElapsedPercent} className="h-2" aria-label="Trial progress" />
-          </div>
+          ) : (
+            <div className="space-y-2">
+              <d.Progress value={trial.daysRemainingPercent} className="h-2" aria-label="Trial days remaining" />
+              <p className="text-sm text-muted-foreground">
+                {trial.isExpired
+                  ? "Your free trial has ended"
+                  : `${trial.daysLeft} ${trial.daysLeft === 1 ? "day" : "days"} left out of ${trial.totalDays} days before the trial ends`}
+              </p>
+            </div>
+          )}
 
           <div className="space-y-2 border-t pt-4">
             <p className="text-sm font-medium">What the trial limits</p>
