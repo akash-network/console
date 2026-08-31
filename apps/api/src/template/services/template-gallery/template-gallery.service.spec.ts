@@ -95,6 +95,15 @@ describe(TemplateGalleryService.name, () => {
       );
     });
 
+    it("refuses to publish a repository that yielded no categories", async () => {
+      const { service, templateFetcher, fsMock } = setup();
+
+      templateFetcher.fetchAwesomeAkashTemplates.mockResolvedValue([]);
+
+      await expect(service.getTemplateGallery()).rejects.toThrow("Refusing to cache an empty template gallery for akash-network/awesome-akash@abc123");
+      expect(fsMock.writeFile).not.toHaveBeenCalledWith(expect.stringContaining("akash-network-awesome-akash"), expect.anything());
+    });
+
     it("throws error when github request for latest commit sha fails and no cached files exist", async () => {
       const { service, templateFetcher, fsMock } = setup();
       const error = new Error("Network error");
@@ -156,7 +165,6 @@ describe(TemplateGalleryService.name, () => {
       const { service, templateFetcher, fsMock } = setup();
       const categoriesSchema = z.array(z.object({ title: z.string() }));
 
-      templateFetcher.fetchAwesomeAkashTemplates.mockResolvedValue([]);
       fsMock.mkdir.mockResolvedValue(undefined);
       fsMock.writeFile.mockResolvedValue(undefined);
 
@@ -353,8 +361,10 @@ describe(TemplateGalleryService.name, () => {
 
     const templateFetcher = mock<TemplateFetcherService>({
       fetchLatestCommitSha: vi.fn(() => Promise.resolve("abc123")),
-      fetchAwesomeAkashTemplates: vi.fn(() => Promise.resolve([])),
-      fetchOmnibusTemplates: vi.fn(() => Promise.resolve([])),
+      fetchAwesomeAkashTemplates: vi.fn(() =>
+        Promise.resolve([createCategory({ title: "AI", templates: [{ id: "awesome-akash-1", name: "Awesome Akash 1" }] })])
+      ),
+      fetchOmnibusTemplates: vi.fn(() => Promise.resolve([createCategory({ title: "Blockchain", templates: [{ id: "omnibus-1", name: "Omnibus 1" }] })])),
       clearArchiveCache: vi.fn()
     });
 

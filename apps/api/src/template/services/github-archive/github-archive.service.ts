@@ -1,3 +1,4 @@
+import { ExponentialBackoff, handleWhen, retry, type RetryPolicy } from "cockatiel";
 import { LRUCache } from "lru-cache";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -5,6 +6,15 @@ import { createGunzip } from "node:zlib";
 import tar from "tar";
 
 import type { CreateLogger } from "@src/core";
+
+/** The template repo archives are ~70 MB each, so the download budget has to bound stalls rather than total transfer time. */
+const DOWNLOAD_STALL_TIMEOUT_MS = 30_000;
+
+const MAX_DOWNLOAD_RETRIES = 2;
+const RETRY_INITIAL_DELAY_MS = 1_000;
+const RETRY_MAX_DELAY_MS = 10_000;
+
+class ArchiveNotAvailableError extends Error {}
 
 export interface DirectoryEntry {
   name: string;
@@ -22,12 +32,34 @@ interface ParsedArchive {
   directories: Map<string, DirectoryEntry[]>;
 }
 
+async function* streamWhileMakingProgress(body: ReadableStream<Uint8Array>, onProgress: () => void) {
+  const reader = body.getReader();
+
+  try {
+    for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
+      onProgress();
+      yield chunk.value;
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
+}
+
 export class GitHubArchiveService {
   readonly #cache = new LRUCache<string, Promise<ArchiveReader>>({ max: 10 });
   readonly #logger: ReturnType<CreateLogger>;
+  readonly #downloadPolicy: RetryPolicy;
 
   constructor(logger: ReturnType<CreateLogger>) {
     this.#logger = logger;
+    this.#downloadPolicy = retry(
+      handleWhen(error => !(error instanceof ArchiveNotAvailableError)),
+      {
+        maxAttempts: MAX_DOWNLOAD_RETRIES,
+        backoff: new ExponentialBackoff({ initialDelay: RETRY_INITIAL_DELAY_MS, maxDelay: RETRY_MAX_DELAY_MS })
+      }
+    );
   }
 
   async getArchive(owner: string, repo: string, ref: string, fileFilter?: (relativePath: string) => boolean): Promise<ArchiveReader> {
@@ -54,19 +86,57 @@ export class GitHubArchiveService {
 
   async #downloadAndParse(owner: string, repo: string, ref: string, fileFilter?: (relativePath: string) => boolean): Promise<ArchiveReader> {
     const url = `https://github.com/${owner}/${repo}/archive/${ref}.tar.gz`;
-    const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
 
-    if (!response.ok) {
-      throw new Error(`Failed to download archive from ${url}: ${response.status} ${response.statusText}`);
-    }
+    const parsedArchive = await this.#downloadPolicy.execute(async ({ attempt }) => {
+      try {
+        return await this.#downloadAndExtract(url, fileFilter);
+      } catch (error) {
+        this.#logger.warn({
+          event: "ARCHIVE_DOWNLOAD_ATTEMPT_FAILED",
+          url,
+          attempt: attempt + 1,
+          maxAttempts: MAX_DOWNLOAD_RETRIES + 1,
+          error
+        });
+        throw error;
+      }
+    });
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const parsed = await this.#extractArchive(buffer, fileFilter);
-
-    return this.#createArchiveReader(parsed);
+    return this.#createArchiveReader(parsedArchive);
   }
 
-  async #extractArchive(buffer: Buffer, fileFilter?: (relativePath: string) => boolean): Promise<ParsedArchive> {
+  async #downloadAndExtract(url: string, fileFilter?: (relativePath: string) => boolean): Promise<ParsedArchive> {
+    const abortWhenStalled = new AbortController();
+    let stallTimer: NodeJS.Timeout | undefined;
+
+    const restartStallTimer = () => {
+      clearTimeout(stallTimer);
+      stallTimer = setTimeout(
+        () => abortWhenStalled.abort(new Error(`Archive download from ${url} received no data for ${DOWNLOAD_STALL_TIMEOUT_MS}ms`)),
+        DOWNLOAD_STALL_TIMEOUT_MS
+      );
+    };
+
+    try {
+      restartStallTimer();
+      const response = await fetch(url, { signal: abortWhenStalled.signal });
+
+      if (!response.ok) {
+        const message = `Failed to download archive from ${url}: ${response.status} ${response.statusText}`;
+        throw response.status >= 400 && response.status < 500 ? new ArchiveNotAvailableError(message) : new Error(message);
+      }
+
+      if (!response.body) {
+        throw new Error(`Archive download from ${url} returned no body`);
+      }
+
+      return await this.#extractArchive(Readable.from(streamWhileMakingProgress(response.body, restartStallTimer)), fileFilter);
+    } finally {
+      clearTimeout(stallTimer);
+    }
+  }
+
+  async #extractArchive(source: Readable, fileFilter?: (relativePath: string) => boolean): Promise<ParsedArchive> {
     const files = new Map<string, string>();
     const dirChildren = new Map<string, Map<string, DirectoryEntry>>();
     let rootPrefix = "";
@@ -120,7 +190,7 @@ export class GitHubArchiveService {
       }
     });
 
-    await pipeline(Readable.from(buffer), createGunzip(), parser);
+    await pipeline(source, createGunzip(), parser);
 
     const directories = new Map<string, DirectoryEntry[]>();
     for (const [dirPath, childMap] of dirChildren) {

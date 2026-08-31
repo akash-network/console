@@ -317,6 +317,11 @@ export class TemplateGalleryService {
         commitSha: latestCommitSha
       });
       const categories = await fetchTemplates(latestCommitSha);
+
+      if (categories.length === 0) {
+        throw new Error(`Refusing to cache an empty template gallery for ${repoOwner}/${repoName}@${latestCommitSha}`);
+      }
+
       await this.#fs.mkdir(path.dirname(cacheFilePath), { recursive: true });
       await this.#fs.writeFile(cacheFilePath, JSON.stringify(categories, null, 2));
 
