@@ -37,7 +37,7 @@ const AUTO_RELOAD_THRESHOLD_MIN_USD = 10;
 const AUTO_RELOAD_MAX_USD = 10_000;
 
 /** Mirrors the API's AUTO_RELOAD_AMOUNT_MIN_USD — the floor applied to every recurring auto-top-up charge, independent of the trial-aware one-time top-up minimum. */
-const AUTO_RELOAD_AMOUNT_MIN_USD = 25;
+export const AUTO_RELOAD_AMOUNT_MIN_USD = 25;
 
 /**
  * Mirrors the API's AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN, which defaults to 60. Threshold mode takes an hourly per-wallet

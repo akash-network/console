@@ -108,6 +108,20 @@ describe(BalanceBreakdownBar.name, () => {
     expect(screen.getByRole("img").children).toHaveLength(2);
   });
 
+  it("keeps the threshold line but drops the caption when the host hides it", () => {
+    setup({
+      segments: [
+        { key: "d1", label: "llama", amountUsd: 1000, color: "hsl(var(--primary))" },
+        { key: "available", label: "Available", amountUsd: 1000, color: "hsl(var(--success))" }
+      ],
+      threshold: 250,
+      hideThresholdCaption: true
+    });
+
+    expect(screen.getByTestId("balance-threshold-line")).toBeInTheDocument();
+    expect(screen.queryByTestId("balance-threshold-caption")).not.toBeInTheDocument();
+  });
+
   it("drops the marker when available is at or below the threshold", () => {
     setup({
       segments: [
@@ -121,10 +135,10 @@ describe(BalanceBreakdownBar.name, () => {
     expect(screen.queryByTestId("balance-threshold-caption")).not.toBeInTheDocument();
   });
 
-  function setup(input: { segments: Parameters<typeof BalanceBreakdownBar>[0]["segments"]; threshold?: number | null }) {
+  function setup(input: { segments: Parameters<typeof BalanceBreakdownBar>[0]["segments"]; threshold?: number | null; hideThresholdCaption?: boolean }) {
     return render(
       <IntlProvider locale="en-US">
-        <BalanceBreakdownBar segments={input.segments} threshold={input.threshold} />
+        <BalanceBreakdownBar segments={input.segments} threshold={input.threshold} hideThresholdCaption={input.hideThresholdCaption} />
       </IntlProvider>
     );
   }

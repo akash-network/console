@@ -2911,6 +2911,55 @@
         }
       }
     },
+    "/v1/deployment-funding-config": {
+      "get": {
+        "summary": "Get deployment funding config",
+        "operationId": "getDeploymentFundingConfig",
+        "tags": [
+          "Deployments"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Returns the platform constants automatic deployment funding runs on",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "targetRunwayHours": {
+                          "type": "number",
+                          "description": "Hours of runtime automatic funding reserves for a deployment once its lease starts"
+                        },
+                        "balanceHeadroomUsd": {
+                          "type": "number",
+                          "description": "USD amount automatic funding leaves untouched in the available balance so new deployments can still be created"
+                        },
+                        "defaultDepositUsd": {
+                          "type": "number",
+                          "description": "USD amount every deployment is bootstrapped with at creation, before funding tops it up toward the target runway"
+                        }
+                      },
+                      "required": [
+                        "targetRunwayHours",
+                        "balanceHeadroomUsd",
+                        "defaultDepositUsd"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/deployment-settings/{userId}/{dseq}": {
       "get": {
         "summary": "Get deployment settings by user ID and dseq",
@@ -3083,7 +3132,7 @@
                     "properties": {
                       "autoTopUpEnabled": {
                         "type": "boolean",
-                        "description": "Whether auto top-up is enabled for this deployment"
+                        "description": "Whether auto top-up is enabled for this deployment. An explicit false is rejected once always-on funding is rolled out"
                       },
                       "runtimeLimitHours": {
                         "type": "integer",
@@ -3265,8 +3314,7 @@
                       },
                       "autoTopUpEnabled": {
                         "type": "boolean",
-                        "default": false,
-                        "description": "Whether auto top-up is enabled for this deployment"
+                        "description": "Whether auto top-up is enabled for this deployment. Defaults to enabled when omitted; an explicit false is rejected once always-on funding is rolled out"
                       }
                     },
                     "required": [
@@ -3531,7 +3579,7 @@
                     "properties": {
                       "autoTopUpEnabled": {
                         "type": "boolean",
-                        "description": "Whether auto top-up is enabled for this deployment"
+                        "description": "Whether auto top-up is enabled for this deployment. An explicit false is rejected once always-on funding is rolled out"
                       },
                       "runtimeLimitHours": {
                         "type": "integer",
@@ -3709,8 +3757,7 @@
                       },
                       "autoTopUpEnabled": {
                         "type": "boolean",
-                        "default": false,
-                        "description": "Whether auto top-up is enabled for this deployment"
+                        "description": "Whether auto top-up is enabled for this deployment. Defaults to enabled when omitted; an explicit false is rejected once always-on funding is rolled out"
                       },
                       "userId": {
                         "type": "string",
@@ -7645,6 +7692,108 @@
                   },
                   "required": [
                     "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sdl-secrets-context": {
+      "get": {
+        "summary": "Get SDL secrets encryption context",
+        "tags": [
+          "SDL Secrets"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns SDL secrets context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sub": {
+                      "type": "string",
+                      "description": "The subject of the SDL secrets context"
+                    },
+                    "kid": {
+                      "type": "string",
+                      "description": "The key ID of the SDL secrets context"
+                    },
+                    "jwk": {
+                      "type": "object",
+                      "properties": {
+                        "kty": {
+                          "type": "string"
+                        },
+                        "n": {
+                          "type": "string"
+                        },
+                        "e": {
+                          "type": "string"
+                        },
+                        "use": {
+                          "type": "string"
+                        },
+                        "alg": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kty",
+                        "n",
+                        "e",
+                        "use",
+                        "alg"
+                      ],
+                      "description": "The JSON Web Key used to encrypt the SDL secrets"
+                    },
+                    "requiredClaims": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "kid",
+                          "sub",
+                          "exp"
+                        ]
+                      },
+                      "description": "The required claims for the SDL secrets context"
+                    }
+                  },
+                  "required": [
+                    "sub",
+                    "kid",
+                    "jwk",
+                    "requiredClaims"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SDL secrets encryption is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
                   ]
                 }
               }

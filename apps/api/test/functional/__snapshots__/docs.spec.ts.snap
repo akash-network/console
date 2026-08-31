@@ -5444,6 +5444,55 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/deployment-funding-config": {
+      "get": {
+        "operationId": "getDeploymentFundingConfig",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "balanceHeadroomUsd": {
+                          "description": "USD amount automatic funding leaves untouched in the available balance so new deployments can still be created",
+                          "type": "number",
+                        },
+                        "defaultDepositUsd": {
+                          "description": "USD amount every deployment is bootstrapped with at creation, before funding tops it up toward the target runway",
+                          "type": "number",
+                        },
+                        "targetRunwayHours": {
+                          "description": "Hours of runtime automatic funding reserves for a deployment once its lease starts",
+                          "type": "number",
+                        },
+                      },
+                      "required": [
+                        "targetRunwayHours",
+                        "balanceHeadroomUsd",
+                        "defaultDepositUsd",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns the platform constants automatic deployment funding runs on",
+          },
+        },
+        "security": [],
+        "summary": "Get deployment funding config",
+        "tags": [
+          "Deployments",
+        ],
+      },
+    },
     "/v1/deployment-settings": {
       "post": {
         "requestBody": {

@@ -5,6 +5,7 @@ export * from "./useManagedWalletQuery";
 export * from "./useApiKeysQuery";
 export * from "./usePaymentQueries";
 export * from "./useUsageQuery";
+export * from "./useDeploymentFundingConfigQuery";
 export * from "./useWalletSettingsQueries";
 export * from "./useDeploymentQueries";
 export * from "./useDeploymentQueries";
