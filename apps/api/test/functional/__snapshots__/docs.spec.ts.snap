@@ -15548,6 +15548,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "description": "Minimum USD amount accepted by the next paid top-up for this wallet.",
                             "type": "number",
                           },
+                          "trialEndsAt": {
+                            "description": "When the free trial expires, or null when the wallet is no longer trialing.",
+                            "nullable": true,
+                            "type": "string",
+                          },
                           "userId": {
                             "type": "string",
                           },
@@ -15559,6 +15564,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "address",
                           "denom",
                           "isTrialing",
+                          "trialEndsAt",
                           "topUpMinAmountUsd",
                           "createdAt",
                         ],

@@ -3,13 +3,13 @@ import { Trace, withSpan } from "@akashnetwork/instrumentation";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { ConstantBackoff, handleWhenResult, type IPolicy, retry } from "cockatiel";
 import add from "date-fns/add";
-import addDays from "date-fns/addDays";
 import isAfter from "date-fns/isAfter";
 import subDays from "date-fns/subDays";
 import assert from "http-assert";
 import { BadGateway } from "http-errors";
 import { inject, singleton } from "tsyringe";
 
+import { getTrialEndsAt, getTrialStartedAt } from "@src/billing/lib/trial-window/trial-window";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import type { UserWalletOutput } from "@src/billing/repositories";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
@@ -112,10 +112,9 @@ export class ManagedUserWalletService {
   async refillWalletFees(signer: ManagedSignerService, wallet: Pick<UserWalletOutput, "address" | "isTrialing" | "createdAt" | "activatedAt">) {
     assert(wallet.address, 402, "Wallet is not initialized");
 
-    const trialStartedAt = wallet.activatedAt ?? wallet.createdAt;
     const trialWindowStart = subDays(new Date(), this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS);
-    const isInTrialWindow = wallet.isTrialing && isAfter(trialStartedAt, trialWindowStart);
-    const expiration = isInTrialWindow ? addDays(trialStartedAt, this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS) : undefined;
+    const isInTrialWindow = wallet.isTrialing && isAfter(getTrialStartedAt(wallet), trialWindowStart);
+    const expiration = isInTrialWindow ? getTrialEndsAt(wallet, this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS) : undefined;
     const fees = this.config.FEE_ALLOWANCE_REFILL_AMOUNT;
 
     await this.authorizeSpending(signer, {

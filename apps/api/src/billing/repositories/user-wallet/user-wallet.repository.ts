@@ -34,6 +34,7 @@ export interface UserWalletPublicOutput {
   address: WalletInitialized["address"];
   creditAmount: UserWalletOutput["creditAmount"];
   isTrialing: boolean;
+  trialEndsAt: Date | null;
   createdAt: UserWalletOutput["createdAt"];
 }
 
@@ -197,13 +198,14 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return dbInput;
   }
 
-  toPublic(output: WalletInitialized): UserWalletPublicOutput {
+  toPublic(output: WalletInitialized, options: { trialEndsAt: Date | null } = { trialEndsAt: null }): UserWalletPublicOutput {
     return {
       id: output.id,
       userId: output.userId,
       address: output.address,
       creditAmount: output.creditAmount,
       isTrialing: !!output.isTrialing,
+      trialEndsAt: options.trialEndsAt,
       createdAt: output.createdAt
     };
   }

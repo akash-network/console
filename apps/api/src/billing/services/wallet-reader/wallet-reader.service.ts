@@ -10,6 +10,7 @@ import {
   UserWalletRepository,
   type WalletInitialized
 } from "@src/billing/repositories";
+import { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 
 export interface GetWalletOptions {
   userId: string;
@@ -19,7 +20,8 @@ export interface GetWalletOptions {
 export class WalletReaderService {
   constructor(
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    private readonly trialValidationService: TrialValidationService
   ) {}
 
   async getWallets(query: GetWalletOptions): Promise<UserWalletPublicOutput[]> {
@@ -27,7 +29,7 @@ export class WalletReaderService {
 
     return wallets
       .filter((wallet): wallet is WalletInitialized => wallet.activatedAt !== null && isWalletInitialized(wallet))
-      .map(wallet => this.userWalletRepository.toPublic(wallet));
+      .map(wallet => this.userWalletRepository.toPublic(wallet, { trialEndsAt: this.trialValidationService.getTrialEndsAt(wallet) }));
   }
 
   async getWalletByUserId(userId: string): Promise<WalletInitialized>;
