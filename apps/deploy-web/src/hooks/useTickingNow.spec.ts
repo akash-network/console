@@ -39,6 +39,26 @@ describe(useTickingNow.name, () => {
     }
   });
 
+  it("reads the clock again when enabling, so a deadline that lands mid-session is not measured against the mount-time clock", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-21T12:00:00.000Z"));
+
+    try {
+      const { result, rerender } = renderHook(({ enabled }) => useTickingNow(enabled), { initialProps: { enabled: false } });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+      });
+      await act(async () => {
+        rerender({ enabled: true });
+      });
+
+      expect(result.current).toBe(new Date("2026-08-21T12:05:00.000Z").getTime());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("stops ticking once disabled", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-21T12:00:00.000Z"));

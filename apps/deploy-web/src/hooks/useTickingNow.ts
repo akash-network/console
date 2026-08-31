@@ -21,8 +21,8 @@ export const DEFAULT_TICK_INTERVAL_MS = 60_000;
  *
  * Behavior:
  * - While disabled there is no interval and no re-renders; the returned time holds at the last value (the
- *   mount-time clock, or the final tick before disabling) — safe, because disabled means nothing on screen
- *   depends on the clock.
+ *   mount-time clock, or the final tick before disabling). Enabling reads the clock again before the first
+ *   tick, so a deadline that lands mid-session is measured against the real current time.
  * - The effect re-subscribes whenever `enabled` or `intervalMs` changes and always clears its interval on
  *   unmount, so switching deadlines or navigating away never leaks a timer.
  * - Ticks land on interval boundaries relative to subscription, not wall-clock minutes; exact alignment does
@@ -44,6 +44,8 @@ export function useTickingNow(enabled: boolean, intervalMs = DEFAULT_TICK_INTERV
   useEffect(
     function tickWhileEnabled() {
       if (!enabled) return;
+
+      setNow(Date.now());
       const interval = setInterval(function advanceNow() {
         setNow(Date.now());
       }, intervalMs);
