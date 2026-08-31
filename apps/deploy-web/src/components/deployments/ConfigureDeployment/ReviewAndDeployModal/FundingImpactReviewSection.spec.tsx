@@ -102,6 +102,18 @@ describe("FundingImpactReviewSection", () => {
     expect(screen.getByRole("link", { name: "Add Credits" })).toHaveAttribute("href", UrlService.billing({ openPayment: true }));
   });
 
+  it("names the trial and its duration without claiming anything about a card", async () => {
+    setup({ impact: visible({ state: "trial", trialDurationHours: 12 }) });
+
+    expect(screen.getByText("Trial")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Reserved/ }));
+
+    expect(screen.getByText(/closed automatically after 12 hours/)).toBeInTheDocument();
+    expect(screen.queryByText(/payment method/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/charged \$/)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Add Credits" })).toHaveAttribute("href", UrlService.billing({ openPayment: true }));
+  });
+
   it("offers credits and drops the bar when the balance cannot cover the reserve", async () => {
     setup({ impact: visible({ state: "not-enough-available", availableAfterUsd: null, availableNowUsd: 100 }) });
 
@@ -123,6 +135,7 @@ describe("FundingImpactReviewSection", () => {
       thresholdUsd: null,
       chargeUsd: 100,
       cardLabel: "Visa **** 4242",
+      trialDurationHours: 24,
       ...overrides
     };
   }

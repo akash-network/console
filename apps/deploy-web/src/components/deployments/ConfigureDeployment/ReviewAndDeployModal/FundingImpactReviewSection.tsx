@@ -28,10 +28,18 @@ type Props = {
 
 type VisibleImpact = Extract<FundingImpact, { kind: "visible" }>;
 
-const STATE_BADGES: Partial<Record<VisibleImpact["state"], string>> = {
-  "crosses-threshold": "Buys credits",
-  "no-payment-method": "No payment method",
-  "not-enough-available": "Not enough available"
+type Badge = { label: string; tone: "warning" | "neutral" };
+
+const STATE_BADGES: Partial<Record<VisibleImpact["state"], Badge>> = {
+  "crosses-threshold": { label: "Buys credits", tone: "warning" },
+  trial: { label: "Trial", tone: "neutral" },
+  "no-payment-method": { label: "No payment method", tone: "warning" },
+  "not-enough-available": { label: "Not enough available", tone: "warning" }
+};
+
+const BADGE_TONES: Record<Badge["tone"], string> = {
+  warning: "border-destructive/60 text-destructive",
+  neutral: "border-muted-foreground/40 text-muted-foreground"
 };
 
 /**
@@ -88,9 +96,7 @@ export const FundingImpactReviewSection: FC<Props> = ({ rows, runtimeLimitHours,
           {runtimeLimitHours !== undefined && <span className="text-muted-foreground"> · {formatRuntime(runtimeLimitHours)} of runtime</span>}
         </span>
         <span className="flex shrink-0 items-center gap-3">
-          {badge && (
-            <span className="rounded border border-destructive/60 px-2 py-0.5 font-mono text-xs uppercase tracking-wide text-destructive">{badge}</span>
-          )}
+          {badge && <span className={`rounded border px-2 py-0.5 font-mono text-xs uppercase tracking-wide ${BADGE_TONES[badge.tone]}`}>{badge.label}</span>}
           <NavArrowDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
         </span>
       </CollapsibleTrigger>
@@ -153,6 +159,15 @@ function renderStateDetails(impact: VisibleImpact, usd: (value: number) => React
             your Auto Top-Up threshold of <span className="font-medium">{impact.thresholdUsd === null ? "—" : usd(impact.thresholdUsd)}</span>.{" "}
             {impact.cardLabel ?? "Your default card"} is charged <span className="font-medium">{usd(impact.chargeUsd)}</span> for credits.
           </span>
+        </Callout>
+      );
+    case "trial":
+      return (
+        <Callout tone="neutral">
+          <span className="flex-1">
+            Trial deployments are closed automatically after {impact.trialDurationHours} hours. Add funds to activate your account and keep deployments running.
+          </span>
+          {addCreditsButton}
         </Callout>
       );
     case "no-payment-method":

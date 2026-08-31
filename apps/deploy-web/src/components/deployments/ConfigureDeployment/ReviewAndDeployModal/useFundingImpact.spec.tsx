@@ -107,6 +107,31 @@ describe(useFundingImpact.name, () => {
     expect(result.current).toMatchObject({ state: "not-enough-available" });
   });
 
+  it("reports the trial rather than a missing payment method for a trialing account", () => {
+    const { result } = setup({ isTrialing: true, paymentMethod: null });
+    expect(result.current).toMatchObject({ state: "trial" });
+  });
+
+  it("keeps the charge warning for a trialing account whose card would be charged", () => {
+    const { result } = setup({ isTrialing: true, overview: { available: 200, autoReloadThreshold: 56.5 } });
+    expect(result.current).toMatchObject({ state: "crosses-threshold" });
+  });
+
+  it("ranks not enough available above the trial", () => {
+    const { result } = setup({ isTrialing: true, overview: { available: 100 } });
+    expect(result.current).toMatchObject({ state: "not-enough-available" });
+  });
+
+  it("reports the trial for a trialing account with a card below the threshold rule", () => {
+    const { result } = setup({ isTrialing: true, overview: { available: 200, autoReloadThreshold: null } });
+    expect(result.current).toMatchObject({ state: "trial" });
+  });
+
+  it("quotes the configured trial deployment duration", () => {
+    const { result } = setup({ trialDurationHours: 12 });
+    expect(result.current).toMatchObject({ trialDurationHours: 12 });
+  });
+
   it("never claims a charge without a payment method, even when the threshold would be crossed", () => {
     const { result } = setup({ overview: { available: 200, autoReloadThreshold: 56 }, paymentMethod: null });
     expect(result.current).toMatchObject({ state: "no-payment-method" });
@@ -148,6 +173,8 @@ describe(useFundingImpact.name, () => {
     paymentMethod?: { card?: { brand: string | null; last4: string | null } | null } | null;
     isPaymentMethodLoading?: boolean;
     isPaymentMethodError?: boolean;
+    isTrialing?: boolean;
+    trialDurationHours?: number;
   }) {
     type Dependencies = typeof DEPENDENCIES;
     const overview = Object.assign(mock<AccountBalanceOverview>(), {
@@ -176,6 +203,11 @@ describe(useFundingImpact.name, () => {
       usePricing: () => Object.assign(mock<ReturnType<Dependencies["usePricing"]>>(), { udenomToUsd: (amount: number) => amount }),
       useWalletSettingsQuery: () => walletSettings,
       useDefaultPaymentMethodQuery: () => paymentMethod,
+      useWallet: () => Object.assign(mock<ReturnType<Dependencies["useWallet"]>>(), { isTrialing: input.isTrialing ?? false }),
+      useServices: () =>
+        Object.assign(mock<ReturnType<Dependencies["useServices"]>>(), {
+          publicConfig: { NEXT_PUBLIC_TRIAL_DEPLOYMENTS_DURATION_HOURS: input.trialDurationHours ?? 24 }
+        }),
       useDeploymentFundingConfigQuery: () => fundingConfig
     } as unknown as Dependencies;
 

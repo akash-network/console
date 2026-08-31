@@ -1,6 +1,8 @@
 "use client";
 import { useAccountBalanceOverview } from "@src/components/billing-usage/AccountBalanceOverview/useAccountBalanceOverview";
 import { AUTO_RELOAD_AMOUNT_MIN_USD, DEFAULT_AUTO_RELOAD_AMOUNT } from "@src/components/billing-usage/AutoTopUpSettingsPopup/AutoTopUpSettingsPopup";
+import { useServices } from "@src/context/ServicesProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { useIsEscrowAbstracted } from "@src/hooks/useIsEscrowAbstracted";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useDeploymentFundingConfigQuery, useWalletSettingsQuery } from "@src/queries";
@@ -15,10 +17,12 @@ export const DEPENDENCIES = {
   usePricing,
   useWalletSettingsQuery,
   useDefaultPaymentMethodQuery,
+  useWallet,
+  useServices,
   useDeploymentFundingConfigQuery
 };
 
-export type FundingImpactState = "funded" | "crosses-threshold" | "no-payment-method" | "not-enough-available";
+export type FundingImpactState = "funded" | "crosses-threshold" | "trial" | "no-payment-method" | "not-enough-available";
 
 export type FundingImpact =
   | { kind: "hidden" }
@@ -34,6 +38,7 @@ export type FundingImpact =
       thresholdUsd: number | null;
       chargeUsd: number;
       cardLabel: string | null;
+      trialDurationHours: number;
     };
 
 type Input = {
@@ -54,6 +59,8 @@ export function useFundingImpact({ rows, runtimeLimitHours, dependencies: d = DE
   const { udenomToUsd } = d.usePricing();
   const { data: walletSettings } = d.useWalletSettingsQuery();
   const defaultPaymentMethod = d.useDefaultPaymentMethodQuery();
+  const { isTrialing } = d.useWallet();
+  const { publicConfig } = d.useServices();
   const fundingConfig = d.useDeploymentFundingConfigQuery();
 
   const pricedRows = rows.filter((row): row is ReviewRow & { price: { amount: string; denom: string } } => !!row.price);
@@ -78,24 +85,31 @@ export function useFundingImpact({ rows, runtimeLimitHours, dependencies: d = DE
 
   return {
     kind: "visible",
-    state: resolveState({ availableAfterUsd, thresholdUsd, hasPaymentMethod }),
+    state: resolveState({ availableAfterUsd, thresholdUsd, hasPaymentMethod, isTrialing }),
     reserveUsd,
     availableNowUsd,
     availableAfterUsd,
     thresholdUsd,
     chargeUsd: Math.max(walletSettings?.autoReloadAmount ?? DEFAULT_AUTO_RELOAD_AMOUNT, AUTO_RELOAD_AMOUNT_MIN_USD),
-    cardLabel: card ? `${capitalizeFirstLetter(card.brand || "card")} **** ${card.last4 || ""}`.trim() : null
+    cardLabel: card ? `${capitalizeFirstLetter(card.brand || "card")} **** ${card.last4 || ""}`.trim() : null,
+    trialDurationHours: publicConfig.NEXT_PUBLIC_TRIAL_DEPLOYMENTS_DURATION_HOURS
   };
 }
 
 /**
- * First match wins: a balance that cannot cover the reserve outranks everything, then the missing payment
- * method (no charge can happen, so no crossing warning may claim one), then the threshold crossing, then
- * plain funded.
+ * First match wins: a balance that cannot cover the reserve outranks everything, then a charge that is
+ * really coming (auto top-up ignores the trial flag, so a trialing card gets charged like any other), then
+ * the trial, so a trialing account is never told its card is missing, then the genuinely missing card.
  */
-function resolveState(input: { availableAfterUsd: number | null; thresholdUsd: number | null; hasPaymentMethod: boolean }): FundingImpactState {
+function resolveState(input: {
+  availableAfterUsd: number | null;
+  thresholdUsd: number | null;
+  hasPaymentMethod: boolean;
+  isTrialing: boolean;
+}): FundingImpactState {
   if (input.availableAfterUsd === null) return "not-enough-available";
+  if (input.hasPaymentMethod && input.thresholdUsd !== null && input.availableAfterUsd <= input.thresholdUsd) return "crosses-threshold";
+  if (input.isTrialing) return "trial";
   if (!input.hasPaymentMethod) return "no-payment-method";
-  if (input.thresholdUsd !== null && input.availableAfterUsd <= input.thresholdUsd) return "crosses-threshold";
   return "funded";
 }
