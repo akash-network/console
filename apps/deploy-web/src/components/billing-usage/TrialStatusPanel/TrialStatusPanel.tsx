@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { Button, Card, CardContent, CardHeader, Progress, Skeleton } from "@akashnetwork/ui/components";
+import { Badge, Button, Card, CardContent, CardHeader, Progress, Skeleton } from "@akashnetwork/ui/components";
 import { Clock, Cpu, Lock } from "iconoir-react";
 
 import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
@@ -10,6 +10,7 @@ import { useTrialStatus } from "./useTrialStatus";
 export const DEPENDENCIES = {
   useTrialStatus,
   AddCreditsSheet,
+  Badge,
   Button,
   Card,
   CardContent,
@@ -40,7 +41,7 @@ export const TrialStatusPanel: React.FunctionComponent<{ dependencies?: typeof D
       <d.Card>
         <d.CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <h3 className="text-lg font-bold leading-none">Free trial</h3>
-          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">Trial</span>
+          <d.Badge variant="info">Trial</d.Badge>
         </d.CardHeader>
         <d.CardContent className="space-y-4">
           {trial.daysLeft === null ? (

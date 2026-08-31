@@ -84,6 +84,7 @@ describe("TrialStatusPanel", () => {
           Card: DEPENDENCIES.Card,
           CardContent: DEPENDENCIES.CardContent,
           CardHeader: DEPENDENCIES.CardHeader,
+          Badge: DEPENDENCIES.Badge,
           Button: DEPENDENCIES.Button,
           Progress: DEPENDENCIES.Progress,
           useTrialStatus,
