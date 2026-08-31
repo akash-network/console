@@ -1,7 +1,6 @@
 "use client";
 import { useAccountBalanceOverview } from "@src/components/billing-usage/AccountBalanceOverview/useAccountBalanceOverview";
 import { AUTO_RELOAD_AMOUNT_MIN_USD, DEFAULT_AUTO_RELOAD_AMOUNT } from "@src/components/billing-usage/AutoTopUpSettingsPopup/AutoTopUpSettingsPopup";
-import { useWallet } from "@src/context/WalletProvider";
 import { useIsEscrowAbstracted } from "@src/hooks/useIsEscrowAbstracted";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useDeploymentFundingConfigQuery, useWalletSettingsQuery } from "@src/queries";
@@ -16,7 +15,6 @@ export const DEPENDENCIES = {
   usePricing,
   useWalletSettingsQuery,
   useDefaultPaymentMethodQuery,
-  useWallet,
   useDeploymentFundingConfigQuery
 };
 
@@ -56,13 +54,12 @@ export function useFundingImpact({ rows, runtimeLimitHours, dependencies: d = DE
   const { udenomToUsd } = d.usePricing();
   const { data: walletSettings } = d.useWalletSettingsQuery();
   const defaultPaymentMethod = d.useDefaultPaymentMethodQuery();
-  const { isTrialing } = d.useWallet();
   const fundingConfig = d.useDeploymentFundingConfigQuery();
 
   const pricedRows = rows.filter((row): row is ReviewRow & { price: { amount: string; denom: string } } => !!row.price);
 
   if (!isEscrowAbstracted || pricedRows.length === 0) return { kind: "hidden" };
-  if (overview.isError || fundingConfig.isError) return { kind: "unavailable" };
+  if (overview.isError || fundingConfig.isError || defaultPaymentMethod.isError) return { kind: "unavailable" };
   if (overview.isLoading || !fundingConfig.data || defaultPaymentMethod.isLoading) return { kind: "loading" };
 
   const { targetRunwayHours, defaultDepositUsd } = fundingConfig.data;
@@ -76,7 +73,7 @@ export function useFundingImpact({ rows, runtimeLimitHours, dependencies: d = DE
   const availableNowUsd = overview.available;
   const availableAfterUsd = availableNowUsd >= remainingDrawUsd ? availableNowUsd - remainingDrawUsd : null;
   const thresholdUsd = overview.autoReloadThreshold;
-  const hasPaymentMethod = !isTrialing && !!defaultPaymentMethod.data;
+  const hasPaymentMethod = !!defaultPaymentMethod.data;
   const card = defaultPaymentMethod.data?.card;
 
   return {
@@ -92,9 +89,9 @@ export function useFundingImpact({ rows, runtimeLimitHours, dependencies: d = DE
 }
 
 /**
- * First match wins: a balance that cannot cover the reserve outranks everything (its copy claims no
- * automatic charge, so it also holds for trial users), then the missing payment method (no charge can
- * happen, so no crossing warning may claim one), then the threshold crossing, then plain funded.
+ * First match wins: a balance that cannot cover the reserve outranks everything, then the missing payment
+ * method (no charge can happen, so no crossing warning may claim one), then the threshold crossing, then
+ * plain funded.
  */
 function resolveState(input: { availableAfterUsd: number | null; thresholdUsd: number | null; hasPaymentMethod: boolean }): FundingImpactState {
   if (input.availableAfterUsd === null) return "not-enough-available";

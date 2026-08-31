@@ -44,6 +44,11 @@ describe(useFundingImpact.name, () => {
     expect(result.current).toEqual({ kind: "unavailable" });
   });
 
+  it("reports the balance as unavailable when the default payment method errors", () => {
+    const { result } = setup({ isPaymentMethodError: true });
+    expect(result.current).toEqual({ kind: "unavailable" });
+  });
+
   it("reserves the target runway's worth of the priced rows, drawing only what the bootstrap deposit left", () => {
     const { result } = setup({ overview: { available: 200 } });
 
@@ -97,14 +102,9 @@ describe(useFundingImpact.name, () => {
     expect(result.current).toMatchObject({ state: "not-enough-available", reserveUsd: 144, availableNowUsd: 100, availableAfterUsd: null });
   });
 
-  it("ranks not enough available above the missing payment method for a broke trial user", () => {
-    const { result } = setup({ overview: { available: 100 }, isTrialing: true, paymentMethod: null });
+  it("ranks not enough available above the missing payment method", () => {
+    const { result } = setup({ overview: { available: 100 }, paymentMethod: null });
     expect(result.current).toMatchObject({ state: "not-enough-available" });
-  });
-
-  it("reports the missing payment method for a funded trial user even with a card on file", () => {
-    const { result } = setup({ isTrialing: true });
-    expect(result.current).toMatchObject({ state: "no-payment-method" });
   });
 
   it("never claims a charge without a payment method, even when the threshold would be crossed", () => {
@@ -147,7 +147,7 @@ describe(useFundingImpact.name, () => {
     walletSettings?: { autoReloadAmount?: number } | null;
     paymentMethod?: { card?: { brand: string | null; last4: string | null } | null } | null;
     isPaymentMethodLoading?: boolean;
-    isTrialing?: boolean;
+    isPaymentMethodError?: boolean;
   }) {
     type Dependencies = typeof DEPENDENCIES;
     const overview = Object.assign(mock<AccountBalanceOverview>(), {
@@ -166,7 +166,8 @@ describe(useFundingImpact.name, () => {
     });
     const paymentMethod = Object.assign(mock<ReturnType<Dependencies["useDefaultPaymentMethodQuery"]>>(), {
       data: input.paymentMethod === undefined ? { card: { brand: "visa", last4: "4242" } } : input.paymentMethod,
-      isLoading: input.isPaymentMethodLoading ?? false
+      isLoading: input.isPaymentMethodLoading ?? false,
+      isError: input.isPaymentMethodError ?? false
     });
 
     const dependencies = {
@@ -175,7 +176,6 @@ describe(useFundingImpact.name, () => {
       usePricing: () => Object.assign(mock<ReturnType<Dependencies["usePricing"]>>(), { udenomToUsd: (amount: number) => amount }),
       useWalletSettingsQuery: () => walletSettings,
       useDefaultPaymentMethodQuery: () => paymentMethod,
-      useWallet: () => Object.assign(mock<ReturnType<Dependencies["useWallet"]>>(), { isTrialing: input.isTrialing ?? false }),
       useDeploymentFundingConfigQuery: () => fundingConfig
     } as unknown as Dependencies;
 
