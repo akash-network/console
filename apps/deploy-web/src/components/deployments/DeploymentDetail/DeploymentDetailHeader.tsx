@@ -16,6 +16,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
 import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
 import { useDeploymentEscrowBalance } from "@src/hooks/useDeploymentEscrowBalance/useDeploymentEscrowBalance";
+import { useHasDeploymentStopped } from "@src/hooks/useHasDeploymentStopped";
 import { useIsEscrowAbstracted } from "@src/hooks/useIsEscrowAbstracted";
 import { useTickingNow } from "@src/hooks/useTickingNow";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
@@ -81,9 +82,12 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
   const costPerBlockUDenom = liveLeases.reduce((sum, lease) => sum + parseFloat(lease.price.amount), 0);
   const liveGpuCount = liveLeases.reduce((sum, lease) => sum + (lease.gpuAmount ?? 0), 0);
 
+  const hasStopped = useHasDeploymentStopped({ deployment, leases });
   const runtimeEndsAt = settings?.runtimeEndsAt ?? null;
-  const now = useTickingNow(!!runtimeEndsAt);
-  const runtimeLimitCountdown = settings?.runtimeLimitHours ? getRuntimeLimitCountdown(settings.runtimeLimitHours, runtimeEndsAt, now) : null;
+  const now = useTickingNow(!!runtimeEndsAt && !hasStopped);
+  const runtimeLimitCountdown = settings?.runtimeLimitHours
+    ? getRuntimeLimitCountdown({ runtimeLimitHours: settings.runtimeLimitHours, runtimeEndsAt, hasStopped, now })
+    : null;
 
   const storedDeployment = getDeploymentData(deployment.dseq);
   const storedManifest = storedDeployment?.manifest;
