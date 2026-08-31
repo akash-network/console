@@ -80,7 +80,11 @@ describe("useDeploymentSettingQuery", () => {
           .mockResolvedValueOnce(buildDeploymentSetting({ dseq, runtimeLimitHours: 2, runtimeEndsAt: null }))
           .mockResolvedValue(anchored);
 
-        const { result } = setup({ dseq, services: { deploymentSetting: () => mock<DeploymentSettingHttpService>({ findByDseq }) } });
+        const { result } = setup({
+          dseq,
+          pollUntilRuntimeAnchored: true,
+          services: { deploymentSetting: () => mock<DeploymentSettingHttpService>({ findByDseq }) }
+        });
 
         await act(async () => {
           await vi.advanceTimersByTimeAsync(0);
@@ -91,6 +95,25 @@ describe("useDeploymentSettingQuery", () => {
           await vi.advanceTimersByTimeAsync(RUNTIME_ANCHOR_POLL_MS * 2);
         });
         expect(result.current.data?.runtimeEndsAt).toBe(anchored.runtimeEndsAt);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("stays idle for a caller that renders no deadline, so a configure page holding a stored limit does not fetch in the background", async () => {
+      vi.useFakeTimers();
+
+      try {
+        const dseq = faker.string.numeric(6);
+        const findByDseq = vi.fn().mockResolvedValue(buildDeploymentSetting({ dseq, runtimeLimitHours: 2, runtimeEndsAt: null }));
+
+        setup({ dseq, services: { deploymentSetting: () => mock<DeploymentSettingHttpService>({ findByDseq }) } });
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(RUNTIME_ANCHOR_POLL_MS * 4);
+        });
+
+        expect(findByDseq).toHaveBeenCalledTimes(1);
       } finally {
         vi.useRealTimers();
       }
@@ -153,8 +176,8 @@ describe("useDeploymentSettingQuery", () => {
     });
   });
 
-  function setup(input: { dseq: string; services?: Record<string, () => unknown> }) {
-    return setupQuery(() => useDeploymentSettingQuery({ dseq: input.dseq }), {
+  function setup(input: { dseq: string; pollUntilRuntimeAnchored?: boolean; services?: Record<string, () => unknown> }) {
+    return setupQuery(() => useDeploymentSettingQuery({ dseq: input.dseq, pollUntilRuntimeAnchored: input.pollUntilRuntimeAnchored }), {
       services: {
         deploymentSetting: () => mock<DeploymentSettingHttpService>(),
         ...input.services

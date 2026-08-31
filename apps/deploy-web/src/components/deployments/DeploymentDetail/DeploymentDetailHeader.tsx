@@ -73,7 +73,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
   const { isTrialing } = d.useWallet();
   const isEscrowAbstracted = d.useIsEscrowAbstracted();
   const { balanceUdenom, denom } = d.useDeploymentEscrowBalance({ deployment, leases });
-  const { data: settings } = d.useDeploymentSettingQuery({ dseq: deployment.dseq });
+  const { data: settings } = d.useDeploymentSettingQuery({ dseq: deployment.dseq, pollUntilRuntimeAnchored: true });
   const teeTypes = d.useDeclaredTeeTypes(deployment);
   const interconnect = d.useDeclaredGpuInterconnect(deployment);
 
