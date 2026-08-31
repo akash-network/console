@@ -58,7 +58,7 @@ export function useAutoTopUp({ deployment, leases, onDeposited, dependencies: d 
   const { confirm } = d.usePopup();
   const formatCurrency = d.useCurrencyFormatter();
   const { udenomToUsd } = d.usePricing();
-  const deploymentSetting = d.useDeploymentSettingQuery({ dseq: deployment.dseq });
+  const deploymentSetting = d.useDeploymentSettingQuery({ dseq: deployment.dseq, pollUntilRuntimeAnchored: true });
   const { realTimeLeft, deploymentCost } = d.useDeploymentMetrics({ deployment, leases });
 
   const escrowDenom = getEscrowDenom(deployment);

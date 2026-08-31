@@ -124,6 +124,18 @@ describe("TrialDeploymentBadge", () => {
     expect(badge?.closest("div")).toBeInTheDocument();
   });
 
+  it("carries the info tone while the trial runs, so it reads apart from the status and capability badges beside it", () => {
+    setup({ blockHeight: 10000720 });
+
+    expect(screen.getByTestId("badge")).toHaveAttribute("data-variant", "info");
+  });
+
+  it("switches to the destructive tone once the trial expires", () => {
+    setup({ blockHeight: 10002880 });
+
+    expect(screen.getByTestId("badge")).toHaveAttribute("data-variant", "destructive");
+  });
+
   function setup(input: { blockHeight: number; trialDurationHours?: number; averageBlockTime?: number; className?: string; createdHeight?: number }) {
     const mockUseTrialTimeRemaining = mockFn<
       () => {
@@ -154,7 +166,7 @@ describe("TrialDeploymentBadge", () => {
       className: input.className,
       dependencies: {
         ...TRIAL_BADGE_DEPENDENCIES,
-        Badge: ComponentMock,
+        Badge: BadgeMock,
         CustomTooltip: ComponentMock,
         TrialDeploymentTooltip: ComponentMock,
         useTrialTimeRemaining: mockUseTrialTimeRemaining
@@ -164,3 +176,11 @@ describe("TrialDeploymentBadge", () => {
     render(<TrialDeploymentBadge {...props} />);
   }
 });
+
+function BadgeMock({ variant, children }: React.ComponentProps<typeof TRIAL_BADGE_DEPENDENCIES.Badge>) {
+  return (
+    <div data-testid="badge" data-variant={variant}>
+      {children}
+    </div>
+  );
+}

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { UpdateDeploymentSettingInput } from "@akashnetwork/http-sdk";
+import type { DeploymentSettingOutput, UpdateDeploymentSettingInput } from "@akashnetwork/http-sdk";
 import { isHttpError } from "@akashnetwork/http-sdk";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { millisecondsInMinute } from "date-fns/constants";
@@ -10,7 +10,8 @@ import { QueryKeys } from "./queryKeys";
 /**
  * Patches a deployment's settings and writes the response straight back into the settings query, so a
  * caller that has no query of its own (the review modal, which patches a deployment it is about to
- * deploy) still leaves the detail page's cache correct.
+ * deploy) still leaves the detail page's cache correct. An in-flight fetch is cancelled first, since one
+ * resolving after the write would put its pre-update snapshot back.
  */
 export function useUpdateDeploymentSettingMutation(params: { dseq: string }) {
   const queryKey = useMemo(() => QueryKeys.getDeploymentSettingKey(params.dseq), [params.dseq]);
@@ -19,13 +20,23 @@ export function useUpdateDeploymentSettingMutation(params: { dseq: string }) {
 
   return useMutation({
     mutationFn: (input: UpdateDeploymentSettingInput) => deploymentSetting.updateByDseq(params.dseq, input),
+    onMutate: () => queryClient.cancelQueries({ queryKey }),
     onSuccess: data => {
       queryClient.setQueryData(queryKey, data);
     }
   });
 }
 
-export function useDeploymentSettingQuery(params: { dseq: string }) {
+/** Cadence for re-polling a runtime limit whose deadline the lease has not anchored yet. */
+export const RUNTIME_ANCHOR_POLL_MS = 5_000;
+
+/** A runtime limit's deadline is anchored server-side at lease start, so a page opened before then holds a null deadline until something refetches. */
+export function getRuntimeAnchorPollInterval(setting: DeploymentSettingOutput | undefined, hasErrored: boolean): number | false {
+  if (hasErrored) return false;
+  return !!setting?.runtimeLimitHours && !setting.runtimeEndsAt ? RUNTIME_ANCHOR_POLL_MS : false;
+}
+
+export function useDeploymentSettingQuery(params: { dseq: string; pollUntilRuntimeAnchored?: boolean }) {
   const queryKey = useMemo(() => QueryKeys.getDeploymentSettingKey(params.dseq), [params.dseq]);
   const { deploymentSetting } = useServices();
 
@@ -34,6 +45,7 @@ export function useDeploymentSettingQuery(params: { dseq: string }) {
     queryFn: () => deploymentSetting.findByDseq(params.dseq),
     enabled: !!params.dseq,
     staleTime: 5 * millisecondsInMinute,
+    refetchInterval: query => (params.pollUntilRuntimeAnchored ? getRuntimeAnchorPollInterval(query.state.data, query.state.status === "error") : false),
     retry: (failureCount, error) => {
       if (isHttpError(error) && error.response?.status === 404) {
         return false;

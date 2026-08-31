@@ -40,7 +40,7 @@ export function TrialDeploymentBadge({ createdHeight, trialDurationHours, averag
       }
     >
       <div className="inline-flex items-center gap-1">
-        <d.Badge variant={isExpired ? "destructive" : "default"} className={cn("inline-flex cursor-help items-center gap-1", className)}>
+        <d.Badge variant={isExpired ? "destructive" : "info"} className={cn("inline-flex cursor-help items-center gap-1", className)}>
           <span>Trial</span>
           <Info className="h-3 w-3" />
         </d.Badge>
