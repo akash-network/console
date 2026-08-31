@@ -28,6 +28,11 @@ export function isWalletInitialized(wallet: UserWalletOutput): wallet is WalletI
   return !!wallet.address;
 }
 
+export interface TrialWindow {
+  trialEndsAt: Date | null;
+  trialDurationDays: number | null;
+}
+
 export interface UserWalletPublicOutput {
   id: UserWalletOutput["id"];
   userId: UserWalletOutput["userId"];
@@ -35,6 +40,7 @@ export interface UserWalletPublicOutput {
   creditAmount: UserWalletOutput["creditAmount"];
   isTrialing: boolean;
   trialEndsAt: Date | null;
+  trialDurationDays: number | null;
   createdAt: UserWalletOutput["createdAt"];
 }
 
@@ -198,14 +204,15 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return dbInput;
   }
 
-  toPublic(output: WalletInitialized, options: { trialEndsAt: Date | null } = { trialEndsAt: null }): UserWalletPublicOutput {
+  toPublic(output: WalletInitialized, trialWindow: TrialWindow = { trialEndsAt: null, trialDurationDays: null }): UserWalletPublicOutput {
     return {
       id: output.id,
       userId: output.userId,
       address: output.address,
       creditAmount: output.creditAmount,
       isTrialing: !!output.isTrialing,
-      trialEndsAt: options.trialEndsAt,
+      trialEndsAt: trialWindow.trialEndsAt,
+      trialDurationDays: trialWindow.trialDurationDays,
       createdAt: output.createdAt
     };
   }

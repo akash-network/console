@@ -223,10 +223,11 @@ describe(WalletInitializerService.name, () => {
         accessibleBy() {
           return this as unknown as UserWalletRepository;
         },
-        toPublic: (value, options) => ({
+        toPublic: (value, trialWindow) => ({
           ...value,
           isTrialing: !!value.isTrialing,
-          trialEndsAt: options?.trialEndsAt ?? null
+          trialEndsAt: trialWindow?.trialEndsAt ?? null,
+          trialDurationDays: trialWindow?.trialDurationDays ?? null
         })
       }) as unknown as UserWalletRepository
     );

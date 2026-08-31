@@ -8,7 +8,7 @@ import { singleton } from "tsyringe";
 
 import { STANDARD_TOP_UP_MIN_AMOUNT_USD } from "@src/billing/config";
 import { getTrialEndsAt } from "@src/billing/lib/trial-window/trial-window";
-import type { UserWalletOutput } from "@src/billing/repositories";
+import type { TrialWindow, UserWalletOutput } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { AUDITOR, TRIAL_ATTRIBUTE, TRIAL_REGISTERED_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
@@ -75,10 +75,12 @@ export class TrialValidationService {
     return userWallet.isTrialing ? this.config.get("MANAGED_WALLET_TRIAL_MIN_TOP_UP_AMOUNT") : STANDARD_TOP_UP_MIN_AMOUNT_USD;
   }
 
-  getTrialEndsAt(userWallet: Pick<UserWalletOutput, "isTrialing" | "activatedAt" | "createdAt">): Date | null {
-    if (!userWallet.isTrialing) return null;
+  getTrialWindow(userWallet: Pick<UserWalletOutput, "isTrialing" | "activatedAt" | "createdAt">): TrialWindow {
+    if (!userWallet.isTrialing) return { trialEndsAt: null, trialDurationDays: null };
 
-    return getTrialEndsAt(userWallet, this.config.get("TRIAL_ALLOWANCE_EXPIRATION_DAYS"));
+    const trialDurationDays = this.config.get("TRIAL_ALLOWANCE_EXPIRATION_DAYS");
+
+    return { trialEndsAt: getTrialEndsAt(userWallet, trialDurationDays), trialDurationDays };
   }
 
   validateTopUpAmount(userWallet: Pick<UserWalletOutput, "isTrialing" | "activatedAt"> | undefined, amountUsd: number) {

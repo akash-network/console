@@ -10,6 +10,7 @@ export interface ApiWalletOutput {
   creditAmount: number;
   isTrialing: boolean;
   trialEndsAt: string | null;
+  trialDurationDays: number | null;
   topUpMinAmountUsd: number;
   createdAt: Date;
 }

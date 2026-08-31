@@ -74,7 +74,7 @@ export class WalletInitializerService {
   }
 
   #toPublic(wallet: WalletInitialized): UserWalletPublicOutput {
-    return this.userWalletRepository.toPublic(wallet, { trialEndsAt: this.trialValidationService.getTrialEndsAt(wallet) });
+    return this.userWalletRepository.toPublic(wallet, this.trialValidationService.getTrialWindow(wallet));
   }
 
   /**
