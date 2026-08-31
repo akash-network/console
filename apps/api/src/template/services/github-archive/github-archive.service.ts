@@ -41,6 +41,7 @@ async function* streamWhileMakingProgress(body: ReadableStream<Uint8Array>, onPr
       yield chunk.value;
     }
   } finally {
+    await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
 }

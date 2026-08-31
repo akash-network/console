@@ -174,6 +174,29 @@ describe(GitHubArchiveService.name, () => {
       expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
 
+    it("cancels the response body when extraction fails so the connection is released", async () => {
+      const { service, fetchSpy } = setup();
+      const cancelSource = vi.fn();
+      fetchSpy.mockImplementation(() =>
+        Promise.resolve(
+          new Response(
+            new ReadableStream({
+              pull(controller) {
+                controller.enqueue(new Uint8Array(1024));
+              },
+              cancel: cancelSource
+            })
+          )
+        )
+      );
+
+      const failed = expect(service.getArchive("owner", "repo", "ref")).rejects.toThrow();
+      await vi.advanceTimersByTimeAsync(BEYOND_ALL_RETRY_BACKOFFS_MS);
+      await failed;
+
+      expect(cancelSource).toHaveBeenCalled();
+    });
+
     it("aborts a download that stops producing data", async () => {
       const { service, fetchSpy } = setup();
       fetchSpy.mockImplementation(
