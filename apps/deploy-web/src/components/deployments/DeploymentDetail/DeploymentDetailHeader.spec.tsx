@@ -120,6 +120,52 @@ describe("DeploymentDetailHeader", () => {
     }
   });
 
+  it("reads as ended, with no meter, once the deployment is closed with time still on its limit", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-21T12:00:00.000Z"));
+
+    try {
+      setup({ state: "closed", runtimeLimitHours: 12, runtimeEndsAt: "2026-08-21T14:00:00.000Z" });
+
+      expect(screen.getByText("Runtime ended")).toBeInTheDocument();
+      expect(screen.getByText("12h")).toBeInTheDocument();
+      expect(screen.queryByText("2h left")).not.toBeInTheDocument();
+      expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reads as ended once every lease is closed, before the deployment itself is", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-21T12:00:00.000Z"));
+
+    try {
+      setup({
+        runtimeLimitHours: 12,
+        runtimeEndsAt: "2026-08-21T14:00:00.000Z",
+        leases: [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: "closed", reason: undefined })]
+      });
+
+      expect(screen.getByText("Runtime ended")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps counting down while the lease list is still loading, so an active deployment never flashes as ended", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-21T12:00:00.000Z"));
+
+    try {
+      setup({ runtimeLimitHours: 12, runtimeEndsAt: "2026-08-21T14:00:00.000Z", leases: null });
+
+      expect(screen.getByText("2h left")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("hides the runtime limit tile when the deployment has none", () => {
     setup({});
 
@@ -278,7 +324,8 @@ describe("DeploymentDetailHeader", () => {
     name?: string | null;
     isTrialing?: boolean;
     storedManifest?: string | null;
-    leases?: LeaseDto[];
+    state?: string;
+    leases?: LeaseDto[] | null;
     providers?: ApiProviderList[];
     gpuAmount?: number;
     groups?: DeploymentGroup[];
@@ -318,7 +365,7 @@ describe("DeploymentDetailHeader", () => {
 
     const deployment = mock<DeploymentDto>({
       dseq: "1786440078202",
-      state: "active",
+      state: input.state ?? "active",
       cpuAmount: 2,
       gpuAmount: input.gpuAmount ?? 0,
       memoryAmount: 536870912,
@@ -330,7 +377,7 @@ describe("DeploymentDetailHeader", () => {
     render(
       <DeploymentDetailHeader
         deployment={deployment}
-        leases={input.leases ?? [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: "active" })]}
+        leases={input.leases !== undefined ? input.leases : [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: "active" })]}
         providers={input.providers ?? [mock<ApiProviderList>({ owner: "akash1provider" })]}
         dependencies={MockComponents(DEPENDENCIES, {
           useLocalNotes,

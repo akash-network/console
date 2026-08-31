@@ -32,8 +32,14 @@ describe("RuntimeLimitMeter", () => {
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "0");
   });
 
-  function setup(input: { runtimeLimitHours: number; runtimeEndsAt: string | null }) {
-    const countdown = getRuntimeLimitCountdown(input.runtimeLimitHours, input.runtimeEndsAt, NOW);
+  it("renders nothing once the deployment has stopped, where a partial bar would still read as draining", () => {
+    setup({ runtimeLimitHours: 12, runtimeEndsAt: "2026-08-21T15:00:00.000Z", hasStopped: true });
+
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
+  function setup(input: { runtimeLimitHours: number; runtimeEndsAt: string | null; hasStopped?: boolean }) {
+    const countdown = getRuntimeLimitCountdown({ ...input, now: NOW });
     render(<RuntimeLimitMeter countdown={countdown} />);
     return { countdown };
   }

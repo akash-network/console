@@ -10,9 +10,9 @@ export interface RuntimeLimitMeterProps {
   className?: string;
 }
 
-/** Renders nothing while the countdown is unanchored, where a full bar would claim elapsed time the lease has not started spending. */
+/** Renders nothing unless time is actually draining: a bar on a lease that never started, or has stopped, claims runtime that is not being spent. */
 export const RuntimeLimitMeter: FC<RuntimeLimitMeterProps> = ({ countdown, className }) => {
-  if (countdown.status === "unanchored") return null;
+  if (countdown.status === "unanchored" || countdown.status === "ended") return null;
 
   return (
     <Progress

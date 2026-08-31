@@ -7,7 +7,7 @@ export const MAX_RUNTIME_LIMIT_INCREMENT_HOURS = 48;
 /** Ceiling on a runtime limit's total, reachable only by repeated extensions. Mirrors the API's cap. */
 export const MAX_RUNTIME_LIMIT_HOURS = 8760;
 
-export type RuntimeLimitStatus = "unanchored" | "running" | "reached";
+export type RuntimeLimitStatus = "unanchored" | "running" | "reached" | "ended";
 
 export type RuntimeLimitCountdown = {
   status: RuntimeLimitStatus;
@@ -24,8 +24,21 @@ const MILLISECONDS_PER_MINUTE = 60 * 1000;
 const MINUTES_PER_HOUR = 60;
 const MILLISECONDS_PER_HOUR = MINUTES_PER_HOUR * MILLISECONDS_PER_MINUTE;
 
+export type RuntimeLimitCountdownInput = {
+  runtimeLimitHours: number;
+  runtimeEndsAt: string | null;
+  /** Whether the deployment has stopped running, which freezes the countdown wherever the server left it. */
+  hasStopped?: boolean;
+  now?: number;
+};
+
 /** The remaining share is measured against the granted limit itself, since no lease-start timestamp is stored. */
-export function getRuntimeLimitCountdown(runtimeLimitHours: number, runtimeEndsAt: string | null, now: number = Date.now()): RuntimeLimitCountdown {
+export function getRuntimeLimitCountdown({
+  runtimeLimitHours,
+  runtimeEndsAt,
+  hasStopped = false,
+  now = Date.now()
+}: RuntimeLimitCountdownInput): RuntimeLimitCountdown {
   const limitLabel = `${runtimeLimitHours}h`;
   const deadline = runtimeEndsAt ? new Date(runtimeEndsAt).getTime() : NaN;
 
@@ -37,6 +50,17 @@ export function getRuntimeLimitCountdown(runtimeLimitHours: number, runtimeEndsA
       captionLabel: "runtime limit",
       accessibleLabel: `${limitLabel} limit, not started`,
       percentRemaining: 100
+    };
+  }
+
+  if (hasStopped) {
+    return {
+      status: "ended",
+      limitLabel,
+      remainingLabel: "Runtime ended",
+      captionLabel: `of ${limitLabel} limit`,
+      accessibleLabel: `Runtime ended, ${limitLabel} limit`,
+      percentRemaining: 0
     };
   }
 

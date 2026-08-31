@@ -14,6 +14,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAutoTopUp } from "@src/hooks/useAutoTopUp/useAutoTopUp";
 import { useDeploymentEscrowBalance } from "@src/hooks/useDeploymentEscrowBalance/useDeploymentEscrowBalance";
+import { useHasDeploymentStopped } from "@src/hooks/useHasDeploymentStopped";
 import { useIsEscrowAbstracted } from "@src/hooks/useIsEscrowAbstracted";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useTickingNow } from "@src/hooks/useTickingNow";
@@ -74,8 +75,9 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
   const updateSetting = d.useUpdateDeploymentSettingMutation({ dseq: deployment.dseq });
 
   const isRuntimeLimited = !!runtimeLimitHours;
-  const now = d.useTickingNow(!!runtimeEndsAt);
-  const runtimeLimitCountdown = runtimeLimitHours ? getRuntimeLimitCountdown(runtimeLimitHours, runtimeEndsAt, now) : null;
+  const hasStopped = useHasDeploymentStopped({ deployment, leases });
+  const now = d.useTickingNow(!!runtimeEndsAt && !hasStopped);
+  const runtimeLimitCountdown = runtimeLimitHours ? getRuntimeLimitCountdown({ runtimeLimitHours, runtimeEndsAt, hasStopped, now }) : null;
 
   const openDepositModal = useCallback(() => {
     setIsDepositing(true);

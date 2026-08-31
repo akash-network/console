@@ -150,6 +150,21 @@ describe("DeploymentBillingSection", () => {
       expect(screen.queryByRole("switch", { name: "Auto Top-Up" })).not.toBeInTheDocument();
     });
 
+    it("reads as ended, with no meter, once the deployment is closed with time still on its limit", () => {
+      setup({ state: "closed", runtimeLimitHours: 12, runtimeEndsAt: "2026-08-21T18:00:00.000Z" });
+
+      expect(screen.getByText("Runtime ended")).toBeInTheDocument();
+      expect(screen.getByText("of 12h limit")).toBeInTheDocument();
+      expect(screen.queryByText("6h left")).not.toBeInTheDocument();
+      expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    });
+
+    it("keeps counting down while the lease list is still loading, so an active deployment never flashes as ended", () => {
+      setup({ state: "active", runtimeLimitHours: 12, runtimeEndsAt: "2026-08-21T18:00:00.000Z", leases: null });
+
+      expect(screen.getByText("6h left")).toBeInTheDocument();
+    });
+
     it("keeps the runtime-limit controls on a limited deployment while hiding the balance", () => {
       setup({ state: "active", runtimeLimitHours: 12, isEscrowAbstracted: true });
 
