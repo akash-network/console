@@ -5,12 +5,7 @@ import path from "node:path";
 const gitRoot = process.cwd();
 
 /**
- * Nearest ancestor (including the file's own directory) that owns an
- * eslint.config.mjs, defaulting to the repo root. lint-staged runs from the git
- * root, but flat config resolves a single config from cwd — so each staged file is
- * linted against its owning config to keep app-local rules and parser options
- * (e.g. decorator metadata for DI) authoritative, exactly as `npm run lint` does
- * inside that workspace.
+ * Nearest ancestor (including the file's own directory) that owns an eslint.config.mjs, defaulting to the repo root.
  */
 function findOwningEslintConfig(absoluteFile) {
   let dir = path.dirname(absoluteFile);
@@ -25,13 +20,23 @@ function findOwningEslintConfig(absoluteFile) {
 
 const toArg = file => JSON.stringify(path.relative(gitRoot, file));
 
+const eslintBin = path.join(gitRoot, "node_modules", ".bin", "eslint");
+
+/**
+ * Runs eslint from the owning config's directory because the shared import resolver reads `./tsconfig.json` relative to
+ * cwd, so linting from the git root stops resolving `@src` aliases and silently drops every rule that follows them.
+ */
 function eslintCommandsByOwningConfig(files) {
   const filesByConfig = new Map();
   for (const file of files) {
     const config = findOwningEslintConfig(file);
     filesByConfig.set(config, [...(filesByConfig.get(config) ?? []), file]);
   }
-  return [...filesByConfig].map(([config, group]) => `eslint --fix --quiet --config ${toArg(config)} ${group.map(toArg).join(" ")}`);
+  return [...filesByConfig].map(([config, group]) => {
+    const configDir = path.dirname(config);
+    const args = group.map(file => JSON.stringify(path.relative(configDir, file))).join(" ");
+    return `sh -c 'bin="$1"; cd "$2" || exit 1; shift 2; exec "$bin" --fix --quiet "$@"' sh ${JSON.stringify(eslintBin)} ${JSON.stringify(configDir)} ${args}`;
+  });
 }
 
 export default {
