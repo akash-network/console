@@ -31,7 +31,7 @@ export const DEPENDENCIES = {
  * automatic funding tops a deployment up to this target rather than adding to what it already holds.
  * Mirrors the backend `AUTO_TOP_UP_TARGET_RUNWAY_IN_H`. Update if that target changes.
  */
-const RESERVE_WINDOW_HOURS = 48;
+const ESCROW_WINDOW_HOURS = 48;
 
 export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
   const overview = d.useAccountBalanceOverview();
@@ -70,7 +70,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
     );
   }
 
-  const reservedSegments = segments.filter(segment => segment.key !== "available");
+  const escrowSegments = segments.filter(segment => segment.key !== "available");
   const activeHoveredKey = hoveredKey && segments.some(segment => segment.key === hoveredKey) ? hoveredKey : null;
   const hasRunway = overview.runwayDays !== null && overview.lastsUntil !== null;
 
@@ -112,10 +112,10 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
               </d.CustomNoDivTooltip>
             </div>
             <div className="text-2xl font-bold leading-none" aria-label="Escrow balance">
-              {usd(overview.reserved)}
+              {usd(overview.escrow)}
             </div>
             <p className="text-sm text-muted-foreground">
-              {`Held to keep your ${reservedSegments.length} deployment${reservedSegments.length === 1 ? "" : "s"} running`}
+              {`Held to keep your ${escrowSegments.length} deployment${escrowSegments.length === 1 ? "" : "s"} running`}
             </p>
           </div>
           <div className="space-y-1">
@@ -138,7 +138,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
           </div>
         </div>
 
-        {reservedSegments.length > 0 && (
+        {escrowSegments.length > 0 && (
           <div className="border-t pt-4">
             <button
               type="button"
@@ -147,12 +147,12 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
               aria-expanded={isBreakdownOpen}
             >
               {isBreakdownOpen ? <d.NavArrowDown className="h-4 w-4" /> : <d.NavArrowRight className="h-4 w-4" />}
-              {isBreakdownOpen ? "Hide breakdown" : `What's in escrow (${reservedSegments.length})`}
+              {isBreakdownOpen ? "Hide breakdown" : `What's in escrow (${escrowSegments.length})`}
             </button>
             {isBreakdownOpen && (
               <div className="mt-3 space-y-3">
                 <ul className="flex flex-wrap gap-2">
-                  {reservedSegments.map(segment => (
+                  {escrowSegments.map(segment => (
                     <li
                       key={segment.key}
                       className="transition-opacity duration-150"
@@ -173,7 +173,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-muted-foreground">{`Each running deployment keeps around ${RESERVE_WINDOW_HOURS} hours of its cost in escrow.`}</p>
+                <p className="text-xs text-muted-foreground">{`Each running deployment keeps around ${ESCROW_WINDOW_HOURS} hours of its cost in escrow.`}</p>
               </div>
             )}
           </div>

@@ -86,7 +86,7 @@ export const FundingImpactReviewSection: FC<Props> = ({ rows, runtimeLimitHours,
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded} className="rounded-lg border p-4">
       <CollapsibleTrigger className="group flex w-full items-center justify-between gap-4 text-left">
         <span className="text-sm">
-          Escrow <span className="font-medium">~{usd(impact.reserveUsd)}</span>
+          Escrow <span className="font-medium">~{usd(impact.escrowUsd)}</span>
           <span className="text-muted-foreground"> · available after </span>
           {impact.availableAfterUsd === null ? (
             <span className="text-destructive">—</span>
@@ -105,7 +105,7 @@ export const FundingImpactReviewSection: FC<Props> = ({ rows, runtimeLimitHours,
         <div className="flex items-center justify-between gap-4 text-xs">
           <span className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
-            <span className="text-muted-foreground">Escrow ~ {usd(impact.reserveUsd)} (estimate)</span>
+            <span className="text-muted-foreground">Escrow ~ {usd(impact.escrowUsd)} (estimate)</span>
           </span>
           <span className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-success" />
@@ -118,7 +118,7 @@ export const FundingImpactReviewSection: FC<Props> = ({ rows, runtimeLimitHours,
         {impact.availableAfterUsd !== null && (
           <d.BalanceBreakdownBar
             segments={[
-              { key: "escrow", label: "Escrow", amountUsd: impact.reserveUsd, color: "hsl(var(--muted-foreground) / 0.4)" },
+              { key: "escrow", label: "Escrow", amountUsd: impact.escrowUsd, color: "hsl(var(--muted-foreground) / 0.4)" },
               { key: "available", label: "Available", amountUsd: impact.availableAfterUsd, color: "hsl(var(--success))" }
             ]}
             threshold={impact.thresholdUsd}
@@ -182,7 +182,7 @@ function renderStateDetails(impact: VisibleImpact, usd: (value: number) => React
         <Callout tone="warning">
           <span className="flex-1">
             Your available balance of <span className="font-medium">{usd(impact.availableNowUsd)}</span> can&apos;t cover the estimated escrow of{" "}
-            <span className="font-medium">~{usd(impact.reserveUsd)}</span>.
+            <span className="font-medium">~{usd(impact.escrowUsd)}</span>.
           </span>
           {addCreditsButton}
         </Callout>

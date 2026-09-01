@@ -31,11 +31,11 @@ describe(AccountBalanceOverview.name, () => {
 
   it("shows the escrow and available balances with their descriptors", () => {
     setup({
-      reserved: 1338,
+      escrow: 1338,
       available: 1873.2,
       deployments: [
-        { dseq: "1", name: "app-a", reservedUsd: 1000, perHourUsd: 1 },
-        { dseq: "2", name: "app-b", reservedUsd: 338, perHourUsd: 1 }
+        { dseq: "1", name: "app-a", escrowUsd: 1000, perHourUsd: 1 },
+        { dseq: "2", name: "app-b", escrowUsd: 338, perHourUsd: 1 }
       ]
     });
 
@@ -46,13 +46,13 @@ describe(AccountBalanceOverview.name, () => {
   });
 
   it("uses singular wording when a single deployment holds escrow funds", () => {
-    setup({ reserved: 100, deployments: [{ dseq: "1", name: "app-a", reservedUsd: 100, perHourUsd: 1 }] });
+    setup({ escrow: 100, deployments: [{ dseq: "1", name: "app-a", escrowUsd: 100, perHourUsd: 1 }] });
 
     expect(screen.getByText("Held to keep your 1 deployment running")).toBeInTheDocument();
   });
 
   it("reveals the deployment breakdown only after the collapsible is opened", () => {
-    setup({ deployments: [{ dseq: "1", name: "llama-chat", reservedUsd: 508.8, perHourUsd: 4.24 }], available: 1873.2 });
+    setup({ deployments: [{ dseq: "1", name: "llama-chat", escrowUsd: 508.8, perHourUsd: 4.24 }], available: 1873.2 });
 
     expect(screen.queryByText("llama-chat")).not.toBeInTheDocument();
 
@@ -63,7 +63,7 @@ describe(AccountBalanceOverview.name, () => {
   });
 
   it("toggles the breakdown label between closed and open", () => {
-    setup({ deployments: [{ dseq: "1", name: "llama-chat", reservedUsd: 508.8, perHourUsd: 4.24 }] });
+    setup({ deployments: [{ dseq: "1", name: "llama-chat", escrowUsd: 508.8, perHourUsd: 4.24 }] });
 
     expect(screen.getByRole("button", { name: /What's in escrow \(1\)/ })).toBeInTheDocument();
 
@@ -75,8 +75,8 @@ describe(AccountBalanceOverview.name, () => {
   it("counts only deployments that still hold escrow funds so the labels match the badges", () => {
     setup({
       deployments: [
-        { dseq: "1", name: "llama-chat", reservedUsd: 508.8, perHourUsd: 4.24 },
-        { dseq: "2", name: "drained-app", reservedUsd: 0, perHourUsd: 0 }
+        { dseq: "1", name: "llama-chat", escrowUsd: 508.8, perHourUsd: 4.24 },
+        { dseq: "2", name: "drained-app", escrowUsd: 0, perHourUsd: 0 }
       ]
     });
 
@@ -85,15 +85,15 @@ describe(AccountBalanceOverview.name, () => {
   });
 
   it("hides the breakdown toggle when no deployment holds escrow funds", () => {
-    setup({ deployments: [{ dseq: "1", name: "drained-app", reservedUsd: 0, perHourUsd: 0 }] });
+    setup({ deployments: [{ dseq: "1", name: "drained-app", escrowUsd: 0, perHourUsd: 0 }] });
 
     expect(screen.queryByRole("button", { name: /What's in escrow/ })).not.toBeInTheDocument();
   });
 
   it("clears hover dimming when the hovered deployment disappears mid-hover", () => {
     const deployments = [
-      { dseq: "1", name: "llama-chat", reservedUsd: 100, perHourUsd: 1 },
-      { dseq: "2", name: "side-api", reservedUsd: 50, perHourUsd: 1 }
+      { dseq: "1", name: "llama-chat", escrowUsd: 100, perHourUsd: 1 },
+      { dseq: "2", name: "side-api", escrowUsd: 50, perHourUsd: 1 }
     ];
     const { rerenderWith } = setup({ deployments, available: 100 });
 
@@ -108,7 +108,7 @@ describe(AccountBalanceOverview.name, () => {
   });
 
   it("links each deployment badge to its detail page", () => {
-    setup({ deployments: [{ dseq: "42", name: "llama-chat", reservedUsd: 508.8, perHourUsd: 4.24 }] });
+    setup({ deployments: [{ dseq: "42", name: "llama-chat", escrowUsd: 508.8, perHourUsd: 4.24 }] });
 
     fireEvent.click(screen.getByRole("button", { name: /What's in escrow/ }));
 
@@ -167,7 +167,7 @@ describe(AccountBalanceOverview.name, () => {
     const renderView = (partial: Partial<AccountBalanceOverviewData>) => {
       const data: AccountBalanceOverviewData = {
         totalUsd: 0,
-        reserved: 0,
+        escrow: 0,
         available: 0,
         deployments: [],
         perHour: 0,

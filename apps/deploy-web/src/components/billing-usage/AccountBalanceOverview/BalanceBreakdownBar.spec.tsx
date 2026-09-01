@@ -2,12 +2,12 @@ import { IntlProvider } from "react-intl";
 import { describe, expect, it } from "vitest";
 
 import { BalanceBreakdownBar, buildBalanceSegments } from "./BalanceBreakdownBar";
-import type { ReservedDeployment } from "./useAccountBalanceOverview";
+import type { EscrowedDeployment } from "./useAccountBalanceOverview";
 
 import { render, screen } from "@testing-library/react";
 
 describe(buildBalanceSegments.name, () => {
-  it("orders reserved deployments before the available segment", () => {
+  it("orders escrowed deployments before the available segment", () => {
     const segments = buildBalanceSegments(deployments([100, 50]), 200);
 
     expect(segments.map(s => s.key)).toEqual(["dseq-0", "dseq-1", "available"]);
@@ -39,15 +39,15 @@ describe(buildBalanceSegments.name, () => {
     expect(withDrained.map(s => s.color)).toEqual(withoutDrained.map(s => s.color));
   });
 
-  it("carries each deployment's hourly rate onto its reserved segment but not the available one", () => {
+  it("carries each deployment's hourly rate onto its escrow segment but not the available one", () => {
     const segments = buildBalanceSegments(deployments([120]), 200);
 
     expect(segments[0].perHourUsd).toBe(1);
     expect(segments[1].perHourUsd).toBeUndefined();
   });
 
-  function deployments(amounts: number[]): ReservedDeployment[] {
-    return amounts.map((reservedUsd, index) => ({ dseq: `dseq-${index}`, name: `deployment-${index}`, reservedUsd, perHourUsd: reservedUsd / 120 }));
+  function deployments(amounts: number[]): EscrowedDeployment[] {
+    return amounts.map((escrowUsd, index) => ({ dseq: `dseq-${index}`, name: `deployment-${index}`, escrowUsd, perHourUsd: escrowUsd / 120 }));
   }
 });
 

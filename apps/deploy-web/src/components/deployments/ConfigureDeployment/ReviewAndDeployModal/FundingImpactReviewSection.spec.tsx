@@ -129,7 +129,7 @@ describe("FundingImpactReviewSection", () => {
     return {
       kind: "visible",
       state: "funded",
-      reserveUsd: 144,
+      escrowUsd: 144,
       availableNowUsd: 200,
       availableAfterUsd: 56,
       thresholdUsd: null,
