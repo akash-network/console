@@ -1200,6 +1200,23 @@ describe(DrainingDeploymentService.name, () => {
       expect(result.weeklyCostUsd).toBe(usdFromCredits(Math.floor(blockRate * averageBlockCountInAnHour * 24 * 7)));
     });
 
+    it("logs the coverage inputs behind an absent auto top-up setting", async () => {
+      const { service, address, loggerService } = await setupWeeklyBurnForAddress({
+        userWallet: undefined,
+        deployments: [{ blockRate: 50 }]
+      });
+
+      await service.calculateWeeklyCoverageForAddress(address);
+
+      expect(loggerService.info).toHaveBeenCalledWith({
+        event: "WEEKLY_COVERAGE_CALCULATED",
+        address,
+        settingDseqs: [],
+        leaseRates: [],
+        weeklyCredits: 0
+      });
+    });
+
     it("reports no auto top-up settings when user wallet is not found", async () => {
       const { service, address } = await setupWeeklyBurnForAddress({
         userWallet: undefined,
