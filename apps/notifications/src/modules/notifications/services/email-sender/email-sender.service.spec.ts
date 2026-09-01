@@ -38,7 +38,7 @@ describe(EmailSenderService.name, () => {
         },
         payload: {
           subject: params.subject,
-          content: params.content
+          content: expect.stringContaining(params.content)
         },
         overrides: {
           email: {
@@ -46,6 +46,22 @@ describe(EmailSenderService.name, () => {
           }
         }
       });
+    });
+
+    it("wraps the content in the branded layout document", async () => {
+      const { service, novu } = await setup();
+      const content = faker.lorem.paragraph();
+
+      await service.send({
+        addresses: [faker.internet.email()],
+        subject: faker.lorem.sentence(),
+        content,
+        userId: faker.string.uuid()
+      });
+
+      const sentContent = novu.trigger.mock.calls[0][0].payload?.content as string;
+      expect(sentContent).toContain("<!DOCTYPE html>");
+      expect(sentContent).toContain(content);
     });
 
     it("sends to every address while addressing the first one as the subscriber", async () => {
@@ -108,17 +124,13 @@ describe(EmailSenderService.name, () => {
       await service.send({
         addresses: [faker.internet.email()],
         subject: faker.lorem.sentence(),
-        content: '<script>alert(1)</script><strong>keep</strong><a href="https://akash.network">link</a>',
+        content: '<script>alert(1)</script><p>keep</p><strong>keep</strong><a href="https://akash.network">link</a>',
         userId: faker.string.uuid()
       });
 
-      expect(novu.trigger).toHaveBeenCalledWith(
-        expect.objectContaining({
-          payload: expect.objectContaining({
-            content: '<strong>keep</strong><a href="https://akash.network">link</a>'
-          })
-        })
-      );
+      const sentContent = novu.trigger.mock.calls[0][0].payload?.content as string;
+      expect(sentContent).toContain('<p>keep</p><strong>keep</strong><a href="https://akash.network">link</a>');
+      expect(sentContent).not.toContain("<script>");
     });
   });
 
