@@ -197,6 +197,34 @@ describe(GitHubArchiveService.name, () => {
       expect(cancelSource).toHaveBeenCalled();
     });
 
+    it("retries when github rate limits the download", async () => {
+      const { service, fetchSpy, archiveResponse } = setup();
+      fetchSpy
+        .mockResolvedValueOnce(new Response(null, { status: 429, statusText: "Too Many Requests" }))
+        .mockResolvedValueOnce(archiveResponse({ "root/readme.md": "# Hello" }));
+
+      const archive = service.getArchive("owner", "repo", "ref");
+      await vi.advanceTimersByTimeAsync(BEYOND_ALL_RETRY_BACKOFFS_MS);
+      const reader = await archive;
+
+      expect(await reader.readFile("readme.md")).toBe("# Hello");
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("retries when github fails the download with a server error", async () => {
+      const { service, fetchSpy, archiveResponse } = setup();
+      fetchSpy
+        .mockResolvedValueOnce(new Response(null, { status: 502, statusText: "Bad Gateway" }))
+        .mockResolvedValueOnce(archiveResponse({ "root/readme.md": "# Hello" }));
+
+      const archive = service.getArchive("owner", "repo", "ref");
+      await vi.advanceTimersByTimeAsync(BEYOND_ALL_RETRY_BACKOFFS_MS);
+      const reader = await archive;
+
+      expect(await reader.readFile("readme.md")).toBe("# Hello");
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
     it("aborts a download that stops producing data", async () => {
       const { service, fetchSpy } = setup();
       fetchSpy.mockImplementation(
