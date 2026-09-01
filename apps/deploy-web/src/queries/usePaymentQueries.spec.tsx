@@ -139,7 +139,9 @@ describe("usePaymentQueries", () => {
       const stripeService = mock<StripeService>({
         confirmPayment: vi.fn().mockResolvedValue(mockPaymentResponse)
       });
-      const api = createProxy({ v1: { listStripeTransactions: vi.fn(), getDefaultPaymentMethod: vi.fn() } }) as unknown as ApiService;
+      const api = createProxy({
+        v1: { listStripeTransactions: vi.fn(), getDefaultPaymentMethod: vi.fn(), getWalletSettings: vi.fn() }
+      }) as unknown as ApiService;
       const { result, queryClient } = setupQueryWithClient(() => usePaymentMutations(), {
         services: { stripe: () => stripeService, api: () => api }
       });
@@ -258,7 +260,7 @@ describe("usePaymentQueries", () => {
       const stripeService = mock<StripeService>({
         validatePaymentMethodAfter3DS: vi.fn().mockResolvedValue(mockValidationResponse)
       });
-      const api = createProxy({ v1: { getDefaultPaymentMethod: vi.fn() } }) as unknown as ApiService;
+      const api = createProxy({ v1: { getDefaultPaymentMethod: vi.fn(), getWalletSettings: vi.fn() } }) as unknown as ApiService;
       const { result, queryClient } = setupQueryWithClient(() => usePaymentMutations(), {
         services: { stripe: () => stripeService, api: () => api }
       });
@@ -282,12 +284,32 @@ describe("usePaymentQueries", () => {
       });
     });
 
+    it("refreshes the wallet settings so an auto top-up pause lifted by the new card stops showing", async () => {
+      const stripeService = mock<StripeService>({
+        setPaymentMethodAsDefault: vi.fn().mockResolvedValue(createMockPaymentMethod({ isDefault: true }))
+      });
+      const api = createProxy({ v1: { getDefaultPaymentMethod: vi.fn(), getWalletSettings: vi.fn() } }) as unknown as ApiService;
+      const { result, queryClient } = setupQueryWithClient(() => usePaymentMutations(), {
+        services: { stripe: () => stripeService, api: () => api }
+      });
+
+      const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+      await act(async () => {
+        await result.current.setPaymentMethodAsDefault.mutateAsync("pm_123");
+      });
+
+      await vi.waitFor(() => {
+        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: api.v1.getWalletSettings.getKey() });
+      });
+    });
+
     it("waits for the methods invalidation to settle before invalidating the default query", async () => {
       const mockPaymentMethod = createMockPaymentMethod({ isDefault: true });
       const stripeService = mock<StripeService>({
         setPaymentMethodAsDefault: vi.fn().mockResolvedValue(mockPaymentMethod)
       });
-      const api = createProxy({ v1: { getDefaultPaymentMethod: vi.fn() } }) as unknown as ApiService;
+      const api = createProxy({ v1: { getDefaultPaymentMethod: vi.fn(), getWalletSettings: vi.fn() } }) as unknown as ApiService;
       const { result, queryClient } = setupQueryWithClient(() => usePaymentMutations(), {
         services: { stripe: () => stripeService, api: () => api }
       });

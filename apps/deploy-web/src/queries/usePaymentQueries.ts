@@ -86,7 +86,8 @@ export const useSetupIntentMutation = () => {
  * Refreshes the payment-methods list, then the default-payment-method query. The order is load
  * bearing: the awaited list refetch resolves only after the server-side read-repair in
  * getPaymentMethods has committed, so the following default fetch observes the healed state rather
- * than the stale drift it was about to repair.
+ * than the stale drift it was about to repair, and the wallet settings observe the auto top-up
+ * pause that same repair lifts.
  */
 export const useRefreshPaymentMethods = () => {
   const { api } = useServices();
@@ -95,6 +96,7 @@ export const useRefreshPaymentMethods = () => {
   return useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });
     await queryClient.invalidateQueries({ queryKey: api.v1.getDefaultPaymentMethod.getKey() });
+    await queryClient.invalidateQueries({ queryKey: api.v1.getWalletSettings.getKey() });
   }, [api, queryClient]);
 };
 
@@ -149,7 +151,6 @@ export const usePaymentMutations = () => {
     },
     onSuccess: () => {
       refreshPaymentMethods();
-      queryClient.invalidateQueries({ queryKey: api.v1.getWalletSettings.getKey() });
     }
   });
 
