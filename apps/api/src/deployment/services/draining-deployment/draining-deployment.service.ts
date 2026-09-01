@@ -440,7 +440,7 @@ export class DrainingDeploymentService {
   async calculateWeeklyCoverageForAddress(address: string): Promise<WeeklyCoverage> {
     const deploymentSettings = await this.#findAutoTopUpDeploymentSettings(address);
     if (deploymentSettings.length === 0) {
-      this.loggerService.info({ event: "WEEKLY_COVERAGE_CALCULATED", address, settingDseqs: [], leaseRates: [], weeklyCredits: 0 });
+      this.loggerService.info({ event: "WEEKLY_COVERAGE_CALCULATED", address, settingCount: 0, leaseRateCount: 0, leaseRateTotal: 0, weeklyCredits: 0 });
       return { weeklyCostUsd: 0, cumulativeDailyCostsUsd: [], hasAutoTopUpSettings: false };
     }
 
@@ -458,8 +458,9 @@ export class DrainingDeploymentService {
       event: "WEEKLY_COVERAGE_CALCULATED",
       address,
       currentHeight,
-      settingDseqs: deploymentSettings.map(deployment => deployment.dseq),
-      leaseRates,
+      settingCount: deploymentSettings.length,
+      leaseRateCount: leaseRates.length,
+      leaseRateTotal: leaseRates.reduce((total, leaseRate) => total + leaseRate.blockRate, 0),
       weeklyCredits
     });
 
