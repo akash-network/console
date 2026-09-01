@@ -6,6 +6,7 @@ import sanitizeHtml from "sanitize-html";
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { Namespaced } from "@src/lib/types/namespaced-config.type";
 import { NotificationEnvConfig } from "@src/modules/notifications/config/env.config";
+import { renderEmailLayout } from "./email-layout";
 
 type EmailSendOptions = {
   addresses: string[];
@@ -34,11 +35,14 @@ export class EmailSenderService {
       },
       payload: {
         subject,
-        content: sanitizeHtml(content, {
-          allowedTags: ["a", "strong"],
-          allowedAttributes: {
-            a: ["href"]
-          }
+        content: renderEmailLayout({
+          subject,
+          content: sanitizeHtml(content, {
+            allowedTags: ["a", "strong", "p", "br"],
+            allowedAttributes: {
+              a: ["href"]
+            }
+          })
         })
       },
       overrides: {
