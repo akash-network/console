@@ -225,6 +225,30 @@ describe(GitHubArchiveService.name, () => {
       expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
 
+    it("aborts when the response body goes silent part way through the download", async () => {
+      const { service, fetchSpy, tarGzChunks } = setup();
+      const [firstChunk] = tarGzChunks({ "root/readme.md": "# Hello" });
+      fetchSpy.mockImplementation((_url, init) => {
+        const signal = (init as RequestInit).signal!;
+        return Promise.resolve(
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                signal.addEventListener("abort", () => controller.error(signal.reason), { once: true });
+                controller.enqueue(firstChunk);
+              }
+            })
+          )
+        );
+      });
+
+      const stalled = expect(service.getArchive("owner", "repo", "ref")).rejects.toThrow("received no data for 30000ms");
+      await vi.advanceTimersByTimeAsync(3 * 30_000 + BEYOND_ALL_RETRY_BACKOFFS_MS);
+
+      await stalled;
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
+    });
+
     it("aborts a download that stops producing data", async () => {
       const { service, fetchSpy } = setup();
       fetchSpy.mockImplementation(
