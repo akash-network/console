@@ -19,7 +19,7 @@
     "format": "prettier --write ./*.{js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
     "migration:gen": "drizzle-kit generate",
-    "prod": "node --permission --allow-fs-read=./dist/ --allow-fs-read=./env/ --allow-fs-read=./node_modules/ --allow-fs-read=../../node_modules/ --allow-fs-read=../../packages/env-loader/ --allow-fs-read=./drizzle/ --enable-source-maps --require ./dist/instrumentation.js ./dist/server.js",
+    "prod": "node --permission --allow-fs-read=./dist/ --allow-fs-read=./env/ --allow-fs-read=./node_modules/ --allow-fs-read=../../node_modules/ --allow-fs-read=../../packages/env-loader/ --allow-fs-read=./drizzle/ --allow-fs-write=/tmp/ --heapsnapshot-signal=SIGUSR2 --diagnostic-dir=/tmp --enable-source-maps --require ./dist/instrumentation.js ./dist/server.js",
     "sdk:gen:swagger": "rm -rf ./swagger && npm run build:app && SERVER_ORIGIN=https://console-api-sandbox.akash.network NOTIFICATIONS_SWAGGER_PATH=../notifications/swagger/swagger.json POSTGRES_DB_URI=postgres://localhost/unused AMPLITUDE_API_KEY=unused FEATURE_FLAGS_ENABLE_ALL=true INTERFACE=swagger-gen node dist/server.js",
     "start": "tsup --watch",
     "start:dev": "tsup src/server.ts --watch",
