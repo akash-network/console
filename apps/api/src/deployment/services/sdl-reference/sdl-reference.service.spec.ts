@@ -2,7 +2,7 @@ import type { SDLInput } from "@akashnetwork/chain-sdk";
 import { yaml } from "@akashnetwork/chain-sdk";
 import { describe, expect, it } from "vitest";
 
-import type { ConsoleReferenceResolver } from "./sdl-reference.service";
+import type { SdlReferenceResolver } from "./sdl-reference.service";
 import { SdlReferenceService } from "./sdl-reference.service";
 
 const VALID_NAMES = ["A", "a", "_", "_A", "A9", `A${"b".repeat(62)}`, `A${"b".repeat(63)}`];
@@ -11,7 +11,7 @@ const INVALID_NAMES = ["", "9NAME", "NA-ME", "NA.ME", "NA ME", "NAMÉ", "NAME!",
 
 describe(SdlReferenceService.name, () => {
   describe("validate", () => {
-    it("reports nothing for an sdl carrying no console references", () => {
+    it("reports nothing for an sdl carrying no sdl references", () => {
       const { service } = setup();
 
       expect(service.validate(sdlWithEnv(["PORT=8080", "MODE=production"]))).toEqual([]);
@@ -149,7 +149,7 @@ describe(SdlReferenceService.name, () => {
 
       const [error] = service.substitute(sdl, { secrets: { TOKEN: "resolved" } });
 
-      expect(error.message).toContain("unknown Console Reference kind");
+      expect(error.message).toContain("unknown SDL Reference kind");
       expect(sdl.services.web.env).toEqual(["TOKEN=ac-var://TOKEN"]);
     });
 
@@ -266,7 +266,7 @@ describe(SdlReferenceService.name, () => {
     });
   });
 
-  function setup(input: { resolvers?: ConsoleReferenceResolver[] } = {}) {
+  function setup(input: { resolvers?: SdlReferenceResolver[] } = {}) {
     const service = new SdlReferenceService();
     input.resolvers?.forEach(resolver => service.register(resolver));
 

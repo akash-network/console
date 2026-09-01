@@ -203,11 +203,11 @@ describe(DeploymentWriterService.name, () => {
       await expect(service.create({ userId: "user-1", sdl: "bad-sdl", deposit: 5 })).rejects.toThrow();
     });
 
-    it("throws 400 when a console reference cannot be resolved", async () => {
+    it("throws 400 when a sdl reference cannot be resolved", async () => {
       const { service, sdlService, signerService } = setup();
       sdlService.generateResolvedManifest.mockResolvedValue({
         ok: false,
-        value: [{ message: 'no value supplied for Console Reference "ac-secret://TOKEN"' }]
+        value: [{ message: 'no value supplied for SDL Reference "ac-secret://TOKEN"' }]
       } as any);
 
       await expect(service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 })).rejects.toMatchObject({ status: 400 });
@@ -699,11 +699,11 @@ describe(DeploymentWriterService.name, () => {
       expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
     });
 
-    it("throws 400 when a console reference cannot be resolved", async () => {
+    it("throws 400 when a sdl reference cannot be resolved", async () => {
       const { service, sdlService, providerService } = setup();
       sdlService.generateResolvedManifest.mockResolvedValue({
         ok: false,
-        value: [{ message: 'no value supplied for Console Reference "ac-secret://TOKEN"' }]
+        value: [{ message: 'no value supplied for SDL Reference "ac-secret://TOKEN"' }]
       } as any);
 
       await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" })).rejects.toMatchObject({ status: 400 });

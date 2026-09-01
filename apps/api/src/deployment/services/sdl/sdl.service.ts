@@ -31,7 +31,7 @@ export class SdlService {
     this.#config = config;
   }
 
-  /** Console References are validated here and never substituted, so no caller of this can hand a resolved value back to a client. */
+  /** SDL References are validated here and never substituted, so no caller of this can hand a resolved value back to a client. */
   generateManifest(rawSDL: string, options: { isTrialing?: boolean } = {}): GenerateManifestResult {
     const parsed = this.parse(rawSDL);
 
@@ -44,7 +44,7 @@ export class SdlService {
     return this.generateManifestFrom(parsed.value, options);
   }
 
-  /** The only path that substitutes Console References, and the only caller of the substitution walk, so a resolved manifest exists nowhere a caller has not asked for one. */
+  /** The only path that substitutes SDL References, and the only caller of the substitution walk, so a resolved manifest exists nowhere a caller has not asked for one. */
   async generateResolvedManifest(input: { sdl: string; secrets: SdlSecrets; isTrialing?: boolean }): Promise<GenerateResolvedManifestResult> {
     const parsed = this.parse(input.sdl);
 
@@ -72,7 +72,7 @@ export class SdlService {
     }
   }
 
-  /** The one entry point that skips Console Reference validation, because both its callers have already validated or substituted every reference. */
+  /** The one entry point that skips SDL Reference validation, because both its callers have already validated or substituted every reference. */
   generateManifestFrom(potentiallyInvalidSDL: SDLInput, options: { isTrialing?: boolean } = {}): GenerateManifestResult {
     const deploymentGrantDenom = this.#config.DEPLOYMENT_GRANT_DENOM;
     const sdlPlacement =

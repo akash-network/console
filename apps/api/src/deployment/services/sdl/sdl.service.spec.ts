@@ -546,15 +546,15 @@ describe(SdlService.name, () => {
       });
     });
 
-    describe("console references", () => {
-      it("keeps a recognized console reference verbatim in the manifest", () => {
+    describe("sdl references", () => {
+      it("keeps a recognized sdl reference verbatim in the manifest", () => {
         const { result } = setup({ sdl: SDL_WITH_ENV("TOKEN=ac-secret://TOKEN") });
 
         expect(result.ok).toBe(true);
         expect(getManifestService(result, "westcoast", "web").env).toEqual(["TOKEN=ac-secret://TOKEN"]);
       });
 
-      it("rejects an unknown console reference kind naming the offending value", () => {
+      it("rejects an unknown sdl reference kind naming the offending value", () => {
         const { result } = setup({ sdl: SDL_WITH_ENV("TOKEN=ac-var://TOKEN") });
 
         expect(result).toMatchObject({

@@ -3,21 +3,21 @@ import { singleton } from "tsyringe";
 
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 
-const CONSOLE_REFERENCE_PREFIX = "ac-";
+const SDL_REFERENCE_PREFIX = "ac-";
 
-const CONSOLE_REFERENCE = /^ac-([a-z]{1,16}):\/\/([A-Za-z_][A-Za-z0-9_]{0,63})$/;
+const SDL_REFERENCE = /^ac-([a-z]{1,16}):\/\/([A-Za-z_][A-Za-z0-9_]{0,63})$/;
 
 /** The whole message is logged by the error handler, and an offending value is only bounded by the request body limit. */
 const MAX_ECHOED_REFERENCE_LENGTH = 120;
 
-type ConsoleReferenceRead = { type: "plain" } | { type: "reserved" } | { type: "reference"; kind: string; name: string };
+type SdlReferenceRead = { type: "plain" } | { type: "reserved" } | { type: "reference"; kind: string; name: string };
 
-function readConsoleReference(value: string): ConsoleReferenceRead {
-  if (!value.startsWith(CONSOLE_REFERENCE_PREFIX)) {
+function readSdlReference(value: string): SdlReferenceRead {
+  if (!value.startsWith(SDL_REFERENCE_PREFIX)) {
     return { type: "plain" };
   }
 
-  const reference = CONSOLE_REFERENCE.exec(value);
+  const reference = SDL_REFERENCE.exec(value);
 
   if (!reference) {
     return { type: "reserved" };
@@ -32,13 +32,13 @@ function readEnvDeclaration(entry: string): { key: string; value: string } | nul
   return valueStart === -1 ? null : { key: entry.slice(0, valueStart), value: entry.slice(valueStart + 1) };
 }
 
-export interface ConsoleReferenceContext {
+export interface SdlReferenceContext {
   secrets: SdlSecrets;
 }
 
-export interface ConsoleReferenceResolver {
+export interface SdlReferenceResolver {
   readonly kind: string;
-  resolve(name: string, context: ConsoleReferenceContext): string | undefined;
+  resolve(name: string, context: SdlReferenceContext): string | undefined;
 }
 
 interface EnvReference {
@@ -52,32 +52,32 @@ interface EnvReference {
 type EnvReferenceVisitor = (reference: EnvReference, env: string[], index: number) => ValidationError | undefined;
 
 /** A reference name may spell an `Object.prototype` member, and a bare lookup would answer such a name with an inherited function. */
-const secretReferenceResolver: ConsoleReferenceResolver = {
+const secretReferenceResolver: SdlReferenceResolver = {
   kind: "secret",
   resolve: (name, { secrets }) => (Object.hasOwn(secrets, name) ? secrets[name] : undefined)
 };
 
 function referenceError(instancePath: string, message: string, params: Record<string, unknown>): ValidationError {
-  return { schemaPath: "", instancePath, keyword: "console-reference", params, message };
+  return { schemaPath: "", instancePath, keyword: "sdl-reference", params, message };
 }
 
 function unknownKindError(reference: EnvReference): ValidationError {
-  return referenceError(reference.instancePath, `"${reference.reference}" uses unknown Console Reference kind "${reference.kind}"`, {
+  return referenceError(reference.instancePath, `"${reference.reference}" uses unknown SDL Reference kind "${reference.kind}"`, {
     kind: reference.kind
   });
 }
 
 @singleton()
 export class SdlReferenceService {
-  readonly #resolvers = new Map<string, ConsoleReferenceResolver>();
+  readonly #resolvers = new Map<string, SdlReferenceResolver>();
 
   constructor() {
     this.register(secretReferenceResolver);
   }
 
-  register(resolver: ConsoleReferenceResolver): void {
+  register(resolver: SdlReferenceResolver): void {
     if (this.#resolvers.has(resolver.kind)) {
-      throw new Error(`Console Reference kind "${resolver.kind}" is already registered`);
+      throw new Error(`SDL Reference kind "${resolver.kind}" is already registered`);
     }
 
     this.#resolvers.set(resolver.kind, resolver);
@@ -88,7 +88,7 @@ export class SdlReferenceService {
   }
 
   /** Sets the parsed env entry, so a resolved value can never be re-read as YAML nor rescanned for references. */
-  substitute(sdl: SDLInput, context: ConsoleReferenceContext): ValidationError[] {
+  substitute(sdl: SDLInput, context: SdlReferenceContext): ValidationError[] {
     return this.#eachReference(sdl, (reference, env, index) => {
       const resolver = this.#resolvers.get(reference.kind);
 
@@ -99,7 +99,7 @@ export class SdlReferenceService {
       const value = resolver.resolve(reference.name, context);
 
       if (value === undefined) {
-        return referenceError(reference.instancePath, `no value supplied for Console Reference "${reference.reference}"`, {
+        return referenceError(reference.instancePath, `no value supplied for SDL Reference "${reference.reference}"`, {
           kind: reference.kind,
           name: reference.name
         });
@@ -136,20 +136,16 @@ export class SdlReferenceService {
 
     if (!declaration) return undefined;
 
-    const read = readConsoleReference(declaration.value);
+    const read = readSdlReference(declaration.value);
 
     if (read.type === "plain") return undefined;
 
     if (read.type === "reserved") {
       const echoed = declaration.value.slice(0, MAX_ECHOED_REFERENCE_LENGTH);
 
-      return referenceError(
-        instancePath,
-        `"${echoed}" is not a recognized Console Reference and values beginning with "${CONSOLE_REFERENCE_PREFIX}" are reserved`,
-        {
-          value: echoed
-        }
-      );
+      return referenceError(instancePath, `"${echoed}" is not a recognized SDL Reference and values beginning with "${SDL_REFERENCE_PREFIX}" are reserved`, {
+        value: echoed
+      });
     }
 
     return visit({ ...read, key: declaration.key, reference: declaration.value, instancePath });
