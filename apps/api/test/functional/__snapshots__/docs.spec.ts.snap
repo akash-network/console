@@ -610,6 +610,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "pagination.offset",
             "required": false,
             "schema": {
+              "minimum": 0,
               "nullable": true,
               "type": "number",
             },
@@ -619,6 +620,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "pagination.limit",
             "required": false,
             "schema": {
+              "minimum": 0,
               "nullable": true,
               "type": "number",
             },

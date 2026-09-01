@@ -142,11 +142,18 @@ const PaginationSchema = z.object({
   total: z.string()
 });
 
+/** Requests above this cap are clamped rather than rejected so deploy-web's fallback pager, which sends limit=1000, keeps working. */
+const MAX_FALLBACK_LIST_LIMIT = 100;
+
 export const FallbackDeploymentListQuerySchema = z.object({
   "filters.owner": z.string().optional(),
   "filters.state": z.enum(["active", "closed"]).optional(),
-  "pagination.offset": z.coerce.number().optional(),
-  "pagination.limit": z.coerce.number().optional(),
+  "pagination.offset": z.coerce.number().finite().min(0).optional(),
+  "pagination.limit": z.coerce
+    .number()
+    .min(0)
+    .optional()
+    .transform(limit => (limit === undefined ? undefined : Math.min(limit, MAX_FALLBACK_LIST_LIMIT))),
   "pagination.key": z.string().optional(),
   "pagination.count_total": z
     .string()
