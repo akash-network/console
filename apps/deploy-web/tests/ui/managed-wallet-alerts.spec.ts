@@ -40,7 +40,7 @@ test.describe("Managed wallet alerts", () => {
     });
 
     await test.step("does not show the escrow balance alert", async () => {
-      await expect(page.getByLabel("Escrow Balance")).toHaveCount(0);
+      await expect(page.getByLabel("Escrow Balance", { exact: true })).toHaveCount(0);
     });
 
     await test.step("verify deployment close alert is enabled by default", async () => {

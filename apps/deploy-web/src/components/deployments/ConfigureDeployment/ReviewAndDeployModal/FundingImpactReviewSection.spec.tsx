@@ -31,11 +31,11 @@ describe("FundingImpactReviewSection", () => {
     expect(screen.getByRole("link", { name: "Check Billing" })).toHaveAttribute("href", UrlService.billing());
   });
 
-  it("summarizes the reserve and the available after it, without a runtime figure while funding is open-ended", () => {
+  it("summarizes the escrow and the available after it, without a runtime figure while funding is open-ended", () => {
     setup({ impact: visible() });
 
     const trigger = screen.getByRole("button");
-    expect(trigger).toHaveTextContent("Reserved ~$144");
+    expect(trigger).toHaveTextContent("Escrow ~$144");
     expect(trigger).toHaveTextContent("available after $56");
     expect(trigger).not.toHaveTextContent("of runtime");
   });
@@ -45,7 +45,7 @@ describe("FundingImpactReviewSection", () => {
     expect(screen.getByRole("button")).toHaveTextContent("12 hours of runtime");
   });
 
-  it("shows a dash for available after when the balance cannot cover the reserve", () => {
+  it("shows a dash for available after when the balance cannot cover the escrow", () => {
     setup({ impact: visible({ state: "not-enough-available", availableAfterUsd: null }) });
     expect(screen.getByRole("button")).toHaveTextContent("available after —");
   });
@@ -55,12 +55,12 @@ describe("FundingImpactReviewSection", () => {
 
     await userEvent.click(screen.getByRole("button"));
 
-    expect(screen.getByText(/Reserved ~ \$144 \(estimate\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Escrow ~ \$144 \(estimate\)/)).toBeInTheDocument();
     expect(screen.getByText("$200")).toBeInTheDocument();
     expect(screen.getByText("available now")).toBeInTheDocument();
-    expect(screen.getByTestId("balance-bar")).toHaveTextContent("reserve:144,available:56");
+    expect(screen.getByTestId("balance-bar")).toHaveTextContent("escrow:144,available:56");
     expect(screen.getByTestId("balance-bar")).toHaveAttribute("data-threshold", "20");
-    expect(screen.getByText(/The reserve is held, not charged/)).toBeInTheDocument();
+    expect(screen.getByText(/The escrow is held, not charged/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Full balance breakdown in Billing/ })).toHaveAttribute("href", UrlService.billing());
   });
 
@@ -84,7 +84,7 @@ describe("FundingImpactReviewSection", () => {
     setup({ impact: visible({ state: "crosses-threshold", availableAfterUsd: 19, thresholdUsd: 20 }) });
 
     expect(screen.getByText("Buys credits")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /Reserved/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Escrow/ }));
 
     const callout = screen.getByRole("alert");
     expect(callout).toHaveTextContent("Confirming drops available to $19, below your Auto Top-Up threshold of $20");
@@ -95,7 +95,7 @@ describe("FundingImpactReviewSection", () => {
     setup({ impact: visible({ state: "no-payment-method", cardLabel: null }) });
 
     expect(screen.getByText("No payment method")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /Reserved/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Escrow/ }));
 
     expect(screen.getByText(/nothing is charged automatically/)).toBeInTheDocument();
     expect(screen.queryByText(/charged \$/)).not.toBeInTheDocument();
@@ -106,7 +106,7 @@ describe("FundingImpactReviewSection", () => {
     setup({ impact: visible({ state: "trial", trialDurationHours: 12 }) });
 
     expect(screen.getByText("Trial")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /Reserved/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Escrow/ }));
 
     expect(screen.getByText(/closed automatically after 12 hours/)).toBeInTheDocument();
     expect(screen.queryByText(/payment method/)).not.toBeInTheDocument();
@@ -114,13 +114,13 @@ describe("FundingImpactReviewSection", () => {
     expect(screen.getByRole("link", { name: "Add Credits" })).toHaveAttribute("href", UrlService.billing({ openPayment: true }));
   });
 
-  it("offers credits and drops the bar when the balance cannot cover the reserve", async () => {
+  it("offers credits and drops the bar when the balance cannot cover the escrow", async () => {
     setup({ impact: visible({ state: "not-enough-available", availableAfterUsd: null, availableNowUsd: 100 }) });
 
     expect(screen.getByText("Not enough available")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /Reserved/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Escrow/ }));
 
-    expect(screen.getByRole("alert")).toHaveTextContent("Your available balance of $100 can't cover the estimated reserve of ~$144");
+    expect(screen.getByRole("alert")).toHaveTextContent("Your available balance of $100 can't cover the estimated escrow of ~$144");
     expect(screen.queryByTestId("balance-bar")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Add Credits" })).toHaveAttribute("href", UrlService.billing({ openPayment: true }));
   });

@@ -104,14 +104,14 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: "hsl(var(--primary))" }} aria-hidden />
-              <span>Reserved</span>
-              <d.CustomNoDivTooltip title="Each running deployment is funded by its own escrow. The reserved amount is what those escrows currently hold to keep your deployments online, so it can't be used to start new ones. Whatever a deployment doesn't use returns to your available balance when it closes.">
+              <span>Escrow</span>
+              <d.CustomNoDivTooltip title="Each running deployment has its own escrow account. This is what those accounts hold to keep your deployments online, so it can't be used to start new ones. Whatever a deployment doesn't use returns to your available balance when it closes.">
                 <span className="inline-flex cursor-pointer text-muted-foreground">
                   <d.InfoCircle className="h-3.5 w-3.5" />
                 </span>
               </d.CustomNoDivTooltip>
             </div>
-            <div className="text-2xl font-bold leading-none" aria-label="Reserved balance">
+            <div className="text-2xl font-bold leading-none" aria-label="Escrow balance">
               {usd(overview.reserved)}
             </div>
             <p className="text-sm text-muted-foreground">
@@ -147,7 +147,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
               aria-expanded={isBreakdownOpen}
             >
               {isBreakdownOpen ? <d.NavArrowDown className="h-4 w-4" /> : <d.NavArrowRight className="h-4 w-4" />}
-              {isBreakdownOpen ? "Hide breakdown" : `What is reserved (${reservedSegments.length})`}
+              {isBreakdownOpen ? "Hide breakdown" : `What's in escrow (${reservedSegments.length})`}
             </button>
             {isBreakdownOpen && (
               <div className="mt-3 space-y-3">
@@ -173,7 +173,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-muted-foreground">{`Each running deployment keeps around ${RESERVE_WINDOW_HOURS} hours of its cost in reserve.`}</p>
+                <p className="text-xs text-muted-foreground">{`Each running deployment keeps around ${RESERVE_WINDOW_HOURS} hours of its cost in escrow.`}</p>
               </div>
             )}
           </div>

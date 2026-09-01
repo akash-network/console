@@ -29,7 +29,7 @@ describe(AccountBalanceOverview.name, () => {
     expect(screen.queryByText(/lasts until/)).not.toBeInTheDocument();
   });
 
-  it("shows the reserved and available balances with their descriptors", () => {
+  it("shows the escrow and available balances with their descriptors", () => {
     setup({
       reserved: 1338,
       available: 1873.2,
@@ -39,13 +39,13 @@ describe(AccountBalanceOverview.name, () => {
       ]
     });
 
-    expect(screen.getByLabelText("Reserved balance")).toHaveTextContent("1338");
+    expect(screen.getByLabelText("Escrow balance")).toHaveTextContent("1338");
     expect(screen.getByLabelText("Available balance")).toHaveTextContent("1873.2");
     expect(screen.getByText("Held to keep your 2 deployments running")).toBeInTheDocument();
     expect(screen.getByText("Free to spend on something new")).toBeInTheDocument();
   });
 
-  it("uses singular wording when a single deployment holds reserved funds", () => {
+  it("uses singular wording when a single deployment holds escrow funds", () => {
     setup({ reserved: 100, deployments: [{ dseq: "1", name: "app-a", reservedUsd: 100, perHourUsd: 1 }] });
 
     expect(screen.getByText("Held to keep your 1 deployment running")).toBeInTheDocument();
@@ -56,7 +56,7 @@ describe(AccountBalanceOverview.name, () => {
 
     expect(screen.queryByText("llama-chat")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /What is reserved/ }));
+    fireEvent.click(screen.getByRole("button", { name: /What's in escrow/ }));
 
     expect(screen.getByText("llama-chat")).toBeInTheDocument();
     expect(screen.getByText(/\/hr/)).toBeInTheDocument();
@@ -65,14 +65,14 @@ describe(AccountBalanceOverview.name, () => {
   it("toggles the breakdown label between closed and open", () => {
     setup({ deployments: [{ dseq: "1", name: "llama-chat", reservedUsd: 508.8, perHourUsd: 4.24 }] });
 
-    expect(screen.getByRole("button", { name: /What is reserved \(1\)/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /What's in escrow \(1\)/ })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /What is reserved/ }));
+    fireEvent.click(screen.getByRole("button", { name: /What's in escrow/ }));
 
     expect(screen.getByRole("button", { name: /Hide breakdown/ })).toBeInTheDocument();
   });
 
-  it("counts only deployments that still hold reserved funds so the labels match the badges", () => {
+  it("counts only deployments that still hold escrow funds so the labels match the badges", () => {
     setup({
       deployments: [
         { dseq: "1", name: "llama-chat", reservedUsd: 508.8, perHourUsd: 4.24 },
@@ -80,14 +80,14 @@ describe(AccountBalanceOverview.name, () => {
       ]
     });
 
-    expect(screen.getByRole("button", { name: /What is reserved \(1\)/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /What's in escrow \(1\)/ })).toBeInTheDocument();
     expect(screen.getByText("Held to keep your 1 deployment running")).toBeInTheDocument();
   });
 
-  it("hides the breakdown toggle when no deployment holds reserved funds", () => {
+  it("hides the breakdown toggle when no deployment holds escrow funds", () => {
     setup({ deployments: [{ dseq: "1", name: "drained-app", reservedUsd: 0, perHourUsd: 0 }] });
 
-    expect(screen.queryByRole("button", { name: /What is reserved/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /What's in escrow/ })).not.toBeInTheDocument();
   });
 
   it("clears hover dimming when the hovered deployment disappears mid-hover", () => {
@@ -97,7 +97,7 @@ describe(AccountBalanceOverview.name, () => {
     ];
     const { rerenderWith } = setup({ deployments, available: 100 });
 
-    fireEvent.click(screen.getByRole("button", { name: /What is reserved/ }));
+    fireEvent.click(screen.getByRole("button", { name: /What's in escrow/ }));
     fireEvent.mouseEnter(screen.getByRole("link", { name: /llama-chat/ }).closest("li")!);
 
     expect(screen.getByRole("link", { name: /side-api/ }).closest("li")).toHaveStyle({ opacity: "0.4" });
@@ -110,7 +110,7 @@ describe(AccountBalanceOverview.name, () => {
   it("links each deployment badge to its detail page", () => {
     setup({ deployments: [{ dseq: "42", name: "llama-chat", reservedUsd: 508.8, perHourUsd: 4.24 }] });
 
-    fireEvent.click(screen.getByRole("button", { name: /What is reserved/ }));
+    fireEvent.click(screen.getByRole("button", { name: /What's in escrow/ }));
 
     expect(screen.getByRole("link", { name: /llama-chat/ })).toHaveAttribute("href", UrlService.deploymentDetails("42"));
   });
