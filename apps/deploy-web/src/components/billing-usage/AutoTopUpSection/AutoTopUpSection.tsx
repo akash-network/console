@@ -131,6 +131,7 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
   const autoReloadThreshold = walletSettings?.autoReloadThreshold ?? DEFAULT_AUTO_RELOAD_THRESHOLD;
   const autoReloadAmount = walletSettings?.autoReloadAmount ?? DEFAULT_AUTO_RELOAD_AMOUNT;
   const autoReloadEnabled = walletSettings?.autoReloadEnabled ?? false;
+  const isPausedByDeclines = autoReloadEnabled && !!walletSettings?.autoReloadPausedAt;
   const isFirstLoad = (isWalletSettingsLoading && !walletSettings) || (isDefaultPaymentMethodLoading && !defaultPaymentMethod);
 
   const isReloadChangeDisabled = useMemo(() => {
@@ -212,6 +213,15 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
                 Add a payment method
               </button>{" "}
               to enable auto {isThresholdModeOffered ? "top-up" : "recharge"}
+            </p>
+          ) : isPausedByDeclines ? (
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-destructive">Paused.</span> {defaultCardLabel ?? "Your default payment method"} was declined several times, so
+              we&apos;ve stopped charging it. Your deployments keep running until your credits run out.{" "}
+              <button type="button" onClick={openAddPaymentMethod} className="text-primary underline">
+                Update your payment method
+              </button>{" "}
+              to start topping up again.
             </p>
           ) : !isThresholdModeOffered ? (
             <p className="text-sm text-muted-foreground">

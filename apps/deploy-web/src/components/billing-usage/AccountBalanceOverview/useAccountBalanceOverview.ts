@@ -108,7 +108,7 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
   const available = Math.max(0, totalUsd - escrow);
   const hasSpend = spend.perBlockUsd > 0;
   const lastsUntil = hasSpend ? getTimeLeft(spend.perBlockUsd, totalUsd) : null;
-  const autoReloadEnabled = walletSettings?.autoReloadEnabled ?? false;
+  const autoReloadEnabled = (walletSettings?.autoReloadEnabled ?? false) && !walletSettings?.autoReloadPausedAt;
   const isBalanceUnavailable = !balances && (isBalancesError || (!!address && balancesFetchStatus === "idle"));
   const autoReloadThreshold = showsThresholdRule && autoReloadEnabled ? walletSettings?.autoReloadThreshold ?? null : null;
 
