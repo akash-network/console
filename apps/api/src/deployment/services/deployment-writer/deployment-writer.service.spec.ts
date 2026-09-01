@@ -1,6 +1,7 @@
 import { DeploymentReclamation, MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { faker } from "@faker-js/faker";
+import { NotFound } from "http-errors";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
 
@@ -126,6 +127,11 @@ describe(DeploymentWriterService.name, () => {
     groupSpecs: [{ name: "test-group", resources: [] }]
   };
 
+  const resolvedManifestValue = {
+    groups: [{ name: "resolved-group" }],
+    groupSpecs: [{ name: "resolved-group", resources: [] }]
+  };
+
   const deploymentData: DeploymentResponse = {
     deployment: {
       id: { owner: wallet.address, dseq: "100" },
@@ -195,6 +201,26 @@ describe(DeploymentWriterService.name, () => {
       } as any);
 
       await expect(service.create({ userId: "user-1", sdl: "bad-sdl", deposit: 5 })).rejects.toThrow();
+    });
+
+    it("throws 400 when a sdl reference cannot be resolved", async () => {
+      const { service, sdlService, signerService } = setup();
+      sdlService.generateResolvedManifest.mockResolvedValue({
+        ok: false,
+        value: [{ message: 'no value supplied for SDL Reference "ac-secret://TOKEN"' }]
+      } as any);
+
+      await expect(service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 })).rejects.toMatchObject({ status: 400 });
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
+    it("returns the manifest built from the sdl as submitted rather than the resolved one", async () => {
+      const { service } = setup();
+
+      const result = await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
+
+      expect(result.manifest).toContain("test-group");
+      expect(result.manifest).not.toContain("resolved-group");
     });
 
     it("forwards the reclamation block to getCreateDeploymentMsg when the SDL declares it", async () => {
@@ -665,14 +691,41 @@ describe(DeploymentWriterService.name, () => {
     });
 
     it("skips update tx when manifest hash matches", async () => {
-      const { service, signerService, rpcMessageService, sdlService } = setup();
-      const manifestVersion = new Uint8Array([1, 2, 3]);
-      sdlService.generateManifestVersion.mockResolvedValue(manifestVersion);
+      const { service, signerService, rpcMessageService } = setup({ manifestVersion: new Uint8Array([1, 2, 3]) });
 
       await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
 
       expect(rpcMessageService.getUpdateDeploymentMsg).not.toHaveBeenCalled();
       expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
+    it("throws 400 when a sdl reference cannot be resolved", async () => {
+      const { service, sdlService, providerService } = setup();
+      sdlService.generateResolvedManifest.mockResolvedValue({
+        ok: false,
+        value: [{ message: 'no value supplied for SDL Reference "ac-secret://TOKEN"' }]
+      } as any);
+
+      await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" })).rejects.toMatchObject({ status: 400 });
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("answers a bad reference with 400 even for a deployment it cannot find", async () => {
+      const { service, sdlService, deploymentReaderService } = setup();
+      sdlService.generateResolvedManifest.mockResolvedValue({ ok: false, value: [{ message: "no value supplied" }] } as any);
+      deploymentReaderService.findByWalletAndDseq.mockRejectedValue(new NotFound("Deployment not found"));
+
+      await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" })).rejects.toMatchObject({ status: 400 });
+    });
+
+    it("sends the providers the manifest built from the sdl as submitted", async () => {
+      const { service, providerService } = setup();
+      providerService.toProviderAuth.mockResolvedValue({ type: "jwt", token: "test-token" });
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
+
+      expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ manifest: expect.stringContaining("test-group") }));
+      expect(providerService.sendManifest).not.toHaveBeenCalledWith(expect.objectContaining({ manifest: expect.stringContaining("resolved-group") }));
     });
 
     it("sends manifest to all unique lease providers", async () => {
@@ -725,8 +778,7 @@ describe(DeploymentWriterService.name, () => {
     });
 
     it("records the definition even when the manifest version already matches the chain", async () => {
-      const { service, sdlService, signerService, deploymentSettingRepository } = setup();
-      sdlService.generateManifestVersion.mockResolvedValue(new Uint8Array([1, 2, 3]));
+      const { service, signerService, deploymentSettingRepository } = setup({ manifestVersion: new Uint8Array([1, 2, 3]) });
 
       await service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS });
 
@@ -786,7 +838,13 @@ describe(DeploymentWriterService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: DeploymentWriterService.name });
   });
 
-  function setup(input?: { isManagedDepositEnabled?: boolean; defaultDeposit?: number; transactionRuns?: boolean; compensationEnqueued?: boolean }) {
+  function setup(input?: {
+    isManagedDepositEnabled?: boolean;
+    defaultDeposit?: number;
+    transactionRuns?: boolean;
+    compensationEnqueued?: boolean;
+    manifestVersion?: Uint8Array;
+  }) {
     const signerService = mock<ManagedSignerService>();
     const rpcMessageService = mock<RpcMessageService>();
     const sdlService = mock<SdlService>();
@@ -818,6 +876,10 @@ describe(DeploymentWriterService.name, () => {
     walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
     sdlService.generateManifest.mockReturnValue({ ok: true, value: manifestValue } as any);
     sdlService.generateManifestVersion.mockResolvedValue(new Uint8Array([4, 5, 6]));
+    sdlService.generateResolvedManifest.mockResolvedValue({
+      ok: true,
+      value: { manifest: resolvedManifestValue, manifestVersion: input?.manifestVersion ?? new Uint8Array([4, 5, 6]) }
+    } as any);
     deploymentReaderService.findByWalletAndDseq.mockResolvedValue(deploymentData);
 
     const service = new DeploymentWriterService(

@@ -1,3 +1,4 @@
+import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
 import { faker } from "@faker-js/faker";
 import { NotFound } from "http-errors";
 import nock from "nock";
@@ -17,6 +18,7 @@ import { CORE_CONFIG } from "@src/core";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
+import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
@@ -827,6 +829,66 @@ describe("Deployments API", () => {
       expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
     });
 
+    it("returns 400 naming the offending value for an unrecognized ac- kind", async () => {
+      const { userApiKeySecret } = await mockPersistedUser();
+
+      const response = await postDeploymentWithEnv(userApiKeySecret, "TOKEN=ac-var://TOKEN");
+
+      expect(response.status).toBe(400);
+      const result = (await response.json()) as { message: string };
+      expect(result.message).toContain("ac-var://TOKEN");
+    });
+
+    it("returns 400 naming a value that merely opens with the reserved prefix", async () => {
+      const { userApiKeySecret } = await mockPersistedUser();
+
+      const response = await postDeploymentWithEnv(userApiKeySecret, "MODE=ac-dc");
+
+      expect(response.status).toBe(400);
+      const result = (await response.json()) as { message: string };
+      expect(result.message).toContain("ac-dc");
+    });
+
+    it("returns 400 naming a reference it holds no value for", async () => {
+      const { userApiKeySecret } = await mockPersistedUser();
+
+      const response = await postDeploymentWithEnv(userApiKeySecret, "TOKEN=ac-secret://TOKEN");
+
+      expect(response.status).toBe(400);
+      const result = (await response.json()) as { message: string };
+      expect(result.message).toContain("ac-secret://TOKEN");
+    });
+
+    it("records nothing and broadcasts nothing for an unrecognized ac- kind", async () => {
+      const { userApiKeySecret, user } = await mockPersistedUser();
+
+      await postDeploymentWithEnv(userApiKeySecret, "TOKEN=ac-var://TOKEN");
+
+      expect(await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id })).toBeUndefined();
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
+    it("resolves a kind registered after boot that it would otherwise reject", async () => {
+      const { userApiKeySecret } = await mockPersistedUser();
+
+      const beforeRegistration = await postDeploymentWithEnv(userApiKeySecret, "MODE=ac-probe://MODE");
+      container.resolve(SdlReferenceService).register({ kind: "probe", resolve: name => `resolved-${name}` });
+      const afterRegistration = await postDeploymentWithEnv(userApiKeySecret, "MODE=ac-probe://MODE");
+
+      expect(beforeRegistration.status).toBe(400);
+      expect(afterRegistration.status).toBe(201);
+    });
+
+    function postDeploymentWithEnv(userApiKeySecret: string, entry: string) {
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
+      return app.request("/v1/deployments", {
+        method: "POST",
+        body: JSON.stringify({ data: { sdl: yml.replace("    expose:", `    env:\n      - "${entry}"\n    expose:`) } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+    }
+
     function postOversizedDeployment(userApiKeySecret: string) {
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
       const args = Array.from({ length: 40 }, () => `      - ${OVERSIZED_FILLER}`).join("\n");
@@ -1219,6 +1281,58 @@ describe("Deployments API", () => {
 
       expect(container.resolve(SdlService).generateManifest(setting?.sdl ?? "").ok).toBe(true);
     });
+
+    it("returns 400 naming the offending value for an unrecognized ac- kind", async () => {
+      const { userApiKeySecret, dseq } = await setupUpdatableDeployment();
+
+      const response = await putDeploymentWithEnv({ userApiKeySecret, dseq, entry: "TOKEN=ac-var://TOKEN" });
+
+      expect(response.status).toBe(400);
+      const result = (await response.json()) as { message: string };
+      expect(result.message).toContain("ac-var://TOKEN");
+    });
+
+    it("returns 400 naming a reference it holds no value for", async () => {
+      const { userApiKeySecret, dseq } = await setupUpdatableDeployment();
+
+      const response = await putDeploymentWithEnv({ userApiKeySecret, dseq, entry: "TOKEN=ac-secret://TOKEN" });
+
+      expect(response.status).toBe(400);
+      const result = (await response.json()) as { message: string };
+      expect(result.message).toContain("ac-secret://TOKEN");
+    });
+
+    it("commits the manifest version of the very manifest it sends the providers", async () => {
+      const { userApiKeySecret, user, dseq } = await setupUpdatableDeployment();
+      const sdlService = container.resolve(SdlService);
+      const manifest = sdlService.generateManifest(fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8"));
+      const { groups } = (manifest as Extract<typeof manifest, { ok: true }>).value;
+
+      await putDeployment({ userApiKeySecret, dseq, sdlMock: "hello-world-sdl.yml" });
+
+      const setting = await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id, dseq });
+      expect(setting?.manifestVersion).toBe(Buffer.from(await sdlService.generateManifestVersion(groups)).toString("base64"));
+      expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ manifest: manifestToSortedJSON(groups) }));
+    });
+
+    it("records nothing and sends no manifest for an unrecognized ac- kind", async () => {
+      const { userApiKeySecret, user, dseq } = await setupUpdatableDeployment();
+
+      await putDeploymentWithEnv({ userApiKeySecret, dseq, entry: "TOKEN=ac-var://TOKEN" });
+
+      expect(await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id, dseq })).toBeUndefined();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    function putDeploymentWithEnv({ userApiKeySecret, dseq, entry }: { userApiKeySecret: string; dseq: string; entry: string }) {
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
+      return app.request(`/v1/deployments/${dseq}`, {
+        method: "PUT",
+        body: JSON.stringify({ data: { sdl: yml.replace("    expose:", `    env:\n      - "${entry}"\n    expose:`) } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+    }
 
     async function setupUpdatableDeployment() {
       const { userApiKeySecret, user, wallets } = await mockPersistedUser();
