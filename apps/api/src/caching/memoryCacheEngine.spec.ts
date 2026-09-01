@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import MemoryCacheEngine from "./memoryCacheEngine";
+import MemoryCacheEngine, { estimateEntryBytes } from "./memoryCacheEngine";
 
 describe(MemoryCacheEngine.name, () => {
   describe("getFromCache", () => {
@@ -215,6 +215,91 @@ describe(MemoryCacheEngine.name, () => {
 
       expect(engine.getFromCache("shared")).toBeUndefined();
       expect(privateEngine.getFromCache("private")).toBeUndefined();
+    });
+  });
+
+  describe("size bounding", () => {
+    it("evicts least-recently-used entries when total bytes exceed maxTotalBytes", () => {
+      const engine = new MemoryCacheEngine({ maxTotalBytes: 250, maxEntryBytes: 250 });
+
+      engine.storeInCache("first", "x".repeat(100));
+      engine.storeInCache("second", "y".repeat(100));
+      engine.storeInCache("third", "z".repeat(100));
+
+      expect(engine.getFromCache("first")).toBeUndefined();
+      expect(engine.getFromCache("second")).toBe("y".repeat(100));
+      expect(engine.getFromCache("third")).toBe("z".repeat(100));
+    });
+
+    it("refuses a single entry larger than maxEntryBytes without evicting others", () => {
+      const engine = new MemoryCacheEngine({ maxTotalBytes: 1000, maxEntryBytes: 100 });
+
+      engine.storeInCache("small", "kept");
+      engine.storeInCache("huge", "x".repeat(500));
+
+      expect(engine.getFromCache("huge")).toBeUndefined();
+      expect(engine.getFromCache("small")).toBe("kept");
+    });
+
+    it("accepts a Buffer entry whose binary length is within maxEntryBytes", () => {
+      const engine = new MemoryCacheEngine({ maxTotalBytes: 8000, maxEntryBytes: 1500 });
+
+      engine.storeInCache("binary", { payload: Buffer.alloc(1024) });
+
+      expect(engine.getFromCache("binary")).toEqual({ payload: Buffer.alloc(1024) });
+    });
+
+    it("refuses a multi-byte string whose UTF-8 size exceeds maxEntryBytes", () => {
+      const engine = new MemoryCacheEngine({ maxTotalBytes: 8000, maxEntryBytes: 2000 });
+
+      engine.storeInCache("multibyte", { text: "\u20ac".repeat(1000) });
+
+      expect(engine.getFromCache("multibyte")).toBeUndefined();
+    });
+
+    it("stores entries within both budgets", () => {
+      const engine = new MemoryCacheEngine({ maxTotalBytes: 1000, maxEntryBytes: 500 });
+
+      engine.storeInCache("fits", { data: "payload" });
+
+      expect(engine.getFromCache("fits")).toEqual({ data: "payload" });
+    });
+  });
+
+  describe(estimateEntryBytes.name, () => {
+    it("measures plain values by their JSON length", () => {
+      expect(estimateEntryBytes({ a: 1 })).toBe(JSON.stringify({ a: 1 }).length + 1);
+    });
+
+    it("counts binary payloads by byte length instead of JSON-inflating them", () => {
+      const size = estimateEntryBytes({ data: new Uint8Array(1000) });
+
+      expect(size).toBeGreaterThanOrEqual(1000);
+      expect(size).toBeLessThan(2000);
+    });
+
+    it("counts Buffer payloads by binary length rather than their JSON expansion", () => {
+      const size = estimateEntryBytes({ data: Buffer.alloc(1000) });
+
+      expect(size).toBeGreaterThanOrEqual(1000);
+      expect(size).toBeLessThan(2000);
+    });
+
+    it("measures multi-byte characters as UTF-8 bytes rather than UTF-16 code units", () => {
+      const text = "\u20ac".repeat(1000);
+
+      expect(estimateEntryBytes({ text })).toBeGreaterThan(3000);
+    });
+
+    it("serializes bigint values instead of throwing", () => {
+      expect(estimateEntryBytes({ amount: 10n })).toBeGreaterThan(0);
+    });
+
+    it("returns an uncacheable size for circular values", () => {
+      const circular: { self?: unknown } = {};
+      circular.self = circular;
+
+      expect(estimateEntryBytes(circular)).toBe(Number.MAX_SAFE_INTEGER);
     });
   });
 
