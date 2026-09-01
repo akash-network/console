@@ -14,6 +14,9 @@ const MAX_DOWNLOAD_RETRIES = 2;
 const RETRY_INITIAL_DELAY_MS = 1_000;
 const RETRY_MAX_DELAY_MS = 10_000;
 
+/** Only a missing or deleted archive will never appear; 403 and 429 are GitHub rate limits that clear on their own. */
+const PERMANENTLY_UNAVAILABLE_STATUSES = new Set([404, 410]);
+
 class ArchiveNotAvailableError extends Error {}
 
 export interface DirectoryEntry {
@@ -123,7 +126,7 @@ export class GitHubArchiveService {
 
       if (!response.ok) {
         const message = `Failed to download archive from ${url}: ${response.status} ${response.statusText}`;
-        throw response.status >= 400 && response.status < 500 ? new ArchiveNotAvailableError(message) : new Error(message);
+        throw PERMANENTLY_UNAVAILABLE_STATUSES.has(response.status) ? new ArchiveNotAvailableError(message) : new Error(message);
       }
 
       if (!response.body) {
