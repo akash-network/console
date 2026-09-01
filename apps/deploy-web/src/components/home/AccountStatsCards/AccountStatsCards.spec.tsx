@@ -9,17 +9,17 @@ import { buildWalletBalance } from "@tests/seeders/walletBalance";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(AccountStatsCards.name, () => {
-  it("renders total USD balance", () => {
+  it("renders the total account balance", () => {
     setup({ walletBalance: buildWalletBalance({ totalUsd: 150.5 }) });
 
-    expect(screen.getByText("Available Balance")).toBeInTheDocument();
+    expect(screen.getByText("Account balance")).toBeInTheDocument();
     expect(screen.getByText("$150.50")).toBeInTheDocument();
   });
 
-  it("renders deployment escrow USD", () => {
+  it("renders what the running deployments hold in escrow", () => {
     setup({ walletBalance: buildWalletBalance({ totalDeploymentEscrowUSD: 42.0 }) });
 
-    expect(screen.getByText("$42.00 used in deployments")).toBeInTheDocument();
+    expect(screen.getByText("$42.00 in escrow")).toBeInTheDocument();
   });
 
   it("does not render AKT or USDC or ACT cards", () => {
@@ -46,7 +46,7 @@ describe(AccountStatsCards.name, () => {
   it("renders zero balance when wallet balance is null", () => {
     setup({ walletBalance: null });
 
-    expect(screen.getByText("Available Balance")).toBeInTheDocument();
+    expect(screen.getByText("Account balance")).toBeInTheDocument();
     expect(screen.getAllByText("$0.00")).not.toHaveLength(0);
   });
 
