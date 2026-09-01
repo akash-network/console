@@ -20,13 +20,13 @@ import type { DeploymentTopUpInstrumentation } from "../top-up-managed-deploymen
 import { DrainingDeploymentService } from "./draining-deployment.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
-
-/** The container runtime splits stdout at 16 KiB, which mangles a longer line into unparseable JSON. */
-const MAX_LOGGABLE_LINE_BYTES = 16384;
 import { createAkashAddress } from "@test/seeders";
 import { createAutoTopUpDeployment, createManyAutoTopUpDeployments } from "@test/seeders/auto-top-up-deployment.seeder";
 import { createDrainingDeployment } from "@test/seeders/draining-deployment.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
+
+/** The container runtime splits stdout at 16 KiB, which mangles a longer line into unparseable JSON. */
+const MAX_LOGGABLE_LINE_BYTES = 16384;
 
 describe(DrainingDeploymentService.name, () => {
   describe("findDrainingDeploymentsByOwner", () => {
