@@ -872,7 +872,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret } = await mockPersistedUser();
 
       const beforeRegistration = await postDeploymentWithEnv(userApiKeySecret, "MODE=ac-probe://MODE");
-      container.resolve(SdlReferenceService).register({ kind: "probe", resolve: name => `resolved-${name}` });
+      container.resolve(SdlReferenceService).register({ kind: "probe", resolve: ({ name }) => `resolved-${name}` });
       const afterRegistration = await postDeploymentWithEnv(userApiKeySecret, "MODE=ac-probe://MODE");
 
       expect(beforeRegistration.status).toBe(400);

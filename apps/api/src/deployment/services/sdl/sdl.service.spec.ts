@@ -584,7 +584,7 @@ describe(SdlService.name, () => {
     it("returns a manifest carrying the resolved value", async () => {
       const { service } = setup();
 
-      const result = await service.generateResolvedManifest({ sdl: SDL_WITH_ENV("TOKEN=ac-secret://TOKEN"), secrets: { TOKEN: "resolved" } });
+      const result = await service.generateResolvedManifest({ sdl: SDL_WITH_ENV("TOKEN=ac-secret://TOKEN"), secrets: { web: { TOKEN: "resolved" } } });
 
       expect(result.ok).toBe(true);
       expect(resolvedOf(result).manifest.groups[0].services[0].env).toEqual(["TOKEN=resolved"]);
@@ -593,7 +593,7 @@ describe(SdlService.name, () => {
     it("hashes an sdl with a substituted value exactly as one carrying that value inline", async () => {
       const { service } = setup();
 
-      const substituted = await service.generateResolvedManifest({ sdl: SDL_WITH_ENV("TOKEN=ac-secret://TOKEN"), secrets: { TOKEN: "resolved" } });
+      const substituted = await service.generateResolvedManifest({ sdl: SDL_WITH_ENV("TOKEN=ac-secret://TOKEN"), secrets: { web: { TOKEN: "resolved" } } });
       const inline = await service.generateResolvedManifest({ sdl: SDL_WITH_ENV("TOKEN=resolved"), secrets: {} });
 
       expect(versionOf(substituted)).toEqual(versionOf(inline));
@@ -603,8 +603,8 @@ describe(SdlService.name, () => {
       const { service } = setup();
       const sdl = SDL_WITH_ENV("TOKEN=ac-secret://TOKEN");
 
-      const first = await service.generateResolvedManifest({ sdl, secrets: { TOKEN: "one" } });
-      const second = await service.generateResolvedManifest({ sdl, secrets: { TOKEN: "two" } });
+      const first = await service.generateResolvedManifest({ sdl, secrets: { web: { TOKEN: "one" } } });
+      const second = await service.generateResolvedManifest({ sdl, secrets: { web: { TOKEN: "two" } } });
 
       expect(versionOf(first)).not.toEqual(versionOf(second));
     });
@@ -613,8 +613,8 @@ describe(SdlService.name, () => {
       const { service } = setup();
       const sdl = SDL_WITH_ENV("TOKEN=ac-secret://TOKEN");
 
-      const first = await service.generateResolvedManifest({ sdl, secrets: { TOKEN: "resolved" } });
-      const second = await service.generateResolvedManifest({ sdl, secrets: { TOKEN: "resolved" } });
+      const first = await service.generateResolvedManifest({ sdl, secrets: { web: { TOKEN: "resolved" } } });
+      const second = await service.generateResolvedManifest({ sdl, secrets: { web: { TOKEN: "resolved" } } });
 
       expect(versionOf(first)).toEqual(versionOf(second));
     });
@@ -631,7 +631,7 @@ describe(SdlService.name, () => {
     it("returns errors for an unrecognized kind", async () => {
       const { service } = setup();
 
-      const result = await service.generateResolvedManifest({ sdl: SDL_WITH_ENV("TOKEN=ac-var://TOKEN"), secrets: { TOKEN: "resolved" } });
+      const result = await service.generateResolvedManifest({ sdl: SDL_WITH_ENV("TOKEN=ac-var://TOKEN"), secrets: { web: { TOKEN: "resolved" } } });
 
       expect(errorsOf(result)[0].message).toContain("ac-var://TOKEN");
     });
