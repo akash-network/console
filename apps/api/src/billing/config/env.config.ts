@@ -45,7 +45,7 @@ export const envSchema = z.object({
   AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN: z.number({ coerce: true }).min(0).default(60),
   /** Consecutive declines that pause auto top-up, kept low because card networks fine excessive reattempts of a declined payment. */
   AUTO_RELOAD_MAX_CONSECUTIVE_DECLINES: z.number({ coerce: true }).int().min(1).default(4),
-  /** Ceiling on the doubled charge cooldown, so raising the decline limit cannot stretch the gap past the daily safety-net check. */
+  /** Ceiling on the doubled charge cooldown, so raising the decline limit cannot stretch the gap past the daily safety-net check; it never shortens the base cooldown. */
   AUTO_RELOAD_CHARGE_BACKOFF_MAX_IN_MIN: z.number({ coerce: true }).min(0).default(1440),
   /** How long credits must keep reading sufficient before the low-credit email unlatches, so a single misread cannot unlatch it. */
   CREDITS_LOW_RECOVERY_CONFIRM_WINDOW_MIN: z.number({ coerce: true }).min(0).default(30),

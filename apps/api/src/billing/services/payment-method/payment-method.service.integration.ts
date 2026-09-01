@@ -146,6 +146,20 @@ describe(PaymentMethodService.name, () => {
       expect(autoReloadPauseService.resume).toHaveBeenCalledWith("user_1");
     });
 
+    it("keeps the upserted method when resuming auto top-up fails", async () => {
+      const { service, stripe, paymentMethodRepository, autoReloadPauseService } = setup();
+      const user = mock<PayingUser>({ id: "user_1", stripeCustomerId: "cus_1" });
+      const paymentMethod = generatePaymentMethod({ id: "pm_1", card: { fingerprint: "fp_1" } });
+      const local = { ...generateDatabasePaymentMethod({ paymentMethodId: "pm_1" }), isDefault: true };
+      paymentMethodRepository.upsert.mockResolvedValue({ paymentMethod: local, isNew: true });
+      vi.spyOn(stripe.customers, "update").mockResolvedValue(mock<Stripe.Response<Stripe.Customer>>());
+      autoReloadPauseService.resume.mockRejectedValue(new Error("queue unavailable"));
+
+      const result = await service.syncAttached({ user, paymentMethod });
+
+      expect(result).toEqual({ isNew: true, isDefault: true });
+    });
+
     it("leaves auto top-up alone for a method that does not become the default", async () => {
       const { service, paymentMethodRepository, autoReloadPauseService } = setup();
       const user = mock<PayingUser>({ id: "user_1", stripeCustomerId: "cus_1" });

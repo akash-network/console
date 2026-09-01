@@ -1,7 +1,7 @@
 import { inject, singleton } from "tsyringe";
 
 import type { CardDecline } from "@src/billing/lib/card-decline/card-decline";
-import { type ChargeClaim, WalletSettingRepository } from "@src/billing/repositories";
+import { type ChargeClaim, UserWalletRepository, type WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
@@ -23,6 +23,7 @@ export class AutoReloadPauseService {
 
   constructor(
     private readonly walletSettingRepository: WalletSettingRepository,
+    private readonly userWalletRepository: UserWalletRepository,
     private readonly walletReloadJobService: WalletReloadJobService,
     private readonly notificationService: NotificationService,
     private readonly billingConfig: BillingConfigService,
@@ -43,8 +44,9 @@ export class AutoReloadPauseService {
     }
 
     const doublings = Math.min(failureCount - 1, MAX_BACKOFF_DOUBLINGS);
+    const backedOff = Math.min(base * 2 ** doublings, this.billingConfig.get("AUTO_RELOAD_CHARGE_BACKOFF_MAX_IN_MIN"));
 
-    return Math.min(base * 2 ** doublings, this.billingConfig.get("AUTO_RELOAD_CHARGE_BACKOFF_MAX_IN_MIN"));
+    return Math.max(base, backedOff);
   }
 
   async recordDecline(input: { claim: ChargeClaim; user: UserOutput; decline: CardDecline }): Promise<void> {
@@ -77,8 +79,18 @@ export class AutoReloadPauseService {
     this.logger.info({ event: "AUTO_RELOAD_RESUMED", userId, pausedAt: setting.autoReloadPausedAt });
 
     if (setting.autoReloadEnabled) {
-      await this.walletReloadJobService.scheduleForWalletSetting(setting, { withCleanup: true });
+      await this.#reactivate(setting);
     }
+  }
+
+  /**
+   * Mirrors the fresh-enable transition: while paused the wallet was eligible for the credits-low
+   * email, and leaving that latch stamped would suppress the email the next time it pauses.
+   */
+  async #reactivate(setting: WalletSettingOutput): Promise<void> {
+    await this.walletReloadJobService.scheduleForWalletSetting(setting, { withCleanup: true });
+    await this.walletReloadJobService.cancelCreditsLowCheckByUserId(setting.userId);
+    await this.userWalletRepository.updateById(setting.walletId, { creditsLowNotifiedAt: null, creditsSufficientSince: null, creditsLowSince: null });
   }
 
   /** CONSOLE_WEB_PAYMENT_LINK carries `?openPayment=true`, which opens the Add Funds modal rather than the payment methods the user needs to fix. */

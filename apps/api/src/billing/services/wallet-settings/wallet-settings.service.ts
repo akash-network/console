@@ -2,6 +2,7 @@ import assert from "http-assert";
 import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { isAutoReloadActive } from "@src/billing/lib/auto-reload/auto-reload";
 import { centsToUsd, usdToCents } from "@src/billing/lib/currency/currency";
 import { UserWalletRepository, type WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
@@ -152,14 +153,14 @@ export class WalletSettingService {
     }
 
     if (next.autoReloadEnabled) {
-      if (!prev?.autoReloadEnabled) {
+      if (!isAutoReloadActive(prev)) {
         await this.walletReloadJobService.scheduleForWalletSetting(next, { withCleanup: true });
         await this.walletReloadJobService.cancelCreditsLowCheckByUserId(next.userId);
         await this.userWalletRepository.updateById(next.walletId, { creditsLowNotifiedAt: null, creditsSufficientSince: null, creditsLowSince: null });
         return;
       }
 
-      if (prev.autoReloadPausedAt || this.#hasReloadRuleChanged(prev, next)) {
+      if (this.#hasReloadRuleChanged(prev, next)) {
         await this.walletReloadJobService.scheduleForWalletSetting(next, { withCleanup: true });
       }
       return;

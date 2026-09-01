@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { WalletSettingRepository } from "@src/billing/repositories";
+import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
@@ -34,6 +34,12 @@ describe(AutoReloadPauseService.name, () => {
       const { service } = setup({ cooldownMinutes: 0 });
 
       expect(service.calculateChargeCooldownMinutes(3)).toBe(0);
+    });
+
+    it("never lets a ceiling below the base cooldown shorten the gap", () => {
+      const { service } = setup({ cooldownMinutes: 60, backoffMaxMinutes: 0 });
+
+      expect(service.calculateChargeCooldownMinutes(3)).toBe(60);
     });
   });
 
@@ -96,6 +102,20 @@ describe(AutoReloadPauseService.name, () => {
       expect(walletReloadJobService.scheduleForWalletSetting).toHaveBeenCalledWith(setting, { withCleanup: true });
     });
 
+    it("clears the credits-low latch the pause left behind", async () => {
+      const setting = generateWalletSetting({ autoReloadEnabled: true, autoReloadPausedAt: new Date() });
+      const { service, walletReloadJobService, userWalletRepository } = setup({ setting });
+
+      await service.resume(setting.userId);
+
+      expect(walletReloadJobService.cancelCreditsLowCheckByUserId).toHaveBeenCalledWith(setting.userId);
+      expect(userWalletRepository.updateById).toHaveBeenCalledWith(setting.walletId, {
+        creditsLowNotifiedAt: null,
+        creditsSufficientSince: null,
+        creditsLowSince: null
+      });
+    });
+
     it("does nothing for a wallet that was never paused", async () => {
       const setting = generateWalletSetting({ autoReloadEnabled: true, autoReloadPausedAt: null });
       const { service, walletSettingRepository, walletReloadJobService } = setup({ setting });
@@ -115,6 +135,15 @@ describe(AutoReloadPauseService.name, () => {
       expect(walletSettingRepository.clearChargeState).toHaveBeenCalledWith(setting.id);
       expect(walletReloadJobService.scheduleForWalletSetting).not.toHaveBeenCalled();
     });
+
+    it("leaves the credits-low latch to the check itself when the user turned auto top-up off", async () => {
+      const setting = generateWalletSetting({ autoReloadEnabled: false, autoReloadPausedAt: new Date() });
+      const { service, userWalletRepository } = setup({ setting });
+
+      await service.resume(setting.userId);
+
+      expect(userWalletRepository.updateById).not.toHaveBeenCalled();
+    });
   });
 
   function setup(input?: {
@@ -126,6 +155,7 @@ describe(AutoReloadPauseService.name, () => {
     const user = createUser();
     const walletSettingRepository = mock<WalletSettingRepository>();
     walletSettingRepository.findByUserId.mockResolvedValue(input?.setting);
+    const userWalletRepository = mock<UserWalletRepository>();
     const walletReloadJobService = mock<WalletReloadJobService>();
     const notificationService = mock<NotificationService>();
     const billingConfig = mockConfigService<BillingConfigService>({
@@ -134,11 +164,14 @@ describe(AutoReloadPauseService.name, () => {
       AUTO_RELOAD_MAX_CONSECUTIVE_DECLINES: input?.maxConsecutiveDeclines ?? 4,
       CONSOLE_WEB_PAYMENT_LINK: "https://console.akash.network/billing?openPayment=true"
     });
-    const service = new AutoReloadPauseService(walletSettingRepository, walletReloadJobService, notificationService, billingConfig, () => mock());
+    const service = new AutoReloadPauseService(walletSettingRepository, userWalletRepository, walletReloadJobService, notificationService, billingConfig, () =>
+      mock()
+    );
 
     return {
       service,
       walletSettingRepository,
+      userWalletRepository,
       walletReloadJobService,
       notificationService,
       billingConfig,

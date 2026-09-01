@@ -73,6 +73,22 @@ describe(WalletSettingService.name, () => {
       expect(walletReloadJobService.scheduleForWalletSetting).toHaveBeenCalledWith(expect.objectContaining({ id: pausedSetting.id }), { withCleanup: true });
     });
 
+    it("clears the credits-low latch the pause left behind", async () => {
+      const { user, walletSetting, walletSettingRepository, walletReloadJobService, userWalletRepository, service } = setup();
+      const pausedSetting = { ...walletSetting, autoReloadEnabled: true, autoReloadPausedAt: new Date() };
+      walletSettingRepository.findByUserId.mockResolvedValue(pausedSetting);
+      walletSettingRepository.updateById.mockResolvedValue({ ...pausedSetting, autoReloadPausedAt: null } as never);
+
+      await service.upsertWalletSetting(user.id, { autoReloadEnabled: true });
+
+      expect(walletReloadJobService.cancelCreditsLowCheckByUserId).toHaveBeenCalledWith(user.id);
+      expect(userWalletRepository.updateById).toHaveBeenCalledWith(pausedSetting.walletId, {
+        creditsLowNotifiedAt: null,
+        creditsSufficientSince: null,
+        creditsLowSince: null
+      });
+    });
+
     it("leaves the charge window alone when the wallet was never paused", async () => {
       const { user, walletSetting, walletSettingRepository, service } = setup();
       const enabledSetting = { ...walletSetting, autoReloadEnabled: true, autoReloadPausedAt: null };
