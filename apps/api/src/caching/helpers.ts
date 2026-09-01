@@ -17,12 +17,15 @@ interface CachedObject<T> {
 interface MemoizeOptions {
   ttlInSeconds?: number;
   key?: string;
+  /** Set on methods whose arguments form an unbounded key space, to cap them in a private cache instead of letting them evict the shared one. */
+  maxEntries?: number;
 }
 
 export const Memoize = (options?: MemoizeOptions) => (target: object, propertyName: string, descriptor: PropertyDescriptor) => {
   const originalMethod = descriptor.value;
 
   const cacheKey = options?.key || `${target.constructor.name}#${propertyName}`;
+  const store = options?.maxEntries ? new MemoryCacheEngine({ maxEntries: options.maxEntries }) : cacheEngine;
 
   descriptor.value = async function memoizedFunction(...args: unknown[]) {
     const argsKey =
@@ -33,12 +36,12 @@ export const Memoize = (options?: MemoizeOptions) => (target: object, propertyNa
             .join("#")}`
         : cacheKey;
 
-    return cacheResponse(options?.ttlInSeconds || 60 * 2, argsKey, originalMethod.bind(this, ...args));
+    return cacheResponse(options?.ttlInSeconds || 60 * 2, argsKey, originalMethod.bind(this, ...args), store);
   };
 };
 
-export async function cacheResponse<T>(seconds: number, key: string, refreshRequest: () => Promise<T>): Promise<T> {
-  const cachedObject = cacheEngine.getFromCache<CachedObject<T>>(key);
+export async function cacheResponse<T>(seconds: number, key: string, refreshRequest: () => Promise<T>, store: MemoryCacheEngine = cacheEngine): Promise<T> {
+  const cachedObject = store.getFromCache<CachedObject<T>>(key);
   logger.debug(`Request for key: ${key}`);
 
   const hasCachedData = cachedObject !== undefined;
@@ -64,7 +67,7 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
           logger.debug(`Background refresh completed for key: ${key}`);
           // Only store in cache if we have valid data
           if (data !== undefined) {
-            cacheEngine.storeInCache(key, { date: new Date(), data: data });
+            store.storeInCache(key, { date: new Date(), data: data });
           }
           return data;
         })
@@ -96,7 +99,7 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
         logger.debug(`New request completed for key: ${key}`);
         // Only store in cache if we have valid data
         if (data !== undefined) {
-          cacheEngine.storeInCache(key, { date: new Date(), data: data });
+          store.storeInCache(key, { date: new Date(), data: data });
         }
         return data;
       })
