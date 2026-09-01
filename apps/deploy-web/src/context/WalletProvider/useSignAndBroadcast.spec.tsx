@@ -10,11 +10,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe("AddCreditsSnackbarContent", () => {
-  // notistack renders snackbars in a portal mounted outside PopupProvider. Rendering this content
-  // without a PopupProvider reproduces that portal context: if it reached usePopup() (via AddFundsButton),
-  // it would throw "usePopup must be used within a PopupProvider" and crash the page instead of showing
-  // the trial-GPU warning. Opening the sheet through a jotai atom keeps the snackbar self-contained.
-  it("renders the Add Funds button without a PopupProvider in the tree", () => {
+  it("renders the Add Funds button without a PopupProvider, matching notistack's portal where usePopup would throw", () => {
     setup();
 
     expect(screen.getByRole("button", { name: "Add Funds" })).toBeInTheDocument();

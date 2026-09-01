@@ -58,9 +58,7 @@ export function useSignAndBroadcast({ refetchBalances }: UseSignAndBroadcastInpu
 
 const ADD_CREDITS_DESCRIPTION = "Add credits to your balance to continue.";
 
-// Rendered inside the notistack snackbar portal, which mounts outside PopupProvider. Open the sheet through
-// the jotai-backed useAddCredits (not AddFundsButton, which calls usePopup() via the email-verification hook
-// and would throw here); jotai's store provider sits above notistack, so the atom is reachable.
+/** Renders in notistack's portal outside PopupProvider, so it opens the sheet through the jotai atom instead of AddFundsButton, whose email-verification hook calls usePopup() and would throw here. */
 export const AddCreditsSnackbarContent: React.FC<{ message?: string; onAction?: () => void }> = ({ message, onAction }) => {
   const { analyticsService } = useServices();
   const openAddCredits = useAddCredits();
