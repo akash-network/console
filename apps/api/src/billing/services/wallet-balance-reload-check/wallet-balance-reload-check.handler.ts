@@ -7,7 +7,7 @@ import { AUTO_RELOAD_AMOUNT_MIN_USD } from "@src/billing/config";
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balance.schema";
 import { centsToUsd } from "@src/billing/lib/currency/currency";
-import { ChargeClaim, UserWalletOutput, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
+import { UserWalletOutput, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { type PaymentMethod, PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
@@ -211,34 +211,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
       }
     }
 
-    const cooldownMinutes = this.billingConfig.get("AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN");
-    const attempt = await this.walletSettingRepository.claimForCharge(resources.walletSetting.id, cooldownMinutes);
-
-    if (!attempt.won) {
-      const nextCheckAt = this.#calculateChargeWindowReopenDate(attempt.secondsUntilWindowReopen);
-      this.instrumentationService.recordReloadSkipped({ mode, reason: "charge_rate_limited", coverageRatio, logContext: { ...log, nextCheckAt } });
-      return { nextCheckAt };
-    }
-
-    const claim = attempt.claim;
-
-    try {
-      await this.stripeTransactionService.createPaymentIntent({
-        userId: resources.user.id,
-        customer: resources.user.stripeCustomerId,
-        payment_method: resources.paymentMethod.id,
-        amount: reloadAmount,
-        confirm: true,
-        metadata: { [AUTO_RECHARGE_METADATA_KEY]: "true" },
-        idempotencyKey: `${WalletBalanceReloadCheck.name}.${resources.job.id}`,
-        onAmountMismatch: "tolerate"
-      });
-      this.instrumentationService.recordReloadTriggered({ mode, amount: reloadAmount, coverageRatio, logContext: log });
-    } catch (error) {
-      await this.#releaseChargeClaim(claim);
-      this.instrumentationService.recordReloadFailed({ mode, error, logContext: log });
-      throw error;
-    }
+    return this.#chargeWithinRateLimit({ resources, amount: reloadAmount, coverageRatio, logContext: log });
   }
 
   async #tryToReloadOnPredictedSpend(resources: ReloadContext): Promise<ReloadOutcome> {
@@ -273,26 +246,54 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
 
     const reloadAmountInFiat = Math.max(costUntilTargetDateInFiat - resources.balance, this.#MIN_RELOAD_AMOUNT_IN_USD);
 
+    return this.#chargeWithinRateLimit({
+      resources,
+      amount: reloadAmountInFiat,
+      coverageRatio,
+      projectedCost: costUntilTargetDateInFiat,
+      logContext: log
+    });
+  }
+
+  /** A failed charge keeps the claim, so a declining card re-attempts when the window reopens instead of on every spend event (CON-927). */
+  async #chargeWithinRateLimit(input: {
+    resources: ReloadContext;
+    amount: number;
+    coverageRatio: number | undefined;
+    projectedCost?: number;
+    logContext: Record<string, unknown>;
+  }): Promise<ReloadOutcome> {
+    const { resources, amount, coverageRatio, projectedCost, logContext } = input;
+    const mode = resources.walletSetting.autoReloadMode;
+    const cooldownMinutes = this.billingConfig.get("AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN");
+    const attempt = await this.walletSettingRepository.claimForCharge(resources.walletSetting.id, cooldownMinutes);
+
+    if (!attempt.won) {
+      const nextCheckAt = this.#calculateChargeWindowReopenDate(attempt.secondsUntilWindowReopen);
+      this.instrumentationService.recordReloadSkipped({
+        mode,
+        reason: "charge_rate_limited",
+        coverageRatio,
+        projectedCost,
+        logContext: { ...logContext, nextCheckAt }
+      });
+      return { nextCheckAt };
+    }
+
     try {
       await this.stripeTransactionService.createPaymentIntent({
         userId: resources.user.id,
         customer: resources.user.stripeCustomerId,
         payment_method: resources.paymentMethod.id,
-        amount: reloadAmountInFiat,
+        amount,
         confirm: true,
         metadata: { [AUTO_RECHARGE_METADATA_KEY]: "true" },
         idempotencyKey: `${WalletBalanceReloadCheck.name}.${resources.job.id}`,
         onAmountMismatch: "tolerate"
       });
-      this.instrumentationService.recordReloadTriggered({
-        mode,
-        amount: reloadAmountInFiat,
-        coverageRatio,
-        projectedCost: costUntilTargetDateInFiat,
-        logContext: log
-      });
+      this.instrumentationService.recordReloadTriggered({ mode, amount, coverageRatio, projectedCost, logContext });
     } catch (error) {
-      this.instrumentationService.recordReloadFailed({ mode, error, logContext: log });
+      this.instrumentationService.recordReloadFailed({ mode, error, logContext });
       throw error;
     }
   }
@@ -309,18 +310,6 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     } catch (error) {
       this.instrumentationService.recordSchedulingError(resources.wallet.address, error);
       throw error;
-    }
-  }
-
-  /**
-   * Releases best-effort: a rejected release must not replace the payment error the caller is
-   * about to record and rethrow, which retries and alerting classify.
-   */
-  async #releaseChargeClaim(claim: ChargeClaim): Promise<void> {
-    try {
-      await this.walletSettingRepository.releaseChargeClaim(claim);
-    } catch (error) {
-      this.instrumentationService.recordChargeClaimReleaseError(claim.id, error);
     }
   }
 

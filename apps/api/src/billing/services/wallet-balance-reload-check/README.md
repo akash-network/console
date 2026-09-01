@@ -32,11 +32,11 @@ One guard sits after the comparison: when the wallet owns no active deployment t
 
 ### Charge rate limit
 
-A second guard sits right before the charge: at most one automatic charge per `AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN` (default 60 minutes; `0` disables the cap) per wallet. Deployment funding drains a balance in lumps, so without a cap an expensive deployment can produce a burst of identical card charges within minutes: each one costs a flat Stripe fee, risks issuer velocity declines mid-burst, and reads as statement shock (CON-843 measures these bursts).
+A second guard sits right before the charge, in **both modes**: at most one automatic charge attempt per `AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN` (default 60 minutes; `0` disables the cap) per wallet. Deployment funding drains a balance in lumps, so without a cap an expensive deployment can produce a burst of identical card charges within minutes: each one costs a flat Stripe fee, risks issuer velocity declines mid-burst, and reads as statement shock (CON-843 measures these bursts).
 
-The cap is an atomic claim on `wallet_settings.last_auto_charge_at`, the same guarded-UPDATE pattern escrow top-ups use for `last_funded_at`: concurrent checks racing for the same wallet resolve to a single winner, so two overlapping jobs cannot both charge. A failed charge attempt releases the claim, so retry behavior is unchanged. A lost claim records a `charge_rate_limited` skip and reschedules the check for when the window reopens (cooldown plus a 1-minute buffer) instead of the usual 24h safety net, so a rate-limited reload is deferred, never dropped.
+The cap is an atomic claim on `wallet_settings.last_auto_charge_at`, the same guarded-UPDATE pattern escrow top-ups use for `last_funded_at`: concurrent checks racing for the same wallet resolve to a single winner, so two overlapping jobs cannot both charge. A failed charge attempt **consumes the window** just like a successful one — the claim is never released. Releasing it on failure is what let a persistently declining card be re-attempted on every spend event (CON-927: ~108 declined charges per hour on one wallet); keeping it bounds a dead card to roughly one Stripe attempt per cooldown. The failed job still rethrows, and its pg-boss retry then loses the claim and defers, so the reload chain survives. A lost claim records a `charge_rate_limited` skip and reschedules the check for when the window reopens (cooldown plus a 1-minute buffer) instead of the usual 24h safety net, so a rate-limited reload is deferred, never dropped.
 
-Manual top-ups never touch this path, and prediction mode is exempt.
+Manual top-ups never touch this path.
 
 ### Worked examples (defaults: threshold $20, amount $100)
 
@@ -79,7 +79,7 @@ The charge uses a job-scoped idempotency key (`WalletBalanceReloadCheck.<jobId>`
 
 ## What happens on failure?
 
-- **Payment fails**: The charge claim is released (best-effort), then the error is logged and re-thrown (job fails, will retry under the same idempotency key).
+- **Payment fails**: The error is logged and re-thrown (job fails, will retry under the same idempotency key). The charge claim is kept, so the retry loses it, records a `charge_rate_limited` skip, and defers the next check to the window reopen — a fresh attempt happens once per cooldown, not once per retry.
 - **Validation fails**: Error is logged, job completes successfully (no retry needed).
 - **Scheduling next check fails**: Error is logged and re-thrown.
 
@@ -93,9 +93,10 @@ This is the pre-CON-717 behavior, kept as a supported mode by CON-884. It predic
 
 1. **Calculate** the unfunded cost to keep all auto-top-up deployments running for the next 7 days (`RELOAD_COVERAGE_PERIOD_IN_MS`), excluding the portion already covered by escrow.
 2. **Compare** the balance against 25% of that projection (`MIN_COVERAGE_PERCENTAGE`). Reload when `balance < 0.25 * costUntilTargetDate` (~1.75 days of coverage remaining).
-3. **Charge** `max(costUntilTargetDate - balance, $20)`.
-4. **Skip** entirely when the projected cost is 0 (no active auto-top-up deployments).
-5. **Schedule** the next check 24 hours out.
+3. **Claim** the charge window — the same rate limit as threshold mode (see "Charge rate limit" above). A lost claim defers the reload to the window reopen.
+4. **Charge** `max(costUntilTargetDate - balance, $20)`.
+5. **Skip** entirely when the projected cost is 0 (no active auto-top-up deployments).
+6. **Schedule** the next check 24 hours out.
 
 Key constants: Check Interval 24h, Reload Coverage Period 7 days, Minimum Coverage Percentage 25%, Minimum Reload $20.
 

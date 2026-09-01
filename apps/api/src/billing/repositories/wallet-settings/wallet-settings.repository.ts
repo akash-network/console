@@ -13,19 +13,13 @@ export type WalletSettingInput = Partial<DbWalletSettingInput>;
 
 export type WalletSettingOutput = DbWalletSettingOutput;
 
-/** A won auto-charge claim: the wallet setting id and the exact marker the claim wrote. */
-export type ChargeClaim = {
-  id: string;
-  claimedAt: string;
-};
-
 /**
  * A lost claim carries how long is left on the cooldown that blocked it, so the caller defers only
  * for the remainder instead of a whole fresh cooldown. Postgres computes it: `last_auto_charge_at`
  * is a timestamp without time zone, so reading it back as a JS Date would shift it by the driver's
  * local offset. Zero means the window is already open again.
  */
-export type ChargeClaimAttempt = { won: true; claim: ChargeClaim } | { won: false; secondsUntilWindowReopen: number };
+export type ChargeClaimAttempt = { won: true } | { won: false; secondsUntilWindowReopen: number };
 
 @singleton()
 export class WalletSettingRepository extends BaseRepository<Table, WalletSettingInput, WalletSettingOutput> {
@@ -64,12 +58,12 @@ export class WalletSettingRepository extends BaseRepository<Table, WalletSetting
   }
 
   /**
-   * Atomically claims the right to auto-charge a wallet, rate-limiting threshold-mode reloads. A
-   * wallet is claimable when it has never been auto-charged or its last charge is older than the
-   * cooldown; concurrent callers resolve to a single winner via the row-lock re-check. A cooldown
-   * of 0 always claims, disabling the cap. The claim marker comes back as text to keep full
-   * microsecond precision, which `releaseChargeClaim` matches on. A lost claim reads back the
-   * cooldown still owed, so the caller can wait out only what is left rather than a whole fresh one.
+   * Atomically claims the right to auto-charge a wallet, rate-limiting auto-reload charges in both
+   * modes. A wallet is claimable when it has never been auto-charged or its last charge is older
+   * than the cooldown; concurrent callers resolve to a single winner via the row-lock re-check. A
+   * cooldown of 0 always claims, disabling the cap. A claim is never released — a failed charge
+   * consumes the window too — so a lost claim reads back the cooldown still owed, letting the
+   * caller wait out only what is left rather than a whole fresh one.
    */
   async claimForCharge(id: WalletSettingOutput["id"], cooldownMinutes: number): Promise<ChargeClaimAttempt> {
     const [claim] = await this.cursor
@@ -81,10 +75,10 @@ export class WalletSettingRepository extends BaseRepository<Table, WalletSetting
           or(isNull(this.table.lastAutoChargeAt), lt(this.table.lastAutoChargeAt, sql`now() - (${cooldownMinutes} * interval '1 minute')`))
         )
       )
-      .returning({ id: this.table.id, claimedAt: sql<string>`${this.table.lastAutoChargeAt}::text` });
+      .returning({ id: this.table.id });
 
     if (claim) {
-      return { won: true, claim };
+      return { won: true };
     }
 
     const [blocking] = await this.cursor
@@ -95,17 +89,5 @@ export class WalletSettingRepository extends BaseRepository<Table, WalletSetting
       .where(eq(this.table.id, id));
 
     return { won: false, secondsUntilWindowReopen: Number(blocking?.secondsUntilWindowReopen ?? 0) };
-  }
-
-  /**
-   * Releases a charge claim so the next check can retry, used when the charge attempt failed. The
-   * release is scoped to the exact marker its claim wrote, so a caller whose claim already aged out
-   * of the cooldown and was re-taken by another check cannot clear that newer claim.
-   */
-  async releaseChargeClaim(claim: ChargeClaim): Promise<void> {
-    await this.cursor
-      .update(this.table)
-      .set({ lastAutoChargeAt: null, updatedAt: sql`now()` })
-      .where(and(eq(this.table.id, claim.id), eq(this.table.lastAutoChargeAt, sql`${claim.claimedAt}::timestamp`)));
   }
 }

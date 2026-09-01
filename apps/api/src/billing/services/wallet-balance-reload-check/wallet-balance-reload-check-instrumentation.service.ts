@@ -133,14 +133,6 @@ export class WalletBalanceReloadCheckInstrumentationService {
     });
   }
 
-  recordChargeClaimReleaseError(walletSettingId: string, error: unknown): void {
-    this.logger.error({
-      event: "ERROR_RELEASING_CHARGE_CLAIM",
-      walletSettingId,
-      error
-    });
-  }
-
   recordValidationError(errorType: string, error: { event: string; message: string }, userId: string): void {
     this.validationErrors.add(1, {
       error_type: errorType

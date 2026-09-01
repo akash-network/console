@@ -40,12 +40,12 @@ const AUTO_RELOAD_MAX_USD = 10_000;
 export const AUTO_RELOAD_AMOUNT_MIN_USD = 25;
 
 /**
- * Mirrors the API's AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN, which defaults to 60. Threshold mode takes an hourly per-wallet
- * charge claim, so a fast-draining balance defers the next top-up rather than charging the card again right away.
- * Prediction mode and manual top-ups are exempt, so this only belongs in the threshold branch.
+ * Mirrors the API's AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN, which defaults to 60. Both auto top-up modes take an hourly
+ * per-wallet charge claim, so a fast-draining balance defers the next top-up rather than charging the card again
+ * right away; only manual top-ups are exempt.
  */
 const CHARGE_COOLDOWN_NOTICE =
-  "Your card is charged at most once per hour. If your balance drops below the threshold again within that hour, the next top-up waits until the hour is up.";
+  "Your card is charged at most once per hour. If your balance runs low again within that hour, the next top-up waits until the hour is up.";
 
 const MODE_OPTIONS: Array<{ value: AutoReloadMode; id: string; title: string; description: string; recommended?: boolean }> = [
   {
@@ -250,14 +250,14 @@ export const AutoTopUpSettingsPopup: React.FC<AutoTopUpSettingsPopupProps> = ({
                   />
                 )}
               />
-
-              <p className="text-sm text-muted-foreground">{CHARGE_COOLDOWN_NOTICE}</p>
             </>
           ) : (
             <p className="text-sm text-muted-foreground">
               We check your deployments once a day and charge enough to keep them running for another week. There is nothing else to configure.
             </p>
           )}
+
+          <p className="text-sm text-muted-foreground">{CHARGE_COOLDOWN_NOTICE}</p>
 
           <LoadingButton type="submit" className="w-full" loading={upsertWalletSettings.isPending}>
             Save changes

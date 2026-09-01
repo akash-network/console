@@ -127,10 +127,10 @@ describe(AutoTopUpSettingsPopup.name, () => {
     expect(screen.getByText(/charged at most once per hour/i)).toBeInTheDocument();
   });
 
-  it("hides the hourly charge cap in prediction mode", () => {
+  it("tells the user the card is charged at most once per hour in prediction mode", () => {
     setup({ mode: "prediction" });
 
-    expect(screen.queryByText(/charged at most once per hour/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/charged at most once per hour/i)).toBeInTheDocument();
   });
 
   it("saves prediction mode without threshold values", async () => {
