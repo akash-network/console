@@ -1146,6 +1146,42 @@ describe(DrainingDeploymentService.name, () => {
       expect(loggerService.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "ACTIVE_LEASE_RATE_WITHOUT_SETTING", dseq: "999999", address }));
     });
 
+    it("logs the coverage inputs behind a non-zero weekly cost", async () => {
+      const blockRate = 50;
+      const { service, address, deploymentSettings, loggerService, currentHeight } = await setupWeeklyBurnForAddress({
+        deployments: [{ blockRate }]
+      });
+
+      await service.calculateWeeklyCoverageForAddress(address);
+
+      expect(loggerService.info).toHaveBeenCalledWith({
+        event: "WEEKLY_COVERAGE_CALCULATED",
+        address,
+        currentHeight,
+        settingDseqs: deploymentSettings.map(setting => setting.dseq),
+        leaseRates: [{ dseq: deploymentSettings[0].dseq, blockRate }],
+        weeklyCredits: Math.floor(blockRate * averageBlockCountInAnHour * 24 * 7)
+      });
+    });
+
+    it("logs the coverage inputs behind a zero weekly cost", async () => {
+      const { service, address, rpcService, deploymentSettings, loggerService } = await setupWeeklyBurnForAddress({
+        deployments: [{ blockRate: 50 }]
+      });
+      rpcService.findActiveLeaseRates.mockResolvedValue([]);
+
+      await service.calculateWeeklyCoverageForAddress(address);
+
+      expect(loggerService.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "WEEKLY_COVERAGE_CALCULATED",
+          settingDseqs: deploymentSettings.map(setting => setting.dseq),
+          leaseRates: [],
+          weeklyCredits: 0
+        })
+      );
+    });
+
     it("falls back to the database when the lease rate query fails", async () => {
       const blockRate = 50;
       const rpcError = new Error("RPC error");
@@ -1162,6 +1198,23 @@ describe(DrainingDeploymentService.name, () => {
       );
       expect(loggerService.error).toHaveBeenCalledWith(expect.objectContaining({ event: "ACTIVE_LEASE_RATE_RPC_QUERY_FAILED_FALLBACK_TO_DB" }));
       expect(result.weeklyCostUsd).toBe(usdFromCredits(Math.floor(blockRate * averageBlockCountInAnHour * 24 * 7)));
+    });
+
+    it("logs the coverage inputs behind an absent auto top-up setting", async () => {
+      const { service, address, loggerService } = await setupWeeklyBurnForAddress({
+        userWallet: undefined,
+        deployments: [{ blockRate: 50 }]
+      });
+
+      await service.calculateWeeklyCoverageForAddress(address);
+
+      expect(loggerService.info).toHaveBeenCalledWith({
+        event: "WEEKLY_COVERAGE_CALCULATED",
+        address,
+        settingDseqs: [],
+        leaseRates: [],
+        weeklyCredits: 0
+      });
     });
 
     it("reports no auto top-up settings when user wallet is not found", async () => {

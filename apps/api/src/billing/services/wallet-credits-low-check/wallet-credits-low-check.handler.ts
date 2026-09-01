@@ -14,6 +14,11 @@ type SkipReason = "auto_reload_enabled" | "no_wallet" | "trialing" | "no_email" 
 
 type NotLowReason = Extract<SkipReason, "zero_cost" | "sufficient_balance">;
 
+interface CreditsReadings {
+  balanceUsd: number;
+  weeklyCostUsd: number;
+}
+
 const UNEXPECTED_SKIP_REASONS: ReadonlySet<SkipReason> = new Set(["no_wallet", "no_email"]);
 
 @singleton()
@@ -52,23 +57,23 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
     );
 
     if (weeklyCostUsd === 0) {
-      await this.#handleCreditsNotLow(wallet, payload.userId, "zero_cost", { canUnlatchImmediately: !hasAutoTopUpSettings });
+      await this.#handleCreditsNotLow(wallet, payload.userId, "zero_cost", { canUnlatchImmediately: !hasAutoTopUpSettings, balanceUsd, weeklyCostUsd });
       return;
     }
 
     if (balanceUsd >= weeklyCostUsd) {
-      await this.#handleCreditsNotLow(wallet, payload.userId, "sufficient_balance", { canUnlatchImmediately: false });
+      await this.#handleCreditsNotLow(wallet, payload.userId, "sufficient_balance", { canUnlatchImmediately: false, balanceUsd, weeklyCostUsd });
       return;
     }
 
     if (wallet.creditsLowNotifiedAt) {
       await this.#endRecoveryStreak(wallet);
-      this.#skip("already_notified", payload.userId);
+      this.#skip("already_notified", payload.userId, { balanceUsd, weeklyCostUsd });
       return;
     }
 
     if (!(await this.#isLowStreakConfirmed(wallet))) {
-      this.#skip("low_unconfirmed", payload.userId);
+      this.#skip("low_unconfirmed", payload.userId, { balanceUsd, weeklyCostUsd });
       return;
     }
 
@@ -151,24 +156,24 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
     wallet: UserWalletOutput,
     userId: UserOutput["id"],
     reason: NotLowReason,
-    { canUnlatchImmediately }: { canUnlatchImmediately: boolean }
+    { canUnlatchImmediately, ...readings }: { canUnlatchImmediately: boolean } & CreditsReadings
   ): Promise<void> {
     if (!wallet.creditsLowNotifiedAt) {
       await this.#endLowStreak(wallet);
-      this.#skip(reason, userId);
+      this.#skip(reason, userId, readings);
       return;
     }
 
     if (canUnlatchImmediately) {
       await this.userWalletRepository.updateById(wallet.id, { creditsLowNotifiedAt: null, creditsSufficientSince: null, creditsLowSince: null });
       this.logger.info({ event: "CREDITS_LOW_NOTIFIED_CLEARED", userId, reason });
-      this.#skip(reason, userId);
+      this.#skip(reason, userId, readings);
       return;
     }
 
     if (!wallet.creditsSufficientSince) {
       await this.userWalletRepository.updateById(wallet.id, { creditsSufficientSince: new Date() });
-      this.#skip(reason, userId);
+      this.#skip(reason, userId, readings);
       return;
     }
 
@@ -181,7 +186,7 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
       this.logger.info({ event: "CREDITS_LOW_NOTIFIED_CLEARED", userId, reason, creditsSufficientSince: wallet.creditsSufficientSince });
     }
 
-    this.#skip(reason, userId);
+    this.#skip(reason, userId, readings);
   }
 
   async #endRecoveryStreak(wallet: UserWalletOutput): Promise<void> {
@@ -200,11 +205,12 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
     await this.userWalletRepository.updateById(wallet.id, { creditsLowSince: null });
   }
 
-  #skip(reason: SkipReason, userId: UserOutput["id"]): void {
+  #skip(reason: SkipReason, userId: UserOutput["id"], readings?: CreditsReadings): void {
     const payload = {
       event: "CREDITS_LOW_CHECK_SKIPPED",
       userId,
-      reason
+      reason,
+      ...readings
     };
 
     if (UNEXPECTED_SKIP_REASONS.has(reason)) {
