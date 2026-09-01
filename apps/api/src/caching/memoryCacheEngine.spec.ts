@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import MemoryCacheEngine from "./memoryCacheEngine";
+import MemoryCacheEngine, { estimateEntryBytes } from "./memoryCacheEngine";
 
 describe(MemoryCacheEngine.name, () => {
   describe("getFromCache", () => {
@@ -215,6 +215,62 @@ describe(MemoryCacheEngine.name, () => {
 
       expect(engine.getFromCache("shared")).toBeUndefined();
       expect(privateEngine.getFromCache("private")).toBeUndefined();
+    });
+  });
+
+  describe("size bounding", () => {
+    it("evicts least-recently-used entries when total bytes exceed maxTotalBytes", () => {
+      const engine = new MemoryCacheEngine({ maxTotalBytes: 250, maxEntryBytes: 250 });
+
+      engine.storeInCache("first", "x".repeat(100));
+      engine.storeInCache("second", "y".repeat(100));
+      engine.storeInCache("third", "z".repeat(100));
+
+      expect(engine.getFromCache("first")).toBeUndefined();
+      expect(engine.getFromCache("second")).toBe("y".repeat(100));
+      expect(engine.getFromCache("third")).toBe("z".repeat(100));
+    });
+
+    it("refuses a single entry larger than maxEntryBytes without evicting others", () => {
+      const engine = new MemoryCacheEngine({ maxTotalBytes: 1000, maxEntryBytes: 100 });
+
+      engine.storeInCache("small", "kept");
+      engine.storeInCache("huge", "x".repeat(500));
+
+      expect(engine.getFromCache("huge")).toBeUndefined();
+      expect(engine.getFromCache("small")).toBe("kept");
+    });
+
+    it("stores entries within both budgets", () => {
+      const engine = new MemoryCacheEngine({ maxTotalBytes: 1000, maxEntryBytes: 500 });
+
+      engine.storeInCache("fits", { data: "payload" });
+
+      expect(engine.getFromCache("fits")).toEqual({ data: "payload" });
+    });
+  });
+
+  describe(estimateEntryBytes.name, () => {
+    it("measures plain values by their JSON length", () => {
+      expect(estimateEntryBytes({ a: 1 })).toBe(JSON.stringify({ a: 1 }).length + 1);
+    });
+
+    it("counts binary payloads by byte length instead of JSON-inflating them", () => {
+      const size = estimateEntryBytes({ data: new Uint8Array(1000) });
+
+      expect(size).toBeGreaterThanOrEqual(1000);
+      expect(size).toBeLessThan(2000);
+    });
+
+    it("serializes bigint values instead of throwing", () => {
+      expect(estimateEntryBytes({ amount: 10n })).toBeGreaterThan(0);
+    });
+
+    it("returns an uncacheable size for circular values", () => {
+      const circular: { self?: unknown } = {};
+      circular.self = circular;
+
+      expect(estimateEntryBytes(circular)).toBe(Number.MAX_SAFE_INTEGER);
     });
   });
 

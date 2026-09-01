@@ -1,17 +1,55 @@
 import { LRUCache } from "lru-cache";
 
 export type CacheValue = NonNullable<unknown>;
-const SHARED_MAX_ENTRIES = 500;
-const sharedCache = new LRUCache<string, CacheValue>({ max: SHARED_MAX_ENTRIES });
+
+export interface CacheLimits {
+  maxEntries?: number;
+  maxTotalBytes?: number;
+  maxEntryBytes?: number;
+}
+
+/** Bounding by entry count alone let multi-MB cached responses exhaust the 2GB V8 heap on 2026-09-01; bytes are the limit that matters. */
+const DEFAULT_LIMITS = {
+  maxEntries: 500,
+  maxTotalBytes: 256 * 1024 * 1024,
+  maxEntryBytes: 16 * 1024 * 1024
+} satisfies Required<CacheLimits>;
+
+export function estimateEntryBytes(value: CacheValue): number {
+  let binaryBytes = 0;
+  try {
+    const json = JSON.stringify(value, (_key, nested) => {
+      if (nested instanceof Uint8Array) {
+        binaryBytes += nested.byteLength;
+        return undefined;
+      }
+      return typeof nested === "bigint" ? nested.toString() : nested;
+    });
+    return (json?.length ?? 0) + binaryBytes + 1;
+  } catch {
+    return Number.MAX_SAFE_INTEGER;
+  }
+}
+
+function createBoundedCache(limits?: CacheLimits) {
+  return new LRUCache<string, CacheValue>({
+    max: limits?.maxEntries ?? DEFAULT_LIMITS.maxEntries,
+    maxSize: limits?.maxTotalBytes ?? DEFAULT_LIMITS.maxTotalBytes,
+    maxEntrySize: limits?.maxEntryBytes ?? DEFAULT_LIMITS.maxEntryBytes,
+    sizeCalculation: estimateEntryBytes
+  });
+}
+
+const sharedCache = createBoundedCache();
 const allCaches = new Set<LRUCache<string, CacheValue>>([sharedCache]);
 
 export default class MemoryCacheEngine {
   readonly #cache: LRUCache<string, CacheValue>;
 
-  /** Passing `maxEntries` gives the engine a private cache, so a high-cardinality key space cannot evict every other memoized response out of the shared one. */
-  constructor(options?: { maxEntries: number }) {
+  /** Passing limits gives the engine a private cache, so a high-cardinality key space cannot evict every other memoized response out of the shared one. */
+  constructor(options?: CacheLimits) {
     if (options) {
-      this.#cache = new LRUCache<string, CacheValue>({ max: options.maxEntries });
+      this.#cache = createBoundedCache(options);
       allCaches.add(this.#cache);
     } else {
       this.#cache = sharedCache;
