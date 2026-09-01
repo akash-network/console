@@ -241,6 +241,22 @@ describe(MemoryCacheEngine.name, () => {
       expect(engine.getFromCache("small")).toBe("kept");
     });
 
+    it("accepts a Buffer entry whose binary length is within maxEntryBytes", () => {
+      const engine = new MemoryCacheEngine({ maxTotalBytes: 8000, maxEntryBytes: 1500 });
+
+      engine.storeInCache("binary", { payload: Buffer.alloc(1024) });
+
+      expect(engine.getFromCache("binary")).toEqual({ payload: Buffer.alloc(1024) });
+    });
+
+    it("refuses a multi-byte string whose UTF-8 size exceeds maxEntryBytes", () => {
+      const engine = new MemoryCacheEngine({ maxTotalBytes: 8000, maxEntryBytes: 2000 });
+
+      engine.storeInCache("multibyte", { text: "\u20ac".repeat(1000) });
+
+      expect(engine.getFromCache("multibyte")).toBeUndefined();
+    });
+
     it("stores entries within both budgets", () => {
       const engine = new MemoryCacheEngine({ maxTotalBytes: 1000, maxEntryBytes: 500 });
 
@@ -260,6 +276,19 @@ describe(MemoryCacheEngine.name, () => {
 
       expect(size).toBeGreaterThanOrEqual(1000);
       expect(size).toBeLessThan(2000);
+    });
+
+    it("counts Buffer payloads by binary length rather than their JSON expansion", () => {
+      const size = estimateEntryBytes({ data: Buffer.alloc(1000) });
+
+      expect(size).toBeGreaterThanOrEqual(1000);
+      expect(size).toBeLessThan(2000);
+    });
+
+    it("measures multi-byte characters as UTF-8 bytes rather than UTF-16 code units", () => {
+      const text = "\u20ac".repeat(1000);
+
+      expect(estimateEntryBytes({ text })).toBeGreaterThan(3000);
     });
 
     it("serializes bigint values instead of throwing", () => {

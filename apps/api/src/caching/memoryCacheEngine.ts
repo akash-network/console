@@ -15,17 +15,19 @@ const DEFAULT_LIMITS = {
   maxEntryBytes: 16 * 1024 * 1024
 } satisfies Required<CacheLimits>;
 
+/** Reads the holder instead of the replacer's argument because Buffer.toJSON has already expanded binary into `{ type, data }` by the time a replacer runs. */
 export function estimateEntryBytes(value: CacheValue): number {
   let binaryBytes = 0;
   try {
-    const json = JSON.stringify(value, (_key, nested) => {
-      if (nested instanceof Uint8Array) {
-        binaryBytes += nested.byteLength;
+    const json = JSON.stringify(value, function countBinaryOnce(this: Record<string, unknown>, key: string, nested: unknown) {
+      const beforeToJson = this[key];
+      if (beforeToJson instanceof Uint8Array) {
+        binaryBytes += beforeToJson.byteLength;
         return undefined;
       }
       return typeof nested === "bigint" ? nested.toString() : nested;
     });
-    return (json?.length ?? 0) + binaryBytes + 1;
+    return Buffer.byteLength(json ?? "", "utf8") + binaryBytes + 1;
   } catch {
     return Number.MAX_SAFE_INTEGER;
   }
