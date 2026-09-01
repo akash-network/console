@@ -20,8 +20,7 @@ import {
   DeleteUnbackedDeploymentSetting,
   unbackedDeploymentSettingKeyFor
 } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
-import type { ResolvedSdl } from "@src/deployment/services/resolved-sdl/resolved-sdl.service";
-import { ResolvedSdlService } from "@src/deployment/services/resolved-sdl/resolved-sdl.service";
+import type { ResolvedSdl } from "@src/deployment/services/sdl/sdl.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { stripSdlSecrets } from "@src/deployment/utils/sdl-secret-stripping/sdl-secret-stripping";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -48,8 +47,7 @@ export class DeploymentWriterService {
     private readonly featureFlagsService: FeatureFlagsService,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly txService: TxService,
-    private readonly jobQueueService: JobQueueService,
-    private readonly resolvedSdlService: ResolvedSdlService
+    private readonly jobQueueService: JobQueueService
   ) {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
@@ -281,7 +279,7 @@ export class DeploymentWriterService {
 
   /** Only the manifest version is taken from the resolved SDL: the resolved manifest itself must not leave this call. Runs before any lookup so a bad reference always answers 400 rather than racing a 404. */
   async #resolveSdl(sdl: string, options: { isTrialing?: boolean }): Promise<Pick<ResolvedSdl, "manifestVersion">> {
-    const result = await this.resolvedSdlService.resolve({ sdl, secrets: {}, ...options });
+    const result = await this.sdlService.generateResolvedManifest({ sdl, secrets: {}, ...options });
 
     if (!result.ok) {
       throw createError(400, `Invalid SDL: ${result.value.map(error => error.message).join(", ")}`);

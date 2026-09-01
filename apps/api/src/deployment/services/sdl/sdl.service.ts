@@ -5,10 +5,19 @@ import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
-import { ConsoleReferenceService } from "@src/deployment/services/console-reference/console-reference.service";
+import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
+import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { sdlRequestsGpuInterconnect } from "@src/deployment/utils/gpu-interconnect/gpu-interconnect";
 
 export type SdlParseResult = { ok: true; value: SDLInput } | { ok: false; value: ValidationError[] };
+export type SdlManifest = Extract<GenerateManifestResult, { ok: true }>["value"];
+
+export interface ResolvedSdl {
+  manifest: SdlManifest;
+  manifestVersion: Uint8Array;
+}
+
+export type GenerateResolvedManifestResult = { ok: true; value: ResolvedSdl } | { ok: false; value: ValidationError[] };
 
 @singleton()
 export class SdlService {
@@ -17,7 +26,7 @@ export class SdlService {
   constructor(
     @InjectBillingConfig() config: BillingConfig,
     private readonly blockedGpuService: BlockedGpuService,
-    private readonly consoleReferenceService: ConsoleReferenceService
+    private readonly sdlReferenceService: SdlReferenceService
   ) {
     this.#config = config;
   }
@@ -28,11 +37,28 @@ export class SdlService {
 
     if (!parsed.ok) return parsed;
 
-    const referenceErrors = this.consoleReferenceService.validate(parsed.value);
+    const referenceErrors = this.sdlReferenceService.validate(parsed.value);
 
     if (referenceErrors.length > 0) return { ok: false, value: referenceErrors };
 
     return this.generateManifestFrom(parsed.value, options);
+  }
+
+  /** The only path that substitutes Console References, and the only caller of the substitution walk, so a resolved manifest exists nowhere a caller has not asked for one. */
+  async generateResolvedManifest(input: { sdl: string; secrets: SdlSecrets; isTrialing?: boolean }): Promise<GenerateResolvedManifestResult> {
+    const parsed = this.parse(input.sdl);
+
+    if (!parsed.ok) return parsed;
+
+    const referenceErrors = this.sdlReferenceService.substitute(parsed.value, { secrets: input.secrets });
+
+    if (referenceErrors.length > 0) return { ok: false, value: referenceErrors };
+
+    const manifest = this.generateManifestFrom(parsed.value, { isTrialing: input.isTrialing });
+
+    if (!manifest.ok) return { ok: false, value: manifest.value };
+
+    return { ok: true, value: { manifest: manifest.value, manifestVersion: await this.generateManifestVersion(manifest.value.groups) } };
   }
 
   parse(rawSDL: string): SdlParseResult {

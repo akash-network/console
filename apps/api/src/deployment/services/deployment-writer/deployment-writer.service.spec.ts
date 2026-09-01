@@ -17,7 +17,6 @@ import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeleteUnbackedDeploymentSetting } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
-import type { ResolvedSdlService } from "@src/deployment/services/resolved-sdl/resolved-sdl.service";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
@@ -205,8 +204,11 @@ describe(DeploymentWriterService.name, () => {
     });
 
     it("throws 400 when a console reference cannot be resolved", async () => {
-      const { service, resolvedSdlService, signerService } = setup();
-      resolvedSdlService.resolve.mockResolvedValue({ ok: false, value: [{ message: 'no value supplied for Console Reference "ac-secret://TOKEN"' }] } as any);
+      const { service, sdlService, signerService } = setup();
+      sdlService.generateResolvedManifest.mockResolvedValue({
+        ok: false,
+        value: [{ message: 'no value supplied for Console Reference "ac-secret://TOKEN"' }]
+      } as any);
 
       await expect(service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 })).rejects.toMatchObject({ status: 400 });
       expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
@@ -698,16 +700,19 @@ describe(DeploymentWriterService.name, () => {
     });
 
     it("throws 400 when a console reference cannot be resolved", async () => {
-      const { service, resolvedSdlService, providerService } = setup();
-      resolvedSdlService.resolve.mockResolvedValue({ ok: false, value: [{ message: 'no value supplied for Console Reference "ac-secret://TOKEN"' }] } as any);
+      const { service, sdlService, providerService } = setup();
+      sdlService.generateResolvedManifest.mockResolvedValue({
+        ok: false,
+        value: [{ message: 'no value supplied for Console Reference "ac-secret://TOKEN"' }]
+      } as any);
 
       await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" })).rejects.toMatchObject({ status: 400 });
       expect(providerService.sendManifest).not.toHaveBeenCalled();
     });
 
     it("answers a bad reference with 400 even for a deployment it cannot find", async () => {
-      const { service, resolvedSdlService, deploymentReaderService } = setup();
-      resolvedSdlService.resolve.mockResolvedValue({ ok: false, value: [{ message: "no value supplied" }] } as any);
+      const { service, sdlService, deploymentReaderService } = setup();
+      sdlService.generateResolvedManifest.mockResolvedValue({ ok: false, value: [{ message: "no value supplied" }] } as any);
       deploymentReaderService.findByWalletAndDseq.mockRejectedValue(new NotFound("Deployment not found"));
 
       await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" })).rejects.toMatchObject({ status: 400 });
@@ -867,12 +872,11 @@ describe(DeploymentWriterService.name, () => {
     txService.transaction.mockImplementation(async cb => (input?.transactionRuns === false ? (undefined as never) : await cb()));
     const jobQueueService = mock<JobQueueService>();
     jobQueueService.enqueue.mockResolvedValue(input?.compensationEnqueued === false ? null : COMPENSATION_JOB_ID);
-    const resolvedSdlService = mock<ResolvedSdlService>();
 
     walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
     sdlService.generateManifest.mockReturnValue({ ok: true, value: manifestValue } as any);
     sdlService.generateManifestVersion.mockResolvedValue(new Uint8Array([4, 5, 6]));
-    resolvedSdlService.resolve.mockResolvedValue({
+    sdlService.generateResolvedManifest.mockResolvedValue({
       ok: true,
       value: { manifest: resolvedManifestValue, manifestVersion: input?.manifestVersion ?? new Uint8Array([4, 5, 6]) }
     } as any);
@@ -892,8 +896,7 @@ describe(DeploymentWriterService.name, () => {
       featureFlagsService,
       deploymentSettingRepository,
       txService,
-      jobQueueService,
-      resolvedSdlService
+      jobQueueService
     );
 
     return {
@@ -901,7 +904,6 @@ describe(DeploymentWriterService.name, () => {
       signerService,
       rpcMessageService,
       sdlService,
-      resolvedSdlService,
       billingConfig,
       providerService,
       deploymentReaderService,

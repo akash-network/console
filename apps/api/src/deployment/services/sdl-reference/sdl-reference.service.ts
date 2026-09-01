@@ -68,7 +68,7 @@ function unknownKindError(reference: EnvReference): ValidationError {
 }
 
 @singleton()
-export class ConsoleReferenceService {
+export class SdlReferenceService {
   readonly #resolvers = new Map<string, ConsoleReferenceResolver>();
 
   constructor() {

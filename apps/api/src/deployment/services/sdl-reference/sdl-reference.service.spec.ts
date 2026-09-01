@@ -2,14 +2,14 @@ import type { SDLInput } from "@akashnetwork/chain-sdk";
 import { yaml } from "@akashnetwork/chain-sdk";
 import { describe, expect, it } from "vitest";
 
-import type { ConsoleReferenceResolver } from "./console-reference.service";
-import { ConsoleReferenceService } from "./console-reference.service";
+import type { ConsoleReferenceResolver } from "./sdl-reference.service";
+import { SdlReferenceService } from "./sdl-reference.service";
 
 const VALID_NAMES = ["A", "a", "_", "_A", "A9", `A${"b".repeat(62)}`, `A${"b".repeat(63)}`];
 const RESERVED_VALUES = ["ac-", "ac-://X", "ac-secret9://X", "ac-secret:/X", "ac-SECRET://X", `ac-${"z".repeat(17)}://X`];
 const INVALID_NAMES = ["", "9NAME", "NA-ME", "NA.ME", "NA ME", "NAMÉ", "NAME!", `A${"b".repeat(64)}`, "NAME/", "NA\nME"];
 
-describe(ConsoleReferenceService.name, () => {
+describe(SdlReferenceService.name, () => {
   describe("validate", () => {
     it("reports nothing for an sdl carrying no console references", () => {
       const { service } = setup();
@@ -266,7 +266,7 @@ describe(ConsoleReferenceService.name, () => {
   });
 
   function setup(input: { resolvers?: ConsoleReferenceResolver[] } = {}) {
-    const service = new ConsoleReferenceService();
+    const service = new SdlReferenceService();
     input.resolvers?.forEach(resolver => service.register(resolver));
 
     return { service };

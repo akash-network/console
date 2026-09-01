@@ -16,9 +16,9 @@ import { ManagedSignerService } from "@src/billing/services";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { CORE_CONFIG } from "@src/core";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import { ConsoleReferenceService } from "@src/deployment/services/console-reference/console-reference.service";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
+import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
@@ -872,7 +872,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret } = await mockPersistedUser();
 
       const beforeRegistration = await postDeploymentWithEnv(userApiKeySecret, "MODE=ac-probe://MODE");
-      container.resolve(ConsoleReferenceService).register({ kind: "probe", resolve: name => `resolved-${name}` });
+      container.resolve(SdlReferenceService).register({ kind: "probe", resolve: name => `resolved-${name}` });
       const afterRegistration = await postDeploymentWithEnv(userApiKeySecret, "MODE=ac-probe://MODE");
 
       expect(beforeRegistration.status).toBe(400);

@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { BillingConfig } from "@src/billing/providers";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
-import { ConsoleReferenceService } from "@src/deployment/services/console-reference/console-reference.service";
+import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlService } from "./sdl.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
@@ -579,17 +580,88 @@ describe(SdlService.name, () => {
     });
   });
 
-  function setup(input?: { sdl?: string; allowedAuditors?: string[]; deploymentGrantDenom?: string; blockedGpuModels?: string[]; isTrialing?: boolean }) {
-    const config = {
+  describe("generateResolvedManifest", () => {
+    it("returns a manifest carrying the resolved value", async () => {
+      const { service } = setup();
+
+      const result = await service.generateResolvedManifest({ sdl: SDL_WITH_ENV("TOKEN=ac-secret://TOKEN"), secrets: { TOKEN: "resolved" } });
+
+      expect(result.ok).toBe(true);
+      expect(resolvedOf(result).manifest.groups[0].services[0].env).toEqual(["TOKEN=resolved"]);
+    });
+
+    it("hashes an sdl with a substituted value exactly as one carrying that value inline", async () => {
+      const { service } = setup();
+
+      const substituted = await service.generateResolvedManifest({ sdl: SDL_WITH_ENV("TOKEN=ac-secret://TOKEN"), secrets: { TOKEN: "resolved" } });
+      const inline = await service.generateResolvedManifest({ sdl: SDL_WITH_ENV("TOKEN=resolved"), secrets: {} });
+
+      expect(versionOf(substituted)).toEqual(versionOf(inline));
+    });
+
+    it("hashes two different resolved values differently", async () => {
+      const { service } = setup();
+      const sdl = SDL_WITH_ENV("TOKEN=ac-secret://TOKEN");
+
+      const first = await service.generateResolvedManifest({ sdl, secrets: { TOKEN: "one" } });
+      const second = await service.generateResolvedManifest({ sdl, secrets: { TOKEN: "two" } });
+
+      expect(versionOf(first)).not.toEqual(versionOf(second));
+    });
+
+    it("returns the same manifest version for the same input twice", async () => {
+      const { service } = setup();
+      const sdl = SDL_WITH_ENV("TOKEN=ac-secret://TOKEN");
+
+      const first = await service.generateResolvedManifest({ sdl, secrets: { TOKEN: "resolved" } });
+      const second = await service.generateResolvedManifest({ sdl, secrets: { TOKEN: "resolved" } });
+
+      expect(versionOf(first)).toEqual(versionOf(second));
+    });
+
+    it("returns errors rather than throwing when a reference has no value", async () => {
+      const { service } = setup();
+
+      const result = await service.generateResolvedManifest({ sdl: SDL_WITH_ENV("TOKEN=ac-secret://TOKEN"), secrets: {} });
+
+      expect(result.ok).toBe(false);
+      expect(errorsOf(result)[0].message).toContain("ac-secret://TOKEN");
+    });
+
+    it("returns errors for an unrecognized kind", async () => {
+      const { service } = setup();
+
+      const result = await service.generateResolvedManifest({ sdl: SDL_WITH_ENV("TOKEN=ac-var://TOKEN"), secrets: { TOKEN: "resolved" } });
+
+      expect(errorsOf(result)[0].message).toContain("ac-var://TOKEN");
+    });
+
+    it("returns errors for an sdl that is not valid yaml", async () => {
+      const { service } = setup();
+
+      const result = await service.generateResolvedManifest({ sdl: "services: [", secrets: {} });
+
+      expect(result.ok).toBe(false);
+    });
+  });
+
+  function setup(input?: {
+    sdl?: string;
+    allowedAuditors?: string[];
+    deploymentGrantDenom?: BillingConfig["DEPLOYMENT_GRANT_DENOM"];
+    blockedGpuModels?: string[];
+    isTrialing?: boolean;
+  }) {
+    const config = mock<BillingConfig>({
       DEPLOYMENT_GRANT_DENOM: input?.deploymentGrantDenom ?? "uakt",
       MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: input?.allowedAuditors ?? []
-    } as BillingConfig;
+    });
 
     const blockedGpuConfig = mockConfigService<BillingConfigService>({
       MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: input?.blockedGpuModels ?? []
     });
     const blockedGpuService = new BlockedGpuService(blockedGpuConfig);
-    const service = new SdlService(config, blockedGpuService, new ConsoleReferenceService());
+    const service = new SdlService(config, blockedGpuService, new SdlReferenceService());
     const result = service.generateManifest(input?.sdl ?? VALID_SDL, { isTrialing: input?.isTrialing });
 
     return { service, result };
@@ -617,5 +689,17 @@ describe(SdlService.name, () => {
     const service = group.services.find(s => s.name === serviceName);
     if (!service) throw new Error(`Manifest service "${serviceName}" not found`);
     return service;
+  }
+
+  function resolvedOf(result: Awaited<ReturnType<SdlService["generateResolvedManifest"]>>) {
+    return (result as Extract<typeof result, { ok: true }>).value;
+  }
+
+  function versionOf(result: Awaited<ReturnType<SdlService["generateResolvedManifest"]>>) {
+    return resolvedOf(result).manifestVersion;
+  }
+
+  function errorsOf(result: Awaited<ReturnType<SdlService["generateResolvedManifest"]>>) {
+    return (result as Extract<typeof result, { ok: false }>).value;
   }
 });
