@@ -301,32 +301,43 @@ export class TemplateGalleryService {
     );
 
     if (cacheFileExists) {
-      this.#logger.debug({
-        event: "GET_TEMPLATES_FROM_REPO_CACHE",
-        message: "Returning cached templates from filesystem",
+      const fileContent = await this.#fs.readFile(cacheFilePath, "utf8");
+      const cachedCategories: Category[] = JSON.parse(fileContent);
+
+      if (cachedCategories.length > 0) {
+        this.#logger.debug({
+          event: "GET_TEMPLATES_FROM_REPO_CACHE",
+          message: "Returning cached templates from filesystem",
+          path: cacheFilePath,
+          repository
+        });
+        return cachedCategories;
+      }
+
+      this.#logger.warn({
+        event: "EMPTY_TEMPLATES_CACHE_DISCARDED",
+        message: "Cached templates are empty, refetching from github",
         path: cacheFilePath,
         repository
       });
-      const fileContent = await this.#fs.readFile(cacheFilePath, "utf8");
-      return JSON.parse(fileContent);
-    } else {
-      this.#logger.debug({
-        event: "GET_TEMPLATES",
-        message: "Generating templates from github repository",
-        repository,
-        commitSha: latestCommitSha
-      });
-      const categories = await fetchTemplates(latestCommitSha);
-
-      if (categories.length === 0) {
-        throw new Error(`Refusing to cache an empty template gallery for ${repoOwner}/${repoName}@${latestCommitSha}`);
-      }
-
-      await this.#fs.mkdir(path.dirname(cacheFilePath), { recursive: true });
-      await this.#fs.writeFile(cacheFilePath, JSON.stringify(categories, null, 2));
-
-      return categories;
     }
+
+    this.#logger.debug({
+      event: "GET_TEMPLATES",
+      message: "Generating templates from github repository",
+      repository,
+      commitSha: latestCommitSha
+    });
+    const categories = await fetchTemplates(latestCommitSha);
+
+    if (categories.length === 0) {
+      throw new Error(`Refusing to cache an empty template gallery for ${repoOwner}/${repoName}@${latestCommitSha}`);
+    }
+
+    await this.#fs.mkdir(path.dirname(cacheFilePath), { recursive: true });
+    await this.#fs.writeFile(cacheFilePath, JSON.stringify(categories, null, 2));
+
+    return categories;
   }
 }
 
