@@ -239,12 +239,13 @@ describe(SdlReferenceService.name, () => {
       expect(error.message).toContain(value);
     });
 
-    it("truncates a very long reserved value in the message it echoes", () => {
+    it("bounds a very long reserved value in everything it echoes", () => {
       const { service } = setup();
 
       const [error] = service.substitute(sdlWithEnv([`A=ac-${"z".repeat(500)}`]), { secrets: {} });
 
       expect(error.message.length).toBeLessThan(250);
+      expect(error.message).toContain(String(error.params.value));
     });
 
     it("treats names differing only in case as different names", () => {

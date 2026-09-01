@@ -141,10 +141,14 @@ export class SdlReferenceService {
     if (read.type === "plain") return undefined;
 
     if (read.type === "reserved") {
+      const echoed = declaration.value.slice(0, MAX_ECHOED_REFERENCE_LENGTH);
+
       return referenceError(
         instancePath,
-        `"${declaration.value.slice(0, MAX_ECHOED_REFERENCE_LENGTH)}" is not a recognized Console Reference and values beginning with "${CONSOLE_REFERENCE_PREFIX}" are reserved`,
-        { value: declaration.value }
+        `"${echoed}" is not a recognized Console Reference and values beginning with "${CONSOLE_REFERENCE_PREFIX}" are reserved`,
+        {
+          value: echoed
+        }
       );
     }
 
