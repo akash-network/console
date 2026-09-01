@@ -13,6 +13,9 @@ import { averageBlockTime } from "@src/utils/constants";
 
 export const UNKNOWN_DB_PLACEHOLDER = "unknown_value";
 
+/** Clients page via next_key, so clamping only adds round trips; scrapers were pulling 10k-row pages through this route. */
+const MAX_FALLBACK_LIST_LIMIT = 100;
+
 @singleton()
 export class FallbackDeploymentReaderService {
   readonly #coreConfig: CoreConfig;
@@ -25,7 +28,10 @@ export class FallbackDeploymentReaderService {
   }
 
   async findAll(params: DatabaseDeploymentListParams): Promise<RestAkashDeploymentListResponse> {
-    return cacheResponse(averageBlockTime, `FallbackDeploymentReaderService#findAll#${JSON.stringify(params)}`, () => this.findAllUncached(params));
+    const boundedParams = { ...params, limit: Math.min(params.limit ?? MAX_FALLBACK_LIST_LIMIT, MAX_FALLBACK_LIST_LIMIT) };
+    return cacheResponse(averageBlockTime, `FallbackDeploymentReaderService#findAll#${JSON.stringify(boundedParams)}`, () =>
+      this.findAllUncached(boundedParams)
+    );
   }
 
   private async findAllUncached(params: DatabaseDeploymentListParams): Promise<RestAkashDeploymentListResponse> {
