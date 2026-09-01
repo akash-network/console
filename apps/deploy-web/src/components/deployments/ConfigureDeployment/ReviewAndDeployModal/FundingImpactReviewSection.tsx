@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import { BalanceBreakdownBar } from "@src/components/billing-usage/AccountBalanceOverview/BalanceBreakdownBar";
 import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
+import { useAddCredits } from "@src/hooks/useAddCredits";
 import { UrlService } from "@src/utils/urlUtils";
 import type { FundingImpact } from "./useFundingImpact";
 import { useFundingImpact } from "./useFundingImpact";
@@ -14,11 +15,14 @@ import type { ReviewRow } from "./useReviewRows";
 
 export const DEPENDENCIES = {
   useFundingImpact,
+  useAddCredits,
   BalanceBreakdownBar,
   UsdValue,
   Link,
   Skeleton
 };
+
+const ADD_CREDITS_DESCRIPTION = "Add credits to keep this deployment funded and running.";
 
 type Props = {
   rows: ReviewRow[];
@@ -49,6 +53,7 @@ const BADGE_TONES: Record<Badge["tone"], string> = {
  */
 export const FundingImpactReviewSection: FC<Props> = ({ rows, runtimeLimitHours, dependencies: d = DEPENDENCIES }) => {
   const impact = d.useFundingImpact({ rows, runtimeLimitHours });
+  const openAddCredits = d.useAddCredits();
   const [isExpanded, setIsExpanded] = useState(false);
   const usd = (value: number) => <d.UsdValue value={value} />;
 
@@ -77,8 +82,8 @@ export const FundingImpactReviewSection: FC<Props> = ({ rows, runtimeLimitHours,
 
   const badge = STATE_BADGES[impact.state];
   const addCreditsButton = (
-    <Button size="sm" asChild>
-      <d.Link href={UrlService.billing({ openPayment: true })}>Add Credits</d.Link>
+    <Button size="sm" onClick={() => openAddCredits({ initialTab: "purchase", description: ADD_CREDITS_DESCRIPTION, context: "review_funding_impact" })}>
+      Add Credits
     </Button>
   );
 

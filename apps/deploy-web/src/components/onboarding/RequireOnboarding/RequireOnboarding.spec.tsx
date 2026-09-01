@@ -41,6 +41,12 @@ describe(RequireOnboarding.name, () => {
     expect(screen.getByText("child")).toBeInTheDocument();
   });
 
+  it("lets a not-onboarded user reach billing, where the trial converts", () => {
+    const { replace } = setup({ address: "akash1", hasWallet: true, leases: 0, path: "/billing" });
+    expect(screen.getByText("child")).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
   it("lets a not-onboarded user render the onboarding picker", () => {
     setup({ address: "akash1", hasWallet: true, leases: 0, path: "/onboarding" });
     expect(screen.getByText("child")).toBeInTheDocument();

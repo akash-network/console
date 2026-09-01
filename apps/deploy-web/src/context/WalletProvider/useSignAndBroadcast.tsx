@@ -1,15 +1,13 @@
 "use client";
 import React, { useState } from "react";
-import { buttonVariants, Snackbar } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
+import { Button, Snackbar } from "@akashnetwork/ui/components";
 import type { EncodeObject } from "@cosmjs/proto-signing";
-import Link from "next/link";
 import { useSnackbar } from "notistack";
 
 import type { LoadingState } from "@src/components/layout/TransactionModal";
+import { useAddCredits } from "@src/hooks/useAddCredits";
 import { useNotificator } from "@src/hooks/useNotificator";
 import { useUser } from "@src/hooks/useUser";
-import { UrlService } from "@src/utils/urlUtils";
 import { useServices } from "../ServicesProvider";
 import { signAndBroadcast } from "./signAndBroadcast";
 
@@ -58,24 +56,25 @@ export function useSignAndBroadcast({ refetchBalances }: UseSignAndBroadcastInpu
   return { signAndBroadcastTx, loadingState };
 }
 
-// Rendered inside the notistack snackbar portal, which mounts outside PopupProvider. Use a plain
-// next/link Link (not AddFundsLink, which calls usePopup() via the email-verification hook and would
-// throw here); the billing page itself handles login/verification gating.
+const ADD_CREDITS_DESCRIPTION = "Add credits to your balance to continue.";
+
+/** Renders in notistack's portal outside PopupProvider, so it opens the sheet through the jotai atom instead of AddFundsButton, whose email-verification hook calls usePopup() and would throw here. */
 export const AddCreditsSnackbarContent: React.FC<{ message?: string; onAction?: () => void }> = ({ message, onAction }) => {
   const { analyticsService } = useServices();
+  const openAddCredits = useAddCredits();
   return (
     <>
       {message && <div>{message}</div>}
-      <Link
-        href={UrlService.billing({ openPayment: true })}
-        className={cn("mt-2 inline-flex h-7 items-center px-3 text-xs", buttonVariants({ variant: "default" }))}
+      <Button
+        className="mt-2 h-7 px-3 text-xs"
         onClick={() => {
           analyticsService.track("add_funds_btn_clk");
+          openAddCredits({ initialTab: "purchase", description: ADD_CREDITS_DESCRIPTION, context: "insufficient_funds_snackbar" });
           onAction?.();
         }}
       >
         Add Funds
-      </Link>
+      </Button>
     </>
   );
 };
