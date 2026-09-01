@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { UrlService } from "@src/utils/urlUtils";
@@ -99,7 +99,7 @@ describe("FundingImpactReviewSection", () => {
 
     expect(screen.getByText(/nothing is charged automatically/)).toBeInTheDocument();
     expect(screen.queryByText(/charged \$/)).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Add Credits" })).toHaveAttribute("href", UrlService.billing({ openPayment: true }));
+    expect(screen.getByRole("button", { name: "Add Credits" })).toBeInTheDocument();
   });
 
   it("names the trial and its duration without claiming anything about a card", async () => {
@@ -111,7 +111,7 @@ describe("FundingImpactReviewSection", () => {
     expect(screen.getByText(/closed automatically after 12 hours/)).toBeInTheDocument();
     expect(screen.queryByText(/payment method/)).not.toBeInTheDocument();
     expect(screen.queryByText(/charged \$/)).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Add Credits" })).toHaveAttribute("href", UrlService.billing({ openPayment: true }));
+    expect(screen.getByRole("button", { name: "Add Credits" })).toBeInTheDocument();
   });
 
   it("offers credits and drops the bar when the balance cannot cover the escrow", async () => {
@@ -122,7 +122,20 @@ describe("FundingImpactReviewSection", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("Your available balance of $100 can't cover the estimated escrow of ~$144");
     expect(screen.queryByTestId("balance-bar")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Add Credits" })).toHaveAttribute("href", UrlService.billing({ openPayment: true }));
+    expect(screen.getByRole("button", { name: "Add Credits" })).toBeInTheDocument();
+  });
+
+  it("opens the add credits sheet in place instead of navigating to billing", async () => {
+    const { openAddCredits } = setup({ impact: visible({ state: "trial" }) });
+
+    await userEvent.click(screen.getByRole("button", { name: /Escrow/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Add Credits" }));
+
+    expect(openAddCredits).toHaveBeenCalledWith({
+      initialTab: "purchase",
+      description: "Add credits to keep this deployment funded and running.",
+      context: "review_funding_impact"
+    });
   });
 
   function visible(overrides?: Partial<Extract<FundingImpact, { kind: "visible" }>>): FundingImpact {
@@ -141,7 +154,9 @@ describe("FundingImpactReviewSection", () => {
   }
 
   function setup(input: { impact: FundingImpact; runtimeLimitHours?: number }) {
+    const openAddCredits = vi.fn();
     const useFundingImpact: typeof DEPENDENCIES.useFundingImpact = () => input.impact;
+    const useAddCredits: typeof DEPENDENCIES.useAddCredits = () => openAddCredits;
     const BalanceBreakdownBar: typeof DEPENDENCIES.BalanceBreakdownBar = ({ segments, threshold }) => (
       <div data-testid="balance-bar" data-threshold={threshold ?? undefined}>
         {segments.map(segment => `${segment.key}:${segment.amountUsd}`).join(",")}
@@ -153,12 +168,15 @@ describe("FundingImpactReviewSection", () => {
     )) as typeof DEPENDENCIES.Link;
     const Skeleton: typeof DEPENDENCIES.Skeleton = () => <div data-testid="skeleton" />;
 
-    return render(
-      <FundingImpactReviewSection
-        rows={[mock<ReviewRow>({ price: { amount: "0.005", denom: "uakt" } })]}
-        runtimeLimitHours={input.runtimeLimitHours}
-        dependencies={{ useFundingImpact, BalanceBreakdownBar, UsdValue, Link, Skeleton }}
-      />
-    );
+    return {
+      openAddCredits,
+      ...render(
+        <FundingImpactReviewSection
+          rows={[mock<ReviewRow>({ price: { amount: "0.005", denom: "uakt" } })]}
+          runtimeLimitHours={input.runtimeLimitHours}
+          dependencies={{ useFundingImpact, useAddCredits, BalanceBreakdownBar, UsdValue, Link, Skeleton }}
+        />
+      )
+    };
   }
 });

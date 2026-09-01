@@ -120,7 +120,7 @@ describe("TrialDeploymentTooltip", () => {
       trialDuration: input.trialDuration ?? 24,
       dependencies: input.dependencies ?? {
         ...TRIAL_TOOLTIP_DEPENDENCIES,
-        AddFundsLink: ComponentMock
+        AddFundsButton: ComponentMock
       }
     };
 

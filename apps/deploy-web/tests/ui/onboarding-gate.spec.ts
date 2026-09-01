@@ -42,6 +42,12 @@ test.describe("Onboarding gate — not-onboarded user", () => {
       await visit(page, "/onboarding");
       await expect(page.getByRole("heading", { name: /deploy your first app/i })).toBeVisible({ timeout: 30_000 });
     });
+
+    await test.step("allowed on billing, where the trial converts", async () => {
+      await visit(page, "/billing");
+      await expect(page.getByRole("heading", { name: "Billing" })).toBeVisible({ timeout: 30_000 });
+      await expect(page).not.toHaveURL(/\/onboarding/);
+    });
   });
 });
 

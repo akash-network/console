@@ -20,6 +20,7 @@ import NProgress from "nprogress";
 import { AccountCreatedTracker } from "@src/components/analytics/AccountCreatedTracker/AccountCreatedTracker";
 import { AppBootstrap } from "@src/components/AppBootstrap/AppBootstrap";
 import { RequireAuth } from "@src/components/auth/RequireAuth/RequireAuth";
+import { AddCreditsHost } from "@src/components/billing-usage/AddCreditsHost/AddCreditsHost";
 import { AppThemeProvider } from "@src/components/layout/AppThemeProvider";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
@@ -62,6 +63,7 @@ const App: React.FunctionComponent<Props> = props => {
             <FlagProvider>
               <WalletProvider>
                 <PaymentPollingProvider>
+                  <AddCreditsHost />
                   <NavigationGuardProvider>
                     <RequireOnboarding isPublic={isPublic}>
                       <WaitForFeatureFlags>

@@ -14,8 +14,8 @@ const ONBOARDING_ROUTE = "/onboarding";
 
 type GateDecision = "loading" | "render" | "toOnboarding" | "toReturn";
 
-/** A not-yet-onboarded user may stay on these routes (they deploy their first app here). */
-const ONBOARDING_ALLOWED_PREFIXES = ["/new-deployment/configure"];
+/** A not-yet-onboarded user may stay on these routes (they deploy their first app, and fund it, here). */
+const ONBOARDING_ALLOWED_PREFIXES = ["/new-deployment/configure", "/billing"];
 
 export const DEPENDENCIES = {
   useUser,
@@ -96,10 +96,12 @@ function LeaseBasedGate({
  * Resolves the lease-based gate's action, in priority order. Public pages always render (RequireAuth owns auth,
  * and the WalletProvider boot gate guarantees the wallet lookup has settled before this gate mounts).
  * Allow-list pages (configure, a deployment detail) render *immediately*, ahead of the identity wait and
- * the leases query, because they own their own loading UX (e.g. the auto-deploy progress overlay). The
- * `/onboarding` picker likewise renders once identity is known without waiting for leases: its trial wallet
- * provisions in the background, and the leases query flips to loading the moment that wallet's address appears,
- * which would otherwise flash the full-screen loader and remount the page (including an open Add Credits sheet).
+ * the leases query, because they own their own loading UX (e.g. the auto-deploy progress overlay). Billing is
+ * allow-listed for a different reason: it is where a trial converts, so bouncing a user who came to pay would
+ * turn every link into it into a dead end. The `/onboarding` picker likewise renders once identity is known
+ * without waiting for leases: its trial wallet provisions in the background, and the leases query flips to
+ * loading the moment that wallet's address appears, which would otherwise flash the full-screen loader and
+ * remount the page (including an open Add Credits sheet).
  * An already-onboarded user who lands on `/onboarding` is still sent back where they came from, but only once
  * leases resolve (they render the picker until then). Everywhere else first waits until user identity is
  * known, then for leases to settle: an onboarded user renders, a not-onboarded user is sent to `/onboarding`. A
