@@ -109,8 +109,7 @@ export const CreateDeploymentRequestSchema = z.object({
     sdl: z.string(),
     deposit: z.number().optional().openapi({
       deprecated: true,
-      description:
-        "Deposit in dollars. Ignored when managed deposits are enabled for your account, in which case the platform sets it automatically; otherwise it is required."
+      description: "Deprecated and ignored. The platform funds every deployment automatically from your account credits."
     }),
     runtimeLimitHours: z
       .number()
@@ -145,7 +144,7 @@ export const CloseDeploymentResponseSchema = z.object({
 export const DepositDeploymentRequestSchema = z.object({
   data: z.object({
     dseq: DseqSchema.describe("Deployment sequence number"),
-    deposit: z.number().describe("Amount to deposit in dollars (e.g. 5.5)")
+    deposit: z.number().describe("Amount to deposit in dollars (e.g. 5.5). Accepted for backwards compatibility; automatic funding makes it unnecessary.")
   })
 });
 

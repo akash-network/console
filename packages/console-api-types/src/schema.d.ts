@@ -38,6 +38,10 @@ export interface paths {
                 address: string;
                 denom: string;
                 isTrialing: boolean;
+                /** @description When the free trial expires, or null when the wallet is no longer trialing. */
+                trialEndsAt: string | null;
+                /** @description Total length of the free trial in days, or null when the wallet is no longer trialing. */
+                trialDurationDays: number | null;
                 /** @description Minimum USD amount accepted by the next paid top-up for this wallet. */
                 topUpMinAmountUsd: number;
                 createdAt: string;
@@ -2118,7 +2122,7 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Deposit into a deployment
+     * Deposit into a deployment (deprecated)
      * @deprecated
      * @description Deprecated. Managed deployments are funded automatically; this endpoint will be removed in a future release.
      */
@@ -8302,7 +8306,7 @@ export interface operations {
             sdl: string;
             /**
              * @deprecated
-             * @description Deposit in dollars. Ignored when managed deposits are enabled for your account, in which case the platform sets it automatically; otherwise it is required.
+             * @description Deprecated and ignored. The platform funds every deployment automatically from your account credits.
              */
             deposit?: number;
             /** @description Optional runtime limit in hours (1 to 48), counted from lease start. Automatic funding keeps the deployment running until the limit, then the deployment is closed automatically and unused funds are returned. Extend a limit with PATCH /v2/deployment-settings/{dseq}. Omit for always-on funding. */
@@ -8346,7 +8350,7 @@ export interface operations {
           data: {
             /** @description Deployment sequence number */
             dseq: string;
-            /** @description Amount to deposit in dollars (e.g. 5.5) */
+            /** @description Amount to deposit in dollars (e.g. 5.5). Accepted for backwards compatibility; automatic funding makes it unnecessary. */
             deposit: number;
           };
         };

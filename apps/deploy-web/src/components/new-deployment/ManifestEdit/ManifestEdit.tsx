@@ -419,7 +419,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
             <span>
               <d.DeploymentMinimumEscrowAlertText />
               <d.LinkTo
-                onClick={ev => handleDocClick(ev, "https://akash.network/docs/getting-started/intro-to-akash/payments/#escrow-accounts")}
+                onClick={ev => handleDocClick(ev, "https://akash.network/docs/getting-started/how-funding-works/")}
                 className="text-gray-500 no-underline hover:underline disabled:text-gray-300"
               >
                 Learn more.
