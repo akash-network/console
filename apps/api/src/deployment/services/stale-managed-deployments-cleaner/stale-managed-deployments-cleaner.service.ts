@@ -14,7 +14,7 @@ import { DeploymentRepository } from "@src/deployment/repositories/deployment/de
 import { CleanUpStaleDeploymentsParams } from "@src/deployment/types/state-deployments";
 import { averageBlockTime, COSMOS_TX_CODE_OK } from "@src/utils/constants";
 
-/** Bounds how long one wallet's backlog of already-closed deployments can hold a cleanup pass. */
+/** Bounds how many already-closed deployments one pass drops; the batch left after the last drop is still broadcast once. */
 const MAX_CLOSED_DEPLOYMENT_DROPS = 3;
 
 @singleton()
@@ -66,10 +66,7 @@ export class StaleManagedDeploymentsCleanerService {
     return (await this.blockRepository.getLatestProcessedHeight()) - maxLiveBlocks;
   }
 
-  /**
-   * Re-broadcasting without an already-closed deployment is safe only because both classified shapes prove the tx
-   * was rejected whole: a fee estimation never broadcasts, and a non-zero tx code means every message reverted.
-   */
+  /** Dropping a message and re-broadcasting is safe because both classified failures reject the tx whole: an estimate never lands, a non-zero code reverts. */
   async #closeLeaselessDeployments(wallet: UserWalletOutput, staleBeforeHeight: number) {
     let remaining = await this.deploymentRepository.findStaleDeployments({
       owner: wallet.address!,
@@ -107,13 +104,14 @@ export class StaleManagedDeploymentsCleanerService {
         throw failure;
       }
 
-      this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_ALREADY_CLOSED", owner: wallet.address, dseq: remaining[closedIndex].dseq });
-      remaining = remaining.filter((_, index) => index !== closedIndex);
-
-      if (++closedDeploymentsDropped >= MAX_CLOSED_DEPLOYMENT_DROPS && remaining.length) {
+      if (closedDeploymentsDropped >= MAX_CLOSED_DEPLOYMENT_DROPS) {
         this.logger.warn({ event: "DEPLOYMENT_CLEAN_UP_DROP_LIMIT", owner: wallet.address, remainingCount: remaining.length });
         return;
       }
+
+      this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_ALREADY_CLOSED", owner: wallet.address, dseq: remaining[closedIndex].dseq });
+      remaining = remaining.filter((_, index) => index !== closedIndex);
+      closedDeploymentsDropped++;
     }
 
     this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address, alreadyClosedCount: closedDeploymentsDropped });

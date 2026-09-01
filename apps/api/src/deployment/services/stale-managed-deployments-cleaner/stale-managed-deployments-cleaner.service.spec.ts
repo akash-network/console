@@ -136,11 +136,34 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
 
       await service.cleanUpForWallet(wallet, 0);
 
-      expect(executeDerivedTx).toHaveBeenCalledTimes(3);
+      expect(executeDerivedTx).toHaveBeenCalledTimes(4);
       expect(logger.warn).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_DROP_LIMIT", owner: wallet.address, remainingCount: 2 });
       expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS" }));
       expect(logger.error).not.toHaveBeenCalled();
       expect(errorLogger.error).not.toHaveBeenCalled();
+    });
+
+    it("still closes the survivors when the drop limit is reached on the last closed deployment", async () => {
+      const executeDerivedTx = vi
+        .fn()
+        .mockRejectedValueOnce(buildDeploymentClosedAppError(0))
+        .mockRejectedValueOnce(buildDeploymentClosedAppError(0))
+        .mockRejectedValueOnce(buildDeploymentClosedAppError(0))
+        .mockResolvedValueOnce(buildOkTx());
+      const { service, logger, wallet } = setup({
+        staleDeployments: [{ dseq: 1 }, { dseq: 2 }, { dseq: 3 }, { dseq: 4 }, { dseq: 5 }],
+        executeDerivedTx
+      });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(executeDerivedTx).toHaveBeenCalledTimes(4);
+      expect(executeDerivedTx).toHaveBeenLastCalledWith(wallet.id, [
+        expect.objectContaining({ value: expect.objectContaining({ dseq: 4 }) }),
+        expect.objectContaining({ value: expect.objectContaining({ dseq: 5 }) })
+      ]);
+      expect(logger.warn).not.toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CLEAN_UP_DROP_LIMIT" }));
+      expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address, alreadyClosedCount: 3 });
     });
 
     it("treats a landed tx that reverted on a closed deployment as a failure and drops it", async () => {
