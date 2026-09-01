@@ -35,7 +35,7 @@ describe(WalletSettingRepository.name, () => {
       const first = await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES);
       const second = await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES);
 
-      expect(first).toEqual({ won: true });
+      expect(first).toEqual({ won: true, claim: { id: settingId, claimedAt: expect.any(String) } });
       expect(second).toEqual({ won: false, secondsUntilWindowReopen: expect.any(Number) });
     });
 
@@ -69,7 +69,7 @@ describe(WalletSettingRepository.name, () => {
       await backdateLastAutoChargeAt(settingId, COOLDOWN_MINUTES + 1);
       const afterCooldown = await walletSettingRepository.claimForCharge(settingId, COOLDOWN_MINUTES);
 
-      expect(afterCooldown).toEqual({ won: true });
+      expect(afterCooldown).toEqual({ won: true, claim: { id: settingId, claimedAt: expect.any(String) } });
     });
 
     it("claims consecutively when the cooldown is zero", async () => {
@@ -78,8 +78,100 @@ describe(WalletSettingRepository.name, () => {
       const first = await walletSettingRepository.claimForCharge(settingId, NO_COOLDOWN);
       const second = await walletSettingRepository.claimForCharge(settingId, NO_COOLDOWN);
 
-      expect(first).toEqual({ won: true });
-      expect(second).toEqual({ won: true });
+      expect(first.won).toBe(true);
+      expect(second.won).toBe(true);
+    });
+  });
+
+  describe("recordChargeDecline", () => {
+    it("counts one decline per charge attempt", async () => {
+      const { walletSettingRepository, claim, readSetting } = await setup();
+
+      const outcome = await walletSettingRepository.recordChargeDecline(await claim(), { maxConsecutiveDeclines: 4, isTerminal: false });
+
+      expect(outcome).toEqual({ failureCount: 1, pausedAt: null });
+      expect((await readSetting()).autoReloadPausedAt).toBeNull();
+    });
+
+    it("pauses the wallet once the card has run out of chances", async () => {
+      const { walletSettingRepository, settingId, claim, backdateLastAutoChargeAt } = await setup();
+
+      const outcomes = [];
+      for (let attempt = 0; attempt < 3; attempt++) {
+        outcomes.push(await walletSettingRepository.recordChargeDecline(await claim(), { maxConsecutiveDeclines: 3, isTerminal: false }));
+        await backdateLastAutoChargeAt(settingId, COOLDOWN_MINUTES + 1);
+      }
+
+      expect(outcomes.map(outcome => outcome.failureCount)).toEqual([1, 2, 3]);
+      expect(outcomes.slice(0, 2).map(outcome => outcome.pausedAt)).toEqual([null, null]);
+      expect(outcomes[2].pausedAt).toBeInstanceOf(Date);
+    });
+
+    it("pauses a lost or stolen card on its first decline", async () => {
+      const { walletSettingRepository, claim } = await setup();
+
+      const outcome = await walletSettingRepository.recordChargeDecline(await claim(), { maxConsecutiveDeclines: 4, isTerminal: true });
+
+      expect(outcome.failureCount).toBe(1);
+      expect(outcome.pausedAt).toBeInstanceOf(Date);
+    });
+
+    it("reports the pause to exactly one of the callers racing to record it", async () => {
+      const { walletSettingRepository, claim } = await setup();
+      const won = await claim();
+
+      const outcomes = await Promise.all(
+        Array.from({ length: 5 }, () => walletSettingRepository.recordChargeDecline(won, { maxConsecutiveDeclines: 1, isTerminal: false }))
+      );
+
+      expect(outcomes.filter(outcome => outcome.pausedAt)).toHaveLength(1);
+    });
+
+    it("discards a decline whose charge window has already been cleared", async () => {
+      const { walletSettingRepository, settingId, claim, readSetting } = await setup();
+      const won = await claim();
+      await walletSettingRepository.clearChargeState(settingId);
+
+      const outcome = await walletSettingRepository.recordChargeDecline(won, { maxConsecutiveDeclines: 4, isTerminal: true });
+
+      expect(outcome).toEqual({ failureCount: 0, pausedAt: null });
+      expect((await readSetting()).autoReloadPausedAt).toBeNull();
+    });
+  });
+
+  describe("resetChargeFailures", () => {
+    it("puts a wallet with declines behind it back to a clean slate", async () => {
+      const { walletSettingRepository, settingId, claim, readSetting } = await setup();
+      await walletSettingRepository.recordChargeDecline(await claim(), { maxConsecutiveDeclines: 4, isTerminal: true });
+
+      await walletSettingRepository.resetChargeFailures(settingId);
+
+      const setting = await readSetting();
+      expect(setting.autoReloadFailureCount).toBe(0);
+      expect(setting.autoReloadPausedAt).toBeNull();
+    });
+
+    it("keeps the charge marker so the cooldown still applies", async () => {
+      const { walletSettingRepository, settingId, claim, readSetting } = await setup();
+      await claim();
+
+      await walletSettingRepository.resetChargeFailures(settingId);
+
+      expect((await readSetting()).lastAutoChargeAt).not.toBeNull();
+    });
+  });
+
+  describe("clearChargeState", () => {
+    it("lifts the pause and reopens the charge window at once", async () => {
+      const { walletSettingRepository, settingId, claim, readSetting } = await setup();
+      await walletSettingRepository.recordChargeDecline(await claim(), { maxConsecutiveDeclines: 4, isTerminal: true });
+
+      await walletSettingRepository.clearChargeState(settingId);
+
+      const setting = await readSetting();
+      expect(setting.autoReloadFailureCount).toBe(0);
+      expect(setting.autoReloadPausedAt).toBeNull();
+      expect(setting.lastAutoChargeAt).toBeNull();
     });
   });
 
@@ -104,10 +196,22 @@ describe(WalletSettingRepository.name, () => {
         .where(eq(walletSettingsTable.id, id));
     }
 
+    async function claim() {
+      const attempt = await walletSettingRepository.claimForCharge(setting.id, COOLDOWN_MINUTES);
+      return (attempt as Extract<ChargeClaimAttempt, { won: true }>).claim;
+    }
+
+    async function readSetting() {
+      const [row] = await db.select().from(walletSettingsTable).where(eq(walletSettingsTable.id, setting.id));
+      return row;
+    }
+
     return {
       walletSettingRepository,
       settingId: setting.id,
-      backdateLastAutoChargeAt
+      backdateLastAutoChargeAt,
+      claim,
+      readSetting
     };
   }
 });

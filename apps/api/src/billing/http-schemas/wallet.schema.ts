@@ -29,7 +29,11 @@ export const WalletSettingsOutputSchema = z.object({
   autoReloadEnabled: z.boolean().openapi({}),
   autoReloadMode: AutoReloadModeSchema.openapi({ description: "Rule used to decide when and how much to top up." }),
   autoReloadThreshold: z.number().openapi({ description: "USD credit balance at or below which an automatic top-up is triggered." }),
-  autoReloadAmount: z.number().openapi({ description: "USD amount charged to the default payment method on each automatic top-up." })
+  autoReloadAmount: z.number().openapi({ description: "USD amount charged to the default payment method on each automatic top-up." }),
+  autoReloadPausedAt: z.date().nullable().openapi({
+    description:
+      "When automatic top-ups were paused because the default payment method kept being declined, or null when they are running. Changing the default payment method resumes them."
+  })
 });
 
 export const WalletSettingsInputSchema = z.object({

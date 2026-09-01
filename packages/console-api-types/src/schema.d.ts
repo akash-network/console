@@ -7306,6 +7306,8 @@ export interface operations {
               autoReloadThreshold: number;
               /** @description USD amount charged to the default payment method on each automatic top-up. */
               autoReloadAmount: number;
+              /** @description When automatic top-ups were paused because the default payment method kept being declined, or null when they are running. Changing the default payment method resumes them. */
+              autoReloadPausedAt: string | null;
             };
           };
         };
@@ -7363,6 +7365,8 @@ export interface operations {
               autoReloadThreshold: number;
               /** @description USD amount charged to the default payment method on each automatic top-up. */
               autoReloadAmount: number;
+              /** @description When automatic top-ups were paused because the default payment method kept being declined, or null when they are running. Changing the default payment method resumes them. */
+              autoReloadPausedAt: string | null;
             };
           };
         };
@@ -7420,6 +7424,8 @@ export interface operations {
               autoReloadThreshold: number;
               /** @description USD amount charged to the default payment method on each automatic top-up. */
               autoReloadAmount: number;
+              /** @description When automatic top-ups were paused because the default payment method kept being declined, or null when they are running. Changing the default payment method resumes them. */
+              autoReloadPausedAt: string | null;
             };
           };
         };

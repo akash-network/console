@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { PaymentMethodRepository } from "@src/billing/repositories";
+import type { AutoReloadPauseService } from "@src/billing/services/auto-reload-pause/auto-reload-pause.service";
 import type { PayingUser } from "@src/billing/services/paying-user/paying-user";
 import type { UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
 import { PaymentMethodService } from "./payment-method.service";
@@ -404,12 +405,13 @@ describe(PaymentMethodService.name, () => {
     const paymentMethodRepository = mock<PaymentMethodRepository>();
     paymentMethodRepository.accessibleBy.mockReturnValue(paymentMethodRepository);
     const userRepository = mock<UserRepository>();
+    const autoReloadPauseService = mock<AutoReloadPauseService>();
     const logger = mock<LoggerService>();
 
     const stripe = new Stripe(`sk_test_${faker.string.alphanumeric(32)}`, { apiVersion: "2025-10-29.clover", httpClient: Stripe.createFetchHttpClient() });
 
-    const service = new PaymentMethodService(stripe, paymentMethodRepository, userRepository, () => logger);
+    const service = new PaymentMethodService(stripe, paymentMethodRepository, userRepository, autoReloadPauseService, () => logger);
 
-    return { service, stripe, paymentMethodRepository, userRepository, logger };
+    return { service, stripe, paymentMethodRepository, userRepository, autoReloadPauseService, logger };
   }
 });

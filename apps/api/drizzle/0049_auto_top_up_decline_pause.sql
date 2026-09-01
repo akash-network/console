@@ -1,0 +1,2 @@
+ALTER TABLE "wallet_settings" ADD COLUMN "auto_reload_failure_count" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "wallet_settings" ADD COLUMN "auto_reload_paused_at" timestamp with time zone;

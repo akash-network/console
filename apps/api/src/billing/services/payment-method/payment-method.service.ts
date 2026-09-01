@@ -8,6 +8,7 @@ import { inject, singleton } from "tsyringe";
 import { extractFingerprint } from "@src/billing/lib/payment-method/extract-fingerprint";
 import { STRIPE_CLIENT } from "@src/billing/providers/stripe-client.provider";
 import { type PaymentMethodOutput, PaymentMethodRepository } from "@src/billing/repositories";
+import { AutoReloadPauseService } from "@src/billing/services/auto-reload-pause/auto-reload-pause.service";
 import { type CreateLogger, LOGGER_FACTORY, WithTransaction } from "@src/core";
 import { type UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
 import { assertIsPayingUser, type PayingUser } from "../paying-user/paying-user";
@@ -22,6 +23,7 @@ export class PaymentMethodService {
     @inject(STRIPE_CLIENT) private readonly stripe: Stripe,
     private readonly paymentMethodRepository: PaymentMethodRepository,
     private readonly userRepository: UserRepository,
+    private readonly autoReloadPauseService: AutoReloadPauseService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.loggerService = createLogger({ context: PaymentMethodService.name });
@@ -410,6 +412,8 @@ export class PaymentMethodService {
           error
         });
       }
+
+      await this.autoReloadPauseService.resume(user.id);
     }
 
     return { isNew, isDefault: localPaymentMethod.isDefault };

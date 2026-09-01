@@ -29,7 +29,11 @@ describe(WalletBalanceReloadCheckInstrumentationService.name, () => {
 
       service.recordReloadFailed({ mode: "threshold", error, logContext });
 
-      expect(counters.wallet_balance_reload_check_reload_failures_total.add).toHaveBeenCalledWith(1, { mode: "threshold", error_type: "TypeError" });
+      expect(counters.wallet_balance_reload_check_reload_failures_total.add).toHaveBeenCalledWith(1, {
+        mode: "threshold",
+        error_type: "TypeError",
+        decline_code: "none"
+      });
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.objectContaining({
           ...logContext,
@@ -50,7 +54,11 @@ describe(WalletBalanceReloadCheckInstrumentationService.name, () => {
 
       service.recordReloadFailed({ mode: "prediction", error, logContext });
 
-      expect(counters.wallet_balance_reload_check_reload_failures_total.add).toHaveBeenCalledWith(1, { mode: "prediction", error_type: "Unknown" });
+      expect(counters.wallet_balance_reload_check_reload_failures_total.add).toHaveBeenCalledWith(1, {
+        mode: "prediction",
+        error_type: "Unknown",
+        decline_code: "none"
+      });
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.objectContaining({
           ...logContext,
@@ -59,6 +67,32 @@ describe(WalletBalanceReloadCheckInstrumentationService.name, () => {
           error
         })
       );
+    });
+
+    it("labels the failure with the decline code when the card was declined", () => {
+      const { service, counters } = setup();
+      const error = new TypeError(faker.lorem.sentence());
+
+      service.recordReloadFailed({ mode: "threshold", error, declineCode: "stolen_card", logContext: {} });
+
+      expect(counters.wallet_balance_reload_check_reload_failures_total.add).toHaveBeenCalledWith(1, {
+        mode: "threshold",
+        error_type: "TypeError",
+        decline_code: "stolen_card"
+      });
+    });
+  });
+
+  describe("recordDeclineRecordingError", () => {
+    it("counts a decline the pause limit could not be told about", () => {
+      const { service, counters } = setup();
+      const userId = faker.string.uuid();
+      const error = new Error(faker.lorem.sentence());
+
+      service.recordDeclineRecordingError(userId, error);
+
+      expect(counters.wallet_balance_reload_check_decline_recording_errors_total.add).toHaveBeenCalledWith(1, { error_type: "Error" });
+      expect(mockLogger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "AUTO_RELOAD_DECLINE_RECORDING_FAILED", userId, error }));
     });
   });
 

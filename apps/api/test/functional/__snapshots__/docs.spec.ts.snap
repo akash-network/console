@@ -15291,6 +15291,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           ],
                           "type": "string",
                         },
+                        "autoReloadPausedAt": {
+                          "description": "When automatic top-ups were paused because the default payment method kept being declined, or null when they are running. Changing the default payment method resumes them.",
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "autoReloadThreshold": {
                           "description": "USD credit balance at or below which an automatic top-up is triggered.",
                           "type": "number",
@@ -15301,6 +15306,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "autoReloadMode",
                         "autoReloadThreshold",
                         "autoReloadAmount",
+                        "autoReloadPausedAt",
                       ],
                       "type": "object",
                     },
@@ -15402,6 +15408,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           ],
                           "type": "string",
                         },
+                        "autoReloadPausedAt": {
+                          "description": "When automatic top-ups were paused because the default payment method kept being declined, or null when they are running. Changing the default payment method resumes them.",
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "autoReloadThreshold": {
                           "description": "USD credit balance at or below which an automatic top-up is triggered.",
                           "type": "number",
@@ -15412,6 +15423,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "autoReloadMode",
                         "autoReloadThreshold",
                         "autoReloadAmount",
+                        "autoReloadPausedAt",
                       ],
                       "type": "object",
                     },
@@ -15513,6 +15525,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           ],
                           "type": "string",
                         },
+                        "autoReloadPausedAt": {
+                          "description": "When automatic top-ups were paused because the default payment method kept being declined, or null when they are running. Changing the default payment method resumes them.",
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "autoReloadThreshold": {
                           "description": "USD credit balance at or below which an automatic top-up is triggered.",
                           "type": "number",
@@ -15523,6 +15540,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "autoReloadMode",
                         "autoReloadThreshold",
                         "autoReloadAmount",
+                        "autoReloadPausedAt",
                       ],
                       "type": "object",
                     },

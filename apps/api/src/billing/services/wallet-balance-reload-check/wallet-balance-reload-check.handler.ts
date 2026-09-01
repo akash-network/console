@@ -6,10 +6,11 @@ import { singleton } from "tsyringe";
 import { AUTO_RELOAD_AMOUNT_MIN_USD } from "@src/billing/config";
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balance.schema";
+import { type CardDecline, toCardDecline } from "@src/billing/lib/card-decline/card-decline";
 import { centsToUsd } from "@src/billing/lib/currency/currency";
-import { UserWalletOutput, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
+import { type ChargeClaim, UserWalletOutput, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
+import { AutoReloadPauseService } from "@src/billing/services/auto-reload-pause/auto-reload-pause.service";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
-import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { type PaymentMethod, PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { AUTO_RECHARGE_METADATA_KEY, StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
@@ -26,7 +27,10 @@ type ValidationError = {
 };
 
 type InitializedWallet = Require<Pick<UserWalletOutput, "address">, "address">;
-type ActionableWalletSetting = Pick<WalletSettingOutput, "id" | "userId" | "autoReloadMode" | "autoReloadThreshold" | "autoReloadAmount">;
+type ActionableWalletSetting = Pick<
+  WalletSettingOutput,
+  "id" | "userId" | "autoReloadMode" | "autoReloadThreshold" | "autoReloadAmount" | "autoReloadFailureCount"
+>;
 
 type Resources = {
   walletSetting: ActionableWalletSetting;
@@ -67,7 +71,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     private readonly drainingDeploymentService: DrainingDeploymentService,
     private readonly deploymentRepository: DeploymentRepository,
     private readonly instrumentationService: WalletBalanceReloadCheckInstrumentationService,
-    private readonly billingConfig: BillingConfigService
+    private readonly autoReloadPauseService: AutoReloadPauseService
   ) {}
 
   async handle(payload: JobPayload<WalletBalanceReloadCheck>, job: JobMeta): Promise<void> {
@@ -83,6 +87,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
         success = true;
       } else {
         this.instrumentationService.recordValidationError(resourcesResult.val.event, resourcesResult.val, payload.userId);
+        success = true;
         return;
       }
     } finally {
@@ -127,6 +132,13 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
       return Err({
         event: "AUTO_RELOAD_DISABLED",
         message: "Auto reload disabled. Skipping wallet balance reload check."
+      });
+    }
+
+    if (walletSetting.autoReloadPausedAt) {
+      return Err({
+        event: "AUTO_RELOAD_PAUSED",
+        message: "Auto reload paused after repeated card declines. Skipping wallet balance reload check."
       });
     }
 
@@ -265,7 +277,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
   }): Promise<ReloadOutcome> {
     const { resources, amount, coverageRatio, projectedCost, logContext } = input;
     const mode = resources.walletSetting.autoReloadMode;
-    const cooldownMinutes = this.billingConfig.get("AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN");
+    const cooldownMinutes = this.autoReloadPauseService.calculateChargeCooldownMinutes(resources.walletSetting.autoReloadFailureCount);
     const attempt = await this.walletSettingRepository.claimForCharge(resources.walletSetting.id, cooldownMinutes);
 
     if (!attempt.won) {
@@ -281,7 +293,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     }
 
     try {
-      await this.stripeTransactionService.createPaymentIntent({
+      const result = await this.stripeTransactionService.createPaymentIntent({
         userId: resources.user.id,
         customer: resources.user.stripeCustomerId,
         payment_method: resources.paymentMethod.id,
@@ -291,10 +303,34 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
         idempotencyKey: `${WalletBalanceReloadCheck.name}.${resources.job.id}`,
         onAmountMismatch: "tolerate"
       });
+
+      if (result.success) {
+        await this.walletSettingRepository.resetChargeFailures(resources.walletSetting.id);
+      }
+
       this.instrumentationService.recordReloadTriggered({ mode, amount, coverageRatio, projectedCost, logContext });
     } catch (error) {
-      this.instrumentationService.recordReloadFailed({ mode, error, logContext });
+      const decline = toCardDecline(error);
+      this.instrumentationService.recordReloadFailed({ mode, error, declineCode: decline?.declineCode, logContext });
+
+      if (decline) {
+        await this.#recordDecline(attempt.claim, resources, decline);
+      }
+
       throw error;
+    }
+  }
+
+  /**
+   * Best-effort: a rejected pause must not replace the payment error the caller is about to record
+   * and rethrow, which retries and alerting classify. The counter is what keeps a pause that keeps
+   * failing from making the whole give-up rule quietly inert.
+   */
+  async #recordDecline(claim: ChargeClaim, resources: ReloadContext, decline: CardDecline): Promise<void> {
+    try {
+      await this.autoReloadPauseService.recordDecline({ claim, user: resources.user, decline });
+    } catch (error) {
+      this.instrumentationService.recordDeclineRecordingError(resources.user.id, error);
     }
   }
 
