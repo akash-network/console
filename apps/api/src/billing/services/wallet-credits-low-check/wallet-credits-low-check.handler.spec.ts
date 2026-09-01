@@ -122,6 +122,34 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     expect(logger.warn).not.toHaveBeenCalled();
   });
 
+  it("records the readings behind a skip so a wrong verdict can be traced", async () => {
+    const { handler, logger, job } = setup({
+      balanceUsd: 35,
+      weeklyCostUsd: 35,
+      creditsLowSince: null
+    });
+
+    await handler.handle(job);
+
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "sufficient_balance", balanceUsd: 35, weeklyCostUsd: 35 })
+    );
+  });
+
+  it("records the readings behind an unconfirmed low", async () => {
+    const { handler, logger, job } = setup({
+      balanceUsd: 10,
+      weeklyCostUsd: 40,
+      creditsLowSince: null
+    });
+
+    await handler.handle(job);
+
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "low_unconfirmed", balanceUsd: 10, weeklyCostUsd: 40 })
+    );
+  });
+
   it("does not send when already notified and still low", async () => {
     const { handler, notificationService, userWalletRepository, logger, job } = setup({
       creditsLowNotifiedAt: new Date("2026-01-01T00:00:00.000Z")

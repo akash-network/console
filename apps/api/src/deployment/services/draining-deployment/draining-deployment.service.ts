@@ -452,6 +452,16 @@ export class DrainingDeploymentService {
     const burns = this.#buildWeeklyBurns(this.#applySettingsToLeaseRates(deploymentSettings, leaseRates, address), currentHeight);
 
     const weeklyCredits = this.#creditsForHours(burns, WEEK_HOURS);
+
+    this.loggerService.info({
+      event: "WEEKLY_COVERAGE_CALCULATED",
+      address,
+      currentHeight,
+      settingDseqs: deploymentSettings.map(deployment => deployment.dseq),
+      leaseRates,
+      weeklyCredits
+    });
+
     if (weeklyCredits === 0) {
       return noCoverage;
     }
