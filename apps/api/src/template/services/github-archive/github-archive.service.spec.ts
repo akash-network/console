@@ -197,6 +197,58 @@ describe(GitHubArchiveService.name, () => {
       expect(cancelSource).toHaveBeenCalled();
     });
 
+    it("retries when github rate limits the download", async () => {
+      const { service, fetchSpy, archiveResponse } = setup();
+      fetchSpy
+        .mockResolvedValueOnce(new Response(null, { status: 429, statusText: "Too Many Requests" }))
+        .mockResolvedValueOnce(archiveResponse({ "root/readme.md": "# Hello" }));
+
+      const archive = service.getArchive("owner", "repo", "ref");
+      await vi.advanceTimersByTimeAsync(BEYOND_ALL_RETRY_BACKOFFS_MS);
+      const reader = await archive;
+
+      expect(await reader.readFile("readme.md")).toBe("# Hello");
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("retries when github fails the download with a server error", async () => {
+      const { service, fetchSpy, archiveResponse } = setup();
+      fetchSpy
+        .mockResolvedValueOnce(new Response(null, { status: 502, statusText: "Bad Gateway" }))
+        .mockResolvedValueOnce(archiveResponse({ "root/readme.md": "# Hello" }));
+
+      const archive = service.getArchive("owner", "repo", "ref");
+      await vi.advanceTimersByTimeAsync(BEYOND_ALL_RETRY_BACKOFFS_MS);
+      const reader = await archive;
+
+      expect(await reader.readFile("readme.md")).toBe("# Hello");
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("aborts when the response body goes silent part way through the download", async () => {
+      const { service, fetchSpy, tarGzChunks } = setup();
+      const [firstChunk] = tarGzChunks({ "root/readme.md": "# Hello" });
+      fetchSpy.mockImplementation((_url, init) => {
+        const signal = (init as RequestInit).signal!;
+        return Promise.resolve(
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                signal.addEventListener("abort", () => controller.error(signal.reason), { once: true });
+                controller.enqueue(firstChunk);
+              }
+            })
+          )
+        );
+      });
+
+      const stalled = expect(service.getArchive("owner", "repo", "ref")).rejects.toThrow("received no data for 30000ms");
+      await vi.advanceTimersByTimeAsync(3 * 30_000 + BEYOND_ALL_RETRY_BACKOFFS_MS);
+
+      await stalled;
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
+    });
+
     it("aborts a download that stops producing data", async () => {
       const { service, fetchSpy } = setup();
       fetchSpy.mockImplementation(

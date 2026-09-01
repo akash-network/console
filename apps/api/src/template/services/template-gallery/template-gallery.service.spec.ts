@@ -95,6 +95,21 @@ describe(TemplateGalleryService.name, () => {
       );
     });
 
+    it("refetches and overwrites a cache file poisoned with an empty gallery", async () => {
+      const { service, templateFetcher, fsMock } = setup();
+      const freshTemplates = [createCategory({ title: "AI", templates: [{ id: "fresh-1", name: "Fresh 1" }] })];
+
+      fsMock.access.mockResolvedValue(undefined);
+      fsMock.readFile.mockResolvedValue(JSON.stringify([]));
+      templateFetcher.fetchAwesomeAkashTemplates.mockResolvedValue(freshTemplates);
+
+      const result = await service.getTemplateGallery();
+
+      expect(templateFetcher.fetchAwesomeAkashTemplates).toHaveBeenCalled();
+      expect(result.map(category => category.title)).toContain("AI");
+      expect(fsMock.writeFile).toHaveBeenCalledWith(expect.stringContaining("akash-network-awesome-akash"), expect.stringContaining("fresh-1"));
+    });
+
     it("refuses to publish a repository that yielded no categories", async () => {
       const { service, templateFetcher, fsMock } = setup();
 
