@@ -25,6 +25,9 @@ import { createAutoTopUpDeployment, createManyAutoTopUpDeployments } from "@test
 import { createDrainingDeployment } from "@test/seeders/draining-deployment.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
+/** The container runtime splits stdout at 16 KiB, which mangles a longer line into unparseable JSON. */
+const MAX_LOGGABLE_LINE_BYTES = 16384;
+
 describe(DrainingDeploymentService.name, () => {
   describe("findDrainingDeploymentsByOwner", () => {
     it("paginates draining deployments by owner and marks closed ones as such", async () => {
@@ -1148,7 +1151,7 @@ describe(DrainingDeploymentService.name, () => {
 
     it("logs the coverage inputs behind a non-zero weekly cost", async () => {
       const blockRate = 50;
-      const { service, address, deploymentSettings, loggerService, currentHeight } = await setupWeeklyBurnForAddress({
+      const { service, address, loggerService, currentHeight } = await setupWeeklyBurnForAddress({
         deployments: [{ blockRate }]
       });
 
@@ -1158,8 +1161,9 @@ describe(DrainingDeploymentService.name, () => {
         event: "WEEKLY_COVERAGE_CALCULATED",
         address,
         currentHeight,
-        settingDseqs: deploymentSettings.map(setting => setting.dseq),
-        leaseRates: [{ dseq: deploymentSettings[0].dseq, blockRate }],
+        settingCount: 1,
+        leaseRateCount: 1,
+        leaseRateTotal: blockRate,
         weeklyCredits: Math.floor(blockRate * averageBlockCountInAnHour * 24 * 7)
       });
     });
@@ -1175,8 +1179,9 @@ describe(DrainingDeploymentService.name, () => {
       expect(loggerService.info).toHaveBeenCalledWith(
         expect.objectContaining({
           event: "WEEKLY_COVERAGE_CALCULATED",
-          settingDseqs: deploymentSettings.map(setting => setting.dseq),
-          leaseRates: [],
+          settingCount: deploymentSettings.length,
+          leaseRateCount: 0,
+          leaseRateTotal: 0,
           weeklyCredits: 0
         })
       );
@@ -1200,6 +1205,22 @@ describe(DrainingDeploymentService.name, () => {
       expect(result.weeklyCostUsd).toBe(usdFromCredits(Math.floor(blockRate * averageBlockCountInAnHour * 24 * 7)));
     });
 
+    it("keeps the coverage log small enough to survive the log pipeline for a wallet with many deployments", async () => {
+      const { service, address, loggerService } = await setupWeeklyBurnForAddress({
+        deployments: Array.from({ length: 2000 }, () => ({ blockRate: 50 }))
+      });
+
+      await service.calculateWeeklyCoverageForAddress(address);
+
+      const coverageLogs = loggerService.info.mock.calls
+        .map(([logged]) => logged as { event?: string })
+        .filter(logged => logged.event === "WEEKLY_COVERAGE_CALCULATED");
+
+      expect(coverageLogs).toHaveLength(1);
+      expect(coverageLogs[0]).toMatchObject({ settingCount: 2000, leaseRateCount: 2000 });
+      expect(JSON.stringify(coverageLogs[0]).length).toBeLessThan(MAX_LOGGABLE_LINE_BYTES);
+    });
+
     it("logs the coverage inputs behind an absent auto top-up setting", async () => {
       const { service, address, loggerService } = await setupWeeklyBurnForAddress({
         userWallet: undefined,
@@ -1211,8 +1232,9 @@ describe(DrainingDeploymentService.name, () => {
       expect(loggerService.info).toHaveBeenCalledWith({
         event: "WEEKLY_COVERAGE_CALCULATED",
         address,
-        settingDseqs: [],
-        leaseRates: [],
+        settingCount: 0,
+        leaseRateCount: 0,
+        leaseRateTotal: 0,
         weeklyCredits: 0
       });
     });
