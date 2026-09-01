@@ -265,6 +265,62 @@ describe("Memoize Function", () => {
       expect(cacheKeys).toHaveLength(1);
       expect(cacheKeys).toContain("TestClass#testMethod#test");
     });
+
+    describe("when maxEntries is set", () => {
+      it("keeps entries out of the shared cache", async () => {
+        setup();
+
+        class TestClass {
+          @Memoize({ maxEntries: 2 })
+          async testMethod(_arg: string) {
+            return "test";
+          }
+        }
+
+        await new TestClass().testMethod("a");
+
+        expect(cacheEngine.getKeys()).toHaveLength(0);
+      });
+
+      it("serves a cached entry without recomputing", async () => {
+        setup();
+        const compute = vi.fn().mockResolvedValue("test");
+
+        class TestClass {
+          @Memoize({ maxEntries: 2 })
+          async testMethod(arg: string) {
+            return compute(arg);
+          }
+        }
+
+        const instance = new TestClass();
+        await instance.testMethod("a");
+        await instance.testMethod("a");
+
+        expect(compute).toHaveBeenCalledTimes(1);
+      });
+
+      it("recomputes an entry evicted once maxEntries is exceeded", async () => {
+        setup();
+        const compute = vi.fn().mockResolvedValue("test");
+
+        class TestClass {
+          @Memoize({ maxEntries: 2 })
+          async testMethod(arg: string) {
+            return compute(arg);
+          }
+        }
+
+        const instance = new TestClass();
+        await instance.testMethod("a");
+        await instance.testMethod("b");
+        await instance.testMethod("c");
+        await instance.testMethod("a");
+
+        expect(compute).toHaveBeenCalledTimes(4);
+        expect(compute).toHaveBeenNthCalledWith(4, "a");
+      });
+    });
   });
 
   describe(memoizeAsync.name, () => {

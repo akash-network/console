@@ -247,7 +247,7 @@ export class DeploymentReaderService {
     };
   }
 
-  @Memoize({ ttlInSeconds: 30 })
+  @Memoize({ ttlInSeconds: 30, maxEntries: 500 })
   public async getDeploymentByOwnerAndDseq(owner: string, dseq: string) {
     // Quick existence check - avoids expensive blockchain HTTP call for non-existent deployments
     const count = await Deployment.count({ where: { owner, dseq } });

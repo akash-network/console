@@ -30,10 +30,12 @@ export class MessageRepository {
       include: [
         {
           model: Transaction,
+          attributes: ["hash"],
           required: true
         },
         {
           model: Block,
+          attributes: ["datetime"],
           required: true
         }
       ]

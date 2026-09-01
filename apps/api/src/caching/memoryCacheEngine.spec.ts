@@ -168,6 +168,56 @@ describe(MemoryCacheEngine.name, () => {
     });
   });
 
+  describe("when constructed with maxEntries", () => {
+    it("does not share entries with the shared cache", () => {
+      const { engine } = setup();
+      const privateEngine = new MemoryCacheEngine({ maxEntries: 2 });
+
+      engine.storeInCache("shared", 1);
+      privateEngine.storeInCache("private", 2);
+
+      expect(privateEngine.getFromCache("shared")).toBeUndefined();
+      expect(engine.getFromCache("private")).toBeUndefined();
+    });
+
+    it("evicts the least recently used entry once maxEntries is exceeded", () => {
+      const privateEngine = new MemoryCacheEngine({ maxEntries: 2 });
+
+      privateEngine.storeInCache("a", 1);
+      privateEngine.storeInCache("b", 2);
+      privateEngine.storeInCache("c", 3);
+
+      expect(privateEngine.getFromCache("a")).toBeUndefined();
+      expect(privateEngine.getKeys()).toHaveLength(2);
+      expect(privateEngine.getKeys()).toContain("b");
+      expect(privateEngine.getKeys()).toContain("c");
+    });
+
+    it("is not emptied by clearAllKeyInCache on the shared engine", () => {
+      const { engine } = setup();
+      const privateEngine = new MemoryCacheEngine({ maxEntries: 2 });
+      privateEngine.storeInCache("private", 1);
+
+      engine.clearAllKeyInCache();
+
+      expect(privateEngine.getFromCache("private")).toBe(1);
+    });
+  });
+
+  describe("clearAllCaches", () => {
+    it("empties private caches alongside the shared one", () => {
+      const { engine } = setup();
+      const privateEngine = new MemoryCacheEngine({ maxEntries: 2 });
+      engine.storeInCache("shared", 1);
+      privateEngine.storeInCache("private", 2);
+
+      MemoryCacheEngine.clearAllCaches();
+
+      expect(engine.getFromCache("shared")).toBeUndefined();
+      expect(privateEngine.getFromCache("private")).toBeUndefined();
+    });
+  });
+
   function setup() {
     const engine = new MemoryCacheEngine();
     engine.clearAllKeyInCache();
