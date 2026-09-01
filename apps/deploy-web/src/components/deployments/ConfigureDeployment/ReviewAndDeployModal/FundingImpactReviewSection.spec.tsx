@@ -91,7 +91,7 @@ describe("FundingImpactReviewSection", () => {
     expect(callout).toHaveTextContent("Visa **** 4242 is charged $100 for credits");
   });
 
-  it("prompts for credits without claiming a charge when no payment method is on file", async () => {
+  it("sends the user to set up a card and auto top-up when no payment method is on file", async () => {
     setup({ impact: visible({ state: "no-payment-method", cardLabel: null }) });
 
     expect(screen.getByText("No payment method")).toBeInTheDocument();
@@ -99,7 +99,19 @@ describe("FundingImpactReviewSection", () => {
 
     expect(screen.getByText(/nothing is charged automatically/)).toBeInTheDocument();
     expect(screen.queryByText(/charged \$/)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add Credits" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add Credits" })).not.toBeInTheDocument();
+
+    const cta = screen.getByRole("link", { name: "Add Payment Method" });
+    expect(cta).toHaveAttribute("href", UrlService.billing({ setupAutoTopUp: true }));
+    expect(cta).toHaveAttribute("target", "_blank");
+  });
+
+  it("keeps the review modal alive by opening the billing detour in a new tab", async () => {
+    setup({ impact: visible({ state: "no-payment-method", cardLabel: null }) });
+
+    await userEvent.click(screen.getByRole("button", { name: /Escrow/ }));
+
+    expect(screen.getByRole("link", { name: "Add Payment Method" })).toHaveAttribute("rel", "noopener noreferrer");
   });
 
   it("names the trial and its duration without claiming anything about a card", async () => {
@@ -163,8 +175,10 @@ describe("FundingImpactReviewSection", () => {
       </div>
     );
     const UsdValue: typeof DEPENDENCIES.UsdValue = ({ value }) => <>${value}</>;
-    const Link: typeof DEPENDENCIES.Link = (({ href, children }: { href: string; children: ReactNode }) => (
-      <a href={href}>{children}</a>
+    const Link: typeof DEPENDENCIES.Link = (({ href, children, ...rest }: { href: string; children: ReactNode }) => (
+      <a href={href} {...rest}>
+        {children}
+      </a>
     )) as typeof DEPENDENCIES.Link;
     const Skeleton: typeof DEPENDENCIES.Skeleton = () => <div data-testid="skeleton" />;
 

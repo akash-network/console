@@ -34,6 +34,12 @@ type VisibleImpact = Extract<FundingImpact, { kind: "visible" }>;
 
 type Badge = { label: string; tone: "warning" | "neutral" };
 
+type StateActions = {
+  addCredits: ReactNode;
+  /** Opens in a new tab so the review modal, and the bids it is holding, survive the detour to Billing. */
+  setUpAutoTopUp: ReactNode;
+};
+
 const STATE_BADGES: Partial<Record<VisibleImpact["state"], Badge>> = {
   "crosses-threshold": { label: "Buys credits", tone: "warning" },
   trial: { label: "Trial", tone: "neutral" },
@@ -81,11 +87,20 @@ export const FundingImpactReviewSection: FC<Props> = ({ rows, runtimeLimitHours,
   }
 
   const badge = STATE_BADGES[impact.state];
-  const addCreditsButton = (
-    <Button size="sm" onClick={() => openAddCredits({ initialTab: "purchase", description: ADD_CREDITS_DESCRIPTION, context: "review_funding_impact" })}>
-      Add Credits
-    </Button>
-  );
+  const actions: StateActions = {
+    addCredits: (
+      <Button size="sm" onClick={() => openAddCredits({ initialTab: "purchase", description: ADD_CREDITS_DESCRIPTION, context: "review_funding_impact" })}>
+        Add Credits
+      </Button>
+    ),
+    setUpAutoTopUp: (
+      <Button size="sm" asChild>
+        <d.Link href={UrlService.billing({ setupAutoTopUp: true })} target="_blank" rel="noopener noreferrer">
+          Add Payment Method
+        </d.Link>
+      </Button>
+    )
+  };
 
   return (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded} className="rounded-lg border p-4">
@@ -131,7 +146,7 @@ export const FundingImpactReviewSection: FC<Props> = ({ rows, runtimeLimitHours,
           />
         )}
 
-        {renderStateDetails(impact, usd, addCreditsButton)}
+        {renderStateDetails(impact, usd, actions)}
 
         <p className="text-sm text-muted-foreground">
           The escrow is held, not charged. You pay for the time your deployment actually runs, and anything it doesn&apos;t use returns to available when the
@@ -146,7 +161,7 @@ export const FundingImpactReviewSection: FC<Props> = ({ rows, runtimeLimitHours,
   );
 };
 
-function renderStateDetails(impact: VisibleImpact, usd: (value: number) => ReactNode, addCreditsButton: ReactNode): ReactNode {
+function renderStateDetails(impact: VisibleImpact, usd: (value: number) => ReactNode, actions: StateActions): ReactNode {
   switch (impact.state) {
     case "funded":
       return impact.thresholdUsd === null ? null : (
@@ -172,14 +187,16 @@ function renderStateDetails(impact: VisibleImpact, usd: (value: number) => React
           <span className="flex-1">
             Trial deployments are closed automatically after {impact.trialDurationHours} hours. Add funds to activate your account and keep deployments running.
           </span>
-          {addCreditsButton}
+          {actions.addCredits}
         </Callout>
       );
     case "no-payment-method":
       return (
         <Callout tone="neutral">
-          <span className="flex-1">No payment method on file, so nothing is charged automatically. Add credits to keep deployments funded.</span>
-          {addCreditsButton}
+          <span className="flex-1">
+            No payment method on file, so nothing is charged automatically. Add a card and turn on Auto Top-Up to keep this deployment funded.
+          </span>
+          {actions.setUpAutoTopUp}
         </Callout>
       );
     case "not-enough-available":
@@ -189,7 +206,7 @@ function renderStateDetails(impact: VisibleImpact, usd: (value: number) => React
             Your available balance of <span className="font-medium">{usd(impact.availableNowUsd)}</span> can&apos;t cover the estimated escrow of{" "}
             <span className="font-medium">~{usd(impact.escrowUsd)}</span>.
           </span>
-          {addCreditsButton}
+          {actions.addCredits}
         </Callout>
       );
   }
