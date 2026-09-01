@@ -124,7 +124,7 @@ deploymentsRouter.openapi(deleteRoute, async function routeCloseDeployment(c) {
 const depositRoute = createRoute({
   method: "post",
   path: "/v1/deposit-deployment",
-  summary: "Deposit into a deployment",
+  summary: "Deposit into a deployment (deprecated)",
   description: "Deprecated. Managed deployments are funded automatically; this endpoint will be removed in a future release.",
   operationId: "depositDeployment",
   deprecated: true,

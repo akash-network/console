@@ -143,6 +143,33 @@ describe(ManifestEdit.name, () => {
     });
   });
 
+  it("opens the funding docs from the deposit modal", async () => {
+    const windowOpen = vi.spyOn(window, "open").mockImplementation(() => null);
+    const SDLEditor = vi.fn(ComponentMock);
+
+    setup({
+      editedManifest: "some-manifest",
+      DeploymentDepositModal: vi.fn((props: Record<string, any>) => <>{props.subtitle}</>),
+      LinkTo: vi.fn((props: Record<string, any>) => <button onClick={props.onClick}>{props.children}</button>),
+      SDLEditor,
+      hasComponents: ["yml-editor"],
+      selectedSdlEditMode: "yaml"
+    });
+
+    act(() => {
+      triggerSdlValidation(SDLEditor, true);
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByRole("button", { name: /Create Deployment/i })).not.toBeDisabled();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Create Deployment/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /Learn more/i }));
+
+    expect(windowOpen).toHaveBeenCalledWith("https://akash.network/docs/getting-started/how-funding-works/", "_blank");
+  });
+
   it("replaces non-wallet denom in SDL for managed wallet", async () => {
     const setEditedManifest = vi.fn();
     const sdlWithUsdcDenom = [
@@ -228,6 +255,7 @@ describe(ManifestEdit.name, () => {
     SDLEditor?: Mock;
     SdlBuilder?: Mock | ForwardRefExoticComponent<any>;
     DeploymentDepositModal?: Mock;
+    LinkTo?: Mock;
     analyticsService?: AppDIContainer["analyticsService"];
     selectedSdlEditMode?: "yaml" | "builder";
     setEditedManifest?: Mock;
@@ -253,7 +281,7 @@ describe(ManifestEdit.name, () => {
       DeploymentMinimumEscrowAlertText: ComponentMock,
       TrialDeploymentBadge: ComponentMock,
       CustomNextSeo: ComponentMock,
-      LinkTo: ComponentMock,
+      LinkTo: input?.LinkTo ?? ComponentMock,
       ViewPanel: ComponentMock,
       useBlockchainStatus: () => mock<ReturnType<typeof DEPENDENCIES.useBlockchainStatus>>({ isBlockchainDown: input?.isBlockchainDown ?? false }),
       useWallet: (() => ({

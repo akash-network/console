@@ -6955,7 +6955,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "properties": {
                       "deposit": {
                         "deprecated": true,
-                        "description": "Deposit in dollars. Ignored when managed deposits are enabled for your account, in which case the platform sets it automatically; otherwise it is required.",
+                        "description": "Deprecated and ignored. The platform funds every deployment automatically from your account credits.",
                         "type": "number",
                       },
                       "runtimeLimitHours": {
@@ -7969,7 +7969,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "data": {
                     "properties": {
                       "deposit": {
-                        "description": "Amount to deposit in dollars (e.g. 5.5)",
+                        "description": "Amount to deposit in dollars (e.g. 5.5). Accepted for backwards compatibility; automatic funding makes it unnecessary.",
                         "type": "number",
                       },
                       "dseq": {
@@ -8375,7 +8375,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "ApiKeyAuth": [],
           },
         ],
-        "summary": "Deposit into a deployment",
+        "summary": "Deposit into a deployment (deprecated)",
         "tags": [
           "Deployments",
         ],
