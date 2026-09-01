@@ -35,5 +35,11 @@ describe("FallbackDeploymentListQuerySchema", () => {
 
       expect(result.success).toBe(false);
     });
+
+    it("rejects a non-finite offset", () => {
+      const result = FallbackDeploymentListQuerySchema.safeParse({ "pagination.offset": "Infinity" });
+
+      expect(result.success).toBe(false);
+    });
   });
 });
