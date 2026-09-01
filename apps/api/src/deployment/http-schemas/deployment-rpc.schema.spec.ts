@@ -21,5 +21,19 @@ describe("FallbackDeploymentListQuerySchema", () => {
 
       expect(result["pagination.limit"]).toBeUndefined();
     });
+
+    it("rejects a negative limit", () => {
+      const result = FallbackDeploymentListQuerySchema.safeParse({ "pagination.limit": "-1" });
+
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe("pagination.offset", () => {
+    it("rejects a negative offset", () => {
+      const result = FallbackDeploymentListQuerySchema.safeParse({ "pagination.offset": "-1" });
+
+      expect(result.success).toBe(false);
+    });
   });
 });
