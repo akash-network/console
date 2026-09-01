@@ -778,8 +778,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const error = new Error(`insufficient funds: 10uakt is smaller than 20uakt`);
 
       chainErrorService.isMasterWalletInsufficientFundsError.mockResolvedValue(false);
-      chainErrorService.isDeploymentClosedError.mockReturnValue(false);
-      chainErrorService.getFailedMessageIndex.mockReturnValue(undefined);
+      chainErrorService.getClosedDeploymentMessageIndex.mockReturnValue(undefined);
       const mockTx = mock<IndexedTx>({
         code: 0,
         hash: "tx-hash",
@@ -1507,8 +1506,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
         setupDrainingOwner({ deploymentCount: 3 });
       const error = createDeploymentClosedError(1);
 
-      chainErrorService.isDeploymentClosedError.mockReturnValue(true);
-      chainErrorService.getFailedMessageIndex.mockReturnValue(1);
+      chainErrorService.getClosedDeploymentMessageIndex.mockReturnValue(1);
       managedSignerService.executeDerivedTx.mockRejectedValueOnce(error);
 
       await expect(service.topUpDeployments({ dryRun: false })).resolves.toEqual(expect.objectContaining({ ok: true }));
@@ -1535,8 +1533,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
         deploymentCount: 4
       });
 
-      chainErrorService.isDeploymentClosedError.mockReturnValue(true);
-      chainErrorService.getFailedMessageIndex.mockReturnValueOnce(0).mockReturnValueOnce(1);
+      chainErrorService.getClosedDeploymentMessageIndex.mockReturnValueOnce(0).mockReturnValueOnce(1);
       managedSignerService.executeDerivedTx.mockRejectedValueOnce(createDeploymentClosedError(0)).mockRejectedValueOnce(createDeploymentClosedError(1));
 
       await service.topUpDeployments({ dryRun: false });
@@ -1552,8 +1549,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
         deploymentCount: 2
       });
 
-      chainErrorService.isDeploymentClosedError.mockReturnValue(true);
-      chainErrorService.getFailedMessageIndex.mockReturnValue(0);
+      chainErrorService.getClosedDeploymentMessageIndex.mockReturnValue(0);
       managedSignerService.executeDerivedTx.mockRejectedValue(createDeploymentClosedError(0));
 
       await expect(service.topUpDeployments({ dryRun: false })).resolves.toEqual(expect.objectContaining({ ok: true }));
@@ -1570,8 +1566,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
         deploymentCount: 2
       });
 
-      chainErrorService.isDeploymentClosedError.mockReturnValue(true);
-      chainErrorService.getFailedMessageIndex.mockReturnValue(0);
+      chainErrorService.getClosedDeploymentMessageIndex.mockReturnValue(0);
       managedSignerService.executeDerivedTx.mockResolvedValueOnce(
         mock<IndexedTx>({ code: 8, hash: "tx-hash", rawLog: "failed to execute message; message index: 0: Deployment closed" })
       );
@@ -1589,8 +1584,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       });
       const error = createDeploymentClosedError(7);
 
-      chainErrorService.isDeploymentClosedError.mockReturnValue(true);
-      chainErrorService.getFailedMessageIndex.mockReturnValue(7);
+      chainErrorService.getClosedDeploymentMessageIndex.mockReturnValue(undefined);
       managedSignerService.executeDerivedTx.mockRejectedValue(error);
 
       await service.topUpDeployments({ dryRun: false });
@@ -1607,8 +1601,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       });
       const markError = new Error("connection terminated");
 
-      chainErrorService.isDeploymentClosedError.mockReturnValue(true);
-      chainErrorService.getFailedMessageIndex.mockReturnValue(0);
+      chainErrorService.getClosedDeploymentMessageIndex.mockReturnValue(0);
       managedSignerService.executeDerivedTx.mockRejectedValueOnce(createDeploymentClosedError(0));
       deploymentSettingRepository.markAsClosed.mockRejectedValue(markError);
 
@@ -1629,8 +1622,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
         deploymentCount: 6
       });
 
-      chainErrorService.isDeploymentClosedError.mockReturnValue(true);
-      chainErrorService.getFailedMessageIndex.mockReturnValue(0);
+      chainErrorService.getClosedDeploymentMessageIndex.mockReturnValue(0);
       managedSignerService.executeDerivedTx.mockRejectedValue(createDeploymentClosedError(0));
 
       await expect(service.topUpDeployments({ dryRun: false })).resolves.toEqual(expect.objectContaining({ ok: true }));
@@ -1695,8 +1687,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue(deployments);
       drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
       cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
-      chainErrorService.isDeploymentClosedError.mockReturnValue(true);
-      chainErrorService.getFailedMessageIndex.mockReturnValue(0);
+      chainErrorService.getClosedDeploymentMessageIndex.mockReturnValue(0);
       managedSignerService.executeDerivedTx.mockRejectedValueOnce(createDeploymentClosedError(0));
 
       await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });

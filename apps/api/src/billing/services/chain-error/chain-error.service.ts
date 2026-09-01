@@ -126,6 +126,21 @@ export class ChainErrorService {
     return /account closed|deployment closed/i.test(error.message);
   }
 
+  /** An index outside the batch is not resolved to a neighbour: closing the wrong deployment is worse than alerting. */
+  public getClosedDeploymentMessageIndex(error: unknown, batchSize: number): number | undefined {
+    if (!(error instanceof Error) || !this.isDeploymentClosedError(error)) {
+      return undefined;
+    }
+
+    const messageIndex = this.getFailedMessageIndex(error);
+
+    if (messageIndex !== undefined) {
+      return messageIndex >= 0 && messageIndex < batchSize ? messageIndex : undefined;
+    }
+
+    return batchSize === 1 ? 0 : undefined;
+  }
+
   /**
    * `toAppError` replaces the raw chain message with a mapped one, so on that path the index survives only
    * on `originalError`, which is read first because it is the rawest message available.

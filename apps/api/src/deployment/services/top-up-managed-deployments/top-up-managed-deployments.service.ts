@@ -506,7 +506,7 @@ export class TopUpManagedDeploymentsService {
         return true;
       }
 
-      const closedIndex = this.#findClosedDeploymentIndex(failure, remaining);
+      const closedIndex = this.chainErrorService.getClosedDeploymentMessageIndex(failure, remaining.length);
 
       if (closedIndex === undefined) {
         await this.#recordOwnerFundingFailure({ owner, items: remaining, error: failure, instrumentation });
@@ -561,21 +561,6 @@ export class TopUpManagedDeploymentsService {
     } catch (error: unknown) {
       return error;
     }
-  }
-
-  /** An index outside the batch is not resolved to a neighbour: closing the wrong deployment is worse than alerting. */
-  #findClosedDeploymentIndex(error: unknown, items: CollectedMessage[]): number | undefined {
-    if (!(error instanceof Error) || !this.chainErrorService.isDeploymentClosedError(error)) {
-      return undefined;
-    }
-
-    const messageIndex = this.chainErrorService.getFailedMessageIndex(error);
-
-    if (messageIndex !== undefined) {
-      return messageIndex >= 0 && messageIndex < items.length ? messageIndex : undefined;
-    }
-
-    return items.length === 1 ? 0 : undefined;
   }
 
   /** A failed write is reported rather than thrown, which would strand the survivors the retry exists to fund. */

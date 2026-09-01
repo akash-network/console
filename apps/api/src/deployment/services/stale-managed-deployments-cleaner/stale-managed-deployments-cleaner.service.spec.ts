@@ -1,4 +1,5 @@
 import type { BalanceHttpService } from "@akashnetwork/http-sdk";
+import type { IndexedTx } from "@cosmjs/stargate";
 import createError from "http-errors";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -71,6 +72,116 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     });
   });
 
+  describe("when a deployment is already closed on chain", () => {
+    it("drops the closed deployment and closes the rest in a second broadcast", async () => {
+      const executeDerivedTx = vi.fn().mockRejectedValueOnce(buildDeploymentClosedAppError(1)).mockResolvedValueOnce(buildOkTx());
+      const { service, logger, wallet } = setup({ staleDeployments: [{ dseq: 1 }, { dseq: 2 }, { dseq: 3 }], executeDerivedTx });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(executeDerivedTx).toHaveBeenCalledTimes(2);
+      expect(executeDerivedTx).toHaveBeenLastCalledWith(wallet.id, [
+        expect.objectContaining({ value: expect.objectContaining({ dseq: 1 }) }),
+        expect.objectContaining({ value: expect.objectContaining({ dseq: 3 }) })
+      ]);
+      expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_ALREADY_CLOSED", owner: wallet.address, dseq: 2 });
+      expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address, alreadyClosedCount: 1 });
+    });
+
+    it("resolves quietly when the wallet's only orphan is already closed and the error carries no index", async () => {
+      const executeDerivedTx = vi.fn().mockRejectedValueOnce(buildDeploymentClosedAppError());
+      const { service, logger, errorLogger, wallet } = setup({ staleDeployments: [{ dseq: 7 }], executeDerivedTx });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(executeDerivedTx).toHaveBeenCalledTimes(1);
+      expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_ALREADY_CLOSED", owner: wallet.address, dseq: 7 });
+      expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address, alreadyClosedCount: 1 });
+      expect(logger.error).not.toHaveBeenCalled();
+      expect(errorLogger.error).not.toHaveBeenCalled();
+    });
+
+    it("reports success without an error when the whole batch is already closed", async () => {
+      const executeDerivedTx = vi.fn().mockRejectedValue(buildDeploymentClosedAppError(0));
+      const { service, logger, errorLogger, wallet } = setup({ staleDeployments: [{ dseq: 1 }, { dseq: 2 }], executeDerivedTx });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(executeDerivedTx).toHaveBeenCalledTimes(2);
+      expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address, alreadyClosedCount: 2 });
+      expect(logger.error).not.toHaveBeenCalled();
+      expect(errorLogger.error).not.toHaveBeenCalled();
+    });
+
+    it("rethrows into the wallet error handler when the reported index falls outside the batch", async () => {
+      const error = buildDeploymentClosedAppError(7);
+      const { service, managedSignerService, logger, errorLogger } = setup({
+        staleDeployments: [{ dseq: 1 }, { dseq: 2 }],
+        executeDerivedTx: vi.fn().mockRejectedValue(error)
+      });
+
+      await expect(service.cleanup({ concurrency: 1 })).resolves.toBeUndefined();
+
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
+      expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CLEAN_UP_ALREADY_CLOSED" }));
+      expect(errorLogger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CLEAN_UP_ERROR", error }));
+    });
+
+    it("stops after the drop limit without reporting an error when too many deployments turn out closed", async () => {
+      const executeDerivedTx = vi.fn().mockRejectedValue(buildDeploymentClosedAppError(0));
+      const { service, logger, errorLogger, wallet } = setup({
+        staleDeployments: [{ dseq: 1 }, { dseq: 2 }, { dseq: 3 }, { dseq: 4 }, { dseq: 5 }],
+        executeDerivedTx
+      });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(executeDerivedTx).toHaveBeenCalledTimes(3);
+      expect(logger.warn).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_DROP_LIMIT", owner: wallet.address, remainingCount: 2 });
+      expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS" }));
+      expect(logger.error).not.toHaveBeenCalled();
+      expect(errorLogger.error).not.toHaveBeenCalled();
+    });
+
+    it("treats a landed tx that reverted on a closed deployment as a failure and drops it", async () => {
+      const revertedTx = mock<IndexedTx>({ code: 8, hash: "tx-hash", rawLog: "failed to execute message; message index: 0: Deployment closed" });
+      const executeDerivedTx = vi.fn().mockResolvedValueOnce(revertedTx).mockResolvedValueOnce(buildOkTx());
+      const { service, logger, wallet } = setup({ staleDeployments: [{ dseq: 1 }, { dseq: 2 }], executeDerivedTx });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(executeDerivedTx).toHaveBeenCalledTimes(2);
+      expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_ALREADY_CLOSED", owner: wallet.address, dseq: 1 });
+      expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address, alreadyClosedCount: 1 });
+    });
+
+    it("composes the fee refill with the closed-deployment drop", async () => {
+      const executeDerivedTx = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("not allowed to pay fees"))
+        .mockRejectedValueOnce(buildDeploymentClosedAppError(0))
+        .mockResolvedValueOnce(buildOkTx());
+      const { service, managedUserWalletService, logger, wallet } = setup({ staleDeployments: [{ dseq: 1 }, { dseq: 2 }], executeDerivedTx });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledTimes(1);
+      expect(executeDerivedTx).toHaveBeenCalledTimes(3);
+      expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address, alreadyClosedCount: 1 });
+    });
+
+    it("logs the unsettleable event when the re-broadcast after a drop hits the escrow underflow", async () => {
+      const executeDerivedTx = vi.fn().mockRejectedValueOnce(buildDeploymentClosedAppError(0)).mockRejectedValueOnce(buildUnsettleableAppError());
+      const { service, logger, wallet } = setup({ staleDeployments: [{ dseq: 1 }, { dseq: 2 }], executeDerivedTx });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(executeDerivedTx).toHaveBeenCalledTimes(2);
+      expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_ALREADY_CLOSED", owner: wallet.address, dseq: 1 });
+      expect(logger.error).toHaveBeenCalledWith(UNSETTLEABLE_LOG);
+    });
+  });
+
   describe("cleanup", () => {
     it("logs the unsettleable event and swallows the error without refilling fees or retrying", async () => {
       const { service, managedSignerService, managedUserWalletService, logger, errorLogger } = setup({
@@ -86,7 +197,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     });
 
     it("refills fees and retries when the wallet is not allowed to pay fees", async () => {
-      const executeDerivedTx = vi.fn().mockRejectedValueOnce(new Error("not allowed to pay fees")).mockResolvedValueOnce(undefined);
+      const executeDerivedTx = vi.fn().mockRejectedValueOnce(new Error("not allowed to pay fees")).mockResolvedValueOnce(buildOkTx());
       const { service, managedUserWalletService, logger } = setup({ executeDerivedTx });
 
       await service.cleanup({ concurrency: 1 });
@@ -145,6 +256,19 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     return createError(400, "Deployment escrow cannot be settled yet", { originalError: new Error(UNSETTLEABLE_PANIC) });
   }
 
+  function buildDeploymentClosedAppError(index?: number) {
+    const rawMessage =
+      index === undefined
+        ? "Query failed with (6): rpc error: code = Unknown desc = Deployment closed"
+        : `Query failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: ${index}: Deployment closed`;
+
+    return createError(400, "Deployment closed", { originalError: new Error(rawMessage) });
+  }
+
+  function buildOkTx() {
+    return mock<IndexedTx>({ code: 0, hash: "tx-hash", rawLog: "success" });
+  }
+
   it("creates the logger with the service context", () => {
     const { createLogger } = setup();
 
@@ -183,7 +307,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     const blockRepository = mock<BlockRepository>();
     const rpcMessageService = mock<RpcMessageService>();
     const managedSignerService = mock<ManagedSignerService>({
-      executeDerivedTx: input?.executeDerivedTx ?? vi.fn().mockResolvedValue(undefined)
+      executeDerivedTx: input?.executeDerivedTx ?? vi.fn().mockResolvedValue(buildOkTx())
     });
     const managedUserWalletService = mock<ManagedUserWalletService>();
     const config = mock<BillingConfig>({ FEE_ALLOWANCE_REFILL_AMOUNT: 1000 });
@@ -196,6 +320,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
 
     blockRepository.getLatestProcessedHeight.mockResolvedValue(input?.currentHeight ?? 1_000_000);
     deploymentRepository.findStaleDeployments.mockResolvedValue(input?.staleDeployments ?? [{ dseq: 456 }]);
+    rpcMessageService.getCloseDeploymentMsg.mockImplementation((_address, dseq) => ({ typeUrl: "/close", value: { dseq } }) as never);
 
     const service = new StaleManagedDeploymentsCleanerService(
       userWalletRepository,

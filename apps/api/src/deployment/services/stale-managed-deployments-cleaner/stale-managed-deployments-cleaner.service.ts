@@ -12,7 +12,10 @@ import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { ErrorService } from "@src/core/services/error/error.service";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { CleanUpStaleDeploymentsParams } from "@src/deployment/types/state-deployments";
-import { averageBlockTime } from "@src/utils/constants";
+import { averageBlockTime, COSMOS_TX_CODE_OK } from "@src/utils/constants";
+
+/** Bounds how long one wallet's backlog of already-closed deployments can hold a cleanup pass. */
+const MAX_CLOSED_DEPLOYMENT_DROPS = 3;
 
 @singleton()
 export class StaleManagedDeploymentsCleanerService {
@@ -63,43 +66,67 @@ export class StaleManagedDeploymentsCleanerService {
     return (await this.blockRepository.getLatestProcessedHeight()) - maxLiveBlocks;
   }
 
+  /**
+   * Re-broadcasting without an already-closed deployment is safe only because both classified shapes prove the tx
+   * was rejected whole: a fee estimation never broadcasts, and a non-zero tx code means every message reverted.
+   */
   async #closeLeaselessDeployments(wallet: UserWalletOutput, staleBeforeHeight: number) {
-    const deployments = await this.deploymentRepository.findStaleDeployments({
+    let remaining = await this.deploymentRepository.findStaleDeployments({
       owner: wallet.address!,
       createdHeight: staleBeforeHeight
     });
 
-    const messages = deployments.map(deployment => this.rpcMessageService.getCloseDeploymentMsg(wallet.address!, deployment.dseq));
-
-    if (!messages.length) {
+    if (!remaining.length) {
       return;
     }
 
     this.logger.info({ event: "DEPLOYMENT_CLEAN_UP", owner: wallet.address });
 
-    try {
-      await this.closeDeployments(wallet, messages);
-      this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address });
-    } catch (error) {
-      if (error instanceof Error && this.chainErrorService.isUnsettleableDeploymentError(error)) {
-        this.logger.error({
-          event: "DEPLOYMENT_CLEAN_UP_UNSETTLEABLE",
-          reason: "Deployment escrow cannot be settled yet; chain rejects close until it settles",
-          owner: wallet.address
-        });
-        return;
+    let closedDeploymentsDropped = 0;
+
+    while (remaining.length) {
+      const messages = remaining.map(deployment => this.rpcMessageService.getCloseDeploymentMsg(wallet.address!, deployment.dseq));
+      const failure = await this.closeDeployments(wallet, messages);
+
+      if (!failure) {
+        break;
       }
 
-      throw error;
+      const closedIndex = this.chainErrorService.getClosedDeploymentMessageIndex(failure, remaining.length);
+
+      if (closedIndex === undefined) {
+        if (failure instanceof Error && this.chainErrorService.isUnsettleableDeploymentError(failure)) {
+          this.logger.error({
+            event: "DEPLOYMENT_CLEAN_UP_UNSETTLEABLE",
+            reason: "Deployment escrow cannot be settled yet; chain rejects close until it settles",
+            owner: wallet.address
+          });
+          return;
+        }
+
+        throw failure;
+      }
+
+      this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_ALREADY_CLOSED", owner: wallet.address, dseq: remaining[closedIndex].dseq });
+      remaining = remaining.filter((_, index) => index !== closedIndex);
+
+      if (++closedDeploymentsDropped >= MAX_CLOSED_DEPLOYMENT_DROPS && remaining.length) {
+        this.logger.warn({ event: "DEPLOYMENT_CLEAN_UP_DROP_LIMIT", owner: wallet.address, remainingCount: remaining.length });
+        return;
+      }
     }
+
+    this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address, alreadyClosedCount: closedDeploymentsDropped });
   }
 
-  private async closeDeployments(wallet: UserWalletOutput, messages: EncodeObject[]) {
+  /** Returns the failure rather than throwing so the caller classifies a rejected estimate and a reverted tx alike. */
+  private async closeDeployments(wallet: UserWalletOutput, messages: EncodeObject[]): Promise<unknown> {
     try {
-      await this.managedSignerService.executeDerivedTx(wallet.id, messages);
-    } catch (error: any) {
-      if (!error.message.includes("not allowed to pay fees")) {
-        throw error;
+      await this.#broadcastClose(wallet.id, messages);
+      return undefined;
+    } catch (error) {
+      if (!(error instanceof Error) || !error.message.includes("not allowed to pay fees")) {
+        return error;
       }
 
       await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
@@ -109,7 +136,20 @@ export class StaleManagedDeploymentsCleanerService {
         }
       });
 
-      await this.managedSignerService.executeDerivedTx(wallet.id, messages);
+      try {
+        await this.#broadcastClose(wallet.id, messages);
+        return undefined;
+      } catch (retryError) {
+        return retryError;
+      }
+    }
+  }
+
+  async #broadcastClose(walletId: number, messages: EncodeObject[]): Promise<void> {
+    const tx = await this.managedSignerService.executeDerivedTx(walletId, messages);
+
+    if (tx.code !== COSMOS_TX_CODE_OK) {
+      throw new Error(`Close tx ${tx.hash} failed on-chain with code ${tx.code}: ${tx.rawLog}`);
     }
   }
 }
