@@ -73,8 +73,8 @@ jobs:
       - ./dist/console.js
       - mint-act
 
-# --max-old-space-size lifts V8's ~2GB default so the 4Gi container is actually usable; the snapshot flags let us `kill -USR2` a pod to dump its heap to /tmp while diagnosing the Sep 1 leak.
-extraNodeOptions: "--max-old-space-size=3584 --allow-fs-write=/tmp/ --heapsnapshot-signal=SIGUSR2 --diagnostic-dir=/tmp"
+# Lifts V8's ~2GB default so the 4Gi container is actually usable. Only plain V8 flags belong here: this lands in NODE_OPTIONS for every node process in the pods (npm, cron commands), and permission-model flags crash any process lacking --permission in its argv.
+extraNodeOptions: "--max-old-space-size=3584"
 
 replicas: 3
 
