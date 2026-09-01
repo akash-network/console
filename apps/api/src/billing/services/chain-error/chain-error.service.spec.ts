@@ -328,6 +328,55 @@ describe(ChainErrorService.name, () => {
     });
   });
 
+  describe("getClosedDeploymentMessageIndex", () => {
+    it("returns the parsed index when it falls within the batch", () => {
+      const { service } = setup();
+      const err = new Error("Query failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: 1: Deployment closed");
+
+      expect(service.getClosedDeploymentMessageIndex(err, 3)).toBe(1);
+    });
+
+    it("reads the index off the original error once toAppError has replaced the message", async () => {
+      const { service } = setup();
+      const rawError = new Error("Query failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: 2: Deployment closed");
+      const appError = await service.toAppError(rawError, []);
+
+      expect(service.getClosedDeploymentMessageIndex(appError, 3)).toBe(2);
+    });
+
+    it("returns undefined when the index falls outside the batch", () => {
+      const { service } = setup();
+      const err = new Error("failed to execute message; message index: 7: deployment closed");
+
+      expect(service.getClosedDeploymentMessageIndex(err, 2)).toBeUndefined();
+    });
+
+    it("resolves a single-message batch to index zero when the message carries no index", () => {
+      const { service } = setup();
+
+      expect(service.getClosedDeploymentMessageIndex(new Error("Deployment closed"), 1)).toBe(0);
+    });
+
+    it("returns undefined for a multi-message batch when the message carries no index", () => {
+      const { service } = setup();
+
+      expect(service.getClosedDeploymentMessageIndex(new Error("Deployment closed"), 2)).toBeUndefined();
+    });
+
+    it("returns undefined for an error that is not a closed-deployment error", () => {
+      const { service } = setup();
+      const err = new Error("failed to execute message; message index: 0: insufficient funds");
+
+      expect(service.getClosedDeploymentMessageIndex(err, 1)).toBeUndefined();
+    });
+
+    it("returns undefined for a non-error value", () => {
+      const { service } = setup();
+
+      expect(service.getClosedDeploymentMessageIndex("Deployment closed", 1)).toBeUndefined();
+    });
+  });
+
   describe("isUnsettleableDeploymentError", () => {
     it("returns true for the escrow settlement underflow panic", () => {
       const { service } = setup();
