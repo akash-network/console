@@ -3,7 +3,7 @@ import React from "react";
 import { useIntl } from "react-intl";
 import { Flash } from "iconoir-react";
 
-import type { ReservedDeployment } from "./useAccountBalanceOverview";
+import type { EscrowedDeployment } from "./useAccountBalanceOverview";
 
 export type BalanceSegment = {
   key: string;
@@ -18,8 +18,8 @@ export type BalanceSegment = {
   badgeColor?: string;
 };
 
-/** Stepped opacity for the reserved ramp: largest deployment is the most opaque, tapering to 0.35. */
-function reservedAlpha(index: number, count: number): number {
+/** Stepped opacity for the escrow ramp: largest deployment is the most opaque, tapering to 0.35. */
+function escrowAlpha(index: number, count: number): number {
   if (count <= 1) return 0.9;
   return Number((0.9 - (index / (count - 1)) * 0.55).toFixed(3));
 }
@@ -38,7 +38,7 @@ const THRESHOLD_LINE_DASHES = "repeating-linear-gradient(to bottom, hsl(var(--fo
 
 /**
  * Where the auto-top-up marker sits inside the Available segment: the dashed line lands `threshold`
- * dollars past the reserved/available boundary, which is where the bar's right edge will be once the
+ * dollars past the escrow/available boundary, which is where the bar's right edge will be once the
  * balance has drained far enough to trigger a top-up. Expressed as a percentage of the segment so it
  * stays glued to that boundary regardless of the 2px gaps between segments. Null once available is at or
  * below the threshold, where the line would fall on the segment's own right edge and read as noise.
@@ -50,16 +50,16 @@ function buildThresholdMarker(threshold: number, available: number) {
 
 /**
  * Builds the ordered segments for the balance bar and its legend so both share identical colors.
- * Reserved deployments use a single-hue ramp (sorted largest-first); Available is the success green.
+ * Escrowed deployments use a single-hue ramp (sorted largest-first); Available is the success green.
  */
-export function buildBalanceSegments(deployments: ReservedDeployment[], available: number): BalanceSegment[] {
-  const fundedDeployments = deployments.filter(deployment => deployment.reservedUsd > 0);
-  const reservedSegments = fundedDeployments.map((deployment, index) => {
-    const alpha = reservedAlpha(index, fundedDeployments.length);
+export function buildBalanceSegments(deployments: EscrowedDeployment[], available: number): BalanceSegment[] {
+  const fundedDeployments = deployments.filter(deployment => deployment.escrowUsd > 0);
+  const escrowSegments = fundedDeployments.map((deployment, index) => {
+    const alpha = escrowAlpha(index, fundedDeployments.length);
     return {
       key: deployment.dseq,
       label: deployment.name,
-      amountUsd: deployment.reservedUsd,
+      amountUsd: deployment.escrowUsd,
       perHourUsd: deployment.perHourUsd,
       color: `hsl(var(--primary) / ${alpha})`,
       badgeBackground: badgeBackground("var(--primary)", alpha),
@@ -76,7 +76,7 @@ export function buildBalanceSegments(deployments: ReservedDeployment[], availabl
     badgeColor: "hsl(var(--success))"
   };
 
-  return [...reservedSegments, availableSegment].filter(segment => segment.amountUsd > 0);
+  return [...escrowSegments, availableSegment].filter(segment => segment.amountUsd > 0);
 }
 
 /**

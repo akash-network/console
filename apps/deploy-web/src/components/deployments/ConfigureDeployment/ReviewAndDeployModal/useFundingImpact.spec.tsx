@@ -49,45 +49,45 @@ describe(useFundingImpact.name, () => {
     expect(result.current).toEqual({ kind: "unavailable" });
   });
 
-  it("reserves the target runway's worth of the priced rows, drawing only what the bootstrap deposit left", () => {
+  it("escrows the target runway's worth of the priced rows, drawing only what the bootstrap deposit left", () => {
     const { result } = setup({ overview: { available: 200 } });
 
     expect(result.current).toMatchObject({
       kind: "visible",
       state: "funded",
-      reserveUsd: 144,
+      escrowUsd: 144,
       availableNowUsd: 200,
       availableAfterUsd: 56.5
     });
   });
 
-  it("floors the reserve at the bootstrap deposit for a deployment cheaper than the target runway", () => {
+  it("floors the escrow at the bootstrap deposit for a deployment cheaper than the target runway", () => {
     const { result } = setup({ rows: [pricedRow("0.00001")] });
 
-    expect(result.current).toMatchObject({ state: "funded", reserveUsd: 0.5, availableAfterUsd: 200 });
+    expect(result.current).toMatchObject({ state: "funded", escrowUsd: 0.5, availableAfterUsd: 200 });
   });
 
-  it("sums every priced row into the reserve", () => {
+  it("sums every priced row into the escrow", () => {
     const { result } = setup({ rows: [pricedRow("0.005"), pricedRow("0.005"), mock<ReviewRow>({ price: undefined })] });
-    expect(result.current).toMatchObject({ reserveUsd: 288 });
+    expect(result.current).toMatchObject({ escrowUsd: 288 });
   });
 
-  it("bounds the reserve by a runtime limit shorter than the target runway", () => {
+  it("bounds the escrow by a runtime limit shorter than the target runway", () => {
     const { result } = setup({ runtimeLimitHours: 12 });
-    expect(result.current).toMatchObject({ reserveUsd: 36 });
+    expect(result.current).toMatchObject({ escrowUsd: 36 });
   });
 
   it("keeps the target runway when the runtime limit exceeds it", () => {
     const { result } = setup({ runtimeLimitHours: 96 });
-    expect(result.current).toMatchObject({ reserveUsd: 144 });
+    expect(result.current).toMatchObject({ escrowUsd: 144 });
   });
 
-  it("crosses the threshold when available after reserving lands exactly on it", () => {
+  it("crosses the threshold when available after escrowing lands exactly on it", () => {
     const { result } = setup({ overview: { available: 200, autoReloadThreshold: 56.5 } });
     expect(result.current).toMatchObject({ state: "crosses-threshold", thresholdUsd: 56.5 });
   });
 
-  it("stays funded when available after reserving is above the threshold", () => {
+  it("stays funded when available after escrowing is above the threshold", () => {
     const { result } = setup({ overview: { available: 200, autoReloadThreshold: 56 } });
     expect(result.current).toMatchObject({ state: "funded" });
   });
@@ -97,9 +97,9 @@ describe(useFundingImpact.name, () => {
     expect(result.current).toMatchObject({ state: "funded", thresholdUsd: null });
   });
 
-  it("reports not enough available when the reserve exceeds the balance", () => {
+  it("reports not enough available when the escrow exceeds the balance", () => {
     const { result } = setup({ overview: { available: 100 } });
-    expect(result.current).toMatchObject({ state: "not-enough-available", reserveUsd: 144, availableNowUsd: 100, availableAfterUsd: null });
+    expect(result.current).toMatchObject({ state: "not-enough-available", escrowUsd: 144, availableNowUsd: 100, availableAfterUsd: null });
   });
 
   it("ranks not enough available above the missing payment method", () => {

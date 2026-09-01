@@ -31,9 +31,9 @@ export type FundingImpact =
   | {
       kind: "visible";
       state: FundingImpactState;
-      reserveUsd: number;
+      escrowUsd: number;
       availableNowUsd: number;
-      /** Null when the remaining reserve exceeds what is available, where an "available after" figure would be a lie. */
+      /** Null when the remaining escrow exceeds what is available, where an "available after" figure would be a lie. */
       availableAfterUsd: number | null;
       thresholdUsd: number | null;
       chargeUsd: number;
@@ -49,9 +49,9 @@ type Input = {
 
 /**
  * Estimates what confirming the reviewed deployment does to the account's money: automatic funding
- * reserves the target runway's worth of the reviewed bid prices (bounded by the runtime limit), floored
+ * escrows the target runway's worth of the reviewed bid prices (bounded by the runtime limit), floored
  * at the bootstrap deposit the deployment already holds from creation. Since that bootstrap already left
- * the available balance, only the difference up to the reserve is drawn at confirm time.
+ * the available balance, only the difference up to the escrow is drawn at confirm time.
  */
 export function useFundingImpact({ rows, runtimeLimitHours, dependencies: d = DEPENDENCIES }: Input): FundingImpact {
   const isEscrowAbstracted = d.useIsEscrowAbstracted();
@@ -73,9 +73,9 @@ export function useFundingImpact({ rows, runtimeLimitHours, dependencies: d = DE
   const perBlockUdenom = pricedRows.reduce((sum, row) => sum + Number(row.price.amount), 0);
   const hourlyCostUsd = udenomToUsd(perBlockUdenom * API_BLOCKS_PER_HOUR, pricedRows[0].price.denom);
   const fundedHours = runtimeLimitHours === undefined ? targetRunwayHours : Math.min(targetRunwayHours, runtimeLimitHours);
-  const reserveUsd = Math.max(defaultDepositUsd, hourlyCostUsd * fundedHours);
-  /** The bootstrap deposit was drawn at creation and already counts as reserved, so confirming only draws the rest. */
-  const remainingDrawUsd = reserveUsd - defaultDepositUsd;
+  const escrowUsd = Math.max(defaultDepositUsd, hourlyCostUsd * fundedHours);
+  /** The bootstrap deposit was drawn at creation and already sits in escrow, so confirming only draws the rest. */
+  const remainingDrawUsd = escrowUsd - defaultDepositUsd;
 
   const availableNowUsd = overview.available;
   const availableAfterUsd = availableNowUsd >= remainingDrawUsd ? availableNowUsd - remainingDrawUsd : null;
@@ -86,7 +86,7 @@ export function useFundingImpact({ rows, runtimeLimitHours, dependencies: d = DE
   return {
     kind: "visible",
     state: resolveState({ availableAfterUsd, thresholdUsd, hasPaymentMethod, isTrialing }),
-    reserveUsd,
+    escrowUsd,
     availableNowUsd,
     availableAfterUsd,
     thresholdUsd,
@@ -97,7 +97,7 @@ export function useFundingImpact({ rows, runtimeLimitHours, dependencies: d = DE
 }
 
 /**
- * First match wins: a balance that cannot cover the reserve outranks everything, then a charge that is
+ * First match wins: a balance that cannot cover the escrow outranks everything, then a charge that is
  * really coming (auto top-up ignores the trial flag, so a trialing card gets charged like any other), then
  * the trial, so a trialing account is never told its card is missing, then the genuinely missing card.
  */

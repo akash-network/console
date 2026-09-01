@@ -13,21 +13,21 @@ import { renderHook } from "@testing-library/react";
 type WalletSettings = NonNullable<ReturnType<typeof DEPENDENCIES.useWalletSettingsQuery>["data"]>;
 
 describe(useAccountBalanceOverview.name, () => {
-  it("splits total into available and reserved", () => {
-    const { result } = setup({ totalUsd: 500, reservedUsd: 150 });
+  it("splits total into available and escrow", () => {
+    const { result } = setup({ totalUsd: 500, escrowUsd: 150 });
 
     expect(result.current.totalUsd).toBe(500);
-    expect(result.current.reserved).toBe(150);
+    expect(result.current.escrow).toBe(150);
     expect(result.current.available).toBe(350);
   });
 
   it("never returns negative available", () => {
-    const { result } = setup({ totalUsd: 100, reservedUsd: 150 });
+    const { result } = setup({ totalUsd: 100, escrowUsd: 150 });
 
     expect(result.current.available).toBe(0);
   });
 
-  it("builds a per-deployment reserved breakdown sorted largest-first", () => {
+  it("builds a per-deployment escrow breakdown sorted largest-first", () => {
     const { result } = setup({
       deployments: [
         { dseq: "1", fundsUsd: 50 },
@@ -37,12 +37,12 @@ describe(useAccountBalanceOverview.name, () => {
     });
 
     expect(result.current.deployments).toEqual([
-      { dseq: "2", name: "llama-chat", reservedUsd: 100, perHourUsd: 0 },
-      { dseq: "1", name: "Deployment 1", reservedUsd: 50, perHourUsd: 0 }
+      { dseq: "2", name: "llama-chat", escrowUsd: 100, perHourUsd: 0 },
+      { dseq: "1", name: "Deployment 1", escrowUsd: 50, perHourUsd: 0 }
     ]);
   });
 
-  it("keeps reserved in sync with the per-deployment breakdown since both come from the same balances", () => {
+  it("keeps escrow in sync with the per-deployment breakdown since both come from the same balances", () => {
     const { result } = setup({
       totalUsd: 500,
       deployments: [
@@ -51,8 +51,8 @@ describe(useAccountBalanceOverview.name, () => {
       ]
     });
 
-    expect(result.current.reserved).toBe(150);
-    expect(result.current.reserved).toBe(result.current.deployments.reduce((sum, deployment) => sum + deployment.reservedUsd, 0));
+    expect(result.current.escrow).toBe(150);
+    expect(result.current.escrow).toBe(result.current.deployments.reduce((sum, deployment) => sum + deployment.escrowUsd, 0));
     expect(result.current.available).toBe(350);
   });
 
@@ -153,22 +153,22 @@ describe(useAccountBalanceOverview.name, () => {
   });
 
   it("still resolves balances when the AKT market price is unavailable", () => {
-    const { result } = setup({ totalUsd: 500, reservedUsd: 150, priceUnavailable: true });
+    const { result } = setup({ totalUsd: 500, escrowUsd: 150, priceUnavailable: true });
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.totalUsd).toBe(500);
     expect(result.current.available).toBe(350);
   });
 
-  it("nets what the provider earned since the escrow settled off the reserved amount", () => {
+  it("nets what the provider earned since settlement off the escrow amount", () => {
     const { result } = setup({
       deployments: [{ dseq: "1", fundsUsd: 100, settledAt: 1000 }],
       leases: [{ dseq: "1", amount: "1000000" }],
       latestBlockHeight: 1050
     });
 
-    expect(result.current.deployments[0].reservedUsd).toBeCloseTo(50, 6);
-    expect(result.current.reserved).toBeCloseTo(50, 6);
+    expect(result.current.deployments[0].escrowUsd).toBeCloseTo(50, 6);
+    expect(result.current.escrow).toBeCloseTo(50, 6);
   });
 
   it("reports the settled amount for a deployment that settled at the current height", () => {
@@ -178,7 +178,7 @@ describe(useAccountBalanceOverview.name, () => {
       latestBlockHeight: 1050
     });
 
-    expect(result.current.deployments[0].reservedUsd).toBe(100);
+    expect(result.current.deployments[0].escrowUsd).toBe(100);
   });
 
   it("reports the settled amount for a deployment with no live lease", () => {
@@ -188,7 +188,7 @@ describe(useAccountBalanceOverview.name, () => {
       latestBlockHeight: 1050
     });
 
-    expect(result.current.deployments[0].reservedUsd).toBe(100);
+    expect(result.current.deployments[0].escrowUsd).toBe(100);
   });
 
   it("reports the settled amount while the latest block height is unknown", () => {
@@ -197,10 +197,10 @@ describe(useAccountBalanceOverview.name, () => {
       leases: [{ dseq: "1", amount: "1000000" }]
     });
 
-    expect(result.current.deployments[0].reservedUsd).toBe(100);
+    expect(result.current.deployments[0].escrowUsd).toBe(100);
   });
 
-  it("leaves available untouched by the accrual, since total and reserved both drop by it", () => {
+  it("leaves available untouched by the accrual, since total and escrow both drop by it", () => {
     const settled = setup({
       totalUsd: 500,
       deployments: [{ dseq: "1", fundsUsd: 100, settledAt: 1050 }],
@@ -232,7 +232,7 @@ describe(useAccountBalanceOverview.name, () => {
 
   function setup(input: {
     totalUsd?: number;
-    reservedUsd?: number;
+    escrowUsd?: number;
     deployments?: Array<{ dseq: string; fundsUsd: number; settledAt?: number }>;
     latestBlockHeight?: number;
     names?: Record<string, string>;
@@ -246,17 +246,17 @@ describe(useAccountBalanceOverview.name, () => {
     balancesIdle?: boolean;
     priceUnavailable?: boolean;
   }) {
-    const reservedDeployments = input.deployments ?? (input.reservedUsd ? [{ dseq: "reserved", fundsUsd: input.reservedUsd }] : []);
-    const activeDeployments = reservedDeployments.map(deployment => ({
+    const escrowedDeployments = input.deployments ?? (input.escrowUsd ? [{ dseq: "escrow", fundsUsd: input.escrowUsd }] : []);
+    const activeDeployments = escrowedDeployments.map(deployment => ({
       dseq: deployment.dseq,
       escrowAccount: { state: { settled_at: String(deployment.settledAt ?? ""), funds: [{ denom: UAKT_DENOM, amount: String(deployment.fundsUsd) }] } }
     }));
-    const reservedTotal = reservedDeployments.reduce((sum, deployment) => sum + deployment.fundsUsd, 0);
+    const escrowTotal = escrowedDeployments.reduce((sum, deployment) => sum + deployment.fundsUsd, 0);
 
     const balances = Object.assign(mock<Balances>(), {
       balanceUAKT: 0,
       balanceUUSDC: 0,
-      balanceUACT: (input.totalUsd ?? 0) - reservedTotal,
+      balanceUACT: (input.totalUsd ?? 0) - escrowTotal,
       deploymentEscrowUAKT: 0,
       deploymentEscrowUUSDC: 0,
       deploymentEscrowUACT: 0,

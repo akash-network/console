@@ -26,18 +26,18 @@ export const DEPENDENCIES = {
   useLocalNotes
 };
 
-export type ReservedDeployment = {
+export type EscrowedDeployment = {
   dseq: string;
   name: string;
-  reservedUsd: number;
+  escrowUsd: number;
   perHourUsd: number;
 };
 
 export type AccountBalanceOverview = {
   totalUsd: number;
-  reserved: number;
+  escrow: number;
   available: number;
-  deployments: ReservedDeployment[];
+  deployments: EscrowedDeployment[];
   perHour: number;
   /** null when nothing is being spent (runway is effectively infinite). */
   lastsUntil: Date | null;
@@ -82,7 +82,7 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
     return { perBlockUsd, perHour: perBlockToHourly(perBlockUsd) };
   }, [liveEscrow]);
 
-  const deployments = useMemo<ReservedDeployment[]>(() => {
+  const deployments = useMemo<EscrowedDeployment[]>(() => {
     if (!balances) return [];
     return balances.activeDeployments
       .map(deployment => {
@@ -91,7 +91,7 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
         return {
           dseq: deployment.dseq,
           name: getDeploymentName(deployment.dseq) ?? `Deployment ${deployment.dseq}`,
-          reservedUsd: getLiveEscrowBalance({
+          escrowUsd: getLiveEscrowBalance({
             settledBalance: deployment.escrowAccount.state.funds.reduce((sum, fund) => sum + udenomToUsd(fund.amount, fund.denom), 0),
             pricePerBlock,
             settledAt: Number(deployment.escrowAccount.state.settled_at),
@@ -100,12 +100,12 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
           perHourUsd: perBlockToHourly(pricePerBlock)
         };
       })
-      .sort((a, b) => b.reservedUsd - a.reservedUsd);
+      .sort((a, b) => b.escrowUsd - a.escrowUsd);
   }, [balances, getDeploymentName, udenomToUsd, liveEscrow]);
 
   const totalUsd = walletBalance?.totalUsd ?? 0;
-  const reserved = deployments.reduce((sum, deployment) => sum + deployment.reservedUsd, 0);
-  const available = Math.max(0, totalUsd - reserved);
+  const escrow = deployments.reduce((sum, deployment) => sum + deployment.escrowUsd, 0);
+  const available = Math.max(0, totalUsd - escrow);
   const hasSpend = spend.perBlockUsd > 0;
   const lastsUntil = hasSpend ? getTimeLeft(spend.perBlockUsd, totalUsd) : null;
   const autoReloadEnabled = walletSettings?.autoReloadEnabled ?? false;
@@ -114,7 +114,7 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
 
   return {
     totalUsd,
-    reserved,
+    escrow,
     available,
     deployments,
     perHour: spend.perHour,
