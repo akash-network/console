@@ -308,6 +308,7 @@ describe(AutoTopUpSection.name, () => {
         });
 
         expect(openAddPaymentMethod).toHaveBeenCalledTimes(1);
+        expect(openAddPaymentMethod).toHaveBeenCalledWith(expect.objectContaining({ onSuccess: expect.any(Function) }));
         expect(replace).toHaveBeenCalledWith("/billing", { scroll: false });
         expect(dependencies.AutoTopUpSettingsPopup).toHaveBeenLastCalledWith(expect.objectContaining({ open: false }), expect.anything());
       });
@@ -323,14 +324,16 @@ describe(AutoTopUpSection.name, () => {
         expect(dependencies.AutoTopUpSettingsPopup).toHaveBeenLastCalledWith(expect.objectContaining({ open: true, enableOnSave: true }), expect.anything());
       });
 
-      it("opens the settings dialog once the card the user just added arrives", () => {
-        const { addDefaultPaymentMethod, dependencies } = setup({
+      it("opens the settings dialog through the callback it hands the card flow", () => {
+        const openAddPaymentMethod = vi.fn();
+        const { dependencies } = setup({
           isThresholdModeOffered: true,
           defaultPaymentMethod: undefined,
-          hasSetupAutoTopUpParam: true
+          hasSetupAutoTopUpParam: true,
+          openAddPaymentMethod
         });
 
-        addDefaultPaymentMethod();
+        act(() => openAddPaymentMethod.mock.calls[0][0].onSuccess());
 
         expect(dependencies.AutoTopUpSettingsPopup).toHaveBeenLastCalledWith(expect.objectContaining({ open: true, enableOnSave: true }), expect.anything());
       });
@@ -394,7 +397,6 @@ describe(AutoTopUpSection.name, () => {
     const enqueueSnackbar = input.enqueueSnackbar ?? vi.fn();
     const openAddPaymentMethod = input.openAddPaymentMethod ?? vi.fn();
     const replace = vi.fn();
-    let defaultPaymentMethod = input.defaultPaymentMethod;
 
     const MockButton = vi.fn(({ children, ...props }: Parameters<typeof DEPENDENCIES.Button>[0]) => <button {...props}>{children}</button>);
     const MockSwitch = vi.fn(({ checked, onCheckedChange, disabled }: Parameters<typeof DEPENDENCIES.Switch>[0]) => (
@@ -414,7 +416,7 @@ describe(AutoTopUpSection.name, () => {
         };
       }),
       useSnackbar: vi.fn(() => ({ enqueueSnackbar })),
-      useDefaultPaymentMethodQuery: vi.fn(() => ({ data: defaultPaymentMethod, isLoading: input.isDefaultPaymentMethodLoading ?? false })),
+      useDefaultPaymentMethodQuery: vi.fn(() => ({ data: input.defaultPaymentMethod, isLoading: input.isDefaultPaymentMethodLoading ?? false })),
       useWalletSettingsQuery: vi.fn(() => ({
         data: input.isWalletSettingsLoading ? undefined : input.walletSettings ?? { autoReloadEnabled: false },
         isLoading: input.isWalletSettingsLoading ?? false
@@ -432,18 +434,8 @@ describe(AutoTopUpSection.name, () => {
       UsdValue: MockUsdValue
     } as unknown as typeof DEPENDENCIES;
 
-    const view = render(<AutoTopUpSection dependencies={dependencies} />);
+    render(<AutoTopUpSection dependencies={dependencies} />);
 
-    return {
-      dependencies,
-      upsertMutate,
-      enqueueSnackbar,
-      openAddPaymentMethod,
-      replace,
-      addDefaultPaymentMethod: () => {
-        defaultPaymentMethod = { id: "pm_added" };
-        act(() => view.rerender(<AutoTopUpSection dependencies={dependencies} />));
-      }
-    };
+    return { dependencies, upsertMutate, enqueueSnackbar, openAddPaymentMethod, replace };
   }
 });

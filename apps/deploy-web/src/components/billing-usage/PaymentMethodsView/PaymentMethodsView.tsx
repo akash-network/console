@@ -42,7 +42,7 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
           <h3 className="text-lg font-bold leading-none">Payment Method</h3>
           <p className="text-sm text-muted-foreground">All transactions will be made using your default card.</p>
         </div>
-        <d.Button onClick={openAddPaymentMethod} size="sm" variant="outline" disabled={isInProgress} className="gap-2">
+        <d.Button onClick={() => openAddPaymentMethod()} size="sm" variant="outline" disabled={isInProgress} className="gap-2">
           <Plus className="h-4 w-4" />
           <span>Add Payment Method</span>
         </d.Button>

@@ -66,7 +66,6 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
   const searchParams = d.useSearchParams();
   const router = d.useRouter();
   const { urlService } = d.useServices();
-  const [isAwaitingCardForSetup, setIsAwaitingCardForSetup] = useState(false);
   const hasStartedRequestedSetup = useRef(false);
 
   const toggleAutoReload = useCallback(
@@ -157,25 +156,17 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
       if (!isSetupRequested || isFirstLoad || hasStartedRequestedSetup.current) return;
       hasStartedRequestedSetup.current = true;
 
+      const openSettingsToEnable = () => setAutoTopUpPopup({ open: true, enableOnSave: true });
+
       if (hasPaymentMethod) {
-        setAutoTopUpPopup({ open: true, enableOnSave: true });
+        openSettingsToEnable();
       } else {
-        openAddPaymentMethod();
-        setIsAwaitingCardForSetup(true);
+        openAddPaymentMethod({ onSuccess: openSettingsToEnable });
       }
 
       router.replace(urlService.billing(), { scroll: false });
     },
     [isSetupRequested, isFirstLoad, hasPaymentMethod, router, urlService, openAddPaymentMethod]
-  );
-
-  useEffect(
-    function openSettingsOnceCardArrives() {
-      if (!isAwaitingCardForSetup || !hasPaymentMethod) return;
-      setIsAwaitingCardForSetup(false);
-      setAutoTopUpPopup({ open: true, enableOnSave: true });
-    },
-    [isAwaitingCardForSetup, hasPaymentMethod]
   );
 
   const usd = (value: number) => <d.UsdValue value={value} />;
@@ -217,7 +208,7 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
             </div>
           ) : !hasPaymentMethod ? (
             <p className="text-sm text-muted-foreground">
-              <button type="button" onClick={openAddPaymentMethod} className="text-primary underline">
+              <button type="button" onClick={() => openAddPaymentMethod()} className="text-primary underline">
                 Add a payment method
               </button>{" "}
               to enable auto {isThresholdModeOffered ? "top-up" : "recharge"}
