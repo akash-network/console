@@ -63,9 +63,21 @@ export class AutoReloadPauseService {
 
     this.logger.warn({ event: "AUTO_RELOAD_PAUSED", userId: user.id, failureCount, declineCode: decline.declineCode });
 
-    await this.walletReloadJobService.cancelCreatedByUserId(user.id);
+    await this.#cancelPendingReloadCheck(user.id);
     await this.walletReloadJobService.scheduleCreditsLowCheck(user.id, { withCleanup: true });
     await this.notificationService.createNotification(autoTopUpPausedNotification(user, { pausedAt, billingUrl: this.#billingUrl() }));
+  }
+
+  /**
+   * The pause is already committed and only ever transitions once, so a failed cancel must not cost
+   * the user the email that follows it. A check left queued skips on the pause it finds.
+   */
+  async #cancelPendingReloadCheck(userId: UserOutput["id"]): Promise<void> {
+    try {
+      await this.walletReloadJobService.cancelCreatedByUserId(userId);
+    } catch (error) {
+      this.logger.error({ event: "AUTO_RELOAD_PAUSE_CANCEL_FAILED", userId, error });
+    }
   }
 
   async resume(userId: UserOutput["id"]): Promise<void> {

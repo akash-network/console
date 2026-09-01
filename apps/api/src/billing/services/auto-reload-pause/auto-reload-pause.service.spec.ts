@@ -80,6 +80,17 @@ describe(AutoReloadPauseService.name, () => {
       );
     });
 
+    it("still emails the user when cancelling the queued reload check fails", async () => {
+      const { service, walletSettingRepository, walletReloadJobService, notificationService, claim, user } = setup();
+      walletSettingRepository.recordChargeDecline.mockResolvedValue({ failureCount: 4, pausedAt: new Date() });
+      walletReloadJobService.cancelCreatedByUserId.mockRejectedValue(new Error("queue unavailable"));
+
+      await service.recordDecline({ claim, user, decline: { isTerminal: false } });
+
+      expect(walletReloadJobService.scheduleCreditsLowCheck).toHaveBeenCalledWith(user.id, { withCleanup: true });
+      expect(notificationService.createNotification).toHaveBeenCalled();
+    });
+
     it("links the email at billing rather than the add funds modal", async () => {
       const { service, walletSettingRepository, notificationService, claim, user } = setup();
       walletSettingRepository.recordChargeDecline.mockResolvedValue({ failureCount: 4, pausedAt: new Date() });
