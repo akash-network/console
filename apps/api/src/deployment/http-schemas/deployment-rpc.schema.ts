@@ -142,11 +142,17 @@ const PaginationSchema = z.object({
   total: z.string()
 });
 
+/** Clients page via next_key, so clamping only adds round trips; scrapers were pulling 10k-row pages through this unauthenticated route. */
+const MAX_FALLBACK_LIST_LIMIT = 100;
+
 export const FallbackDeploymentListQuerySchema = z.object({
   "filters.owner": z.string().optional(),
   "filters.state": z.enum(["active", "closed"]).optional(),
   "pagination.offset": z.coerce.number().optional(),
-  "pagination.limit": z.coerce.number().optional(),
+  "pagination.limit": z.coerce
+    .number()
+    .optional()
+    .transform(limit => (limit === undefined ? undefined : Math.min(limit, MAX_FALLBACK_LIST_LIMIT))),
   "pagination.key": z.string().optional(),
   "pagination.count_total": z
     .string()
