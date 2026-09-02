@@ -410,7 +410,8 @@ describe(AutoTopUpSection.name, () => {
 
       fireEvent.click(screen.getByText("Update your payment method"));
 
-      expect(openAddPaymentMethod).toHaveBeenCalled();
+      expect(openAddPaymentMethod).toHaveBeenCalledTimes(1);
+      expect(openAddPaymentMethod).toHaveBeenCalledWith();
     });
 
     it("shows the top-up rule again once the pause is lifted", () => {

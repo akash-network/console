@@ -218,7 +218,7 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
             <p className="text-sm text-muted-foreground">
               <span className="font-medium text-destructive">Paused.</span> {defaultCardLabel ?? "Your default payment method"} was declined several times, so
               we&apos;ve stopped charging it. Your deployments keep running until your credits run out.{" "}
-              <button type="button" onClick={openAddPaymentMethod} className="text-primary underline">
+              <button type="button" onClick={() => openAddPaymentMethod()} className="text-primary underline">
                 Update your payment method
               </button>{" "}
               to start topping up again.
