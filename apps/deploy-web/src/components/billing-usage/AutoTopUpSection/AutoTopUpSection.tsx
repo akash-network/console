@@ -185,7 +185,7 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
             <h3 className="text-lg font-bold leading-none">{isThresholdModeOffered ? "Auto Top-Up" : "Auto Recharge"}</h3>
             {isFirstLoad ? (
               <d.Skeleton className="h-4 w-72" />
-            ) : !isThresholdModeOffered || !autoReloadEnabled ? (
+            ) : !isThresholdModeOffered || !autoReloadEnabled || isPausedByDeclines ? (
               <p className="text-sm text-muted-foreground">Automatically adds credits to keep your deployments running.</p>
             ) : showsThresholdRule ? (
               <p className="text-sm text-muted-foreground">

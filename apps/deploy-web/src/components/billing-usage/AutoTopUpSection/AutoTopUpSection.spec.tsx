@@ -399,6 +399,17 @@ describe(AutoTopUpSection.name, () => {
       expect(screen.queryByText(/Recharge amount is approximately/)).not.toBeInTheDocument();
     });
 
+    it("stops the header claiming it still tops up", () => {
+      setup({
+        isThresholdModeOffered: true,
+        defaultPaymentMethod: { id: "pm_123" },
+        walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100, autoReloadPausedAt: "2026-09-01T12:00:00.000Z" }
+      });
+
+      expect(screen.queryByText(/Tops up when your/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Tops up to cover the week ahead/)).not.toBeInTheDocument();
+    });
+
     it("sends the user to their payment methods to lift the pause", () => {
       const openAddPaymentMethod = vi.fn();
       setup({
