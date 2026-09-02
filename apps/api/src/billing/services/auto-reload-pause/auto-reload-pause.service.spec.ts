@@ -136,6 +136,16 @@ describe(AutoReloadPauseService.name, () => {
       expect(notificationService.createNotification).toHaveBeenCalled();
     });
 
+    it("emails the user before scheduling the credits-low check, since the pause never transitions twice", async () => {
+      const { service, walletSettingRepository, walletReloadJobService, notificationService, claim, user } = setup();
+      walletSettingRepository.recordChargeDecline.mockResolvedValue({ failureCount: 4, pausedAt: new Date() });
+      walletReloadJobService.scheduleCreditsLowCheck.mockRejectedValue(new Error("queue unavailable"));
+
+      await expect(service.recordDecline({ claim, user, decline: { isTerminal: false } })).rejects.toThrow("queue unavailable");
+
+      expect(notificationService.createNotification).toHaveBeenCalled();
+    });
+
     it("keeps a failed first-decline email from surfacing as a failure to record the decline", async () => {
       const { service, walletSettingRepository, notificationService, claim, user } = setup();
       walletSettingRepository.recordChargeDecline.mockResolvedValue({ failureCount: 1, pausedAt: null });
