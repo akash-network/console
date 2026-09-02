@@ -375,12 +375,80 @@ describe(AutoTopUpSection.name, () => {
     });
   });
 
+  describe("when auto top-up is paused after repeated card declines", () => {
+    it("says the card was declined instead of showing the top-up rule", () => {
+      setup({
+        isThresholdModeOffered: true,
+        defaultPaymentMethod: { id: "pm_123", card: { brand: "visa", last4: "4242" } },
+        walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100, autoReloadPausedAt: "2026-09-01T12:00:00.000Z" }
+      });
+
+      expect(screen.getByText(/Paused\./)).toBeInTheDocument();
+      expect(screen.getByText(/was declined several times/)).toBeInTheDocument();
+      expect(screen.queryByText("Threshold")).not.toBeInTheDocument();
+    });
+
+    it("warns prediction-mode wallets too", () => {
+      setup({
+        autoReloadMode: "prediction",
+        defaultPaymentMethod: { id: "pm_123" },
+        walletSettings: { autoReloadEnabled: true, autoReloadMode: "prediction", autoReloadPausedAt: "2026-09-01T12:00:00.000Z" }
+      });
+
+      expect(screen.getByText(/Paused\./)).toBeInTheDocument();
+      expect(screen.queryByText(/Recharge amount is approximately/)).not.toBeInTheDocument();
+    });
+
+    it("stops the header claiming it still tops up", () => {
+      setup({
+        isThresholdModeOffered: true,
+        defaultPaymentMethod: { id: "pm_123" },
+        walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100, autoReloadPausedAt: "2026-09-01T12:00:00.000Z" }
+      });
+
+      expect(screen.queryByText(/Tops up when your/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Tops up to cover the week ahead/)).not.toBeInTheDocument();
+    });
+
+    it("sends the user to their payment methods to lift the pause", () => {
+      const openAddPaymentMethod = vi.fn();
+      setup({
+        isThresholdModeOffered: true,
+        defaultPaymentMethod: { id: "pm_123" },
+        walletSettings: { autoReloadEnabled: true, autoReloadPausedAt: "2026-09-01T12:00:00.000Z" },
+        openAddPaymentMethod
+      });
+
+      fireEvent.click(screen.getByText("Update your payment method"));
+
+      expect(openAddPaymentMethod).toHaveBeenCalledTimes(1);
+      expect(openAddPaymentMethod).toHaveBeenCalledWith();
+    });
+
+    it("shows the top-up rule again once the pause is lifted", () => {
+      setup({
+        isThresholdModeOffered: true,
+        defaultPaymentMethod: { id: "pm_123" },
+        walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100, autoReloadPausedAt: null }
+      });
+
+      expect(screen.queryByText(/Paused\./)).not.toBeInTheDocument();
+      expect(screen.getByText("Threshold")).toBeInTheDocument();
+    });
+  });
+
   function setup(input: {
     isThresholdModeOffered?: boolean;
     autoReloadMode?: "prediction" | "threshold";
     defaultPaymentMethod?: { id: string; card?: { brand?: string; last4?: string } };
     isDefaultPaymentMethodLoading?: boolean;
-    walletSettings?: { autoReloadEnabled: boolean; autoReloadMode?: "prediction" | "threshold"; autoReloadThreshold?: number; autoReloadAmount?: number };
+    walletSettings?: {
+      autoReloadEnabled: boolean;
+      autoReloadMode?: "prediction" | "threshold";
+      autoReloadThreshold?: number;
+      autoReloadAmount?: number;
+      autoReloadPausedAt?: string | null;
+    };
     isWalletSettingsLoading?: boolean;
     weeklyCost?: number;
     isWeeklyCostLoading?: boolean;

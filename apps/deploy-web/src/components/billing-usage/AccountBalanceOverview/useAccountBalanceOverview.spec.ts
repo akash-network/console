@@ -106,6 +106,23 @@ describe(useAccountBalanceOverview.name, () => {
     expect(result.current.autoReloadEnabled).toBe(true);
   });
 
+  it("reports auto reload as off while it is paused after repeated card declines", () => {
+    const { result } = setup({ autoReloadEnabled: true, autoReloadPausedAt: "2026-09-01T12:00:00.000Z" });
+
+    expect(result.current.autoReloadEnabled).toBe(false);
+  });
+
+  it("hides the auto reload threshold while auto reload is paused", () => {
+    const { result } = setup({
+      autoReloadMode: "threshold",
+      autoReloadEnabled: true,
+      autoReloadThreshold: 275,
+      autoReloadPausedAt: "2026-09-01T12:00:00.000Z"
+    });
+
+    expect(result.current.autoReloadThreshold).toBeNull();
+  });
+
   it("exposes the auto reload threshold in threshold mode when auto reload is on", () => {
     const { result } = setup({ autoReloadMode: "threshold", autoReloadEnabled: true, autoReloadThreshold: 275 });
 
@@ -239,6 +256,7 @@ describe(useAccountBalanceOverview.name, () => {
     leases?: Array<{ dseq: string; amount?: string; state?: string }>;
     hasLiveLease?: boolean;
     autoReloadEnabled?: boolean;
+    autoReloadPausedAt?: string | null;
     autoReloadThreshold?: number;
     autoReloadMode?: "prediction" | "threshold";
     balancesMissing?: boolean;
@@ -311,6 +329,7 @@ describe(useAccountBalanceOverview.name, () => {
     const walletSettingsQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useWalletSettingsQuery>>(), {
       data: Object.assign(mock<WalletSettings>(), {
         autoReloadEnabled: input.autoReloadEnabled ?? false,
+        autoReloadPausedAt: input.autoReloadPausedAt ?? null,
         autoReloadMode: input.autoReloadMode ?? ("prediction" as const),
         autoReloadThreshold: input.autoReloadThreshold
       })
