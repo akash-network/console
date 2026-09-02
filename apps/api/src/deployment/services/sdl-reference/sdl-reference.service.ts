@@ -32,18 +32,25 @@ function readEnvDeclaration(entry: string): { key: string; value: string } | nul
   return valueStart === -1 ? null : { key: entry.slice(0, valueStart), value: entry.slice(valueStart + 1) };
 }
 
+/** One namespace per service, so two services can reference the same name and receive their own value. */
+export type NamespacedSdlSecrets = Record<string, SdlSecrets>;
+
 export interface SdlReferenceContext {
-  secrets: SdlSecrets;
+  secrets: NamespacedSdlSecrets;
+}
+
+export interface SdlReferenceTarget {
+  serviceName: string;
+  name: string;
 }
 
 export interface SdlReferenceResolver {
   readonly kind: string;
-  resolve(name: string, context: SdlReferenceContext): string | undefined;
+  resolve(target: SdlReferenceTarget, context: SdlReferenceContext): string | undefined;
 }
 
-interface EnvReference {
+interface EnvReference extends SdlReferenceTarget {
   kind: string;
-  name: string;
   key: string;
   reference: string;
   instancePath: string;
@@ -51,10 +58,18 @@ interface EnvReference {
 
 type EnvReferenceVisitor = (reference: EnvReference, env: string[], index: number) => ValidationError | undefined;
 
-/** A reference name may spell an `Object.prototype` member, and a bare lookup would answer such a name with an inherited function. */
+/** A service or reference name may spell an `Object.prototype` member, and a bare lookup would answer such a name with an inherited function. */
+function ownValue<T>(record: Record<string, T>, key: string): T | undefined {
+  return Object.hasOwn(record, key) ? record[key] : undefined;
+}
+
 const secretReferenceResolver: SdlReferenceResolver = {
   kind: "secret",
-  resolve: (name, { secrets }) => (Object.hasOwn(secrets, name) ? secrets[name] : undefined)
+  resolve: ({ serviceName, name }, { secrets }) => {
+    const namespace = ownValue(secrets, serviceName);
+
+    return typeof namespace === "object" && namespace !== null ? ownValue(namespace, name) : undefined;
+  }
 };
 
 function referenceError(instancePath: string, message: string, params: Record<string, unknown>): ValidationError {
@@ -96,12 +111,15 @@ export class SdlReferenceService {
         return unknownKindError(reference);
       }
 
-      const value = resolver.resolve(reference.name, context);
+      const value = resolver.resolve(reference, context);
 
-      if (value === undefined) {
-        return referenceError(reference.instancePath, `no value supplied for SDL Reference "${reference.reference}"`, {
+      if (typeof value !== "string") {
+        const echoedServiceName = reference.serviceName.slice(0, MAX_ECHOED_REFERENCE_LENGTH);
+
+        return referenceError(reference.instancePath, `no value supplied for SDL Reference "${reference.reference}" in service "${echoedServiceName}"`, {
           kind: reference.kind,
-          name: reference.name
+          name: reference.name,
+          serviceName: echoedServiceName
         });
       }
 
@@ -120,7 +138,8 @@ export class SdlReferenceService {
       if (!Array.isArray(env)) continue;
 
       env.forEach((entry, index) => {
-        const error = this.#readEntry(entry, `/services/${serviceName}/env/${index}`, reference => visit(reference, env, index));
+        const location = { serviceName, instancePath: `/services/${serviceName}/env/${index}` };
+        const error = this.#readEntry(entry, location, reference => visit(reference, env, index));
 
         if (error) errors.push(error);
       });
@@ -129,7 +148,11 @@ export class SdlReferenceService {
     return errors;
   }
 
-  #readEntry(entry: unknown, instancePath: string, visit: (reference: EnvReference) => ValidationError | undefined): ValidationError | undefined {
+  #readEntry(
+    entry: unknown,
+    location: { serviceName: string; instancePath: string },
+    visit: (reference: EnvReference) => ValidationError | undefined
+  ): ValidationError | undefined {
     if (typeof entry !== "string") return undefined;
 
     const declaration = readEnvDeclaration(entry);
@@ -143,12 +166,16 @@ export class SdlReferenceService {
     if (read.type === "reserved") {
       const echoed = declaration.value.slice(0, MAX_ECHOED_REFERENCE_LENGTH);
 
-      return referenceError(instancePath, `"${echoed}" is not a recognized SDL Reference and values beginning with "${SDL_REFERENCE_PREFIX}" are reserved`, {
-        value: echoed
-      });
+      return referenceError(
+        location.instancePath,
+        `"${echoed}" is not a recognized SDL Reference and values beginning with "${SDL_REFERENCE_PREFIX}" are reserved`,
+        {
+          value: echoed
+        }
+      );
     }
 
-    return visit({ ...read, key: declaration.key, reference: declaration.value, instancePath });
+    return visit({ ...read, ...location, key: declaration.key, reference: declaration.value });
   }
 
   #servicesOf(sdl: SDLInput): SDLInput["services"] {
