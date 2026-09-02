@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { UrlService } from "@src/utils/urlUtils";
 import { AutoTopUpSection, DEPENDENCIES } from "./AutoTopUpSection";
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
@@ -98,7 +99,7 @@ describe(AutoTopUpSection.name, () => {
       expect(screen.getByText(/Turn on Auto Top-Up to add funds automatically/)).toBeInTheDocument();
     });
 
-    it("prompts with predicted-spend wording when disabled in prediction mode", () => {
+    it("prompts without naming a rule when disabled in prediction mode", () => {
       setup({
         isThresholdModeOffered: true,
         autoReloadMode: "prediction",
@@ -106,8 +107,33 @@ describe(AutoTopUpSection.name, () => {
         walletSettings: { autoReloadEnabled: false, autoReloadMode: "prediction" }
       });
 
-      expect(screen.getByText(/Turn on Auto Top-Up to automatically cover the week ahead/)).toBeInTheDocument();
-      expect(screen.queryByText(/when your balance runs low/)).not.toBeInTheDocument();
+      expect(screen.getByText(/You pick the rule when you set it up/)).toBeInTheDocument();
+      expect(screen.queryByText(/cover the week ahead/)).not.toBeInTheDocument();
+    });
+
+    it("holds back the mode description until a rule is actually running", () => {
+      setup({
+        isThresholdModeOffered: true,
+        autoReloadMode: "prediction",
+        defaultPaymentMethod: { id: "pm_123" },
+        walletSettings: { autoReloadEnabled: false, autoReloadMode: "prediction" }
+      });
+
+      expect(screen.getByText("Automatically adds credits to keep your deployments running.")).toBeInTheDocument();
+      expect(screen.queryByText(/Tops up to cover the week ahead/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Tops up when your/)).not.toBeInTheDocument();
+    });
+
+    it("describes the stored rule once auto top-up is enabled", () => {
+      setup({
+        isThresholdModeOffered: true,
+        autoReloadMode: "prediction",
+        defaultPaymentMethod: { id: "pm_123" },
+        walletSettings: { autoReloadEnabled: true, autoReloadMode: "prediction" }
+      });
+
+      expect(screen.getByText("Tops up to cover the week ahead for your running deployments.")).toBeInTheDocument();
+      expect(screen.queryByText("Automatically adds credits to keep your deployments running.")).not.toBeInTheDocument();
     });
 
     it("shows a skeleton instead of a zero predicted spend while the weekly cost is still loading", () => {
@@ -273,6 +299,66 @@ describe(AutoTopUpSection.name, () => {
       expect(enqueueSnackbar).toHaveBeenCalled();
     });
 
+    describe("when arriving from the deploy flow's setup link", () => {
+      it("opens the add-payment-method flow and clears the param when no card is on file", () => {
+        const { openAddPaymentMethod, replace, dependencies } = setup({
+          isThresholdModeOffered: true,
+          defaultPaymentMethod: undefined,
+          hasSetupAutoTopUpParam: true
+        });
+
+        expect(openAddPaymentMethod).toHaveBeenCalledTimes(1);
+        expect(openAddPaymentMethod).toHaveBeenCalledWith(expect.objectContaining({ onSuccess: expect.any(Function) }));
+        expect(replace).toHaveBeenCalledWith("/billing", { scroll: false });
+        expect(dependencies.AutoTopUpSettingsPopup).toHaveBeenLastCalledWith(expect.objectContaining({ open: false }), expect.anything());
+      });
+
+      it("opens the settings dialog straight away when a card is already on file", () => {
+        const { openAddPaymentMethod, dependencies } = setup({
+          isThresholdModeOffered: true,
+          defaultPaymentMethod: { id: "pm_123" },
+          hasSetupAutoTopUpParam: true
+        });
+
+        expect(openAddPaymentMethod).not.toHaveBeenCalled();
+        expect(dependencies.AutoTopUpSettingsPopup).toHaveBeenLastCalledWith(expect.objectContaining({ open: true, enableOnSave: true }), expect.anything());
+      });
+
+      it("opens the settings dialog through the callback it hands the card flow", () => {
+        const openAddPaymentMethod = vi.fn();
+        const { dependencies } = setup({
+          isThresholdModeOffered: true,
+          defaultPaymentMethod: undefined,
+          hasSetupAutoTopUpParam: true,
+          openAddPaymentMethod
+        });
+
+        act(() => openAddPaymentMethod.mock.calls[0][0].onSuccess());
+
+        expect(dependencies.AutoTopUpSettingsPopup).toHaveBeenLastCalledWith(expect.objectContaining({ open: true, enableOnSave: true }), expect.anything());
+      });
+
+      it("leaves the settings dialog closed without the param", () => {
+        const { openAddPaymentMethod, replace, dependencies } = setup({ isThresholdModeOffered: true, defaultPaymentMethod: { id: "pm_123" } });
+
+        expect(openAddPaymentMethod).not.toHaveBeenCalled();
+        expect(replace).not.toHaveBeenCalled();
+        expect(dependencies.AutoTopUpSettingsPopup).toHaveBeenLastCalledWith(expect.objectContaining({ open: false }), expect.anything());
+      });
+
+      it("waits for the payment method query before acting on the param", () => {
+        const { openAddPaymentMethod, replace } = setup({
+          isThresholdModeOffered: true,
+          defaultPaymentMethod: undefined,
+          isDefaultPaymentMethodLoading: true,
+          hasSetupAutoTopUpParam: true
+        });
+
+        expect(openAddPaymentMethod).not.toHaveBeenCalled();
+        expect(replace).not.toHaveBeenCalled();
+      });
+    });
+
     it("closes the settings dialog when the popup requests it", () => {
       const { dependencies } = setup({
         isThresholdModeOffered: true,
@@ -305,10 +391,12 @@ describe(AutoTopUpSection.name, () => {
     perHour?: number;
     available?: number;
     openAddPaymentMethod?: ReturnType<typeof vi.fn>;
+    hasSetupAutoTopUpParam?: boolean;
   }) {
     const upsertMutate = input.upsertMutate ?? vi.fn();
     const enqueueSnackbar = input.enqueueSnackbar ?? vi.fn();
     const openAddPaymentMethod = input.openAddPaymentMethod ?? vi.fn();
+    const replace = vi.fn();
 
     const MockButton = vi.fn(({ children, ...props }: Parameters<typeof DEPENDENCIES.Button>[0]) => <button {...props}>{children}</button>);
     const MockSwitch = vi.fn(({ checked, onCheckedChange, disabled }: Parameters<typeof DEPENDENCIES.Switch>[0]) => (
@@ -337,6 +425,9 @@ describe(AutoTopUpSection.name, () => {
       useWalletSettingsMutations: vi.fn(() => ({ upsertWalletSettings: { mutate: upsertMutate, isPending: input.isPending ?? false } })),
       useAccountBalanceOverview: vi.fn(() => ({ perHour: input.perHour ?? 0, available: input.available ?? 0 })),
       useBillingActions: vi.fn(() => ({ openAddPaymentMethod })),
+      useSearchParams: vi.fn(() => ({ get: (key: string) => (key === "setupAutoTopUp" && input.hasSetupAutoTopUpParam ? "true" : null) })),
+      useRouter: vi.fn(() => ({ replace })),
+      useServices: vi.fn(() => ({ urlService: UrlService })),
       usePopup: vi.fn(() => ({ confirm: vi.fn().mockResolvedValue(input.confirmResult ?? true) })),
       Button: MockButton,
       Switch: MockSwitch,
@@ -345,6 +436,6 @@ describe(AutoTopUpSection.name, () => {
 
     render(<AutoTopUpSection dependencies={dependencies} />);
 
-    return { dependencies, upsertMutate, enqueueSnackbar, openAddPaymentMethod };
+    return { dependencies, upsertMutate, enqueueSnackbar, openAddPaymentMethod, replace };
   }
 });

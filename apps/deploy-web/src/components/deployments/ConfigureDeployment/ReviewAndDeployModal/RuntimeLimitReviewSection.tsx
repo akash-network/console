@@ -47,7 +47,7 @@ export const RuntimeLimitReviewSection: FC<Props> = ({ isLimited, onLimitedChang
     <div className="space-y-3 rounded-lg border p-4">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-xs uppercase tracking-wide text-muted-foreground">Runtime limit</span>
+          <span className="font-mono text-xs uppercase tracking-wide text-muted-foreground">Runtime limit (optional)</span>
           <CustomTooltip
             className="max-w-[280px] p-3 font-sans text-xs normal-case text-muted-foreground"
             title="Closes this deployment automatically after the set number of hours, counted from when it starts. Unused funds are returned to your balance."

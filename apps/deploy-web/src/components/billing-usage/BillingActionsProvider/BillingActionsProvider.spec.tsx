@@ -6,12 +6,17 @@ import { BillingActionsProvider, type DEPENDENCIES, useBillingActions } from "./
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 
-const Consumer = () => {
+const Consumer = ({ onSuccess }: { onSuccess?: () => void }) => {
   const { openAddPaymentMethod } = useBillingActions();
   return (
-    <button type="button" onClick={openAddPaymentMethod}>
-      open
-    </button>
+    <>
+      <button type="button" onClick={() => openAddPaymentMethod({ onSuccess })}>
+        open
+      </button>
+      <button type="button" onClick={() => openAddPaymentMethod()}>
+        open plain
+      </button>
+    </>
   );
 };
 
@@ -70,6 +75,33 @@ describe("BillingActionsProvider", () => {
     expect(screen.queryByTestId("popup")).not.toBeInTheDocument();
   });
 
+  it("runs the caller's success callback once the card is saved", async () => {
+    const onSuccess = vi.fn();
+    setup({ onSuccess });
+
+    fireEvent.click(screen.getByText("open"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("success"));
+    });
+
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not carry a cancelled call's success callback into a later unrelated card", async () => {
+    const onSuccess = vi.fn();
+    setup({ onSuccess });
+
+    fireEvent.click(screen.getByText("open"));
+    fireEvent.click(screen.getByText("close"));
+
+    fireEvent.click(screen.getByText("open plain"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("success"));
+    });
+
+    expect(onSuccess).not.toHaveBeenCalled();
+  });
+
   it("keeps the popup closed and toasts when creating the setup intent fails", () => {
     const { toast } = setup({ isError: true });
 
@@ -79,7 +111,7 @@ describe("BillingActionsProvider", () => {
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: "destructive" }));
   });
 
-  function setup(input: { setupIntent?: { clientSecret: string }; theme?: string; isError?: boolean } = {}) {
+  function setup(input: { setupIntent?: { clientSecret: string }; theme?: string; isError?: boolean; onSuccess?: () => void } = {}) {
     const createSetupIntent = vi.fn();
     const resetSetupIntent = vi.fn();
     const refresh = vi.fn().mockResolvedValue(undefined);
@@ -104,7 +136,7 @@ describe("BillingActionsProvider", () => {
 
     render(
       <BillingActionsProvider dependencies={dependencies}>
-        <Consumer />
+        <Consumer onSuccess={input.onSuccess} />
       </BillingActionsProvider>
     );
 

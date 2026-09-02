@@ -1,10 +1,11 @@
 "use client";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
 import { Button, Card, CardContent, CardHeader, Skeleton, Snackbar, Switch } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
 import { LinearProgress } from "@mui/material";
 import { Edit } from "iconoir-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSnackbar } from "notistack";
 
 import { useAccountBalanceOverview } from "@src/components/billing-usage/AccountBalanceOverview/useAccountBalanceOverview";
@@ -16,10 +17,14 @@ import {
 import { useBillingActions } from "@src/components/billing-usage/BillingActionsProvider/BillingActionsProvider";
 import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
 import { useAutoReloadMode } from "@src/components/billing-usage/useAutoReloadMode";
+import { useServices } from "@src/context/ServicesProvider";
 import { useDefaultPaymentMethodQuery, useWalletSettingsMutations, useWalletSettingsQuery, useWeeklyDeploymentCostQuery } from "@src/queries";
 import { capitalizeFirstLetter } from "@src/utils/stringUtils";
 
 const HOURS_PER_DAY = 24;
+
+/** Set by the deploy flow's "Add Payment Method" CTA, which needs a card and auto top-up in one trip. */
+const SETUP_PARAM = "setupAutoTopUp";
 
 export const DEPENDENCIES = {
   useSnackbar,
@@ -31,6 +36,9 @@ export const DEPENDENCIES = {
   usePopup,
   useBillingActions,
   useAutoReloadMode,
+  useSearchParams,
+  useRouter,
+  useServices,
   AutoTopUpSettingsPopup,
   UsdValue,
   Button,
@@ -55,6 +63,10 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
   const { openAddPaymentMethod } = d.useBillingActions();
   const overview = d.useAccountBalanceOverview();
   const { confirm } = d.usePopup();
+  const searchParams = d.useSearchParams();
+  const router = d.useRouter();
+  const { urlService } = d.useServices();
+  const hasStartedRequestedSetup = useRef(false);
 
   const toggleAutoReload = useCallback(
     async (autoReloadEnabled: boolean) => {
@@ -137,6 +149,26 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
     return Math.max(1, Math.round((overview.available - autoReloadThreshold) / dailySpend));
   }, [overview.perHour, overview.available, autoReloadThreshold]);
 
+  const isSetupRequested = searchParams.get(SETUP_PARAM) === "true";
+
+  useEffect(
+    function startSetupRequestedByDeepLink() {
+      if (!isSetupRequested || isFirstLoad || hasStartedRequestedSetup.current) return;
+      hasStartedRequestedSetup.current = true;
+
+      const openSettingsToEnable = () => setAutoTopUpPopup({ open: true, enableOnSave: true });
+
+      if (hasPaymentMethod) {
+        openSettingsToEnable();
+      } else {
+        openAddPaymentMethod({ onSuccess: openSettingsToEnable });
+      }
+
+      router.replace(urlService.billing(), { scroll: false });
+    },
+    [isSetupRequested, isFirstLoad, hasPaymentMethod, router, urlService, openAddPaymentMethod]
+  );
+
   const usd = (value: number) => <d.UsdValue value={value} />;
 
   return (
@@ -152,7 +184,7 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
             <h3 className="text-lg font-bold leading-none">{isThresholdModeOffered ? "Auto Top-Up" : "Auto Recharge"}</h3>
             {isFirstLoad ? (
               <d.Skeleton className="h-4 w-72" />
-            ) : !isThresholdModeOffered ? (
+            ) : !isThresholdModeOffered || !autoReloadEnabled ? (
               <p className="text-sm text-muted-foreground">Automatically adds credits to keep your deployments running.</p>
             ) : showsThresholdRule ? (
               <p className="text-sm text-muted-foreground">
@@ -176,7 +208,7 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
             </div>
           ) : !hasPaymentMethod ? (
             <p className="text-sm text-muted-foreground">
-              <button type="button" onClick={openAddPaymentMethod} className="text-primary underline">
+              <button type="button" onClick={() => openAddPaymentMethod()} className="text-primary underline">
                 Add a payment method
               </button>{" "}
               to enable auto {isThresholdModeOffered ? "top-up" : "recharge"}
@@ -245,9 +277,7 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              {showsThresholdRule
-                ? "Turn on Auto Top-Up to add funds automatically when your balance runs low."
-                : "Turn on Auto Top-Up to automatically cover the week ahead for your running deployments."}
+              Turn on Auto Top-Up to add funds automatically before your balance runs out. You pick the rule when you set it up.
             </p>
           )}
         </d.CardContent>

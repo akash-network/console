@@ -1,6 +1,6 @@
 "use client";
 import type { ReactNode } from "react";
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@akashnetwork/ui/hooks";
 import { useTheme } from "next-themes";
 
@@ -16,7 +16,8 @@ export const DEPENDENCIES = {
 };
 
 type BillingActions = {
-  openAddPaymentMethod: () => void;
+  /** `onSuccess` runs only for the card this call opens, and is dropped if the popup closes or errors first. */
+  openAddPaymentMethod: (options?: { onSuccess?: () => void }) => void;
 };
 
 const BillingActionsContext = createContext<BillingActions | null>(null);
@@ -30,26 +31,38 @@ export const BillingActionsProvider: React.FunctionComponent<{ children: ReactNo
   const { data: setupIntent, mutate: createSetupIntent, reset: resetSetupIntent, isError: isSetupIntentError } = d.useSetupIntentMutation();
   const refreshPaymentMethods = d.useRefreshPaymentMethods();
   const [isOpen, setIsOpen] = useState(false);
+  const pendingOnSuccess = useRef<(() => void) | undefined>(undefined);
 
-  const openAddPaymentMethod = useCallback(() => {
-    resetSetupIntent();
-    createSetupIntent();
-    setIsOpen(true);
-  }, [createSetupIntent, resetSetupIntent]);
+  const openAddPaymentMethod = useCallback(
+    (options?: { onSuccess?: () => void }) => {
+      pendingOnSuccess.current = options?.onSuccess;
+      resetSetupIntent();
+      createSetupIntent();
+      setIsOpen(true);
+    },
+    [createSetupIntent, resetSetupIntent]
+  );
+
+  const closeAddPaymentMethod = useCallback(() => {
+    pendingOnSuccess.current = undefined;
+    setIsOpen(false);
+  }, []);
 
   useEffect(
     function notifyAndClosePopupOnSetupIntentError() {
       if (!isSetupIntentError) return;
-      setIsOpen(false);
+      closeAddPaymentMethod();
       toast({ title: "Couldn't start adding a payment method", description: "Please try again.", variant: "destructive" });
     },
-    [isSetupIntentError, toast]
+    [isSetupIntentError, toast, closeAddPaymentMethod]
   );
 
   const onAddCardSuccess = useCallback(async () => {
-    setIsOpen(false);
+    const onSuccess = pendingOnSuccess.current;
+    closeAddPaymentMethod();
     await refreshPaymentMethods();
-  }, [refreshPaymentMethods]);
+    onSuccess?.();
+  }, [refreshPaymentMethods, closeAddPaymentMethod]);
 
   const value = useMemo(() => ({ openAddPaymentMethod }), [openAddPaymentMethod]);
 
@@ -58,7 +71,7 @@ export const BillingActionsProvider: React.FunctionComponent<{ children: ReactNo
       {children}
       <d.AddPaymentMethodPopup
         open={isOpen && !isSetupIntentError}
-        onClose={() => setIsOpen(false)}
+        onClose={closeAddPaymentMethod}
         clientSecret={setupIntent?.clientSecret}
         isDarkMode={resolvedTheme === "dark"}
         onSuccess={onAddCardSuccess}
