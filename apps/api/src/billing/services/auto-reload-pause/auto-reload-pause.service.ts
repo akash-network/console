@@ -5,9 +5,16 @@ import { type ChargeClaim, UserWalletRepository, type WalletSettingOutput, Walle
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
-import { NotificationService } from "@src/notifications/services/notification/notification.service";
+import { type CreateNotificationInput, NotificationService } from "@src/notifications/services/notification/notification.service";
+import { autoTopUpChargeFailedNotification } from "@src/notifications/services/notification-templates/auto-top-up-charge-failed-notification";
 import { autoTopUpPausedNotification } from "@src/notifications/services/notification-templates/auto-top-up-paused-notification";
 import type { UserOutput } from "@src/user/repositories";
+
+/**
+ * Only the first decline of a run is emailed, so a card that is merely having a bad day does not
+ * send one message per attempt, and the user still hears within minutes rather than at the pause.
+ */
+const FIRST_DECLINE = 1;
 
 /** Guards `2 ** exponent` against a raised decline limit, since the result is interpolated into a Postgres interval. */
 const MAX_BACKOFF_DOUBLINGS = 16;
@@ -58,19 +65,36 @@ export class AutoReloadPauseService {
 
     if (!pausedAt) {
       this.logger.info({ event: "AUTO_RELOAD_CHARGE_DECLINED", userId: user.id, failureCount, declineCode: decline.declineCode });
+
+      if (failureCount === FIRST_DECLINE) {
+        await this.#notifyUser(autoTopUpChargeFailedNotification(user, { chargeAttemptedAt: claim.claimedAt, billingUrl: this.#billingUrl() }));
+      }
+
       return;
     }
 
     this.logger.warn({ event: "AUTO_RELOAD_PAUSED", userId: user.id, failureCount, declineCode: decline.declineCode });
 
+    await this.#notifyUser(autoTopUpPausedNotification(user, { pausedAt, billingUrl: this.#billingUrl() }));
     await this.#cancelPendingReloadCheck(user.id);
     await this.walletReloadJobService.scheduleCreditsLowCheck(user.id, { withCleanup: true });
-    await this.notificationService.createNotification(autoTopUpPausedNotification(user, { pausedAt, billingUrl: this.#billingUrl() }));
   }
 
   /**
-   * The pause is already committed and only ever transitions once, so a failed cancel must not cost
-   * the user the email that follows it. A check left queued skips on the pause it finds.
+   * The decline is already committed, so a notifications outage must be logged as itself instead of
+   * bubbling out to be recorded as a failure to record the decline.
+   */
+  async #notifyUser(notification: CreateNotificationInput): Promise<void> {
+    try {
+      await this.notificationService.createNotification(notification);
+    } catch (error) {
+      this.logger.error({ event: "AUTO_RELOAD_NOTIFICATION_FAILED", userId: notification.user.id, notificationId: notification.notificationId, error });
+    }
+  }
+
+  /**
+   * A check left queued skips on the pause it finds, so a failed cancel must not stop the
+   * credits-low check that follows it from being scheduled.
    */
   async #cancelPendingReloadCheck(userId: UserOutput["id"]): Promise<void> {
     try {
