@@ -590,6 +590,7 @@ describe(InitialDeploymentFundingService.name, () => {
       lastFundedAt: null,
       runtimeLimitHours: null,
       sdl: null,
+      sealedSecrets: null,
       manifestVersion: null,
       runtimeEndsAt: null,
       runtimeEndingNotifiedFor: null,

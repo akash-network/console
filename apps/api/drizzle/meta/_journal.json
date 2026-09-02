@@ -337,6 +337,13 @@
       "when": 1788162567618,
       "tag": "0047_credits_low_confirm_window",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1788342600963,
+      "tag": "0048_deployment_sealed_secrets",
+      "breakpoints": true
     }
   ]
 }

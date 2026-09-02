@@ -19,6 +19,8 @@ export const DeploymentSettings = pgTable(
     lastFundedAt: timestamp("last_funded_at"),
     runtimeLimitHours: integer("runtime_limit_hours"),
     sdl: text("sdl"),
+    /** A JWE compact serialization, so `text` rather than a sized column: the plaintext it carries is bounded, its ciphertext is not sized by anything this schema knows. */
+    sealedSecrets: text("sealed_secrets"),
     manifestVersion: varchar("manifest_version", { length: 64 }),
     runtimeEndsAt: timestamp("runtime_ends_at", { withTimezone: true }),
     runtimeEndingNotifiedFor: timestamp("runtime_ending_notified_for", { withTimezone: true }),
