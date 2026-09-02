@@ -7,6 +7,7 @@ import { inject, singleton } from "tsyringe";
 
 import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
 import { PaymentIntentResult } from "@src/billing/http-schemas/stripe.schema";
+import { CARD_DECLINED_ERROR_CODE } from "@src/billing/lib/card-decline/card-decline";
 import { STRIPE_CLIENT } from "@src/billing/providers/stripe-client.provider";
 import {
   SETTLED_TRANSACTION_STATUSES,
@@ -39,6 +40,14 @@ export interface FirstPurchaseBonusGrant {
  * reads it to tell an automatic recharge from a manual "Add Funds" charge so only automatic ones notify.
  */
 export const AUTO_RECHARGE_METADATA_KEY = "auto_recharge";
+
+const CARD_DECLINED_MESSAGE = "Payment method was declined. Please try a different card.";
+
+/** The decline code lets the reload job tell a card it can retry from one the issuer will never approve. */
+function declineCodeOf(paymentIntent: Stripe.PaymentIntent): { declineCode?: string } {
+  const declineCode = paymentIntent.last_payment_error?.decline_code;
+  return declineCode ? { declineCode } : {};
+}
 
 /**
  * A settled automatic recharge that the webhook dispatcher turns into an {@link AutoRechargeSucceeded} domain
@@ -210,7 +219,7 @@ export class StripeTransactionService {
         };
 
       default: {
-        const message = paymentIntent.last_payment_error?.message ?? transaction.errorMessage ?? "Payment method was declined. Please try a different card.";
+        const message = paymentIntent.last_payment_error?.message ?? transaction.errorMessage ?? CARD_DECLINED_MESSAGE;
 
         const updated = await this.stripeTransactionRepository.updateByIdUnlessSettled(transaction.id, {
           status: this.mapPaymentIntentStatusToTransactionStatus(paymentIntent.status),
@@ -222,7 +231,11 @@ export class StripeTransactionService {
           if (settled) return settled;
         }
 
-        throw createError(402, message, { errorCode: "card_declined", errorType: "payment_error" });
+        throw createError(402, message, {
+          errorCode: CARD_DECLINED_ERROR_CODE,
+          errorType: "payment_error",
+          ...declineCodeOf(paymentIntent)
+        });
       }
     }
   }
@@ -335,7 +348,11 @@ export class StripeTransactionService {
           };
 
         case "requires_payment_method":
-          throw new Error("Payment method was declined. Please try a different card.");
+          throw createError(402, CARD_DECLINED_MESSAGE, {
+            errorCode: CARD_DECLINED_ERROR_CODE,
+            errorType: "payment_error",
+            ...declineCodeOf(paymentIntent)
+          });
 
         default:
           throw new Error(`Payment failed with status: ${paymentIntent.status}`);

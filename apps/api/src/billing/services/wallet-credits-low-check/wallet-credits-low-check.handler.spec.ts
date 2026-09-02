@@ -80,6 +80,14 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     expect(logger.warn).not.toHaveBeenCalled();
   });
 
+  it("sends when Auto Recharge is paused after repeated card declines", async () => {
+    const { handler, notificationService, job } = setup({ autoReloadEnabled: true, autoReloadPausedAt: new Date() });
+
+    await handler.handle(job);
+
+    expect(notificationService.createNotification).toHaveBeenCalled();
+  });
+
   it("does not send when the wallet is trialing", async () => {
     const { handler, notificationService, userWalletRepository, logger, job } = setup({
       isTrialing: true
@@ -385,6 +393,7 @@ describe(WalletCreditsLowCheckHandler.name, () => {
 
   function setup(input?: {
     autoReloadEnabled?: boolean;
+    autoReloadPausedAt?: Date;
     walletSettingNotFound?: boolean;
     isTrialing?: boolean;
     creditsLowNotifiedAt?: Date | null;
@@ -410,7 +419,8 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     const walletSetting = generateWalletSetting({
       userId: user.id,
       walletId: wallet.id,
-      autoReloadEnabled: input?.autoReloadEnabled ?? false
+      autoReloadEnabled: input?.autoReloadEnabled ?? false,
+      autoReloadPausedAt: input?.autoReloadPausedAt ?? null
     });
     const job: JobPayload<WalletCreditsLowCheck> = {
       userId: user.id,

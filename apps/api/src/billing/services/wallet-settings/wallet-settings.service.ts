@@ -2,6 +2,7 @@ import assert from "http-assert";
 import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { isAutoReloadActive } from "@src/billing/lib/auto-reload/auto-reload";
 import { centsToUsd, usdToCents } from "@src/billing/lib/currency/currency";
 import { UserWalletRepository, type WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
@@ -10,6 +11,15 @@ import { WithTransaction } from "@src/core";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { UserOutput, UserRepository } from "@src/user/repositories";
+
+/**
+ * Saving auto top-up settings is the user asking us to try the card again, so it lifts a pause left
+ * by repeated declines. Clearing the charge marker too is what lets the next check charge straight
+ * away rather than waiting out the cooldown the declining card consumed.
+ */
+function liftDeclinePause(prev: WalletSettingOutput) {
+  return prev.autoReloadPausedAt ? { autoReloadFailureCount: 0, autoReloadPausedAt: null, lastAutoChargeAt: null } : {};
+}
 
 export interface WalletSettingInput {
   autoReloadEnabled?: boolean;
@@ -79,7 +89,9 @@ export class WalletSettingService {
     }
 
     await this.#validate({ next: settings, userId });
-    const next = await this.walletSettingRepository.accessibleBy(ability, "update").updateById(prev.id, this.#toStoredSettings(settings), { returning: true });
+    const next = await this.walletSettingRepository
+      .accessibleBy(ability, "update")
+      .updateById(prev.id, { ...this.#toStoredSettings(settings), ...liftDeclinePause(prev) }, { returning: true });
 
     if (!next) {
       return {};
@@ -141,7 +153,7 @@ export class WalletSettingService {
     }
 
     if (next.autoReloadEnabled) {
-      if (!prev?.autoReloadEnabled) {
+      if (!isAutoReloadActive(prev)) {
         await this.walletReloadJobService.scheduleForWalletSetting(next, { withCleanup: true });
         await this.walletReloadJobService.cancelCreditsLowCheckByUserId(next.userId);
         await this.userWalletRepository.updateById(next.walletId, { creditsLowNotifiedAt: null, creditsSufficientSince: null, creditsLowSince: null });

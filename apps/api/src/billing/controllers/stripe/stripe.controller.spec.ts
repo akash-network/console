@@ -7,6 +7,7 @@ import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import type { AutoReloadPauseService } from "@src/billing/services/auto-reload-pause/auto-reload-pause.service";
 import type { CouponRedemptionService } from "@src/billing/services/coupon-redemption/coupon-redemption.service";
 import type { CustomerService } from "@src/billing/services/customer/customer.service";
 import type { PayingUser } from "@src/billing/services/paying-user/paying-user";
@@ -319,6 +320,24 @@ describe(StripeController.name, () => {
 
       expect(paymentMethodService.markPaymentMethodAsDefault).toHaveBeenCalledWith("pm_1", authService.getCurrentPayingUser(), authService.ability);
     });
+
+    it("resumes auto top-up so a wallet paused by declines starts charging the new card", async () => {
+      const { controller, autoReloadPauseService, user } = setup();
+
+      await controller.markAsDefault({ data: { id: "pm_1" } });
+
+      expect(autoReloadPauseService.resume).toHaveBeenCalledWith(user.id);
+    });
+
+    it("keeps the new default card when resuming auto top-up fails", async () => {
+      const { controller, autoReloadPauseService, logger, user } = setup();
+      const error = new Error("connection terminated");
+      autoReloadPauseService.resume.mockRejectedValue(error);
+
+      await expect(controller.markAsDefault({ data: { id: "pm_1" } })).resolves.toBeUndefined();
+
+      expect(logger.error).toHaveBeenCalledWith({ event: "AUTO_RELOAD_RESUME_AFTER_DEFAULT_CHANGE_FAILED", userId: user.id, error });
+    });
   });
 
   describe("getPaymentMethods", () => {
@@ -368,6 +387,7 @@ describe(StripeController.name, () => {
     const trialActivationJobService = mock<TrialActivationJobService>();
     const transactionReporting = mock<TransactionReportingService>();
     const walletSettingService = mock<WalletSettingService>();
+    const autoReloadPauseService = mock<AutoReloadPauseService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const controller = new StripeController(
@@ -383,6 +403,7 @@ describe(StripeController.name, () => {
       couponRedemptionService,
       customerService,
       walletSettingService,
+      autoReloadPauseService,
       createLogger
     );
     container.register(AuthService, { useValue: authService });
@@ -400,6 +421,7 @@ describe(StripeController.name, () => {
       userWalletRepository,
       trialActivationJobService,
       walletSettingService,
+      autoReloadPauseService,
       logger,
       createLogger,
       user

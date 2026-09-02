@@ -1,6 +1,7 @@
 import { inject, singleton } from "tsyringe";
 
 import { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-low-check";
+import { isAutoReloadActive } from "@src/billing/lib/auto-reload/auto-reload";
 import { isWalletInitialized, type UserWalletOutput, UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
@@ -126,7 +127,7 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
 
   async #getValidWalletResources(userId: UserOutput["id"]) {
     const walletSetting = await this.walletSettingRepository.findByUserId(userId);
-    if (walletSetting?.autoReloadEnabled) {
+    if (isAutoReloadActive(walletSetting)) {
       this.#skip("auto_reload_enabled", userId);
       return;
     }

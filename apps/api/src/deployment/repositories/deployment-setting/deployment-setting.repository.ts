@@ -121,7 +121,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         dseq: this.table.dseq,
         walletId: UserWallets.id,
         address: UserWallets.address,
-        isWalletAutoTopUpEnabled: sql<boolean>`coalesce(${WalletSetting.autoReloadEnabled}, false)`,
+        isWalletAutoTopUpEnabled: sql<boolean>`coalesce(${WalletSetting.autoReloadEnabled} and ${WalletSetting.autoReloadPausedAt} is null, false)`,
         walletIsTrialing: sql<boolean>`coalesce(${UserWallets.isTrialing}, true)`,
         walletCreatedAt: UserWallets.createdAt,
         walletActivatedAt: UserWallets.activatedAt,

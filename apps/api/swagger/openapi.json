@@ -156,13 +156,19 @@
                         "autoReloadAmount": {
                           "type": "number",
                           "description": "USD amount charged to the default payment method on each automatic top-up."
+                        },
+                        "autoReloadPausedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "When automatic top-ups were paused because the default payment method kept being declined, or null when they are running. Changing the default payment method resumes them."
                         }
                       },
                       "required": [
                         "autoReloadEnabled",
                         "autoReloadMode",
                         "autoReloadThreshold",
-                        "autoReloadAmount"
+                        "autoReloadAmount",
+                        "autoReloadPausedAt"
                       ]
                     }
                   },
@@ -267,13 +273,19 @@
                         "autoReloadAmount": {
                           "type": "number",
                           "description": "USD amount charged to the default payment method on each automatic top-up."
+                        },
+                        "autoReloadPausedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "When automatic top-ups were paused because the default payment method kept being declined, or null when they are running. Changing the default payment method resumes them."
                         }
                       },
                       "required": [
                         "autoReloadEnabled",
                         "autoReloadMode",
                         "autoReloadThreshold",
-                        "autoReloadAmount"
+                        "autoReloadAmount",
+                        "autoReloadPausedAt"
                       ]
                     }
                   },
@@ -378,13 +390,19 @@
                         "autoReloadAmount": {
                           "type": "number",
                           "description": "USD amount charged to the default payment method on each automatic top-up."
+                        },
+                        "autoReloadPausedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "When automatic top-ups were paused because the default payment method kept being declined, or null when they are running. Changing the default payment method resumes them."
                         }
                       },
                       "required": [
                         "autoReloadEnabled",
                         "autoReloadMode",
                         "autoReloadThreshold",
-                        "autoReloadAmount"
+                        "autoReloadAmount",
+                        "autoReloadPausedAt"
                       ]
                     }
                   },
@@ -6540,7 +6558,8 @@
           {
             "schema": {
               "type": "number",
-              "nullable": true
+              "nullable": true,
+              "minimum": 0
             },
             "required": false,
             "name": "pagination.offset",
@@ -6549,7 +6568,8 @@
           {
             "schema": {
               "type": "number",
-              "nullable": true
+              "nullable": true,
+              "minimum": 0
             },
             "required": false,
             "name": "pagination.limit",

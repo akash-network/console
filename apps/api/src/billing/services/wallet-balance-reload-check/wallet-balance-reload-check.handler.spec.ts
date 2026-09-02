@@ -1,13 +1,14 @@
 import { faker } from "@faker-js/faker";
 import { addMilliseconds, millisecondsInHour, millisecondsInMinute } from "date-fns";
+import Stripe from "stripe";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import { usdToCents } from "@src/billing/lib/currency/currency";
 import type { WalletSettingRepository } from "@src/billing/repositories";
+import type { AutoReloadPauseService } from "@src/billing/services/auto-reload-pause/auto-reload-pause.service";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
-import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import type { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
@@ -18,7 +19,6 @@ import type { JobPayload } from "../../../core";
 import { WalletBalanceReloadCheckHandler } from "./wallet-balance-reload-check.handler";
 import type { WalletBalanceReloadCheckInstrumentationService } from "./wallet-balance-reload-check-instrumentation.service";
 
-import { mockConfigService } from "@test/mocks/config-service.mock";
 import { generateMergedPaymentMethod as generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
@@ -712,6 +712,140 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     });
   });
 
+  describe("when a charge is declined", () => {
+    it("counts the decline against the pause limit", async () => {
+      const error = declinedCardError("generic_decline");
+      const { handler, autoReloadPauseService, stripeTransactionService, claim, job, jobMeta } = setup({ balance: 10.0 });
+      stripeTransactionService.createPaymentIntent.mockRejectedValue(error);
+
+      await expect(handler.handle(job, jobMeta)).rejects.toThrow(error);
+
+      expect(autoReloadPauseService.recordDecline).toHaveBeenCalledWith({
+        claim,
+        user: expect.objectContaining({ id: job.userId }),
+        decline: { declineCode: "generic_decline", isTerminal: false }
+      });
+    });
+
+    it("marks a lost or stolen card as terminal so it is never charged again", async () => {
+      const { handler, autoReloadPauseService, stripeTransactionService, job, jobMeta } = setup({ balance: 10.0 });
+      stripeTransactionService.createPaymentIntent.mockRejectedValue(declinedCardError("stolen_card"));
+
+      await expect(handler.handle(job, jobMeta)).rejects.toThrow();
+
+      expect(autoReloadPauseService.recordDecline).toHaveBeenCalledWith(expect.objectContaining({ decline: { declineCode: "stolen_card", isTerminal: true } }));
+    });
+
+    it("labels the failure metric with the decline code", async () => {
+      const { handler, instrumentationService, stripeTransactionService, job, jobMeta } = setup({ balance: 10.0 });
+      stripeTransactionService.createPaymentIntent.mockRejectedValue(declinedCardError("insufficient_funds"));
+
+      await expect(handler.handle(job, jobMeta)).rejects.toThrow();
+
+      expect(instrumentationService.recordReloadFailed).toHaveBeenCalledWith(expect.objectContaining({ declineCode: "insufficient_funds" }));
+    });
+
+    it("keeps the payment error when the decline cannot be recorded", async () => {
+      const error = declinedCardError("generic_decline");
+      const { handler, autoReloadPauseService, instrumentationService, stripeTransactionService, job, jobMeta } = setup({ balance: 10.0 });
+      stripeTransactionService.createPaymentIntent.mockRejectedValue(error);
+      const recordingError = new Error("connection terminated");
+      autoReloadPauseService.recordDecline.mockRejectedValue(recordingError);
+
+      await expect(handler.handle(job, jobMeta)).rejects.toThrow(error);
+
+      expect(instrumentationService.recordDeclineRecordingError).toHaveBeenCalledWith(job.userId, recordingError);
+    });
+
+    it("leaves a Stripe outage out of the pause limit", async () => {
+      const error = new Error("Stripe is temporarily unavailable");
+      const { handler, autoReloadPauseService, stripeTransactionService, job, jobMeta } = setup({ balance: 10.0 });
+      stripeTransactionService.createPaymentIntent.mockRejectedValue(error);
+
+      await expect(handler.handle(job, jobMeta)).rejects.toThrow(error);
+
+      expect(autoReloadPauseService.recordDecline).not.toHaveBeenCalled();
+    });
+
+    it("spaces the next attempt out by the cooldown owed for the declines so far", async () => {
+      const { handler, walletSettingRepository, autoReloadPauseService, walletSetting, job, jobMeta } = setup({
+        balance: 10.0,
+        autoReloadFailureCount: 3,
+        chargeCooldownMinutes: 240
+      });
+
+      await handler.handle(job, jobMeta);
+
+      expect(autoReloadPauseService.calculateChargeCooldownMinutes).toHaveBeenCalledWith(3);
+      expect(walletSettingRepository.claimForCharge).toHaveBeenCalledWith(walletSetting.id, 240);
+    });
+  });
+
+  describe("when the wallet is paused after repeated declines", () => {
+    it("skips the check without charging", async () => {
+      const { handler, walletSettingRepository, stripeTransactionService, instrumentationService, job, jobMeta } = setup({
+        balance: 10.0,
+        autoReloadPausedAt: new Date()
+      });
+
+      await handler.handle(job, jobMeta);
+
+      expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
+      expect(walletSettingRepository.claimForCharge).not.toHaveBeenCalled();
+      expect(instrumentationService.recordValidationError).toHaveBeenCalledWith(
+        "AUTO_RELOAD_PAUSED",
+        {
+          event: "AUTO_RELOAD_PAUSED",
+          message: "Auto reload paused after repeated card declines. Skipping wallet balance reload check."
+        },
+        job.userId
+      );
+    });
+
+    it("stops rescheduling the check", async () => {
+      const { handler, walletReloadJobService, job, jobMeta } = setup({ balance: 10.0, autoReloadPausedAt: new Date() });
+
+      await handler.handle(job, jobMeta);
+
+      expect(walletReloadJobService.scheduleForWalletSetting).not.toHaveBeenCalled();
+    });
+
+    it("reports the job as completed rather than failed", async () => {
+      const { handler, instrumentationService, job, jobMeta } = setup({ balance: 10.0, autoReloadPausedAt: new Date() });
+
+      await handler.handle(job, jobMeta);
+
+      expect(instrumentationService.recordJobExecution).toHaveBeenCalledWith(expect.any(Number), true, job.userId);
+    });
+  });
+
+  describe("when a charge goes through", () => {
+    it("clears the declines the card had accumulated", async () => {
+      const { handler, walletSettingRepository, walletSetting, job, jobMeta } = setup({ balance: 10.0, autoReloadFailureCount: 2 });
+
+      await handler.handle(job, jobMeta);
+
+      expect(walletSettingRepository.resetChargeFailures).toHaveBeenCalledWith(walletSetting.id);
+    });
+
+    it("keeps the declines when the card only asked for authentication", async () => {
+      const { handler, walletSettingRepository, job, jobMeta } = setup({ balance: 10.0, autoReloadFailureCount: 2, chargeRequiresAction: true });
+
+      await handler.handle(job, jobMeta);
+
+      expect(walletSettingRepository.resetChargeFailures).not.toHaveBeenCalled();
+    });
+  });
+
+  function declinedCardError(declineCode: string) {
+    return new Stripe.errors.StripeCardError({
+      type: "card_error",
+      code: "card_declined",
+      decline_code: declineCode,
+      message: "Your card was declined"
+    });
+  }
+
   function setup(input?: {
     balance?: number;
     weeklyCostInDenom?: number;
@@ -725,8 +859,11 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     activeDeploymentCount?: number;
     triggeredByDeployment?: boolean;
     chargeClaimWon?: boolean;
+    chargeRequiresAction?: boolean;
     secondsUntilWindowReopen?: number;
     chargeCooldownMinutes?: number;
+    autoReloadFailureCount?: number;
+    autoReloadPausedAt?: Date;
     user?: ReturnType<typeof createUser>;
     wallet?: ReturnType<typeof createUserWallet>;
   }) {
@@ -745,6 +882,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       walletId: wallet.id,
       autoReloadEnabled: input?.autoReloadEnabled ?? true,
       autoReloadMode: input?.autoReloadMode ?? "prediction",
+      autoReloadFailureCount: input?.autoReloadFailureCount ?? 0,
+      autoReloadPausedAt: input?.autoReloadPausedAt ?? null,
       ...(input?.autoReloadThresholdUsd !== undefined && { autoReloadThreshold: usdToCents(input.autoReloadThresholdUsd) }),
       ...(input?.autoReloadAmountUsd !== undefined && { autoReloadAmount: usdToCents(input.autoReloadAmountUsd) })
     });
@@ -765,12 +904,12 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     };
 
     const walletSettingRepository = mock<WalletSettingRepository>();
+    const claim = { id: walletSetting.id, claimedAt: "2026-09-01 12:00:00" };
     walletSettingRepository.claimForCharge.mockResolvedValue(
-      input?.chargeClaimWon === false ? { won: false, secondsUntilWindowReopen: input?.secondsUntilWindowReopen ?? 0 } : { won: true }
+      input?.chargeClaimWon === false ? { won: false, secondsUntilWindowReopen: input?.secondsUntilWindowReopen ?? 0 } : { won: true, claim }
     );
-    const billingConfig = mockConfigService<BillingConfigService>({
-      AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN: input?.chargeCooldownMinutes ?? 60
-    });
+    const autoReloadPauseService = mock<AutoReloadPauseService>();
+    autoReloadPauseService.calculateChargeCooldownMinutes.mockReturnValue(input?.chargeCooldownMinutes ?? 60);
     const balancesService = mock<BalancesService>({
       ensure2floatingDigits: vi.fn().mockImplementation((amount: number) => amount)
     });
@@ -780,13 +919,20 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     deploymentRepository.countActiveByOwner.mockResolvedValue(input?.activeDeploymentCount ?? 1);
     const paymentMethodService = mock<PaymentMethodService>();
     const stripeTransactionService = mock<StripeTransactionService>();
+    stripeTransactionService.createPaymentIntent.mockResolvedValue({
+      success: input?.chargeRequiresAction ? false : true,
+      ...(input?.chargeRequiresAction && { requiresAction: true }),
+      transactionId: faker.string.uuid(),
+      transactionStatus: "succeeded"
+    });
     const instrumentationService = mock<WalletBalanceReloadCheckInstrumentationService>({
       recordJobExecution: vi.fn(),
       recordReloadTriggered: vi.fn(),
       recordReloadSkipped: vi.fn(),
       recordReloadFailed: vi.fn(),
       recordValidationError: vi.fn(),
-      recordSchedulingError: vi.fn()
+      recordSchedulingError: vi.fn(),
+      recordDeclineRecordingError: vi.fn()
     });
     const balance = input?.balance ?? 50.0;
     const weeklyCostInDenom = input?.weeklyCostInDenom ?? 50_000_000;
@@ -817,7 +963,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       drainingDeploymentService,
       deploymentRepository,
       instrumentationService,
-      billingConfig
+      autoReloadPauseService
     );
 
     return {
@@ -830,7 +976,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       paymentMethodService,
       stripeTransactionService,
       instrumentationService,
-      billingConfig,
+      autoReloadPauseService,
+      claim,
       walletSetting,
       walletSettingWithWallet,
       wallet,

@@ -344,6 +344,13 @@
       "when": 1788342600963,
       "tag": "0048_deployment_sealed_secrets",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1788379408171,
+      "tag": "0049_auto_top_up_decline_pause",
+      "breakpoints": true
     }
   ]
 }

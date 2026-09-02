@@ -38,11 +38,15 @@ export const envSchema = z.object({
     .transform(val => (val ? val.split(",").map(addr => addr.trim()) : [])),
   MANAGED_WALLET_TRIAL_MIN_TOP_UP_AMOUNT: z.number({ coerce: true }).min(20).default(20),
   /**
-   * Minimum minutes between automatic threshold-mode card charges per wallet — the default of 60
-   * caps them at one per hour. 0 disables the cap (unlike AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN, which
-   * has no disable semantics).
+   * Minimum minutes between automatic card charges per wallet, in both auto-reload modes — the
+   * default of 60 caps them at one per hour. 0 disables the cap (unlike
+   * AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN, which has no disable semantics).
    */
   AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN: z.number({ coerce: true }).min(0).default(60),
+  /** Consecutive declines that pause auto top-up, kept low because card networks fine excessive reattempts of a declined payment. */
+  AUTO_RELOAD_MAX_CONSECUTIVE_DECLINES: z.number({ coerce: true }).int().min(1).default(4),
+  /** Ceiling on the doubled charge cooldown, so raising the decline limit cannot stretch the gap past the daily safety-net check; it never shortens the base cooldown. */
+  AUTO_RELOAD_CHARGE_BACKOFF_MAX_IN_MIN: z.number({ coerce: true }).min(0).default(1440),
   /** How long credits must keep reading sufficient before the low-credit email unlatches, so a single misread cannot unlatch it. */
   CREDITS_LOW_RECOVERY_CONFIRM_WINDOW_MIN: z.number({ coerce: true }).min(0).default(30),
   /** How long credits must keep reading low before the email goes out, so a single misread cannot send one. */

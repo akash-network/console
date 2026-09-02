@@ -24,6 +24,7 @@ export class WalletBalanceReloadCheckInstrumentationService {
   private readonly schedulingErrors: Counter;
   private readonly balanceCoverageRatio: Histogram;
   private readonly projectedCost: Histogram;
+  private readonly declineRecordingErrors: Counter;
 
   private readonly logger = createOtelLogger({ context: "WalletBalanceReloadCheckHandler" });
 
@@ -67,6 +68,10 @@ export class WalletBalanceReloadCheckInstrumentationService {
     this.projectedCost = this.metricsService.createHistogram(this.meter, "wallet_balance_reload_check_projected_cost_usd", {
       description: "Projected deployment cost until target date in USD (prediction mode only)",
       unit: "USD"
+    });
+
+    this.declineRecordingErrors = this.metricsService.createCounter(this.meter, "wallet_balance_reload_check_decline_recording_errors_total", {
+      description: "Total number of failures to count a declined charge against the auto top-up pause limit"
     });
   }
 
@@ -120,16 +125,29 @@ export class WalletBalanceReloadCheckInstrumentationService {
     }
   }
 
-  recordReloadFailed(input: Pick<ReloadMetricInput, "mode" | "logContext"> & { error: unknown }): void {
+  recordReloadFailed(input: Pick<ReloadMetricInput, "mode" | "logContext"> & { error: unknown; declineCode?: string }): void {
     this.reloadFailures.add(1, {
       mode: input.mode,
-      error_type: input.error instanceof Error ? input.error.constructor.name : "Unknown"
+      error_type: input.error instanceof Error ? input.error.constructor.name : "Unknown",
+      decline_code: input.declineCode ?? "none"
     });
     this.logger.error({
       ...input.logContext,
       mode: input.mode,
       event: "WALLET_BALANCE_RELOAD_FAILED",
+      declineCode: input.declineCode,
       error: input.error
+    });
+  }
+
+  recordDeclineRecordingError(userId: string, error: unknown): void {
+    this.declineRecordingErrors.add(1, {
+      error_type: error instanceof Error ? error.constructor.name : "Unknown"
+    });
+    this.logger.error({
+      event: "AUTO_RELOAD_DECLINE_RECORDING_FAILED",
+      userId,
+      error
     });
   }
 

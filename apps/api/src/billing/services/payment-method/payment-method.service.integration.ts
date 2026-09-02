@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { PaymentMethodRepository } from "@src/billing/repositories";
+import type { AutoReloadPauseService } from "@src/billing/services/auto-reload-pause/auto-reload-pause.service";
 import type { PayingUser } from "@src/billing/services/paying-user/paying-user";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
 import { PaymentMethodService } from "./payment-method.service";
@@ -132,6 +133,45 @@ describe(PaymentMethodService.name, () => {
       expect(result).toEqual({ isNew: true, isDefault: true });
     });
 
+    it("resumes auto top-up so a wallet paused by declines can charge the new default card", async () => {
+      const { service, stripe, paymentMethodRepository, autoReloadPauseService } = setup();
+      const user = mock<PayingUser>({ id: "user_1", stripeCustomerId: "cus_1" });
+      const paymentMethod = generatePaymentMethod({ id: "pm_1", card: { fingerprint: "fp_1" } });
+      const local = { ...generateDatabasePaymentMethod({ paymentMethodId: "pm_1" }), isDefault: true };
+      paymentMethodRepository.upsert.mockResolvedValue({ paymentMethod: local, isNew: true });
+      vi.spyOn(stripe.customers, "update").mockResolvedValue(mock<Stripe.Response<Stripe.Customer>>());
+
+      await service.syncAttached({ user, paymentMethod });
+
+      expect(autoReloadPauseService.resume).toHaveBeenCalledWith("user_1");
+    });
+
+    it("keeps the upserted method when resuming auto top-up fails", async () => {
+      const { service, stripe, paymentMethodRepository, autoReloadPauseService } = setup();
+      const user = mock<PayingUser>({ id: "user_1", stripeCustomerId: "cus_1" });
+      const paymentMethod = generatePaymentMethod({ id: "pm_1", card: { fingerprint: "fp_1" } });
+      const local = { ...generateDatabasePaymentMethod({ paymentMethodId: "pm_1" }), isDefault: true };
+      paymentMethodRepository.upsert.mockResolvedValue({ paymentMethod: local, isNew: true });
+      vi.spyOn(stripe.customers, "update").mockResolvedValue(mock<Stripe.Response<Stripe.Customer>>());
+      autoReloadPauseService.resume.mockRejectedValue(new Error("queue unavailable"));
+
+      const result = await service.syncAttached({ user, paymentMethod });
+
+      expect(result).toEqual({ isNew: true, isDefault: true });
+    });
+
+    it("leaves auto top-up alone for a method that does not become the default", async () => {
+      const { service, paymentMethodRepository, autoReloadPauseService } = setup();
+      const user = mock<PayingUser>({ id: "user_1", stripeCustomerId: "cus_1" });
+      const paymentMethod = generatePaymentMethod({ id: "pm_2", card: { fingerprint: "fp_2" } });
+      const local = { ...generateDatabasePaymentMethod({ paymentMethodId: "pm_2" }), isDefault: false };
+      paymentMethodRepository.upsert.mockResolvedValue({ paymentMethod: local, isNew: true });
+
+      await service.syncAttached({ user, paymentMethod });
+
+      expect(autoReloadPauseService.resume).not.toHaveBeenCalled();
+    });
+
     it("upserts without a remote default sync for an already-synced method", async () => {
       const { service, stripe, paymentMethodRepository } = setup();
       const user = mock<PayingUser>({ id: "user_1", stripeCustomerId: "cus_1" });
@@ -244,12 +284,13 @@ describe(PaymentMethodService.name, () => {
     const paymentMethodRepository = mock<PaymentMethodRepository>();
     paymentMethodRepository.accessibleBy.mockReturnValue(paymentMethodRepository);
     const userRepository = mock<UserRepository>();
+    const autoReloadPauseService = mock<AutoReloadPauseService>();
 
     const stripe = new Stripe(`sk_test_${faker.string.alphanumeric(32)}`, { apiVersion: "2025-10-29.clover", httpClient: Stripe.createFetchHttpClient() });
 
-    const service = new PaymentMethodService(stripe, paymentMethodRepository, userRepository, () => mock<LoggerService>());
+    const service = new PaymentMethodService(stripe, paymentMethodRepository, userRepository, autoReloadPauseService, () => mock<LoggerService>());
 
-    return { service, stripe, paymentMethodRepository, userRepository };
+    return { service, stripe, paymentMethodRepository, userRepository, autoReloadPauseService };
   }
 
   function createPaymentMethodAttachedEvent(params: { id: string; customer: string | null; fingerprint?: string }): Stripe.PaymentMethodAttachedEvent {

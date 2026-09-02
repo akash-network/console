@@ -21,6 +21,7 @@ import {
 } from "@src/billing/http-schemas/stripe.schema";
 import type { StripeTransactionOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
+import { AutoReloadPauseService } from "@src/billing/services/auto-reload-pause/auto-reload-pause.service";
 import { CouponRedemptionService } from "@src/billing/services/coupon-redemption/coupon-redemption.service";
 import { CustomerService } from "@src/billing/services/customer/customer.service";
 import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
@@ -50,6 +51,7 @@ export class StripeController {
     private readonly couponRedemptionService: CouponRedemptionService,
     private readonly customerService: CustomerService,
     private readonly walletSettingService: WalletSettingService,
+    private readonly autoReloadPauseService: AutoReloadPauseService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: StripeController.name });
@@ -78,6 +80,20 @@ export class StripeController {
     const currentUser = this.authService.getCurrentPayingUser();
 
     await this.paymentMethodService.markPaymentMethodAsDefault(input.data.id, currentUser, ability);
+    await this.#resumeAutoReloadAfterDefaultChange(currentUser.id);
+  }
+
+  /**
+   * The new default card is already stored, so a failed resume must not fail the request. The wallet
+   * stays paused until the next payment method change, and the user can still turn auto top-up off
+   * and on again to lift it.
+   */
+  async #resumeAutoReloadAfterDefaultChange(userId: string): Promise<void> {
+    try {
+      await this.autoReloadPauseService.resume(userId);
+    } catch (error) {
+      this.logger.error({ event: "AUTO_RELOAD_RESUME_AFTER_DEFAULT_CHANGE_FAILED", userId, error });
+    }
   }
 
   @Protected([{ action: "read", subject: "PaymentMethod" }])

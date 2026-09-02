@@ -38,6 +38,18 @@ The cap is an atomic claim on `wallet_settings.last_auto_charge_at`, the same gu
 
 Manual top-ups never touch this path.
 
+### Giving up on a declining card
+
+The cooldown bounds how often a dead card is charged, but on its own it never stops: one attempt an hour is still ~720 declined charges a month, and card networks fine excessive reattempts of a declined payment. So a run of declines eventually pauses the wallet (CON-937).
+
+Each declined charge increments `wallet_settings.auto_reload_failure_count`, and the cooldown handed to the next claim doubles with it (60 min, then 120, then 240, capped by `AUTO_RELOAD_CHARGE_BACKOFF_MAX_IN_MIN`). After `AUTO_RELOAD_MAX_CONSECUTIVE_DECLINES` declines — default 4, landing at roughly t=0, 1h, 3h and 7h — `auto_reload_paused_at` is stamped and the card is not charged again. A decline code the issuer will never approve (`lost_card`, `stolen_card`, `fraudulent`, and the rest of Stripe's never-retry list) pauses on the first decline instead of waiting out the count.
+
+Only declines count. A Stripe outage, a rate limit, or a bug of ours leaves the counter alone, so an incident cannot pause every wallet at once. A charge that goes through resets the counter; a charge that merely asks for 3DS authentication does not, since no money moved.
+
+A paused wallet is treated as opted out everywhere behaviour depends on it: the check itself skips with `AUTO_RELOAD_PAUSED` and stops rescheduling, no new checks are enqueued for it, the credits-low email takes over, and it drops out of the `insufficient_balance_with_auto_reload` metrics behind the funding alert. It is *not* excluded from escrow funding — existing credits keep funding deployments as before.
+
+The user gets an email when the pause happens. It lifts when they change their default payment method, or when they save their auto top-up settings again, both of which also clear the charge marker so the next check can charge straight away rather than waiting out the cooldown the dead card consumed.
+
 ### Worked examples (defaults: threshold $20, amount $100)
 
 | Balance | Threshold | Amount | Outcome |
@@ -67,9 +79,10 @@ Before charging, the handler validates:
 
 1. ✅ Wallet setting exists
 2. ✅ Auto-reload is enabled
-3. ✅ Wallet is initialized (has address)
-4. ✅ User has a Stripe customer ID
-5. ✅ Default payment method exists
+3. ✅ Auto-reload is not paused after repeated declines
+4. ✅ Wallet is initialized (has address)
+5. ✅ User has a Stripe customer ID
+6. ✅ Default payment method exists
 
 If any validation fails, the handler logs and skips processing (does not throw).
 
@@ -79,7 +92,7 @@ The charge uses a job-scoped idempotency key (`WalletBalanceReloadCheck.<jobId>`
 
 ## What happens on failure?
 
-- **Payment fails**: The error is logged and re-thrown (job fails, will retry under the same idempotency key). The charge claim is kept, so the retry loses it, records a `charge_rate_limited` skip, and defers the next check to the window reopen — a fresh attempt happens once per cooldown, not once per retry.
+- **Payment fails**: The error is logged and re-thrown (job fails, will retry under the same idempotency key). The charge claim is kept, so the retry loses it, records a `charge_rate_limited` skip, and defers the next check to the window reopen — a fresh attempt happens once per cooldown, not once per retry. A card decline is also counted towards the pause limit above, best-effort: a failed count is recorded on `wallet_balance_reload_check_decline_recording_errors_total` rather than replacing the payment error.
 - **Validation fails**: Error is logged, job completes successfully (no retry needed).
 - **Scheduling next check fails**: Error is logged and re-thrown.
 
@@ -93,7 +106,7 @@ This is the pre-CON-717 behavior, kept as a supported mode by CON-884. It predic
 
 1. **Calculate** the unfunded cost to keep all auto-top-up deployments running for the next 7 days (`RELOAD_COVERAGE_PERIOD_IN_MS`), excluding the portion already covered by escrow.
 2. **Compare** the balance against 25% of that projection (`MIN_COVERAGE_PERCENTAGE`). Reload when `balance < 0.25 * costUntilTargetDate` (~1.75 days of coverage remaining).
-3. **Claim** the charge window — the same rate limit as threshold mode (see "Charge rate limit" above). A lost claim defers the reload to the window reopen.
+3. **Claim** the charge window — the same rate limit and decline handling as threshold mode (see "Charge rate limit" above). A lost claim defers the reload to the window reopen.
 4. **Charge** `max(costUntilTargetDate - balance, $20)`.
 5. **Skip** entirely when the projected cost is 0 (no active auto-top-up deployments).
 6. **Schedule** the next check 24 hours out.

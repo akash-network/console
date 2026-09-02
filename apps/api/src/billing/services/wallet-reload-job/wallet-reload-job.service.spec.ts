@@ -41,6 +41,17 @@ describe(WalletReloadJobService.name, () => {
       expect(jobQueueService.cancelCreatedBy).not.toHaveBeenCalled();
     });
 
+    it("schedules nothing when the wallet is paused after repeated declines", async () => {
+      const { service, walletSettingRepository, jobQueueService } = setup();
+      const userId = faker.string.uuid();
+      walletSettingRepository.findByUserId.mockResolvedValue(generateWalletSetting({ autoReloadEnabled: true, autoReloadPausedAt: new Date(), userId }));
+
+      const result = await service.scheduleImmediate({ userId });
+
+      expect(result).toBe(false);
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
     it("calls scheduleForWalletSetting when conditions are met", async () => {
       const { service, walletSettingRepository, jobQueueService } = setup();
       const userId = faker.string.uuid();
@@ -248,6 +259,18 @@ describe(WalletReloadJobService.name, () => {
 
       expectCreditsLowCheckScheduled(jobQueueService, walletSetting.userId);
       expect(jobQueueService.enqueue).not.toHaveBeenCalledWith(expect.any(WalletBalanceReloadCheck), expect.anything());
+    });
+
+    it("enqueues a credits-low check when the wallet is paused after repeated declines", async () => {
+      const { service, walletSettingRepository, jobQueueService } = setup();
+      const walletId = faker.number.int({ min: 1, max: 1000000 });
+      const walletSetting = generateWalletSetting({ walletId, autoReloadEnabled: true, autoReloadPausedAt: new Date() });
+      walletSettingRepository.findOneBy.mockResolvedValue(walletSetting);
+      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+
+      await service.scheduleCreditsLowCheckIfAutoReloadOff({ walletId });
+
+      expectCreditsLowCheckScheduled(jobQueueService, walletSetting.userId);
     });
 
     it("enqueues a credits-low check when wallet setting does not exist", async () => {

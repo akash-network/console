@@ -2,6 +2,7 @@ import { inject, singleton } from "tsyringe";
 
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-low-check";
+import { isAutoReloadActive } from "@src/billing/lib/auto-reload/auto-reload";
 import { UserWalletRepository, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { EnqueueOptions, JobQueueService } from "@src/core";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
@@ -26,7 +27,7 @@ export class WalletReloadJobService {
         ? await this.walletSettingRepository.findByUserId(input.userId)
         : await this.walletSettingRepository.findOneBy({ walletId: input.walletId });
 
-    if (walletSetting?.autoReloadEnabled) {
+    if (isAutoReloadActive(walletSetting)) {
       await this.scheduleForWalletSetting(walletSetting, { withCleanup: true, triggeredByDeployment: options?.triggeredByDeployment });
       return true;
     }
@@ -37,7 +38,7 @@ export class WalletReloadJobService {
   async scheduleCreditsLowCheckIfAutoReloadOff(input: { walletId: number }): Promise<void> {
     const walletSetting = await this.walletSettingRepository.findOneBy({ walletId: input.walletId });
 
-    if (walletSetting?.autoReloadEnabled) {
+    if (isAutoReloadActive(walletSetting)) {
       return;
     }
 
