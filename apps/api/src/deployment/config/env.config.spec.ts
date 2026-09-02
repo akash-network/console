@@ -33,6 +33,46 @@ describe("deployment envSchema", () => {
     });
   });
 
+  describe("SDL_SECRETS_MAX_COUNT and SDL_SECRETS_MAX_VALUE_BYTES", () => {
+    it("accepts the limits the create route's body limit was sized for", () => {
+      const result = envSchema.safeParse(setup());
+
+      expect(result.success).toBe(true);
+      expect(result.success && result.data.SDL_SECRETS_MAX_COUNT).toBe(100);
+      expect(result.success && result.data.SDL_SECRETS_MAX_VALUE_BYTES).toBe(16 * 1024);
+    });
+
+    it("accepts limits below what the body limit was sized for", () => {
+      expect(envSchema.safeParse(setup({ SDL_SECRETS_MAX_COUNT: 10, SDL_SECRETS_MAX_VALUE_BYTES: 1024 })).success).toBe(true);
+    });
+
+    it("rejects a count the body limit could not carry, naming both limits that produced it", () => {
+      const result = envSchema.safeParse(setup({ SDL_SECRETS_MAX_COUNT: 101 }));
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues.map(issue => issue.path)).toEqual([["SDL_SECRETS_MAX_COUNT"], ["SDL_SECRETS_MAX_VALUE_BYTES"]]);
+    });
+
+    it("rejects a value size the body limit could not carry, naming the offending limit too", () => {
+      const result = envSchema.safeParse(setup({ SDL_SECRETS_MAX_VALUE_BYTES: 16 * 1024 + 1 }));
+
+      expect(result.success).toBe(false);
+      expect(!result.success && result.error.issues.map(issue => issue.path)).toContainEqual(["SDL_SECRETS_MAX_VALUE_BYTES"]);
+    });
+
+    it("lets a raised value size be paid for by a lowered count", () => {
+      expect(envSchema.safeParse(setup({ SDL_SECRETS_MAX_COUNT: 50, SDL_SECRETS_MAX_VALUE_BYTES: 32 * 1024 })).success).toBe(true);
+    });
+
+    it("rejects a zero count", () => {
+      expect(envSchema.safeParse(setup({ SDL_SECRETS_MAX_COUNT: 0 })).success).toBe(false);
+    });
+
+    it("rejects a fractional value size", () => {
+      expect(envSchema.safeParse(setup({ SDL_SECRETS_MAX_VALUE_BYTES: 1024.5 })).success).toBe(false);
+    });
+  });
+
   describe("AUTO_TOP_UP_TARGET_RUNWAY_IN_H", () => {
     it("accepts the default target runway and look-ahead window", () => {
       const result = envSchema.safeParse(setup());

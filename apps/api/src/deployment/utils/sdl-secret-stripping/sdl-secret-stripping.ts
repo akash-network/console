@@ -2,6 +2,8 @@ import type { SDLInput } from "@akashnetwork/chain-sdk";
 import { yaml } from "@akashnetwork/chain-sdk";
 import { dump } from "js-yaml";
 
+import { isSdlReference } from "@src/deployment/services/sdl-reference/sdl-reference.service";
+
 type SdlServiceDefinition = SDLInput["services"][string];
 
 /**
@@ -15,6 +17,11 @@ export type StrippedSdl = { sdl: string | null; length: number; error?: unknown 
  * The submitted SDL with the value of every `env` entry and every private registry `credentials` block
  * removed. Variable names survive, so the stored definition still describes what the deployment expects
  * to be given.
+ *
+ * A value that is a whole SDL Reference survives with it. A reference names a secret instead of carrying
+ * one, so keeping it costs nothing and losing it costs the stored definition the one thing that says
+ * which values the deployment expects to be handed. The test is the reference grammar rather than the
+ * `ac-` prefix, so a value that merely looks like a reference is still stripped.
  *
  * Both are removed where they are declared and nowhere else. An SDL that copies a secret somewhere else
  * itself — through a YAML anchor aliased into `args`, say — keeps that copy. Chasing those was tried and
@@ -86,11 +93,13 @@ function stripEnvValues(service: SdlServiceDefinition): void {
   });
 }
 
-/** Keeps the variable name and drops its value. An entry that declares no value is left as it is. */
+/** Keeps the variable name and drops its value. An entry that declares no value, or whose value is a reference to one, is left as it is. */
 function withoutValue(entry: string): string {
   const valueStart = entry.indexOf("=");
 
-  return valueStart === -1 ? entry : entry.slice(0, valueStart + 1);
+  if (valueStart === -1) return entry;
+
+  return isSdlReference(entry.slice(valueStart + 1)) ? entry : entry.slice(0, valueStart + 1);
 }
 
 /**

@@ -63,6 +63,71 @@ describe(stripSdlSecrets.name, () => {
     });
   });
 
+  describe("a value that refers to a secret rather than carrying one", () => {
+    it("keeps a whole sdl reference", () => {
+      const stripped = strip(sdlWith({ web: { env: ["API_TOKEN=ac-secret://API_TOKEN"] } }));
+
+      expect(stripped.services.web.env).toEqual(["API_TOKEN=ac-secret://API_TOKEN"]);
+    });
+
+    it("keeps a reference whose name differs from the variable it is assigned to", () => {
+      const stripped = strip(sdlWith({ web: { env: ["DATABASE_URL=ac-secret://PROD_DB"] } }));
+
+      expect(stripped.services.web.env).toEqual(["DATABASE_URL=ac-secret://PROD_DB"]);
+    });
+
+    it("keeps a reference of a kind no resolver is registered for", () => {
+      const stripped = strip(sdlWith({ web: { env: ["MODE=ac-var://MODE"] } }));
+
+      expect(stripped.services.web.env).toEqual(["MODE=ac-var://MODE"]);
+    });
+
+    it("keeps the reference of every service that carries one", () => {
+      const stripped = strip(sdlWith({ web: { env: ["T=ac-secret://T"] }, worker: { env: ["T=ac-secret://T"] } }));
+
+      expect(stripped.services.web.env).toEqual(["T=ac-secret://T"]);
+      expect(stripped.services.worker.env).toEqual(["T=ac-secret://T"]);
+    });
+
+    it("drops a value that merely opens with the reserved prefix", () => {
+      const stripped = strip(sdlWith({ web: { env: ["MODE=ac-dc"] } }));
+
+      expect(stripped.services.web.env).toEqual(["MODE="]);
+    });
+
+    it("drops a reference embedded in a larger value", () => {
+      const stripped = strip(sdlWith({ web: { env: ["T=prefix-ac-secret://T"] } }));
+
+      expect(stripped.services.web.env).toEqual(["T="]);
+    });
+
+    it("drops a value that is a reference followed by anything else", () => {
+      const stripped = strip(sdlWith({ web: { env: ["T=ac-secret://T suffix"] } }));
+
+      expect(stripped.services.web.env).toEqual(["T="]);
+    });
+
+    it("drops a value that is a reference followed by a line terminator", () => {
+      const stripped = strip(sdlWith({ web: { env: ["T=ac-secret://T\n"] } }));
+
+      expect(stripped.services.web.env).toEqual(["T="]);
+    });
+
+    it("drops a value naming a kind longer than the grammar allows", () => {
+      const stripped = strip(sdlWith({ web: { env: [`T=ac-${"z".repeat(17)}://T`] } }));
+
+      expect(stripped.services.web.env).toEqual(["T="]);
+    });
+
+    it("keeps a reference while dropping an ordinary value beside it", () => {
+      const token = faker.string.alphanumeric(24);
+
+      const stripped = strip(sdlWith({ web: { env: ["SECRET=ac-secret://SECRET", `PLAIN=${token}`, "INHERITED_FROM_HOST"] } }));
+
+      expect(stripped.services.web.env).toEqual(["SECRET=ac-secret://SECRET", "PLAIN=", "INHERITED_FROM_HOST"]);
+    });
+  });
+
   describe("private registry credentials", () => {
     it("removes the whole block, not just the password", () => {
       const stripped = strip(
