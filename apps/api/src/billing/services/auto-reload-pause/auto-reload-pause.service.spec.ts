@@ -136,6 +136,24 @@ describe(AutoReloadPauseService.name, () => {
       expect(notificationService.createNotification).toHaveBeenCalled();
     });
 
+    it("keeps a failed first-decline email from surfacing as a failure to record the decline", async () => {
+      const { service, walletSettingRepository, notificationService, claim, user } = setup();
+      walletSettingRepository.recordChargeDecline.mockResolvedValue({ failureCount: 1, pausedAt: null });
+      notificationService.createNotification.mockRejectedValue(new Error("notifications unavailable"));
+
+      await expect(service.recordDecline({ claim, user, decline: { isTerminal: false } })).resolves.toBeUndefined();
+    });
+
+    it("keeps a failed pause email from surfacing as a failure to record the decline", async () => {
+      const { service, walletSettingRepository, walletReloadJobService, notificationService, claim, user } = setup();
+      walletSettingRepository.recordChargeDecline.mockResolvedValue({ failureCount: 4, pausedAt: new Date() });
+      notificationService.createNotification.mockRejectedValue(new Error("notifications unavailable"));
+
+      await expect(service.recordDecline({ claim, user, decline: { isTerminal: false } })).resolves.toBeUndefined();
+
+      expect(walletReloadJobService.scheduleCreditsLowCheck).toHaveBeenCalledWith(user.id, { withCleanup: true });
+    });
+
     it("links the email at billing rather than the add funds modal", async () => {
       const { service, walletSettingRepository, notificationService, claim, user } = setup();
       walletSettingRepository.recordChargeDecline.mockResolvedValue({ failureCount: 4, pausedAt: new Date() });

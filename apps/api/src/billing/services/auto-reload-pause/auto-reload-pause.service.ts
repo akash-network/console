@@ -5,7 +5,7 @@ import { type ChargeClaim, UserWalletRepository, type WalletSettingOutput, Walle
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
-import { NotificationService } from "@src/notifications/services/notification/notification.service";
+import { type CreateNotificationInput, NotificationService } from "@src/notifications/services/notification/notification.service";
 import { autoTopUpChargeFailedNotification } from "@src/notifications/services/notification-templates/auto-top-up-charge-failed-notification";
 import { autoTopUpPausedNotification } from "@src/notifications/services/notification-templates/auto-top-up-paused-notification";
 import type { UserOutput } from "@src/user/repositories";
@@ -67,9 +67,7 @@ export class AutoReloadPauseService {
       this.logger.info({ event: "AUTO_RELOAD_CHARGE_DECLINED", userId: user.id, failureCount, declineCode: decline.declineCode });
 
       if (failureCount === FIRST_DECLINE) {
-        await this.notificationService.createNotification(
-          autoTopUpChargeFailedNotification(user, { chargeAttemptedAt: claim.claimedAt, billingUrl: this.#billingUrl() })
-        );
+        await this.#notifyUser(autoTopUpChargeFailedNotification(user, { chargeAttemptedAt: claim.claimedAt, billingUrl: this.#billingUrl() }));
       }
 
       return;
@@ -79,7 +77,19 @@ export class AutoReloadPauseService {
 
     await this.#cancelPendingReloadCheck(user.id);
     await this.walletReloadJobService.scheduleCreditsLowCheck(user.id, { withCleanup: true });
-    await this.notificationService.createNotification(autoTopUpPausedNotification(user, { pausedAt, billingUrl: this.#billingUrl() }));
+    await this.#notifyUser(autoTopUpPausedNotification(user, { pausedAt, billingUrl: this.#billingUrl() }));
+  }
+
+  /**
+   * The decline is already committed, so a notifications outage must be logged as itself instead of
+   * bubbling out to be recorded as a failure to record the decline.
+   */
+  async #notifyUser(notification: CreateNotificationInput): Promise<void> {
+    try {
+      await this.notificationService.createNotification(notification);
+    } catch (error) {
+      this.logger.error({ event: "AUTO_RELOAD_NOTIFICATION_FAILED", userId: notification.user.id, notificationId: notification.notificationId, error });
+    }
   }
 
   /**
