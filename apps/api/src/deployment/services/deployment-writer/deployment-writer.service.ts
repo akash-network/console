@@ -1,3 +1,4 @@
+import type { ValidationError } from "@akashnetwork/chain-sdk";
 import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
 import { addMinutes } from "date-fns";
 import { HTTPException } from "hono/http-exception";
@@ -22,6 +23,9 @@ import {
 } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import type { ResolvedSdl } from "@src/deployment/services/sdl/sdl.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
+import type { NamespacedSdlSecrets } from "@src/deployment/services/sdl-reference/sdl-reference.service";
+import type { ReceivedSdlSecrets } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { stripSdlSecrets } from "@src/deployment/utils/sdl-secret-stripping/sdl-secret-stripping";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { denomToUdenom } from "@src/utils/math";
@@ -47,20 +51,34 @@ export class DeploymentWriterService {
     private readonly featureFlagsService: FeatureFlagsService,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly txService: TxService,
-    private readonly jobQueueService: JobQueueService
+    private readonly jobQueueService: JobQueueService,
+    private readonly sdlSecretsService: SdlSecretsService
   ) {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
 
+  /**
+   * Ordered so that a broadcast can never outrun the secrets it needs: validate, mint the dseq, resolve
+   * in memory, hash the manifest, persist in one statement, then broadcast. The dseq is minted only once
+   * nothing can still refuse the request, because the token written below names it and a client sealing
+   * before the deployment exists cannot.
+   *
+   * Cheapest refusals first, and the stripped document is the cheapest of them: it is the only guard on
+   * an SDL that is small on the wire and enormous once re-serialized, so it runs before the wallet read,
+   * before the manifest is generated and before the seal spends a key-service call.
+   */
   public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
-    const dseq = Date.now();
-    /** SDL for storage ONLY, stripped of secrets */
-    const sdl = this.#strippedSdlWithinLimit(input.sdl, dseq.toString());
+    /** SDL for storage ONLY, stripped of every env value that is not a reference to one */
+    const sdl = this.#strippedSdlWithinLimit(input.sdl);
 
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
     const manifest = this.#parseManifest(input.sdl, { isTrialing: !!wallet.isTrialing });
-    const { manifestVersion } = await this.#resolveSdl(input.sdl, { isTrialing: !!wallet.isTrialing });
+    const secrets = await this.#receiveSecrets(input);
+
+    const dseq = Date.now();
+    const { manifestVersion } = await this.#resolveSdl(input.sdl, { secrets: secrets.byService, isTrialing: !!wallet.isTrialing });
     const depositInDollars = this.resolveDepositInDollars(input.deposit);
+    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq: dseq.toString(), secrets: secrets.supplied });
 
     if (wallet.isTrialing) {
       await this.reclaimTrialOrphanedDeployments(wallet);
@@ -72,6 +90,7 @@ export class DeploymentWriterService {
       dseq: dseq.toString(),
       sdl,
       manifestVersion,
+      sealedSecrets,
       runtimeLimitHours: input.runtimeLimitHours
     });
 
@@ -103,6 +122,7 @@ export class DeploymentWriterService {
     dseq: string;
     sdl: string;
     manifestVersion: Uint8Array;
+    sealedSecrets?: string | null;
     runtimeLimitHours?: number;
   }): Promise<void> {
     const { owner, ...definition } = input;
@@ -142,6 +162,7 @@ export class DeploymentWriterService {
     dseq: string;
     sdl: string;
     manifestVersion: Uint8Array;
+    sealedSecrets?: string | null;
     runtimeLimitHours?: number;
   }): Promise<string> {
     const { manifestVersion, ...rest } = input;
@@ -152,13 +173,14 @@ export class DeploymentWriterService {
         manifestVersion: Buffer.from(manifestVersion).toString("base64")
       });
     } catch (error) {
-      const { sdl, ...loggable } = rest;
-      this.logger.error({ event: "DEPLOYMENT_DEFINITION_PERSISTENCE_FAILED", ...loggable, error });
+      const { sdl, sealedSecrets, ...loggable } = rest;
+      this.logger.error({ event: "DEPLOYMENT_DEFINITION_PERSISTENCE_FAILED", ...loggable, hasSealedSecrets: !!sealedSecrets, error });
       throw error;
     }
   }
 
-  #strippedSdlWithinLimit(submittedSdl: string, dseq: string): string {
+  /** `dseq` is a log field only, so a create can run this before minting one and still say which request it refused. */
+  #strippedSdlWithinLimit(submittedSdl: string, dseq?: string): string {
     const { sdl, length, error } = stripSdlSecrets(submittedSdl, SDL_MAX_LENGTH);
 
     if (sdl === null) {
@@ -278,14 +300,39 @@ export class DeploymentWriterService {
   }
 
   /** Only the manifest version is taken from the resolved SDL: the resolved manifest itself must not leave this call. Runs before any lookup so a bad reference always answers 400 rather than racing a 404. */
-  async #resolveSdl(sdl: string, options: { isTrialing?: boolean }): Promise<Pick<ResolvedSdl, "manifestVersion">> {
-    const result = await this.sdlService.generateResolvedManifest({ sdl, secrets: {}, ...options });
+  async #resolveSdl(sdl: string, options: { secrets?: NamespacedSdlSecrets; isTrialing?: boolean }): Promise<Pick<ResolvedSdl, "manifestVersion">> {
+    const result = await this.sdlService.generateResolvedManifest({ sdl, ...options, secrets: options.secrets ?? {} });
 
     if (!result.ok) {
-      throw createError(400, `Invalid SDL: ${result.value.map(error => error.message).join(", ")}`);
+      throw this.#rejectInvalidSdl(result.value);
     }
 
     return { manifestVersion: result.value.manifestVersion };
+  }
+
+  /**
+   * Opens the request's seal and checks it against the SDL both ways, before the dseq exists and before
+   * anything is written. Reports through the same channel every other reference mistake uses, so a
+   * missing value reads identically whether the intake or substitution found it.
+   */
+  async #receiveSecrets(input: CreateDeploymentRequest["data"]): Promise<ReceivedSdlSecrets> {
+    const parsed = this.sdlService.parse(input.sdl);
+
+    if (!parsed.ok) {
+      throw this.#rejectInvalidSdl(parsed.value);
+    }
+
+    const received = await this.sdlSecretsService.receive({ sdl: parsed.value, rawSdl: input.sdl, sealedSecrets: input.sealedSecrets });
+
+    if (!received.ok) {
+      throw this.#rejectInvalidSdl(received.value);
+    }
+
+    return received.value;
+  }
+
+  #rejectInvalidSdl(errors: ValidationError[]) {
+    return createError(400, `Invalid SDL: ${errors.map(error => error.message).join(", ")}`);
   }
 
   private async ensureDeploymentIsUpToDate(wallet: UserWalletOutput, dseq: string, manifestVersion: Uint8Array, deployment: DeploymentResponse): Promise<void> {

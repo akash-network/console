@@ -1,7 +1,7 @@
 import { DeploymentReclamation, MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { faker } from "@faker-js/faker";
-import { NotFound } from "http-errors";
+import createError, { NotFound } from "http-errors";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
 
@@ -18,6 +18,7 @@ import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeleteUnbackedDeploymentSetting } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
+import type { ReceivedSdlSecrets, SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
@@ -35,6 +36,8 @@ const RETRY_LIMIT = 47;
 const RETRY_DELAY_MAX_IN_MIN = 30;
 const RETRY_DELAY_IN_SEC = 30;
 const COMPENSATION_JOB_ID = faker.string.uuid();
+const SEAL = `${faker.string.alphanumeric(16)}.${faker.string.alphanumeric(16)}`;
+const SEALED_TOKEN = `${faker.string.alphanumeric(16)}.${faker.string.alphanumeric(16)}`;
 
 /** A complete SDL around a service body, plus an optional placement profile nothing references. */
 function sdlAround(serviceBody: string, extraPlacement = ""): string {
@@ -131,6 +134,8 @@ describe(DeploymentWriterService.name, () => {
     groups: [{ name: "resolved-group" }],
     groupSpecs: [{ name: "resolved-group", resources: [] }]
   };
+
+  const parsedSdlValue = { services: { web: { image: "nginx" } } };
 
   const deploymentData: DeploymentResponse = {
     deployment: {
@@ -269,8 +274,196 @@ describe(DeploymentWriterService.name, () => {
         dseq: "1748400000000",
         sdl: expect.stringContaining("API_TOKEN="),
         manifestVersion: "BAUG",
+        sealedSecrets: null,
         runtimeLimitHours: undefined
       });
+    });
+
+    it("passes the seal and the sdl exactly as they arrived to the intake", async () => {
+      const { service, sdlSecretsService } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
+
+      expect(sdlSecretsService.receive).toHaveBeenCalledWith({ sdl: parsedSdlValue, rawSdl: SDL_WITH_SECRETS, sealedSecrets: SEAL });
+    });
+
+    it("resolves the manifest from the values the intake handed back", async () => {
+      const byService = { web: { TOKEN: "resolved" } };
+      const { service, sdlService } = setup({ received: { supplied: { TOKEN: "resolved" }, byService } });
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
+
+      expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.objectContaining({ secrets: byService }));
+    });
+
+    it("seals what the client supplied against the dseq it just minted", async () => {
+      const supplied = { TOKEN: "resolved" };
+      const { service, sdlSecretsService } = setup({ received: { supplied, byService: { web: supplied } } });
+      vi.spyOn(Date, "now").mockReturnValue(1748400000000);
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
+
+      expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith({ userId: wallet.userId, dseq: "1748400000000", secrets: supplied });
+    });
+
+    it("records the sealed token in the same write as the sdl it belongs to", async () => {
+      const { service, deploymentSettingRepository } = setup({ sealedSecrets: SEALED_TOKEN });
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
+
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(
+        expect.objectContaining({ sealedSecrets: SEALED_TOKEN, sdl: expect.stringContaining("API_TOKEN=") })
+      );
+    });
+
+    it("states an absent token rather than leaving it unnamed, so a retry cannot inherit one", async () => {
+      const { service, deploymentSettingRepository } = setup({ sealedSecrets: null });
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ sealedSecrets: null }));
+    });
+
+    it("seals once for the whole create", async () => {
+      const supplied = Object.fromEntries(Array.from({ length: 12 }, (_, index) => [`SECRET_${index}`, "value"]));
+      const { service, sdlSecretsService } = setup({ received: { supplied, byService: { web: supplied, worker: supplied } } });
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
+
+      expect(sdlSecretsService.sealForStorage).toHaveBeenCalledOnce();
+    });
+
+    it("seals only after the manifest the chain commits to has been hashed", async () => {
+      const order: string[] = [];
+      const { service, sdlService, sdlSecretsService } = setup();
+      sdlService.generateResolvedManifest.mockImplementation(async () => {
+        order.push("resolve");
+        return { ok: true, value: { manifest: resolvedManifestValue, manifestVersion: new Uint8Array([4, 5, 6]) } } as any;
+      });
+      sdlSecretsService.sealForStorage.mockImplementation(async () => {
+        order.push("seal");
+        return SEALED_TOKEN;
+      });
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
+
+      expect(order).toEqual(["resolve", "seal"]);
+    });
+
+    it("seals before the record and its compensation are written", async () => {
+      const order: string[] = [];
+      const { service, sdlSecretsService, txService } = setup();
+      sdlSecretsService.sealForStorage.mockImplementation(async () => {
+        order.push("seal");
+        return SEALED_TOKEN;
+      });
+      txService.transaction.mockImplementation(async cb => {
+        order.push("transaction");
+        return await cb();
+      });
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
+
+      expect(order).toEqual(["seal", "transaction"]);
+    });
+
+    it("refuses an sdl too large to store before reading the wallet or opening the seal", async () => {
+      const { service, walletReaderService, sdlSecretsService, sdlService } = setup();
+
+      await expect(
+        service.create({
+          userId: "user-1",
+          sdl: sdlAround(`    args:\n${Array.from({ length: 40 }, () => `      - ${ALIASED_FILLER}`).join("\n")}\n`),
+          deposit: 5
+        })
+      ).rejects.toMatchObject({ status: 400 });
+
+      expect(walletReaderService.getWalletByUserId).not.toHaveBeenCalled();
+      expect(sdlService.generateManifest).not.toHaveBeenCalled();
+      expect(sdlSecretsService.receive).not.toHaveBeenCalled();
+    });
+
+    it("seals nothing and writes no data key for a request whose deposit it refuses", async () => {
+      const { service, sdlSecretsService, deploymentSettingRepository } = setup({ isManagedDepositEnabled: false });
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL })).rejects.toMatchObject({ status: 400 });
+
+      expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+    });
+
+    it("mints no dseq for a request the intake refuses", async () => {
+      const { service, sdlSecretsService } = setup();
+      sdlSecretsService.receive.mockResolvedValue({ ok: false, value: [{ message: "no value supplied" } as any] });
+      const now = vi.spyOn(Date, "now");
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 })).rejects.toMatchObject({ status: 400 });
+
+      expect(now).not.toHaveBeenCalled();
+    });
+
+    it("names what the intake refused in the 400 it answers", async () => {
+      const { service, sdlSecretsService } = setup();
+      sdlSecretsService.receive.mockResolvedValue({
+        ok: false,
+        value: [{ message: 'a value was supplied for "TYPOED" but no service\'s SDL references it' } as any]
+      });
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 })).rejects.toMatchObject({
+        status: 400,
+        message: 'Invalid SDL: a value was supplied for "TYPOED" but no service\'s SDL references it'
+      });
+    });
+
+    it("records nothing, seals nothing and broadcasts nothing for a request the intake refuses", async () => {
+      const { service, sdlSecretsService, deploymentSettingRepository, signerService, txService } = setup();
+      sdlSecretsService.receive.mockResolvedValue({ ok: false, value: [{ message: "no value supplied" } as any] });
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 })).rejects.toThrow();
+
+      expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+      expect(txService.transaction).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
+    it("records nothing and broadcasts nothing for a seal the intake throws on", async () => {
+      const { service, sdlSecretsService, deploymentSettingRepository, signerService } = setup();
+      sdlSecretsService.receive.mockRejectedValue(createError(400, "At most 100 secrets may be supplied for one deployment"));
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 })).rejects.toMatchObject({ status: 400 });
+
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
+    it("answers 400 for an sdl the intake cannot be handed because it does not parse", async () => {
+      const { service, sdlService, sdlSecretsService } = setup();
+      sdlService.parse.mockReturnValue({ ok: false, value: [{ message: "bad indentation" }] } as any);
+
+      await expect(service.create({ userId: "user-1", sdl: "bad-sdl", deposit: 5 })).rejects.toMatchObject({
+        status: 400,
+        message: "Invalid SDL: bad indentation"
+      });
+      expect(sdlSecretsService.receive).not.toHaveBeenCalled();
+    });
+
+    it("says nothing about a supplied value in what it logs", async () => {
+      const { service, logger } = setup({ received: { supplied: { TOKEN: ENV_VALUE }, byService: { web: { TOKEN: ENV_VALUE } } } });
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
+
+      expect(loggedTextOf(logger)).not.toContain(ENV_VALUE);
+    });
+
+    it("says whether a token was written rather than what it was when persistence fails", async () => {
+      const { service, deploymentSettingRepository, logger } = setup({ sealedSecrets: SEALED_TOKEN });
+      deploymentSettingRepository.upsertDefinition.mockRejectedValue(new Error("write failed"));
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 })).rejects.toThrow();
+
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_DEFINITION_PERSISTENCE_FAILED", hasSealedSecrets: true }));
+      expect(loggedTextOf(logger)).not.toContain(SEALED_TOKEN);
     });
 
     it("records an sdl carrying none of the submitted env values", async () => {
@@ -844,6 +1037,8 @@ describe(DeploymentWriterService.name, () => {
     transactionRuns?: boolean;
     compensationEnqueued?: boolean;
     manifestVersion?: Uint8Array;
+    received?: ReceivedSdlSecrets;
+    sealedSecrets?: string | null;
   }) {
     const signerService = mock<ManagedSignerService>();
     const rpcMessageService = mock<RpcMessageService>();
@@ -873,7 +1068,12 @@ describe(DeploymentWriterService.name, () => {
     const jobQueueService = mock<JobQueueService>();
     jobQueueService.enqueue.mockResolvedValue(input?.compensationEnqueued === false ? null : COMPENSATION_JOB_ID);
 
+    const sdlSecretsService = mock<SdlSecretsService>();
+    sdlSecretsService.receive.mockResolvedValue({ ok: true, value: input?.received ?? { supplied: {}, byService: {} } });
+    sdlSecretsService.sealForStorage.mockResolvedValue(input?.sealedSecrets ?? null);
+
     walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
+    sdlService.parse.mockReturnValue({ ok: true, value: parsedSdlValue } as any);
     sdlService.generateManifest.mockReturnValue({ ok: true, value: manifestValue } as any);
     sdlService.generateManifestVersion.mockResolvedValue(new Uint8Array([4, 5, 6]));
     sdlService.generateResolvedManifest.mockResolvedValue({
@@ -896,7 +1096,8 @@ describe(DeploymentWriterService.name, () => {
       featureFlagsService,
       deploymentSettingRepository,
       txService,
-      jobQueueService
+      jobQueueService,
+      sdlSecretsService
     );
 
     return {
@@ -915,7 +1116,8 @@ describe(DeploymentWriterService.name, () => {
       featureFlagsService,
       deploymentSettingRepository,
       txService,
-      jobQueueService
+      jobQueueService,
+      sdlSecretsService
     };
   }
 });
