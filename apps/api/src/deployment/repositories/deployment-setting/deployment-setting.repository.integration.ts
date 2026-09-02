@@ -1,6 +1,7 @@
 import { faker } from "@faker-js/faker";
 import { hoursToMilliseconds } from "date-fns";
 import { eq, sql } from "drizzle-orm";
+import { randomBytes } from "node:crypto";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
@@ -16,9 +17,15 @@ import { DeploymentSettingRepository } from "./deployment-setting.repository";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 const COOLDOWN_MINUTES = 60;
+const SDL = "version: '2.0'";
 const OUTAGE_STARTED_AT = "2026-08-01T00:00:00.000Z";
 const LATER_OUTAGE_STARTED_AT = "2026-08-20T00:00:00.000Z";
 const WARNING_WINDOW = { leadHours: 6, minLimitHours: 12 };
+
+/** Shaped like the compact JWE the column will really carry — five base64url segments — and generated per call so no test can pin a literal. */
+function newSealedToken() {
+  return Array.from({ length: 5 }, () => randomBytes(24).toString("base64url")).join(".");
+}
 
 /** Rows created with a `Date` store exactly that value, so its ISO form is the marker the claim matches on. */
 function markerFor(runtimeEndsAt: Date) {
@@ -534,6 +541,90 @@ describe(DeploymentSettingRepository.name, () => {
 
       expect((await deploymentSettingRepository.findOneBy({ userId: user.id, dseq }))?.sdl).toHaveLength(SDL_MAX_LENGTH);
     });
+
+    it("returns a sealed token byte-for-byte as it was given", async () => {
+      const { deploymentSettingRepository, user, sealedToken } = await setup();
+      const dseq = newDseq();
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BAUG", sealedSecrets: sealedToken });
+
+      expect((await deploymentSettingRepository.findOneBy({ userId: user.id, dseq }))?.sealedSecrets).toBe(sealedToken);
+    });
+
+    it("records the sealed token in the same write as the sdl it belongs to", async () => {
+      const { deploymentSettingRepository, user, sealedToken } = await setup();
+      const dseq = newDseq();
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BAUG", sealedSecrets: sealedToken });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ sdl: SDL, sealedSecrets: sealedToken });
+    });
+
+    it("replaces a token an abandoned attempt left behind rather than merging with it", async () => {
+      const { deploymentSettingRepository, user, sealedToken, otherSealedToken } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BAUG", sealedSecrets: sealedToken });
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BQYH", sealedSecrets: otherSealedToken });
+
+      expect((await deploymentSettingRepository.findOneBy({ userId: user.id, dseq }))?.sealedSecrets).toBe(otherSealedToken);
+    });
+
+    it("clears a token an abandoned attempt left behind when the retry supplies none", async () => {
+      const { deploymentSettingRepository, user, sealedToken } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BAUG", sealedSecrets: sealedToken });
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BQYH", sealedSecrets: null });
+
+      expect((await deploymentSettingRepository.findOneBy({ userId: user.id, dseq }))?.sealedSecrets).toBeNull();
+    });
+
+    it("leaves a token on the row alone when the write names none", async () => {
+      const { deploymentSettingRepository, user, sealedToken } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BAUG", sealedSecrets: sealedToken });
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BQYH" });
+
+      expect((await deploymentSettingRepository.findOneBy({ userId: user.id, dseq }))?.sealedSecrets).toBe(sealedToken);
+    });
+
+    it("keeps the tokens of two deployments of the same user apart", async () => {
+      const { deploymentSettingRepository, user, sealedToken, otherSealedToken } = await setup();
+      const [first, second] = [newDseq(), newDseq()];
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: first, sdl: SDL, manifestVersion: "BAUG", sealedSecrets: sealedToken });
+      await deploymentSettingRepository.upsertDefinition({
+        userId: user.id,
+        dseq: second,
+        sdl: SDL,
+        manifestVersion: "BQYH",
+        sealedSecrets: otherSealedToken
+      });
+
+      expect((await deploymentSettingRepository.findOneBy({ userId: user.id, dseq: first }))?.sealedSecrets).toBe(sealedToken);
+      expect((await deploymentSettingRepository.findOneBy({ userId: user.id, dseq: second }))?.sealedSecrets).toBe(otherSealedToken);
+    });
+
+    it("leaves a row with no token recorded reading as null rather than as an empty string", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BAUG" });
+
+      expect((await deploymentSettingRepository.findOneBy({ userId: user.id, dseq }))?.sealedSecrets).toBeNull();
+    });
+
+    it("takes the sealed token of a deployment with the owner it belongs to", async () => {
+      const { deploymentSettingRepository, userRepository, user, sealedToken, db, deploymentSettingsTable } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BAUG", sealedSecrets: sealedToken });
+
+      await userRepository.deleteById(user.id);
+
+      expect(await db.select().from(deploymentSettingsTable).where(eq(deploymentSettingsTable.dseq, dseq))).toEqual([]);
+    });
   });
 
   describe("findAutoTopUpDeploymentsByOwnerIteratively", () => {
@@ -736,11 +827,15 @@ describe(DeploymentSettingRepository.name, () => {
     return {
       userRepository,
       deploymentSettingRepository,
+      db,
+      deploymentSettingsTable,
       user,
       trialUser,
       wallet,
       trialWallet,
       settingId,
+      sealedToken: newSealedToken(),
+      otherSealedToken: newSealedToken(),
       abilityFor,
       createSetting,
       createLimitedSetting,

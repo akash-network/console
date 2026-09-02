@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { randomBytes } from "node:crypto";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -12,6 +13,11 @@ import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createDrainingDeployment } from "@test/seeders/draining-deployment.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
+
+/** Shaped like the compact JWE the column really carries, and generated per call so no test can pin a literal. */
+function newSealedToken() {
+  return Array.from({ length: 5 }, () => randomBytes(24).toString("base64url")).join(".");
+}
 
 describe("Deployment Settings", () => {
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
@@ -61,7 +67,8 @@ describe("Deployment Settings", () => {
     it("hands back none of what the console remembers the deployment by", async () => {
       const { token, user } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG" });
+      const sealedSecrets = newSealedToken();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG", sealedSecrets });
 
       const response = await app.request(`/v1/deployment-settings/${user.id}/${dseq}`, {
         headers: {
@@ -70,9 +77,12 @@ describe("Deployment Settings", () => {
       });
 
       expect(response.status).toBe(200);
-      const { data } = (await response.json()) as { data: Record<string, unknown> };
+      const body = await response.text();
+      const { data } = JSON.parse(body) as { data: Record<string, unknown> };
       expect(data).not.toHaveProperty("sdl");
       expect(data).not.toHaveProperty("manifestVersion");
+      expect(data).not.toHaveProperty("sealedSecrets");
+      expect(body).not.toContain(sealedSecrets);
     });
 
     it("enables auto top-up on a lazily created row without consulting the owner's wallet", async () => {

@@ -268,26 +268,33 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
    * field it does not name as the earlier writer set them, and an absent runtime limit counts as
    * unnamed: drizzle drops undefined out of the set clause, so neither creating nor updating without a
    * limit can clear one already there.
+   *
+   * `sealedSecrets` reads that same rule in both directions, which is why it is typed to allow null.
+   * A create always states a value — the token, or null when the request carried no secrets — so a
+   * retry replaces whatever a failed attempt left behind rather than inheriting it. An update states
+   * nothing, so a token it was never given survives it.
    */
   async upsertDefinition({
     userId,
     dseq,
     sdl,
     manifestVersion,
-    runtimeLimitHours
+    runtimeLimitHours,
+    sealedSecrets
   }: {
     userId: string;
     dseq: string;
     sdl: string;
     manifestVersion: string;
     runtimeLimitHours?: number;
+    sealedSecrets?: string | null;
   }): Promise<string> {
     const [row] = await this.cursor
       .insert(this.table)
-      .values({ userId, dseq, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT, sdl, manifestVersion, runtimeLimitHours })
+      .values({ userId, dseq, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT, sdl, manifestVersion, runtimeLimitHours, sealedSecrets })
       .onConflictDoUpdate({
         target: [this.table.dseq, this.table.userId],
-        set: { sdl, manifestVersion, runtimeLimitHours, updatedAt: sql`now()` }
+        set: { sdl, manifestVersion, runtimeLimitHours, sealedSecrets, updatedAt: sql`now()` }
       })
       .returning({ id: this.table.id });
 
