@@ -6,8 +6,15 @@ import { BillingConfigService } from "@src/billing/services/billing-config/billi
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
+import { autoTopUpChargeFailedNotification } from "@src/notifications/services/notification-templates/auto-top-up-charge-failed-notification";
 import { autoTopUpPausedNotification } from "@src/notifications/services/notification-templates/auto-top-up-paused-notification";
 import type { UserOutput } from "@src/user/repositories";
+
+/**
+ * Only the first decline of a run is emailed, so a card that is merely having a bad day does not
+ * send one message per attempt, and the user still hears within minutes rather than at the pause.
+ */
+const FIRST_DECLINE = 1;
 
 /** Guards `2 ** exponent` against a raised decline limit, since the result is interpolated into a Postgres interval. */
 const MAX_BACKOFF_DOUBLINGS = 16;
@@ -58,6 +65,13 @@ export class AutoReloadPauseService {
 
     if (!pausedAt) {
       this.logger.info({ event: "AUTO_RELOAD_CHARGE_DECLINED", userId: user.id, failureCount, declineCode: decline.declineCode });
+
+      if (failureCount === FIRST_DECLINE) {
+        await this.notificationService.createNotification(
+          autoTopUpChargeFailedNotification(user, { chargeAttemptedAt: claim.claimedAt, billingUrl: this.#billingUrl() })
+        );
+      }
+
       return;
     }
 

@@ -48,7 +48,9 @@ Only declines count. A Stripe outage, a rate limit, or a bug of ours leaves the 
 
 A paused wallet is treated as opted out everywhere behaviour depends on it: the check itself skips with `AUTO_RELOAD_PAUSED` and stops rescheduling, no new checks are enqueued for it, the credits-low email takes over, and it drops out of the `insufficient_balance_with_auto_reload` metrics behind the funding alert. It is *not* excluded from escrow funding — existing credits keep funding deployments as before.
 
-The user gets an email when the pause happens. It lifts when they change their default payment method, or when they save their auto top-up settings again, both of which also clear the charge marker so the next check can charge straight away rather than waiting out the cooldown the dead card consumed.
+The user hears about it twice. The first decline of a run sends a "we couldn't charge your card" email saying retries continue, and the pause sends a second one saying they have stopped; the declines in between are silent, so a card having a bad day does not send one email per attempt. Without the first email the wallet would fail quietly for the whole ~7 hours it takes to reach the pause, and the credits-low email cannot fill that gap because it skips any wallet whose auto top-up still counts as active.
+
+The pause lifts when the user changes their default payment method, or when they save their auto top-up settings again, both of which also clear the charge marker so the next check can charge straight away rather than waiting out the cooldown the dead card consumed.
 
 ### Worked examples (defaults: threshold $20, amount $100)
 
