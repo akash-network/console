@@ -45,6 +45,59 @@ deployment:
       count: 1
 `;
 
+const SDL_WITH_ALIASED_PRICE = `
+version: "2.0"
+services:
+  web:
+    image: nginx
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+  api:
+    image: nginx
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          size: 1Gi
+    api:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          size: 1Gi
+  placement:
+    westcoast:
+      pricing:
+        web: &price
+          denom: uakt
+          amount: 1000
+        api: *price
+deployment:
+  web:
+    westcoast:
+      profile: web
+      count: 1
+  api:
+    westcoast:
+      profile: api
+      count: 1
+`;
+
 const SDL_WITH_RESOURCES = (cpuUnits: number, memorySize: string) => `
 version: "2.0"
 services:
@@ -465,6 +518,13 @@ describe(SdlService.name, () => {
 
     it("converts the price ceiling at the akt price when deploymentGrantDenom differs from uakt", async () => {
       const { result } = await setup({ sdl: VALID_SDL, deploymentGrantDenom: "uact", aktToUsdRate: 0.325 });
+
+      expect(result.ok).toBe(true);
+      expect(getPrice(result, "westcoast")).toMatchObject({ denom: "uact", amount: "325" });
+    });
+
+    it("converts a price shared through a yaml alias exactly once", async () => {
+      const { result } = await setup({ sdl: SDL_WITH_ALIASED_PRICE, deploymentGrantDenom: "uact", aktToUsdRate: 0.325 });
 
       expect(result.ok).toBe(true);
       expect(getPrice(result, "westcoast")).toMatchObject({ denom: "uact", amount: "325" });

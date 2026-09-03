@@ -29,6 +29,15 @@ describe("restatePricesInGrantDenom", () => {
     expect(placement.westcoast.pricing.web.amount).toBe(500);
   });
 
+  it("converts a price node shared by two services exactly once", async () => {
+    const shared = { denom: "uakt", amount: 55 };
+    const placement = { westcoast: { pricing: { web: shared, api: shared } } } as unknown as SDLInput["profiles"]["placement"];
+
+    await restatePricesInGrantDenom(placement, { grantDenom: "uact", loadAktToUsdRate: async () => 0.325 });
+
+    expect(shared).toEqual({ denom: "uact", amount: 18 });
+  });
+
   it("converts every uakt ceiling from a single rate lookup", async () => {
     const placement = placementWith({ web: { denom: "uakt", amount: 100 }, api: { denom: "uakt", amount: 200 } });
     const loadAktToUsdRate = vi.fn().mockResolvedValue(0.5);

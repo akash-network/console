@@ -15,9 +15,9 @@ export async function restatePricesInGrantDenom(
 ): Promise<PriceRestatement> {
   if (options.grantDenom === AKT_DENOM) return { ok: true };
 
-  const aktPrices = findPrices(placement).filter(price => price.denom === AKT_DENOM);
+  const aktPrices = new Set(findPrices(placement).filter(price => price.denom === AKT_DENOM));
 
-  if (aktPrices.length === 0) return { ok: true };
+  if (aktPrices.size === 0) return { ok: true };
 
   const aktToUsdRate = await options.loadAktToUsdRate();
 
@@ -40,6 +40,7 @@ function convertedAmount(amount: PriceCoin["amount"], aktToUsdRate: number): Pri
   return Math.ceil(parsedAmount * aktToUsdRate);
 }
 
+/** A YAML alias resolves to the one price object it points at, so the walk can return it once per service that references it. */
 function findPrices(placement: SdlPlacement | undefined): PriceCoin[] {
   if (!placement || typeof placement !== "object") return [];
 
