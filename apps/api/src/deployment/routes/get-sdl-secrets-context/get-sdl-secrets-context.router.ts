@@ -37,13 +37,17 @@ const route = createRoute({
   path: "/v1/sdl-secrets-context",
   summary: "Get SDL secrets encryption context",
   tags: ["SDL Secrets"],
+  // eslint-disable-next-line akash/operation-id-format
+  operationId: "getSDLSecretsContext",
   security: SECURITY_BEARER_OR_API_KEY,
   responses: {
     200: {
       description: "Returns SDL secrets context",
       content: {
         "application/json": {
-          schema: SDLSecretsContextResponseSchema
+          schema: z.object({
+            data: SDLSecretsContextResponseSchema
+          })
         }
       }
     },
@@ -62,5 +66,5 @@ const route = createRoute({
 getSDLSecretsContextRouter.openapi(route, async function routeGetSDLSecretsContext(c) {
   const result = await container.resolve(SdlSecretsContextService).getContext();
 
-  return c.json(result, 200);
+  return c.json({ data: result }, 200);
 });
