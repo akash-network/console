@@ -47,7 +47,11 @@ export const envSchema = z
     CORS_WEBSITE_URLS: z.string().default(["http://localhost:3000", "http://localhost:3001"].join(",")),
     SECRET_TOKEN: z.string().optional(), // private api token
     SERVER_ORIGIN: z.string().default("http://localhost:3080"),
-    EVENTLOOP_MONITORING_ENABLED: z.coerce.boolean().default(false)
+    EVENTLOOP_MONITORING_ENABLED: z.coerce.boolean().default(false),
+    CACHE_PRESSURE_MONITORING_ENABLED: z
+      .enum(["true", "false"])
+      .default("true")
+      .transform(value => value === "true")
   })
   .superRefine((value, ctx) => {
     if (!value.FEATURE_FLAGS_ENABLE_ALL && (!value.UNLEASH_SERVER_API_URL || !value.UNLEASH_SERVER_API_TOKEN)) {

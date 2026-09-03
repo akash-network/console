@@ -8,6 +8,7 @@ import assert from "http-assert";
 import { container } from "tsyringe";
 
 import { AuthInterceptor } from "./auth/services/auth.interceptor";
+import { cacheRegistry } from "./caching/cache-registry";
 import { HonoErrorHandlerService } from "./core/services/hono-error-handler/hono-error-handler.service";
 import { OpenApiDocsService } from "./core/services/openapi-docs/openapi-docs.service";
 import { RequestContextInterceptor } from "./core/services/request-context-interceptor/request-context.interceptor";
@@ -71,8 +72,15 @@ appHono.get("/status", c => {
     heapUsed: bytesToHumanReadableSize(memoryInBytes.heapUsed),
     external: bytesToHumanReadableSize(memoryInBytes.external)
   };
+  const caches = cacheRegistry.getStats().map(stats => ({
+    name: stats.name,
+    entries: stats.entryCount,
+    maxEntries: stats.maxEntries,
+    size: bytesToHumanReadableSize(stats.calculatedSizeBytes),
+    maxSize: bytesToHumanReadableSize(stats.maxTotalBytes)
+  }));
 
-  return c.json({ version, memory });
+  return c.json({ version, memory, caches });
 });
 
 appHono.get("/v1/doc", async c => {

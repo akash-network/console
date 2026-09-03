@@ -2,9 +2,19 @@ import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { differenceInSeconds } from "date-fns";
 import { LRUCache } from "lru-cache";
 
+import { cacheRegistry } from "./cache-registry";
 import MemoryCacheEngine from "./memoryCacheEngine";
 
 const logger = createOtelLogger({ context: "Caching" });
+
+/** Covers the `{date, data}` wrapper around a payload whose byte size is known exactly. */
+const EXPLICIT_SIZE_WRAPPER_OVERHEAD_BYTES = 64;
+
+function getExplicitSizeBytes(data: unknown): number | undefined {
+  if (data instanceof Uint8Array) return data.byteLength + EXPLICIT_SIZE_WRAPPER_OVERHEAD_BYTES;
+  if (typeof data === "string") return Buffer.byteLength(data, "utf8") + EXPLICIT_SIZE_WRAPPER_OVERHEAD_BYTES;
+  return undefined;
+}
 
 export const cacheEngine = new MemoryCacheEngine();
 const pendingRequests = new Map<string, Promise<unknown>>();
@@ -25,7 +35,7 @@ export const Memoize = (options?: MemoizeOptions) => (target: object, propertyNa
   const originalMethod = descriptor.value;
 
   const cacheKey = options?.key || `${target.constructor.name}#${propertyName}`;
-  const store = options?.maxEntries ? new MemoryCacheEngine({ maxEntries: options.maxEntries }) : cacheEngine;
+  const store = options?.maxEntries ? new MemoryCacheEngine({ maxEntries: options.maxEntries, name: cacheKey }) : cacheEngine;
 
   descriptor.value = async function memoizedFunction(...args: unknown[]) {
     const argsKey =
@@ -67,7 +77,7 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
           logger.debug(`Background refresh completed for key: ${key}`);
           // Only store in cache if we have valid data
           if (data !== undefined) {
-            store.storeInCache(key, { date: new Date(), data: data });
+            store.storeInCache(key, { date: new Date(), data: data }, undefined, getExplicitSizeBytes(data));
           }
           return data;
         })
@@ -99,7 +109,7 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
         logger.debug(`New request completed for key: ${key}`);
         // Only store in cache if we have valid data
         if (data !== undefined) {
-          store.storeInCache(key, { date: new Date(), data: data });
+          store.storeInCache(key, { date: new Date(), data: data }, undefined, getExplicitSizeBytes(data));
         }
         return data;
       })
@@ -117,12 +127,14 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
 export function memoizeAsync<A extends unknown[], R>(
   fn: (...args: A) => Promise<R>,
   options?: {
-    cacheItemLimit: number;
+    cacheItemLimit?: number;
     ttl?: number;
     getCacheKey?: (...args: A) => string;
+    name?: string;
   }
 ): (...args: A) => Promise<R> {
   const cache = new LRUCache<string, Promise<R>>({ max: options?.cacheItemLimit ?? 100, ttl: options?.ttl });
+  cacheRegistry.register(options?.name || fn.name || "memoizeAsync", cache);
 
   return (...args: A) => {
     const key = options?.getCacheKey ? options.getCacheKey(...args) : JSON.stringify(args);

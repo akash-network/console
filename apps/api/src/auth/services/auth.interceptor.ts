@@ -9,6 +9,7 @@ import { singleton } from "tsyringe";
 
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { AuthService } from "@src/auth/services/auth.service";
+import { cacheRegistry } from "@src/caching/cache-registry";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import { UserOutput, UserRepository } from "@src/user/repositories";
@@ -35,7 +36,9 @@ export class AuthInterceptor implements HonoInterceptor {
     private readonly apiKeyRepository: ApiKeyRepository,
     private readonly apiKeyAuthService: ApiKeyAuthService,
     private readonly executionContextService: ExecutionContextService
-  ) {}
+  ) {
+    cacheRegistry.register("AuthInterceptor#lastUserActivity", this.lastUserActivityCache);
+  }
 
   intercept() {
     return async (c: Context, next: Next) => {

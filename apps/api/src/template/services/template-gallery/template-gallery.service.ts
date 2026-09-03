@@ -8,6 +8,7 @@ import type z from "zod";
 
 import type { CreateLogger } from "@src/core";
 import type { Category, FinalCategory, Template } from "@src/template/types/template";
+import { cacheRegistry } from "../../../caching/cache-registry.ts";
 import { reusePendingPromise } from "../../../caching/helpers.ts";
 import { GitHubArchiveService } from "../github-archive/github-archive.service.ts";
 import { REPOSITORIES, TemplateFetcherService } from "../template-fetcher/template-fetcher.service.ts";
@@ -94,6 +95,7 @@ export class TemplateGalleryService {
       : null;
     this.#options = options;
     this.#galleriesCachePath = `${options.dataFolderPath}/templates`;
+    cacheRegistry.register("TemplateGalleryService#parsedTemplates", this.#parsedTemplates);
     this.getTemplatesFromRepo = reusePendingPromise(this.getTemplatesFromRepo.bind(this), { getKey: options => `templates-from-repo-${options.repository}` });
     this.getTemplateById = reusePendingPromise(this.getTemplateById.bind(this), { getKey: id => `template-by-id-${id}` });
     this.getGallerySummaryBuffer = reusePendingPromise(this.getGallerySummaryBuffer.bind(this), { getKey: () => "cached-template-gallery" });

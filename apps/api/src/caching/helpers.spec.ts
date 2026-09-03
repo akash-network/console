@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { cacheRegistry } from "./cache-registry";
 import { cacheEngine, cacheResponse, Memoize, memoizeAsync } from "./helpers";
+import MemoryCacheEngine from "./memoryCacheEngine";
 
 describe("Memoize Function", () => {
   describe("cacheResponse function", () => {
@@ -177,6 +179,29 @@ describe("Memoize Function", () => {
       expect(requestCount).toBe(1);
       expect(refreshRequest).toHaveBeenCalledTimes(1);
     });
+
+    describe("when the payload has a known byte size", () => {
+      it("byte-bounds Uint8Array payloads so they evict by bytes, not entry count", async () => {
+        setup();
+        const store = new MemoryCacheEngine({ maxTotalBytes: 1500, maxEntryBytes: 1500, name: "helpers-spec-byte-bounded" });
+
+        await cacheResponse(60, "first", async () => new Uint8Array(1000), store);
+        await cacheResponse(60, "second", async () => new Uint8Array(1000), store);
+
+        expect(store.getFromCache("first")).toBeUndefined();
+        expect(store.getFromCache("second")).toBeDefined();
+      });
+
+      it("returns a payload larger than maxEntryBytes without caching it", async () => {
+        setup();
+        const store = new MemoryCacheEngine({ maxEntryBytes: 500, name: "helpers-spec-oversized" });
+
+        const result = await cacheResponse(60, "huge", async () => new Uint8Array(1000), store);
+
+        expect(result).toEqual(new Uint8Array(1000));
+        expect(store.getFromCache("huge")).toBeUndefined();
+      });
+    });
   });
 
   describe("Memoize decorator", () => {
@@ -324,6 +349,12 @@ describe("Memoize Function", () => {
   });
 
   describe(memoizeAsync.name, () => {
+    it("registers its cache in the cache registry under the given name", () => {
+      memoizeAsync(async () => "value", { name: "helpers-spec-memoize-async" });
+
+      expect(cacheRegistry.getStats().map(stats => stats.name)).toContain("helpers-spec-memoize-async");
+    });
+
     it("should cache successful results and return the same promise", async () => {
       const fn = vi.fn().mockResolvedValue("result");
       const memoized = memoizeAsync(fn);

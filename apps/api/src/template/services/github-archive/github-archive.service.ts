@@ -6,6 +6,7 @@ import { createGunzip } from "node:zlib";
 import tar from "tar";
 
 import type { CreateLogger } from "@src/core";
+import { cacheRegistry } from "../../../caching/cache-registry.ts";
 
 /** The template repo archives are ~70 MB each, so the download budget has to bound stalls rather than total transfer time. */
 const DOWNLOAD_STALL_TIMEOUT_MS = 30_000;
@@ -56,6 +57,7 @@ export class GitHubArchiveService {
 
   constructor(logger: ReturnType<CreateLogger>) {
     this.#logger = logger;
+    cacheRegistry.register("GitHubArchiveService#archives", this.#cache);
     this.#downloadPolicy = retry(
       handleWhen(error => !(error instanceof ArchiveNotAvailableError)),
       {
