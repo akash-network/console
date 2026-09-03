@@ -38,11 +38,6 @@ const VERSION_NAME = "projects/console-test/locations/global/keyRings/console-ap
 const MAX_VALUE_BYTES = 16 * 1024;
 const MAX_COUNT = 100;
 
-/**
- * The Cloud KMS key is the one third-party boundary this path crosses, so it is doubled here with a
- * real RSA key rather than reached over the network. The interface exists to be doubled; registering it
- * at module scope means nothing has resolved the real target before the first request.
- */
 const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 3072 });
 const publicKeyPem = publicKey.export({ type: "spki", format: "pem" }).toString();
 const kmsClient = mock<SdlSecretsKmsClient>();
@@ -421,11 +416,6 @@ describe("Deployment sealed secrets", () => {
     await expect(openStoredToken(user, dseq.toString(), replaced!.sealedSecrets!)).resolves.toEqual(retriedSecrets);
   });
 
-  /**
-   * The only way to read a stored token, because there is deliberately no endpoint that returns one.
-   * The lease slice becomes the production reader; until then this is what proves the chain the create
-   * path wrote can actually be opened again.
-   */
   async function openStoredToken(user: UserOutput, dseq: string, token: string) {
     const executionContextService = container.resolve(ExecutionContextService);
     const authService = container.resolve(AuthService);

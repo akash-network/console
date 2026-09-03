@@ -39,7 +39,6 @@ const COMPENSATION_JOB_ID = faker.string.uuid();
 const SEAL = `${faker.string.alphanumeric(16)}.${faker.string.alphanumeric(16)}`;
 const SEALED_TOKEN = `${faker.string.alphanumeric(16)}.${faker.string.alphanumeric(16)}`;
 
-/** A complete SDL around a service body, plus an optional placement profile nothing references. */
 function sdlAround(serviceBody: string, extraPlacement = ""): string {
   return `version: "2.0"
 services:
@@ -73,7 +72,6 @@ ${extraPlacement}deployment:
       count: 1`;
 }
 
-/** A valid SDL carrying an env value and a registry password, so a test can look for them afterwards. */
 const SDL_WITH_SECRETS = sdlAround(`    credentials:
       host: registry.example.test
       username: registry-user
@@ -82,26 +80,15 @@ const SDL_WITH_SECRETS = sdlAround(`    credentials:
       - API_TOKEN=${ENV_VALUE}
 `);
 
-/**
- * The shape that turns a small request into an enormous document: one anchored scalar aliased many
- * times over. js-yaml loads every alias back as an independent string, so serializing writes the
- * scalar out in full each time.
- */
 const SDL_ALIASING_ONE_SCALAR = sdlAround(`    args:
       - &payload ${ALIASED_FILLER}
 ${Array.from({ length: 511 }, () => "      - *payload").join("\n")}
 `);
 
-/** An SDL with no anchors at all whose serialized length alone puts it past what the console stores. */
 const SDL_TOO_LONG_WITHOUT_ALIASES = sdlAround(`    args:
 ${Array.from({ length: 40 }, () => `      - ${"z".repeat(4096)}`).join("\n")}
 `);
 
-/**
- * The other shape, and the one that costs the most to measure: aliases pointing at aliases, doubling
- * the node count per level. It hides under an unreferenced placement profile's `attributes`, the SDL's
- * one free-form position, where the manifest generator never looks — 1.3 KB expanding to 2^24 elements.
- */
 const SDL_ALIASING_A_DAG = sdlAround(
   "",
   `    unused:
@@ -383,11 +370,12 @@ describe(DeploymentWriterService.name, () => {
       expect(sdlSecretsService.receive).not.toHaveBeenCalled();
     });
 
-    it("seals nothing and writes no data key for a request whose deposit it refuses", async () => {
+    it("opens no seal, seals nothing and writes no data key for a request whose deposit it refuses", async () => {
       const { service, sdlSecretsService, deploymentSettingRepository } = setup({ isManagedDepositEnabled: false });
 
       await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL })).rejects.toMatchObject({ status: 400 });
 
+      expect(sdlSecretsService.receive).not.toHaveBeenCalled();
       expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
       expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
     });
@@ -1017,7 +1005,6 @@ describe(DeploymentWriterService.name, () => {
     return sdl as string;
   }
 
-  /** Everything the logger was handed, flattened, so a test can assert the sdl reached none of it. */
   function loggedTextOf(logger: MockProxy<ReturnType<CreateLogger>>): string {
     return [logger.error, logger.warn, logger.info, logger.debug]
       .flatMap(method => method.mock.calls)

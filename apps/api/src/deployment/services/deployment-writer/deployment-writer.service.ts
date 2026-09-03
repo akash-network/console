@@ -57,27 +57,18 @@ export class DeploymentWriterService {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
 
-  /**
-   * Ordered so that a broadcast can never outrun the secrets it needs: validate, mint the dseq, resolve
-   * in memory, hash the manifest, persist in one statement, then broadcast. The dseq is minted only once
-   * nothing can still refuse the request, because the token written below names it and a client sealing
-   * before the deployment exists cannot.
-   *
-   * Cheapest refusals first, and the stripped document is the cheapest of them: it is the only guard on
-   * an SDL that is small on the wire and enormous once re-serialized, so it runs before the wallet read,
-   * before the manifest is generated and before the seal spends a key-service call.
-   */
+  /** The dseq is minted only once nothing can still refuse the request, because the token written below names it and a client sealing beforehand cannot. */
   public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
     /** SDL for storage ONLY, stripped of every env value that is not a reference to one */
     const sdl = this.#strippedSdlWithinLimit(input.sdl);
 
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
     const manifest = this.#parseManifest(input.sdl, { isTrialing: !!wallet.isTrialing });
+    const depositInDollars = this.resolveDepositInDollars(input.deposit);
     const secrets = await this.#receiveSecrets(input);
 
     const dseq = Date.now();
     const { manifestVersion } = await this.#resolveSdl(input.sdl, { secrets: secrets.byService, isTrialing: !!wallet.isTrialing });
-    const depositInDollars = this.resolveDepositInDollars(input.deposit);
     const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq: dseq.toString(), secrets: secrets.supplied });
 
     if (wallet.isTrialing) {
@@ -310,11 +301,7 @@ export class DeploymentWriterService {
     return { manifestVersion: result.value.manifestVersion };
   }
 
-  /**
-   * Opens the request's seal and checks it against the SDL both ways, before the dseq exists and before
-   * anything is written. Reports through the same channel every other reference mistake uses, so a
-   * missing value reads identically whether the intake or substitution found it.
-   */
+  /** Reports through the same channel every other reference mistake uses, so a missing value reads identically whether the intake or substitution found it. */
   async #receiveSecrets(input: CreateDeploymentRequest["data"]): Promise<ReceivedSdlSecrets> {
     const parsed = this.sdlService.parse(input.sdl);
 
