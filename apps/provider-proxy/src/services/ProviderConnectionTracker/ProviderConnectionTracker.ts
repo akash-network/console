@@ -1,12 +1,7 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import { LRUCache } from "lru-cache";
 
-/**
- * Errnos that mean the host is not there: no route, no DNS, nothing listening, or the dial reset before a
- * response existed. ECONNRESET is only trustworthy because ProviderProxy never reports a destroy it caused
- * itself: its own per-attempt timeout, client aborts and shared-agent teardowns all surface as ECONNRESET
- * too, and counting those would let one slow poll blind every other caller on a healthy provider.
- */
+/** ECONNRESET is listed only because ProviderProxy never reports a destroy it caused itself (its own per-attempt timeouts, client aborts and shared-agent teardowns all surface as ECONNRESET too). */
 const UNREACHABLE_ERRNOS = ["EHOSTUNREACH", "ENETUNREACH", "ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "ECONNRESET"];
 
 /** Floor for how long a tracked provider is kept in memory. Eviction is a memory backstop, never a decision. */
