@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+import { DEFAULT_BODY_LIMIT_BYTES } from "@src/core/config/body-limit.config";
+import {
+  CREATE_DEPLOYMENT_BODY_LIMIT_BYTES,
+  maxSealedSecretsBytes,
+  SDL_SECRETS_DEFAULT_MAX_COUNT,
+  SDL_SECRETS_DEFAULT_MAX_VALUE_BYTES
+} from "@src/deployment/config/sdl-secrets.config";
 import { denomToUdenom } from "@src/utils/math";
 
 /**
@@ -102,6 +109,10 @@ export const envSchema = z
     DEPLOY_WEB_BASE_URL: z.string().url(),
     PROVIDER_PROXY_URL: z.string().url(),
     GPU_BOT_WALLET_MNEMONIC: z.string().optional(),
+    /** Secrets one deployment may carry. Raising it past what the create route's body limit was sized for is refused below rather than at request time. */
+    SDL_SECRETS_MAX_COUNT: z.number({ coerce: true }).int().positive().optional().default(SDL_SECRETS_DEFAULT_MAX_COUNT),
+    /** Bytes one secret value may be, measured as UTF-8 rather than as string length, since it is a storage bound and a character is not a byte. */
+    SDL_SECRETS_MAX_VALUE_BYTES: z.number({ coerce: true }).int().positive().optional().default(SDL_SECRETS_DEFAULT_MAX_VALUE_BYTES),
     GCP_KMS_AUTH: jsonEnv(gcpKmsAuthSchema),
     GCP_KMS_LOCATION: z.string().optional().default("global"),
     GCP_KMS_KEY_RING: z.string().optional().default("console-api"),
@@ -123,6 +134,17 @@ export const envSchema = z
         path: ["PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS"],
         message: `PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS (${env.PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS}) must be greater than PROVIDER_UNREACHABLE_NOTIFY_AFTER_DAYS (${env.PROVIDER_UNREACHABLE_NOTIFY_AFTER_DAYS}), otherwise a deployment can be closed before its owner has been warned`
       });
+    }
+
+    const sealHeadroom = CREATE_DEPLOYMENT_BODY_LIMIT_BYTES - DEFAULT_BODY_LIMIT_BYTES;
+    const sealedSecretsBytes = maxSealedSecretsBytes({ maxCount: env.SDL_SECRETS_MAX_COUNT, maxValueBytes: env.SDL_SECRETS_MAX_VALUE_BYTES });
+
+    if (sealedSecretsBytes > sealHeadroom) {
+      const message = `SDL_SECRETS_MAX_COUNT (${env.SDL_SECRETS_MAX_COUNT}) and SDL_SECRETS_MAX_VALUE_BYTES (${env.SDL_SECRETS_MAX_VALUE_BYTES}) can produce a seal of ${sealedSecretsBytes} bytes, above the ${sealHeadroom} bytes the create route's body limit was sized for, so a request at these limits would be refused before the limits could be applied`;
+
+      for (const path of ["SDL_SECRETS_MAX_COUNT", "SDL_SECRETS_MAX_VALUE_BYTES"]) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
+      }
     }
 
     if (env.AUTO_TOP_UP_TARGET_RUNWAY_IN_H <= env.AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H) {

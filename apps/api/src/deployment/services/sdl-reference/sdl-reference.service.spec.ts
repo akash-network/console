@@ -3,7 +3,7 @@ import { yaml } from "@akashnetwork/chain-sdk";
 import { describe, expect, it } from "vitest";
 
 import type { NamespacedSdlSecrets, SdlReferenceResolver } from "./sdl-reference.service";
-import { SdlReferenceService } from "./sdl-reference.service";
+import { MAX_SDL_REFERENCE_NAME_LENGTH, SdlReferenceService } from "./sdl-reference.service";
 
 const VALID_NAMES = ["A", "a", "_", "_A", "A9", `A${"b".repeat(62)}`, `A${"b".repeat(63)}`];
 const RESERVED_VALUES = ["ac-", "ac-://X", "ac-secret9://X", "ac-secret:/X", "ac-SECRET://X", `ac-${"z".repeat(17)}://X`, "ac-secret://TOKEN\n"];
@@ -326,6 +326,82 @@ describe(SdlReferenceService.name, () => {
       const [error] = service.substitute(sdlWithEnv(["A=ac-secret://token"]), { secrets: { web: { TOKEN: "resolved" } } });
 
       expect(error.message).toContain("ac-secret://token");
+    });
+  });
+
+  describe(`MAX_SDL_REFERENCE_NAME_LENGTH`, () => {
+    it("is the longest name the grammar accepts", () => {
+      const { service } = setup();
+      const longest = `A${"b".repeat(MAX_SDL_REFERENCE_NAME_LENGTH - 1)}`;
+
+      expect(longest).toHaveLength(MAX_SDL_REFERENCE_NAME_LENGTH);
+      expect(service.declarationsOf(sdlWithEnv([`T=ac-secret://${longest}`]), "secret").map(declaration => declaration.name)).toEqual([longest]);
+    });
+
+    it("is the shortest name the grammar refuses one longer than", () => {
+      const { service } = setup();
+      const tooLong = `A${"b".repeat(MAX_SDL_REFERENCE_NAME_LENGTH)}`;
+
+      expect(service.declarationsOf(sdlWithEnv([`T=ac-secret://${tooLong}`]), "secret")).toEqual([]);
+      expect(service.validate(sdlWithEnv([`T=ac-secret://${tooLong}`]))[0].message).toContain("reserved");
+    });
+  });
+
+  describe("declarationsOf", () => {
+    it("reports nothing for an sdl carrying no sdl references", () => {
+      const { service } = setup();
+
+      expect(service.declarationsOf(sdlWithEnv(["PORT=8080"]), "secret")).toEqual([]);
+    });
+
+    it("reports the name, the service and the whole reference of each declaration", () => {
+      const { service } = setup();
+
+      expect(service.declarationsOf(sdlWithEnv(["TOKEN=ac-secret://TOKEN"]), "secret")).toEqual([
+        { kind: "secret", name: "TOKEN", serviceName: "web", reference: "ac-secret://TOKEN", instancePath: "/services/web/env/0" }
+      ]);
+    });
+
+    it("reports one declaration per service that references the same name", () => {
+      const { service } = setup();
+
+      const declarations = service.declarationsOf(sdlWithEnv(["TOKEN=ac-secret://TOKEN"], ["TOKEN=ac-secret://TOKEN"]), "secret");
+
+      expect(declarations.map(declaration => declaration.serviceName)).toEqual(["web", "worker"]);
+    });
+
+    it("reports one declaration per entry when a service references the same name twice", () => {
+      const { service } = setup();
+
+      const declarations = service.declarationsOf(sdlWithEnv(["A=ac-secret://TOKEN", "B=ac-secret://TOKEN"]), "secret");
+
+      expect(declarations.map(declaration => declaration.instancePath)).toEqual(["/services/web/env/0", "/services/web/env/1"]);
+    });
+
+    it("reports only the kind it was asked about", () => {
+      const { service } = setup({ resolvers: [{ kind: "probe", resolve: () => "resolved" }] });
+
+      const declarations = service.declarationsOf(sdlWithEnv(["TOKEN=ac-secret://TOKEN", "MODE=ac-probe://MODE"]), "secret");
+
+      expect(declarations.map(declaration => declaration.name)).toEqual(["TOKEN"]);
+    });
+
+    it("reports nothing for a value that merely opens with the reserved prefix", () => {
+      const { service } = setup();
+
+      expect(service.declarationsOf(sdlWithEnv(["MODE=ac-dc"]), "secret")).toEqual([]);
+    });
+
+    it("reports nothing for a reference embedded in a larger value", () => {
+      const { service } = setup();
+
+      expect(service.declarationsOf(sdlWithEnv(["TOKEN=prefix-ac-secret://TOKEN"]), "secret")).toEqual([]);
+    });
+
+    it("reports a name spelling an Object.prototype member as an ordinary name", () => {
+      const { service } = setup();
+
+      expect(service.declarationsOf(sdlWithEnv(["C=ac-secret://constructor"]), "secret").map(declaration => declaration.name)).toEqual(["constructor"]);
     });
   });
 
