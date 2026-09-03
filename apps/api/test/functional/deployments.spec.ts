@@ -1302,6 +1302,26 @@ describe("Deployments API", () => {
       expect(result.message).toContain("ac-secret://TOKEN");
     });
 
+    it("returns 400 naming a registry credential reference it holds no value for", async () => {
+      const { userApiKeySecret, dseq } = await setupUpdatableDeployment();
+
+      const response = await putDeploymentWithCredentials({ userApiKeySecret, dseq, password: "ac-secret://REG_PASS" });
+
+      expect(response.status).toBe(400);
+      const result = (await response.json()) as { message: string };
+      expect(result.message).toContain("ac-secret://REG_PASS");
+    });
+
+    it("returns 400 for a reserved value in a registry credential", async () => {
+      const { userApiKeySecret, dseq } = await setupUpdatableDeployment();
+
+      const response = await putDeploymentWithCredentials({ userApiKeySecret, dseq, password: "ac-dc-forever" });
+
+      expect(response.status).toBe(400);
+      const result = (await response.json()) as { message: string };
+      expect(result.message).toContain("reserved");
+    });
+
     it("commits the manifest version of the very manifest it sends the providers", async () => {
       const { userApiKeySecret, user, dseq } = await setupUpdatableDeployment();
       const sdlService = container.resolve(SdlService);
@@ -1330,6 +1350,23 @@ describe("Deployments API", () => {
       return app.request(`/v1/deployments/${dseq}`, {
         method: "PUT",
         body: JSON.stringify({ data: { sdl: yml.replace("    expose:", `    env:\n      - "${entry}"\n    expose:`) } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+    }
+
+    function putDeploymentWithCredentials({ userApiKeySecret, dseq, password }: { userApiKeySecret: string; dseq: string; password: string }) {
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+      const credentials = [
+        "    credentials:",
+        "      host: registry.example.test",
+        `      username: ${faker.string.alphanumeric(10)}`,
+        `      password: ${JSON.stringify(password)}`,
+        ""
+      ].join("\n");
+
+      return app.request(`/v1/deployments/${dseq}`, {
+        method: "PUT",
+        body: JSON.stringify({ data: { sdl: yml.replace("    expose:", `${credentials}    expose:`) } }),
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
       });
     }

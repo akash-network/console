@@ -43,6 +43,7 @@ interface OpenApiPaths {
 const KID = "sdl-secrets.v1";
 const VERSION_NAME = "projects/console-test/locations/global/keyRings/console-api/cryptoKeys/sdl-secrets/cryptoKeyVersions/1";
 const MAX_VALUE_BYTES = 16 * 1024;
+const REGISTRY_HOST = "registry.example.test";
 const MAX_COUNT = 100;
 
 const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 3072 });
@@ -65,9 +66,20 @@ kmsClient.asymmetricDecrypt.mockImplementation(async request => {
 
 container.register<SdlSecretsKmsTarget>(SDL_SECRETS_KMS_TARGET, { useValue: { client: kmsClient, versionName: VERSION_NAME, kid: KID } });
 
-function sdlWith(services: Record<string, string[]>) {
+function credentialsYaml(credentials?: Record<string, string>) {
+  if (!credentials) return "";
+
+  return `    credentials:\n${Object.entries(credentials)
+    .map(([field, value]) => `      ${field}: ${JSON.stringify(value)}\n`)
+    .join("")}`;
+}
+
+function sdlWith(services: Record<string, string[]>, credentials: Record<string, Record<string, string>> = {}) {
   const bodies = Object.entries(services)
-    .map(([name, env]) => `  ${name}:\n    image: nginx\n    env:\n${env.map(entry => `      - ${JSON.stringify(entry)}\n`).join("")}`)
+    .map(
+      ([name, env]) =>
+        `  ${name}:\n    image: nginx\n${credentialsYaml(credentials[name])}    env:\n${env.map(entry => `      - ${JSON.stringify(entry)}\n`).join("")}`
+    )
     .join("");
   const computes = Object.keys(services)
     .map(
@@ -145,6 +157,70 @@ describe("Deployment sealed secrets", () => {
 
     expect(response.status).toBe(201);
     expect(broadcastHash()).toEqual(await manifestVersionOf(sdlWith({ web: [`API_TOKEN=${token}`] })));
+  });
+
+  it("commits the manifest version of a manifest carrying the resolved registry credential", async () => {
+    const { apiKey } = await persistedUser();
+    const [username, password] = [randomUUID(), randomUUID()];
+    const referencing = { web: { host: REGISTRY_HOST, username: "ac-secret://REG_USER", password: "ac-secret://REG_PASS" } };
+    const inline = { web: { host: REGISTRY_HOST, username, password } };
+    const env = { web: ["LOG_LEVEL=debug"] };
+
+    const response = await postDeployment(apiKey, sdlWith(env, referencing), { REG_USER: username, REG_PASS: password });
+
+    expect(response.status).toBe(201);
+    expect(broadcastHash()).toEqual(await manifestVersionOf(sdlWith(env, inline)));
+  });
+
+  it("names a registry credential reference it holds no value for and records nothing", async () => {
+    const { apiKey, user } = await persistedUser();
+    const referencing = { web: { host: REGISTRY_HOST, username: faker.string.alphanumeric(10), password: "ac-secret://REG_PASS" } };
+
+    const response = await postDeployment(apiKey, sdlWith({ web: ["API_TOKEN=ac-secret://API_TOKEN"] }, referencing), { API_TOKEN: randomUUID() });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toContain("ac-secret://REG_PASS");
+    expect(await deploymentSettingRepository.findOneBy({ userId: user.id })).toBeUndefined();
+    expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+  });
+
+  it("refuses a reserved value in a registry credential rather than shipping it to a provider", async () => {
+    const { apiKey, user } = await persistedUser();
+    const reserved = { web: { host: REGISTRY_HOST, username: faker.string.alphanumeric(10), password: "ac-dc-forever" } };
+
+    const response = await postDeployment(apiKey, sdlWith({ web: ["LOG_LEVEL=debug"] }, reserved));
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toContain("reserved");
+    expect(await deploymentSettingRepository.findOneBy({ userId: user.id })).toBeUndefined();
+    expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+  });
+
+  it("stores the credential values in its token and no credentials block in its sdl", async () => {
+    const { apiKey, user } = await persistedUser();
+    const [username, password] = [faker.string.alphanumeric(10), randomUUID()];
+    const referencing = { web: { host: REGISTRY_HOST, username: "ac-secret://REG_USER", password: "ac-secret://REG_PASS" } };
+
+    const response = await postDeployment(apiKey, sdlWith({ web: ["LOG_LEVEL=debug"] }, referencing), { REG_USER: username, REG_PASS: password });
+
+    const setting = await settingOf(user, response);
+    expect(setting!.sdl).not.toContain("credentials");
+    await expect(openStoredToken(user, setting!.dseq, setting!.sealedSecrets!)).resolves.toEqual({ REG_USER: username, REG_PASS: password });
+  });
+
+  it("refuses a sealed credential the resolved document rejects, saying nothing of its value", async () => {
+    const { apiKey, user } = await persistedUser();
+    const tooShort = faker.string.alphanumeric(5);
+    const referencing = { web: { host: REGISTRY_HOST, username: faker.string.alphanumeric(10), password: "ac-secret://REG_PASS" } };
+
+    const response = await postDeployment(apiKey, sdlWith({ web: ["LOG_LEVEL=debug"] }, referencing), { REG_PASS: tooShort });
+    const body = await response.text();
+
+    expect(response.status).toBe(400);
+    expect(body).toContain("at least 6 characters");
+    expect(body).not.toContain(tooShort);
+    expect(await deploymentSettingRepository.findOneBy({ userId: user.id })).toBeUndefined();
+    expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
   });
 
   it("resolves one supplied value into every service that references it", async () => {

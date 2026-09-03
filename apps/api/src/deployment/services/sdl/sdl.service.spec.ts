@@ -1,3 +1,4 @@
+import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -321,6 +322,12 @@ deployment:
 `;
 
 const SDL_WITH_ENV = (entry: string) => VALID_SDL.replace("    expose:", `    env:\n      - "${entry}"\n    expose:`);
+
+const SDL_WITH_CREDENTIALS = (username: string, password: string) =>
+  VALID_SDL.replace(
+    "    expose:",
+    `    credentials:\n      host: registry.example.test\n      username: "${username}"\n      password: "${password}"\n    expose:`
+  );
 
 const SDL_WITH_TEE = (tee: string) => `
 version: "2.0"
@@ -646,6 +653,25 @@ describe(SdlService.name, () => {
 
         expect(result.ok).toBe(true);
       });
+
+      it("keeps a recognized registry credential reference verbatim in the manifest", () => {
+        const { result } = setup({ sdl: SDL_WITH_CREDENTIALS("ac-secret://REG_USER", "ac-secret://REG_PASS") });
+
+        expect(result.ok).toBe(true);
+        expect(getManifestService(result, "westcoast", "web").credentials).toMatchObject({
+          username: "ac-secret://REG_USER",
+          password: "ac-secret://REG_PASS"
+        });
+      });
+
+      it("rejects a registry credential merely beginning with the reserved prefix", () => {
+        const { result } = setup({ sdl: SDL_WITH_CREDENTIALS(faker.string.alphanumeric(10), "ac-dc-forever") });
+
+        expect(result).toMatchObject({
+          ok: false,
+          value: [expect.objectContaining({ instancePath: "/services/web/credentials/password" })]
+        });
+      });
     });
   });
 
@@ -657,6 +683,44 @@ describe(SdlService.name, () => {
 
       expect(result.ok).toBe(true);
       expect(resolvedOf(result).manifest.groups[0].services[0].env).toEqual(["TOKEN=resolved"]);
+    });
+
+    it("returns a manifest carrying the resolved registry credential", async () => {
+      const { service } = setup();
+      const [username, password] = [faker.string.alphanumeric(10), faker.internet.password()];
+
+      const result = await service.generateResolvedManifest({
+        sdl: SDL_WITH_CREDENTIALS("ac-secret://REG_USER", "ac-secret://REG_PASS"),
+        secrets: { web: { REG_USER: username, REG_PASS: password } }
+      });
+
+      expect(result.ok).toBe(true);
+      expect(resolvedOf(result).manifest.groups[0].services[0].credentials).toMatchObject({ username, password });
+    });
+
+    it("hashes an sdl with a substituted registry credential exactly as one carrying it inline", async () => {
+      const { service } = setup();
+      const [username, password] = [faker.string.alphanumeric(10), faker.internet.password()];
+
+      const substituted = await service.generateResolvedManifest({
+        sdl: SDL_WITH_CREDENTIALS("ac-secret://REG_USER", "ac-secret://REG_PASS"),
+        secrets: { web: { REG_USER: username, REG_PASS: password } }
+      });
+      const inline = await service.generateResolvedManifest({ sdl: SDL_WITH_CREDENTIALS(username, password), secrets: {} });
+
+      expect(versionOf(substituted)).toEqual(versionOf(inline));
+    });
+
+    it("refuses a resolved registry credential the schema rejects, which the unresolved reference passed", async () => {
+      const { service } = setup();
+
+      const result = await service.generateResolvedManifest({
+        sdl: SDL_WITH_CREDENTIALS("ac-secret://REG_USER", "ac-secret://REG_PASS"),
+        secrets: { web: { REG_USER: faker.string.alphanumeric(10), REG_PASS: "short" } }
+      });
+
+      expect(result.ok).toBe(false);
+      expect(errorsOf(result)[0].message).toContain("at least 6 characters");
     });
 
     it("hashes an sdl with a substituted value exactly as one carrying that value inline", async () => {

@@ -1,5 +1,6 @@
 import type { SDLInput } from "@akashnetwork/chain-sdk";
 import { yaml } from "@akashnetwork/chain-sdk";
+import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 
 import type { NamespacedSdlSecrets, SdlReferenceResolver } from "./sdl-reference.service";
@@ -49,6 +50,61 @@ describe(SdlReferenceService.name, () => {
 
       expect(errors).toHaveLength(2);
       expect(errors.map(error => error.instancePath)).toEqual(["/services/web/env/0", "/services/web/env/1"]);
+    });
+
+    it("reports nothing for an ordinary registry credential", () => {
+      const { service } = setup();
+
+      expect(service.validate(sdlWithCredentials({ username: faker.string.alphanumeric(10), password: faker.internet.password() }))).toEqual([]);
+    });
+
+    it("reports nothing for a registered kind referenced by a registry credential", () => {
+      const { service } = setup();
+
+      expect(service.validate(sdlWithCredentials({ username: "ac-secret://REG_USER", password: "ac-secret://REG_PASS" }))).toEqual([]);
+    });
+
+    it("reports a reserved value in a registry credential rather than letting it ship literally", () => {
+      const { service } = setup();
+
+      const [error] = service.validate(sdlWithCredentials({ password: "ac-dc-forever" }));
+
+      expect(error.message).toContain("reserved");
+      expect(error.instancePath).toBe("/services/web/credentials/password");
+    });
+
+    it("names the position rather than the value of a reserved registry credential, which is a secret whatever it holds", () => {
+      const { service } = setup();
+      const password = `ac-dc-${faker.internet.password()}`;
+
+      const [error] = service.validate(sdlWithCredentials({ password }));
+
+      expect(error.message).toContain("/services/web/credentials/password");
+      expect(JSON.stringify(error)).not.toContain(password);
+    });
+
+    it("still quotes a reserved env value, which no rule makes a secret", () => {
+      const { service } = setup();
+
+      const [error] = service.validate(sdlWithEnv(["MODE=ac-dc-forever"]));
+
+      expect(error.message).toContain("ac-dc-forever");
+      expect(error.params.value).toBe("ac-dc-forever");
+    });
+
+    it("reports an unknown kind in a registry credential naming the half that carries it", () => {
+      const { service } = setup();
+
+      const [error] = service.validate(sdlWithCredentials({ username: "ac-var://REG_USER" }));
+
+      expect(error.message).toContain("ac-var://REG_USER");
+      expect(error.instancePath).toBe("/services/web/credentials/username");
+    });
+
+    it.each(["host", "email"] as const)("reports nothing for a reserved value in the credential %s, which carries no secret", field => {
+      const { service } = setup();
+
+      expect(service.validate(sdlWithCredentials({ [field]: "ac-dc-forever" }))).toEqual([]);
     });
   });
 
@@ -252,6 +308,89 @@ describe(SdlReferenceService.name, () => {
       expect(sdl.services.web.env).toEqual(["A=ac-secret://constructor"]);
     });
 
+    it("sets both halves of a registry credential to their resolved values", () => {
+      const { service } = setup();
+      const [username, password] = [faker.string.alphanumeric(10), faker.internet.password()];
+      const sdl = sdlWithCredentials({ username: "ac-secret://REG_USER", password: "ac-secret://REG_PASS" });
+
+      const errors = service.substitute(sdl, { secrets: { web: { REG_USER: username, REG_PASS: password } } });
+
+      expect(errors).toEqual([]);
+      expect(sdl.services.web.credentials).toMatchObject({ username, password });
+    });
+
+    it("leaves the host and the email of a resolved credential alone", () => {
+      const { service } = setup();
+      const sdl = sdlWithCredentials({ password: "ac-secret://REG_PASS" });
+
+      service.substitute(sdl, { secrets: { web: { REG_PASS: faker.internet.password() } } });
+
+      expect(sdl.services.web.credentials).toMatchObject({ host: "registry.example.test", email: "ops@example.test" });
+    });
+
+    it("resolves a credential from its own service's namespace", () => {
+      const { service } = setup();
+      const sdl = sdlWithCredentials({ password: "ac-secret://REG_PASS" }, { password: "ac-secret://REG_PASS" });
+
+      const [webPassword, workerPassword] = [faker.internet.password(), faker.internet.password()];
+
+      const errors = service.substitute(sdl, { secrets: { web: { REG_PASS: webPassword }, worker: { REG_PASS: workerPassword } } });
+
+      expect(errors).toEqual([]);
+      expect(sdl.services.web.credentials!.password).toBe(webPassword);
+      expect(sdl.services.worker.credentials!.password).toBe(workerPassword);
+    });
+
+    it("reports a credential reference it holds no value for, naming the half that carries it", () => {
+      const { service } = setup();
+      const sdl = sdlWithCredentials({ password: "ac-secret://REG_PASS" });
+
+      const [error] = service.substitute(sdl, { secrets: {} });
+
+      expect(error.message).toContain("ac-secret://REG_PASS");
+      expect(error.instancePath).toBe("/services/web/credentials/password");
+      expect(sdl.services.web.credentials!.password).toBe("ac-secret://REG_PASS");
+    });
+
+    it("reports a credential reference and an env reference of the same document", () => {
+      const { service } = setup();
+      const sdl = sdlWithCredentials({ password: "ac-secret://REG_PASS" }, undefined, ["TOKEN=ac-secret://TOKEN"]);
+
+      const errors = service.substitute(sdl, { secrets: {} });
+
+      expect(errors.map(error => error.instancePath)).toEqual(["/services/web/env/0", "/services/web/credentials/password"]);
+    });
+
+    it("resolves a credentials block two services share through a yaml anchor, never re-reading what it wrote", () => {
+      const { service } = setup();
+      const password = `ac-dc-${faker.internet.password()}`;
+      const sdl = sdlSharingOneCredentialsBlock("ac-secret://REG_PASS");
+
+      const errors = service.substitute(sdl, { secrets: { web: { REG_PASS: password }, worker: { REG_PASS: password } } });
+
+      expect(errors).toEqual([]);
+      expect(sdl.services.web.credentials!.password).toBe(password);
+      expect(sdl.services.worker.credentials!.password).toBe(password);
+    });
+
+    it("resolves an env list two services share through a yaml anchor, never re-reading what it wrote", () => {
+      const { service } = setup();
+      const value = `ac-dc-${faker.string.alphanumeric(16)}`;
+      const sdl = sdlSharingOneEnvList("TOKEN=ac-secret://TOKEN");
+
+      const errors = service.substitute(sdl, { secrets: { web: { TOKEN: value }, worker: { TOKEN: value } } });
+
+      expect(errors).toEqual([]);
+      expect(sdl.services.web.env).toEqual([`TOKEN=${value}`]);
+      expect(sdl.services.worker.env).toEqual([`TOKEN=${value}`]);
+    });
+
+    it("ignores a service declaring no credentials at all", () => {
+      const { service } = setup();
+
+      expect(service.substitute(sdlWithEnv(["PORT=8080"]), { secrets: {} })).toEqual([]);
+    });
+
     it("ignores a non-string env entry", () => {
       const { service } = setup();
       const sdl = sdlWithEnv([8080, null]);
@@ -403,6 +542,33 @@ describe(SdlReferenceService.name, () => {
 
       expect(service.declarationsOf(sdlWithEnv(["C=ac-secret://constructor"]), "secret").map(declaration => declaration.name)).toEqual(["constructor"]);
     });
+
+    it("reports one declaration per service for a credentials block the two of them share", () => {
+      const { service } = setup();
+
+      const declarations = service.declarationsOf(sdlSharingOneCredentialsBlock("ac-secret://REG_PASS"), "secret");
+
+      expect(declarations.map(declaration => declaration.instancePath)).toEqual([
+        "/services/web/credentials/password",
+        "/services/worker/credentials/password"
+      ]);
+    });
+
+    it("reports a registry credential declaration with the half that carries it", () => {
+      const { service } = setup();
+
+      expect(service.declarationsOf(sdlWithCredentials({ password: "ac-secret://REG_PASS" }), "secret")).toEqual([
+        { kind: "secret", name: "REG_PASS", serviceName: "web", reference: "ac-secret://REG_PASS", instancePath: "/services/web/credentials/password" }
+      ]);
+    });
+
+    it("reports one declaration per credential half", () => {
+      const { service } = setup();
+
+      const declarations = service.declarationsOf(sdlWithCredentials({ username: "ac-secret://REG_USER", password: "ac-secret://REG_PASS" }), "secret");
+
+      expect(declarations.map(declaration => declaration.name)).toEqual(["REG_USER", "REG_PASS"]);
+    });
   });
 
   function setup(input: { resolvers?: SdlReferenceResolver[] } = {}) {
@@ -418,10 +584,45 @@ describe(SdlReferenceService.name, () => {
     return yaml.raw<SDLInput>(sdlYaml(services));
   }
 
-  function serviceYaml(name: string, env: unknown[]) {
-    const entries = env.map(entry => `      - ${JSON.stringify(entry)}\n`).join("");
+  function sdlWithCredentials(webCredentials: Record<string, string>, workerCredentials?: Record<string, string>, webEnv: unknown[] = []) {
+    const services = [serviceYaml("web", webEnv, webCredentials), workerCredentials ? serviceYaml("worker", [], workerCredentials) : ""].join("");
 
-    return `  ${name}:\n    image: nginx\n    env:\n${entries}`;
+    return yaml.raw<SDLInput>(sdlYaml(services));
+  }
+
+  function sdlSharingOneCredentialsBlock(password: string) {
+    const block = credentialsYaml({ password }).replace("    credentials:\n", "");
+
+    return yaml.raw<SDLInput>(
+      sdlYaml(`  web:\n    image: nginx\n    credentials: &registry\n${block}  worker:\n    image: nginx\n    credentials: *registry\n`)
+    );
+  }
+
+  function sdlSharingOneEnvList(entry: string) {
+    return yaml.raw<SDLInput>(
+      sdlYaml(`  web:\n    image: nginx\n    env: &shared\n      - ${JSON.stringify(entry)}\n  worker:\n    image: nginx\n    env: *shared\n`)
+    );
+  }
+
+  function credentialsYaml(overrides: Record<string, string>) {
+    const credentials = {
+      host: "registry.example.test",
+      email: "ops@example.test",
+      username: faker.string.alphanumeric(10),
+      password: faker.internet.password(),
+      ...overrides
+    };
+
+    return `    credentials:\n${Object.entries(credentials)
+      .map(([field, value]) => `      ${field}: ${JSON.stringify(value)}\n`)
+      .join("")}`;
+  }
+
+  function serviceYaml(name: string, env: unknown[], credentials?: Record<string, string>) {
+    const entries = env.map(entry => `      - ${JSON.stringify(entry)}\n`).join("");
+    const envYaml = env.length > 0 ? `    env:\n${entries}` : "";
+
+    return `  ${name}:\n    image: nginx\n${envYaml}${credentials ? credentialsYaml(credentials) : ""}`;
   }
 
   function sdlYaml(services: string) {

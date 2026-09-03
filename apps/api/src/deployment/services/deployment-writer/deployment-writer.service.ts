@@ -56,7 +56,7 @@ export class DeploymentWriterService {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
 
-  /** The dseq is minted only once nothing can still refuse the request, because the token written below names it and a client sealing beforehand cannot. */
+  /** The dseq is minted once everything that can refuse the submitted document has run, because the token written below names it and a client sealing beforehand cannot; a refusal that needs the resolved document — a sealed registry password below the schema's minimum, say — can only come after it, and spends a dseq nothing is written under. */
   public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
     /** SDL for storage ONLY, stripped of every env value that is not a reference to one */
     const sdl = this.#strippedSdlWithinLimit(input.sdl);
