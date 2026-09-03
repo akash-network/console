@@ -16,7 +16,7 @@ import { startServer } from "./core/services/start-server/start-server";
 import type { AppEnv } from "./core/types/app-context";
 import { healthzRouter } from "./healthz/routes/healthz.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
-import { privateMiddleware } from "./middlewares/privateMiddleware";
+import { requirePrivateToken } from "./middlewares/privateMiddleware";
 import { notificationsApiProxy } from "./notifications/routes/proxy/proxy.route";
 import { apiRouter } from "./routers/apiRouter";
 import { dashboardRouter } from "./routers/dashboardRouter";
@@ -77,7 +77,7 @@ appHono.get("/status", c => {
   return c.json({ version, memory });
 });
 
-appHono.get("/status/caches", privateMiddleware, c => {
+appHono.get("/status/caches", requirePrivateToken, c => {
   const caches = cacheRegistry.getStats().map(stats => ({
     name: stats.name,
     entries: stats.entryCount,
