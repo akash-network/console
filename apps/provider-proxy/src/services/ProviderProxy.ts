@@ -43,6 +43,7 @@ export class ProviderProxy {
     }
 
     return new Promise<ProxyConnectionResult>((resolve, reject) => {
+      let selfDestroyed = false;
       const { agentCacheKey, ...requestOptions } = this.getRequestOptions(options);
       const req = https.request(
         url,
@@ -52,7 +53,6 @@ export class ProviderProxy {
             res.on(
               "error",
               propagateTracingContext(error => {
-                this.recordUnreachable(trackerKey, error);
                 resolve({ ok: false, code: "connectionError", error });
               })
             );
@@ -91,6 +91,7 @@ export class ProviderProxy {
                 this.#agentsCache.delete(agentCacheKey);
                 resolve({ ok: false, code: "invalidCertificate", reason: validationResult.code });
                 req.off("error", reject);
+                selfDestroyed = true;
                 res.destroy();
                 req.destroy();
                 requestOptions.agent?.destroy();
@@ -111,6 +112,7 @@ export class ProviderProxy {
         options.signal.addEventListener(
           "abort",
           () => {
+            selfDestroyed = true;
             req.destroy();
           },
           { once: true }
@@ -121,16 +123,14 @@ export class ProviderProxy {
         req.on(
           "error",
           propagateTracingContext(error => {
-            this.recordUnreachable(trackerKey, error);
+            if (!selfDestroyed) this.recordUnreachable(trackerKey, error);
             resolve({ ok: false, code: "connectionError", error });
           })
         );
         req.on(
           "timeout",
           propagateTracingContext(() => {
-            // here we are just notified that response take more than specified in request options timeout
-            // then we manually destroy request and it drops connection and
-            // on('error') handler is called with Error code = ECONNRESET
+            selfDestroyed = true;
             req.destroy();
           })
         );

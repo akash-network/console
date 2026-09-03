@@ -17,13 +17,21 @@ describe(ProviderConnectionTracker.name, () => {
     expect(tracker.shouldSkipDial("provider-a")).toBe(true);
   });
 
-  it.each(["ECONNRESET", "ETIMEDOUT", "EPIPE"])("never starts a cooldown for %s", errno => {
+  it.each(["ETIMEDOUT", "EPIPE"])("never starts a cooldown for %s", errno => {
     const { tracker, fail } = setup({ failureThreshold: 1 });
 
     fail("provider-a", errno);
     fail("provider-a", errno);
 
     expect(tracker.shouldSkipDial("provider-a")).toBe(false);
+  });
+
+  it("starts a cooldown when the dial is reset", () => {
+    const { tracker, fail } = setup({ failureThreshold: 1 });
+
+    fail("provider-a", "ECONNRESET");
+
+    expect(tracker.shouldSkipDial("provider-a")).toBe(true);
   });
 
   it("allows exactly one probe per cooldown window, even when asked concurrently", () => {
