@@ -4,26 +4,33 @@ import { BidHttpService } from "@akashnetwork/http-sdk";
 import { Trace } from "@akashnetwork/instrumentation";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import assert from "http-assert";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { STANDARD_TOP_UP_MIN_AMOUNT_USD } from "@src/billing/config";
 import { getTrialEndsAt } from "@src/billing/lib/trial-window/trial-window";
 import type { TrialWindow, UserWalletOutput } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { AUDITOR, TRIAL_ATTRIBUTE, TRIAL_REGISTERED_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import { groupSpecsRequestGpuInterconnect } from "@src/deployment/utils/gpu-interconnect/gpu-interconnect";
+import { findTrialResourceViolation } from "@src/deployment/utils/group-resources/group-resources";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import type { UserOutput } from "@src/user/repositories";
 
 @singleton()
 export class TrialValidationService {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly config: BillingConfigService,
     private readonly providerRepository: ProviderRepository,
     private readonly bidHttpService: BidHttpService,
-    private readonly blockedGpuService: BlockedGpuService
-  ) {}
+    private readonly blockedGpuService: BlockedGpuService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.logger = createLogger({ context: TrialValidationService.name });
+  }
 
   async validateLeaseProviders(decoded: EncodeObject, userWallet: UserWalletOutput, user: UserOutput) {
     if (decoded.typeUrl === `/${MsgCreateDeployment.$type}`) {
@@ -119,6 +126,34 @@ export class TrialValidationService {
       .some(message => groupSpecsRequestGpuInterconnect((message.value as MsgCreateDeployment).groups));
 
     assert(!requestsInterconnect, 402, "GPU interconnect not available on free trial: Add funds to unlock GPU interconnect");
+  }
+
+  @Trace()
+  async validateDeploymentResources(messages: EncodeObject[], userWallet: UserWalletOutput) {
+    if (!userWallet.isTrialing) return;
+
+    const limits = {
+      maxCpu: this.config.get("MANAGED_WALLET_TRIAL_MAX_CPU"),
+      maxMemoryGi: this.config.get("MANAGED_WALLET_TRIAL_MAX_MEMORY_GI")
+    };
+
+    const deploymentMessages = messages.filter(message => message.typeUrl === `/${MsgCreateDeployment.$type}`);
+
+    for (const message of deploymentMessages) {
+      const violation = findTrialResourceViolation((message.value as MsgCreateDeployment).groups, limits);
+      if (!violation) continue;
+
+      this.logger.info({
+        event: "TRIAL_RESOURCE_LIMIT_REJECTED",
+        kind: violation.kind,
+        cpuMillis: violation.cpuMillis,
+        memoryBytes: violation.memoryBytes,
+        owner: userWallet.address,
+        userId: userWallet.userId
+      });
+
+      assert(false, 403, violation.message);
+    }
   }
 
   @Trace()

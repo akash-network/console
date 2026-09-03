@@ -2,10 +2,11 @@ import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { BidHttpService } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import type { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import { TrialValidationService } from "./trial-validation.service";
@@ -216,6 +217,25 @@ describe(TrialValidationService.name, () => {
     };
   }
 
+  function createDeploymentMessageWithResources(groups: { cpuMillis?: number; memoryBytes?: number; count?: number }[][]): EncodeObject {
+    return {
+      typeUrl: `/${MsgCreateDeployment.$type}`,
+      value: MsgCreateDeployment.fromPartial({
+        groups: groups.map((units, index) => ({
+          name: `group-${index}`,
+          resources: units.map(unit => ({
+            resource: {
+              id: 1,
+              cpu: { units: { val: BigInt(unit.cpuMillis ?? 0) } },
+              memory: { quantity: { val: BigInt(unit.memoryBytes ?? 0) } }
+            },
+            count: unit.count ?? 1
+          }))
+        }))
+      })
+    };
+  }
+
   function createLeaseMessage(bidId?: { dseq?: string; gseq?: number; oseq?: number; bseq?: number; provider?: string; owner?: string }): EncodeObject {
     return {
       typeUrl: `/${MsgCreateLease.$type}`,
@@ -244,6 +264,91 @@ describe(TrialValidationService.name, () => {
     };
     return bid;
   }
+
+  describe("validateDeploymentResources", () => {
+    it("skips validation when wallet is not trialing", async () => {
+      const wallet = createUserWallet({ isTrialing: false });
+      const { service } = setupResources({ maxCpu: 4, maxMemoryGi: 16 });
+
+      await expect(service.validateDeploymentResources([createDeploymentMessageWithResources([[{ cpuMillis: 16_000 }]])], wallet)).resolves.toBeUndefined();
+    });
+
+    it("skips validation when both caps are configured to zero", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupResources({ maxCpu: 0, maxMemoryGi: 0 });
+
+      await expect(service.validateDeploymentResources([createDeploymentMessageWithResources([[{ cpuMillis: 16_000 }]])], wallet)).resolves.toBeUndefined();
+    });
+
+    it("allows a trial deployment within the caps", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupResources({ maxCpu: 4, maxMemoryGi: 16 });
+
+      await expect(
+        service.validateDeploymentResources([createDeploymentMessageWithResources([[{ cpuMillis: 4000, memoryBytes: 16 * 1024 ** 3 }]])], wallet)
+      ).resolves.toBeUndefined();
+    });
+
+    it("rejects a trial deployment with 403 when CPU exceeds the cap", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupResources({ maxCpu: 4, maxMemoryGi: 16 });
+
+      await expect(service.validateDeploymentResources([createDeploymentMessageWithResources([[{ cpuMillis: 16_000 }]])], wallet)).rejects.toMatchObject({
+        status: 403,
+        message: expect.stringContaining("limited to 4 CPU")
+      });
+    });
+
+    it("rejects a trial deployment with 403 when memory exceeds the cap", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupResources({ maxCpu: 4, maxMemoryGi: 16 });
+
+      await expect(
+        service.validateDeploymentResources([createDeploymentMessageWithResources([[{ cpuMillis: 1000, memoryBytes: 24 * 1024 ** 3 }]])], wallet)
+      ).rejects.toMatchObject({
+        status: 403,
+        message: expect.stringContaining("limited to 16Gi of memory")
+      });
+    });
+
+    it("multiplies resources by the replica count", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupResources({ maxCpu: 4, maxMemoryGi: 16 });
+
+      await expect(
+        service.validateDeploymentResources([createDeploymentMessageWithResources([[{ cpuMillis: 3000, count: 2 }]])], wallet)
+      ).rejects.toMatchObject({ status: 403, message: expect.stringContaining("limited to 4 CPU") });
+    });
+
+    it("sums resources across all groups", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupResources({ maxCpu: 4, maxMemoryGi: 16 });
+
+      await expect(
+        service.validateDeploymentResources([createDeploymentMessageWithResources([[{ cpuMillis: 3000 }], [{ cpuMillis: 3000 }]])], wallet)
+      ).rejects.toMatchObject({ status: 403, message: expect.stringContaining("limited to 4 CPU") });
+    });
+
+    it("logs a structured rejection event when a cap is exceeded", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service, logger } = setupResources({ maxCpu: 4, maxMemoryGi: 16 });
+
+      await expect(service.validateDeploymentResources([createDeploymentMessageWithResources([[{ cpuMillis: 16_000 }]])], wallet)).rejects.toMatchObject({
+        status: 403
+      });
+
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "TRIAL_RESOURCE_LIMIT_REJECTED", kind: "cpu", cpuMillis: 16_000, owner: wallet.address, userId: wallet.userId })
+      );
+    });
+
+    it("passes when there are no MsgCreateDeployment messages", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupResources({ maxCpu: 4, maxMemoryGi: 16 });
+
+      await expect(service.validateDeploymentResources([createLeaseMessage()], wallet)).resolves.toBeUndefined();
+    });
+  });
 
   describe("getTopUpMinAmountUsd", () => {
     it("returns the standard $20 floor when the wallet is not trialing", () => {
@@ -341,7 +446,13 @@ describe(TrialValidationService.name, () => {
     const config = mockConfigService<BillingConfigService>({
       TRIAL_ALLOWANCE_EXPIRATION_DAYS: input.trialDurationDays
     });
-    const service = new TrialValidationService(config, mock<ProviderRepository>(), mock<BidHttpService>(), mock<BlockedGpuService>());
+    const service = new TrialValidationService(
+      config,
+      mock<ProviderRepository>(),
+      mock<BidHttpService>(),
+      mock<BlockedGpuService>(),
+      createLoggerStub().createLogger
+    );
     return { service };
   }
 
@@ -352,7 +463,7 @@ describe(TrialValidationService.name, () => {
     const config = mockConfigService<BillingConfigService>({
       MANAGED_WALLET_TRIAL_MIN_TOP_UP_AMOUNT: input.trialMin
     });
-    const service = new TrialValidationService(config, providerRepository, bidHttpService, blockedGpuService);
+    const service = new TrialValidationService(config, providerRepository, bidHttpService, blockedGpuService, createLoggerStub().createLogger);
     return { service };
   }
 
@@ -365,7 +476,23 @@ describe(TrialValidationService.name, () => {
       MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: input.blockedGpuModels
     });
     const blockedGpuService = new BlockedGpuService(blockedGpuConfig);
-    const service = new TrialValidationService(config, providerRepository, bidHttpService, blockedGpuService);
+    const service = new TrialValidationService(config, providerRepository, bidHttpService, blockedGpuService, createLoggerStub().createLogger);
     return { service, config, providerRepository, bidHttpService, blockedGpuService };
+  }
+
+  function setupResources(input: { maxCpu: number; maxMemoryGi: number }) {
+    const config = mockConfigService<BillingConfigService>({
+      MANAGED_WALLET_TRIAL_MAX_CPU: input.maxCpu,
+      MANAGED_WALLET_TRIAL_MAX_MEMORY_GI: input.maxMemoryGi
+    });
+    const { createLogger, logger } = createLoggerStub();
+    const service = new TrialValidationService(config, mock<ProviderRepository>(), mock<BidHttpService>(), mock<BlockedGpuService>(), createLogger);
+    return { service, logger };
+  }
+
+  function createLoggerStub() {
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
+    return { createLogger, logger };
   }
 });
