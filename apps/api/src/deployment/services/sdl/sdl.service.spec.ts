@@ -478,6 +478,15 @@ describe(SdlService.name, () => {
       expect(denomExchangeService.getExchangeRateToUSD).not.toHaveBeenCalled();
     });
 
+    it("rejects an sdl priced in a denom the grant cannot restate", async () => {
+      const { result } = await setup({ sdl: VALID_SDL.replace("denom: uakt", "denom: uatom"), deploymentGrantDenom: "uact" });
+
+      expect(result).toMatchObject({
+        ok: false,
+        value: [expect.objectContaining({ message: expect.stringContaining("should be one of: uakt, uact") })]
+      });
+    });
+
     it("rejects the sdl when the akt price needed to convert its ceiling is unavailable", async () => {
       const { result } = await setup({ sdl: VALID_SDL, deploymentGrantDenom: "uact", aktToUsdRate: 0 });
 
