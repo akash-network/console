@@ -2,10 +2,6 @@ import type { SDLInput } from "@akashnetwork/chain-sdk";
 import { yaml } from "@akashnetwork/chain-sdk";
 import { dump } from "js-yaml";
 
-import { isSdlReference } from "@src/deployment/services/sdl-reference/sdl-reference.service";
-
-type SdlServiceDefinition = SDLInput["services"][string];
-
 /** Why a document was not stored, so a caller can report which without reading a parse error, whose message quotes the line it failed on. */
 export type StoredSdlRefusal = "unparseable" | "too-large";
 
@@ -44,53 +40,11 @@ export function sdlForStorage(parsed: StorableSdl, maxLength: number): StoredSdl
   return stored.length > maxLength ? { sdl: null, length: stored.length } : { sdl: stored, length: stored.length };
 }
 
-/** Keeps nothing of what a document carries in the clear, for a caller with nowhere to put it: an `env` value goes and the credentials block with it. */
-export function dropSdlValues(document: SDLInput): void {
-  for (const service of serviceDefinitionsOf(document)) {
-    dropEnvValues(service);
-    delete service.credentials;
-  }
-}
-
 /** Reads `line` and `column` and nothing else, because the other fields of a `js-yaml` mark quote the document that failed to parse. */
 function positionOf(error: unknown): StoredSdlPosition | undefined {
   const mark = (error as { mark?: { line?: unknown; column?: unknown } })?.mark;
 
   return typeof mark?.line === "number" && typeof mark?.column === "number" ? { line: mark.line + 1, column: mark.column + 1 } : undefined;
-}
-
-function serviceDefinitionsOf(sdl: SDLInput | undefined): SdlServiceDefinition[] {
-  const services = sdl?.services;
-
-  if (!services || typeof services !== "object") {
-    return [];
-  }
-
-  return Object.values(services).filter((service): service is SdlServiceDefinition => !!service && typeof service === "object");
-}
-
-/** A non-list `env` is left alone rather than failing, because the manifest generator the caller runs first already rejects that shape. */
-function dropEnvValues(service: SdlServiceDefinition): void {
-  const env = service.env;
-
-  if (!Array.isArray(env)) {
-    return;
-  }
-
-  env.forEach((entry, index) => {
-    if (typeof entry === "string") {
-      env[index] = withoutValue(entry);
-    }
-  });
-}
-
-/** Keeps the variable name and drops its value, unless the entry declares no value or names one by reference. */
-function withoutValue(entry: string): string {
-  const valueStart = entry.indexOf("=");
-
-  if (valueStart === -1) return entry;
-
-  return isSdlReference(entry.slice(valueStart + 1)) ? entry : entry.slice(0, valueStart + 1);
 }
 
 function mayShareNodesOf(rawSdl: string): boolean {
