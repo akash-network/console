@@ -1,3 +1,4 @@
+import type { X509Certificate } from "node:crypto";
 import { EventEmitter } from "node:events";
 import type { ClientRequest, IncomingMessage } from "node:http";
 import https from "node:https";
@@ -102,9 +103,40 @@ describe(ProviderProxy.name, () => {
     expect(connectionTracker.recordUnreachable).not.toHaveBeenCalled();
   });
 
+  it("records nothing for a dial killed by another request's certificate teardown", async () => {
+    const { proxy, connectionTracker, certificateValidator } = setup();
+    certificateValidator.validate.mockResolvedValue({ ok: false, code: "expired" });
+    const { collateralRequest } = stubCertRejectedDialThenPendingDial();
+
+    const rejected = proxy.connect("https://provider.example.com:8443/status", { method: "GET", providerAddress: "akash1provider" });
+    const collateral = proxy.connect("https://provider.example.com:8443/status", { method: "GET", providerAddress: "akash1provider" });
+    await expect(rejected).resolves.toEqual({ ok: false, code: "invalidCertificate", reason: "expired" });
+    collateralRequest.emit("error", Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }));
+
+    await expect(collateral).resolves.toMatchObject({ ok: false, code: "connectionError" });
+    expect(connectionTracker.recordUnreachable).not.toHaveBeenCalled();
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
+
+  function stubCertRejectedDialThenPendingDial() {
+    const rejectedRequest = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn(), reusedSocket: false });
+    const collateralRequest = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn(), reusedSocket: false });
+    const socket = Object.assign(Object.create(TLSSocket.prototype) as TLSSocket, {
+      authorized: false,
+      getPeerX509Certificate: vi.fn().mockReturnValue(mock<X509Certificate>())
+    });
+    const response = Object.assign(new EventEmitter(), { socket, destroy: vi.fn(), pause: vi.fn(), resume: vi.fn() });
+    const requests = [rejectedRequest, collateralRequest];
+    vi.spyOn(https, "request").mockImplementation((_url, _options, callback) => {
+      const request = requests.shift();
+      if (request === rejectedRequest) setImmediate(() => (callback as ((res: IncomingMessage) => void) | undefined)?.(response as unknown as IncomingMessage));
+      return request as unknown as ClientRequest;
+    });
+    return { collateralRequest };
+  }
 
   function stubDial() {
     const request = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn(), reusedSocket: false });
@@ -136,8 +168,9 @@ describe(ProviderProxy.name, () => {
       shouldSkipDial: vi.fn().mockReturnValue(input.shouldSkipDial ?? false),
       getLastError: vi.fn().mockReturnValue(input.lastError)
     });
-    const proxy = new ProviderProxy(mock<CertificateValidator>(), undefined, connectionTracker);
+    const certificateValidator = mock<CertificateValidator>();
+    const proxy = new ProviderProxy(certificateValidator, undefined, connectionTracker);
 
-    return { proxy, connectionTracker };
+    return { proxy, connectionTracker, certificateValidator };
   }
 });

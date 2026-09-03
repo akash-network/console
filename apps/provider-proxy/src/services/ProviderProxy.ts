@@ -20,6 +20,8 @@ export class ProviderProxy {
   readonly #agentsCache = new LRUCache<string, https.Agent>({
     max: 1_000_000
   });
+  /** Destroying a shared agent aborts every concurrent dial to that provider with ECONNRESET, which must not count as the provider being unreachable. */
+  readonly #tornDownAgents = new WeakSet<https.Agent>();
   readonly #certificateValidator: CertificateValidator;
   readonly #networkLookup?: NetworkLookup;
   readonly #connectionTracker?: ProviderConnectionTracker;
@@ -94,6 +96,7 @@ export class ProviderProxy {
                 selfDestroyed = true;
                 res.destroy();
                 req.destroy();
+                if (requestOptions.agent) this.#tornDownAgents.add(requestOptions.agent);
                 requestOptions.agent?.destroy();
                 return;
               }
@@ -123,7 +126,8 @@ export class ProviderProxy {
         req.on(
           "error",
           propagateTracingContext(error => {
-            if (!selfDestroyed) this.recordUnreachable(trackerKey, error);
+            const destroyedByProxy = selfDestroyed || (requestOptions.agent !== undefined && this.#tornDownAgents.has(requestOptions.agent));
+            if (!destroyedByProxy) this.recordUnreachable(trackerKey, error);
             resolve({ ok: false, code: "connectionError", error });
           })
         );

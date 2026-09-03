@@ -4,8 +4,8 @@ import { LRUCache } from "lru-cache";
 /**
  * Errnos that mean the host is not there: no route, no DNS, nothing listening, or the dial reset before a
  * response existed. ECONNRESET is only trustworthy because ProviderProxy never reports a destroy it caused
- * itself: its own per-attempt timeout and client aborts also surface as ECONNRESET, and counting those would
- * let one slow poll blind every other caller on a healthy provider.
+ * itself: its own per-attempt timeout, client aborts and shared-agent teardowns all surface as ECONNRESET
+ * too, and counting those would let one slow poll blind every other caller on a healthy provider.
  */
 const UNREACHABLE_ERRNOS = ["EHOSTUNREACH", "ENETUNREACH", "ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "ECONNRESET"];
 
