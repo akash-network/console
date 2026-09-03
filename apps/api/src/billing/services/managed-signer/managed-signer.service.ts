@@ -123,6 +123,7 @@ export class ManagedSignerService {
       this.anonymousValidateService.validateLeaseProvidersAuditors(messages, userWallet),
       this.anonymousValidateService.validateDeploymentGpuModels(messages, userWallet),
       this.anonymousValidateService.validateDeploymentGpuInterconnect(messages, userWallet),
+      this.anonymousValidateService.validateDeploymentResources(messages, userWallet),
       this.anonymousValidateService.validateLeaseGpuModels(messages, userWallet)
     ]);
 

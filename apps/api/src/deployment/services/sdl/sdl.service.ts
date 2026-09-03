@@ -8,6 +8,7 @@ import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-
 import type { NamespacedSdlSecrets } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { sdlRequestsGpuInterconnect } from "@src/deployment/utils/gpu-interconnect/gpu-interconnect";
+import { findTrialResourceViolation } from "@src/deployment/utils/group-resources/group-resources";
 
 export type SdlParseResult = { ok: true; value: SDLInput } | { ok: false; value: ValidationError[] };
 export type SdlManifest = Extract<GenerateManifestResult, { ok: true }>["value"];
@@ -128,6 +129,28 @@ export class SdlService {
 
     const result = generateManifest(potentiallyInvalidSDL);
     if (!result.ok) return result;
+
+    if (options.isTrialing) {
+      const violation = findTrialResourceViolation(result.value.groupSpecs, {
+        maxCpu: this.#config.MANAGED_WALLET_TRIAL_MAX_CPU,
+        maxMemoryGi: this.#config.MANAGED_WALLET_TRIAL_MAX_MEMORY_GI
+      });
+
+      if (violation) {
+        return {
+          ok: false,
+          value: [
+            {
+              schemaPath: "",
+              instancePath: "/profiles/compute",
+              keyword: "trial-resources",
+              params: { kind: violation.kind },
+              message: violation.message
+            }
+          ]
+        };
+      }
+    }
 
     return result;
   }

@@ -42,6 +42,39 @@ deployment:
       count: 1
 `;
 
+const SDL_WITH_RESOURCES = (cpuUnits: number, memorySize: string) => `
+version: "2.0"
+services:
+  web:
+    image: nginx
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: ${cpuUnits}
+        memory:
+          size: ${memorySize}
+        storage:
+          size: 1Gi
+  placement:
+    westcoast:
+      pricing:
+        web:
+          denom: uakt
+          amount: 1000
+deployment:
+  web:
+    westcoast:
+      profile: web
+      count: 1
+`;
+
 const MULTI_PLACEMENT_SDL = `
 version: "2.0"
 services:
@@ -514,6 +547,42 @@ describe(SdlService.name, () => {
       expect(result.ok).toBe(true);
     });
 
+    it("rejects trial SDL that exceeds the CPU cap", () => {
+      const { result } = setup({ sdl: SDL_WITH_RESOURCES(16, "24Gi"), isTrialing: true, trialMaxCpu: 4, trialMaxMemoryGi: 32 });
+
+      expect(result).toMatchObject({
+        ok: false,
+        value: [expect.objectContaining({ keyword: "trial-resources", message: expect.stringContaining("limited to 4 CPU") })]
+      });
+    });
+
+    it("rejects trial SDL that exceeds the memory cap", () => {
+      const { result } = setup({ sdl: SDL_WITH_RESOURCES(2, "24Gi"), isTrialing: true, trialMaxCpu: 4, trialMaxMemoryGi: 16 });
+
+      expect(result).toMatchObject({
+        ok: false,
+        value: [expect.objectContaining({ keyword: "trial-resources", message: expect.stringContaining("limited to 16Gi of memory") })]
+      });
+    });
+
+    it("allows trial SDL within the resource caps", () => {
+      const { result } = setup({ sdl: SDL_WITH_RESOURCES(4, "16Gi"), isTrialing: true, trialMaxCpu: 4, trialMaxMemoryGi: 16 });
+
+      expect(result.ok).toBe(true);
+    });
+
+    it("does not enforce resource caps for non-trialing wallets", () => {
+      const { result } = setup({ sdl: SDL_WITH_RESOURCES(16, "24Gi"), isTrialing: false, trialMaxCpu: 4, trialMaxMemoryGi: 16 });
+
+      expect(result.ok).toBe(true);
+    });
+
+    it("does not enforce resource caps when they are configured to zero", () => {
+      const { result } = setup({ sdl: SDL_WITH_RESOURCES(16, "24Gi"), isTrialing: true, trialMaxCpu: 0, trialMaxMemoryGi: 0 });
+
+      expect(result.ok).toBe(true);
+    });
+
     describe("confidential compute (tee)", () => {
       it("projects a cpu tee selection into the manifest sent to the provider", () => {
         const { result } = setup({ sdl: SDL_WITH_TEE("cpu") });
@@ -651,10 +720,14 @@ describe(SdlService.name, () => {
     deploymentGrantDenom?: BillingConfig["DEPLOYMENT_GRANT_DENOM"];
     blockedGpuModels?: string[];
     isTrialing?: boolean;
+    trialMaxCpu?: number;
+    trialMaxMemoryGi?: number;
   }) {
     const config = mock<BillingConfig>({
       DEPLOYMENT_GRANT_DENOM: input?.deploymentGrantDenom ?? "uakt",
-      MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: input?.allowedAuditors ?? []
+      MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: input?.allowedAuditors ?? [],
+      MANAGED_WALLET_TRIAL_MAX_CPU: input?.trialMaxCpu ?? 0,
+      MANAGED_WALLET_TRIAL_MAX_MEMORY_GI: input?.trialMaxMemoryGi ?? 0
     });
 
     const blockedGpuConfig = mockConfigService<BillingConfigService>({
