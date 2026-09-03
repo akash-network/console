@@ -487,6 +487,15 @@ describe(SdlService.name, () => {
       });
     });
 
+    it("rejects an sdl priced in usdc", async () => {
+      const { result } = await setup({ sdl: VALID_SDL.replace("denom: uakt", "denom: uusdc"), deploymentGrantDenom: "uact" });
+
+      expect(result).toMatchObject({
+        ok: false,
+        value: [expect.objectContaining({ message: expect.stringContaining("should be one of: uakt, uact") })]
+      });
+    });
+
     it("rejects the sdl when the akt price needed to convert its ceiling is unavailable", async () => {
       const { result } = await setup({ sdl: VALID_SDL, deploymentGrantDenom: "uact", aktToUsdRate: 0 });
 

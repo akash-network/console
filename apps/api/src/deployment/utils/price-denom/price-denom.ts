@@ -1,7 +1,5 @@
 import type { SDLInput } from "@akashnetwork/chain-sdk";
 
-import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
-
 type SdlPlacement = SDLInput["profiles"]["placement"];
 type PriceCoin = SdlPlacement[string]["pricing"][string];
 
@@ -9,54 +7,37 @@ export type GrantDenom = PriceCoin["denom"];
 export type PriceRestatement = { ok: true } | { ok: false; aktToUsdRate: number };
 
 const AKT_DENOM = "uakt";
-const DOLLAR_PEGGED_DENOMS: readonly string[] = ["uact", "uusdc", USDC_IBC_DENOMS.mainnetId, USDC_IBC_DENOMS.sandboxId];
 
 /** Managed deployments pay out of a grant in a single denom, so a uakt ceiling is restated in it through the AKT price rather than swapped over. */
 export async function restatePricesInGrantDenom(
   placement: SdlPlacement | undefined,
   options: { grantDenom: GrantDenom; loadAktToUsdRate: () => Promise<number> }
 ): Promise<PriceRestatement> {
-  const prices = findPrices(placement).filter(price => price.denom !== options.grantDenom && isRestatable(price));
+  if (options.grantDenom === AKT_DENOM) return { ok: true };
 
-  if (prices.length === 0) return { ok: true };
+  const aktPrices = findPrices(placement).filter(price => price.denom === AKT_DENOM);
 
-  if (!prices.some(isAktPriced)) {
-    restate(prices, { grantDenom: options.grantDenom });
-    return { ok: true };
-  }
+  if (aktPrices.length === 0) return { ok: true };
 
   const aktToUsdRate = await options.loadAktToUsdRate();
 
   if (!Number.isFinite(aktToUsdRate) || aktToUsdRate <= 0) return { ok: false, aktToUsdRate };
 
-  restate(prices, { grantDenom: options.grantDenom, aktToUsdRate });
+  for (const price of aktPrices) {
+    price.amount = convertedAmount(price.amount, aktToUsdRate);
+    price.denom = options.grantDenom;
+  }
 
   return { ok: true };
 }
 
-function restate(prices: PriceCoin[], options: { grantDenom: GrantDenom; aktToUsdRate?: number }): void {
-  for (const price of prices) {
-    if (options.aktToUsdRate !== undefined) price.amount = convertedAmount(price, options.aktToUsdRate);
-    price.denom = options.grantDenom;
-  }
-}
-
-function isAktPriced(price: PriceCoin): boolean {
-  return price.denom === AKT_DENOM;
-}
-
-/** A denom worth neither a fraction of AKT nor a fraction of a dollar is left for SDL validation to reject, rather than restated into a ceiling it cannot mean. */
-function isRestatable(price: PriceCoin): boolean {
-  return isAktPriced(price) || DOLLAR_PEGGED_DENOMS.includes(price.denom);
-}
-
 /** Rounds up so a converted ceiling never lands under the one the user stated. */
-function convertedAmount(price: PriceCoin, aktToUsdRate: number): PriceCoin["amount"] {
-  const amount = Number(price.amount);
+function convertedAmount(amount: PriceCoin["amount"], aktToUsdRate: number): PriceCoin["amount"] {
+  const parsedAmount = Number(amount);
 
-  if (!isAktPriced(price) || !Number.isFinite(amount)) return price.amount;
+  if (!Number.isFinite(parsedAmount)) return amount;
 
-  return Math.ceil(amount * aktToUsdRate);
+  return Math.ceil(parsedAmount * aktToUsdRate);
 }
 
 function findPrices(placement: SdlPlacement | undefined): PriceCoin[] {

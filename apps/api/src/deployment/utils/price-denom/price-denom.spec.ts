@@ -40,38 +40,39 @@ describe("restatePricesInGrantDenom", () => {
     expect(loadAktToUsdRate).toHaveBeenCalledTimes(1);
   });
 
-  it("restates a dollar ceiling into uakt without a rate, since only real networks grant in dollars", async () => {
+  it("leaves every price alone when the grant already pays in uakt", async () => {
     const placement = placementWith({ web: { denom: "uact", amount: 50 } });
     const loadAktToUsdRate = vi.fn();
 
-    await restatePricesInGrantDenom(placement, { grantDenom: "uakt", loadAktToUsdRate });
+    const result = await restatePricesInGrantDenom(placement, { grantDenom: "uakt", loadAktToUsdRate });
 
-    expect(placement.westcoast.pricing.web).toEqual({ denom: "uakt", amount: 50 });
+    expect(result).toEqual({ ok: true });
+    expect(placement.westcoast.pricing.web).toEqual({ denom: "uact", amount: 50 });
     expect(loadAktToUsdRate).not.toHaveBeenCalled();
   });
 
-  it("restates a denom already pegged to the dollar without a rate or an amount change", async () => {
+  it("leaves a usdc price for sdl validation to reject", async () => {
     const placement = placementWith({ web: { denom: "uusdc", amount: 26 } });
     const loadAktToUsdRate = vi.fn();
 
     const result = await restatePricesInGrantDenom(placement, { grantDenom: "uact", loadAktToUsdRate });
 
     expect(result).toEqual({ ok: true });
-    expect(placement.westcoast.pricing.web).toEqual({ denom: "uact", amount: 26 });
+    expect(placement.westcoast.pricing.web).toEqual({ denom: "uusdc", amount: 26 });
     expect(loadAktToUsdRate).not.toHaveBeenCalled();
   });
 
-  it("restates the legacy ibc usdc denom without a rate", async () => {
+  it("leaves the legacy ibc usdc denom for sdl validation to reject", async () => {
     const placement = placementWith({ web: { denom: "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1", amount: 26 } });
     const loadAktToUsdRate = vi.fn();
 
     await restatePricesInGrantDenom(placement, { grantDenom: "uact", loadAktToUsdRate });
 
-    expect(placement.westcoast.pricing.web).toEqual({ denom: "uact", amount: 26 });
+    expect(placement.westcoast.pricing.web).toEqual({ denom: "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1", amount: 26 });
     expect(loadAktToUsdRate).not.toHaveBeenCalled();
   });
 
-  it("leaves a denom pegged to neither akt nor the dollar for sdl validation to reject", async () => {
+  it("leaves a denom the grant cannot restate for sdl validation to reject", async () => {
     const placement = placementWith({ web: { denom: "uatom", amount: 100 } });
     const loadAktToUsdRate = vi.fn();
 
