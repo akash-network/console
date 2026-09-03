@@ -20,6 +20,8 @@ export class ProviderProxy {
   readonly #agentsCache = new LRUCache<string, https.Agent>({
     max: 1_000_000
   });
+  /** Destroying a shared agent aborts every concurrent dial to that provider with ECONNRESET, which must not count as the provider being unreachable. */
+  readonly #tornDownAgents = new WeakSet<https.Agent>();
   readonly #certificateValidator: CertificateValidator;
   readonly #networkLookup?: NetworkLookup;
   readonly #connectionTracker?: ProviderConnectionTracker;
@@ -43,6 +45,7 @@ export class ProviderProxy {
     }
 
     return new Promise<ProxyConnectionResult>((resolve, reject) => {
+      let selfDestroyed = false;
       const { agentCacheKey, ...requestOptions } = this.getRequestOptions(options);
       const req = https.request(
         url,
@@ -52,7 +55,6 @@ export class ProviderProxy {
             res.on(
               "error",
               propagateTracingContext(error => {
-                this.recordUnreachable(trackerKey, error);
                 resolve({ ok: false, code: "connectionError", error });
               })
             );
@@ -91,8 +93,10 @@ export class ProviderProxy {
                 this.#agentsCache.delete(agentCacheKey);
                 resolve({ ok: false, code: "invalidCertificate", reason: validationResult.code });
                 req.off("error", reject);
+                selfDestroyed = true;
                 res.destroy();
                 req.destroy();
+                if (requestOptions.agent) this.#tornDownAgents.add(requestOptions.agent);
                 requestOptions.agent?.destroy();
                 return;
               }
@@ -111,6 +115,7 @@ export class ProviderProxy {
         options.signal.addEventListener(
           "abort",
           () => {
+            selfDestroyed = true;
             req.destroy();
           },
           { once: true }
@@ -121,16 +126,15 @@ export class ProviderProxy {
         req.on(
           "error",
           propagateTracingContext(error => {
-            this.recordUnreachable(trackerKey, error);
+            const destroyedByProxy = selfDestroyed || (requestOptions.agent !== undefined && this.#tornDownAgents.has(requestOptions.agent));
+            if (!destroyedByProxy) this.recordUnreachable(trackerKey, error);
             resolve({ ok: false, code: "connectionError", error });
           })
         );
         req.on(
           "timeout",
           propagateTracingContext(() => {
-            // here we are just notified that response take more than specified in request options timeout
-            // then we manually destroy request and it drops connection and
-            // on('error') handler is called with Error code = ECONNRESET
+            selfDestroyed = true;
             req.destroy();
           })
         );
