@@ -11,7 +11,7 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
-describe("DeploymentDetailHeader", () => {
+describe(DeploymentDetailHeader.name, () => {
   it("counts the services of every placement, not just the one whose status is loaded", () => {
     setup({
       storedManifest: yaml.dump({
@@ -57,18 +57,6 @@ describe("DeploymentDetailHeader", () => {
     await userEvent.click(screen.getByRole("button", { name: "Edit deployment name" }));
 
     expect(changeDeploymentName).toHaveBeenCalledWith("1786440078202");
-  });
-
-  it("shows auto top-up as active when enabled for the deployment", () => {
-    setup({ autoTopUpEnabled: true });
-
-    expect(screen.getByText("Active")).toBeInTheDocument();
-  });
-
-  it("shows auto top-up as off when disabled for the deployment", () => {
-    setup({ autoTopUpEnabled: false });
-
-    expect(screen.getByText("Off")).toBeInTheDocument();
   });
 
   it("shows the limit alone, with no meter, before the countdown is anchored to a lease", () => {
@@ -170,43 +158,6 @@ describe("DeploymentDetailHeader", () => {
     setup({});
 
     expect(screen.queryByText("RUNTIME LIMIT")).not.toBeInTheDocument();
-  });
-
-  it("replaces the auto top-up tile with the runtime limit tile, never showing both", () => {
-    setup({ runtimeLimitHours: 12, autoTopUpEnabled: true });
-
-    expect(screen.getByText("RUNTIME LIMIT")).toBeInTheDocument();
-    expect(screen.queryByText("AUTO TOP-UP")).not.toBeInTheDocument();
-  });
-
-  it("shows the auto top-up tile when the deployment has no runtime limit", () => {
-    setup({ autoTopUpEnabled: true });
-
-    expect(screen.getByText("AUTO TOP-UP")).toBeInTheDocument();
-  });
-
-  it("shows the deployment's own escrow balance rather than the account-wide wallet balance", () => {
-    setup({ escrowBalanceUdenom: 3_720_000 });
-
-    expect(screen.getByTestId("escrow-balance")).toHaveTextContent("3.72");
-  });
-
-  describe("when escrow is abstracted behind the threshold flag", () => {
-    it("hides the balance and auto top-up tiles on an always-on deployment", () => {
-      setup({ escrowBalanceUdenom: 3_720_000, autoTopUpEnabled: true, isEscrowAbstracted: true });
-
-      expect(screen.queryByText("BALANCE")).not.toBeInTheDocument();
-      expect(screen.queryByTestId("escrow-balance")).not.toBeInTheDocument();
-      expect(screen.queryByText("AUTO TOP-UP")).not.toBeInTheDocument();
-      expect(screen.getByText("COST")).toBeInTheDocument();
-    });
-
-    it("keeps the runtime limit tile on a limited deployment", () => {
-      setup({ runtimeLimitHours: 12, isEscrowAbstracted: true });
-
-      expect(screen.getByText("RUNTIME LIMIT")).toBeInTheDocument();
-      expect(screen.queryByText("BALANCE")).not.toBeInTheDocument();
-    });
   });
 
   it("passes every lease and provider to the visit control", () => {
@@ -317,8 +268,6 @@ describe("DeploymentDetailHeader", () => {
   }
 
   function setup(input: {
-    autoTopUpEnabled?: boolean;
-    escrowBalanceUdenom?: number;
     runtimeLimitHours?: number | null;
     runtimeEndsAt?: string | null;
     name?: string | null;
@@ -329,7 +278,6 @@ describe("DeploymentDetailHeader", () => {
     providers?: ApiProviderList[];
     gpuAmount?: number;
     groups?: DeploymentGroup[];
-    isEscrowAbstracted?: boolean;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const changeDeploymentName = vi.fn();
@@ -340,21 +288,18 @@ describe("DeploymentDetailHeader", () => {
         getDeploymentData: () => (input.storedManifest ? { manifest: input.storedManifest, name: input.name ?? undefined } : null)
       });
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false });
-    const useIsEscrowAbstracted: typeof DEPENDENCIES.useIsEscrowAbstracted = () => input.isEscrowAbstracted ?? false;
     const useDeclaredTeeTypes: typeof DEPENDENCIES.useDeclaredTeeTypes = () => [];
     const useDeclaredGpuInterconnect: typeof DEPENDENCIES.useDeclaredGpuInterconnect = () => ({ enabled: false, fabrics: [] });
     const TrialDeploymentBadge = vi.fn(() => <div>trial-badge</div>);
     const ConfidentialComputeBadge = vi.fn(() => <div>tee-badge</div>);
     const GpuInterconnectBadge = vi.fn(() => <div>interconnect-badge</div>);
     const useDeploymentEscrowBalance: typeof DEPENDENCIES.useDeploymentEscrowBalance = () => ({
-      balanceUdenom: input.escrowBalanceUdenom ?? 0,
+      balanceUdenom: 0,
       denom: "uact"
     });
-    const PriceValue: typeof DEPENDENCIES.PriceValue = ({ value }) => <span data-testid="escrow-balance">{value}</span>;
     const useDeploymentSettingQuery: typeof DEPENDENCIES.useDeploymentSettingQuery = () =>
       mock<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>>({
         data: mock<NonNullable<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>["data"]>>({
-          autoTopUpEnabled: input.autoTopUpEnabled ?? false,
           runtimeLimitHours: input.runtimeLimitHours ?? null,
           runtimeEndsAt: input.runtimeEndsAt ?? null
         })
@@ -382,9 +327,7 @@ describe("DeploymentDetailHeader", () => {
         dependencies={MockComponents(DEPENDENCIES, {
           useLocalNotes,
           useWallet,
-          useIsEscrowAbstracted,
           useDeploymentEscrowBalance,
-          PriceValue,
           useDeploymentSettingQuery,
           useDeclaredTeeTypes,
           useDeclaredGpuInterconnect,
@@ -399,6 +342,6 @@ describe("DeploymentDetailHeader", () => {
       />
     );
 
-    return { changeDeploymentName, CostRate, CostBreakdownTooltip, PriceValue };
+    return { changeDeploymentName, CostRate, CostBreakdownTooltip };
   }
 });

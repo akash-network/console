@@ -171,8 +171,7 @@ describe("Deployment Settings", () => {
         body: JSON.stringify({
           data: {
             userId: faker.string.uuid(),
-            dseq: faker.number.int({ min: 1, max: 1000000 }).toString(),
-            autoTopUpEnabled: true
+            dseq: faker.number.int({ min: 1, max: 1000000 }).toString()
           }
         })
       });
@@ -191,7 +190,7 @@ describe("Deployment Settings", () => {
           authorization: `Bearer ${token}`,
           "content-type": "application/json"
         },
-        body: JSON.stringify({ data: { userId: user.id, dseq, autoTopUpEnabled: true } })
+        body: JSON.stringify({ data: { userId: user.id, dseq } })
       });
 
       expect(response.status).toBe(201);
@@ -210,7 +209,7 @@ describe("Deployment Settings", () => {
           authorization: `Bearer ${token}`,
           "content-type": "application/json"
         },
-        body: JSON.stringify({ data: { userId: user.id, dseq, autoTopUpEnabled: true } })
+        body: JSON.stringify({ data: { userId: user.id, dseq } })
       });
 
       expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ sdl: "version: '2.0'", manifestVersion: "BAUG" });
@@ -231,8 +230,7 @@ describe("Deployment Settings", () => {
         body: JSON.stringify({
           data: {
             userId: user1.id,
-            dseq,
-            autoTopUpEnabled: true
+            dseq
           }
         })
       });
@@ -259,8 +257,7 @@ describe("Deployment Settings", () => {
         body: JSON.stringify({
           data: {
             userId: user.id,
-            dseq,
-            autoTopUpEnabled: true
+            dseq
           }
         })
       });
@@ -293,7 +290,7 @@ describe("Deployment Settings", () => {
         },
         body: JSON.stringify({
           data: {
-            autoTopUpEnabled: true
+            runtimeLimitHours: 12
           }
         })
       });
@@ -312,9 +309,7 @@ describe("Deployment Settings", () => {
           "content-type": "application/json"
         },
         body: JSON.stringify({
-          data: {
-            autoTopUpEnabled: true
-          }
+          data: {}
         })
       });
 
@@ -355,7 +350,7 @@ describe("Deployment Settings", () => {
         },
         body: JSON.stringify({
           data: {
-            autoTopUpEnabled: true
+            runtimeLimitHours: 12
           }
         })
       });
@@ -369,7 +364,7 @@ describe("Deployment Settings", () => {
       });
     });
 
-    it("updates deployment settings", async () => {
+    it("updates deployment settings and heals a legacy opted-out row through a runtime limit", async () => {
       const { token, user, wallet } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
 
@@ -387,7 +382,7 @@ describe("Deployment Settings", () => {
         },
         body: JSON.stringify({
           data: {
-            autoTopUpEnabled: true
+            runtimeLimitHours: 12
           }
         })
       });
@@ -398,6 +393,7 @@ describe("Deployment Settings", () => {
         id: settings.id,
         userId: user.id,
         dseq,
+        runtimeLimitHours: 12,
         autoTopUpEnabled: true
       });
 
@@ -407,6 +403,7 @@ describe("Deployment Settings", () => {
         id: settings.id,
         userId: user.id,
         dseq,
+        runtimeLimitHours: 12,
         autoTopUpEnabled: true
       });
       expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, wallet.address);
@@ -526,59 +523,7 @@ describe("Deployment Settings", () => {
     });
   });
 
-  describe("disabling automatic funding", () => {
-    it("returns 400 for a PATCH turning auto top-up off", async () => {
-      const { token, user } = await setup();
-      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true });
-
-      const response = await app.request(`/v1/deployment-settings/${user.id}/${dseq}`, {
-        method: "PATCH",
-        headers: {
-          authorization: `Bearer ${token}`,
-          "content-type": "application/json"
-        },
-        body: JSON.stringify({ data: { autoTopUpEnabled: false } })
-      });
-
-      expect(response.status).toBe(400);
-      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ autoTopUpEnabled: true });
-    });
-
-    it("returns 400 when an opt-out arrives alongside a runtime limit", async () => {
-      const { token, user } = await setup();
-      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true });
-
-      const response = await app.request(`/v2/deployment-settings/${dseq}`, {
-        method: "PATCH",
-        headers: {
-          authorization: `Bearer ${token}`,
-          "content-type": "application/json"
-        },
-        body: JSON.stringify({ data: { autoTopUpEnabled: false, runtimeLimitHours: 12 } })
-      });
-
-      expect(response.status).toBe(400);
-      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ runtimeLimitHours: null });
-    });
-
-    it("returns 400 for a POST creating a setting with funding off", async () => {
-      const { token } = await setup();
-      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-
-      const response = await app.request("/v2/deployment-settings", {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${token}`,
-          "content-type": "application/json"
-        },
-        body: JSON.stringify({ data: { dseq, autoTopUpEnabled: false } })
-      });
-
-      expect(response.status).toBe(400);
-    });
-
+  describe("creating a setting without a funding preference", () => {
     it("creates a funded setting when the field is omitted", async () => {
       const { token } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();

@@ -9,12 +9,10 @@ import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.com
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
-import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentCloseJobService } from "../deployment-close-job/deployment-close-job.service";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DrainingDeploymentService } from "../draining-deployment/draining-deployment.service";
-import type { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed-deployments/top-up-managed-deployments-instrumentation.service";
 import { DeploymentSettingService } from "./deployment-setting.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
@@ -79,53 +77,6 @@ describe(DeploymentSettingService.name, () => {
       const result = await service.findOrCreateByUserIdAndDseq(params);
 
       expect(result).toBeUndefined();
-    });
-  });
-
-  describe("upsert", () => {
-    it("records setting toggle when autoTopUpEnabled changes", async () => {
-      const { service, deploymentSettingRepository, instrumentation } = setup();
-      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
-      const existing = createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: false });
-      const updated = createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: true });
-
-      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(existing);
-      deploymentSettingRepository.updateBy.mockResolvedValue(updated as never);
-
-      await service.upsert(params, { autoTopUpEnabled: true });
-
-      expect(instrumentation.recordSettingToggle).toHaveBeenCalledWith(true);
-    });
-
-    it("does not record setting toggle when autoTopUpEnabled stays the same", async () => {
-      const { service, deploymentSettingRepository, instrumentation } = setup();
-      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
-      const existing = createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: true });
-      const updated = createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: true });
-
-      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(existing);
-      deploymentSettingRepository.updateBy.mockResolvedValue(updated as never);
-
-      await service.upsert(params, { autoTopUpEnabled: true });
-
-      expect(instrumentation.recordSettingToggle).not.toHaveBeenCalled();
-    });
-
-    it("records setting toggle when creating new setting", async () => {
-      const { service, deploymentSettingRepository, instrumentation } = setup();
-      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
-      const created = createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: true });
-
-      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
-      deploymentSettingRepository.updateBy.mockResolvedValue(undefined);
-      deploymentSettingRepository.create.mockResolvedValue(created);
-
-      await service.upsert(params, { autoTopUpEnabled: true });
-
-      expect(instrumentation.recordSettingToggle).toHaveBeenCalledWith(true);
     });
   });
 
@@ -229,19 +180,6 @@ describe(DeploymentSettingService.name, () => {
       expect(deploymentSettingRepository.applyRuntimeLimit).not.toHaveBeenCalled();
     });
 
-    it("forces auto top-up on when a first limit arrives with it disabled", async () => {
-      const { service, deploymentSettingRepository } = setup();
-      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
-
-      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
-      deploymentSettingRepository.create.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12, autoTopUpEnabled: true }));
-
-      await service.upsert(params, { runtimeLimitHours: 12, autoTopUpEnabled: false });
-
-      expect(deploymentSettingRepository.create).toHaveBeenCalledWith({ ...params, runtimeLimitHours: 12, autoTopUpEnabled: true });
-    });
-
     it("returns 409 when the guarded update finds no eligible row", async () => {
       const { service, deploymentSettingRepository } = setup();
       const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
@@ -272,17 +210,17 @@ describe(DeploymentSettingService.name, () => {
     it("patches the row created while the first insert was in flight", async () => {
       const { service, deploymentSettingRepository } = setup();
       const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
-      const concurrent = createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: false });
+      const concurrent = createDeploymentSettingsOutput(params);
 
       deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
       deploymentSettingRepository.findOneBy.mockResolvedValueOnce(undefined).mockResolvedValueOnce(concurrent);
-      deploymentSettingRepository.updateBy.mockResolvedValueOnce(undefined).mockResolvedValueOnce({ ...concurrent, autoTopUpEnabled: true } as never);
+      deploymentSettingRepository.updateBy.mockResolvedValueOnce(undefined).mockResolvedValueOnce(concurrent as never);
       deploymentSettingRepository.create.mockRejectedValue(createUniqueViolation());
 
-      const result = await service.upsert(params, { autoTopUpEnabled: true });
+      const result = await service.upsert(params, {});
 
       expect(deploymentSettingRepository.create).toHaveBeenCalledTimes(1);
-      expect(result).toEqual(expect.objectContaining({ autoTopUpEnabled: true }));
+      expect(result).toEqual(expect.objectContaining({ userId: params.userId, dseq: params.dseq }));
     });
 
     it("returns 409 when the row behind the insert conflict is already gone", async () => {
@@ -296,7 +234,7 @@ describe(DeploymentSettingService.name, () => {
       await expect(service.upsert(params, { runtimeLimitHours: 12 })).rejects.toMatchObject({ status: 409 });
     });
 
-    it("leaves the runtime limit untouched for an autoTopUpEnabled-only update", async () => {
+    it("leaves the runtime limit untouched for an update that does not mention it", async () => {
       const { service, deploymentSettingRepository } = setup();
       const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
 
@@ -304,10 +242,10 @@ describe(DeploymentSettingService.name, () => {
       deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12 }));
       deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12 }) as never);
 
-      await service.upsert(params, { autoTopUpEnabled: false });
+      await service.upsert(params, {});
 
       expect(deploymentSettingRepository.applyRuntimeLimit).not.toHaveBeenCalled();
-      expect(deploymentSettingRepository.updateBy).toHaveBeenCalledWith(params, { autoTopUpEnabled: false }, { returning: true });
+      expect(deploymentSettingRepository.updateBy).toHaveBeenCalledWith(params, {}, { returning: true });
     });
   });
 
@@ -326,23 +264,6 @@ describe(DeploymentSettingService.name, () => {
 
       expect(deploymentSettingRepository.updateBy).toHaveBeenCalledWith(params, { runtimeLimitHours: null, runtimeEndsAt: null }, { returning: true });
       expect(result).toEqual(expect.objectContaining({ runtimeLimitHours: null, runtimeEndsAt: null }));
-    });
-
-    it("keeps a requested auto top-up change alongside the removal", async () => {
-      const { service, deploymentSettingRepository } = setup();
-      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
-
-      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12 }));
-      deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: true }) as never);
-
-      await service.upsert(params, { runtimeLimitHours: null, autoTopUpEnabled: true });
-
-      expect(deploymentSettingRepository.updateBy).toHaveBeenCalledWith(
-        params,
-        { autoTopUpEnabled: true, runtimeLimitHours: null, runtimeEndsAt: null },
-        { returning: true }
-      );
     });
 
     it("creates an unlimited setting when the deployment has none", async () => {
@@ -552,7 +473,7 @@ describe(DeploymentSettingService.name, () => {
       expect(domainEvents.publish).not.toHaveBeenCalled();
     });
 
-    it("does not publish a funding command for an autoTopUpEnabled-only update", async () => {
+    it("does not publish a funding command for an update that does not touch the limit", async () => {
       const { service, deploymentSettingRepository, domainEvents } = setup();
       const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
 
@@ -562,7 +483,7 @@ describe(DeploymentSettingService.name, () => {
       );
       deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12 }) as never);
 
-      await service.upsert(params, { autoTopUpEnabled: true });
+      await service.upsert(params, {});
 
       expect(domainEvents.publish).not.toHaveBeenCalled();
     });
@@ -602,48 +523,9 @@ describe(DeploymentSettingService.name, () => {
     });
   });
 
-  describe("when always-on funding is rolled out", () => {
-    it("rejects an upsert turning auto top-up off before touching the row", async () => {
-      const { service, deploymentSettingRepository } = setup({ isAlwaysOnFundingEnabled: true });
-      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
-
-      await expect(service.upsert(params, { autoTopUpEnabled: false })).rejects.toMatchObject({ status: 400 });
-      expect(deploymentSettingRepository.findOneBy).not.toHaveBeenCalled();
-      expect(deploymentSettingRepository.updateBy).not.toHaveBeenCalled();
-    });
-
-    it("rejects an opt-out sent alongside a runtime limit instead of silently overriding it", async () => {
-      const { service, deploymentSettingRepository } = setup({ isAlwaysOnFundingEnabled: true });
-      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
-
-      await expect(service.upsert(params, { runtimeLimitHours: 12, autoTopUpEnabled: false })).rejects.toMatchObject({ status: 400 });
-      expect(deploymentSettingRepository.create).not.toHaveBeenCalled();
-    });
-
-    it("rejects a create with funding off", async () => {
-      const { service, deploymentSettingRepository } = setup({ isAlwaysOnFundingEnabled: true });
-
-      await expect(service.create({ userId: faker.string.uuid(), dseq: faker.string.numeric(6), autoTopUpEnabled: false })).rejects.toMatchObject({
-        status: 400
-      });
-      expect(deploymentSettingRepository.create).not.toHaveBeenCalled();
-    });
-
-    it("accepts an upsert turning auto top-up on", async () => {
-      const { service, deploymentSettingRepository } = setup({ isAlwaysOnFundingEnabled: true });
-      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
-
-      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: false }));
-      deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: true }) as never);
-
-      const result = await service.upsert(params, { autoTopUpEnabled: true });
-
-      expect(result).toEqual(expect.objectContaining({ autoTopUpEnabled: true }));
-    });
-
-    it("accepts a create that omits the funding preference", async () => {
-      const { service, deploymentSettingRepository } = setup({ isAlwaysOnFundingEnabled: true });
+  describe("create", () => {
+    it("creates through the reconciling path and schedules an immediate wallet reload", async () => {
+      const { service, deploymentSettingRepository, walletReloadJobService } = setup();
       const input = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
 
       deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
@@ -652,6 +534,7 @@ describe(DeploymentSettingService.name, () => {
       const result = await service.create(input);
 
       expect(deploymentSettingRepository.create).toHaveBeenCalledWith(input);
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ userId: input.userId });
       expect(result).toEqual(expect.objectContaining({ autoTopUpEnabled: true }));
     });
   });
@@ -689,17 +572,14 @@ describe(DeploymentSettingService.name, () => {
     };
   }
 
-  function setup(input: { isAlwaysOnFundingEnabled?: boolean } = {}) {
+  function setup() {
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     const authService = mock<AuthService>();
     const drainingDeploymentService = mock<DrainingDeploymentService>();
     const walletReloadJobService = mock<WalletReloadJobService>();
     const deploymentCloseJobService = mock<DeploymentCloseJobService>();
     const userWalletRepository = mock<UserWalletRepository>();
-    const instrumentation = mock<TopUpManagedDeploymentsInstrumentationService>();
     const domainEvents = mock<DomainEventsService>();
-    const featureFlagsService = mock<FeatureFlagsService>();
-    featureFlagsService.isEnabled.mockReturnValue(input.isAlwaysOnFundingEnabled ?? false);
 
     const config = mockConfigService<DeploymentConfigService>({
       AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 24
@@ -713,9 +593,7 @@ describe(DeploymentSettingService.name, () => {
       deploymentCloseJobService,
       config,
       userWalletRepository,
-      instrumentation,
-      domainEvents,
-      featureFlagsService
+      domainEvents
     );
 
     return {
@@ -727,9 +605,7 @@ describe(DeploymentSettingService.name, () => {
       deploymentCloseJobService,
       config,
       userWalletRepository,
-      instrumentation,
-      domainEvents,
-      featureFlagsService
+      domainEvents
     };
   }
 });

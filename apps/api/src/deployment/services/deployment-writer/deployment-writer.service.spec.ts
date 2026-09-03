@@ -12,7 +12,6 @@ import type { RpcMessageService } from "@src/billing/services/rpc-message-servic
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { CreateLogger, JobQueueService, TxService } from "@src/core";
 import { JOB_NAME } from "@src/core";
-import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
@@ -169,7 +168,7 @@ describe(DeploymentWriterService.name, () => {
       const createMsg = { typeUrl: "/create", value: MsgCreateDeployment.fromPartial({}) };
       rpcMessageService.getCreateDeploymentMsg.mockReturnValue(createMsg);
 
-      const result = await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
+      const result = await service.create({ userId: "user-1", sdl: "valid-sdl" });
 
       expect(result.dseq).toBe(dseq.toString());
       expect(result.signTx).toBe(txResult);
@@ -179,7 +178,7 @@ describe(DeploymentWriterService.name, () => {
           dseq: dseq.toString(),
           groups: resolvedManifestValue.groupSpecs,
           denom: "uakt",
-          amount: 5000000
+          amount: 500000
         })
       );
       expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledWith("user-1", [createMsg]);
@@ -371,10 +370,10 @@ describe(DeploymentWriterService.name, () => {
       expect(sdlSecretsService.receive).not.toHaveBeenCalled();
     });
 
-    it("opens no seal, seals nothing and writes no data key for a request whose deposit it refuses", async () => {
-      const { service, sdlSecretsService, deploymentSettingRepository } = setup({ isManagedDepositEnabled: false });
+    it("opens no seal, seals nothing and writes no data key for a request whose sdl it refuses", async () => {
+      const { service, sdlSecretsService, deploymentSettingRepository } = setup();
 
-      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL })).rejects.toMatchObject({ status: 400 });
+      await expect(service.create({ userId: "user-1", sdl: SDL_ALIASING_ONE_SCALAR, sealedSecrets: SEAL })).rejects.toMatchObject({ status: 400 });
 
       expect(sdlSecretsService.receive).not.toHaveBeenCalled();
       expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
@@ -698,35 +697,20 @@ describe(DeploymentWriterService.name, () => {
       expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalled();
     });
 
-    it("ignores the caller deposit and uses the configured default when managed deposit is enabled", async () => {
-      const { service, rpcMessageService } = setup({ isManagedDepositEnabled: true, defaultDeposit: 1.25 });
+    it("ignores the caller deposit and uses the configured default", async () => {
+      const { service, rpcMessageService } = setup({ defaultDeposit: 1.25 });
 
       await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
 
       expect(rpcMessageService.getCreateDeploymentMsg).toHaveBeenCalledWith(expect.objectContaining({ amount: 1_250_000 }));
     });
 
-    it("creates a deployment without a caller deposit when managed deposit is enabled", async () => {
-      const { service, rpcMessageService } = setup({ isManagedDepositEnabled: true, defaultDeposit: 0.5 });
+    it("creates a deployment without a caller deposit", async () => {
+      const { service, rpcMessageService } = setup({ defaultDeposit: 0.5 });
 
       await service.create({ userId: "user-1", sdl: "valid-sdl" });
 
       expect(rpcMessageService.getCreateDeploymentMsg).toHaveBeenCalledWith(expect.objectContaining({ amount: 500000 }));
-    });
-
-    it("throws 400 when managed deposit is disabled and no deposit is provided", async () => {
-      const { service, rpcMessageService } = setup({ isManagedDepositEnabled: false });
-
-      await expect(service.create({ userId: "user-1", sdl: "valid-sdl" })).rejects.toMatchObject({ status: 400 });
-      expect(rpcMessageService.getCreateDeploymentMsg).not.toHaveBeenCalled();
-    });
-
-    it("does not reclaim trial orphans when a missing deposit will reject the create", async () => {
-      const { service, staleDeploymentsCleaner, walletReaderService } = setup({ isManagedDepositEnabled: false });
-      walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, isTrialing: true });
-
-      await expect(service.create({ userId: "user-1", sdl: "valid-sdl" })).rejects.toMatchObject({ status: 400 });
-      expect(staleDeploymentsCleaner.cleanUpForWallet).not.toHaveBeenCalled();
     });
 
     it("does not reclaim trial orphans when an oversized sdl will reject the create", async () => {
@@ -826,22 +810,14 @@ describe(DeploymentWriterService.name, () => {
       expect(result).toBe(updatedDeployment);
     });
 
-    it("logs a deprecation warning when managed deposit is enabled", async () => {
-      const { service, logger } = setup({ isManagedDepositEnabled: true });
+    it("logs a deprecation warning on every deposit", async () => {
+      const { service, logger } = setup();
 
       await service.deposit({ userId: "user-1", dseq: "100", amount: 3 });
 
       expect(logger.warn).toHaveBeenCalledWith(
         expect.objectContaining({ event: "DEPRECATED_DEPOSIT_DEPLOYMENT_ENDPOINT_USED", userId: "user-1", dseq: "100" })
       );
-    });
-
-    it("does not log a deprecation warning when managed deposit is disabled", async () => {
-      const { service, logger } = setup({ isManagedDepositEnabled: false });
-
-      await service.deposit({ userId: "user-1", dseq: "100", amount: 3 });
-
-      expect(logger.warn).not.toHaveBeenCalled();
     });
   });
 
@@ -1020,7 +996,6 @@ describe(DeploymentWriterService.name, () => {
   });
 
   function setup(input?: {
-    isManagedDepositEnabled?: boolean;
     defaultDeposit?: number;
     transactionRuns?: boolean;
     compensationEnqueued?: boolean;
@@ -1047,8 +1022,6 @@ describe(DeploymentWriterService.name, () => {
       UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC: RETRY_DELAY_IN_SEC,
       UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN: RETRY_DELAY_MAX_IN_MIN
     });
-    const featureFlagsService = mock<FeatureFlagsService>();
-    featureFlagsService.isEnabled.mockReturnValue(input?.isManagedDepositEnabled ?? false);
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.upsertDefinition.mockResolvedValue(DEPLOYMENT_SETTING_ID);
     const txService = mock<TxService>();
@@ -1081,7 +1054,6 @@ describe(DeploymentWriterService.name, () => {
       staleDeploymentsCleaner,
       createLogger,
       deploymentConfig,
-      featureFlagsService,
       deploymentSettingRepository,
       txService,
       jobQueueService,
@@ -1101,7 +1073,6 @@ describe(DeploymentWriterService.name, () => {
       logger,
       createLogger,
       deploymentConfig,
-      featureFlagsService,
       deploymentSettingRepository,
       txService,
       jobQueueService,

@@ -7,7 +7,7 @@ This job worker automatically tops up a user's credit balance when auto top-up i
 - **`threshold`** — fixed threshold/amount, described below. This is what the billing UI offers when a user enables auto top-up.
 - **`prediction`** — predicted-spend, described at the end. Every row created before CON-884 has this mode, so existing users keep the behavior they signed up for until they switch.
 
-Both modes are supported; neither is scheduled for removal. The `auto_reload_fixed_threshold` flag decides nothing here: background jobs run without a real Unleash user, so a flag could not express a per-user choice anyway. It has no reader left in `apps/api` and stays in the `FeatureFlags` map only because the default-deposit rollout gates on the same flag. In `apps/deploy-web` it gates whether the mode picker is offered.
+Both modes are supported; neither is scheduled for removal. No feature flag participates: the `auto_reload_fixed_threshold` rollout flag that once gated the mode picker and the managed default deposit reached 100% and was removed from the code.
 
 ## Threshold mode
 

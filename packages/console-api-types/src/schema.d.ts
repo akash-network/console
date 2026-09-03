@@ -1695,8 +1695,6 @@ export interface paths {
         content: {
           "application/json": {
             data: {
-              /** @description Whether auto top-up is enabled for this deployment. An explicit false is rejected once always-on funding is rolled out */
-              autoTopUpEnabled?: boolean;
               /** @description Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most 48. Extending an existing limit must raise it by at most 48 hours per request; send the new total rather than the increment. Lowering a limit is not supported. Send null to remove the limit and return the deployment to always-on funding. */
               runtimeLimitHours?: number | null;
             };
@@ -1796,8 +1794,6 @@ export interface paths {
               userId: string;
               /** @description Deployment sequence number */
               dseq: string;
-              /** @description Whether auto top-up is enabled for this deployment. Defaults to enabled when omitted; an explicit false is rejected once always-on funding is rolled out */
-              autoTopUpEnabled?: boolean;
             };
           };
         };
@@ -1926,8 +1922,6 @@ export interface paths {
         content: {
           "application/json": {
             data: {
-              /** @description Whether auto top-up is enabled for this deployment. An explicit false is rejected once always-on funding is rolled out */
-              autoTopUpEnabled?: boolean;
               /** @description Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most 48. Extending an existing limit must raise it by at most 48 hours per request; send the new total rather than the increment. Lowering a limit is not supported. Send null to remove the limit and return the deployment to always-on funding. */
               runtimeLimitHours?: number | null;
             };
@@ -2025,8 +2019,6 @@ export interface paths {
             data: {
               /** @description Deployment sequence number */
               dseq: string;
-              /** @description Whether auto top-up is enabled for this deployment. Defaults to enabled when omitted; an explicit false is rejected once always-on funding is rolled out */
-              autoTopUpEnabled?: boolean;
               /**
                * Format: uuid
                * @description User ID. Defaults to the current authenticated user if not provided

@@ -1,49 +1,34 @@
 "use client";
 import type { FC } from "react";
 import { useCallback, useState } from "react";
-import { Button, CustomTooltip, Snackbar, Spinner, Switch } from "@akashnetwork/ui/components";
+import { Button, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
 import { cn } from "@akashnetwork/ui/utils";
-import formatDuration from "date-fns/formatDuration";
-import intervalToDuration from "date-fns/intervalToDuration";
-import { InfoCircle } from "iconoir-react";
 import { useSnackbar } from "notistack";
 
-import { PriceValue } from "@src/components/shared/PriceValue";
 import { useServices } from "@src/context/ServicesProvider";
-import { useWallet } from "@src/context/WalletProvider";
-import { useAutoTopUp } from "@src/hooks/useAutoTopUp/useAutoTopUp";
-import { useDeploymentEscrowBalance } from "@src/hooks/useDeploymentEscrowBalance/useDeploymentEscrowBalance";
+import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
 import { useHasDeploymentStopped } from "@src/hooks/useHasDeploymentStopped";
-import { useIsEscrowAbstracted } from "@src/hooks/useIsEscrowAbstracted";
-import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useTickingNow } from "@src/hooks/useTickingNow";
-import { useUpdateDeploymentSettingMutation } from "@src/queries/deploymentSettingsQuery";
+import { useDeploymentSettingQuery, useUpdateDeploymentSettingMutation } from "@src/queries/deploymentSettingsQuery";
 import type { AppError } from "@src/types";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
+import { getEscrowDenom } from "@src/utils/deploymentUtils";
 import { extractErrorMessage } from "@src/utils/errorUtils";
-import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getRuntimeLimitCountdown } from "@src/utils/runtimeLimitUtils";
-import { DeploymentDepositModal } from "../../DeploymentDepositModal/DeploymentDepositModal";
 import { RuntimeLimitMeter } from "../RuntimeLimitMeter";
 import { AddRuntimeHoursModal } from "./AddRuntimeHoursModal";
 
 export const DEPENDENCIES = {
   useServices,
-  useWallet,
-  useIsEscrowAbstracted,
   usePopup,
-  usePricing,
-  useAutoTopUp,
-  useDeploymentEscrowBalance,
+  useDeploymentSettingQuery,
+  useDeploymentMetrics,
   useUpdateDeploymentSettingMutation,
   useTickingNow,
   useSnackbar,
   Snackbar,
-  DeploymentDepositModal,
-  AddRuntimeHoursModal,
-  PriceValue,
-  CustomTooltip
+  AddRuntimeHoursModal
 };
 
 export interface DeploymentBillingSectionProps {
@@ -55,42 +40,22 @@ export interface DeploymentBillingSectionProps {
 
 export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ deployment, leases, onFundsChanged, dependencies: d = DEPENDENCIES }) => {
   const { analyticsService } = d.useServices();
-  const { denom: walletDenom } = d.useWallet();
-  const { udenomToUsd } = d.usePricing();
   const { confirm } = d.usePopup();
   const { enqueueSnackbar } = d.useSnackbar();
-  const isEscrowAbstracted = d.useIsEscrowAbstracted();
-  const [isDepositing, setIsDepositing] = useState(false);
   const [isAddingHours, setIsAddingHours] = useState(false);
   const isActive = deployment.state === "active";
 
-  const onDeposited = useCallback(() => {
-    analyticsService.track("deployment_deposit", { category: "deployments", label: "Deposit deployment in deployment detail" });
-    onFundsChanged();
-  }, [analyticsService, onFundsChanged]);
-
-  const { isEnabled, isLoading, estimatedTopUpAmount, topUpFrequencyMs, runtimeLimitHours, runtimeEndsAt, costPerBlockUdenom, setEnabled, deposit } =
-    d.useAutoTopUp({ deployment, leases, onDeposited });
-  const { balanceUdenom, denom: escrowDenom } = d.useDeploymentEscrowBalance({ deployment, leases });
+  const deploymentSetting = d.useDeploymentSettingQuery({ dseq: deployment.dseq, pollUntilRuntimeAnchored: true });
+  const { deploymentCost: costPerBlockUdenom } = d.useDeploymentMetrics({ deployment, leases });
+  const escrowDenom = getEscrowDenom(deployment);
   const updateSetting = d.useUpdateDeploymentSettingMutation({ dseq: deployment.dseq });
 
+  const runtimeLimitHours = deploymentSetting.data?.runtimeLimitHours ?? null;
+  const runtimeEndsAt = deploymentSetting.data?.runtimeEndsAt ?? null;
   const isRuntimeLimited = !!runtimeLimitHours;
   const hasStopped = useHasDeploymentStopped({ deployment, leases });
   const now = d.useTickingNow(!!runtimeEndsAt && !hasStopped);
   const runtimeLimitCountdown = runtimeLimitHours ? getRuntimeLimitCountdown({ runtimeLimitHours, runtimeEndsAt, hasStopped, now }) : null;
-
-  const openDepositModal = useCallback(() => {
-    setIsDepositing(true);
-    analyticsService.track("deposit_deployment_btn_clk", "Amplitude");
-  }, [analyticsService]);
-
-  const submitDeposit = useCallback(
-    (amount: number) => {
-      setIsDepositing(false);
-      deposit(amount);
-    },
-    [deposit]
-  );
 
   const openAddHoursModal = useCallback(() => {
     setIsAddingHours(true);
@@ -120,8 +85,7 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
 
   /**
    * Drops the runtime limit for good, so it asks first: the deployment then funds itself until the user
-   * closes it, and nothing here offers a way back to a fixed runtime. Auto top-up is turned on with it,
-   * because that is what keeps an always-on deployment alive.
+   * closes it, and nothing here offers a way back to a fixed runtime.
    */
   const switchToAlwaysOn = useCallback(async () => {
     analyticsService.track("remove_runtime_limit_btn_clk", "Amplitude");
@@ -134,7 +98,7 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
     if (!isConfirmed) return;
 
     try {
-      await updateSetting.mutateAsync({ runtimeLimitHours: null, autoTopUpEnabled: true });
+      await updateSetting.mutateAsync({ runtimeLimitHours: null });
       analyticsService.track("remove_runtime_limit", { category: "deployments", label: "Switch a limited deployment to always on" });
       onFundsChanged();
     } catch (error) {
@@ -148,14 +112,6 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
     <div className="rounded-xl border bg-card p-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0 flex-1 space-y-1 sm:max-w-sm">
-          {!isEscrowAbstracted && (
-            <>
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Current balance</div>
-              <div className="text-2xl font-bold">
-                <d.PriceValue denom={escrowDenom} value={udenomToDenom(balanceUdenom, 6)} />
-              </div>
-            </>
-          )}
           {runtimeLimitCountdown && (
             <div className="space-y-1.5 pt-1">
               <div className={cn("flex items-baseline gap-2", runtimeLimitCountdown.status !== "unanchored" && "justify-between")}>
@@ -166,9 +122,9 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
             </div>
           )}
         </div>
-        {isActive && (isRuntimeLimited || !isEscrowAbstracted) && (
-          <Button variant="outline" size="md" onClick={isRuntimeLimited ? openAddHoursModal : openDepositModal}>
-            {isRuntimeLimited ? "Add hours" : "Add funds"}
+        {isActive && isRuntimeLimited && (
+          <Button variant="outline" size="md" onClick={openAddHoursModal}>
+            Add hours
           </Button>
         )}
       </div>
@@ -189,40 +145,6 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
             </Button>
           </div>
         </div>
-      )}
-
-      {!isEscrowAbstracted && isActive && !isRuntimeLimited && (
-        <div className="mt-6 flex items-center justify-between gap-4 border-t pt-6">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 font-medium">
-              Auto Top-Up
-              <d.CustomTooltip
-                title={
-                  <div className="space-y-2">
-                    <div>
-                      <div>Estimated amount: ${udenomToUsd(estimatedTopUpAmount, walletDenom)}</div>
-                      <div>Check period: {formatDuration(intervalToDuration({ start: 0, end: topUpFrequencyMs }))}</div>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Auto top-up will only occur if there are insufficient funds to maintain the deployment until the next scheduled check.
-                    </div>
-                  </div>
-                }
-              >
-                <InfoCircle width={14} height={14} className="text-muted-foreground" />
-              </d.CustomTooltip>
-            </div>
-            <p className="text-sm text-muted-foreground">Automatically add funds when your balance gets low to keep this deployment running.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {isLoading && <Spinner size="small" />}
-            <Switch checked={isEnabled} onCheckedChange={setEnabled} disabled={isLoading} aria-label="Auto Top-Up" />
-          </div>
-        </div>
-      )}
-
-      {!isEscrowAbstracted && isDepositing && (
-        <d.DeploymentDepositModal denom={escrowDenom} disableMin onCancel={() => setIsDepositing(false)} onSubmit={submitDeposit} />
       )}
 
       {isAddingHours && isRuntimeLimited && (

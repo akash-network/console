@@ -8,48 +8,25 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
-describe("DeploymentBillingSection", () => {
-  it("opens the deposit modal when Add funds is clicked on an active deployment", async () => {
+describe(DeploymentBillingSection.name, () => {
+  it("does not offer a switch to always on when the deployment has no runtime limit", () => {
     setup({ state: "active" });
 
-    await userEvent.click(screen.getByRole("button", { name: "Add funds" }));
-
-    expect(screen.getByText("deposit-modal")).toBeInTheDocument();
-  });
-
-  it("enables auto top-up when the toggle is switched on", async () => {
-    const { setEnabled } = setup({ state: "active", isEnabled: false });
-
-    await userEvent.click(screen.getByRole("switch", { name: "Auto Top-Up" }));
-
-    expect(setEnabled).toHaveBeenCalledWith(true);
-  });
-
-  it("hides Add funds and the auto top-up toggle when the deployment is closed", () => {
-    setup({ state: "closed" });
-
-    expect(screen.queryByRole("button", { name: "Add funds" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
-  });
-
-  it("shows the escrow balance reported by the escrow hook", () => {
-    setup({ state: "active", balanceUdenom: 500000 });
-
-    expect(screen.getByTestId("current-balance")).toHaveTextContent("0.5");
+    expect(screen.queryByRole("button", { name: "Switch to always on" })).not.toBeInTheDocument();
   });
 
   describe("when the deployment has a runtime limit", () => {
-    it("offers Add hours instead of Add funds", () => {
+    it("offers Add hours", () => {
       setup({ state: "active", runtimeLimitHours: 12 });
 
       expect(screen.getByRole("button", { name: "Add hours" })).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Add funds" })).not.toBeInTheDocument();
     });
 
-    it("hides the auto top-up toggle, which the limit already governs", () => {
-      setup({ state: "active", runtimeLimitHours: 12 });
+    it("hides Add hours and the always-on switch once the deployment is closed", () => {
+      setup({ state: "closed", runtimeLimitHours: 12 });
 
-      expect(screen.queryByRole("switch", { name: "Auto Top-Up" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Add hours" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Switch to always on" })).not.toBeInTheDocument();
     });
 
     it("shows the limit alone, with no meter, before the countdown is anchored to a lease", () => {
@@ -66,6 +43,21 @@ describe("DeploymentBillingSection", () => {
       expect(screen.getByText("36m left")).toBeInTheDocument();
       expect(screen.getByText("of 1h limit")).toBeInTheDocument();
       expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "60");
+    });
+
+    it("reads as ended, with no meter, once the deployment is closed with time still on its limit", () => {
+      setup({ state: "closed", runtimeLimitHours: 12, runtimeEndsAt: "2026-08-21T18:00:00.000Z" });
+
+      expect(screen.getByText("Runtime ended")).toBeInTheDocument();
+      expect(screen.getByText("of 12h limit")).toBeInTheDocument();
+      expect(screen.queryByText("6h left")).not.toBeInTheDocument();
+      expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    });
+
+    it("keeps counting down while the lease list is still loading, so an active deployment never flashes as ended", () => {
+      setup({ state: "active", runtimeLimitHours: 12, runtimeEndsAt: "2026-08-21T18:00:00.000Z", leases: null });
+
+      expect(screen.getByText("6h left")).toBeInTheDocument();
     });
 
     it("sends the new total when hours are added", async () => {
@@ -98,12 +90,12 @@ describe("DeploymentBillingSection", () => {
       expect(screen.getByRole("button", { name: "submit-hours" })).toBeInTheDocument();
     });
 
-    it("removes the limit and turns auto top-up on once the switch is confirmed", async () => {
+    it("removes the limit once the switch is confirmed", async () => {
       const { mutateAsync, onFundsChanged } = setup({ state: "active", runtimeLimitHours: 12 });
 
       await userEvent.click(screen.getByRole("button", { name: "Switch to always on" }));
 
-      expect(mutateAsync).toHaveBeenCalledWith({ runtimeLimitHours: null, autoTopUpEnabled: true });
+      expect(mutateAsync).toHaveBeenCalledWith({ runtimeLimitHours: null });
       await waitFor(() => expect(onFundsChanged).toHaveBeenCalled());
     });
 
@@ -134,84 +126,31 @@ describe("DeploymentBillingSection", () => {
     });
   });
 
-  it("does not offer a switch to always on when the deployment has no runtime limit", () => {
-    setup({ state: "active" });
-
-    expect(screen.queryByRole("button", { name: "Switch to always on" })).not.toBeInTheDocument();
-  });
-
-  describe("when escrow is abstracted behind the threshold flag", () => {
-    it("hides the balance, Add funds, and the auto top-up toggle on an always-on deployment", () => {
-      setup({ state: "active", isEscrowAbstracted: true });
-
-      expect(screen.queryByText("Current balance")).not.toBeInTheDocument();
-      expect(screen.queryByTestId("current-balance")).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Add funds" })).not.toBeInTheDocument();
-      expect(screen.queryByRole("switch", { name: "Auto Top-Up" })).not.toBeInTheDocument();
-    });
-
-    it("reads as ended, with no meter, once the deployment is closed with time still on its limit", () => {
-      setup({ state: "closed", runtimeLimitHours: 12, runtimeEndsAt: "2026-08-21T18:00:00.000Z" });
-
-      expect(screen.getByText("Runtime ended")).toBeInTheDocument();
-      expect(screen.getByText("of 12h limit")).toBeInTheDocument();
-      expect(screen.queryByText("6h left")).not.toBeInTheDocument();
-      expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
-    });
-
-    it("keeps counting down while the lease list is still loading, so an active deployment never flashes as ended", () => {
-      setup({ state: "active", runtimeLimitHours: 12, runtimeEndsAt: "2026-08-21T18:00:00.000Z", leases: null });
-
-      expect(screen.getByText("6h left")).toBeInTheDocument();
-    });
-
-    it("keeps the runtime-limit controls on a limited deployment while hiding the balance", () => {
-      setup({ state: "active", runtimeLimitHours: 12, isEscrowAbstracted: true });
-
-      expect(screen.getByText("12h")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Add hours" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Switch to always on" })).toBeInTheDocument();
-      expect(screen.queryByText("Current balance")).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Add funds" })).not.toBeInTheDocument();
-    });
-  });
-
   function setup(input: {
     state?: string;
-    isEnabled?: boolean;
-    balanceUdenom?: number;
     leases?: LeaseDto[] | null;
     runtimeLimitHours?: number;
     runtimeEndsAt?: string | null;
     patchError?: Error;
     isConfirmed?: boolean;
-    isEscrowAbstracted?: boolean;
   }) {
-    const setEnabled = vi.fn();
-    const deposit = vi.fn();
     const onFundsChanged = vi.fn();
 
     const analyticsService = mock<ReturnType<typeof DEPENDENCIES.useServices>["analyticsService"]>();
     const useServices: typeof DEPENDENCIES.useServices = () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService });
-    const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ denom: "uakt" });
-    const useIsEscrowAbstracted: typeof DEPENDENCIES.useIsEscrowAbstracted = () => input.isEscrowAbstracted ?? false;
-    const usePricing: typeof DEPENDENCIES.usePricing = () => mock<ReturnType<typeof DEPENDENCIES.usePricing>>({ udenomToUsd: () => 0 });
-    const useAutoTopUp: typeof DEPENDENCIES.useAutoTopUp = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useAutoTopUp>>({
-        isEnabled: input.isEnabled ?? false,
-        isLoading: false,
-        estimatedTopUpAmount: 0,
-        topUpFrequencyMs: 0,
+
+    const deploymentSettingQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>>(), {
+      data: mock<NonNullable<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>["data"]>>({
         runtimeLimitHours: input.runtimeLimitHours ?? null,
-        runtimeEndsAt: input.runtimeEndsAt ?? null,
-        costPerBlockUdenom: 100,
-        setEnabled,
-        deposit
-      });
-    const useDeploymentEscrowBalance: typeof DEPENDENCIES.useDeploymentEscrowBalance = () => ({
-      balanceUdenom: input.balanceUdenom ?? 1000000,
-      denom: "uakt"
+        runtimeEndsAt: input.runtimeEndsAt ?? null
+      }),
+      isLoading: false
     });
+    const useDeploymentSettingQuery: typeof DEPENDENCIES.useDeploymentSettingQuery = () => deploymentSettingQuery;
+
+    const useDeploymentMetrics: typeof DEPENDENCIES.useDeploymentMetrics = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useDeploymentMetrics>>({ deploymentCost: 100 });
+
     const useTickingNow: typeof DEPENDENCIES.useTickingNow = () => Date.parse("2026-08-21T12:00:00.000Z");
 
     const mutateAsync = vi.fn().mockImplementation(() => (input.patchError ? Promise.reject(input.patchError) : Promise.resolve()));
@@ -225,11 +164,9 @@ describe("DeploymentBillingSection", () => {
     const useSnackbar: typeof DEPENDENCIES.useSnackbar = () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar });
     const Snackbar: typeof DEPENDENCIES.Snackbar = ({ title }) => <span>{title}</span>;
 
-    const DeploymentDepositModal = vi.fn(() => <div>deposit-modal</div>);
     const AddRuntimeHoursModal: typeof DEPENDENCIES.AddRuntimeHoursModal = ({ currentLimitHours, onSubmit }) => (
       <button onClick={() => onSubmit(currentLimitHours + 6)}>submit-hours</button>
     );
-    const PriceValue: typeof DEPENDENCIES.PriceValue = ({ value }) => <span data-testid="current-balance">{value}</span>;
 
     const deployment = mock<DeploymentDto>({
       dseq: "1786440078202",
@@ -247,23 +184,18 @@ describe("DeploymentBillingSection", () => {
         onFundsChanged={onFundsChanged}
         dependencies={MockComponents(DEPENDENCIES, {
           useServices,
-          useWallet,
-          useIsEscrowAbstracted,
-          usePricing,
           usePopup,
-          useAutoTopUp,
-          useDeploymentEscrowBalance,
+          useDeploymentSettingQuery,
+          useDeploymentMetrics,
           useUpdateDeploymentSettingMutation,
           useTickingNow,
           useSnackbar,
           Snackbar,
-          DeploymentDepositModal,
-          AddRuntimeHoursModal,
-          PriceValue
+          AddRuntimeHoursModal
         })}
       />
     );
 
-    return { setEnabled, deposit, onFundsChanged, mutateAsync, enqueueSnackbar, analyticsService, confirm };
+    return { onFundsChanged, mutateAsync, enqueueSnackbar, analyticsService, confirm };
   }
 });

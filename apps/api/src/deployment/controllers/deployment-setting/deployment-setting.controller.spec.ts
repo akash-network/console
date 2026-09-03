@@ -49,10 +49,10 @@ describe(DeploymentSettingController.name, () => {
       const dseq = faker.string.numeric(6);
       deploymentSettingService.create.mockResolvedValue(setting);
 
-      const result = await controller.createV2({ dseq, autoTopUpEnabled: true, userId });
+      const result = await controller.createV2({ dseq, userId });
 
       expect(result).toEqual({ data: setting });
-      expect(deploymentSettingService.create).toHaveBeenCalledWith({ dseq, autoTopUpEnabled: true, userId });
+      expect(deploymentSettingService.create).toHaveBeenCalledWith({ dseq, userId });
     });
 
     it("defaults userId to current user when not provided", async () => {
@@ -60,10 +60,10 @@ describe(DeploymentSettingController.name, () => {
       const dseq = faker.string.numeric(6);
       deploymentSettingService.create.mockResolvedValue(setting);
 
-      const result = await controller.createV2({ dseq, autoTopUpEnabled: false });
+      const result = await controller.createV2({ dseq });
 
       expect(result).toEqual({ data: setting });
-      expect(deploymentSettingService.create).toHaveBeenCalledWith({ dseq, autoTopUpEnabled: false, userId: user.id });
+      expect(deploymentSettingService.create).toHaveBeenCalledWith({ dseq, userId: user.id });
     });
   });
 
@@ -74,10 +74,10 @@ describe(DeploymentSettingController.name, () => {
       const dseq = faker.string.numeric(6);
       deploymentSettingService.upsert.mockResolvedValue(setting);
 
-      const result = await controller.upsertV2({ dseq, userId, autoTopUpEnabled: true });
+      const result = await controller.upsertV2({ dseq, userId, runtimeLimitHours: 12 });
 
       expect(result).toEqual({ data: setting });
-      expect(deploymentSettingService.upsert).toHaveBeenCalledWith({ userId, dseq }, { autoTopUpEnabled: true });
+      expect(deploymentSettingService.upsert).toHaveBeenCalledWith({ userId, dseq }, { runtimeLimitHours: 12 });
     });
 
     it("defaults userId to current user when not provided", async () => {
@@ -85,17 +85,17 @@ describe(DeploymentSettingController.name, () => {
       const dseq = faker.string.numeric(6);
       deploymentSettingService.upsert.mockResolvedValue(setting);
 
-      const result = await controller.upsertV2({ dseq, autoTopUpEnabled: false });
+      const result = await controller.upsertV2({ dseq, runtimeLimitHours: 12 });
 
       expect(result).toEqual({ data: setting });
-      expect(deploymentSettingService.upsert).toHaveBeenCalledWith({ userId: user.id, dseq }, { autoTopUpEnabled: false });
+      expect(deploymentSettingService.upsert).toHaveBeenCalledWith({ userId: user.id, dseq }, { runtimeLimitHours: 12 });
     });
 
     it("throws 404 when setting not found", async () => {
       const { controller, deploymentSettingService } = setup();
       deploymentSettingService.upsert.mockResolvedValue(undefined as never);
 
-      await expect(() => controller.upsertV2({ dseq: faker.string.numeric(6), autoTopUpEnabled: true })).rejects.toThrow("Deployment setting not found");
+      await expect(() => controller.upsertV2({ dseq: faker.string.numeric(6), runtimeLimitHours: 12 })).rejects.toThrow("Deployment setting not found");
     });
   });
 

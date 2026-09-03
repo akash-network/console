@@ -1,29 +1,27 @@
 "use client";
 import type { FC, ReactNode } from "react";
 import { useMemo } from "react";
-import { Badge, Button, Card, CardContent, CustomTooltip } from "@akashnetwork/ui/components";
+import { Button, Card, CardContent, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { CheckCircle, EditPencil, InfoCircle } from "iconoir-react";
+import { EditPencil, InfoCircle } from "iconoir-react";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { ConfidentialComputeBadge } from "@src/components/shared/ConfidentialComputeBadge";
 import { CostBreakdownTooltip } from "@src/components/shared/CostBreakdownTooltip";
 import { CostRate } from "@src/components/shared/CostRate";
 import { GpuInterconnectBadge } from "@src/components/shared/GpuInterconnectBadge";
-import { PriceValue } from "@src/components/shared/PriceValue";
 import { TrialDeploymentBadge } from "@src/components/shared/TrialDeploymentBadge";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
 import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
 import { useDeploymentEscrowBalance } from "@src/hooks/useDeploymentEscrowBalance/useDeploymentEscrowBalance";
 import { useHasDeploymentStopped } from "@src/hooks/useHasDeploymentStopped";
-import { useIsEscrowAbstracted } from "@src/hooks/useIsEscrowAbstracted";
 import { useTickingNow } from "@src/hooks/useTickingNow";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { isLeaseLive } from "@src/utils/leaseUtils";
-import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
+import { roundDecimal } from "@src/utils/mathHelpers";
 import { getRuntimeLimitCountdown } from "@src/utils/runtimeLimitUtils";
 import { formatByteSize } from "@src/utils/unitUtils";
 import {
@@ -40,14 +38,12 @@ import { RuntimeLimitMeter } from "./RuntimeLimitMeter";
 export const DEPENDENCIES = {
   useLocalNotes,
   useWallet,
-  useIsEscrowAbstracted,
   useDeploymentEscrowBalance,
   useDeploymentSettingQuery,
   useDeclaredTeeTypes,
   useDeclaredGpuInterconnect,
   CostRate,
   CostBreakdownTooltip,
-  PriceValue,
   DeploymentVisitControl,
   CustomTooltip,
   ConfidentialComputeBadge,
@@ -72,8 +68,7 @@ export interface DeploymentDetailHeaderProps {
 export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deployment, leases, providers, dependencies: d = DEPENDENCIES }) => {
   const { getDeploymentName, changeDeploymentName, getDeploymentData } = d.useLocalNotes();
   const { isTrialing } = d.useWallet();
-  const isEscrowAbstracted = d.useIsEscrowAbstracted();
-  const { balanceUdenom, denom } = d.useDeploymentEscrowBalance({ deployment, leases });
+  const { denom } = d.useDeploymentEscrowBalance({ deployment, leases });
   const { data: settings } = d.useDeploymentSettingQuery({ dseq: deployment.dseq, pollUntilRuntimeAnchored: true });
   const teeTypes = d.useDeclaredTeeTypes(deployment);
   const interconnect = d.useDeclaredGpuInterconnect(deployment);
@@ -139,12 +134,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
             >
               {costPerBlockUDenom ? <d.CostRate perBlockUDenom={costPerBlockUDenom} denom={denom} gpuCount={liveGpuCount} hideBreakdownTooltip /> : "—"}
             </SummaryItem>
-            {!isEscrowAbstracted && (
-              <SummaryItem label="BALANCE">
-                <d.PriceValue denom={denom} value={udenomToDenom(balanceUdenom, 6)} />
-              </SummaryItem>
-            )}
-            {runtimeLimitCountdown ? (
+            {runtimeLimitCountdown && (
               <SummaryItem
                 label={
                   <span className="inline-flex items-center gap-1">
@@ -165,28 +155,6 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
                   <RuntimeLimitMeter countdown={runtimeLimitCountdown} />
                 </div>
               </SummaryItem>
-            ) : (
-              !isEscrowAbstracted && (
-                <SummaryItem
-                  label={
-                    <span className="inline-flex items-center gap-1">
-                      AUTO TOP-UP
-                      <d.CustomTooltip title="Automatically add credits when your balance gets low to keep your deployments running.">
-                        <InfoCircle width={12} height={12} className="text-muted-foreground" />
-                      </d.CustomTooltip>
-                    </span>
-                  }
-                >
-                  {settings?.autoTopUpEnabled ? (
-                    <Badge className="gap-1 rounded-md border-transparent bg-blue-500 px-2 py-0.5 text-white hover:bg-blue-500 dark:bg-blue-600 dark:hover:bg-blue-600">
-                      <CheckCircle width={12} height={12} />
-                      Active
-                    </Badge>
-                  ) : (
-                    <span className="text-muted-foreground">Off</span>
-                  )}
-                </SummaryItem>
-              )
             )}
           </div>
           <div className="grid grid-cols-4 gap-x-10">

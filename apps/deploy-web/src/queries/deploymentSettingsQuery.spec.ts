@@ -123,7 +123,7 @@ describe("useDeploymentSettingQuery", () => {
   describe("update", () => {
     it("updates deployment setting and refreshes cache", async () => {
       const dseq = faker.string.numeric(6);
-      const updatedSetting = buildDeploymentSetting({ dseq, autoTopUpEnabled: true });
+      const updatedSetting = buildDeploymentSetting({ dseq, runtimeLimitHours: 5 });
       const deploymentSettingService = mock<DeploymentSettingHttpService>({
         findByDseq: vi.fn().mockResolvedValue(buildDeploymentSetting({ dseq })),
         updateByDseq: vi.fn().mockResolvedValue(updatedSetting)
@@ -143,13 +143,13 @@ describe("useDeploymentSettingQuery", () => {
       });
 
       act(() => {
-        result.current.setAutoTopUpEnabled(true);
+        result.current.update({ runtimeLimitHours: 5 });
       });
 
       await vi.waitFor(() => {
-        expect(result.current.data?.autoTopUpEnabled).toBe(true);
+        expect(result.current.data?.runtimeLimitHours).toBe(5);
       });
-      expect(deploymentSettingService.updateByDseq).toHaveBeenCalledWith(dseq, { autoTopUpEnabled: true });
+      expect(deploymentSettingService.updateByDseq).toHaveBeenCalledWith(dseq, { runtimeLimitHours: 5 });
     });
   });
 

@@ -7,11 +7,10 @@ import { DEPENDENCIES, DeploymentSettings } from "./DeploymentSettings";
 import { render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
 
-describe("DeploymentSettings", () => {
-  it("renders billing, notifications, and danger zone for an active signed-in deployment", () => {
+describe(DeploymentSettings.name, () => {
+  it("renders notifications and danger zone for an active signed-in deployment", () => {
     setup({ state: "active", isSignedIn: true });
 
-    expect(screen.getByText("billing-section")).toBeInTheDocument();
     expect(screen.getByText("notifications:true")).toBeInTheDocument();
     expect(screen.getByText("danger-zone")).toBeInTheDocument();
     expect(screen.getByText("Danger Zone")).toBeInTheDocument();
@@ -30,42 +29,32 @@ describe("DeploymentSettings", () => {
     expect(screen.getByText("notifications:false")).toBeInTheDocument();
   });
 
-  describe("when escrow is abstracted behind the threshold flag", () => {
-    it("hides the billing section for an always-on deployment", () => {
-      setup({ state: "active", isSignedIn: true, isEscrowAbstracted: true });
+  it("hides the billing section for an always-on deployment", () => {
+    setup({ state: "active", isSignedIn: true });
 
-      expect(screen.queryByText("billing-section")).not.toBeInTheDocument();
-      expect(screen.queryByText("Billing")).not.toBeInTheDocument();
-      expect(screen.getByText("notifications:true")).toBeInTheDocument();
-    });
-
-    it("keeps the billing section for a runtime-limited deployment", () => {
-      setup({ state: "active", isSignedIn: true, isEscrowAbstracted: true, runtimeLimitHours: 12 });
-
-      expect(screen.getByText("billing-section")).toBeInTheDocument();
-      expect(screen.getByText("Billing")).toBeInTheDocument();
-    });
-
-    it("keeps the billing section hidden until the deployment settings resolve", () => {
-      setup({ state: "active", isSignedIn: true, isEscrowAbstracted: true, isLoadingSettings: true });
-
-      expect(screen.queryByText("billing-section")).not.toBeInTheDocument();
-      expect(screen.queryByText("Billing")).not.toBeInTheDocument();
-    });
+    expect(screen.queryByText("billing-section")).not.toBeInTheDocument();
+    expect(screen.queryByText("Billing")).not.toBeInTheDocument();
   });
 
-  function setup(input: {
-    state?: string;
-    isSignedIn?: boolean;
-    isEscrowAbstracted?: boolean;
-    runtimeLimitHours?: number | null;
-    isLoadingSettings?: boolean;
-  }) {
+  it("shows the billing section for a runtime-limited deployment", () => {
+    setup({ state: "active", isSignedIn: true, runtimeLimitHours: 12 });
+
+    expect(screen.getByText("billing-section")).toBeInTheDocument();
+    expect(screen.getByText("Billing")).toBeInTheDocument();
+  });
+
+  it("keeps the billing section hidden until the deployment settings resolve", () => {
+    setup({ state: "active", isSignedIn: true, isLoadingSettings: true });
+
+    expect(screen.queryByText("billing-section")).not.toBeInTheDocument();
+    expect(screen.queryByText("Billing")).not.toBeInTheDocument();
+  });
+
+  function setup(input: { state?: string; isSignedIn?: boolean; runtimeLimitHours?: number | null; isLoadingSettings?: boolean }) {
     const useUser: typeof DEPENDENCIES.useUser = () =>
       mock<ReturnType<typeof DEPENDENCIES.useUser>>({
         user: input.isSignedIn ? mock<NonNullable<ReturnType<typeof DEPENDENCIES.useUser>["user"]>>({ userId: "u1" }) : undefined
       });
-    const useIsEscrowAbstracted: typeof DEPENDENCIES.useIsEscrowAbstracted = () => input.isEscrowAbstracted ?? false;
     const settings = Object.assign(mock<NonNullable<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>["data"]>>(), {
       runtimeLimitHours: input.runtimeLimitHours ?? null
     });
@@ -84,7 +73,6 @@ describe("DeploymentSettings", () => {
         onDeploymentChange={vi.fn()}
         dependencies={MockComponents(DEPENDENCIES, {
           useUser,
-          useIsEscrowAbstracted,
           useDeploymentSettingQuery,
           DeploymentBillingSection,
           DeploymentNotificationsSection,

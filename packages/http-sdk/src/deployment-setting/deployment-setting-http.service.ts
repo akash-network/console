@@ -18,16 +18,13 @@ export interface DeploymentSettingOutput {
 export interface CreateDeploymentSettingInput {
   userId: string;
   dseq: string;
-  autoTopUpEnabled: boolean;
 }
 
 export interface CreateDeploymentSettingV2Input {
   dseq: string;
-  autoTopUpEnabled: boolean;
 }
 
 export interface UpdateDeploymentSettingInput {
-  autoTopUpEnabled?: boolean;
   /**
    * The new total, not an increment. Runtime limits can only be raised, by at most 48 hours per request;
    * null removes the limit and puts the deployment back on always-on funding.
