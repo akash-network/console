@@ -3,8 +3,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
+import { z } from "zod";
 
-import { createRoute, HIDDEN_ROUTES } from "../../lib/create-route/create-route";
+import { createRoute, HIDDEN_ROUTES, UNDOCUMENTED_REQUEST_FIELDS } from "../../lib/create-route/create-route";
 import { OpenApiHonoHandler } from "../open-api-hono-handler/open-api-hono-handler";
 import { OpenApiDocsService } from "./openapi-docs.service";
 import { SECURITY_NONE } from "./openapi-security";
@@ -21,6 +22,7 @@ describe("OpenApiDocsService", () => {
     fetchMock.mockReset();
     // buildHandler mutates the process-wide HIDDEN_ROUTES set; clear it so tests stay isolated.
     HIDDEN_ROUTES.clear();
+    UNDOCUMENTED_REQUEST_FIELDS.clear();
   });
 
   it("loads the notifications spec from disk when source = file", async () => {
@@ -176,6 +178,69 @@ describe("OpenApiDocsService", () => {
 
   // Routes are built here rather than at module scope so createRoute's HIDDEN_ROUTES
   // side effect happens per-test, not as an import-time global mutation.
+  describe("undocumented request fields", () => {
+    it("omits a declared field from the document callers read", async () => {
+      const { service } = setup({});
+
+      const docs = await service.generateDocs([buildUndocumentedFieldHandler()], { scope: "full", source: "file" });
+
+      expect(documentedFieldsOf(docs)).toEqual(["published"]);
+    });
+
+    it("omits it from the sdk document too, which hidden operations are kept in", async () => {
+      const { service } = setup({});
+
+      const docs = await service.generateDocs([buildUndocumentedFieldHandler()], { scope: "full", source: "file", includeHidden: true });
+
+      expect(documentedFieldsOf(docs)).toEqual(["published"]);
+    });
+
+    it("drops it from the required list rather than requiring a field it does not describe", async () => {
+      const { service } = setup({});
+
+      const docs = await service.generateDocs([buildUndocumentedFieldHandler()], { scope: "full", source: "file" });
+
+      expect(requiredFieldsOf(docs)).toEqual(["published"]);
+    });
+  });
+
+  function documentedFieldsOf(docs: Awaited<ReturnType<OpenApiDocsService["generateDocs"]>>) {
+    return Object.keys(dataSchemaOf(docs).properties as Record<string, unknown>);
+  }
+
+  function requiredFieldsOf(docs: Awaited<ReturnType<OpenApiDocsService["generateDocs"]>>) {
+    return (dataSchemaOf(docs) as { required?: string[] }).required;
+  }
+
+  function dataSchemaOf(docs: Awaited<ReturnType<OpenApiDocsService["generateDocs"]>>) {
+    const post = docs.paths["/v1/test-undocumented-field"].post as unknown as {
+      requestBody: { content: Record<string, { schema: { properties: { data: { properties: Record<string, unknown>; required?: string[] } } } }> };
+    };
+
+    return post.requestBody.content["application/json"].schema.properties.data;
+  }
+
+  function buildUndocumentedFieldHandler() {
+    const route = createRoute({
+      method: "post",
+      path: "/v1/test-undocumented-field",
+      operationId: "createTestUndocumentedField",
+      summary: "Route with an accepted but unpublished field",
+      tags: ["Test"],
+      security: SECURITY_NONE,
+      undocumentedRequestFields: ["withheld"],
+      request: {
+        body: { content: { "application/json": { schema: z.object({ data: z.object({ published: z.string(), withheld: z.string() }) }) } } }
+      },
+      responses: { 200: { description: "OK" } }
+    });
+
+    const handler = new OpenApiHonoHandler();
+    handler.openapi(route, c => c.json({}, 200));
+
+    return handler;
+  }
+
   function buildHandler() {
     const visibleRoute = createRoute({
       method: "get",

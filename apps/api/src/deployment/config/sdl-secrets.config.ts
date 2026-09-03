@@ -57,6 +57,8 @@ export function maxSealedSecretsBytes({ maxCount, maxValueBytes }: { maxCount: n
 
 /** Secrets per deployment, and bytes per value. Configurable, but only downwards without also resizing the create route's body limit. */
 export const SDL_SECRETS_DEFAULT_MAX_COUNT = 100;
+
+/** Measured JSON-encoded, so a value carrying quotes or backslashes fits less raw content than a plain one — unpublished along with the field, so it is recorded here instead. */
 export const SDL_SECRETS_DEFAULT_MAX_VALUE_BYTES = 16 * 1024;
 
 /** The whole existing allowance, kept intact so the submitted SDL's ceiling does not move, plus the largest seal the defaults can produce. */
