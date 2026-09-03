@@ -43,15 +43,7 @@ function unreferencedNameError(name: string): ValidationError {
   };
 }
 
-/**
- * Turns a transport seal plus an SDL into the values a deployment's references resolve to, refusing
- * anything the two disagree about. Nothing here ever logs, echoes or returns a value: the widest thing
- * it says out loud is a name, and a name is already in the SDL it came from.
- *
- * Names are logged distinctly rather than per reference, which is what bounds the line: an SDL can
- * declare a reference per env entry of per service, but by the time anything is logged every name has a
- * supplied value, so the distinct set is bounded by the supplied-count limit.
- */
+/** Nothing here may log, echo or return a secret value: the widest thing it says out loud is a name, which is already in the SDL it came from. */
 @singleton()
 export class SdlSecretsService {
   readonly #loggerService: ReturnType<CreateLogger>;
@@ -66,16 +58,7 @@ export class SdlSecretsService {
     this.#loggerService = createLogger({ context: SdlSecretsService.name });
   }
 
-  /**
-   * Opens the seal, then checks the SDL against it in both directions: a reference with no value and a
-   * value no service references are both mistakes, and reporting only the first would let a typo on the
-   * supplying side ship silently.
-   *
-   * Runs on every create rather than only when a seal arrives, so a reference with no value is refused
-   * at one point whether or not the request carried anything. Callers pass the parsed document, because
-   * an SDL that does not parse has already been refused by the manifest generator and this must not
-   * become a second place that reports it.
-   */
+  /** Takes the parsed document, because an SDL that does not parse has already been refused by the manifest generator and this must not report it twice. */
   async receive(input: { sdl: SDLInput; rawSdl: string; sealedSecrets?: string }): Promise<ReceiveSdlSecretsResult> {
     const declarations = this.sdlReferenceService.declarationsOf(input.sdl, SECRET_REFERENCE_KIND);
 
@@ -100,17 +83,7 @@ export class SdlSecretsService {
     return { ok: true, value: { supplied, byService } };
   }
 
-  /**
-   * Re-seals for storage under the owner's own data encryption key, bound to the deployment the values
-   * were supplied for. The console stores this rather than what the client sent, because a client seals
-   * before the deployment exists and cannot name a dseq that has not been minted yet.
-   *
-   * Costs no key-service call of its own: the data key is already in hand for the request, and the
-   * at-rest form encrypts directly under it.
-   *
-   * Returns null for a deployment that supplied nothing, so a create always has a value to write and a
-   * retry cannot inherit the token an abandoned attempt left on the same row.
-   */
+  /** Returns null when nothing was supplied, so a create always has a value to write and a retry cannot inherit an abandoned attempt's token. */
   async sealForStorage(input: { userId: string; dseq: string; secrets: SdlSecrets }): Promise<string | null> {
     const names = Object.keys(input.secrets);
 
@@ -123,11 +96,7 @@ export class SdlSecretsService {
     return sealed;
   }
 
-  /**
-   * One value per reference, so a name several services refer to reaches each of them and a name none
-   * refer to reaches nothing. Namespaces are built from the walk rather than by giving every service a
-   * copy of everything, so a service that references nothing is handed nothing.
-   */
+  /** Namespaces are built from the walk rather than by copying everything to every service, so a service that references nothing is handed nothing. */
   #assignToServices(declarations: SdlReferenceDeclaration[], supplied: SdlSecrets) {
     const byService: NamespacedSdlSecrets = Object.create(null);
     const errors: ValidationError[] = [];
@@ -153,12 +122,7 @@ export class SdlSecretsService {
     return { byService, errors };
   }
 
-  /**
-   * Refuses on shape before anything is minted or written, and names the limit rather than what breached
-   * it. Every bound here is measured as `jsonEncodedBytes`, the same way the seal budget is computed,
-   * because the plaintext these values end up in is a JSON object and escaping is not size-preserving.
-   * A raw-length check would let a payload pass these and then die on the body limit with a bare 413.
-   */
+  /** Every bound is measured as `jsonEncodedBytes`, matching the seal budget, because a raw-length check would let a payload pass here and die on the body limit. */
   #assertWithinLimits(supplied: SdlSecrets): void {
     const maxCount = this.config.get("SDL_SECRETS_MAX_COUNT");
     const names = Object.keys(supplied);
