@@ -197,7 +197,7 @@ export class DeploymentWriterService {
 
   /** Runs before the document is measured, so that what the size guard bounds is exactly what gets stored. */
   #takeValuesOutOf(document: SDLInput, values: StoredSdlValues): SdlSecrets {
-    return this.sdlSecretsDerivationService.derive(document, { includeEnvValues: values === "every-value-sealed" }).secrets;
+    return this.sdlSecretsDerivationService.derive(document, { includeEnvValues: values === "every-value-sealed" });
   }
 
   /**

@@ -187,6 +187,31 @@ describe("Deployment sealed secrets", () => {
     await expect(openStoredToken(user, setting!.dseq, setting!.sealedSecrets!)).resolves.toEqual({ REG_USER: username, REG_PASS: password });
   });
 
+  it("stores a reference for every service's own registry credentials, with neither service's value in the clear", async () => {
+    const { apiKey, user } = await persistedUser();
+    const web = { host: REGISTRY_HOST, username: faker.string.alphanumeric(10), password: randomUUID() };
+    const worker = { host: "other-registry.example.test", username: faker.string.alphanumeric(10), password: randomUUID() };
+
+    const response = await postDeployment(apiKey, sdlWith({ web: ["LOG_LEVEL=debug"], worker: ["LOG_LEVEL=debug"] }, { web, worker }));
+
+    expect(response.status).toBe(201);
+    const setting = await settingOf(user, response);
+    expect(setting!.sdl).toContain("username: ac-secret://s0_c_username");
+    expect(setting!.sdl).toContain("username: ac-secret://s1_c_username");
+    expect(setting!.sdl).not.toContain(web.password);
+    expect(setting!.sdl).not.toContain(worker.password);
+    expect(setting!.sdl).not.toContain(web.username);
+    expect(setting!.sdl).not.toContain(worker.username);
+    await expect(openStoredToken(user, setting!.dseq, setting!.sealedSecrets!)).resolves.toEqual({
+      s0_e0: "debug",
+      s1_e0: "debug",
+      s0_c_username: web.username,
+      s0_c_password: web.password,
+      s1_c_username: worker.username,
+      s1_c_password: worker.password
+    });
+  });
+
   it("stores a credential the client left in the clear as a reference, with its value only in the token", async () => {
     const { apiKey, user } = await persistedUser();
     const [username, password] = [faker.string.alphanumeric(10), randomUUID()];

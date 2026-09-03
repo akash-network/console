@@ -63,7 +63,7 @@ export interface SdlReferenceResolver {
 /** One position in an SDL where a reference may stand, holding the write back so a caller of the walk never has to know how that position spells a value. */
 export interface SdlReferenceSlot {
   serviceName: string;
-  /** The service's place in the document rather than its name, because a name may spell anything and a reference name may not. */
+  /** Where the service falls in `Object.entries` order — not the document's own order, since an integer-like name sorts first — because a name may spell anything and a reference name may not. */
   serviceIndex: number;
   instancePath: string;
   /** The container the value lives on, so a caller can tell two positions apart from one position two services share through a YAML anchor. */
