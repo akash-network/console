@@ -220,6 +220,14 @@ const parsePort = (value: string): number | undefined => {
   return Number.isNaN(parsed) ? undefined : parsed;
 };
 
+/** Parses a proxy numeric input, preserving decimals (unlike `parsePort`) so the schema's `.int()` rule can reject a fractional value instead of silently truncating it (e.g. `1.5` to `1`). */
+const parseProxyNumber = (value: string): number | undefined => {
+  const trimmed = value.trim();
+  if (trimmed === "") return undefined;
+  const parsed = Number(trimmed);
+  return Number.isNaN(parsed) ? undefined : parsed;
+};
+
 /**
  * Returns focus to the Select trigger when a nested dropdown closes so the dialog's
  * focus scope keeps ownership; without it the nested Radix focus scopes can fight
@@ -791,7 +799,7 @@ const HttpProxyNumberField: FC<HttpProxyNumberFieldProps> = ({ basePath, optionK
           type="number"
           min={0}
           value={field.field.value ?? ""}
-          onChange={event => field.field.onChange(parsePort(event.target.value))}
+          onChange={event => field.field.onChange(parseProxyNumber(event.target.value))}
           error={!!field.fieldState.error}
           inputClassName="h-9"
         />

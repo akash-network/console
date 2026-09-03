@@ -273,13 +273,11 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
 ${result}`;
 };
 
+/** Builds the SDL `http_options.proxy` map: `buffering_disable` is emitted only when true (false is the default), and every other field is emitted whenever explicitly defined so a defined 0 survives rather than being dropped. */
 function buildHttpProxyYaml(proxy?: ServiceExposeHTTPProxyType): Record<string, number | boolean> | undefined {
   if (!proxy) return undefined;
 
   const result: Record<string, number | boolean> = {};
-  // buffering_disable false is the default (buffering on), so emit it only when true.
-  // Every other field is emitted when explicitly defined, so a defined 0 is preserved
-  // rather than silently dropped.
   if (proxy.bufferingDisable) result.buffering_disable = true;
   if (proxy.bufferSize !== undefined) result.buffer_size = proxy.bufferSize;
   if (proxy.buffersNumber !== undefined) result.buffers_number = proxy.buffersNumber;

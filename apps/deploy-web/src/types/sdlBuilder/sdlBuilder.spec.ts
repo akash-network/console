@@ -511,6 +511,67 @@ describe("ServiceExposeHTTPProxySchema", () => {
     );
   });
 
+  it("rejects a buffersNumber below 2", () => {
+    const result = ServiceExposeHTTPProxySchema.safeParse({ buffersNumber: 1, buffersSize: 4096 });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["buffersNumber"], message: "Buffers number must be at least 2." }));
+  });
+
+  it("rejects a fractional proxy value", () => {
+    const result = ServiceExposeHTTPProxySchema.safeParse({ bufferSize: 1.5 });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["bufferSize"] }));
+  });
+
+  it("rejects a busyBuffersSize outside the buffer bounds", () => {
+    const result = ServiceExposeHTTPProxySchema.safeParse({ bufferSize: 4096, buffersNumber: 2, buffersSize: 4096, busyBuffersSize: 100000 });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(
+      expect.objectContaining({ path: ["busyBuffersSize"], message: "Busy buffers size must be between 4096 and 4096 bytes for these buffer settings." })
+    );
+  });
+
+  it("accepts a busyBuffersSize within the buffer bounds", () => {
+    const result = ServiceExposeHTTPProxySchema.safeParse({ bufferSize: 4096, buffersNumber: 4, buffersSize: 4096, busyBuffersSize: 8192 });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a buffer geometry that leaves no room for busy buffers even when busy is unset", () => {
+    const result = ServiceExposeHTTPProxySchema.safeParse({ bufferSize: 131072, buffersNumber: 2, buffersSize: 1 });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(
+      expect.objectContaining({
+        path: ["busyBuffersSize"],
+        message: "These buffer settings leave no room for busy buffers; increase buffers number or buffers size."
+      })
+    );
+  });
+
+  it("rejects a busyBuffersSize set without any buffer size", () => {
+    const result = ServiceExposeHTTPProxySchema.safeParse({ busyBuffersSize: 8192 });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(
+      expect.objectContaining({ path: ["busyBuffersSize"], message: "Set a buffer size or buffers size before busy buffers size." })
+    );
+  });
+
+  it("accepts a bufferSize alone since the provider fills the pool from it", () => {
+    const result = ServiceExposeHTTPProxySchema.safeParse({ bufferSize: 4096 });
+
+    expect(result.success).toBe(true);
+  });
+
   it("accepts a full valid proxy object", () => {
     const result = ServiceExposeHTTPProxySchema.safeParse({
       bufferingDisable: true,

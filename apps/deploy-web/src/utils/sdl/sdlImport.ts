@@ -255,6 +255,7 @@ const getGpuModels = (vendor: { [key: string]: { model: string; ram: string; int
   return models;
 };
 
+/** Maps a raw SDL `http_options.proxy` block to the builder's proxy fields, retaining it when any field is explicitly defined so a defined 0 or false survives the round-trip. */
 function importHttpProxy(proxy: any): ServiceExposeHTTPProxyType | undefined {
   if (!proxy || typeof proxy !== "object") return undefined;
 
@@ -267,8 +268,6 @@ function importHttpProxy(proxy: any): ServiceExposeHTTPProxyType | undefined {
     connectTimeout: proxy.connect_timeout
   };
 
-  // Retain the proxy block when any field is explicitly defined. A defined 0 or
-  // false is a real value (not "unset"), so it must survive the round-trip.
   const hasAny = Object.values(mapped).some(value => value !== undefined);
   return hasAny ? mapped : undefined;
 }

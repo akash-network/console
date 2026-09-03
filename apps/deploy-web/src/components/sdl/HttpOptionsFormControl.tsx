@@ -18,10 +18,7 @@ type Props = {
   children?: ReactNode;
 };
 
-// Parse a proxy numeric input. An empty or non-numeric value becomes undefined;
-// otherwise the raw number is kept (including decimals) so the schema's `.int()`
-// rule surfaces a validation error, rather than `parseInt` silently truncating
-// e.g. `1.5` to `1`.
+/** Parses a proxy numeric input, preserving decimals so the schema's `.int()` rule can reject a fractional value instead of `parseInt` silently truncating it (e.g. `1.5` to `1`). */
 const parseProxyNumberInput = (value: string): number | undefined => {
   const trimmed = value.trim();
   if (trimmed === "") return undefined;
