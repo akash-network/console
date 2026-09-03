@@ -25,7 +25,7 @@ import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secr
 import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import type { StoredSdlPosition, StoredSdlRefusal } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
-import { sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
+import { dropSdlValues, parseSdlForStorage, sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { denomToUdenom } from "@src/utils/math";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
@@ -180,22 +180,31 @@ export class DeploymentWriterService {
 
   /** `dseq` is a log field only, so a create can run this before minting one and still say which request it refused. */
   #storedSdlOf(submittedSdl: string, values: StoredSdlValues, dseq?: string): { sdl: string; derived: SdlSecrets } {
-    let derived: SdlSecrets = {};
+    const parsed = parseSdlForStorage(submittedSdl);
 
-    const takeSecretsOut = (document: SDLInput) => {
-      derived = this.sdlSecretsDerivationService.derive(document, { includeEnvValues: values === "every-value-sealed" }).secrets;
-    };
+    if (parsed.document === null) {
+      throw this.#rejectUnstorableSdl("unparseable", { dseq, length: submittedSdl.length, at: parsed.at });
+    }
 
-    const { sdl, length, refusal, at } =
-      values === "every-value-dropped"
-        ? sdlForStorage(submittedSdl, SDL_MAX_LENGTH, { keepOrdinaryEnvValues: false })
-        : sdlForStorage(submittedSdl, SDL_MAX_LENGTH, { rewrite: takeSecretsOut });
+    const derived = this.#takeValuesOutOf(parsed.document, values);
+    const { sdl, length } = sdlForStorage(parsed, SDL_MAX_LENGTH);
 
     if (sdl === null) {
-      throw this.#rejectUnstorableSdl(refusal, { dseq, length, at });
+      throw this.#rejectUnstorableSdl("too-large", { dseq, length });
     }
 
     return { sdl, derived };
+  }
+
+  /** Runs before the document is measured, so that what the size guard bounds is exactly what gets stored. */
+  #takeValuesOutOf(document: SDLInput, values: StoredSdlValues): SdlSecrets {
+    if (values === "every-value-dropped") {
+      dropSdlValues(document);
+
+      return {};
+    }
+
+    return this.sdlSecretsDerivationService.derive(document, { includeEnvValues: values === "every-value-sealed" }).secrets;
   }
 
   /**
