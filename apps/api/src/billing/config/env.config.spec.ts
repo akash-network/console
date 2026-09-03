@@ -71,6 +71,52 @@ describe("envSchema", () => {
     });
   });
 
+  describe("MANAGED_WALLET_TRIAL_MAX_CPU", () => {
+    it("rejects Infinity", () => {
+      const result = setup({ MANAGED_WALLET_TRIAL_MAX_CPU: "Infinity" });
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects a negative value", () => {
+      const result = setup({ MANAGED_WALLET_TRIAL_MAX_CPU: "-1" });
+      expect(result.success).toBe(false);
+    });
+
+    it("accepts zero to disable the cap", () => {
+      const result = setup({ MANAGED_WALLET_TRIAL_MAX_CPU: "0" });
+      expect(result.success).toBe(true);
+    });
+
+    it("coerces a string value", () => {
+      const result = setup({ MANAGED_WALLET_TRIAL_MAX_CPU: "8" });
+      expect(result.success).toBe(true);
+      expect(result.data?.MANAGED_WALLET_TRIAL_MAX_CPU).toBe(8);
+    });
+  });
+
+  describe("MANAGED_WALLET_TRIAL_MAX_MEMORY_GI", () => {
+    it("rejects Infinity", () => {
+      const result = setup({ MANAGED_WALLET_TRIAL_MAX_MEMORY_GI: "Infinity" });
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects a negative value", () => {
+      const result = setup({ MANAGED_WALLET_TRIAL_MAX_MEMORY_GI: "-1" });
+      expect(result.success).toBe(false);
+    });
+
+    it("accepts zero to disable the cap", () => {
+      const result = setup({ MANAGED_WALLET_TRIAL_MAX_MEMORY_GI: "0" });
+      expect(result.success).toBe(true);
+    });
+
+    it("coerces a string value", () => {
+      const result = setup({ MANAGED_WALLET_TRIAL_MAX_MEMORY_GI: "32" });
+      expect(result.success).toBe(true);
+      expect(result.data?.MANAGED_WALLET_TRIAL_MAX_MEMORY_GI).toBe(32);
+    });
+  });
+
   const validEnv = {
     NETWORK: "sandbox",
     RPC_NODE_ENDPOINT: "https://rpc.example.com",

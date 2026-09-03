@@ -66,9 +66,9 @@ export const envSchema = z.object({
       message: "MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS entries must be in 'vendor/model' format"
     }),
   /** Max vCPUs per trial deployment, summed across all services and replicas; 0 disables the cap. */
-  MANAGED_WALLET_TRIAL_MAX_CPU: z.number({ coerce: true }).nonnegative().default(4),
+  MANAGED_WALLET_TRIAL_MAX_CPU: z.number({ coerce: true }).nonnegative().finite().default(4),
   /** Max memory in Gi per trial deployment, summed across all services and replicas; 0 disables the cap. */
-  MANAGED_WALLET_TRIAL_MAX_MEMORY_GI: z.number({ coerce: true }).nonnegative().default(16),
+  MANAGED_WALLET_TRIAL_MAX_MEMORY_GI: z.number({ coerce: true }).nonnegative().finite().default(16),
   MASTER_WALLET_AKT_RESERVE: z.number({ coerce: true }).int().nonnegative().default(2_000_000_000),
   MASTER_WALLET_MAX_MINT_UAKT: z.number({ coerce: true }).int().nonnegative().default(5_000_000_000),
   TX_SIGNER_BASE_URL: z.string(),
