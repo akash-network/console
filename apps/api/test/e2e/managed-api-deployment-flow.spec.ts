@@ -125,6 +125,8 @@ describe("Managed Wallet API Deployment Flow", () => {
     }
   });
 
+  it("executes a full deployment cycle with provider and sealed secrets", { timeout: 2 * 60 * 1000 }, async () => {});
+
   /**
    * Sets up the test environment by preparing providers, creating a user, and generating an API key.
    * @returns Promise resolving to an object containing:

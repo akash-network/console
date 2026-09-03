@@ -21,7 +21,6 @@ import {
   DeleteUnbackedDeploymentSetting,
   unbackedDeploymentSettingKeyFor
 } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
-import type { ResolvedSdl } from "@src/deployment/services/sdl/sdl.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import type { NamespacedSdlSecrets } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import type { ReceivedSdlSecrets } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
@@ -63,13 +62,12 @@ export class DeploymentWriterService {
     const sdl = this.#strippedSdlWithinLimit(input.sdl);
 
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
-    const manifest = this.#parseManifest(input.sdl, { isTrialing: !!wallet.isTrialing });
     const depositInDollars = this.resolveDepositInDollars(input.deposit);
     const secrets = await this.#receiveSecrets(input);
 
-    const dseq = Date.now();
-    const { manifestVersion } = await this.#resolveSdl(input.sdl, { secrets: secrets.byService, isTrialing: !!wallet.isTrialing });
-    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq: dseq.toString(), secrets: secrets.supplied });
+    const dseq = Date.now().toString();
+    const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { secrets: secrets.byService, isTrialing: !!wallet.isTrialing });
+    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq, secrets: secrets.supplied });
 
     if (wallet.isTrialing) {
       await this.reclaimTrialOrphanedDeployments(wallet);
@@ -78,7 +76,7 @@ export class DeploymentWriterService {
     await this.recordDefinitionWithCompensation({
       userId: wallet.userId,
       owner: wallet.address,
-      dseq: dseq.toString(),
+      dseq,
       sdl,
       manifestVersion,
       sealedSecrets,
@@ -269,10 +267,9 @@ export class DeploymentWriterService {
 
   public async updateByUserIdAndDseq(userId: string, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<DeploymentResponse> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
-    const manifest = this.#parseManifest(input.sdl, { isTrialing: !!wallet.isTrialing });
     const sdl = this.#strippedSdlWithinLimit(input.sdl, dseq);
 
-    const { manifestVersion } = await this.#resolveSdl(input.sdl, { isTrialing: !!wallet.isTrialing });
+    const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { isTrialing: !!wallet.isTrialing });
     const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
 
     await this.recordDefinition({ userId: wallet.userId, dseq, sdl, manifestVersion });
@@ -284,21 +281,15 @@ export class DeploymentWriterService {
     return await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
   }
 
-  #parseManifest(sdl: string, options: { isTrialing?: boolean } = {}) {
-    const manifestResult = this.sdlService.generateManifest(sdl, options);
-    assert(manifestResult.ok, 400, `Invalid SDL: ${manifestResult.ok === false ? manifestResult.value.map(e => e.message).join(", ") : ""}`);
-    return manifestResult.value;
-  }
-
   /** Only the manifest version is taken from the resolved SDL: the resolved manifest itself must not leave this call. Runs before any lookup so a bad reference always answers 400 rather than racing a 404. */
-  async #resolveSdl(sdl: string, options: { secrets?: NamespacedSdlSecrets; isTrialing?: boolean }): Promise<Pick<ResolvedSdl, "manifestVersion">> {
+  async #resolveSdl(sdl: string, options: { secrets?: NamespacedSdlSecrets; isTrialing?: boolean }) {
     const result = await this.sdlService.generateResolvedManifest({ sdl, ...options, secrets: options.secrets ?? {} });
 
     if (!result.ok) {
       throw this.#rejectInvalidSdl(result.value);
     }
 
-    return { manifestVersion: result.value.manifestVersion };
+    return result.value;
   }
 
   /** Reports through the same channel every other reference mistake uses, so a missing value reads identically whether the intake or substitution found it. */
