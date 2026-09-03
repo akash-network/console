@@ -3160,10 +3160,6 @@
                   "data": {
                     "type": "object",
                     "properties": {
-                      "autoTopUpEnabled": {
-                        "type": "boolean",
-                        "description": "Whether auto top-up is enabled for this deployment. An explicit false is rejected once always-on funding is rolled out"
-                      },
                       "runtimeLimitHours": {
                         "type": "integer",
                         "nullable": true,
@@ -3341,10 +3337,6 @@
                         "type": "string",
                         "pattern": "^d+$",
                         "description": "Deployment sequence number"
-                      },
-                      "autoTopUpEnabled": {
-                        "type": "boolean",
-                        "description": "Whether auto top-up is enabled for this deployment. Defaults to enabled when omitted; an explicit false is rejected once always-on funding is rolled out"
                       }
                     },
                     "required": [
@@ -3607,10 +3599,6 @@
                   "data": {
                     "type": "object",
                     "properties": {
-                      "autoTopUpEnabled": {
-                        "type": "boolean",
-                        "description": "Whether auto top-up is enabled for this deployment. An explicit false is rejected once always-on funding is rolled out"
-                      },
                       "runtimeLimitHours": {
                         "type": "integer",
                         "nullable": true,
@@ -3784,10 +3772,6 @@
                         "type": "string",
                         "pattern": "^d+$",
                         "description": "Deployment sequence number"
-                      },
-                      "autoTopUpEnabled": {
-                        "type": "boolean",
-                        "description": "Whether auto top-up is enabled for this deployment. Defaults to enabled when omitted; an explicit false is rejected once always-on funding is rolled out"
                       },
                       "userId": {
                         "type": "string",

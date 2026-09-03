@@ -23,7 +23,6 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
   private readonly insufficientBalanceWithAutoReload: Counter;
   private readonly depositsBelowUsefulRunway: Counter;
   private readonly headroomConcessions: Counter;
-  private readonly settingToggles: Counter;
   private readonly logger: ReturnType<CreateLogger>;
   private startTime: number | undefined;
   private options: DryRunOptions | undefined;
@@ -85,10 +84,6 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
 
     this.headroomConcessions = this.metricsService.createCounter(this.meter, "auto_top_up_headroom_concessions_total", {
       description: "Total number of deposits sized from the whole balance because keeping the headroom would have skipped them"
-    });
-
-    this.settingToggles = this.metricsService.createCounter(this.meter, "auto_top_up_setting_toggles_total", {
-      description: "Total number of auto top-up setting enable/disable toggles"
     });
   }
 
@@ -335,12 +330,6 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
         this.predictedCloseBlocks.record(blocksUntilClose);
       });
     }
-  }
-
-  recordSettingToggle(enabled: boolean): void {
-    this.execWhenEnabled(() => {
-      this.settingToggles.add(1, { enabled: String(enabled) });
-    });
   }
 
   recordSkipped(details: { owner: string; deploymentCount: number }) {

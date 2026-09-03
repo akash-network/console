@@ -54,7 +54,7 @@ export const DEPENDENCIES = {
 
 export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
   const [autoTopUpPopup, setAutoTopUpPopup] = useState<{ open: boolean; enableOnSave: boolean }>({ open: false, enableOnSave: false });
-  const { mode, isThresholdModeOffered, showsThresholdRule } = d.useAutoReloadMode();
+  const { mode, showsThresholdRule } = d.useAutoReloadMode();
   const { enqueueSnackbar } = d.useSnackbar();
   const { data: defaultPaymentMethod, isLoading: isDefaultPaymentMethodLoading } = d.useDefaultPaymentMethodQuery();
   const { data: walletSettings, isLoading: isWalletSettingsLoading } = d.useWalletSettingsQuery();
@@ -67,41 +67,6 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
   const router = d.useRouter();
   const { urlService } = d.useServices();
   const hasStartedRequestedSetup = useRef(false);
-
-  const toggleAutoReload = useCallback(
-    async (autoReloadEnabled: boolean) => {
-      const promptMessage = autoReloadEnabled
-        ? {
-            title: "Enable automatic credit reloading?",
-            message: "Your default payment method will be charged automatically when credits run low, so your deployments keep running."
-          }
-        : {
-            title: "Disable automatic credit reloading?",
-            message: "Your deployments may stop if your credit balance runs out, and no automatic charges will be made."
-          };
-      const isConfirmed = await confirm(promptMessage);
-
-      if (!isConfirmed) {
-        return;
-      }
-
-      const settings = {
-        data: {
-          autoReloadEnabled
-        }
-      };
-
-      upsertWalletSettings.mutate(settings, {
-        onSuccess: response =>
-          enqueueSnackbar(<d.Snackbar title={`Auto Reload ${response.data.autoReloadEnabled ? "enabled" : "disabled"}`} iconVariant="success" />, {
-            variant: "success",
-            autoHideDuration: 3000
-          }),
-        onError: () => enqueueSnackbar(<d.Snackbar title="Failed to update Auto Reload settings" iconVariant="error" />, { variant: "error" })
-      });
-    },
-    [confirm, enqueueSnackbar, upsertWalletSettings]
-  );
 
   const disableAutoTopUp = useCallback(async () => {
     const isConfirmed = await confirm({
@@ -182,10 +147,10 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
         )}
         <d.CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
           <div className="space-y-1">
-            <h3 className="text-lg font-bold leading-none">{isThresholdModeOffered ? "Auto Top-Up" : "Auto Recharge"}</h3>
+            <h3 className="text-lg font-bold leading-none">Auto Top-Up</h3>
             {isFirstLoad ? (
               <d.Skeleton className="h-4 w-72" />
-            ) : !isThresholdModeOffered || !autoReloadEnabled || isPausedByDeclines ? (
+            ) : !autoReloadEnabled || isPausedByDeclines ? (
               <p className="text-sm text-muted-foreground">Automatically adds credits to keep your deployments running.</p>
             ) : showsThresholdRule ? (
               <p className="text-sm text-muted-foreground">
@@ -195,11 +160,7 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
               <p className="text-sm text-muted-foreground">Tops up to cover the week ahead for your running deployments.</p>
             )}
           </div>
-          <d.Switch
-            checked={autoReloadEnabled}
-            onCheckedChange={isThresholdModeOffered ? handleAutoTopUpSwitch : toggleAutoReload}
-            disabled={isReloadChangeDisabled}
-          />
+          <d.Switch checked={autoReloadEnabled} onCheckedChange={handleAutoTopUpSwitch} disabled={isReloadChangeDisabled} />
         </d.CardHeader>
         <d.CardContent>
           {isFirstLoad ? (
@@ -212,7 +173,7 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
               <button type="button" onClick={() => openAddPaymentMethod()} className="text-primary underline">
                 Add a payment method
               </button>{" "}
-              to enable auto {isThresholdModeOffered ? "top-up" : "recharge"}
+              to enable auto top-up
             </p>
           ) : isPausedByDeclines ? (
             <p className="text-sm text-muted-foreground">
@@ -222,16 +183,6 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
                 Update your payment method
               </button>{" "}
               to start topping up again.
-            </p>
-          ) : !isThresholdModeOffered ? (
-            <p className="text-sm text-muted-foreground">
-              Recharge amount is approximately{" "}
-              {weeklyCost === undefined ? (
-                <d.Skeleton className="inline-block h-4 w-12 align-middle" />
-              ) : (
-                <span className="font-medium text-foreground">{usd(weeklyCost)}</span>
-              )}{" "}
-              per week
             </p>
           ) : autoReloadEnabled ? (
             <div className="space-y-4">
@@ -293,16 +244,14 @@ export const AutoTopUpSection: React.FunctionComponent<{ dependencies?: typeof D
         </d.CardContent>
       </d.Card>
 
-      {isThresholdModeOffered && (
-        <d.AutoTopUpSettingsPopup
-          open={autoTopUpPopup.open}
-          onClose={() => setAutoTopUpPopup(prev => ({ ...prev, open: false }))}
-          enableOnSave={autoTopUpPopup.enableOnSave}
-          mode={mode}
-          threshold={walletSettings?.autoReloadThreshold}
-          amount={walletSettings?.autoReloadAmount}
-        />
-      )}
+      <d.AutoTopUpSettingsPopup
+        open={autoTopUpPopup.open}
+        onClose={() => setAutoTopUpPopup(prev => ({ ...prev, open: false }))}
+        enableOnSave={autoTopUpPopup.enableOnSave}
+        mode={mode}
+        threshold={walletSettings?.autoReloadThreshold}
+        amount={walletSettings?.autoReloadAmount}
+      />
     </>
   );
 };

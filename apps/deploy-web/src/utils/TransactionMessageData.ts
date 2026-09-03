@@ -1,4 +1,4 @@
-import { MsgAccountDeposit, Scope, Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { MsgSend } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
@@ -43,26 +43,6 @@ export class TransactionMessageData {
       value: MsgUpdateDeployment.fromPartial({
         id: deploymentData.deploymentId,
         hash: deploymentData.hash
-      })
-    };
-  }
-
-  static getDepositDeploymentMsg(signer: string, owner: string, dseq: string, amount: number, denom: string) {
-    return {
-      typeUrl: `/${MsgAccountDeposit.$type}`,
-      value: MsgAccountDeposit.fromPartial({
-        signer,
-        id: {
-          scope: Scope.deployment,
-          xid: `${owner}/${dseq}`
-        },
-        deposit: {
-          amount: {
-            denom,
-            amount: amount.toString()
-          },
-          sources: [Source.grant, Source.balance]
-        }
       })
     };
   }

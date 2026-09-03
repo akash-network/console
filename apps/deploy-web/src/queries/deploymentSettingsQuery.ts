@@ -56,14 +56,9 @@ export function useDeploymentSettingQuery(params: { dseq: string; pollUntilRunti
 
   const update = useUpdateDeploymentSettingMutation(params);
 
-  const setAutoTopUpEnabled = (autoTopUpEnabled: boolean) => {
-    update.mutate({ autoTopUpEnabled });
-  };
-
   return {
     data: query.data,
     update: update.mutate,
-    setAutoTopUpEnabled,
     isLoading: query.isLoading || update.isPending,
     isFetching: query.isLoading,
     isUpdating: update.isPending,

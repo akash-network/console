@@ -3,7 +3,6 @@ import { useAccountBalanceOverview } from "@src/components/billing-usage/Account
 import { AUTO_RELOAD_AMOUNT_MIN_USD, DEFAULT_AUTO_RELOAD_AMOUNT } from "@src/components/billing-usage/AutoTopUpSettingsPopup/AutoTopUpSettingsPopup";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useIsEscrowAbstracted } from "@src/hooks/useIsEscrowAbstracted";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useDeploymentFundingConfigQuery, useWalletSettingsQuery } from "@src/queries";
 import { useDefaultPaymentMethodQuery } from "@src/queries/usePaymentQueries";
@@ -12,7 +11,6 @@ import { capitalizeFirstLetter } from "@src/utils/stringUtils";
 import type { ReviewRow } from "./useReviewRows";
 
 export const DEPENDENCIES = {
-  useIsEscrowAbstracted,
   useAccountBalanceOverview,
   usePricing,
   useWalletSettingsQuery,
@@ -54,7 +52,6 @@ type Input = {
  * the available balance, only the difference up to the escrow is drawn at confirm time.
  */
 export function useFundingImpact({ rows, runtimeLimitHours, dependencies: d = DEPENDENCIES }: Input): FundingImpact {
-  const isEscrowAbstracted = d.useIsEscrowAbstracted();
   const overview = d.useAccountBalanceOverview();
   const { udenomToUsd } = d.usePricing();
   const { data: walletSettings } = d.useWalletSettingsQuery();
@@ -65,7 +62,7 @@ export function useFundingImpact({ rows, runtimeLimitHours, dependencies: d = DE
 
   const pricedRows = rows.filter((row): row is ReviewRow & { price: { amount: string; denom: string } } => !!row.price);
 
-  if (!isEscrowAbstracted || pricedRows.length === 0) return { kind: "hidden" };
+  if (pricedRows.length === 0) return { kind: "hidden" };
   if (overview.isError || fundingConfig.isError || defaultPaymentMethod.isError) return { kind: "unavailable" };
   if (overview.isLoading || !fundingConfig.data || defaultPaymentMethod.isLoading) return { kind: "loading" };
 

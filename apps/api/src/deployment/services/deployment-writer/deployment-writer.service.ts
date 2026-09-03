@@ -2,7 +2,6 @@ import type { ValidationError } from "@akashnetwork/chain-sdk";
 import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
 import { addMinutes } from "date-fns";
 import { HTTPException } from "hono/http-exception";
-import assert from "http-assert";
 import createError from "http-errors";
 import { inject, singleton } from "tsyringe";
 
@@ -12,8 +11,6 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY, TxService } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import { CreateDeploymentRequest, CreateDeploymentResponse, DeploymentResponse, UpdateDeploymentRequest } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
@@ -47,7 +44,6 @@ export class DeploymentWriterService {
     private readonly staleDeploymentsCleaner: StaleManagedDeploymentsCleanerService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger,
     private readonly deploymentConfig: DeploymentConfigService,
-    private readonly featureFlagsService: FeatureFlagsService,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly txService: TxService,
     private readonly jobQueueService: JobQueueService,
@@ -62,7 +58,7 @@ export class DeploymentWriterService {
     const sdl = this.#strippedSdlWithinLimit(input.sdl);
 
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
-    const depositInDollars = this.resolveDepositInDollars(input.deposit);
+    const depositInDollars = this.deploymentConfig.get("DEPLOYMENT_DEFAULT_DEPOSIT");
     const secrets = await this.#receiveSecrets(input);
 
     const dseq = Date.now().toString();
@@ -184,23 +180,6 @@ export class DeploymentWriterService {
   }
 
   /**
-   * Behind the managed-funding flag the platform bootstraps every deployment with a fixed, on-chain-valid deposit and
-   * ignores any caller-supplied amount. With the flag off the legacy contract holds: the caller must supply the deposit.
-   */
-  private resolveDepositInDollars(requestedDeposit?: number): number {
-    if (this.isManagedDepositEnabled()) {
-      return this.deploymentConfig.get("DEPLOYMENT_DEFAULT_DEPOSIT");
-    }
-
-    assert(requestedDeposit != null, 400, "deposit is required");
-    return requestedDeposit;
-  }
-
-  private isManagedDepositEnabled(): boolean {
-    return this.featureFlagsService.isEnabled(FeatureFlags.AUTO_RELOAD_FIXED_THRESHOLD);
-  }
-
-  /**
    * Reclaims escrow from a trial wallet's orphaned (open, lease-less) deployments before a new create, so a stranded
    * trial user whose earlier close failed can deploy again without waiting for the periodic cleanup job. It runs
    * before the create tx so the freed deployment allowance is available when the create's balance check runs.
@@ -244,9 +223,7 @@ export class DeploymentWriterService {
   }
 
   public async deposit(options: { userId: string; dseq: string; amount: number }): Promise<DeploymentResponse> {
-    if (this.isManagedDepositEnabled()) {
-      this.logger.warn({ event: "DEPRECATED_DEPOSIT_DEPLOYMENT_ENDPOINT_USED", userId: options.userId, dseq: options.dseq });
-    }
+    this.logger.warn({ event: "DEPRECATED_DEPOSIT_DEPLOYMENT_ENDPOINT_USED", userId: options.userId, dseq: options.dseq });
 
     const wallet = await this.walletReaderService.getWalletByUserId(options.userId);
     const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, options.dseq);

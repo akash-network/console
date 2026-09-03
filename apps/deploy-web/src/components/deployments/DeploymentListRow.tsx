@@ -1,24 +1,10 @@
 "use client";
 import type { ReactNode } from "react";
 import { useCallback, useMemo, useState } from "react";
-import {
-  Badge,
-  Button,
-  Checkbox,
-  CustomTooltip,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-  Spinner,
-  TableCell,
-  TableRow
-} from "@akashnetwork/ui/components";
+import { Badge, Button, Checkbox, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner, TableCell, TableRow } from "@akashnetwork/ui/components";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
-import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
-import formatDistanceToNow from "date-fns/formatDistanceToNow";
 import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
-import isValid from "date-fns/isValid";
-import { CalendarArrowDown, Coins, Edit, MoreHoriz, NavArrowRight, Plus, Upload, WarningTriangle, XmarkSquare } from "iconoir-react";
+import { CalendarArrowDown, Edit, MoreHoriz, NavArrowRight, Upload, XmarkSquare } from "iconoir-react";
 import { keyBy } from "lodash";
 import { useRouter } from "next/navigation";
 
@@ -26,11 +12,8 @@ import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
-import { useDepositDeployment } from "@src/hooks/useDepositDeployment/useDepositDeployment";
-import { useIsEscrowAbstracted } from "@src/hooks/useIsEscrowAbstracted";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
-import { useRealTimeLeft } from "@src/hooks/useRealTimeLeft";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useDeploymentLeaseList, useLeaseStatus } from "@src/queries/useLeaseQuery";
 import type { NamedDeploymentDto } from "@src/types/deployment";
@@ -38,7 +21,6 @@ import type { ApiProviderList } from "@src/types/provider";
 import { getEscrowDenom } from "@src/utils/deploymentUtils";
 import { isLeaseLive } from "@src/utils/leaseUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import { getTimeLeft } from "@src/utils/priceUtils";
 import { getClosedLeaseLabel, getReclamationDeadline, isReclaiming } from "@src/utils/reclamationUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
@@ -48,16 +30,9 @@ import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 import { GpuInterconnectBadge } from "../shared/GpuInterconnectBadge";
 import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
 import { PricePerTimeUnit } from "../shared/PricePerTimeUnit";
-import { PriceValue } from "../shared/PriceValue";
 import { SpecDetailList } from "../shared/SpecDetailList";
-import type { DeploymentDepositModalProps } from "./DeploymentDepositModal/DeploymentDepositModal";
-import { DeploymentDepositModal } from "./DeploymentDepositModal/DeploymentDepositModal";
 import { DeploymentName } from "./DeploymentName/DeploymentName";
 import { LeaseChip } from "./LeaseChip";
-
-export const DEPENDENCIES = {
-  useIsEscrowAbstracted
-};
 
 type Props = {
   deployment: NamedDeploymentDto;
@@ -67,23 +42,12 @@ type Props = {
   providers: Array<ApiProviderList> | undefined;
   refreshDeployments: () => void;
   children?: ReactNode;
-  dependencies?: typeof DEPENDENCIES;
 };
 
-export const DeploymentListRow: React.FunctionComponent<Props> = ({
-  deployment,
-  isSelectable,
-  onSelectDeployment,
-  checked,
-  providers,
-  refreshDeployments,
-  dependencies: d = DEPENDENCIES
-}) => {
+export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, isSelectable, onSelectDeployment, checked, providers, refreshDeployments }) => {
   const router = useRouter();
-  const isEscrowAbstracted = d.useIsEscrowAbstracted();
   const { analyticsService } = useServices();
   const [open, setOpen] = useState(false);
-  const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const { changeDeploymentName, getDeploymentData } = useLocalNotes();
   const { address, signAndBroadcastTx, isTrialing } = useWallet();
   const isActive = deployment.state === "active";
@@ -99,18 +63,6 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({
   const closedReasonLabel = closedLease ? getClosedLeaseLabel(closedLease) : null;
   const hasGpu = Boolean(deployment.gpuAmount && deployment.gpuAmount > 0);
   const interconnect = useDeclaredGpuInterconnect(deployment);
-  const timeLeft = getTimeLeft(deploymentCost || 0, deployment.escrowBalance);
-  const realTimeLeft = useRealTimeLeft(
-    deploymentCost || 0,
-    deployment.escrowBalance,
-    parseFloat(deployment.escrowAccount.state.settled_at),
-    deployment.createdAt
-  );
-  const showTimeLeftWarning = differenceInCalendarDays(timeLeft, new Date()) < 7;
-  const escrowBalance = isActive && hasActiveLeases ? realTimeLeft?.escrow : deployment.escrowBalance;
-  const isRunningOutOfFunds = escrowBalance && escrowBalance <= 0;
-  const amountSpent = isActive && hasActiveLeases ? realTimeLeft?.amountSpent : parseFloat(deployment.transferred.amount);
-  const isValidTimeLeft = isActive && hasActiveLeases && isValid(realTimeLeft?.timeLeft);
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
   const providersByOwner = useMemo(() => keyBy(providers, p => p.owner), [providers]);
@@ -129,23 +81,6 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({
 
   const handleMenuClose = () => {
     setOpen(false);
-  };
-
-  const { deposit: depositDeployment } = useDepositDeployment({
-    dseq: deployment.dseq,
-    denom: getEscrowDenom(deployment),
-    onSuccess: () => {
-      refreshDeployments();
-      analyticsService.track("deployment_deposit", {
-        category: "deployments",
-        label: "Deposit to deployment from list"
-      });
-    }
-  });
-
-  const onDeploymentDeposit: DeploymentDepositModalProps["onSubmit"] = deposit => {
-    setIsDepositingDeployment(false);
-    depositDeployment(deposit);
   };
 
   const onCloseDeployment = async () => {
@@ -174,23 +109,6 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({
   };
 
   const redeploy = useRedeploy();
-
-  function showDepositModal(e?: React.MouseEvent) {
-    e?.preventDefault();
-    e?.stopPropagation();
-    setIsDepositingDeployment(true);
-  }
-
-  const escrowBalanceInDenom = useMemo(() => {
-    let uDenomBalance: number | undefined;
-
-    if (isActive && hasActiveLeases && realTimeLeft) {
-      uDenomBalance = realTimeLeft?.escrow;
-    } else {
-      uDenomBalance = escrowBalance;
-    }
-    return uDenomBalance && udenomToDenom(uDenomBalance, 6);
-  }, [isActive, hasActiveLeases, realTimeLeft, escrowBalance]);
 
   return (
     <>
@@ -241,59 +159,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({
                 <PriceEstimateTooltip denom={getEscrowDenom(deployment)} value={deploymentCost} showAsHourly={hasGpu} />
               </div>
             )}
-            {!isEscrowAbstracted && isActive && !!escrowBalanceInDenom && !!escrowBalance && (
-              <CustomTooltip
-                title={
-                  <div className="text-left">
-                    <div className="space-x-2">
-                      <span>Balance:</span>
-                      <strong>
-                        <PriceValue denom={getEscrowDenom(deployment)} value={escrowBalanceInDenom} />
-                      </strong>
-                    </div>
-                    <div className="space-x-2">
-                      <span>Spent:</span>
-                      <strong>
-                        <PriceValue denom={getEscrowDenom(deployment)} value={udenomToDenom(amountSpent || 0, 6)} />
-                      </strong>
-                    </div>
-                    <br />
-                    <p className="text-xs text-muted-foreground">
-                      The escrow account balance will be fully returned to your wallet balance when the deployment is closed.
-                    </p>
-                  </div>
-                }
-              >
-                <div className="inline-flex cursor-help">
-                  <Coins className="mr-2 text-xs" />
-                  <PriceValue denom={getEscrowDenom(deployment)} value={escrowBalanceInDenom} />
-                </div>
-              </CustomTooltip>
-            )}
           </div>
-          {!isEscrowAbstracted && isActive && ((isValidTimeLeft && realTimeLeft) || isRunningOutOfFunds) && (
-            <CustomTooltip
-              disabled={!(showTimeLeftWarning || isRunningOutOfFunds)}
-              title={
-                <>
-                  Your deployment will close soon,{" "}
-                  <a href="#" onClick={showDepositModal}>
-                    Add Funds
-                  </a>{" "}
-                  to keep it running.
-                </>
-              }
-            >
-              <div className={`inline-flex items-center space-x-2 text-xs ${showTimeLeftWarning || isRunningOutOfFunds ? "cursor-help text-warning" : ""}`}>
-                <span>
-                  {isRunningOutOfFunds
-                    ? `Your deployment is out of funds and can be closed by your provider at any time now. You can add funds to keep active.`
-                    : getTimeLeftText(realTimeLeft?.timeLeft)}
-                </span>
-                {showTimeLeftWarning && <WarningTriangle className="text-xs" />}
-              </div>
-            </CustomTooltip>
-          )}
         </TableCell>
 
         <TableCell className="text-center">
@@ -344,11 +210,6 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({
                 >
                   <ClickAwayListener onClickAway={() => setOpen(false)}>
                     <div>
-                      {!isEscrowAbstracted && isActive && (
-                        <CustomDropdownLinkItem onClick={showDepositModal} icon={<Plus fontSize="small" />}>
-                          Add funds
-                        </CustomDropdownLinkItem>
-                      )}
                       <CustomDropdownLinkItem onClick={() => changeDeploymentName(deployment.dseq)} icon={<Edit fontSize="small" />}>
                         Edit name
                       </CustomDropdownLinkItem>
@@ -379,21 +240,6 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({
           </div>
         </TableCell>
       </TableRow>
-
-      {!isEscrowAbstracted && isActive && isDepositingDeployment && (
-        <DeploymentDepositModal
-          denom={getEscrowDenom(deployment)}
-          disableMin
-          onCancel={() => setIsDepositingDeployment(false)}
-          onSubmit={onDeploymentDeposit}
-        />
-      )}
     </>
   );
 };
-
-function getTimeLeftText(timeLeft?: Date) {
-  if (!timeLeft) return "";
-  const text = formatDistanceToNow(timeLeft);
-  return `will be active for ${text.startsWith("about") ? text : `about ${text}`}`;
-}

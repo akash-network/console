@@ -7,36 +7,15 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(AutoTopUpSection.name, () => {
-  it("shows the weekly recharge estimate when threshold mode is not offered", () => {
-    setup({ isThresholdModeOffered: false, defaultPaymentMethod: { id: "pm_123" }, weeklyCost: 42 });
-
-    expect(screen.getByText("Auto Recharge")).toBeInTheDocument();
-    expect(screen.getByText(/per week/)).toHaveTextContent("42");
-  });
-
-  it("shows a skeleton instead of a zero recharge estimate while the weekly cost is still loading", () => {
-    setup({ isThresholdModeOffered: false, defaultPaymentMethod: { id: "pm_123" }, isWeeklyCostLoading: true });
-
-    expect(screen.getByText(/per week/)).toBeInTheDocument();
-    expect(screen.queryByText("0")).not.toBeInTheDocument();
-  });
-
-  it("runs the weekly cost query without waiting for wallet settings when threshold mode is not offered", () => {
-    const { dependencies } = setup({ isThresholdModeOffered: false, defaultPaymentMethod: { id: "pm_123" }, isWalletSettingsLoading: true });
-
-    expect(dependencies.useWeeklyDeploymentCostQuery).toHaveBeenCalledWith({ enabled: true });
-  });
-
-  describe("when threshold mode is offered", () => {
+  describe("main card", () => {
     it("renders the Auto Top-Up title", () => {
-      setup({ isThresholdModeOffered: true, defaultPaymentMethod: { id: "pm_123" } });
+      setup({ defaultPaymentMethod: { id: "pm_123" } });
 
       expect(screen.getByText("Auto Top-Up")).toBeInTheDocument();
     });
 
     it("shows the threshold and top-up amounts when enabled", () => {
       setup({
-        isThresholdModeOffered: true,
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100 }
       });
@@ -49,7 +28,6 @@ describe(AutoTopUpSection.name, () => {
 
     it("shows the predicted weekly spend when the stored mode is prediction", () => {
       setup({
-        isThresholdModeOffered: true,
         autoReloadMode: "prediction",
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: true, autoReloadMode: "prediction" },
@@ -65,7 +43,6 @@ describe(AutoTopUpSection.name, () => {
 
     it("passes the stored mode to the settings dialog", () => {
       const { dependencies } = setup({
-        isThresholdModeOffered: true,
         autoReloadMode: "prediction",
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: true, autoReloadMode: "prediction" }
@@ -76,7 +53,6 @@ describe(AutoTopUpSection.name, () => {
 
     it("skips the weekly cost query in threshold mode and runs it in prediction mode", () => {
       const { dependencies: thresholdDependencies } = setup({
-        isThresholdModeOffered: true,
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: true, autoReloadMode: "threshold" }
       });
@@ -84,7 +60,6 @@ describe(AutoTopUpSection.name, () => {
       expect(thresholdDependencies.useWeeklyDeploymentCostQuery).toHaveBeenCalledWith({ enabled: false });
 
       const { dependencies: predictionDependencies } = setup({
-        isThresholdModeOffered: true,
         autoReloadMode: "prediction",
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: true, autoReloadMode: "prediction" }
@@ -94,14 +69,13 @@ describe(AutoTopUpSection.name, () => {
     });
 
     it("prompts to turn on auto top-up when disabled with a payment method", () => {
-      setup({ isThresholdModeOffered: true, defaultPaymentMethod: { id: "pm_123" }, walletSettings: { autoReloadEnabled: false } });
+      setup({ defaultPaymentMethod: { id: "pm_123" }, walletSettings: { autoReloadEnabled: false } });
 
       expect(screen.getByText(/Turn on Auto Top-Up to add funds automatically/)).toBeInTheDocument();
     });
 
     it("prompts without naming a rule when disabled in prediction mode", () => {
       setup({
-        isThresholdModeOffered: true,
         autoReloadMode: "prediction",
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: false, autoReloadMode: "prediction" }
@@ -113,7 +87,6 @@ describe(AutoTopUpSection.name, () => {
 
     it("holds back the mode description until a rule is actually running", () => {
       setup({
-        isThresholdModeOffered: true,
         autoReloadMode: "prediction",
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: false, autoReloadMode: "prediction" }
@@ -126,7 +99,6 @@ describe(AutoTopUpSection.name, () => {
 
     it("describes the stored rule once auto top-up is enabled", () => {
       setup({
-        isThresholdModeOffered: true,
         autoReloadMode: "prediction",
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: true, autoReloadMode: "prediction" }
@@ -138,7 +110,6 @@ describe(AutoTopUpSection.name, () => {
 
     it("shows a skeleton instead of a zero predicted spend while the weekly cost is still loading", () => {
       setup({
-        isThresholdModeOffered: true,
         autoReloadMode: "prediction",
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: true, autoReloadMode: "prediction" },
@@ -151,13 +122,13 @@ describe(AutoTopUpSection.name, () => {
 
     describe("while wallet settings are still loading", () => {
       it("disables the switch so the settings dialog cannot be seeded from unresolved settings", () => {
-        setup({ isThresholdModeOffered: true, defaultPaymentMethod: { id: "pm_123" }, isWalletSettingsLoading: true });
+        setup({ defaultPaymentMethod: { id: "pm_123" }, isWalletSettingsLoading: true });
 
         expect(screen.getByRole("switch")).toBeDisabled();
       });
 
       it("holds back the mode description instead of committing to the fallback mode", () => {
-        setup({ isThresholdModeOffered: true, defaultPaymentMethod: { id: "pm_123" }, isWalletSettingsLoading: true });
+        setup({ defaultPaymentMethod: { id: "pm_123" }, isWalletSettingsLoading: true });
 
         expect(screen.queryByText(/Tops up when your/)).not.toBeInTheDocument();
         expect(screen.queryByText(/Tops up to cover the week ahead/)).not.toBeInTheDocument();
@@ -166,7 +137,6 @@ describe(AutoTopUpSection.name, () => {
 
     it("opens the settings dialog in enable mode without mutating when the switch is turned on", () => {
       const { dependencies, upsertMutate } = setup({
-        isThresholdModeOffered: true,
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: false }
       });
@@ -180,7 +150,6 @@ describe(AutoTopUpSection.name, () => {
     it("confirms then disables auto top-up when the switch is turned off", async () => {
       const upsertMutate = vi.fn();
       setup({
-        isThresholdModeOffered: true,
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100 },
         confirmResult: true,
@@ -196,7 +165,6 @@ describe(AutoTopUpSection.name, () => {
 
     it("opens the settings dialog in edit mode from the edit button", () => {
       const { dependencies } = setup({
-        isThresholdModeOffered: true,
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100 }
       });
@@ -208,7 +176,6 @@ describe(AutoTopUpSection.name, () => {
 
     it("shows the next top-up estimate even when the default payment method is not a card", () => {
       setup({
-        isThresholdModeOffered: true,
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 50 },
         perHour: 1,
@@ -221,7 +188,6 @@ describe(AutoTopUpSection.name, () => {
 
     it("names the default card in the charge summary", () => {
       setup({
-        isThresholdModeOffered: true,
         defaultPaymentMethod: { id: "pm_123", card: { brand: "visa", last4: "4242" } },
         walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 50 }
       });
@@ -230,7 +196,7 @@ describe(AutoTopUpSection.name, () => {
     });
 
     it("disables the switch and hides the edit button without a payment method", () => {
-      setup({ isThresholdModeOffered: true, defaultPaymentMethod: undefined });
+      setup({ defaultPaymentMethod: undefined });
 
       expect(screen.getByRole("switch")).toBeDisabled();
       expect(screen.queryByRole("button", { name: /edit auto top-up settings/i })).not.toBeInTheDocument();
@@ -238,14 +204,14 @@ describe(AutoTopUpSection.name, () => {
     });
 
     it("shows a skeleton instead of the add-payment-method prompt while the payment method query is loading", () => {
-      setup({ isThresholdModeOffered: true, defaultPaymentMethod: undefined, isDefaultPaymentMethodLoading: true });
+      setup({ defaultPaymentMethod: undefined, isDefaultPaymentMethodLoading: true });
 
       expect(screen.queryByText(/Add a payment method/)).not.toBeInTheDocument();
     });
 
     it("opens the add-payment-method flow from the prompt when there is no payment method", () => {
       const openAddPaymentMethod = vi.fn();
-      setup({ isThresholdModeOffered: true, defaultPaymentMethod: undefined, openAddPaymentMethod });
+      setup({ defaultPaymentMethod: undefined, openAddPaymentMethod });
 
       fireEvent.click(screen.getByText("Add a payment method"));
 
@@ -254,7 +220,6 @@ describe(AutoTopUpSection.name, () => {
 
     it("disables the edit button while a settings update is in flight", () => {
       setup({
-        isThresholdModeOffered: true,
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100 },
         isPending: true
@@ -266,7 +231,6 @@ describe(AutoTopUpSection.name, () => {
     it("does not disable auto top-up when the confirmation is cancelled", async () => {
       const upsertMutate = vi.fn();
       setup({
-        isThresholdModeOffered: true,
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100 },
         confirmResult: false,
@@ -284,7 +248,6 @@ describe(AutoTopUpSection.name, () => {
       const enqueueSnackbar = vi.fn();
       const upsertMutate = vi.fn((_payload, options) => options?.onSuccess?.({ data: { autoReloadEnabled: false } }));
       setup({
-        isThresholdModeOffered: true,
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100 },
         confirmResult: true,
@@ -302,7 +265,6 @@ describe(AutoTopUpSection.name, () => {
     describe("when arriving from the deploy flow's setup link", () => {
       it("opens the add-payment-method flow and clears the param when no card is on file", () => {
         const { openAddPaymentMethod, replace, dependencies } = setup({
-          isThresholdModeOffered: true,
           defaultPaymentMethod: undefined,
           hasSetupAutoTopUpParam: true
         });
@@ -315,7 +277,6 @@ describe(AutoTopUpSection.name, () => {
 
       it("opens the settings dialog straight away when a card is already on file", () => {
         const { openAddPaymentMethod, dependencies } = setup({
-          isThresholdModeOffered: true,
           defaultPaymentMethod: { id: "pm_123" },
           hasSetupAutoTopUpParam: true
         });
@@ -327,7 +288,6 @@ describe(AutoTopUpSection.name, () => {
       it("opens the settings dialog through the callback it hands the card flow", () => {
         const openAddPaymentMethod = vi.fn();
         const { dependencies } = setup({
-          isThresholdModeOffered: true,
           defaultPaymentMethod: undefined,
           hasSetupAutoTopUpParam: true,
           openAddPaymentMethod
@@ -339,7 +299,7 @@ describe(AutoTopUpSection.name, () => {
       });
 
       it("leaves the settings dialog closed without the param", () => {
-        const { openAddPaymentMethod, replace, dependencies } = setup({ isThresholdModeOffered: true, defaultPaymentMethod: { id: "pm_123" } });
+        const { openAddPaymentMethod, replace, dependencies } = setup({ defaultPaymentMethod: { id: "pm_123" } });
 
         expect(openAddPaymentMethod).not.toHaveBeenCalled();
         expect(replace).not.toHaveBeenCalled();
@@ -348,7 +308,6 @@ describe(AutoTopUpSection.name, () => {
 
       it("waits for the payment method query before acting on the param", () => {
         const { openAddPaymentMethod, replace } = setup({
-          isThresholdModeOffered: true,
           defaultPaymentMethod: undefined,
           isDefaultPaymentMethodLoading: true,
           hasSetupAutoTopUpParam: true
@@ -361,7 +320,6 @@ describe(AutoTopUpSection.name, () => {
 
     it("closes the settings dialog when the popup requests it", () => {
       const { dependencies } = setup({
-        isThresholdModeOffered: true,
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100 }
       });
@@ -378,7 +336,6 @@ describe(AutoTopUpSection.name, () => {
   describe("when auto top-up is paused after repeated card declines", () => {
     it("says the card was declined instead of showing the top-up rule", () => {
       setup({
-        isThresholdModeOffered: true,
         defaultPaymentMethod: { id: "pm_123", card: { brand: "visa", last4: "4242" } },
         walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100, autoReloadPausedAt: "2026-09-01T12:00:00.000Z" }
       });
@@ -401,7 +358,6 @@ describe(AutoTopUpSection.name, () => {
 
     it("stops the header claiming it still tops up", () => {
       setup({
-        isThresholdModeOffered: true,
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100, autoReloadPausedAt: "2026-09-01T12:00:00.000Z" }
       });
@@ -413,7 +369,6 @@ describe(AutoTopUpSection.name, () => {
     it("sends the user to their payment methods to lift the pause", () => {
       const openAddPaymentMethod = vi.fn();
       setup({
-        isThresholdModeOffered: true,
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: true, autoReloadPausedAt: "2026-09-01T12:00:00.000Z" },
         openAddPaymentMethod
@@ -427,7 +382,6 @@ describe(AutoTopUpSection.name, () => {
 
     it("shows the top-up rule again once the pause is lifted", () => {
       setup({
-        isThresholdModeOffered: true,
         defaultPaymentMethod: { id: "pm_123" },
         walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100, autoReloadPausedAt: null }
       });
@@ -438,7 +392,6 @@ describe(AutoTopUpSection.name, () => {
   });
 
   function setup(input: {
-    isThresholdModeOffered?: boolean;
     autoReloadMode?: "prediction" | "threshold";
     defaultPaymentMethod?: { id: string; card?: { brand?: string; last4?: string } };
     isDefaultPaymentMethodLoading?: boolean;
@@ -475,11 +428,10 @@ describe(AutoTopUpSection.name, () => {
     const dependencies = {
       ...MockComponents(DEPENDENCIES),
       useAutoReloadMode: vi.fn(() => {
-        const mode = input.autoReloadMode ?? (input.isThresholdModeOffered ? "threshold" : "prediction");
+        const mode = input.autoReloadMode ?? "threshold";
         return {
           mode,
-          isThresholdModeOffered: input.isThresholdModeOffered ?? false,
-          showsThresholdRule: !!input.isThresholdModeOffered && mode === "threshold",
+          showsThresholdRule: mode === "threshold",
           isLoading: false
         };
       }),

@@ -31,19 +31,12 @@ export const CreateDeploymentSettingRequestSchema = z.object({
     }),
     dseq: DseqSchema.openapi({
       description: "Deployment sequence number"
-    }),
-    autoTopUpEnabled: z.boolean().optional().openapi({
-      description:
-        "Whether auto top-up is enabled for this deployment. Defaults to enabled when omitted; an explicit false is rejected once always-on funding is rolled out"
     })
   })
 });
 
 export const UpdateDeploymentSettingRequestSchema = z.object({
   data: z.object({
-    autoTopUpEnabled: z.boolean().optional().openapi({
-      description: "Whether auto top-up is enabled for this deployment. An explicit false is rejected once always-on funding is rolled out"
-    }),
     runtimeLimitHours: z
       .number()
       .int()
@@ -82,10 +75,6 @@ export const CreateDeploymentSettingV2RequestSchema = z.object({
   data: z.object({
     dseq: DseqSchema.openapi({
       description: "Deployment sequence number"
-    }),
-    autoTopUpEnabled: z.boolean().optional().openapi({
-      description:
-        "Whether auto top-up is enabled for this deployment. Defaults to enabled when omitted; an explicit false is rejected once always-on funding is rolled out"
     }),
     userId: z.string().uuid().optional().openapi({
       description: "User ID. Defaults to the current authenticated user if not provided"

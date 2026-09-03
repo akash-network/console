@@ -10,8 +10,6 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { FindDeploymentSettingParams } from "@src/deployment/http-schemas/deployment-setting.schema";
 import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/deployment/http-schemas/runtime-limit";
 import {
@@ -22,10 +20,9 @@ import {
 import { DeploymentCloseJobService } from "../deployment-close-job/deployment-close-job.service";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DrainingDeploymentService } from "../draining-deployment/draining-deployment.service";
-import { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed-deployments/top-up-managed-deployments-instrumentation.service";
 
 /** The fields a PATCH may change. A null `runtimeLimitHours` removes the limit; an absent one leaves it alone. */
-type DeploymentSettingChange = Pick<DeploymentSettingsInput, "autoTopUpEnabled" | "runtimeLimitHours">;
+type DeploymentSettingChange = Pick<DeploymentSettingsInput, "runtimeLimitHours">;
 
 type DeploymentSettingWithEstimatedTopUpAmount = Omit<
   DeploymentSettingsOutput,
@@ -50,9 +47,7 @@ export class DeploymentSettingService {
     private readonly deploymentCloseJobService: DeploymentCloseJobService,
     private readonly config: DeploymentConfigService,
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly instrumentation: TopUpManagedDeploymentsInstrumentationService,
-    private readonly domainEvents: DomainEventsService,
-    private readonly featureFlags: FeatureFlagsService
+    private readonly domainEvents: DomainEventsService
   ) {}
 
   async findOrCreateByUserIdAndDseq(params: FindDeploymentSettingParams): Promise<DeploymentSettingWithEstimatedTopUpAmount | undefined> {
@@ -89,10 +84,8 @@ export class DeploymentSettingService {
    * to succeed.
    */
   async create(input: FindDeploymentSettingParams & DeploymentSettingChange): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
-    this.#assertFundingStaysOn(input.autoTopUpEnabled);
-
     const { userId, dseq, ...change } = input;
-    const { setting } = await this.#writeReconcilingConcurrentCreate({ userId, dseq }, change);
+    const setting = await this.#writeReconcilingConcurrentCreate({ userId, dseq }, change);
     const result = await this.withEstimatedTopUpAmount(setting);
 
     if (result.autoTopUpEnabled) {
@@ -103,35 +96,12 @@ export class DeploymentSettingService {
   }
 
   async upsert(params: FindDeploymentSettingParams, input: DeploymentSettingChange): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
-    this.#assertFundingStaysOn(input.autoTopUpEnabled);
-
     try {
-      const { setting, existing } = await this.#writeReconcilingConcurrentCreate(params, input);
-
-      if (input.autoTopUpEnabled !== undefined && existing?.autoTopUpEnabled !== input.autoTopUpEnabled) {
-        this.instrumentation.recordSettingToggle(input.autoTopUpEnabled);
-      }
-
-      return this.withEstimatedTopUpAmount(setting);
+      return this.withEstimatedTopUpAmount(await this.#writeReconcilingConcurrentCreate(params, input));
     } catch (error) {
       assert(!(error instanceof ForbiddenError), 404, "Deployment setting not found");
       throw error;
     }
-  }
-
-  /**
-   * Under the fixed-threshold rollout, deployment funding is always on (CON-734): an explicit
-   * opt-out is rejected rather than stored, so the state removed by the one-time backfill cannot be
-   * recreated. Gated on the same flag that hides the toggle in the UI, so the API and the interface
-   * flip together per user; off-flag the legacy opt-out contract holds. Runtime limits stay the
-   * supported way to bound a deployment's spend.
-   */
-  #assertFundingStaysOn(autoTopUpEnabled: boolean | undefined): void {
-    assert(
-      autoTopUpEnabled !== false || !this.featureFlags.isEnabled(FeatureFlags.AUTO_RELOAD_FIXED_THRESHOLD),
-      400,
-      "Automatic deployment funding cannot be turned off. Set a runtime limit to bound how long the deployment runs."
-    );
   }
 
   /**
@@ -141,14 +111,11 @@ export class DeploymentSettingService {
    * would have had it arrived a moment later instead of surfacing the driver error as a 500. One retry
    * is enough, since the row that broke the first attempt cannot be created a second time.
    */
-  async #writeReconcilingConcurrentCreate(
-    params: FindDeploymentSettingParams,
-    input: DeploymentSettingChange
-  ): Promise<{ setting: DeploymentSettingsOutput; existing: DeploymentSettingsOutput | undefined }> {
+  async #writeReconcilingConcurrentCreate(params: FindDeploymentSettingParams, input: DeploymentSettingChange): Promise<DeploymentSettingsOutput> {
     const existing = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy(params);
 
     try {
-      return { setting: await this.#writeRequestedSetting(params, input, existing), existing };
+      return await this.#writeRequestedSetting(params, input, existing);
     } catch (error) {
       if (existing || !isUniqueViolation(error)) {
         throw error;
@@ -157,7 +124,7 @@ export class DeploymentSettingService {
       const concurrent = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy(params);
       assert(concurrent, 409, "Deployment setting changed concurrently, please retry");
 
-      return { setting: await this.#writeRequestedSetting(params, input, concurrent), existing: concurrent };
+      return await this.#writeRequestedSetting(params, input, concurrent);
     }
   }
 
@@ -197,7 +164,7 @@ export class DeploymentSettingService {
    *
    * A limited deployment always has auto top-up on, because funding is what keeps it alive up to the
    * limit; a limited row with funding off would be closed by the chain long before its deadline. Both
-   * paths below turn it on, overriding an `autoTopUpEnabled: false` sent alongside a limit.
+   * paths below turn it on, healing any legacy row still carrying `autoTopUpEnabled: false`.
    */
   async #setRuntimeLimit(
     params: FindDeploymentSettingParams,

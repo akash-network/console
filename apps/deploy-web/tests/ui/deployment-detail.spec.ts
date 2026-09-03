@@ -4,12 +4,10 @@ import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
 const DETAIL_TABS = ["Details", "Logs", "Events", "Shell", "Update", "Settings"];
 
 /**
- * Summary tiles that render whatever the escrow-abstraction flags say. BALANCE, AUTO TOP-UP and RUNTIME LIMIT share a
- * slot that swaps with those flags and with the deployment's runtime limit, and e2e cannot pin flags on a deployed
- * environment, so that slot is left to DeploymentDetailHeader.spec.tsx. vCPU is left out because the placement card
- * repeats it, which would trip strict mode.
+ * RUNTIME LIMIT is left out because it only renders on a runtime-limited deployment, which this test does not create.
+ * vCPU is left out because the placement card repeats it, which would trip strict mode.
  */
-const FLAG_INDEPENDENT_SUMMARY_TILES = ["COST", "GPU", "MEMORY", "STORAGE"];
+const ALWAYS_RENDERED_SUMMARY_TILES = ["COST", "GPU", "MEMORY", "STORAGE"];
 
 test.describe("Deployment detail", () => {
   test.use({ userType: "existing" });
@@ -39,7 +37,7 @@ test.describe("Deployment detail", () => {
     await test.step("renders the summary header and full tab bar", async () => {
       await expect(page.getByText("TOTAL SERVICES", { exact: true })).toBeVisible({ timeout: 30_000 });
 
-      for (const tile of FLAG_INDEPENDENT_SUMMARY_TILES) {
+      for (const tile of ALWAYS_RENDERED_SUMMARY_TILES) {
         await expect(page.getByText(tile, { exact: true })).toBeVisible();
       }
 

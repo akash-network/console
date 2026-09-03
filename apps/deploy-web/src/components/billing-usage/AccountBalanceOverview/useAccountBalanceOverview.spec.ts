@@ -306,7 +306,6 @@ describe(useAccountBalanceOverview.name, () => {
 
     const useAutoReloadMode: typeof DEPENDENCIES.useAutoReloadMode = () => ({
       mode: input.autoReloadMode ?? "prediction",
-      isThresholdModeOffered: input.autoReloadMode === "threshold",
       showsThresholdRule: input.autoReloadMode === "threshold",
       isLoading: false
     });

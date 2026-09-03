@@ -178,20 +178,10 @@ describe(DeploymentList.name, () => {
     expect(screen.queryByText("No deployment found.")).not.toBeInTheDocument();
   });
 
-  it("labels the cost column with the escrow balance when escrow is visible", () => {
+  it("labels the cost column without an escrow balance", () => {
     setup({ data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], hasNextPage: false } });
 
-    expect(screen.getByText("Cost and balance")).toBeInTheDocument();
-  });
-
-  it("labels the cost column without the escrow balance when escrow is abstracted behind the threshold flag", () => {
-    setup({
-      data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], hasNextPage: false },
-      isEscrowAbstracted: true
-    });
-
     expect(screen.getByText("Cost")).toBeInTheDocument();
-    expect(screen.queryByText("Cost and balance")).not.toBeInTheDocument();
   });
 
   function setup(
@@ -202,7 +192,6 @@ describe(DeploymentList.name, () => {
       isFetching?: boolean;
       isError?: boolean;
       isListError?: boolean;
-      isEscrowAbstracted?: boolean;
       getDeploymentName?: (dseq: string | number | null) => string | null;
     } = {}
   ) {
@@ -221,7 +210,6 @@ describe(DeploymentList.name, () => {
     });
 
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: "akash1owner", hasWallet: true });
-    const useIsEscrowAbstracted: typeof DEPENDENCIES.useIsEscrowAbstracted = () => input.isEscrowAbstracted ?? false;
     const useProviderList: typeof DEPENDENCIES.useProviderList = () => mock<ReturnType<typeof DEPENDENCIES.useProviderList>>({ data: [], isFetching: false });
     const useBlockchainStatus: typeof DEPENDENCIES.useBlockchainStatus = () =>
       mock<ReturnType<typeof DEPENDENCIES.useBlockchainStatus>>({ isBlockchainDown: false });
@@ -247,7 +235,6 @@ describe(DeploymentList.name, () => {
           useDeploymentsPage,
           useDeploymentList,
           useWallet,
-          useIsEscrowAbstracted,
           useProviderList,
           useBlockchainStatus,
           useLocalNotes,

@@ -9,11 +9,6 @@ import type { ReviewRow } from "./useReviewRows";
 import { renderHook } from "@testing-library/react";
 
 describe(useFundingImpact.name, () => {
-  it("hides when escrow is not abstracted", () => {
-    const { result } = setup({ isEscrowAbstracted: false });
-    expect(result.current).toEqual({ kind: "hidden" });
-  });
-
   it("hides when no row is priced", () => {
     const { result } = setup({ rows: [mock<ReviewRow>({ price: undefined })] });
     expect(result.current).toEqual({ kind: "hidden" });
@@ -165,7 +160,6 @@ describe(useFundingImpact.name, () => {
   function setup(input: {
     rows?: ReviewRow[];
     runtimeLimitHours?: number;
-    isEscrowAbstracted?: boolean;
     overview?: Partial<AccountBalanceOverview>;
     fundingConfig?: { targetRunwayHours: number; balanceHeadroomUsd: number; defaultDepositUsd: number };
     isFundingConfigError?: boolean;
@@ -198,7 +192,6 @@ describe(useFundingImpact.name, () => {
     });
 
     const dependencies = {
-      useIsEscrowAbstracted: () => input.isEscrowAbstracted ?? true,
       useAccountBalanceOverview: () => overview,
       usePricing: () => Object.assign(mock<ReturnType<Dependencies["usePricing"]>>(), { udenomToUsd: (amount: number) => amount }),
       useWalletSettingsQuery: () => walletSettings,
