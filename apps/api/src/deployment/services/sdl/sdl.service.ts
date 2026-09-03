@@ -1,14 +1,17 @@
 import type { GenerateManifestResult, Manifest, SDLInput, ValidationError } from "@akashnetwork/chain-sdk";
 import { generateManifest, generateManifestVersion, yaml } from "@akashnetwork/chain-sdk";
 import { YAMLException } from "js-yaml";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import type { NamespacedSdlSecrets } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { sdlRequestsGpuInterconnect } from "@src/deployment/utils/gpu-interconnect/gpu-interconnect";
 import { findTrialResourceViolation } from "@src/deployment/utils/group-resources/group-resources";
+import { restatePricesInGrantDenom } from "@src/deployment/utils/price-denom/price-denom";
 
 export type SdlParseResult = { ok: true; value: SDLInput } | { ok: false; value: ValidationError[] };
 export type SdlManifest = Extract<GenerateManifestResult, { ok: true }>["value"];
@@ -23,17 +26,21 @@ export type GenerateResolvedManifestResult = { ok: true; value: ResolvedSdl } | 
 @singleton()
 export class SdlService {
   readonly #config: BillingConfig;
+  readonly #logger: ReturnType<CreateLogger>;
 
   constructor(
     @InjectBillingConfig() config: BillingConfig,
     private readonly blockedGpuService: BlockedGpuService,
-    private readonly sdlReferenceService: SdlReferenceService
+    private readonly sdlReferenceService: SdlReferenceService,
+    private readonly denomExchangeService: DenomExchangeService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#config = config;
+    this.#logger = createLogger({ context: SdlService.name });
   }
 
   /** SDL References are validated here and never substituted, so no caller of this can hand a resolved value back to a client. */
-  generateManifest(rawSDL: string, options: { isTrialing?: boolean } = {}): GenerateManifestResult {
+  async generateManifest(rawSDL: string, options: { isTrialing?: boolean } = {}): Promise<GenerateManifestResult> {
     const parsed = this.parse(rawSDL);
 
     if (!parsed.ok) return parsed;
@@ -55,7 +62,7 @@ export class SdlService {
 
     if (referenceErrors.length > 0) return { ok: false, value: referenceErrors };
 
-    const manifest = this.generateManifestFrom(parsed.value, { isTrialing: input.isTrialing });
+    const manifest = await this.generateManifestFrom(parsed.value, { isTrialing: input.isTrialing });
 
     if (!manifest.ok) return { ok: false, value: manifest.value };
 
@@ -74,20 +81,34 @@ export class SdlService {
   }
 
   /** The one entry point that skips SDL Reference validation, because both its callers have already validated or substituted every reference. */
-  generateManifestFrom(potentiallyInvalidSDL: SDLInput, options: { isTrialing?: boolean } = {}): GenerateManifestResult {
+  async generateManifestFrom(potentiallyInvalidSDL: SDLInput, options: { isTrialing?: boolean } = {}): Promise<GenerateManifestResult> {
     const deploymentGrantDenom = this.#config.DEPLOYMENT_GRANT_DENOM;
     const sdlPlacement =
       potentiallyInvalidSDL?.profiles?.placement && typeof potentiallyInvalidSDL?.profiles?.placement === "object"
         ? potentiallyInvalidSDL.profiles.placement
         : {};
 
-    Object.values(sdlPlacement).forEach(profile => {
-      if (typeof profile !== "object" || !profile || !profile.pricing || typeof profile.pricing !== "object") return;
-      Object.values(profile.pricing).forEach(price => {
-        if (typeof price !== "object" || !price || price.denom === deploymentGrantDenom) return;
-        price.denom = deploymentGrantDenom;
-      });
+    const restatement = await restatePricesInGrantDenom(sdlPlacement, {
+      grantDenom: deploymentGrantDenom,
+      loadAktToUsdRate: () => this.#loadAktToUsdRate()
     });
+
+    if (!restatement.ok) {
+      this.#logger.warn({ event: "SDL_PRICE_RESTATEMENT_FAILED", deploymentGrantDenom, aktToUsdRate: restatement.aktToUsdRate });
+
+      return {
+        ok: false,
+        value: [
+          {
+            schemaPath: "",
+            instancePath: "/profiles/placement",
+            keyword: "pricing",
+            params: {},
+            message: `Unable to convert SDL pricing to ${deploymentGrantDenom}: the AKT price is unavailable. Price your SDL in ${deploymentGrantDenom} and try again`
+          }
+        ]
+      };
+    }
 
     const allowedAuditors = this.#config.MANAGED_WALLET_LEASE_ALLOWED_AUDITORS;
     if (allowedAuditors && allowedAuditors.length > 0) {
@@ -157,6 +178,12 @@ export class SdlService {
 
   async generateManifestVersion(manifest: Manifest): Promise<Uint8Array> {
     return generateManifestVersion(manifest);
+  }
+
+  async #loadAktToUsdRate(): Promise<number> {
+    const { price } = await this.denomExchangeService.getExchangeRateToUSD("akt");
+
+    return price;
   }
 
   #appendAuditorRequirement(placement: SDLInput["profiles"]["placement"], allowedAuditors: string[]): void {

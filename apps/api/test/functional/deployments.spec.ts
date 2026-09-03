@@ -740,7 +740,7 @@ describe("Deployments API", () => {
     it("records an sdl that is still a deployable SDL", async () => {
       const { setting } = await createDeploymentWithSecrets();
 
-      expect(container.resolve(SdlService).generateManifest(setting?.sdl ?? "").ok).toBe(true);
+      expect((await container.resolve(SdlService).generateManifest(setting?.sdl ?? "")).ok).toBe(true);
     });
 
     it("records the manifest version it commits on chain", async () => {
@@ -1279,7 +1279,7 @@ describe("Deployments API", () => {
     it("records an sdl that is still a deployable SDL", async () => {
       const { setting } = await updateDeploymentWithSecrets();
 
-      expect(container.resolve(SdlService).generateManifest(setting?.sdl ?? "").ok).toBe(true);
+      expect((await container.resolve(SdlService).generateManifest(setting?.sdl ?? "")).ok).toBe(true);
     });
 
     it("returns 400 naming the offending value for an unrecognized ac- kind", async () => {
@@ -1325,7 +1325,7 @@ describe("Deployments API", () => {
     it("commits the manifest version of the very manifest it sends the providers", async () => {
       const { userApiKeySecret, user, dseq } = await setupUpdatableDeployment();
       const sdlService = container.resolve(SdlService);
-      const manifest = sdlService.generateManifest(fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8"));
+      const manifest = await sdlService.generateManifest(fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8"));
       const { groups } = (manifest as Extract<typeof manifest, { ok: true }>).value;
 
       await putDeployment({ userApiKeySecret, dseq, sdlMock: "hello-world-sdl.yml" });

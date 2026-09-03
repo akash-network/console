@@ -1,9 +1,11 @@
 import { faker } from "@faker-js/faker";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { BillingConfig } from "@src/billing/providers";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import type { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
+import type { CreateLogger } from "@src/core";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlService } from "./sdl.service";
@@ -407,33 +409,33 @@ deployment:
 
 describe(SdlService.name, () => {
   describe("generateManifest", () => {
-    it("parses SDL containing template variables without throwing", () => {
-      const { result } = setup({ sdl: SDL_WITH_VARS });
+    it("parses SDL containing template variables without throwing", async () => {
+      const { result } = await setup({ sdl: SDL_WITH_VARS });
 
       expect(result.ok).toBe(true);
     });
 
-    it("adds auditor to signedBy anyOf when not present", () => {
+    it("adds auditor to signedBy anyOf when not present", async () => {
       const auditor = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
-      const { result } = setup({ sdl: VALID_SDL, allowedAuditors: [auditor] });
+      const { result } = await setup({ sdl: VALID_SDL, allowedAuditors: [auditor] });
 
       expect(result.ok).toBe(true);
       expect(getSignedBy(result, "westcoast").anyOf).toContain(auditor);
     });
 
-    it("does not duplicate auditor if already present in anyOf", () => {
+    it("does not duplicate auditor if already present in anyOf", async () => {
       const auditor = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
-      const { result } = setup({ sdl: SDL_WITH_AUDITOR(auditor), allowedAuditors: [auditor] });
+      const { result } = await setup({ sdl: SDL_WITH_AUDITOR(auditor), allowedAuditors: [auditor] });
 
       expect(result.ok).toBe(true);
       const anyOfCount = getSignedBy(result, "westcoast").anyOf.filter((a: string) => a === auditor).length;
       expect(anyOfCount).toBe(1);
     });
 
-    it("adds multiple auditors to signedBy anyOf", () => {
+    it("adds multiple auditors to signedBy anyOf", async () => {
       const auditor1 = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
       const auditor2 = "akash1another7awdyj3n2sav7xfx76adc6dnmlx64";
-      const { result } = setup({ sdl: VALID_SDL, allowedAuditors: [auditor1, auditor2] });
+      const { result } = await setup({ sdl: VALID_SDL, allowedAuditors: [auditor1, auditor2] });
 
       expect(result.ok).toBe(true);
       const anyOf = getSignedBy(result, "westcoast").anyOf;
@@ -441,10 +443,10 @@ describe(SdlService.name, () => {
       expect(anyOf).toContain(auditor2);
     });
 
-    it("preserves existing signedBy allOf when adding anyOf", () => {
+    it("preserves existing signedBy allOf when adding anyOf", async () => {
       const auditor = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
       const existingAllOf = "akash1existingauditor";
-      const { result } = setup({ sdl: SDL_WITH_ALLOF(existingAllOf), allowedAuditors: [auditor] });
+      const { result } = await setup({ sdl: SDL_WITH_ALLOF(existingAllOf), allowedAuditors: [auditor] });
 
       expect(result.ok).toBe(true);
       const signedBy = getSignedBy(result, "westcoast");
@@ -452,44 +454,54 @@ describe(SdlService.name, () => {
       expect(signedBy.allOf).toContain(existingAllOf);
     });
 
-    it("applies auditor requirement to all placement profiles", () => {
+    it("applies auditor requirement to all placement profiles", async () => {
       const auditor = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
-      const { result } = setup({ sdl: MULTI_PLACEMENT_SDL, allowedAuditors: [auditor] });
+      const { result } = await setup({ sdl: MULTI_PLACEMENT_SDL, allowedAuditors: [auditor] });
 
       expect(result.ok).toBe(true);
       expect(getSignedBy(result, "westcoast").anyOf).toContain(auditor);
       expect(getSignedBy(result, "eastcoast").anyOf).toContain(auditor);
     });
 
-    it("replaces denom in pricing when deploymentGrantDenom differs from uakt", () => {
-      const { result } = setup({ sdl: VALID_SDL, deploymentGrantDenom: "uact" });
+    it("converts the price ceiling at the akt price when deploymentGrantDenom differs from uakt", async () => {
+      const { result } = await setup({ sdl: VALID_SDL, deploymentGrantDenom: "uact", aktToUsdRate: 0.325 });
 
       expect(result.ok).toBe(true);
-      expect(getPrice(result, "westcoast").denom).toBe("uact");
+      expect(getPrice(result, "westcoast")).toMatchObject({ denom: "uact", amount: "325" });
     });
 
-    it("does not replace denom when deploymentGrantDenom is uakt", () => {
-      const { result } = setup({ sdl: VALID_SDL, deploymentGrantDenom: "uakt" });
+    it("does not replace denom or look up a rate when deploymentGrantDenom is uakt", async () => {
+      const { result, denomExchangeService } = await setup({ sdl: VALID_SDL, deploymentGrantDenom: "uakt" });
 
       expect(result.ok).toBe(true);
-      expect(getPrice(result, "westcoast").denom).toBe("uakt");
+      expect(getPrice(result, "westcoast")).toMatchObject({ denom: "uakt", amount: "1000" });
+      expect(denomExchangeService.getExchangeRateToUSD).not.toHaveBeenCalled();
     });
 
-    it("does not append auditors when allowedAuditors is empty", () => {
-      const { result } = setup({ sdl: VALID_SDL, allowedAuditors: [] });
+    it("rejects the sdl when the akt price needed to convert its ceiling is unavailable", async () => {
+      const { result } = await setup({ sdl: VALID_SDL, deploymentGrantDenom: "uact", aktToUsdRate: 0 });
+
+      expect(result).toMatchObject({
+        ok: false,
+        value: [expect.objectContaining({ keyword: "pricing", message: expect.stringContaining("the AKT price is unavailable") })]
+      });
+    });
+
+    it("does not append auditors when allowedAuditors is empty", async () => {
+      const { result } = await setup({ sdl: VALID_SDL, allowedAuditors: [] });
 
       expect(result.ok).toBe(true);
       expect(getSignedBy(result, "westcoast").anyOf).toEqual([]);
     });
 
-    it("returns error result for invalid SDL", () => {
-      const { result } = setup({ sdl: "invalid" });
+    it("returns error result for invalid SDL", async () => {
+      const { result } = await setup({ sdl: "invalid" });
 
       expect(result.ok).toBeFalsy();
     });
 
-    it("returns error result with message for malformed YAML", () => {
-      const { result } = setup({ sdl: "key: value\n  bad_indent: true" });
+    it("returns error result with message for malformed YAML", async () => {
+      const { result } = await setup({ sdl: "key: value\n  bad_indent: true" });
 
       expect(result).toMatchObject({
         ok: false,
@@ -497,8 +509,8 @@ describe(SdlService.name, () => {
       });
     });
 
-    it("rejects SDL that requests a blocked GPU model for trialing wallets", () => {
-      const { result } = setup({ sdl: SDL_WITH_GPU("nvidia", "h100"), blockedGpuModels: ["nvidia/h100"], isTrialing: true });
+    it("rejects SDL that requests a blocked GPU model for trialing wallets", async () => {
+      const { result } = await setup({ sdl: SDL_WITH_GPU("nvidia", "h100"), blockedGpuModels: ["nvidia/h100"], isTrialing: true });
 
       expect(result).toMatchObject({
         ok: false,
@@ -506,26 +518,26 @@ describe(SdlService.name, () => {
       });
     });
 
-    it("does not enforce blocked GPU models for non-trialing wallets", () => {
-      const { result } = setup({ sdl: SDL_WITH_GPU("nvidia", "h100"), blockedGpuModels: ["nvidia/h100"], isTrialing: false });
+    it("does not enforce blocked GPU models for non-trialing wallets", async () => {
+      const { result } = await setup({ sdl: SDL_WITH_GPU("nvidia", "h100"), blockedGpuModels: ["nvidia/h100"], isTrialing: false });
 
       expect(result.ok).toBe(true);
     });
 
-    it("allows SDL that requests a non-blocked GPU model", () => {
-      const { result } = setup({ sdl: SDL_WITH_GPU("nvidia", "rtx-4090"), blockedGpuModels: ["nvidia/h100"], isTrialing: true });
+    it("allows SDL that requests a non-blocked GPU model", async () => {
+      const { result } = await setup({ sdl: SDL_WITH_GPU("nvidia", "rtx-4090"), blockedGpuModels: ["nvidia/h100"], isTrialing: true });
 
       expect(result.ok).toBe(true);
     });
 
-    it("does not enforce GPU block when the configured set is empty", () => {
-      const { result } = setup({ sdl: SDL_WITH_GPU("nvidia", "h100"), blockedGpuModels: [], isTrialing: true });
+    it("does not enforce GPU block when the configured set is empty", async () => {
+      const { result } = await setup({ sdl: SDL_WITH_GPU("nvidia", "h100"), blockedGpuModels: [], isTrialing: true });
 
       expect(result.ok).toBe(true);
     });
 
-    it("rejects SDL that requests an implicit GPU interconnect for trialing wallets", () => {
-      const { result } = setup({ sdl: SDL_WITH_GPU_INTERCONNECT("[]"), blockedGpuModels: ["nvidia/h100"], isTrialing: true });
+    it("rejects SDL that requests an implicit GPU interconnect for trialing wallets", async () => {
+      const { result } = await setup({ sdl: SDL_WITH_GPU_INTERCONNECT("[]"), blockedGpuModels: ["nvidia/h100"], isTrialing: true });
 
       expect(result).toMatchObject({
         ok: false,
@@ -533,8 +545,8 @@ describe(SdlService.name, () => {
       });
     });
 
-    it("rejects SDL that requests an explicit GPU interconnect group for trialing wallets", () => {
-      const { result } = setup({ sdl: SDL_WITH_GPU_INTERCONNECT("{ group: pair0 }"), blockedGpuModels: ["nvidia/h100"], isTrialing: true });
+    it("rejects SDL that requests an explicit GPU interconnect group for trialing wallets", async () => {
+      const { result } = await setup({ sdl: SDL_WITH_GPU_INTERCONNECT("{ group: pair0 }"), blockedGpuModels: ["nvidia/h100"], isTrialing: true });
 
       expect(result).toMatchObject({
         ok: false,
@@ -542,20 +554,20 @@ describe(SdlService.name, () => {
       });
     });
 
-    it("does not enforce the interconnect block for non-trialing wallets", () => {
-      const { result } = setup({ sdl: SDL_WITH_GPU_INTERCONNECT("[]"), blockedGpuModels: ["nvidia/h100"], isTrialing: false });
+    it("does not enforce the interconnect block for non-trialing wallets", async () => {
+      const { result } = await setup({ sdl: SDL_WITH_GPU_INTERCONNECT("[]"), blockedGpuModels: ["nvidia/h100"], isTrialing: false });
 
       expect(result.ok).toBe(true);
     });
 
-    it("allows a trialing interconnect SDL when the GPU trial restriction is inactive", () => {
-      const { result } = setup({ sdl: SDL_WITH_GPU_INTERCONNECT("[]"), blockedGpuModels: [], isTrialing: true });
+    it("allows a trialing interconnect SDL when the GPU trial restriction is inactive", async () => {
+      const { result } = await setup({ sdl: SDL_WITH_GPU_INTERCONNECT("[]"), blockedGpuModels: [], isTrialing: true });
 
       expect(result.ok).toBe(true);
     });
 
-    it("rejects trial SDL that exceeds the CPU cap", () => {
-      const { result } = setup({ sdl: SDL_WITH_RESOURCES(16, "24Gi"), isTrialing: true, trialMaxCpu: 4, trialMaxMemoryGi: 32 });
+    it("rejects trial SDL that exceeds the CPU cap", async () => {
+      const { result } = await setup({ sdl: SDL_WITH_RESOURCES(16, "24Gi"), isTrialing: true, trialMaxCpu: 4, trialMaxMemoryGi: 32 });
 
       expect(result).toMatchObject({
         ok: false,
@@ -563,8 +575,8 @@ describe(SdlService.name, () => {
       });
     });
 
-    it("rejects trial SDL that exceeds the memory cap", () => {
-      const { result } = setup({ sdl: SDL_WITH_RESOURCES(2, "24Gi"), isTrialing: true, trialMaxCpu: 4, trialMaxMemoryGi: 16 });
+    it("rejects trial SDL that exceeds the memory cap", async () => {
+      const { result } = await setup({ sdl: SDL_WITH_RESOURCES(2, "24Gi"), isTrialing: true, trialMaxCpu: 4, trialMaxMemoryGi: 16 });
 
       expect(result).toMatchObject({
         ok: false,
@@ -572,41 +584,41 @@ describe(SdlService.name, () => {
       });
     });
 
-    it("allows trial SDL within the resource caps", () => {
-      const { result } = setup({ sdl: SDL_WITH_RESOURCES(4, "16Gi"), isTrialing: true, trialMaxCpu: 4, trialMaxMemoryGi: 16 });
+    it("allows trial SDL within the resource caps", async () => {
+      const { result } = await setup({ sdl: SDL_WITH_RESOURCES(4, "16Gi"), isTrialing: true, trialMaxCpu: 4, trialMaxMemoryGi: 16 });
 
       expect(result.ok).toBe(true);
     });
 
-    it("does not enforce resource caps for non-trialing wallets", () => {
-      const { result } = setup({ sdl: SDL_WITH_RESOURCES(16, "24Gi"), isTrialing: false, trialMaxCpu: 4, trialMaxMemoryGi: 16 });
+    it("does not enforce resource caps for non-trialing wallets", async () => {
+      const { result } = await setup({ sdl: SDL_WITH_RESOURCES(16, "24Gi"), isTrialing: false, trialMaxCpu: 4, trialMaxMemoryGi: 16 });
 
       expect(result.ok).toBe(true);
     });
 
-    it("does not enforce resource caps when they are configured to zero", () => {
-      const { result } = setup({ sdl: SDL_WITH_RESOURCES(16, "24Gi"), isTrialing: true, trialMaxCpu: 0, trialMaxMemoryGi: 0 });
+    it("does not enforce resource caps when they are configured to zero", async () => {
+      const { result } = await setup({ sdl: SDL_WITH_RESOURCES(16, "24Gi"), isTrialing: true, trialMaxCpu: 0, trialMaxMemoryGi: 0 });
 
       expect(result.ok).toBe(true);
     });
 
     describe("confidential compute (tee)", () => {
-      it("projects a cpu tee selection into the manifest sent to the provider", () => {
-        const { result } = setup({ sdl: SDL_WITH_TEE("cpu") });
+      it("projects a cpu tee selection into the manifest sent to the provider", async () => {
+        const { result } = await setup({ sdl: SDL_WITH_TEE("cpu") });
 
         expect(result.ok).toBe(true);
         expect(getManifestService(result, "westcoast", "web").params?.tee).toEqual({ type: "cpu", attestation: true });
       });
 
-      it("projects a cpu-gpu tee selection into the manifest when gpu resources are present", () => {
-        const { result } = setup({ sdl: SDL_WITH_TEE_AND_GPU("cpu-gpu") });
+      it("projects a cpu-gpu tee selection into the manifest when gpu resources are present", async () => {
+        const { result } = await setup({ sdl: SDL_WITH_TEE_AND_GPU("cpu-gpu") });
 
         expect(result.ok).toBe(true);
         expect(getManifestService(result, "westcoast", "web").params?.tee).toEqual({ type: "cpu-gpu", attestation: true });
       });
 
-      it("rejects a cpu-gpu tee selection without gpu resources", () => {
-        const { result } = setup({ sdl: SDL_WITH_TEE("cpu-gpu") });
+      it("rejects a cpu-gpu tee selection without gpu resources", async () => {
+        const { result } = await setup({ sdl: SDL_WITH_TEE("cpu-gpu") });
 
         expect(result).toMatchObject({
           ok: false,
@@ -614,8 +626,8 @@ describe(SdlService.name, () => {
         });
       });
 
-      it("leaves manifest service params untouched when no tee is selected", () => {
-        const { result } = setup({ sdl: VALID_SDL });
+      it("leaves manifest service params untouched when no tee is selected", async () => {
+        const { result } = await setup({ sdl: VALID_SDL });
 
         expect(result.ok).toBe(true);
         expect(getManifestService(result, "westcoast", "web").params?.tee).toBeUndefined();
@@ -623,15 +635,15 @@ describe(SdlService.name, () => {
     });
 
     describe("sdl references", () => {
-      it("keeps a recognized sdl reference verbatim in the manifest", () => {
-        const { result } = setup({ sdl: SDL_WITH_ENV("TOKEN=ac-secret://TOKEN") });
+      it("keeps a recognized sdl reference verbatim in the manifest", async () => {
+        const { result } = await setup({ sdl: SDL_WITH_ENV("TOKEN=ac-secret://TOKEN") });
 
         expect(result.ok).toBe(true);
         expect(getManifestService(result, "westcoast", "web").env).toEqual(["TOKEN=ac-secret://TOKEN"]);
       });
 
-      it("rejects an unknown sdl reference kind naming the offending value", () => {
-        const { result } = setup({ sdl: SDL_WITH_ENV("TOKEN=ac-var://TOKEN") });
+      it("rejects an unknown sdl reference kind naming the offending value", async () => {
+        const { result } = await setup({ sdl: SDL_WITH_ENV("TOKEN=ac-var://TOKEN") });
 
         expect(result).toMatchObject({
           ok: false,
@@ -639,8 +651,8 @@ describe(SdlService.name, () => {
         });
       });
 
-      it("rejects a value merely beginning with the reserved prefix", () => {
-        const { result } = setup({ sdl: SDL_WITH_ENV("MODE=ac-dc") });
+      it("rejects a value merely beginning with the reserved prefix", async () => {
+        const { result } = await setup({ sdl: SDL_WITH_ENV("MODE=ac-dc") });
 
         expect(result).toMatchObject({
           ok: false,
@@ -648,14 +660,14 @@ describe(SdlService.name, () => {
         });
       });
 
-      it("accepts a value merely containing a reference", () => {
-        const { result } = setup({ sdl: SDL_WITH_ENV("MODE=see ac-secret://TOKEN") });
+      it("accepts a value merely containing a reference", async () => {
+        const { result } = await setup({ sdl: SDL_WITH_ENV("MODE=see ac-secret://TOKEN") });
 
         expect(result.ok).toBe(true);
       });
 
-      it("keeps a recognized registry credential reference verbatim in the manifest", () => {
-        const { result } = setup({ sdl: SDL_WITH_CREDENTIALS("ac-secret://REG_USER", "ac-secret://REG_PASS") });
+      it("keeps a recognized registry credential reference verbatim in the manifest", async () => {
+        const { result } = await setup({ sdl: SDL_WITH_CREDENTIALS("ac-secret://REG_USER", "ac-secret://REG_PASS") });
 
         expect(result.ok).toBe(true);
         expect(getManifestService(result, "westcoast", "web").credentials).toMatchObject({
@@ -664,8 +676,8 @@ describe(SdlService.name, () => {
         });
       });
 
-      it("rejects a registry credential merely beginning with the reserved prefix", () => {
-        const { result } = setup({ sdl: SDL_WITH_CREDENTIALS(faker.string.alphanumeric(10), "ac-dc-forever") });
+      it("rejects a registry credential merely beginning with the reserved prefix", async () => {
+        const { result } = await setup({ sdl: SDL_WITH_CREDENTIALS(faker.string.alphanumeric(10), "ac-dc-forever") });
 
         expect(result).toMatchObject({
           ok: false,
@@ -677,7 +689,7 @@ describe(SdlService.name, () => {
 
   describe("generateResolvedManifest", () => {
     it("returns a manifest carrying the resolved value", async () => {
-      const { service } = setup();
+      const { service } = await setup();
 
       const result = await service.generateResolvedManifest({ sdl: SDL_WITH_ENV("TOKEN=ac-secret://TOKEN"), secrets: { web: { TOKEN: "resolved" } } });
 
@@ -686,7 +698,7 @@ describe(SdlService.name, () => {
     });
 
     it("returns a manifest carrying the resolved registry credential", async () => {
-      const { service } = setup();
+      const { service } = await setup();
       const [username, password] = [faker.string.alphanumeric(10), faker.internet.password()];
 
       const result = await service.generateResolvedManifest({
@@ -699,7 +711,7 @@ describe(SdlService.name, () => {
     });
 
     it("hashes an sdl with a substituted registry credential exactly as one carrying it inline", async () => {
-      const { service } = setup();
+      const { service } = await setup();
       const [username, password] = [faker.string.alphanumeric(10), faker.internet.password()];
 
       const substituted = await service.generateResolvedManifest({
@@ -712,7 +724,7 @@ describe(SdlService.name, () => {
     });
 
     it("refuses a resolved registry credential the schema rejects, which the unresolved reference passed", async () => {
-      const { service } = setup();
+      const { service } = await setup();
 
       const result = await service.generateResolvedManifest({
         sdl: SDL_WITH_CREDENTIALS("ac-secret://REG_USER", "ac-secret://REG_PASS"),
@@ -724,7 +736,7 @@ describe(SdlService.name, () => {
     });
 
     it("hashes an sdl with a substituted value exactly as one carrying that value inline", async () => {
-      const { service } = setup();
+      const { service } = await setup();
 
       const substituted = await service.generateResolvedManifest({ sdl: SDL_WITH_ENV("TOKEN=ac-secret://TOKEN"), secrets: { web: { TOKEN: "resolved" } } });
       const inline = await service.generateResolvedManifest({ sdl: SDL_WITH_ENV("TOKEN=resolved"), secrets: {} });
@@ -733,7 +745,7 @@ describe(SdlService.name, () => {
     });
 
     it("hashes two different resolved values differently", async () => {
-      const { service } = setup();
+      const { service } = await setup();
       const sdl = SDL_WITH_ENV("TOKEN=ac-secret://TOKEN");
 
       const first = await service.generateResolvedManifest({ sdl, secrets: { web: { TOKEN: "one" } } });
@@ -743,7 +755,7 @@ describe(SdlService.name, () => {
     });
 
     it("returns the same manifest version for the same input twice", async () => {
-      const { service } = setup();
+      const { service } = await setup();
       const sdl = SDL_WITH_ENV("TOKEN=ac-secret://TOKEN");
 
       const first = await service.generateResolvedManifest({ sdl, secrets: { web: { TOKEN: "resolved" } } });
@@ -753,7 +765,7 @@ describe(SdlService.name, () => {
     });
 
     it("returns errors rather than throwing when a reference has no value", async () => {
-      const { service } = setup();
+      const { service } = await setup();
 
       const result = await service.generateResolvedManifest({ sdl: SDL_WITH_ENV("TOKEN=ac-secret://TOKEN"), secrets: {} });
 
@@ -762,7 +774,7 @@ describe(SdlService.name, () => {
     });
 
     it("returns errors for an unrecognized kind", async () => {
-      const { service } = setup();
+      const { service } = await setup();
 
       const result = await service.generateResolvedManifest({ sdl: SDL_WITH_ENV("TOKEN=ac-var://TOKEN"), secrets: { web: { TOKEN: "resolved" } } });
 
@@ -770,7 +782,7 @@ describe(SdlService.name, () => {
     });
 
     it("returns errors for an sdl that is not valid yaml", async () => {
-      const { service } = setup();
+      const { service } = await setup();
 
       const result = await service.generateResolvedManifest({ sdl: "services: [", secrets: {} });
 
@@ -778,7 +790,7 @@ describe(SdlService.name, () => {
     });
   });
 
-  function setup(input?: {
+  async function setup(input?: {
     sdl?: string;
     allowedAuditors?: string[];
     deploymentGrantDenom?: BillingConfig["DEPLOYMENT_GRANT_DENOM"];
@@ -786,6 +798,7 @@ describe(SdlService.name, () => {
     isTrialing?: boolean;
     trialMaxCpu?: number;
     trialMaxMemoryGi?: number;
+    aktToUsdRate?: number;
   }) {
     const config = mock<BillingConfig>({
       DEPLOYMENT_GRANT_DENOM: input?.deploymentGrantDenom ?? "uakt",
@@ -798,28 +811,32 @@ describe(SdlService.name, () => {
       MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: input?.blockedGpuModels ?? []
     });
     const blockedGpuService = new BlockedGpuService(blockedGpuConfig);
-    const service = new SdlService(config, blockedGpuService, new SdlReferenceService());
-    const result = service.generateManifest(input?.sdl ?? VALID_SDL, { isTrialing: input?.isTrialing });
+    const denomExchangeService = mock<DenomExchangeService>({
+      getExchangeRateToUSD: vi.fn().mockResolvedValue({ price: input?.aktToUsdRate ?? 1 })
+    });
+    const createLogger = (() => mock<ReturnType<CreateLogger>>()) as unknown as CreateLogger;
+    const service = new SdlService(config, blockedGpuService, new SdlReferenceService(), denomExchangeService, createLogger);
+    const result = await service.generateManifest(input?.sdl ?? VALID_SDL, { isTrialing: input?.isTrialing });
 
-    return { service, result };
+    return { service, result, denomExchangeService };
   }
 
-  function getGroupSpec(result: ReturnType<SdlService["generateManifest"]>, placementName: string) {
+  function getGroupSpec(result: Awaited<ReturnType<SdlService["generateManifest"]>>, placementName: string) {
     if (!result.ok) throw new Error("Expected ok result");
     const groupSpec = result.value.groupSpecs.find(gs => gs.name === placementName);
     if (!groupSpec) throw new Error(`Placement "${placementName}" not found`);
     return groupSpec;
   }
 
-  function getSignedBy(result: ReturnType<SdlService["generateManifest"]>, placementName: string) {
+  function getSignedBy(result: Awaited<ReturnType<SdlService["generateManifest"]>>, placementName: string) {
     return getGroupSpec(result, placementName).requirements!.signedBy!;
   }
 
-  function getPrice(result: ReturnType<SdlService["generateManifest"]>, placementName: string) {
+  function getPrice(result: Awaited<ReturnType<SdlService["generateManifest"]>>, placementName: string) {
     return getGroupSpec(result, placementName).resources[0].price!;
   }
 
-  function getManifestService(result: ReturnType<SdlService["generateManifest"]>, groupName: string, serviceName: string) {
+  function getManifestService(result: Awaited<ReturnType<SdlService["generateManifest"]>>, groupName: string, serviceName: string) {
     if (!result.ok) throw new Error("Expected ok result");
     const group = result.value.groups.find(g => g.name === groupName);
     if (!group) throw new Error(`Manifest group "${groupName}" not found`);
