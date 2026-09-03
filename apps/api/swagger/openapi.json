@@ -4814,7 +4814,8 @@
                     "type": "object",
                     "properties": {
                       "sdl": {
-                        "type": "string"
+                        "type": "string",
+                        "maxLength": 524288
                       },
                       "deposit": {
                         "type": "number",
@@ -7738,6 +7739,7 @@
         "tags": [
           "SDL Secrets"
         ],
+        "operationId": "getSDLSecretsContext",
         "security": [
           {
             "BearerAuth": []
@@ -7754,60 +7756,68 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "sub": {
-                      "type": "string",
-                      "description": "The subject of the SDL secrets context"
-                    },
-                    "kid": {
-                      "type": "string",
-                      "description": "The key ID of the SDL secrets context"
-                    },
-                    "jwk": {
+                    "data": {
                       "type": "object",
                       "properties": {
-                        "kty": {
-                          "type": "string"
+                        "sub": {
+                          "type": "string",
+                          "description": "The subject of the SDL secrets context"
                         },
-                        "n": {
-                          "type": "string"
+                        "kid": {
+                          "type": "string",
+                          "description": "The key ID of the SDL secrets context"
                         },
-                        "e": {
-                          "type": "string"
+                        "jwk": {
+                          "type": "object",
+                          "properties": {
+                            "kty": {
+                              "type": "string"
+                            },
+                            "n": {
+                              "type": "string"
+                            },
+                            "e": {
+                              "type": "string"
+                            },
+                            "use": {
+                              "type": "string"
+                            },
+                            "alg": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "kty",
+                            "n",
+                            "e",
+                            "use",
+                            "alg"
+                          ],
+                          "description": "The JSON Web Key used to encrypt the SDL secrets"
                         },
-                        "use": {
-                          "type": "string"
-                        },
-                        "alg": {
-                          "type": "string"
+                        "requiredClaims": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "kid",
+                              "sub",
+                              "exp"
+                            ]
+                          },
+                          "description": "The required claims for the SDL secrets context"
                         }
                       },
                       "required": [
-                        "kty",
-                        "n",
-                        "e",
-                        "use",
-                        "alg"
-                      ],
-                      "description": "The JSON Web Key used to encrypt the SDL secrets"
-                    },
-                    "requiredClaims": {
-                      "type": "array",
-                      "items": {
-                        "type": "string",
-                        "enum": [
-                          "kid",
-                          "sub",
-                          "exp"
-                        ]
-                      },
-                      "description": "The required claims for the SDL secrets context"
+                        "sub",
+                        "kid",
+                        "jwk",
+                        "requiredClaims"
+                      ]
                     }
                   },
                   "required": [
-                    "sub",
-                    "kid",
-                    "jwk",
-                    "requiredClaims"
+                    "data"
                   ]
                 }
               }

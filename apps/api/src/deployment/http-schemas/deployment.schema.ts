@@ -108,10 +108,8 @@ export const GetDeploymentParamsSchema = z.object({
 export const CreateDeploymentRequestSchema = z.object({
   data: z.object({
     sdl: z.string().max(MAX_SUBMITTED_SDL_LENGTH),
-    sealedSecrets: z.string().optional().openapi({
-      description:
-        "Values for the `ac-secret://NAME` references in `sdl`, sealed for this account as a compact JWE whose plaintext is a flat name-to-value JSON object. Seal it against the key and claims published by GET /v1/sdl-secrets-context. Every referenced name must have a value here and every value here must be referenced, so a typo on either side is refused rather than ignored. The count of values and the size of each are both capped; a value is measured as its JSON-encoded length, so a value containing quotes, backslashes or control characters carries fewer raw bytes than one that does not. Exceeding either cap fails with a 400 naming the limit and its configured value. There is no plaintext alternative, and no endpoint ever returns a stored value."
-    }),
+    /** Accepted and validated but withheld from every generated document by the route's `undocumentedRequestFields`, so the capability works before it is announced. */
+    sealedSecrets: z.string().optional(),
     deposit: z.number().optional().openapi({
       deprecated: true,
       description: "Deprecated and ignored. The platform funds every deployment automatically from your account credits."

@@ -2780,52 +2780,7 @@ export interface paths {
       cookie?: never;
     };
     /** Get SDL secrets encryption context */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Returns SDL secrets context */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              /** @description The subject of the SDL secrets context */
-              sub: string;
-              /** @description The key ID of the SDL secrets context */
-              kid: string;
-              /** @description The JSON Web Key used to encrypt the SDL secrets */
-              jwk: {
-                kty: string;
-                n: string;
-                e: string;
-                use: string;
-                alg: string;
-              };
-              /** @description The required claims for the SDL secrets context */
-              requiredClaims: ("kid" | "sub" | "exp")[];
-            };
-          };
-        };
-        /** @description SDL secrets encryption is unavailable */
-        503: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              message: string;
-            };
-          };
-        };
-      };
-    };
+    get: operations["getSDLSecretsContext"];
     put?: never;
     post?: never;
     delete?: never;
@@ -8458,6 +8413,54 @@ export interface operations {
                 };
               };
             };
+          };
+        };
+      };
+    };
+  };
+  getSDLSecretsContext: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns SDL secrets context */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description The subject of the SDL secrets context */
+              sub: string;
+              /** @description The key ID of the SDL secrets context */
+              kid: string;
+              /** @description The JSON Web Key used to encrypt the SDL secrets */
+              jwk: {
+                kty: string;
+                n: string;
+                e: string;
+                use: string;
+                alg: string;
+              };
+              /** @description The required claims for the SDL secrets context */
+              requiredClaims: ("kid" | "sub" | "exp")[];
+            };
+          };
+        };
+      };
+      /** @description SDL secrets encryption is unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            message: string;
           };
         };
       };

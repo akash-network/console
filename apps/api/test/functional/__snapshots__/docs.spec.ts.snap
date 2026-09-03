@@ -6968,10 +6968,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "maxLength": 524288,
                         "type": "string",
                       },
-                      "sealedSecrets": {
-                        "description": "Values for the \`ac-secret://NAME\` references in \`sdl\`, sealed for this account as a compact JWE whose plaintext is a flat name-to-value JSON object. Seal it against the key and claims published by GET /v1/sdl-secrets-context. Every referenced name must have a value here and every value here must be referenced, so a typo on either side is refused rather than ignored. The count of values and the size of each are both capped; a value is measured as its JSON-encoded length, so a value containing quotes, backslashes or control characters carries fewer raw bytes than one that does not. Exceeding either cap fails with a 400 naming the limit and its configured value. There is no plaintext alternative, and no endpoint ever returns a stored value.",
-                        "type": "string",
-                      },
                     },
                     "required": [
                       "sdl",
@@ -13467,66 +13463,75 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/sdl-secrets-context": {
       "get": {
+        "operationId": "getSDLSecretsContext",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
                   "properties": {
-                    "jwk": {
-                      "description": "The JSON Web Key used to encrypt the SDL secrets",
+                    "data": {
                       "properties": {
-                        "alg": {
+                        "jwk": {
+                          "description": "The JSON Web Key used to encrypt the SDL secrets",
+                          "properties": {
+                            "alg": {
+                              "type": "string",
+                            },
+                            "e": {
+                              "type": "string",
+                            },
+                            "kty": {
+                              "type": "string",
+                            },
+                            "n": {
+                              "type": "string",
+                            },
+                            "use": {
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "kty",
+                            "n",
+                            "e",
+                            "use",
+                            "alg",
+                          ],
+                          "type": "object",
+                        },
+                        "kid": {
+                          "description": "The key ID of the SDL secrets context",
                           "type": "string",
                         },
-                        "e": {
-                          "type": "string",
+                        "requiredClaims": {
+                          "description": "The required claims for the SDL secrets context",
+                          "items": {
+                            "enum": [
+                              "kid",
+                              "sub",
+                              "exp",
+                            ],
+                            "type": "string",
+                          },
+                          "type": "array",
                         },
-                        "kty": {
-                          "type": "string",
-                        },
-                        "n": {
-                          "type": "string",
-                        },
-                        "use": {
+                        "sub": {
+                          "description": "The subject of the SDL secrets context",
                           "type": "string",
                         },
                       },
                       "required": [
-                        "kty",
-                        "n",
-                        "e",
-                        "use",
-                        "alg",
+                        "sub",
+                        "kid",
+                        "jwk",
+                        "requiredClaims",
                       ],
                       "type": "object",
                     },
-                    "kid": {
-                      "description": "The key ID of the SDL secrets context",
-                      "type": "string",
-                    },
-                    "requiredClaims": {
-                      "description": "The required claims for the SDL secrets context",
-                      "items": {
-                        "enum": [
-                          "kid",
-                          "sub",
-                          "exp",
-                        ],
-                        "type": "string",
-                      },
-                      "type": "array",
-                    },
-                    "sub": {
-                      "description": "The subject of the SDL secrets context",
-                      "type": "string",
-                    },
                   },
                   "required": [
-                    "sub",
-                    "kid",
-                    "jwk",
-                    "requiredClaims",
+                    "data",
                   ],
                   "type": "object",
                 },

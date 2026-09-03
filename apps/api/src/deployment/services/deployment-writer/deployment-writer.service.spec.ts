@@ -171,13 +171,13 @@ describe(DeploymentWriterService.name, () => {
 
       const result = await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
 
-      expect(result.dseq).toBe("1748400000000");
+      expect(result.dseq).toBe(dseq.toString());
       expect(result.signTx).toBe(txResult);
       expect(rpcMessageService.getCreateDeploymentMsg).toHaveBeenCalledWith(
         expect.objectContaining({
           owner: wallet.address,
-          dseq,
-          groups: manifestValue.groupSpecs,
+          dseq: dseq.toString(),
+          groups: resolvedManifestValue.groupSpecs,
           denom: "uakt",
           amount: 5000000
         })
@@ -187,7 +187,7 @@ describe(DeploymentWriterService.name, () => {
 
     it("throws 400 when SDL is invalid", async () => {
       const { service, sdlService } = setup();
-      sdlService.generateManifest.mockReturnValue({
+      sdlService.generateResolvedManifest.mockReturnValue({
         ok: false,
         value: [{ message: "invalid version" }]
       } as any);
@@ -206,19 +206,20 @@ describe(DeploymentWriterService.name, () => {
       expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
     });
 
-    it("returns the manifest built from the sdl as submitted rather than the resolved one", async () => {
+    it("returns the manifest built from the resolved sdl", async () => {
       const { service } = setup();
 
       const result = await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
 
-      expect(result.manifest).toContain("test-group");
-      expect(result.manifest).not.toContain("resolved-group");
+      expect(result.manifest).toContain("resolved-group");
+      expect(result.manifest).not.toContain("test-group");
     });
 
     it("forwards the reclamation block to getCreateDeploymentMsg when the SDL declares it", async () => {
       const { service, sdlService, rpcMessageService } = setup();
       const reclamation = DeploymentReclamation.fromPartial({ minWindow: { seconds: 86400 } });
-      sdlService.generateManifest.mockReturnValue({ ok: true, value: { ...manifestValue, reclamation } } as any);
+      const manifest = { ...resolvedManifestValue, reclamation };
+      sdlService.generateResolvedManifest.mockReturnValue({ ok: true, value: { manifest, manifestVersion: new Uint8Array(0) } } as any);
 
       await service.create({ userId: "user-1", sdl: "sdl-with-reclamation", deposit: 5 });
 
@@ -899,14 +900,14 @@ describe(DeploymentWriterService.name, () => {
       await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" })).rejects.toMatchObject({ status: 400 });
     });
 
-    it("sends the providers the manifest built from the sdl as submitted", async () => {
+    it("sends the providers the manifest built from the resolved sdl", async () => {
       const { service, providerService } = setup();
       providerService.toProviderAuth.mockResolvedValue({ type: "jwt", token: "test-token" });
 
       await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
 
-      expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ manifest: expect.stringContaining("test-group") }));
-      expect(providerService.sendManifest).not.toHaveBeenCalledWith(expect.objectContaining({ manifest: expect.stringContaining("resolved-group") }));
+      expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ manifest: expect.stringContaining("resolved-group") }));
+      expect(providerService.sendManifest).not.toHaveBeenCalledWith(expect.objectContaining({ manifest: expect.stringContaining("test-group") }));
     });
 
     it("sends manifest to all unique lease providers", async () => {

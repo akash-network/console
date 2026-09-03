@@ -4,7 +4,7 @@ import type { ComponentsObject, OpenAPIObject, PathItemObject, PathsObject, Refe
 import { inject, singleton } from "tsyringe";
 
 import { memoizeAsync } from "@src/caching/helpers";
-import { HIDDEN_ROUTES } from "@src/core/lib/create-route/create-route";
+import { HIDDEN_ROUTES, UNDOCUMENTED_REQUEST_FIELDS } from "@src/core/lib/create-route/create-route";
 import type { CoreConfig } from "@src/core/providers/config.provider";
 import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import type { NotificationsConfig } from "@src/notifications/config/env.config";
@@ -12,6 +12,11 @@ import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications
 import type { OpenApiHonoHandler } from "../open-api-hono-handler/open-api-hono-handler";
 
 const logger = createOtelLogger({ context: "OpenApiDocsService" });
+
+interface PropertyHolder {
+  properties?: Record<string, PropertyHolder | undefined>;
+  required?: string[];
+}
 
 @singleton()
 export class OpenApiDocsService {
@@ -69,7 +74,8 @@ export class OpenApiDocsService {
           // The committed openapi.json (SDK input) is generated with includeHidden:true so internal
           // routes (e.g. Stripe) are typed and addressable via api.v1.*; the served /v1/doc keeps
           // stripping them so the public Swagger surface stays clean.
-          Object.assign(docs.paths, options.includeHidden ? handlerDocs.paths : this.#stripHiddenOperations(handlerDocs.paths));
+          const paths = options.includeHidden ? handlerDocs.paths : this.#stripHiddenOperations(handlerDocs.paths);
+          Object.assign(docs.paths, this.#stripUndocumentedRequestFields(paths));
         } catch (error) {
           logger.error({
             name: `Error generating OpenAPI docs for handler, example path: ${handler.routes[0]?.path || "unknown"}`,
@@ -140,6 +146,37 @@ export class OpenApiDocsService {
     } catch (error) {
       logger.warn({ event: "EXTERNAL_OPENAPI_FETCH_ERROR", error, url: externalOpenApiUrl });
       return null;
+    }
+  }
+
+  /** Strips withheld properties from the document rather than the schema, because `@hono/zod-openapi` hands that same schema to `zValidator`. */
+  #stripUndocumentedRequestFields(paths: PathsObject | undefined): PathsObject {
+    if (!paths || UNDOCUMENTED_REQUEST_FIELDS.size === 0) return paths ?? {};
+
+    for (const [path, pathItem] of Object.entries(paths)) {
+      for (const [method, operation] of Object.entries(pathItem ?? {})) {
+        const fields = UNDOCUMENTED_REQUEST_FIELDS.get(operation?.operationId ?? `${method.toUpperCase()} ${path}`);
+
+        if (fields) this.#deleteWithheldProperties(operation as { requestBody?: unknown }, fields);
+      }
+    }
+
+    return paths;
+  }
+
+  /** Every media type, and both the body itself and this API's `data` envelope, so a route cannot declare a field withheld and have it published anyway. */
+  #deleteWithheldProperties(operation: { requestBody?: unknown }, fields: readonly string[]): void {
+    const content = (operation.requestBody as { content?: Record<string, { schema?: PropertyHolder }> } | undefined)?.content ?? {};
+
+    for (const mediaType of Object.values(content)) {
+      for (const holder of [mediaType.schema, mediaType.schema?.properties?.data]) {
+        if (!holder?.properties) continue;
+
+        for (const field of fields) {
+          delete holder.properties[field];
+          holder.required = holder.required?.filter(name => name !== field);
+        }
+      }
     }
   }
 

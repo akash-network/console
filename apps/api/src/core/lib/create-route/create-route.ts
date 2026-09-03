@@ -31,6 +31,9 @@ const NO_CACHE = cacheControlMiddleware({ maxAge: 0 });
  */
 export const HIDDEN_ROUTES = new Set<string>();
 
+/** Request-body properties, per operation, that are validated as normal but left out of every generated document. */
+export const UNDOCUMENTED_REQUEST_FIELDS = new Map<string, readonly string[]>();
+
 export function createRoute<
   R extends Omit<RouteConfig, "security"> & {
     security: Required<RouteConfig>["security"];
@@ -42,9 +45,11 @@ export function createRoute<
      * The route is still mounted and reachable — only documentation is suppressed.
      */
     hiddenInOpenApiDocs?: boolean;
+    /** Request-body properties this route accepts and validates but does not publish, for a capability that works before it is announced. */
+    undocumentedRequestFields?: readonly string[];
   }
 >(routeConfig: R) {
-  const { cache, bodyLimit: bodyLimitOptions, additionalContentTypes, hiddenInOpenApiDocs, ...openApiConfig } = routeConfig;
+  const { cache, bodyLimit: bodyLimitOptions, additionalContentTypes, hiddenInOpenApiDocs, undocumentedRequestFields, ...openApiConfig } = routeConfig;
   let middlewares: MiddlewareHandler[] = [];
 
   if (routeConfig.method !== "get" && routeConfig.method !== "head") {
@@ -82,8 +87,14 @@ export function createRoute<
     openApiConfig.middleware = middlewares;
   }
 
+  const operationId = openApiConfig.operationId ?? `${openApiConfig.method?.toUpperCase() || "UNKNOWN"} ${openApiConfig.path}`;
+
   if (hiddenInOpenApiDocs) {
-    HIDDEN_ROUTES.add(openApiConfig.operationId ?? `${openApiConfig.method?.toUpperCase() || "UNKNOWN"} ${openApiConfig.path}`);
+    HIDDEN_ROUTES.add(operationId);
+  }
+
+  if (undocumentedRequestFields?.length) {
+    UNDOCUMENTED_REQUEST_FIELDS.set(operationId, undocumentedRequestFields);
   }
 
   return createOpenApiRoute(openApiConfig as Omit<R, "cache" | "hiddenInOpenApiDocs">);
