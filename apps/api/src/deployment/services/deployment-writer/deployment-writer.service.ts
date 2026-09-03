@@ -25,21 +25,19 @@ import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secr
 import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import type { StoredSdlPosition, StoredSdlRefusal } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
-import { dropSdlValues, parseSdlForStorage, sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
+import { parseSdlForStorage, sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { denomToUdenom } from "@src/utils/math";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 import { StaleManagedDeploymentsCleanerService } from "../stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
 
-/** What becomes of the values a submitted document carries in the clear, once the console has decided what it can seal. */
+/** What becomes of the values a submitted document carries in the clear. There is no longer a way to say "dropped": every writer can seal, so a value is never lost to be safe. */
 type StoredSdlValues =
   /** Every one of them is sealed and referenced, because nothing in the request said which are secret. */
   | "every-value-sealed"
   /** Only a registry credential is, a seal having already said which of the rest are secret. */
-  | "only-credentials-sealed"
-  /** None are, so an `env` value is dropped and the credentials block removed, for a caller with nowhere to put them. */
-  | "every-value-dropped";
+  | "only-credentials-sealed";
 
 @singleton()
 export class DeploymentWriterService {
@@ -121,7 +119,7 @@ export class DeploymentWriterService {
     dseq: string;
     sdl: string;
     manifestVersion: Uint8Array;
-    sealedSecrets?: string | null;
+    sealedSecrets: string | null;
     runtimeLimitHours?: number;
   }): Promise<void> {
     const { owner, ...definition } = input;
@@ -161,7 +159,8 @@ export class DeploymentWriterService {
     dseq: string;
     sdl: string;
     manifestVersion: Uint8Array;
-    sealedSecrets?: string | null;
+    /** Stated rather than optional, so a definition write cannot leave the previous create's token beside an SDL that no longer references the names in it. */
+    sealedSecrets: string | null;
     runtimeLimitHours?: number;
   }): Promise<string> {
     const { manifestVersion, ...rest } = input;
@@ -198,12 +197,6 @@ export class DeploymentWriterService {
 
   /** Runs before the document is measured, so that what the size guard bounds is exactly what gets stored. */
   #takeValuesOutOf(document: SDLInput, values: StoredSdlValues): SdlSecrets {
-    if (values === "every-value-dropped") {
-      dropSdlValues(document);
-
-      return {};
-    }
-
     return this.sdlSecretsDerivationService.derive(document, { includeEnvValues: values === "every-value-sealed" }).secrets;
   }
 
@@ -303,14 +296,21 @@ export class DeploymentWriterService {
     return await this.deploymentReaderService.findByWalletAndDseq(wallet, options.dseq);
   }
 
+  /**
+   * An update resubmits the whole SDL, so what it stores replaces the definition wholesale — the token
+   * included, rather than left to survive from the create the way it did before this could write one.
+   * Sealing runs after everything that can still refuse the request, so a 404 on the deployment or a
+   * reference with no value spends no key-service call.
+   */
   public async updateByUserIdAndDseq(userId: string, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<DeploymentResponse> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
-    const { sdl } = this.#storedSdlOf(input.sdl, "every-value-dropped", dseq);
+    const { sdl, derived } = this.#storedSdlOf(input.sdl, "every-value-sealed", dseq);
 
     const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { isTrialing: !!wallet.isTrialing });
     const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq, secrets: derived });
 
-    await this.recordDefinition({ userId: wallet.userId, dseq, sdl, manifestVersion });
+    await this.recordDefinition({ userId: wallet.userId, dseq, sdl, manifestVersion, sealedSecrets });
 
     await this.ensureDeploymentIsUpToDate(wallet, dseq, manifestVersion, deployment);
     const auth = { walletId: wallet.id };
