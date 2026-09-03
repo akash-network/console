@@ -3,6 +3,7 @@ import { container } from "tsyringe";
 import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY, SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
+import { CREATE_DEPLOYMENT_BODY_LIMIT_BYTES } from "@src/deployment/config/sdl-secrets.config";
 import { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
 import {
   CloseDeploymentParamsSchema,
@@ -68,6 +69,8 @@ const postRoute = createRoute({
   operationId: "createDeployment",
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,
+  /** The only route that can carry a seal, sized so the stated secret limits are reachable rather than shadowed by the default allowance. */
+  bodyLimit: { maxSize: CREATE_DEPLOYMENT_BODY_LIMIT_BYTES },
   request: {
     body: {
       content: {
