@@ -17,8 +17,14 @@ export type StoredSdl =
   | { sdl: string; length: number; refusal?: never; at?: never }
   | { sdl: null; length: number; refusal: StoredSdlRefusal; at?: StoredSdlPosition };
 
+/** Either this drops what it cannot keep or a caller takes it out, never both, because a value dropped before `rewrite` sees it is a value that caller can no longer seal. */
+export type StoredSdlOptions =
+  | { keepOrdinaryEnvValues: boolean; rewrite?: never }
+  /** Applied to the parsed document before it is measured and serialized, so that what the size guard bounds is exactly what gets stored. */
+  | { keepOrdinaryEnvValues?: never; rewrite: (document: SDLInput) => void };
+
 /** Runs before the manifest generator has validated anything, because it is the cheapest refusal a create has, and returns re-serialized YAML that must never stand in for the raw SDL anywhere a hash is taken over it. */
-export function sdlForStorage(rawSdl: string, maxLength: number, options: { keepOrdinaryEnvValues: boolean }): StoredSdl {
+export function sdlForStorage(rawSdl: string, maxLength: number, options: StoredSdlOptions): StoredSdl {
   let sdl: SDLInput;
   try {
     sdl = yaml.raw<SDLInput>(rawSdl);
@@ -26,9 +32,13 @@ export function sdlForStorage(rawSdl: string, maxLength: number, options: { keep
     return { sdl: null, length: rawSdl.length, refusal: "unparseable", at: positionOf(error) };
   }
 
-  for (const service of serviceDefinitionsOf(sdl)) {
-    if (!options.keepOrdinaryEnvValues) dropEnvValues(service);
-    delete service.credentials;
+  if (options.rewrite) {
+    options.rewrite(sdl);
+  } else {
+    for (const service of serviceDefinitionsOf(sdl)) {
+      if (!options.keepOrdinaryEnvValues) dropEnvValues(service);
+      delete service.credentials;
+    }
   }
 
   if (mayShareNodes(rawSdl)) {

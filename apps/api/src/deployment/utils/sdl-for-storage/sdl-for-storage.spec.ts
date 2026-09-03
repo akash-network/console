@@ -213,6 +213,47 @@ describe(sdlForStorage.name, () => {
     });
   });
 
+  describe("a caller that takes the values out itself", () => {
+    it("is handed a document still carrying every value and credential, so it has something to take", () => {
+      const credentials = { host: "registry.example.test", username: faker.string.alphanumeric(10), password: faker.internet.password() };
+      const token = faker.string.alphanumeric(24);
+      let handed: SDLInput | undefined;
+
+      sdlForStorage(sdlWith({ web: { env: [`API_TOKEN=${token}`], credentials } }), MAX_LENGTH, {
+        rewrite: document => {
+          handed = document;
+        }
+      });
+
+      expect(handed!.services.web.env).toEqual([`API_TOKEN=${token}`]);
+      expect(handed!.services.web.credentials).toMatchObject(credentials);
+    });
+
+    it("stores what the rewrite left behind rather than what arrived", () => {
+      const token = faker.string.alphanumeric(24);
+
+      const { sdl } = sdlForStorage(sdlWith({ web: { env: [`API_TOKEN=${token}`] } }), MAX_LENGTH, {
+        rewrite: document => {
+          document.services.web.env = ["API_TOKEN=ac-secret://s0_e0"];
+        }
+      });
+
+      expect(sdl).toContain("API_TOKEN=ac-secret://s0_e0");
+      expect(sdl).not.toContain(token);
+    });
+
+    it("measures what the rewrite left rather than what arrived", () => {
+      const stored = sdlForStorage(sdlWith({ web: { env: ["SMALL=v"] } }), 512, {
+        rewrite: document => {
+          document.services.web.env = [`SMALL=${"x".repeat(4096)}`];
+        }
+      });
+
+      expect(stored.sdl).toBeNull();
+      expect(stored.length).toBeGreaterThan(512);
+    });
+  });
+
   describe("a value that is also an ordinary part of the SDL", () => {
     it("keeps a service whose name another service's env value happens to equal", () => {
       const stripped = storedWithoutValues(sdlWith({ wordpress: { env: ["WORDPRESS_DB_HOST=db"] }, db: { env: ["MYSQL_DATABASE=wordpress"] } }));
