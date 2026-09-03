@@ -7,12 +7,7 @@ const SDL_REFERENCE_PREFIX = "ac-";
 
 const SDL_REFERENCE = /^ac-([a-z]{1,16}):\/\/([A-Za-z_][A-Za-z0-9_]{0,63})$/;
 
-/**
- * Longest name the grammar above accepts, and so the longest key a sealed payload can usefully carry:
- * a supplied name longer than this can never be referenced by any SDL. Kept beside the grammar because
- * the seal budget is computed from it, and a bound that drifted from what the grammar accepts would
- * make that budget wrong rather than merely stale. Pinned against the grammar by its own spec.
- */
+/** Must stay equal to the bound the grammar above accepts, because the seal budget is computed from it. */
 export const MAX_SDL_REFERENCE_NAME_LENGTH = 64;
 
 /** The whole message is logged by the error handler, and an offending value is only bounded by the request body limit. */
@@ -20,11 +15,7 @@ export const MAX_ECHOED_REFERENCE_LENGTH = 120;
 
 type SdlReferenceRead = { type: "plain" } | { type: "reserved" } | { type: "reference"; kind: string; name: string };
 
-/**
- * Whether a value is a whole SDL Reference and so names a secret rather than carrying one. Reads the
- * same grammar substitution reads, because a value that merely opens with the prefix is not a
- * reference and must not be treated as one by anything deciding what is safe to store.
- */
+/** Tests the whole grammar, because a value that merely opens with the prefix is not a reference and must not be treated as one. */
 export function isSdlReference(value: string): boolean {
   return SDL_REFERENCE.test(value);
 }
@@ -96,10 +87,7 @@ function referenceError(instancePath: string, message: string, params: Record<st
   return { schemaPath: "", instancePath, keyword: "sdl-reference", params, message };
 }
 
-/**
- * Shared so the two places that can find a reference without a value — the intake comparing an SDL
- * against a request, and substitution itself — cannot report the same thing in two wordings.
- */
+/** Shared so the intake and substitution cannot report the same missing value in two wordings. */
 export function missingSdlReferenceValueError(reference: SdlReferenceDeclaration): ValidationError {
   const echoedServiceName = reference.serviceName.slice(0, MAX_ECHOED_REFERENCE_LENGTH);
 
@@ -157,11 +145,7 @@ export class SdlReferenceService {
     });
   }
 
-  /**
-   * Every reference of one kind an SDL declares, so a caller can compare what the SDL asks for against
-   * what a request supplied — in both directions, which substitution alone cannot report because it
-   * only ever visits what the SDL names.
-   */
+  /** Substitution alone cannot report what a request supplied and the SDL never asked for, because it only ever visits what the SDL names. */
   declarationsOf(sdl: SDLInput, kind: string): SdlReferenceDeclaration[] {
     const declarations: SdlReferenceDeclaration[] = [];
 
