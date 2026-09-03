@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { DataKeyUnwrapperService } from "@src/secret/services/data-key-unwrapper/data-key-unwrapper.service";
+import type { SecretBinding } from "./secret-cipher.service";
 import { SecretCipherService } from "./secret-cipher.service";
 
 const DATA_KEY_ID = "2b0f1e3c-8a4d-4c22-9f10-7d5e6a1b2c3d";
@@ -230,10 +231,11 @@ describe(SecretCipherService.name, () => {
     await expect(service.decrypt(USER_ID, [forged, ...rest].join("."), { sub: USER_ID, dseq: OTHER_DSEQ })).rejects.toMatchObject({ status: 500 });
   });
 
-  it("keeps the claims describing its own encryption when a binding names them", async () => {
+  it("keeps the claims describing its own encryption when a binding reaches it naming them", async () => {
     const { service } = setup();
+    const bindingPastTheType = { alg: "none", enc: "none", kid: OTHER_DATA_KEY_ID } as unknown as SecretBinding;
 
-    const encrypted = await service.encrypt(USER_ID, "value", { alg: "none", enc: "none", kid: OTHER_DATA_KEY_ID });
+    const encrypted = await service.encrypt(USER_ID, "value", bindingPastTheType);
 
     expect(decodeProtectedHeader(encrypted)).toMatchObject({ alg: "dir", enc: "A256GCM", kid: DATA_KEY_ID });
   });

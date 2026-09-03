@@ -1,7 +1,7 @@
 import type { protos } from "@google-cloud/kms";
 import crc32c from "fast-crc32c";
 import { compactDecrypt, CompactEncrypt, decodeProtectedHeader } from "jose";
-import { constants, generateKeyPairSync, privateDecrypt, randomBytes, randomInt, randomUUID } from "node:crypto";
+import { constants, generateKeyPairSync, privateDecrypt, randomBytes, randomUUID } from "node:crypto";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -24,13 +24,14 @@ const KID = "sdl-secrets.v1";
 const VERSION_NAME = "projects/console-test/locations/global/keyRings/console-api/cryptoKeys/sdl-secrets/cryptoKeyVersions/1";
 const SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n';
 
-/** What the deployment create path binds a stored token to, so these tests exercise the shape production will use. */
 function bindingFor(user: UserOutput, dseq: string) {
   return { sub: user.id, dseq };
 }
 
+let lastDseq = 100000;
+
 function newDseq() {
-  return randomInt(100000, 999999).toString();
+  return (++lastDseq).toString();
 }
 
 describe(SecretCipherService.name, () => {

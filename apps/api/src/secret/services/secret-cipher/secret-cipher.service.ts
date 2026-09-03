@@ -9,15 +9,13 @@ import { DataKeyUnwrapperService } from "@src/secret/services/data-key-unwrapper
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
-/**
- * What a stored value is bound to besides its data key, as extra protected-header claims a reader has to
- * state again to open it. The header is the additional authenticated data, so a claim is bound by the tag
- * rather than merely written down: a value moved to a row these claims do not describe fails to open.
- */
-export type SecretBinding = Readonly<Record<string, string>>;
-
 /** The claims that describe the encryption rather than what was encrypted, so they are the cipher's to set and not a binding's. */
-const ENCRYPTION_HEADER_CLAIMS: ReadonlySet<string> = new Set(["alg", "enc", "kid"]);
+type EncryptionHeaderClaim = "alg" | "enc" | "kid";
+
+const ENCRYPTION_HEADER_CLAIMS: ReadonlySet<string> = new Set<EncryptionHeaderClaim>(["alg", "enc", "kid"]);
+
+/** The protected header is the additional authenticated data, so a value moved to a row these claims do not describe fails to open. */
+export type SecretBinding = Readonly<Record<string, string>> & { readonly [K in EncryptionHeaderClaim]?: never };
 
 /** The protected header names the data key record and is itself the additional authenticated data, so the recorded name cannot be swapped without breaking the tag. */
 @singleton()
@@ -31,7 +29,7 @@ export class SecretCipherService {
     this.#loggerService = createLogger({ context: SecretCipherService.name });
   }
 
-  /** The binding is spread first so the three claims that describe the encryption itself are always the ones that win, and no caller can weaken them by naming them. */
+  /** The encryption claims are spread last so they still win over a binding that reached here past the type forbidding them. */
   async encrypt(userId: string, value: string, binding: SecretBinding): Promise<string> {
     const dataKey = await this.dataKeyUnwrapperService.getDataKey(userId);
 
@@ -40,10 +38,7 @@ export class SecretCipherService {
       .encrypt(await dataKey.unwrap());
   }
 
-  /**
-   * Everything free happens before anything costly: the header decides whether this value belongs here at
-   * all, so a value the caller cannot own costs neither a data key lookup nor a key-service call.
-   */
+  /** The header decides whether the value belongs here before it costs a data key lookup or a key-service call. */
   async decrypt(userId: string, encrypted: string, binding: SecretBinding): Promise<string> {
     const { kid } = this.#readBoundHeader(encrypted, userId, binding);
     const dataKey = await this.dataKeyUnwrapperService.getDataKey(userId);
@@ -55,12 +50,7 @@ export class SecretCipherService {
     return textDecoder.decode(await this.#open(encrypted, await dataKey.unwrap(), userId));
   }
 
-  /**
-   * A reader has to name exactly what the value was bound to, not merely a subset of it. Checking only the
-   * claims the caller thought to mention would let a later caller drop a binding by omission — passing
-   * `{ sub }` for a value bound to `{ sub, dseq }` would open every deployment of that owner — so the
-   * claim sets have to match before any value is compared.
-   */
+  /** The claim sets have to match exactly, because accepting a subset would let a caller drop a binding by omission. */
   #readBoundHeader(encrypted: string, userId: string, binding: SecretBinding) {
     const header = this.#decodeHeader(encrypted, userId);
 
