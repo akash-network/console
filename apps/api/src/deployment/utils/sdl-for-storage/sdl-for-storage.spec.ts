@@ -437,7 +437,7 @@ describe(sdlForStorage.name, () => {
     const config = mock<BillingConfig>({ DEPLOYMENT_GRANT_DENOM: "uakt", MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: [] });
     const blockedGpuService = new BlockedGpuService(mockConfigService<BillingConfigService>({ MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: [] }));
     const denomExchangeService = mock<DenomExchangeService>();
-    const createLogger = (() => mock<ReturnType<CreateLogger>>()) as unknown as CreateLogger;
+    const createLogger: CreateLogger = () => mock<ReturnType<CreateLogger>>();
 
     return new SdlService(config, blockedGpuService, new SdlReferenceService(), denomExchangeService, createLogger).generateManifest(rawSdl);
   }

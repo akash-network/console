@@ -496,6 +496,15 @@ describe(SdlService.name, () => {
       });
     });
 
+    it("rejects the sdl when the akt price lookup fails instead of throwing", async () => {
+      const { result } = await setup({ sdl: VALID_SDL, deploymentGrantDenom: "uact", aktToUsdRateError: new Error("oracle and day table are both down") });
+
+      expect(result).toMatchObject({
+        ok: false,
+        value: [expect.objectContaining({ keyword: "pricing", message: expect.stringContaining("the AKT price is unavailable") })]
+      });
+    });
+
     it("does not append auditors when allowedAuditors is empty", async () => {
       const { result } = await setup({ sdl: VALID_SDL, allowedAuditors: [] });
 
@@ -808,6 +817,7 @@ describe(SdlService.name, () => {
     trialMaxCpu?: number;
     trialMaxMemoryGi?: number;
     aktToUsdRate?: number;
+    aktToUsdRateError?: Error;
   }) {
     const config = mock<BillingConfig>({
       DEPLOYMENT_GRANT_DENOM: input?.deploymentGrantDenom ?? "uakt",
@@ -821,9 +831,11 @@ describe(SdlService.name, () => {
     });
     const blockedGpuService = new BlockedGpuService(blockedGpuConfig);
     const denomExchangeService = mock<DenomExchangeService>({
-      getExchangeRateToUSD: vi.fn().mockResolvedValue({ price: input?.aktToUsdRate ?? 1 })
+      getExchangeRateToUSD: input?.aktToUsdRateError
+        ? vi.fn().mockRejectedValue(input.aktToUsdRateError)
+        : vi.fn().mockResolvedValue({ price: input?.aktToUsdRate ?? 1 })
     });
-    const createLogger = (() => mock<ReturnType<CreateLogger>>()) as unknown as CreateLogger;
+    const createLogger: CreateLogger = () => mock<ReturnType<CreateLogger>>();
     const service = new SdlService(config, blockedGpuService, new SdlReferenceService(), denomExchangeService, createLogger);
     const result = await service.generateManifest(input?.sdl ?? VALID_SDL, { isTrialing: input?.isTrialing });
 

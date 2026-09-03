@@ -23,6 +23,9 @@ export interface ResolvedSdl {
 
 export type GenerateResolvedManifestResult = { ok: true; value: ResolvedSdl } | { ok: false; value: ValidationError[] };
 
+/** DenomExchangeService already reports a missing rate as 0, so a lookup that throws is rejected by the same guard rather than escaping as a 500. */
+const UNAVAILABLE_AKT_TO_USD_RATE = 0;
+
 @singleton()
 export class SdlService {
   readonly #config: BillingConfig;
@@ -181,9 +184,15 @@ export class SdlService {
   }
 
   async #loadAktToUsdRate(): Promise<number> {
-    const { price } = await this.denomExchangeService.getExchangeRateToUSD("akt");
+    try {
+      const { price } = await this.denomExchangeService.getExchangeRateToUSD("akt");
 
-    return price;
+      return price;
+    } catch (error) {
+      this.#logger.warn({ event: "AKT_EXCHANGE_RATE_LOOKUP_FAILED", error });
+
+      return UNAVAILABLE_AKT_TO_USD_RATE;
+    }
   }
 
   #appendAuditorRequirement(placement: SDLInput["profiles"]["placement"], allowedAuditors: string[]): void {
