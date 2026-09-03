@@ -1,4 +1,4 @@
-import { type Counter, type Histogram, type Meter, metrics, type UpDownCounter } from "@opentelemetry/api";
+import { type Counter, type Histogram, type Meter, metrics, type ObservableGauge, type UpDownCounter } from "@opentelemetry/api";
 import { singleton } from "tsyringe";
 
 export interface MetricOptions {
@@ -55,6 +55,20 @@ export class MetricsService {
    */
   createUpDownCounter(meter: Meter, name: string, options?: MetricOptions): UpDownCounter {
     return meter.createUpDownCounter(name, {
+      description: options?.description,
+      unit: options?.unit
+    });
+  }
+
+  /**
+   * Creates an observable gauge metric collected via a callback on each export
+   * @param meter - Meter instance from getMeter()
+   * @param name - Metric name (should follow Prometheus naming conventions: lowercase with underscores)
+   * @param options - Metric options
+   * @returns ObservableGauge instance
+   */
+  createObservableGauge(meter: Meter, name: string, options?: MetricOptions): ObservableGauge {
+    return meter.createObservableGauge(name, {
       description: options?.description,
       unit: options?.unit
     });

@@ -3,6 +3,7 @@ import tar from "tar";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { cacheRegistry } from "@src/caching/cache-registry";
 import type { CreateLogger } from "@src/core";
 import { GitHubArchiveService } from "./github-archive.service";
 
@@ -86,6 +87,30 @@ describe(GitHubArchiveService.name, () => {
       expect(await reader.readFile("readme.md")).toBe("# Hello");
       expect(await reader.readFile("image.png")).toBe("binary data");
       expect(await reader.readFile("src/index.ts")).toBe("code");
+    });
+  });
+
+  describe("cache byte accounting", () => {
+    it("charges the cached archive the bytes it retained", async () => {
+      const { service, installArchive, cacheStats } = setup();
+      await installArchive({ "root/readme.md": "# Hello" });
+
+      const reader = await service.getArchive("owner", "repo", "ref");
+
+      expect(reader.retainedBytes).toBeGreaterThan(0);
+      expect(cacheStats()).toMatchObject({ entryCount: 1, calculatedSizeBytes: reader.retainedBytes });
+    });
+
+    it("leaves the content of filtered-out files out of the charge", async () => {
+      const { service, fetchSpy, archiveResponse } = setup();
+      const skippedContent = "0123456789";
+      const files = { "root/readme.md": "# Hello", "root/skip.txt": skippedContent };
+      fetchSpy.mockImplementation(async () => archiveResponse(files));
+
+      const filtered = await service.getArchive("owner", "repo", "filtered", (relativePath: string) => relativePath.endsWith(".md"));
+      const unfiltered = await service.getArchive("owner", "repo", "unfiltered");
+
+      expect(unfiltered.retainedBytes - filtered.retainedBytes).toBe(skippedContent.length);
     });
   });
 
@@ -293,7 +318,9 @@ describe(GitHubArchiveService.name, () => {
   function setup() {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const logger = mock<ReturnType<CreateLogger>>();
+    const namesBeforeRegistration = new Set(cacheRegistry.getStats().map(stats => stats.name));
     const service = new GitHubArchiveService(logger);
+    const cacheName = cacheRegistry.getStats().find(stats => !namesBeforeRegistration.has(stats.name))!.name;
     const fetchSpy = vi.spyOn(globalThis, "fetch");
 
     function archiveResponse(files: Record<string, string>) {
@@ -316,7 +343,9 @@ describe(GitHubArchiveService.name, () => {
       fetchSpy.mockResolvedValue(archiveResponse(files));
     }
 
-    return { service, logger, installArchive, fetchSpy, archiveResponse, tarGzChunks };
+    const cacheStats = () => cacheRegistry.getStats().find(stats => stats.name === cacheName);
+
+    return { service, logger, installArchive, fetchSpy, archiveResponse, tarGzChunks, cacheStats };
   }
 
   function createTarGzBuffer(files: Record<string, string>): Buffer {

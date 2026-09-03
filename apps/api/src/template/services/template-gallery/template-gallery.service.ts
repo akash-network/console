@@ -8,10 +8,15 @@ import type z from "zod";
 
 import type { CreateLogger } from "@src/core";
 import type { Category, FinalCategory, Template } from "@src/template/types/template";
+import { cacheRegistry, nominalEntrySizing } from "../../../caching/cache-registry.ts";
 import { reusePendingPromise } from "../../../caching/helpers.ts";
 import { GitHubArchiveService } from "../github-archive/github-archive.service.ts";
 import { REPOSITORIES, TemplateFetcherService } from "../template-fetcher/template-fetcher.service.ts";
 import { TemplateProcessorService } from "../template-processor/template-processor.service.ts";
+
+const MAX_PARSED_TEMPLATES = 100;
+/** A parsed template carries its full readme and SDL text, so it is charged well above the registry's default object entry. */
+const PARSED_TEMPLATE_BYTES = 32 * 1024;
 
 const DEFAULT_RECOMMENDED_TEMPLATE_IDS = new Set([
   "akash-network-awesome-akash-Razer-AIKit",
@@ -72,7 +77,7 @@ type Options = {
 
 export class TemplateGalleryService {
   #templatesSummaryCache: Promise<Buffer> | undefined;
-  #parsedTemplates = new LRUCache<string, Template>({ max: 100 });
+  #parsedTemplates = new LRUCache<string, Template>({ max: MAX_PARSED_TEMPLATES, ...nominalEntrySizing(MAX_PARSED_TEMPLATES, PARSED_TEMPLATE_BYTES) });
 
   private readonly templateFetcher: TemplateFetcherService | null;
   private readonly templateProcessor: TemplateProcessorService;
@@ -94,6 +99,7 @@ export class TemplateGalleryService {
       : null;
     this.#options = options;
     this.#galleriesCachePath = `${options.dataFolderPath}/templates`;
+    cacheRegistry.register("TemplateGalleryService#parsedTemplates", this.#parsedTemplates);
     this.getTemplatesFromRepo = reusePendingPromise(this.getTemplatesFromRepo.bind(this), { getKey: options => `templates-from-repo-${options.repository}` });
     this.getTemplateById = reusePendingPromise(this.getTemplateById.bind(this), { getKey: id => `template-by-id-${id}` });
     this.getGallerySummaryBuffer = reusePendingPromise(this.getGallerySummaryBuffer.bind(this), { getKey: () => "cached-template-gallery" });

@@ -121,7 +121,7 @@ export class BatchSigningClientService {
    *
    * @returns A promise that resolves to the chain ID string.
    */
-  private readonly getChainId = memoizeAsync(() => this.client.getChainId());
+  private readonly getChainId = memoizeAsync(() => this.client.getChainId(), { name: "BatchSigningClientService#getChainId" });
 
   /**
    * Memoized async function that retrieves and caches the wallet address.
@@ -131,7 +131,7 @@ export class BatchSigningClientService {
    *
    * @returns A promise that resolves to the wallet address string.
    */
-  private readonly getAddress = memoizeAsync(() => this.wallet.getFirstAddress());
+  private readonly getAddress = memoizeAsync(() => this.wallet.getFirstAddress(), { name: "BatchSigningClientService#getAddress" });
 
   /**
    * Logger instance for this service.

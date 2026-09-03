@@ -10,7 +10,8 @@ export class BlockHttpService {
   readonly #chainSdk: ChainSDK;
   readonly getCurrentHeight = memoizeAsync(this.getFreshCurrentHeight.bind(this), {
     ttl: averageBlockTime * 1000,
-    cacheItemLimit: 1
+    cacheItemLimit: 1,
+    name: "BlockHttpService#getCurrentHeight"
   });
 
   constructor(@inject(CHAIN_SDK) chainSdk: ChainSDK) {

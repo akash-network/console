@@ -8,6 +8,7 @@ import assert from "http-assert";
 import { container } from "tsyringe";
 
 import { AuthInterceptor } from "./auth/services/auth.interceptor";
+import { cacheRegistry } from "./caching/cache-registry";
 import { HonoErrorHandlerService } from "./core/services/hono-error-handler/hono-error-handler.service";
 import { OpenApiDocsService } from "./core/services/openapi-docs/openapi-docs.service";
 import { RequestContextInterceptor } from "./core/services/request-context-interceptor/request-context.interceptor";
@@ -15,6 +16,7 @@ import { startServer } from "./core/services/start-server/start-server";
 import type { AppEnv } from "./core/types/app-context";
 import { healthzRouter } from "./healthz/routes/healthz.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
+import { requirePrivateToken } from "./middlewares/privateMiddleware";
 import { notificationsApiProxy } from "./notifications/routes/proxy/proxy.route";
 import { apiRouter } from "./routers/apiRouter";
 import { dashboardRouter } from "./routers/dashboardRouter";
@@ -73,6 +75,18 @@ appHono.get("/status", c => {
   };
 
   return c.json({ version, memory });
+});
+
+appHono.get("/status/caches", requirePrivateToken, c => {
+  const caches = cacheRegistry.getStats().map(stats => ({
+    name: stats.name,
+    entries: stats.entryCount,
+    maxEntries: stats.maxEntries,
+    size: bytesToHumanReadableSize(stats.calculatedSizeBytes),
+    maxSize: bytesToHumanReadableSize(stats.maxTotalBytes)
+  }));
+
+  return c.json({ caches });
 });
 
 appHono.get("/v1/doc", async c => {

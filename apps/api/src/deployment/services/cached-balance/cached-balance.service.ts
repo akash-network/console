@@ -64,7 +64,7 @@ export class CachedBalance {
 
 @singleton()
 export class CachedBalanceService {
-  public get = memoizeAsync((address: string) => this.buildForAddress(address), { cacheItemLimit: 10_000 });
+  public get = memoizeAsync((address: string) => this.buildForAddress(address), { cacheItemLimit: 10_000, name: "CachedBalanceService#get" });
 
   private readonly logger: ReturnType<CreateLogger>;
 

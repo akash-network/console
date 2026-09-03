@@ -49,7 +49,7 @@ export class DenomExchangeService {
         return await this.#getFallbackExchangeRateToUSD();
       }
     },
-    { cacheItemLimit: 10, ttl: minutesToMilliseconds(10) }
+    { cacheItemLimit: 10, ttl: minutesToMilliseconds(10), name: "DenomExchangeService#getExchangeRateToUSD" }
   );
 
   // Queries Oracle V2 only. A failed aggregated-price query propagates to the caller's

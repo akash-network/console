@@ -115,7 +115,8 @@ export class OpenApiDocsService {
     {
       ttl: 60 * 60 * 1000, // 1 hour
       cacheItemLimit: 10,
-      getCacheKey: (_, options) => `${options.scope}-${options.source ?? "http"}-${options.includeHidden ? "all" : "public"}`
+      getCacheKey: (_, options) => `${options.scope}-${options.source ?? "http"}-${options.includeHidden ? "all" : "public"}`,
+      name: "OpenApiDocsService#generateDocs"
     }
   );
 
