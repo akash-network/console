@@ -524,10 +524,14 @@ describe(SdlService.name, () => {
     });
 
     it("converts a price shared through a yaml alias exactly once", async () => {
-      const { result } = await setup({ sdl: SDL_WITH_ALIASED_PRICE, deploymentGrantDenom: "uact", aktToUsdRate: 0.325 });
+      const { result, denomExchangeService } = await setup({ sdl: SDL_WITH_ALIASED_PRICE, deploymentGrantDenom: "uact", aktToUsdRate: 0.325 });
 
       expect(result.ok).toBe(true);
-      expect(getPrice(result, "westcoast")).toMatchObject({ denom: "uact", amount: "325" });
+      expect(getGroupSpec(result, "westcoast").resources.map(resource => resource.price)).toMatchObject([
+        { denom: "uact", amount: "325" },
+        { denom: "uact", amount: "325" }
+      ]);
+      expect(denomExchangeService.getExchangeRateToUSD).toHaveBeenCalledTimes(1);
     });
 
     it("does not replace denom or look up a rate when deploymentGrantDenom is uakt", async () => {
