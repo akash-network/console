@@ -14,7 +14,7 @@ export class AkashBlockService {
     return await this.akashBlockRepository.getBlocks(limit);
   }
 
-  @Memoize({ ttlInSeconds: 60 })
+  @Memoize({ ttlInSeconds: 60, maxEntries: 500 })
   async getBlockWithTransactionsByHeight(height: number): Promise<GetBlockByHeightResponse | null> {
     return await this.akashBlockRepository.getBlockWithTransactionsByHeight(height);
   }

@@ -100,7 +100,7 @@ export class BalancesService {
     }, 0);
   }
 
-  @Memoize({ ttlInSeconds: averageBlockTime })
+  @Memoize({ ttlInSeconds: averageBlockTime, maxEntries: 500 })
   async getFullBalanceMemoized(address: string): Promise<GetBalancesResponseOutput> {
     return this.getFullBalance(address);
   }

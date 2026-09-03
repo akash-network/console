@@ -3,6 +3,7 @@ import { inject, singleton } from "tsyringe";
 
 import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
 import { cacheResponse, Memoize } from "@src/caching/helpers";
+import MemoryCacheEngine from "@src/caching/memoryCacheEngine";
 import type { CoreConfig } from "@src/core/providers/config.provider";
 import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
@@ -17,6 +18,8 @@ export const UNKNOWN_DB_PLACEHOLDER = "unknown_value";
 export class FallbackDeploymentReaderService {
   readonly #coreConfig: CoreConfig;
 
+  readonly #listCache = new MemoryCacheEngine({ maxEntries: 500, name: "FallbackDeploymentReaderService#findAll" });
+
   constructor(
     private readonly deploymentRepository: DeploymentRepository,
     @inject(CORE_CONFIG) coreConfig: CoreConfig
@@ -25,7 +28,12 @@ export class FallbackDeploymentReaderService {
   }
 
   async findAll(params: DatabaseDeploymentListParams): Promise<RestAkashDeploymentListResponse> {
-    return cacheResponse(averageBlockTime, `FallbackDeploymentReaderService#findAll#${JSON.stringify(params)}`, () => this.findAllUncached(params));
+    return cacheResponse(
+      averageBlockTime,
+      `FallbackDeploymentReaderService#findAll#${JSON.stringify(params)}`,
+      () => this.findAllUncached(params),
+      this.#listCache
+    );
   }
 
   private async findAllUncached(params: DatabaseDeploymentListParams): Promise<RestAkashDeploymentListResponse> {
@@ -100,7 +108,7 @@ export class FallbackDeploymentReaderService {
     };
   }
 
-  @Memoize({ ttlInSeconds: averageBlockTime })
+  @Memoize({ ttlInSeconds: averageBlockTime, maxEntries: 500 })
   async findByOwnerAndDseq(owner: string, dseq: string): Promise<RestAkashDeploymentInfoResponse | null> {
     const deployment = await this.deploymentRepository.findByIdWithGroups(owner, dseq);
 

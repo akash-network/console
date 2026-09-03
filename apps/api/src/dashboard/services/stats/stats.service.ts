@@ -5,7 +5,7 @@ import { differenceInSeconds, minutesToSeconds, subHours } from "date-fns";
 import uniqBy from "lodash/uniqBy";
 import { singleton } from "tsyringe";
 
-import { Memoize } from "@src/caching/helpers";
+import { Memoize, memoizeAsync } from "@src/caching/helpers";
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { BmeDashboardDataResponse, BmePeriodData } from "@src/dashboard/http-schemas/bme-dashboard-data/bme-dashboard-data.schema";
 import { BmeStatusHistoryResponse } from "@src/dashboard/http-schemas/bme-status-history/bme-status-history.schema";
@@ -571,7 +571,16 @@ export class StatsService {
     return amount * marketData.price;
   }
 
-  async getLeasesDuration(owner: LeasesDurationParams["owner"], query: LeasesDurationQuery): Promise<LeasesDurationResponse> {
+  readonly getLeasesDuration = memoizeAsync(
+    (owner: LeasesDurationParams["owner"], query: LeasesDurationQuery) => this.getLeasesDurationUncached(owner, query),
+    {
+      cacheItemLimit: 500,
+      ttl: minutesToSeconds(5) * 1000,
+      getCacheKey: (owner, query) => [owner, query.dseq, query.startDate.toISOString(), query.endDate.toISOString()].join("#")
+    }
+  );
+
+  private async getLeasesDurationUncached(owner: LeasesDurationParams["owner"], query: LeasesDurationQuery): Promise<LeasesDurationResponse> {
     const closedLeases = await this.statsRepository.findClosedLeases(owner, query);
 
     const leases = closedLeases.map(x => ({
