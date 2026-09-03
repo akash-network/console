@@ -22,7 +22,8 @@ import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import type { NamespacedSdlSecrets } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import type { ReceivedSdlSecrets } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
-import { stripSdlSecrets } from "@src/deployment/utils/sdl-secret-stripping/sdl-secret-stripping";
+import type { StoredSdlPosition, StoredSdlRefusal } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
+import { sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { denomToUdenom } from "@src/utils/math";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
@@ -54,8 +55,8 @@ export class DeploymentWriterService {
 
   /** The dseq is minted once everything that can refuse the submitted document has run, because the token written below names it and a client sealing beforehand cannot; a refusal that needs the resolved document — a sealed registry password below the schema's minimum, say — can only come after it, and spends a dseq nothing is written under. */
   public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
-    /** SDL for storage ONLY, stripped of every env value that is not a reference to one */
-    const sdl = this.#strippedSdlWithinLimit(input.sdl);
+    /** SDL for storage ONLY. Never stands in for the submitted document anywhere a hash is taken. */
+    const sdl = this.#storedSdlWithinLimit(input.sdl, { secretsAreDeclared: !!input.sealedSecrets });
 
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
     const depositInDollars = this.deploymentConfig.get("DEPLOYMENT_DEFAULT_DEPOSIT");
@@ -165,18 +166,30 @@ export class DeploymentWriterService {
   }
 
   /** `dseq` is a log field only, so a create can run this before minting one and still say which request it refused. */
-  #strippedSdlWithinLimit(submittedSdl: string, dseq?: string): string {
-    const { sdl, length, error } = stripSdlSecrets(submittedSdl, SDL_MAX_LENGTH);
+  #storedSdlWithinLimit(submittedSdl: string, options: { secretsAreDeclared: boolean; dseq?: string }): string {
+    const { dseq } = options;
+    const { sdl, length, refusal, at } = sdlForStorage(submittedSdl, SDL_MAX_LENGTH, { keepOrdinaryEnvValues: options.secretsAreDeclared });
 
     if (sdl === null) {
-      this.logger.warn({ event: "DEPLOYMENT_SDL_TOO_LARGE", dseq, length, maxLength: SDL_MAX_LENGTH });
-      throw new HTTPException(400, {
-        cause: error,
-        message: `SDL is too large: it exceeds the maximum of ${SDL_MAX_LENGTH} characters once stored`
-      });
+      throw this.#rejectUnstorableSdl(refusal, { dseq, length, at });
     }
 
     return sdl;
+  }
+
+  /** Carries none of the document and attaches no parse error as a cause, because a `js-yaml` message quotes the line it failed on and the error handler logs the whole chain. */
+  #rejectUnstorableSdl(refusal: StoredSdlRefusal, details: { dseq?: string; length: number; at?: StoredSdlPosition }) {
+    const { at, ...loggable } = details;
+
+    if (refusal === "unparseable") {
+      this.logger.warn({ event: "DEPLOYMENT_SDL_UNPARSEABLE", ...loggable, line: at?.line, column: at?.column });
+
+      return new HTTPException(400, { message: at ? `SDL is not valid YAML: line ${at.line}, column ${at.column}` : "SDL is not valid YAML" });
+    }
+
+    this.logger.warn({ event: "DEPLOYMENT_SDL_TOO_LARGE", ...loggable, maxLength: SDL_MAX_LENGTH });
+
+    return new HTTPException(400, { message: `SDL is too large: it exceeds the maximum of ${SDL_MAX_LENGTH} characters once stored` });
   }
 
   /**
@@ -244,7 +257,7 @@ export class DeploymentWriterService {
 
   public async updateByUserIdAndDseq(userId: string, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<DeploymentResponse> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
-    const sdl = this.#strippedSdlWithinLimit(input.sdl, dseq);
+    const sdl = this.#storedSdlWithinLimit(input.sdl, { secretsAreDeclared: false, dseq });
 
     const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { isTrialing: !!wallet.isTrialing });
     const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);

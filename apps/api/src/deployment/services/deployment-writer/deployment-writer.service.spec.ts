@@ -84,6 +84,26 @@ const SDL_ALIASING_ONE_SCALAR = sdlAround(`    args:
 ${Array.from({ length: 511 }, () => "      - *payload").join("\n")}
 `);
 
+/** Past what the console stores only because its env values are kept, and carrying one a refusal must not echo. */
+const SDL_TOO_LONG_ONCE_VALUES_ARE_KEPT = sdlAround(`    env:
+      - API_TOKEN=${ENV_VALUE}
+${Array.from({ length: 40 }, () => `      - FILLER=${"z".repeat(4096)}`).join("\n")}
+`);
+
+/** Short enough to survive `js-yaml` truncating the line it quotes, so a partial leak of it is still detectable. */
+const MALFORMED_SDL_VALUE = faker.string.alphanumeric(10);
+
+/** Not YAML at all, and carrying an env value, because a `js-yaml` message quotes the lines around the one it failed on. */
+const MALFORMED_SDL_CARRYING_A_VALUE = `version: "2.0"
+services:
+  web:
+    image: nginx
+    env:
+      - LEAKED=${MALFORMED_SDL_VALUE}
+     bad: indentation
+`;
+
+/** An SDL with no anchors at all whose serialized length alone puts it past what the console stores. */
 const SDL_TOO_LONG_WITHOUT_ALIASES = sdlAround(`    args:
 ${Array.from({ length: 40 }, () => `      - ${"z".repeat(4096)}`).join("\n")}
 `);
@@ -299,7 +319,7 @@ describe(DeploymentWriterService.name, () => {
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
 
       expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(
-        expect.objectContaining({ sealedSecrets: SEALED_TOKEN, sdl: expect.stringContaining("API_TOKEN=") })
+        expect.objectContaining({ sealedSecrets: SEALED_TOKEN, sdl: expect.stringContaining(`API_TOKEN=${ENV_VALUE}`) })
       );
     });
 
@@ -454,20 +474,93 @@ describe(DeploymentWriterService.name, () => {
       expect(loggedTextOf(logger)).not.toContain(SEALED_TOKEN);
     });
 
-    it("records an sdl carrying none of the submitted env values", async () => {
+    it("records an sdl carrying none of the submitted env values when no seal said which of them are secret", async () => {
       const { service, deploymentSettingRepository } = setup();
 
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
 
+      expect(recordedSdlOf(deploymentSettingRepository)).toContain("API_TOKEN=");
       expect(recordedSdlOf(deploymentSettingRepository)).not.toContain(ENV_VALUE);
     });
 
-    it("records an sdl carrying none of the submitted registry credentials", async () => {
+    it("records the submitted env value as it arrived once a seal has said which values are secret", async () => {
       const { service, deploymentSettingRepository } = setup();
 
-      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
+
+      expect(recordedSdlOf(deploymentSettingRepository)).toContain(`API_TOKEN=${ENV_VALUE}`);
+    });
+
+    it.each([
+      { named: "no seal", sealedSecrets: undefined },
+      { named: "a seal", sealedSecrets: SEAL }
+    ])("records an sdl carrying none of the submitted registry credentials, given $named", async ({ sealedSecrets }) => {
+      const { service, deploymentSettingRepository } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets, deposit: 5 });
 
       expect(recordedSdlOf(deploymentSettingRepository)).not.toContain(REGISTRY_PASSWORD);
+    });
+
+    it("says nothing of the values it stores when persistence fails", async () => {
+      const { service, deploymentSettingRepository, logger } = setup();
+      deploymentSettingRepository.upsertDefinition.mockRejectedValue(new Error("write failed"));
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 })).rejects.toThrow();
+
+      expect(recordedSdlOf(deploymentSettingRepository)).toContain(`API_TOKEN=${ENV_VALUE}`);
+      expect(loggedTextOf(logger)).not.toContain(ENV_VALUE);
+    });
+
+    it("says nothing of the values it would have stored when the sdl is too large to keep", async () => {
+      const { service, logger } = setup();
+
+      const thrown = await service.create({ userId: "user-1", sdl: SDL_TOO_LONG_ONCE_VALUES_ARE_KEPT, sealedSecrets: SEAL, deposit: 5 }).catch(error => error);
+
+      expect(thrown).toMatchObject({ status: 400 });
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_SDL_TOO_LARGE", maxLength: SDL_MAX_LENGTH }));
+      expect(loggedTextOf(logger)).not.toContain(ENV_VALUE);
+      expect(thrownTextOf(thrown)).not.toContain(ENV_VALUE);
+    });
+
+    it("names the position it stopped parsing at, in numbers, carrying no text of the document", async () => {
+      const { service, logger } = setup();
+
+      const thrown = await service.create({ userId: "user-1", sdl: MALFORMED_SDL_CARRYING_A_VALUE, sealedSecrets: SEAL, deposit: 5 }).catch(error => error);
+
+      expect(thrown).toMatchObject({ status: 400, message: "SDL is not valid YAML: line 7, column 6" });
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_SDL_UNPARSEABLE", line: 7, column: 6 }));
+      expect(thrownTextOf(thrown)).not.toContain(MALFORMED_SDL_VALUE);
+      expect(thrownTextOf(thrown)).not.toContain("LEAKED");
+      expect(loggedTextOf(logger)).not.toContain("LEAKED");
+    });
+
+    it("refuses an sdl that is not yaml as unparseable rather than as too large", async () => {
+      const { service, logger } = setup();
+
+      const thrown = await service.create({ userId: "user-1", sdl: MALFORMED_SDL_CARRYING_A_VALUE, sealedSecrets: SEAL, deposit: 5 }).catch(error => error);
+
+      expect(thrown).toMatchObject({ status: 400, message: expect.stringContaining("SDL is not valid YAML") });
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_SDL_UNPARSEABLE" }));
+    });
+
+    it("says nothing of the document a parse error quoted, in what it throws or what it logs", async () => {
+      const { service, logger } = setup();
+
+      const thrown = await service.create({ userId: "user-1", sdl: MALFORMED_SDL_CARRYING_A_VALUE, sealedSecrets: SEAL, deposit: 5 }).catch(error => error);
+
+      expect(thrownTextOf(thrown)).not.toContain(MALFORMED_SDL_VALUE);
+      expect(thrownTextOf(thrown)).not.toContain("LEAKED");
+      expect(loggedTextOf(logger)).not.toContain(MALFORMED_SDL_VALUE);
+      expect(loggedTextOf(logger)).not.toContain("LEAKED");
+    });
+
+    it("still stores an sdl too long to keep the values of, when no seal said which of them are secret", async () => {
+      const { service, deploymentSettingRepository } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_TOO_LONG_ONCE_VALUES_ARE_KEPT, deposit: 5 });
+
+      expect(recordedSdlOf(deploymentSettingRepository)).not.toContain(ENV_VALUE);
     });
 
     it("records the definition before broadcasting the create tx", async () => {
@@ -982,6 +1075,18 @@ describe(DeploymentWriterService.name, () => {
     return sdl as string;
   }
 
+  /** Everything a thrown refusal carries, cause chain included, because the error handler logs the whole chain even when the response body carries none of it. */
+  function thrownTextOf(thrown: unknown): string {
+    const parts: string[] = [];
+
+    for (let current: unknown = thrown; current instanceof Error; current = current.cause) {
+      parts.push(current.message, current.stack ?? "", JSON.stringify(current, Object.getOwnPropertyNames(current)));
+    }
+
+    return parts.join("");
+  }
+
+  /** Everything the logger was handed, flattened, so a test can assert the sdl reached none of it. */
   function loggedTextOf(logger: MockProxy<ReturnType<CreateLogger>>): string {
     return [logger.error, logger.warn, logger.info, logger.debug]
       .flatMap(method => method.mock.calls)

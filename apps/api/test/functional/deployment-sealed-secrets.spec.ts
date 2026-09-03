@@ -23,6 +23,7 @@ import { SDL_SECRETS_CONTENT_ENCRYPTION, SDL_SECRETS_SEAL_ALGORITHM } from "@src
 import type { SdlSecretsKmsClient, SdlSecretsKmsTarget } from "@src/deployment/providers/kms.provider";
 import { SDL_SECRETS_KMS_TARGET } from "@src/deployment/providers/kms.provider";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
 import { app } from "@src/rest-app";
 import { SecretCipherService } from "@src/secret/services/secret-cipher/secret-cipher.service";
@@ -289,6 +290,52 @@ describe("Deployment sealed secrets", () => {
     expect(setting!.sdl).not.toContain(token);
   });
 
+  it("stores every ordinary env value as submitted while the referenced one stays a reference", async () => {
+    const { apiKey, user } = await persistedUser();
+    const token = randomUUID();
+
+    const response = await postDeployment(apiKey, sdlWith({ web: ["LOG_LEVEL=debug", "API_TOKEN=ac-secret://API_TOKEN", "INHERITED_FROM_HOST"] }), {
+      API_TOKEN: token
+    });
+
+    const setting = await settingOf(user, response);
+    expect(setting!.sdl).toContain("LOG_LEVEL=debug");
+    expect(setting!.sdl).toContain("INHERITED_FROM_HOST");
+    expect(setting!.sdl).toContain("API_TOKEN=ac-secret://API_TOKEN");
+    expect(setting!.sdl).not.toContain(token);
+  });
+
+  it("stores an sdl that reproduces the submitted document once its references are resolved", async () => {
+    const { apiKey, user } = await persistedUser();
+    const [token, url] = [randomUUID(), `postgres://app:${randomUUID()}@db.internal/app?ssl=true&a=b`];
+    const referencing = {
+      web: ["LOG_LEVEL=debug", "API_TOKEN=ac-secret://API_TOKEN", "INHERITED_FROM_HOST", "EXPLICITLY_EMPTY="],
+      worker: ["DATABASE_URL=ac-secret://DATABASE_URL", "RETRIES=3"]
+    };
+    const inline = {
+      web: ["LOG_LEVEL=debug", `API_TOKEN=${token}`, "INHERITED_FROM_HOST", "EXPLICITLY_EMPTY="],
+      worker: [`DATABASE_URL=${url}`, "RETRIES=3"]
+    };
+
+    const response = await postDeployment(apiKey, sdlWith(referencing), { API_TOKEN: token, DATABASE_URL: url });
+
+    const setting = await settingOf(user, response);
+    const opened = await openStoredToken(user, setting!.dseq, setting!.sealedSecrets!);
+    expect(resolvedDocumentOf(setting!.sdl!, opened)).toEqual(yaml.raw<SDLInput>(sdlWith(inline)));
+  });
+
+  it("stores an sdl whose resolved manifest version is the one it committed on chain", async () => {
+    const { apiKey, user } = await persistedUser();
+    const secrets = { API_TOKEN: randomUUID() };
+    const submitted = sdlWith({ web: ["LOG_LEVEL=debug", "API_TOKEN=ac-secret://API_TOKEN"], worker: ["RETRIES=3"] });
+
+    const response = await postDeployment(apiKey, submitted, secrets);
+
+    const setting = await settingOf(user, response);
+    const opened = await openStoredToken(user, setting!.dseq, setting!.sealedSecrets!);
+    expect(await manifestVersionOfDocument(resolvedDocumentOf(setting!.sdl!, opened))).toEqual(broadcastHash());
+  });
+
   it("stores a token bound to its owner and the deployment it was supplied for", async () => {
     const { apiKey, user } = await persistedUser();
 
@@ -541,10 +588,23 @@ describe("Deployment sealed secrets", () => {
   }
 
   async function manifestVersionOf(sdl: string) {
-    const manifest = generateManifest(yaml.raw<SDLInput>(sdl));
+    return await manifestVersionOfDocument(yaml.raw<SDLInput>(sdl));
+  }
+
+  async function manifestVersionOfDocument(document: SDLInput) {
+    const manifest = generateManifest(document);
     expect(manifest.ok).toBe(true);
 
     return await generateManifestVersion((manifest as Extract<typeof manifest, { ok: true }>).value.groups);
+  }
+
+  function resolvedDocumentOf(storedSdl: string, secrets: Record<string, string>) {
+    const document = yaml.raw<SDLInput>(storedSdl);
+    const byService = Object.fromEntries(Object.keys(document.services).map(serviceName => [serviceName, secrets]));
+
+    expect(container.resolve(SdlReferenceService).substitute(document, { secrets: byService })).toEqual([]);
+
+    return document;
   }
 
   async function settingOf(user: UserOutput, response: Response) {
