@@ -214,6 +214,25 @@ describe("sdlImport", () => {
       expect(services[0].params).toBeUndefined();
     });
 
+    it("imports all six http_options.proxy fields onto httpOptions.proxy in camelCase", () => {
+      const { services } = importSimpleSdl(proxySdl(fullProxyYamlLines));
+
+      expect(services[0].expose[0].httpOptions?.proxy).toEqual({
+        bufferingDisable: true,
+        bufferSize: 8192,
+        buffersNumber: 4,
+        buffersSize: 4096,
+        busyBuffersSize: 16384,
+        connectTimeout: 5000
+      });
+    });
+
+    it("imports an empty http_options.proxy block as undefined", () => {
+      const { services } = importSimpleSdl(proxySdl([]));
+
+      expect(services[0].expose[0].httpOptions?.proxy).toBeUndefined();
+    });
+
     it("captures an implicit gpu interconnect opt-in onto the profile model", () => {
       const { services } = importSimpleSdl(interconnectSdl("implicit"));
 
@@ -362,6 +381,60 @@ const sdlWithCommandBlock = (serviceLines: string[]) =>
     "        as: 80",
     "        to:",
     "          - global: true",
+    "profiles:",
+    "  compute:",
+    "    web:",
+    "      resources:",
+    "        cpu:",
+    "          units: 0.5",
+    "        memory:",
+    "          size: 512Mi",
+    "        storage:",
+    "          - size: 512Mi",
+    "  placement:",
+    "    dcloud:",
+    "      pricing:",
+    "        web:",
+    "          denom: uact",
+    "          amount: 1000",
+    "deployment:",
+    "  web:",
+    "    dcloud:",
+    "      profile: web",
+    "      count: 1"
+  ].join("\n");
+
+const fullProxyYamlLines = [
+  "            buffering_disable: true",
+  "            buffer_size: 8192",
+  "            buffers_number: 4",
+  "            buffers_size: 4096",
+  "            busy_buffers_size: 16384",
+  "            connect_timeout: 5000"
+];
+
+/** Single-service SDL whose `expose[0].http_options.proxy` block holds the given lines. */
+const proxySdl = (proxyLines: string[]) =>
+  [
+    "version: '2.0'",
+    "services:",
+    "  web:",
+    "    image: nginx:1.0",
+    "    expose:",
+    "      - port: 80",
+    "        as: 80",
+    "        to:",
+    "          - global: true",
+    "        http_options:",
+    "          max_body_size: 1048576",
+    "          read_timeout: 60000",
+    "          send_timeout: 60000",
+    "          next_tries: 3",
+    "          next_timeout: 60000",
+    "          next_cases:",
+    "            - error",
+    "          proxy:",
+    ...(proxyLines.length ? proxyLines : ["            {}"]),
     "profiles:",
     "  compute:",
     "    web:",

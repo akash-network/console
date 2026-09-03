@@ -2,8 +2,18 @@ import yaml from "js-yaml";
 import { describe, expect, it } from "vitest";
 
 import { LOG_COLLECTOR_IMAGE } from "@src/config/log-collector.config";
-import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { PlacementType, SdlBuilderFormValuesType, ServiceExposeHTTPProxyType, ServiceType } from "@src/types";
+import { getManifest } from "@src/utils/deploymentData/v1beta3";
 import { buildCommand, generateSdl } from "./sdlGenerator";
+
+const fullProxy: ServiceExposeHTTPProxyType = {
+  bufferingDisable: true,
+  bufferSize: 8192,
+  buffersNumber: 4,
+  buffersSize: 4096,
+  busyBuffersSize: 16384,
+  connectTimeout: 5000
+};
 
 describe("sdlGenerator", () => {
   describe(generateSdl.name, () => {
@@ -162,6 +172,34 @@ describe("sdlGenerator", () => {
       expect(parsed.reclamation).toEqual({ min_window: minWindow });
     });
 
+    it("emits http_options.proxy with the correct snake_case keys and values for a full proxy block", () => {
+      const service = buildLogCollectorService({ title: "web", image: "nginx:latest", expose: [buildExpose(fullProxy)] });
+      const parsed = yaml.load(generateSdl(buildFormValues(service))) as { services: Record<string, { expose: { http_options?: { proxy?: unknown } }[] }> };
+
+      expect(parsed.services.web.expose[0].http_options?.proxy).toEqual({
+        buffering_disable: true,
+        buffer_size: 8192,
+        buffers_number: 4,
+        buffers_size: 4096,
+        busy_buffers_size: 16384,
+        connect_timeout: 5000
+      });
+    });
+
+    it("omits http_options.proxy entirely when httpOptions has no proxy field", () => {
+      const service = buildLogCollectorService({ title: "web", image: "nginx:latest", expose: [buildExpose(undefined)] });
+      const parsed = yaml.load(generateSdl(buildFormValues(service))) as { services: Record<string, { expose: { http_options?: { proxy?: unknown } }[] }> };
+
+      expect(parsed.services.web.expose[0].http_options).not.toHaveProperty("proxy");
+    });
+
+    it("omits the proxy block entirely when every field collapses to unset (bufferingDisable explicitly false)", () => {
+      const service = buildLogCollectorService({ title: "web", image: "nginx:latest", expose: [buildExpose({ bufferingDisable: false })] });
+      const parsed = yaml.load(generateSdl(buildFormValues(service))) as { services: Record<string, { expose: { http_options?: { proxy?: unknown } }[] }> };
+
+      expect(parsed.services.web.expose[0].http_options).not.toHaveProperty("proxy");
+    });
+
     it("emits every args token as its own array element", () => {
       const service = buildLogCollectorService({
         title: "web",
@@ -241,6 +279,25 @@ describe("sdlGenerator", () => {
       } as ServiceType;
     }
 
+    function buildExpose(proxy: ServiceExposeHTTPProxyType | undefined): ServiceType["expose"][number] {
+      return {
+        port: 80,
+        as: 80,
+        global: true,
+        to: [],
+        hasCustomHttpOptions: true,
+        httpOptions: {
+          maxBodySize: 1048576,
+          readTimeout: 60000,
+          sendTimeout: 60000,
+          nextTries: 3,
+          nextTimeout: 60000,
+          nextCases: ["error"],
+          proxy
+        }
+      };
+    }
+
     function gpuAttributesOf(sdl: string): Record<string, unknown> {
       const parsed = yaml.load(sdl) as { profiles: { compute: Record<string, { resources: { gpu: { attributes: Record<string, unknown> } } }> } };
       return parsed.profiles.compute.web.resources.gpu.attributes;
@@ -276,5 +333,52 @@ describe("sdlGenerator", () => {
     it("trims whitespace around each token", () => {
       expect(buildCommand(" foo \n bar ")).toEqual(["foo", "bar"]);
     });
+  });
+});
+
+describe("proxy manifest round-trip", () => {
+  it("carries a full proxy block from form values through the generated SDL onto the manifest", () => {
+    const placement: PlacementType = { id: "p-1", name: "dcloud" };
+    const service: ServiceType = {
+      id: "web-id",
+      title: "web",
+      image: "nginx:latest",
+      profile: {
+        cpu: 0.5,
+        ram: 512,
+        ramUnit: "Mi",
+        storage: [{ size: 512, unit: "Mi", isPersistent: false }],
+        hasGpu: false,
+        gpu: 0
+      },
+      expose: [
+        {
+          port: 80,
+          as: 80,
+          global: true,
+          to: [],
+          hasCustomHttpOptions: true,
+          httpOptions: {
+            maxBodySize: 1048576,
+            readTimeout: 60000,
+            sendTimeout: 60000,
+            nextTries: 3,
+            nextTimeout: 60000,
+            nextCases: ["error"],
+            proxy: fullProxy
+          }
+        }
+      ],
+      placementId: "p-1",
+      pricing: { amount: 1000, denom: "uakt" },
+      count: 1
+    } as ServiceType;
+    const formValues = { placements: [placement], services: [service] } as SdlBuilderFormValuesType;
+
+    const regenerated = generateSdl(formValues);
+    const parsedYaml = yaml.load(regenerated);
+    const groups = getManifest(parsedYaml);
+
+    expect(groups[0].services[0].expose[0].httpOptions?.proxy).toEqual(fullProxy);
   });
 });

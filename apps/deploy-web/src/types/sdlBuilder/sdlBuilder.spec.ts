@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { CredentialsSchema, EndpointSchema, EnvironmentVariableSchema, SdlBuilderFormValuesSchema, ServiceSchema, ServiceStorageSchema } from "./sdlBuilder";
+import {
+  CredentialsSchema,
+  EndpointSchema,
+  EnvironmentVariableSchema,
+  SdlBuilderFormValuesSchema,
+  ServiceExposeHTTPProxySchema,
+  ServiceSchema,
+  ServiceStorageSchema
+} from "./sdlBuilder";
 
 describe("ServiceStorageSchema", () => {
   it("surfaces a friendly required message instead of the raw type error when size is cleared", () => {
@@ -451,6 +459,73 @@ describe("CredentialsSchema", () => {
 
   it("accepts a registry password of at least 6 characters", () => {
     const result = CredentialsSchema.safeParse({ host: "docker.io", username: "alice", password: "123456" });
+
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("ServiceExposeHTTPProxySchema", () => {
+  it("rejects buffersNumber set without buffersSize", () => {
+    const result = ServiceExposeHTTPProxySchema.safeParse({ buffersNumber: 4 });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(
+      expect.objectContaining({ path: ["buffersSize"], message: "Buffers number and buffers size must be set together." })
+    );
+  });
+
+  it("rejects buffersSize set without buffersNumber", () => {
+    const result = ServiceExposeHTTPProxySchema.safeParse({ buffersSize: 4096 });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(
+      expect.objectContaining({ path: ["buffersNumber"], message: "Buffers number and buffers size must be set together." })
+    );
+  });
+
+  it("rejects a bufferSize above its cap", () => {
+    const result = ServiceExposeHTTPProxySchema.safeParse({ bufferSize: 200000 });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["bufferSize"], message: "Buffer size must be at most 131072 bytes." }));
+  });
+
+  it("rejects a buffersNumber above its cap", () => {
+    const result = ServiceExposeHTTPProxySchema.safeParse({ buffersNumber: 20, buffersSize: 4096 });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["buffersNumber"], message: "Buffers number must be at most 16." }));
+  });
+
+  it("rejects a busyBuffersSize above its cap", () => {
+    const result = ServiceExposeHTTPProxySchema.safeParse({ busyBuffersSize: 300000 });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(
+      expect.objectContaining({ path: ["busyBuffersSize"], message: "Busy buffers size must be at most 262144 bytes." })
+    );
+  });
+
+  it("accepts a full valid proxy object", () => {
+    const result = ServiceExposeHTTPProxySchema.safeParse({
+      bufferingDisable: true,
+      bufferSize: 4096,
+      buffersNumber: 8,
+      buffersSize: 4096,
+      busyBuffersSize: 8192,
+      connectTimeout: 30
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts an empty object as the unset case", () => {
+    const result = ServiceExposeHTTPProxySchema.safeParse({});
 
     expect(result.success).toBe(true);
   });

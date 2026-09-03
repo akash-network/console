@@ -1,7 +1,16 @@
 import yaml from "js-yaml";
 import { nanoid } from "nanoid";
 
-import type { EndpointType, ExposeType, PlacementAttributeType, PlacementType, ProfileGpuModelType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type {
+  EndpointType,
+  ExposeType,
+  PlacementAttributeType,
+  PlacementType,
+  ProfileGpuModelType,
+  SdlBuilderFormValuesType,
+  ServiceExposeHTTPProxyType,
+  ServiceType
+} from "@src/types";
 import { ReclamationMinWindowSchema, RESERVED_ENV_KEYS } from "@src/types/sdlBuilder/sdlBuilder";
 import { CustomValidationError } from "../deploymentData";
 import { capitalizeFirstLetter } from "../stringUtils";
@@ -137,7 +146,8 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
             sendTimeout: expose.http_options?.send_timeout ?? defaultHttpOptions.sendTimeout,
             nextCases: expose.http_options?.next_cases ?? defaultHttpOptions.nextCases,
             nextTries: expose.http_options?.next_tries ?? defaultHttpOptions.nextTries,
-            nextTimeout: expose.http_options?.next_timeout ?? defaultHttpOptions.nextTimeout
+            nextTimeout: expose.http_options?.next_timeout ?? defaultHttpOptions.nextTimeout,
+            proxy: importHttpProxy(expose.http_options?.proxy)
           }
         };
 
@@ -244,6 +254,24 @@ const getGpuModels = (vendor: { [key: string]: { model: string; ram: string; int
 
   return models;
 };
+
+function importHttpProxy(proxy: any): ServiceExposeHTTPProxyType | undefined {
+  if (!proxy || typeof proxy !== "object") return undefined;
+
+  const mapped = {
+    bufferingDisable: proxy.buffering_disable,
+    bufferSize: proxy.buffer_size,
+    buffersNumber: proxy.buffers_number,
+    buffersSize: proxy.buffers_size,
+    busyBuffersSize: proxy.busy_buffers_size,
+    connectTimeout: proxy.connect_timeout
+  };
+
+  // Retain the proxy block when any field is explicitly defined. A defined 0 or
+  // false is a real value (not "unset"), so it must survive the round-trip.
+  const hasAny = Object.values(mapped).some(value => value !== undefined);
+  return hasAny ? mapped : undefined;
+}
 
 /**
  * Builds a fresh PlacementType from a raw SDL placement profile, lifting the

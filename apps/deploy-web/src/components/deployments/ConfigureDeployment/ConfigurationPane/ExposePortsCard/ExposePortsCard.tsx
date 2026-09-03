@@ -654,6 +654,8 @@ const HttpOptionsFields: FC<HttpOptionsFieldsProps> = ({ serviceIndex, exposeInd
           ))}
 
           <NextCasesField basePath={basePath} />
+
+          <HttpProxyFields basePath={basePath} exposeIndex={exposeIndex} />
         </div>
       )}
     </div>
@@ -708,6 +710,75 @@ type HttpOptionNumberFieldProps = {
 const HttpOptionNumberField: FC<HttpOptionNumberFieldProps> = ({ basePath, optionKey, label, defaultValue }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const field = useController({ control, name: `${basePath}.httpOptions.${optionKey}`, defaultValue });
+  const id = useId();
+
+  return (
+    <Field className="gap-2">
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <FieldContent>
+        <Input
+          id={id}
+          aria-label={label}
+          type="number"
+          min={0}
+          value={field.field.value ?? ""}
+          onChange={event => field.field.onChange(parsePort(event.target.value))}
+          error={!!field.fieldState.error}
+          inputClassName="h-9"
+        />
+        <FieldError>{field.fieldState.error?.message}</FieldError>
+      </FieldContent>
+    </Field>
+  );
+};
+
+/** Nginx proxy-buffer tuning fields, each key on `httpOptions.proxy`. */
+const HTTP_PROXY_NUMBER_FIELDS = [
+  { key: "bufferSize", label: "Proxy buffer size" },
+  { key: "buffersNumber", label: "Proxy buffers number" },
+  { key: "buffersSize", label: "Proxy buffers size" },
+  { key: "busyBuffersSize", label: "Proxy busy buffers size" },
+  { key: "connectTimeout", label: "Proxy connect timeout" }
+] as const;
+
+type HttpProxyFieldsProps = {
+  basePath: `services.${number}.expose.${number}`;
+  exposeIndex: number;
+};
+
+/** Proxy tuning is entirely optional: unlike `fullHttpOptions()`, no field here is seeded, so the `proxy` object stays absent until the user sets one. */
+const HttpProxyFields: FC<HttpProxyFieldsProps> = ({ basePath, exposeIndex }) => {
+  const { control } = useFormContext<SdlBuilderFormValuesType>();
+  const bufferingDisable = useController({ control, name: `${basePath}.httpOptions.proxy.bufferingDisable` });
+
+  return (
+    <div
+      role="group"
+      aria-label={`Port ${exposeIndex + 1} proxy tuning`}
+      className="flex flex-col gap-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-800"
+    >
+      <CheckboxWithLabel
+        checked={!!bufferingDisable.field.value}
+        onCheckedChange={state => bufferingDisable.field.onChange(state === "indeterminate" ? false : state)}
+        label="Disable proxy buffering"
+      />
+
+      {HTTP_PROXY_NUMBER_FIELDS.map(option => (
+        <HttpProxyNumberField key={option.key} basePath={basePath} optionKey={option.key} label={option.label} />
+      ))}
+    </div>
+  );
+};
+
+type HttpProxyNumberFieldProps = {
+  basePath: `services.${number}.expose.${number}`;
+  optionKey: (typeof HTTP_PROXY_NUMBER_FIELDS)[number]["key"];
+  label: string;
+};
+
+const HttpProxyNumberField: FC<HttpProxyNumberFieldProps> = ({ basePath, optionKey, label }) => {
+  const { control } = useFormContext<SdlBuilderFormValuesType>();
+  const field = useController({ control, name: `${basePath}.httpOptions.proxy.${optionKey}` });
   const id = useId();
 
   return (

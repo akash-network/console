@@ -303,7 +303,8 @@ describe(ExposePortsCard.name, () => {
         sendTimeout: 60000,
         nextTries: 3,
         nextTimeout: 60000,
-        nextCases: ["error", "timeout"]
+        nextCases: ["error", "timeout"],
+        proxy: {}
       });
     });
 
@@ -359,6 +360,28 @@ describe(ExposePortsCard.name, () => {
 
       expect(screen.queryByLabelText("Port 1 accept hostnames")).not.toBeInTheDocument();
       expect(screen.queryByLabelText("Custom HTTP options")).not.toBeInTheDocument();
+    });
+
+    it("writes a typed proxy buffer size to httpOptions.proxy on Save", async () => {
+      const { getValues, openCard } = setup({ expose: [{ port: 80, as: 80 }] });
+
+      await openCard();
+      await userEvent.click(screen.getByLabelText("Custom HTTP options"));
+      fireEvent.change(screen.getByLabelText("Proxy buffer size"), { target: { value: "4096" } });
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(getValues().services[0].expose[0].httpOptions?.proxy?.bufferSize).toBe(4096);
+    });
+
+    it("surfaces the buffers-number/buffers-size together-rule error when only one is set", async () => {
+      const { openCard, trigger } = setup({ expose: [{ port: 80, as: 80 }] });
+
+      await openCard();
+      await userEvent.click(screen.getByLabelText("Custom HTTP options"));
+      fireEvent.change(screen.getByLabelText("Proxy buffers number"), { target: { value: "4" } });
+      await trigger();
+
+      expect(await screen.findByText("Buffers number and buffers size must be set together.")).toBeInTheDocument();
     });
 
     it("clears accept hostnames and httpOptions when a configured HTTP port switches to TCP", async () => {

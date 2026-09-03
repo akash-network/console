@@ -105,13 +105,60 @@ export const AcceptSchema = z.object({
   value: z.string().min(1, { message: "Value is required." })
 });
 
+export const PROXY_BUFFER_SIZE_MAX = 131072;
+export const PROXY_BUFFERS_NUMBER_MAX = 16;
+export const PROXY_BUFFERS_SIZE_MAX = 131072;
+export const PROXY_BUSY_BUFFERS_SIZE_MAX = 262144;
+
+export const ServiceExposeHTTPProxySchema = z
+  .object({
+    bufferingDisable: z.boolean().optional(),
+    bufferSize: z
+      .number()
+      .int()
+      .min(0)
+      .max(PROXY_BUFFER_SIZE_MAX, { message: `Buffer size must be at most ${PROXY_BUFFER_SIZE_MAX} bytes.` })
+      .optional(),
+    buffersNumber: z
+      .number()
+      .int()
+      .min(1, { message: "Buffers number must be at least 1." })
+      .max(PROXY_BUFFERS_NUMBER_MAX, { message: `Buffers number must be at most ${PROXY_BUFFERS_NUMBER_MAX}.` })
+      .optional(),
+    buffersSize: z
+      .number()
+      .int()
+      .min(1, { message: "Buffers size must be at least 1 byte." })
+      .max(PROXY_BUFFERS_SIZE_MAX, { message: `Buffers size must be at most ${PROXY_BUFFERS_SIZE_MAX} bytes.` })
+      .optional(),
+    busyBuffersSize: z
+      .number()
+      .int()
+      .min(0)
+      .max(PROXY_BUSY_BUFFERS_SIZE_MAX, { message: `Busy buffers size must be at most ${PROXY_BUSY_BUFFERS_SIZE_MAX} bytes.` })
+      .optional(),
+    connectTimeout: z.number().int().min(0).optional()
+  })
+  .superRefine((proxy, ctx) => {
+    const hasNumber = proxy.buffersNumber !== undefined;
+    const hasSize = proxy.buffersSize !== undefined;
+    if (hasNumber !== hasSize) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Buffers number and buffers size must be set together.",
+        path: [hasNumber ? "buffersSize" : "buffersNumber"]
+      });
+    }
+  });
+
 export const ServiceExposeHTTPOptionsSchema = z.object({
   maxBodySize: z.number().min(1, { message: "Max body size is required." }),
   readTimeout: z.number().min(1, { message: "Read timeout is required." }),
   sendTimeout: z.number().min(1, { message: "Send timeout is required." }),
   nextTries: z.number().min(1, { message: "Next tries is required." }),
   nextTimeout: z.number().min(1, { message: "Next timeout is required." }),
-  nextCases: z.array(z.string()).min(1, { message: "Next cases is required." })
+  nextCases: z.array(z.string()).min(1, { message: "Next cases is required." }),
+  proxy: ServiceExposeHTTPProxySchema.optional()
 });
 
 export const PlacementAttributeSchema = z.object({
@@ -611,5 +658,6 @@ export type AcceptType = z.infer<typeof AcceptSchema>;
 export type PlacementAttributeType = z.infer<typeof PlacementAttributeSchema>;
 export type SignedByType = z.infer<typeof SignedBySchema>;
 export type ExposeType = z.infer<typeof ExposeSchema>;
+export type ServiceExposeHTTPProxyType = z.infer<typeof ServiceExposeHTTPProxySchema>;
 export type PlacementType = z.infer<typeof PlacementSchema>;
 export type EndpointType = z.infer<typeof EndpointSchema>;
