@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { cacheRegistry } from "./cache-registry";
+import { cacheRegistry, NOMINAL_ENTRY_BYTES } from "./cache-registry";
 import { cacheEngine, cacheResponse, Memoize, memoizeAsync } from "./helpers";
 import MemoryCacheEngine from "./memoryCacheEngine";
 
@@ -353,6 +353,15 @@ describe("Memoize Function", () => {
       memoizeAsync(async () => "value", { name: "helpers-spec-memoize-async" });
 
       expect(cacheRegistry.getStats().map(stats => stats.name)).toContain("helpers-spec-memoize-async");
+    });
+
+    it("reports its cached entries as tracked bytes to the registry", async () => {
+      const memoized = memoizeAsync(async () => "value", { name: "helpers-spec-memoize-async-bytes", cacheItemLimit: 4 });
+
+      await memoized();
+
+      const stats = cacheRegistry.getStats().find(stats => stats.name === "helpers-spec-memoize-async-bytes");
+      expect(stats).toMatchObject({ entryCount: 1, maxEntries: 4, calculatedSizeBytes: NOMINAL_ENTRY_BYTES, maxTotalBytes: 4 * NOMINAL_ENTRY_BYTES });
     });
 
     it("should cache successful results and return the same promise", async () => {

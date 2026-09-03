@@ -1,8 +1,9 @@
+import { LRUCache } from "lru-cache";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { RegisterableCache } from "./cache-registry";
-import { CacheRegistry } from "./cache-registry";
+import { CacheRegistry, nominalEntrySizing } from "./cache-registry";
 
 describe(CacheRegistry.name, () => {
   describe("register", () => {
@@ -47,7 +48,7 @@ describe(CacheRegistry.name, () => {
   });
 
   describe("flushLargestCaches", () => {
-    it("clears the largest caches first until at least half of all entries are flushed", () => {
+    it("clears the largest caches first until at least half of the tracked bytes are released", () => {
       const { registry } = setup();
       const small = buildCache({ size: 10, calculatedSize: 100 });
       const medium = buildCache({ size: 20, calculatedSize: 5000 });
@@ -64,24 +65,41 @@ describe(CacheRegistry.name, () => {
       expect(small.clear).not.toHaveBeenCalled();
     });
 
-    it("keeps flushing when the largest cache alone holds less than half of all entries", () => {
+    it("spares a cache of many small entries once a single large one releases half of the tracked bytes", () => {
       const { registry } = setup();
-      const small = buildCache({ size: 40, calculatedSize: 100 });
-      const large = buildCache({ size: 10, calculatedSize: 9000 });
+      const manySmallEntries = buildCache({ size: 100, calculatedSize: 100 * 1024 });
+      const oneLargeEntry = buildCache({ size: 1, calculatedSize: 100 * 1024 * 1024 });
+      registry.register("manySmallEntries", manySmallEntries);
+      registry.register("oneLargeEntry", oneLargeEntry);
+
+      const flushed = registry.flushLargestCaches();
+
+      expect(flushed.map(stats => stats.name)).toEqual(["oneLargeEntry"]);
+      expect(oneLargeEntry.clear).toHaveBeenCalledTimes(1);
+      expect(manySmallEntries.clear).not.toHaveBeenCalled();
+    });
+
+    it("keeps flushing when the largest cache alone holds less than half of the tracked bytes", () => {
+      const { registry } = setup();
+      const small = buildCache({ size: 40, calculatedSize: 2500 });
+      const medium = buildCache({ size: 20, calculatedSize: 3500 });
+      const large = buildCache({ size: 10, calculatedSize: 4000 });
       registry.register("small", small);
+      registry.register("medium", medium);
       registry.register("large", large);
 
       const flushed = registry.flushLargestCaches();
 
-      expect(flushed.map(stats => stats.name)).toEqual(["large", "small"]);
+      expect(flushed.map(stats => stats.name)).toEqual(["large", "medium"]);
       expect(large.clear).toHaveBeenCalledTimes(1);
-      expect(small.clear).toHaveBeenCalledTimes(1);
+      expect(medium.clear).toHaveBeenCalledTimes(1);
+      expect(small.clear).not.toHaveBeenCalled();
     });
 
     it("breaks size ties by entry count", () => {
       const { registry } = setup();
-      const fewEntries = buildCache({ size: 5, calculatedSize: 0 });
-      const manyEntries = buildCache({ size: 50, calculatedSize: 0 });
+      const fewEntries = buildCache({ size: 5, calculatedSize: 1000 });
+      const manyEntries = buildCache({ size: 50, calculatedSize: 1000 });
       registry.register("fewEntries", fewEntries);
       registry.register("manyEntries", manyEntries);
 
@@ -97,6 +115,27 @@ describe(CacheRegistry.name, () => {
 
       expect(registry.flushLargestCaches()).toEqual([]);
       expect(empty.clear).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("nominalEntrySizing", () => {
+    it("makes an lru cache of object values report its entries as bytes", () => {
+      const { registry } = setup();
+      const cache = new LRUCache<string, object>({ max: 10, ...nominalEntrySizing(10, 512) });
+      cache.set("first", {});
+      cache.set("second", {});
+      registry.register("objects", cache);
+
+      expect(registry.getStats()).toEqual([{ name: "objects", entryCount: 2, maxEntries: 10, calculatedSizeBytes: 1024, maxTotalBytes: 5120 }]);
+    });
+
+    it("leaves the entry limit as the only bound that evicts", () => {
+      const cache = new LRUCache<string, object>({ max: 3, ...nominalEntrySizing(3, 512) });
+
+      for (const key of ["first", "second", "third"]) cache.set(key, {});
+
+      expect(cache.size).toBe(3);
+      expect(cache.calculatedSize).toBe(cache.maxSize);
     });
   });
 

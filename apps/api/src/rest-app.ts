@@ -16,6 +16,7 @@ import { startServer } from "./core/services/start-server/start-server";
 import type { AppEnv } from "./core/types/app-context";
 import { healthzRouter } from "./healthz/routes/healthz.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
+import { privateMiddleware } from "./middlewares/privateMiddleware";
 import { notificationsApiProxy } from "./notifications/routes/proxy/proxy.route";
 import { apiRouter } from "./routers/apiRouter";
 import { dashboardRouter } from "./routers/dashboardRouter";
@@ -72,6 +73,11 @@ appHono.get("/status", c => {
     heapUsed: bytesToHumanReadableSize(memoryInBytes.heapUsed),
     external: bytesToHumanReadableSize(memoryInBytes.external)
   };
+
+  return c.json({ version, memory });
+});
+
+appHono.get("/status/caches", privateMiddleware, c => {
   const caches = cacheRegistry.getStats().map(stats => ({
     name: stats.name,
     entries: stats.entryCount,
@@ -80,7 +86,7 @@ appHono.get("/status", c => {
     maxSize: bytesToHumanReadableSize(stats.maxTotalBytes)
   }));
 
-  return c.json({ version, memory, caches });
+  return c.json({ caches });
 });
 
 appHono.get("/v1/doc", async c => {

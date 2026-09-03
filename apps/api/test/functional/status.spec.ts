@@ -3,15 +3,24 @@ import { describe, expect, it } from "vitest";
 import { app } from "@src/rest-app";
 
 describe("GET /status", () => {
-  it("reports process memory and the registered caches", async () => {
+  it("reports process memory without listing the registered caches", async () => {
     const response = await app.request("/status");
 
     expect(response.status).toBe(200);
+    const data = (await response.json()) as { memory: Record<string, string>; caches?: unknown };
+    expect(data.memory.rss).toBeDefined();
+    expect(data.caches).toBeUndefined();
+  });
+});
+
+describe("GET /status/caches", () => {
+  it("reports every registered cache with its counts and byte accounting", async () => {
+    const response = await app.request("/status/caches");
+
+    expect(response.status).toBe(200);
     const data = (await response.json()) as {
-      memory: Record<string, string>;
       caches: Array<{ name: string; entries: number; maxEntries: number; size: string; maxSize: string }>;
     };
-    expect(data.memory.rss).toBeDefined();
 
     const cacheNames = data.caches.map(cache => cache.name);
     expect(cacheNames).toContain("shared");

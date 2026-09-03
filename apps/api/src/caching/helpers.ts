@@ -2,7 +2,7 @@ import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { differenceInSeconds } from "date-fns";
 import { LRUCache } from "lru-cache";
 
-import { cacheRegistry } from "./cache-registry";
+import { cacheRegistry, nominalEntrySizing } from "./cache-registry";
 import MemoryCacheEngine from "./memoryCacheEngine";
 
 const logger = createOtelLogger({ context: "Caching" });
@@ -133,7 +133,8 @@ export function memoizeAsync<A extends unknown[], R>(
     name?: string;
   }
 ): (...args: A) => Promise<R> {
-  const cache = new LRUCache<string, Promise<R>>({ max: options?.cacheItemLimit ?? 100, ttl: options?.ttl });
+  const maxEntries = options?.cacheItemLimit ?? 100;
+  const cache = new LRUCache<string, Promise<R>>({ max: maxEntries, ttl: options?.ttl, ...nominalEntrySizing(maxEntries) });
   cacheRegistry.register(options?.name || fn.name || "memoizeAsync", cache);
 
   return (...args: A) => {

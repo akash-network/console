@@ -6,10 +6,14 @@ import { createGunzip } from "node:zlib";
 import tar from "tar";
 
 import type { CreateLogger } from "@src/core";
-import { cacheRegistry } from "../../../caching/cache-registry.ts";
+import { cacheRegistry, NOMINAL_ENTRY_BYTES } from "../../../caching/cache-registry.ts";
 
 /** The template repo archives are ~70 MB each, so the download budget has to bound stalls rather than total transfer time. */
 const DOWNLOAD_STALL_TIMEOUT_MS = 30_000;
+
+const MAX_CACHED_ARCHIVES = 10;
+/** An archive retaining more than this is still parsed and returned, just not kept, since getArchive resolves from the parse rather than from the cache. */
+const MAX_CACHED_ARCHIVE_BYTES = 256 * 1024 * 1024;
 
 const MAX_DOWNLOAD_RETRIES = 2;
 const RETRY_INITIAL_DELAY_MS = 1_000;
@@ -29,11 +33,13 @@ export interface DirectoryEntry {
 export interface ArchiveReader {
   readFile(path: string): Promise<string | null>;
   listDirectory(path: string): DirectoryEntry[];
+  retainedBytes: number;
 }
 
 interface ParsedArchive {
   files: Map<string, string>;
   directories: Map<string, DirectoryEntry[]>;
+  retainedBytes: number;
 }
 
 async function* streamWhileMakingProgress(body: ReadableStream<Uint8Array>, onProgress: () => void) {
@@ -51,7 +57,11 @@ async function* streamWhileMakingProgress(body: ReadableStream<Uint8Array>, onPr
 }
 
 export class GitHubArchiveService {
-  readonly #cache = new LRUCache<string, Promise<ArchiveReader>>({ max: 10 });
+  readonly #cache = new LRUCache<string, Promise<ArchiveReader>>({
+    max: MAX_CACHED_ARCHIVES,
+    maxEntrySize: MAX_CACHED_ARCHIVE_BYTES,
+    sizeCalculation: () => NOMINAL_ENTRY_BYTES
+  });
   readonly #logger: ReturnType<CreateLogger>;
   readonly #downloadPolicy: RetryPolicy;
 
@@ -78,7 +88,9 @@ export class GitHubArchiveService {
     this.#cache.set(cacheKey, promise);
 
     try {
-      return await promise;
+      const reader = await promise;
+      this.#chargeRetainedBytes(cacheKey, promise, reader.retainedBytes);
+      return reader;
     } catch (error) {
       this.#cache.delete(cacheKey);
       throw error;
@@ -87,6 +99,12 @@ export class GitHubArchiveService {
 
   clearCache(): void {
     this.#cache.clear();
+  }
+
+  /** lru-cache ignores a size given for a value it already holds, so the parsed archive has to replace its own in-flight entry. */
+  #chargeRetainedBytes(cacheKey: string, archive: Promise<ArchiveReader>, retainedBytes: number): void {
+    this.#cache.delete(cacheKey);
+    this.#cache.set(cacheKey, archive, { size: retainedBytes });
   }
 
   async #downloadAndParse(owner: string, repo: string, ref: string, fileFilter?: (relativePath: string) => boolean): Promise<ArchiveReader> {
@@ -146,6 +164,7 @@ export class GitHubArchiveService {
     const dirChildren = new Map<string, Map<string, DirectoryEntry>>();
     let rootPrefix = "";
     let rootDetected = false;
+    let retainedBytes = 0;
 
     const parser = new tar.Parse({
       onentry: (entry: tar.ReadEntry) => {
@@ -165,6 +184,7 @@ export class GitHubArchiveService {
         const isDir = entry.type === "Directory";
 
         this.#registerInParentDirectory(dirChildren, relativePath, isDir);
+        retainedBytes += Buffer.byteLength(relativePath);
 
         if (isDir) {
           const cleanPath = relativePath.endsWith("/") ? relativePath.slice(0, -1) : relativePath;
@@ -183,7 +203,9 @@ export class GitHubArchiveService {
         const chunks: Buffer[] = [];
         entry.on("data", (chunk: Buffer) => chunks.push(chunk));
         entry.on("end", () => {
-          files.set(relativePath, Buffer.concat(chunks).toString("utf-8"));
+          const content = Buffer.concat(chunks);
+          retainedBytes += content.byteLength;
+          files.set(relativePath, content.toString("utf-8"));
         });
         entry.on("error", (error: Error) => {
           this.#logger.warn({
@@ -202,7 +224,7 @@ export class GitHubArchiveService {
       directories.set(dirPath, Array.from(childMap.values()));
     }
 
-    return { files, directories };
+    return { files, directories, retainedBytes };
   }
 
   #registerInParentDirectory(dirChildren: Map<string, Map<string, DirectoryEntry>>, relativePath: string, isDir: boolean): void {
@@ -231,6 +253,8 @@ export class GitHubArchiveService {
 
   #createArchiveReader(parsed: ParsedArchive): ArchiveReader {
     return {
+      retainedBytes: parsed.retainedBytes,
+
       async readFile(path: string): Promise<string | null> {
         return parsed.files.get(GitHubArchiveService.#normalizePath(path)) ?? null;
       },

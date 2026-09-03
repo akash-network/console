@@ -485,6 +485,8 @@ describe(TemplateFetcherService.name, () => {
 
   function createMockArchiveReader(config: { files: Record<string, string>; directories: Record<string, DirectoryEntry[] | "THROW"> }): ArchiveReader {
     return {
+      retainedBytes: 0,
+
       async readFile(path: string): Promise<string | null> {
         if (Object.hasOwn(config.files, path)) {
           return config.files[path];

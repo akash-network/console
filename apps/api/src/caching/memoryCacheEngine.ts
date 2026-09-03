@@ -1,7 +1,7 @@
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { LRUCache } from "lru-cache";
 
-import { cacheRegistry } from "./cache-registry";
+import { cacheRegistry, NOMINAL_ENTRY_BYTES } from "./cache-registry";
 
 export type CacheValue = NonNullable<unknown>;
 
@@ -17,9 +17,6 @@ const DEFAULT_LIMITS = {
   maxTotalBytes: 256 * 1024 * 1024,
   maxEntryBytes: 16 * 1024 * 1024
 } satisfies Required<CacheLimits>;
-
-/** Charged to entries stored without an explicit size: object graphs are bounded by entry count and the heap-pressure flush, never serialized to be measured. */
-const NOMINAL_ENTRY_BYTES = 1024;
 
 const MAX_WARNED_OVERSIZED_KEYS = 1000;
 

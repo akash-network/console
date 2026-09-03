@@ -14,6 +14,14 @@ export interface CacheStats {
   maxTotalBytes: number;
 }
 
+/** Charged to entries stored without an explicit size: object graphs are bounded by entry count and the pressure flush, never serialized to be measured. */
+export const NOMINAL_ENTRY_BYTES = 1024;
+
+/** lru-cache tracks `calculatedSize` only when a byte ceiling is set, so object caches declare a flat per-entry charge mirroring their entry limit. */
+export function nominalEntrySizing(maxEntries: number, bytesPerEntry: number = NOMINAL_ENTRY_BYTES) {
+  return { maxSize: maxEntries * bytesPerEntry, sizeCalculation: () => bytesPerEntry };
+}
+
 export class CacheRegistry {
   readonly #caches = new Map<string, RegisterableCache>();
 
@@ -44,15 +52,15 @@ export class CacheRegistry {
 
   flushLargestCaches(): CacheStats[] {
     const statsBySizeDescending = this.getStats().sort((a, b) => b.calculatedSizeBytes - a.calculatedSizeBytes || b.entryCount - a.entryCount);
-    const totalEntries = statsBySizeDescending.reduce((sum, stats) => sum + stats.entryCount, 0);
+    const totalBytes = statsBySizeDescending.reduce((sum, stats) => sum + stats.calculatedSizeBytes, 0);
     const flushed: CacheStats[] = [];
-    let flushedEntries = 0;
+    let flushedBytes = 0;
 
     for (const stats of statsBySizeDescending) {
-      if (flushedEntries * 2 >= totalEntries) break;
+      if (flushedBytes * 2 >= totalBytes) break;
       this.#caches.get(stats.name)?.clear();
       flushed.push(stats);
-      flushedEntries += stats.entryCount;
+      flushedBytes += stats.calculatedSizeBytes;
     }
 
     return flushed;

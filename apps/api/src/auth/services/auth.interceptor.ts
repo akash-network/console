@@ -9,7 +9,7 @@ import { singleton } from "tsyringe";
 
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { AuthService } from "@src/auth/services/auth.service";
-import { cacheRegistry } from "@src/caching/cache-registry";
+import { cacheRegistry, nominalEntrySizing } from "@src/caching/cache-registry";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import { UserOutput, UserRepository } from "@src/user/repositories";
@@ -18,14 +18,18 @@ import { ApiKeyAuthService } from "./api-key/api-key-auth.service";
 import { UserAuthTokenService } from "./user-auth-token/user-auth-token.service";
 
 const LAST_USER_ACTIVITY_THROTTLE_TIME_SECONDS = 30 * secondsInMinute;
+const MAX_TRACKED_USERS = 1e5;
+/** A `Date` under a user id, so the registry ranks this cache far below the ones holding response payloads. */
+const LAST_USER_ACTIVITY_ENTRY_BYTES = 128;
 
 @singleton()
 export class AuthInterceptor implements HonoInterceptor {
   private readonly logger = createOtelLogger({ context: AuthInterceptor.name });
   private readonly lastUserActivityCache = new LRUCache<string, Date>({
-    max: 1e5,
+    max: MAX_TRACKED_USERS,
     ttl: LAST_USER_ACTIVITY_THROTTLE_TIME_SECONDS * 1000,
-    allowStale: true
+    allowStale: true,
+    ...nominalEntrySizing(MAX_TRACKED_USERS, LAST_USER_ACTIVITY_ENTRY_BYTES)
   });
 
   constructor(
