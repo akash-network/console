@@ -9,6 +9,14 @@ import { DataKeyUnwrapperService } from "@src/secret/services/data-key-unwrapper
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
+/** The claims that describe the encryption rather than what was encrypted, so they are the cipher's to set and not a binding's. */
+type EncryptionHeaderClaim = "alg" | "enc" | "kid";
+
+const ENCRYPTION_HEADER_CLAIMS: ReadonlySet<string> = new Set<EncryptionHeaderClaim>(["alg", "enc", "kid"]);
+
+/** The protected header is the additional authenticated data, so a value moved to a row these claims do not describe fails to open. */
+export type SecretBinding = Readonly<Record<string, string>> & { readonly [K in EncryptionHeaderClaim]?: never };
+
 /** The protected header names the data key record and is itself the additional authenticated data, so the recorded name cannot be swapped without breaking the tag. */
 @singleton()
 export class SecretCipherService {
@@ -21,17 +29,18 @@ export class SecretCipherService {
     this.#loggerService = createLogger({ context: SecretCipherService.name });
   }
 
-  async encrypt(userId: string, value: string): Promise<string> {
+  /** The encryption claims are spread last so they still win over a binding that reached here past the type forbidding them. */
+  async encrypt(userId: string, value: string, binding: SecretBinding): Promise<string> {
     const dataKey = await this.dataKeyUnwrapperService.getDataKey(userId);
 
     return await new CompactEncrypt(textEncoder.encode(value))
-      .setProtectedHeader({ alg: SECRET_AT_REST_KEY_MANAGEMENT, enc: SECRET_AT_REST_CONTENT_ENCRYPTION, kid: dataKey.id })
+      .setProtectedHeader({ ...binding, alg: SECRET_AT_REST_KEY_MANAGEMENT, enc: SECRET_AT_REST_CONTENT_ENCRYPTION, kid: dataKey.id })
       .encrypt(await dataKey.unwrap());
   }
 
-  /** The recorded data key is checked before the key is unwrapped, so reading a value the user cannot own costs no key-service call. */
-  async decrypt(userId: string, encrypted: string): Promise<string> {
-    const { kid } = this.#readSupportedHeader(encrypted, userId);
+  /** The header decides whether the value belongs here before it costs a data key lookup or a key-service call. */
+  async decrypt(userId: string, encrypted: string, binding: SecretBinding): Promise<string> {
+    const { kid } = this.#readBoundHeader(encrypted, userId, binding);
     const dataKey = await this.dataKeyUnwrapperService.getDataKey(userId);
 
     if (kid !== dataKey.id) {
@@ -41,11 +50,24 @@ export class SecretCipherService {
     return textDecoder.decode(await this.#open(encrypted, await dataKey.unwrap(), userId));
   }
 
-  #readSupportedHeader(encrypted: string, userId: string) {
+  /** The claim sets have to match exactly, because accepting a subset would let a caller drop a binding by omission. */
+  #readBoundHeader(encrypted: string, userId: string, binding: SecretBinding) {
     const header = this.#decodeHeader(encrypted, userId);
 
     if (header.alg !== SECRET_AT_REST_KEY_MANAGEMENT || header.enc !== SECRET_AT_REST_CONTENT_ENCRYPTION) {
       throw this.#rejectUnreadable("SECRET_VALUE_ALGORITHM_UNSUPPORTED", { userId, alg: header.alg, enc: header.enc });
+    }
+
+    const bound = Object.keys(header).filter(claim => !ENCRYPTION_HEADER_CLAIMS.has(claim));
+
+    if (bound.length !== Object.keys(binding).length || bound.some(claim => !Object.hasOwn(binding, claim))) {
+      throw this.#rejectUnreadable("SECRET_VALUE_BINDING_UNACCOUNTED", { userId, bound, named: Object.keys(binding) });
+    }
+
+    for (const [claim, expected] of Object.entries(binding)) {
+      if (header[claim] !== expected) {
+        throw this.#rejectUnreadable("SECRET_VALUE_BINDING_MISMATCH", { userId, claim, received: header[claim], expected });
+      }
     }
 
     return header;
