@@ -27,6 +27,11 @@ Copy `env/.env.sample` to the env file you use and set:
 request timeout is never what abandons a transaction still in flight. Keep `apps/api`'s
 `TX_SIGNER_REQUEST_TIMEOUT_MS` above it.
 
+`RPC_REQUEST_TIMEOUT_MS` must stay below `UNORDERED_TX_TTL_MS`. Transactions are signed as unordered,
+so every payload sent to the node carries its own validity window, and a call allowed to outlive that
+window comes back rejected as expired instead of naming whatever went wrong on the wire. The config
+refuses to start when either relationship is broken.
+
 ## Local dev
 
 - `npm run dev` watch build

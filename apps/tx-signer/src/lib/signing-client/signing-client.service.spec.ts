@@ -12,6 +12,7 @@ import { SigningClientService } from "./signing-client.service";
 import { TxNotIncludedError, TxOutcomeUnknownError } from "./tx-outcome.error";
 
 const DEFAULT_TTL_MS = 180_000;
+const DEFAULT_RPC_REQUEST_TIMEOUT_MS = 10_000;
 
 describe(SigningClientService.name, () => {
   it("signs and broadcasts a transaction and returns the recovered transaction", async () => {
@@ -274,14 +275,15 @@ describe(SigningClientService.name, () => {
     return mock<IndexedTx>({ hash: "out-of-gas", code: 11, gasUsed: input.gasUsed, gasWanted: input.gasWanted, height: 100 });
   }
 
-  function setup(input?: { ttlMs?: number; deadlineMs?: number; gasRecoveryMultiplier?: number }) {
+  function setup(input?: { ttlMs?: number; deadlineMs?: number; gasRecoveryMultiplier?: number; rpcRequestTimeoutMs?: number }) {
     const ttlMs = input?.ttlMs ?? DEFAULT_TTL_MS;
     const config = mock<AppConfigService>({
       get: vi.fn().mockImplementation(key => {
         const values = {
           UNORDERED_TX_TTL_MS: ttlMs,
           SIGN_AND_BROADCAST_DEADLINE_MS: input?.deadlineMs ?? 600_000,
-          GAS_RECOVERY_MULTIPLIER: input?.gasRecoveryMultiplier ?? 1.3
+          GAS_RECOVERY_MULTIPLIER: input?.gasRecoveryMultiplier ?? 1.3,
+          RPC_REQUEST_TIMEOUT_MS: input?.rpcRequestTimeoutMs ?? DEFAULT_RPC_REQUEST_TIMEOUT_MS
         };
         return values[key as keyof typeof values];
       })
