@@ -19,6 +19,7 @@ container.register(SIGNING_CLIENT_FACTORY, {
       const registry = c.resolve(TYPE_REGISTRY);
       const client = createSigningStargateClient(config.get("RPC_NODE_ENDPOINT"), wallet, {
         registry: registry,
+        rpcRequestTimeoutMs: config.get("RPC_REQUEST_TIMEOUT_MS"),
         signConfig: {
           ttlMs: config.get("UNORDERED_TX_TTL_MS"),
           gasMultiplier: config.get("GAS_DEFAULT_MULTIPLIER"),

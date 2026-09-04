@@ -153,30 +153,33 @@ export class SigningStargateWithUnorderedSupportClient extends SigningStargateCl
 export type CreateSigningStargateClient = (
   endpoint: string,
   wallet: Wallet,
-  options: { registry?: Registry; signConfig: UnorderedTxSignConfig }
+  options: { registry?: Registry; signConfig: UnorderedTxSignConfig; rpcRequestTimeoutMs: number }
 ) => SigningStargateWithUnorderedSupportClient;
 
 export const createSigningStargateClientFactory =
   (
-    createRpcClient: (endpoint: string) => RpcClient,
+    createRpcClient: (endpoint: string, timeoutMs: number) => RpcClient,
     ProvidedComet38Client: typeof Comet38Client,
     factory: typeof SigningStargateWithUnorderedSupportClient.createWithSigner
   ): CreateSigningStargateClient =>
-  (endpoint, signer, options): SigningStargateWithUnorderedSupportClient => {
-    const rpcClient = createRpcClient(endpoint);
+  (endpoint, signer, { rpcRequestTimeoutMs, ...options }): SigningStargateWithUnorderedSupportClient => {
+    const rpcClient = createRpcClient(endpoint, rpcRequestTimeoutMs);
     const cometClient = ProvidedComet38Client.create(rpcClient);
     return factory(cometClient, signer, options);
   };
 
 export const createSigningStargateClient: CreateSigningStargateClient = createSigningStargateClientFactory(
-  (endpoint: string) =>
+  (endpoint: string, timeoutMs: number) =>
     new RetryingRpcClient(
-      new HttpClient({
-        url: endpoint,
-        headers: {
-          "X-Proxy-Key": randomUUID()
-        }
-      })
+      new HttpClient(
+        {
+          url: endpoint,
+          headers: {
+            "X-Proxy-Key": randomUUID()
+          }
+        },
+        timeoutMs
+      )
     ),
   Comet38Client,
   SigningStargateWithUnorderedSupportClient.createWithSigner

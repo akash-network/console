@@ -6,11 +6,11 @@ import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { BroadcastTxError, type IndexedTx } from "@cosmjs/stargate";
-import type { RetryPolicy } from "cockatiel";
 import { ConstantBackoff, handleWhenResult, Policy, retry } from "cockatiel";
 
 import type { AppConfigService } from "@src/services/app-config/app-config.service";
 import type { SigningStargateWithUnorderedSupportClient } from "../signing-stargate-client-factory/signing-stargate-client.factory";
+import { TxNotIncludedError, TxOutcomeUnknownError } from "./tx-outcome.error";
 
 export interface SignAndBroadcastOptions {
   fee?: {
@@ -36,14 +36,25 @@ const TX_RECOVERY_WINDOW_FACTOR = 1.2;
  */
 const OUT_OF_GAS_RETRY_LIMIT = 3;
 
+/** Budget a retry needs on top of its poll window, for the simulate, sign and broadcast round trips that precede it. */
+const ATTEMPT_OVERHEAD_RESERVE_MS = 15_000;
+
+/**
+ * The shortest signing deadline that still lets one attempt outlast a tx's TTL. Below it every tx that goes missing
+ * reports an undecided outcome instead of a definite one, so the config refuses to start rather than degrade quietly.
+ */
+export function minSignAndBroadcastDeadlineMs(ttlMs: number): number {
+  return Math.ceil(ttlMs * TX_RECOVERY_WINDOW_FACTOR);
+}
+
 /** Cosmos SDK `ErrOutOfGas` code (root `sdk` codespace). */
 const OUT_OF_GAS_CODE = 11;
 
 export class SigningClientService {
   readonly #client: SigningStargateWithUnorderedSupportClient;
 
-  readonly #txPoller: RetryPolicy;
-  readonly #signAndBroadcastExecutor: RetryPolicy;
+  readonly #ttlMs: number;
+  readonly #deadlineMs: number;
 
   readonly #gasRecoveryMultiplier: number;
 
@@ -51,27 +62,16 @@ export class SigningClientService {
 
   constructor(client: SigningStargateWithUnorderedSupportClient, config: AppConfigService, loggerContext = SigningClientService.name) {
     this.#client = client;
-    this.#txPoller = retry(
-      handleWhenResult(res => !res),
-      {
-        maxAttempts: Math.ceil((config.get("UNORDERED_TX_TTL_MS") * TX_RECOVERY_WINDOW_FACTOR) / TX_RECOVERY_POLL_INTERVAL_MS),
-        backoff: new ConstantBackoff(TX_RECOVERY_POLL_INTERVAL_MS)
-      }
-    );
+    this.#ttlMs = config.get("UNORDERED_TX_TTL_MS");
+    this.#deadlineMs = config.get("SIGN_AND_BROADCAST_DEADLINE_MS");
     this.#gasRecoveryMultiplier = config.get("GAS_RECOVERY_MULTIPLIER");
-    this.#signAndBroadcastExecutor = retry(
-      new Policy({
-        errorFilter: error => this.#canRecoverFromOutOfGas(error),
-        resultFilter: result => this.#canRecoverFromOutOfGas(result)
-      }),
-      {
-        maxAttempts: OUT_OF_GAS_RETRY_LIMIT,
-        backoff: new ConstantBackoff(0)
-      }
-    );
     this.#logger = createOtelLogger({ context: loggerContext });
   }
 
+  /**
+   * Always settles within {@link AppConfigService} `SIGN_AND_BROADCAST_DEADLINE_MS`, so the caller's request timeout is
+   * never what abandons a transaction still in flight — which is what makes a rejection here mean the tx did not land.
+   */
   async signAndBroadcast(messages: readonly EncodeObject[], options?: SignAndBroadcastOptions): Promise<IndexedTx> {
     this.#logger.debug({
       event: "SIGN_AND_BROADCAST_BEGIN",
@@ -79,9 +79,11 @@ export class SigningClientService {
       granter: options?.fee?.granter
     });
 
+    const deadline = Date.now() + this.#deadlineMs;
+
     try {
       let prevResult: unknown;
-      const tx = await this.#signAndBroadcastExecutor.execute(async context => {
+      const tx = await this.#outOfGasRecoveryExecutor(deadline).execute(async context => {
         const prevOutOfGasContext = this.#getOutOfGasContext(prevResult);
         let gas: number | undefined;
 
@@ -102,11 +104,11 @@ export class SigningClientService {
             return await this.#broadcast(signedTx);
           });
 
-          const foundTx = await this.#pollTx(txHash);
+          const pollStartedAt = Date.now();
+          const foundTx = await this.#pollTx(txHash, deadline);
 
           if (!foundTx) {
-            this.#logger.error({ event: "SIGN_AND_BROADCAST_TX_NOT_FOUND", txHash });
-            throw new Error("Sign and broadcast succeeded but the transaction could not be found on-chain");
+            throw this.#txNotFoundError(txHash, pollStartedAt);
           }
 
           prevResult = foundTx;
@@ -124,6 +126,33 @@ export class SigningClientService {
       this.#logger.debug({ event: "SIGN_AND_BROADCAST_ERROR", error });
       throw error;
     }
+  }
+
+  #outOfGasRecoveryExecutor(deadline: number) {
+    return retry(
+      new Policy({
+        errorFilter: error => this.#canRetryOutOfGasWithinBudget(error, deadline),
+        resultFilter: result => this.#canRetryOutOfGasWithinBudget(result, deadline)
+      }),
+      {
+        maxAttempts: OUT_OF_GAS_RETRY_LIMIT,
+        backoff: new ConstantBackoff(0)
+      }
+    );
+  }
+
+  /**
+   * Whether polling has outlasted the tx's own `timeoutTimestamp`, which is what separates the two ways a broadcast tx
+   * can go missing: past the TTL the chain can no longer include it, before the TTL it still can.
+   */
+  #txNotFoundError(txHash: string, pollStartedAt: number): Error {
+    if (Date.now() - pollStartedAt >= this.#ttlMs) {
+      this.#logger.error({ event: "SIGN_AND_BROADCAST_TX_NOT_INCLUDED", txHash });
+      return new TxNotIncludedError(txHash);
+    }
+
+    this.#logger.error({ event: "SIGN_AND_BROADCAST_TX_OUTCOME_UNKNOWN", txHash });
+    return new TxOutcomeUnknownError(txHash);
   }
 
   /**
@@ -150,6 +179,26 @@ export class SigningClientService {
     return this.#getOutOfGasContext(outcome) !== undefined;
   }
 
+  /**
+   * A retry whose poll window cannot outlast the new tx's TTL would report an undecided outcome in place of the definite
+   * out-of-gas failure already in hand, so the budget has to fit a whole attempt or the recovery stops here.
+   */
+  #canRetryOutOfGasWithinBudget(outcome: unknown, deadline: number): boolean {
+    if (!this.#canRecoverFromOutOfGas(outcome)) {
+      return false;
+    }
+
+    const remainingMs = deadline - Date.now();
+
+    if (remainingMs >= this.#ttlMs * TX_RECOVERY_WINDOW_FACTOR + ATTEMPT_OVERHEAD_RESERVE_MS) {
+      return true;
+    }
+
+    this.#logger.warn({ event: "SIGN_AND_BROADCAST_OUT_OF_GAS_RETRY_BUDGET_EXHAUSTED", remainingMs });
+
+    return false;
+  }
+
   #nextGasLimit(gasUsed: number): number {
     return Math.ceil(gasUsed * this.#gasRecoveryMultiplier);
   }
@@ -168,8 +217,17 @@ export class SigningClientService {
     }
   }
 
-  async #pollTx(hash: string): Promise<IndexedTx | null> {
-    return await this.#txPoller.execute(context => {
+  async #pollTx(hash: string, deadline: number): Promise<IndexedTx | null> {
+    const windowMs = Math.min(this.#ttlMs * TX_RECOVERY_WINDOW_FACTOR, deadline - Date.now());
+    const poller = retry(
+      handleWhenResult(res => !res),
+      {
+        maxAttempts: Math.max(0, Math.ceil(windowMs / TX_RECOVERY_POLL_INTERVAL_MS)),
+        backoff: new ConstantBackoff(TX_RECOVERY_POLL_INTERVAL_MS)
+      }
+    );
+
+    return await poller.execute(context => {
       this.#logger.debug({ event: "TX_POLL_ATTEMPT", txHash: hash, attempt: context.attempt });
       return this.#client.getTx(hash);
     });

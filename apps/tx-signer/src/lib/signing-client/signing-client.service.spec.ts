@@ -9,6 +9,7 @@ import { mock } from "vitest-mock-extended";
 import type { AppConfigService } from "../../services/app-config/app-config.service";
 import type { SigningStargateWithUnorderedSupportClient } from "../signing-stargate-client-factory/signing-stargate-client.factory";
 import { SigningClientService } from "./signing-client.service";
+import { TxNotIncludedError, TxOutcomeUnknownError } from "./tx-outcome.error";
 
 describe(SigningClientService.name, () => {
   it("signs and broadcasts a transaction and returns the recovered transaction", async () => {
@@ -82,19 +83,43 @@ describe(SigningClientService.name, () => {
     expect(client.getTx).toHaveBeenCalledTimes(1);
   });
 
-  it("throws after exhausting recovery retries when the transaction is never found", async () => {
+  it("rejects with a not-included outcome once polling has outlasted the transaction TTL", async () => {
     vi.useFakeTimers();
     try {
       // ceil(10_000ms TTL × 1.2 window / 2_000ms poll interval) = 6 retries, so 1 initial + 6 = 7 getTx polls before giving up.
       const { service, client } = setup({ ttlMs: 10_000 });
+      client.broadcastTxSync.mockResolvedValue("broadcast-hash");
       client.getTx.mockResolvedValue(null);
 
       const promise = service.signAndBroadcast(createMessages(1));
       promise.catch(() => {});
       await vi.advanceTimersByTimeAsync(60_000);
 
-      await expect(promise).rejects.toThrow("Sign and broadcast succeeded but the transaction could not be found on-chain");
+      await expect(promise).rejects.toBeInstanceOf(TxNotIncludedError);
+      await expect(promise).rejects.toMatchObject({ status: 502, data: { outcome: "not_included", txHash: "broadcast-hash" } });
       expect(client.getTx).toHaveBeenCalledTimes(7);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("rejects with an undecided outcome when the deadline cuts polling short of the transaction TTL", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 10_000, deadlineMs: 14_000 });
+      client.broadcastTxSync.mockResolvedValue("broadcast-hash");
+      client.signUnordered.mockImplementation(async () => {
+        vi.setSystemTime(Date.now() + 12_000);
+        return signedTx();
+      });
+      client.getTx.mockResolvedValue(null);
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      await expect(promise).rejects.toBeInstanceOf(TxOutcomeUnknownError);
+      await expect(promise).rejects.toMatchObject({ status: 504, data: { outcome: "unknown", txHash: "broadcast-hash" } });
     } finally {
       vi.useRealTimers();
     }
@@ -122,6 +147,16 @@ describe(SigningClientService.name, () => {
 
     // 1 initial attempt + OUT_OF_GAS_RETRY_LIMIT (3) retries = 4 signs.
     expect(client.signUnordered).toHaveBeenCalledTimes(4);
+    expect(result.code).toBe(11);
+  });
+
+  it("stops the out-of-gas recovery when the remaining budget cannot fit another attempt", async () => {
+    const { service, client } = setup({ ttlMs: 10_000, deadlineMs: 20_000 });
+    client.getTx.mockResolvedValue(outOfGasTx({ gasUsed: 100n, gasWanted: 80n }));
+
+    const result = await service.signAndBroadcast(createMessages(1));
+
+    expect(client.signUnordered).toHaveBeenCalledTimes(1);
     expect(result.code).toBe(11);
   });
 
@@ -200,11 +235,12 @@ describe(SigningClientService.name, () => {
     return mock<IndexedTx>({ hash: "out-of-gas", code: 11, gasUsed: input.gasUsed, gasWanted: input.gasWanted, height: 100 });
   }
 
-  function setup(input?: { ttlMs?: number; gasRecoveryMultiplier?: number }) {
+  function setup(input?: { ttlMs?: number; deadlineMs?: number; gasRecoveryMultiplier?: number }) {
     const config = mock<AppConfigService>({
       get: vi.fn().mockImplementation(key => {
         const values = {
           UNORDERED_TX_TTL_MS: input?.ttlMs ?? 180_000,
+          SIGN_AND_BROADCAST_DEADLINE_MS: input?.deadlineMs ?? 600_000,
           GAS_RECOVERY_MULTIPLIER: input?.gasRecoveryMultiplier ?? 1.3
         };
         return values[key as keyof typeof values];
