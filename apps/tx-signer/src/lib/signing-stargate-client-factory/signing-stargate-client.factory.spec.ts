@@ -11,7 +11,8 @@ import { mock } from "vitest-mock-extended";
 import { createAkashAddress } from "../../../test/seeders";
 import type { Wallet } from "../wallet/wallet";
 import type { UnorderedTxSignConfig } from "./signing-stargate-client.factory";
-import { createSigningStargateClientFactory, SigningStargateWithUnorderedSupportClient } from "./signing-stargate-client.factory";
+import { createSigningStargateClientFactory, SigningStargateWithUnorderedSupportClient, simulateBudgetMs } from "./signing-stargate-client.factory";
+import { SimulationExpiredError } from "./simulation-expired.error";
 
 const SIGN_CONFIG: UnorderedTxSignConfig = { ttlMs: 180_000, gasMultiplier: 1.2, averageGasPrice: 0.025 };
 const RPC_REQUEST_TIMEOUT_MS = 10_000;
@@ -128,6 +129,49 @@ describe(SigningStargateWithUnorderedSupportClient.name, () => {
     expect(AuthInfo.decode(txRaw.authInfoBytes).fee!.granter).toBe("akash1granter");
   });
 
+  it("stamps every gas simulation attempt with a window that opens on that attempt", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const ttlMs = 30_000;
+      const startTime = 1_700_000_000_000;
+      vi.setSystemTime(startTime);
+      const { client, abciQuery, simulateSentAt } = setup({
+        ttlMs,
+        simulateFailures: [connectionResetError()],
+        onSimulate: () => vi.setSystemTime(Date.now() + ttlMs * 2)
+      });
+
+      await client.signUnordered(createMessages());
+
+      expect(abciQuery).toHaveBeenCalledTimes(2);
+      const stamps = abciQuery.mock.calls.map(call => decodeSimulatedTimeoutTimestamp(call[0].data));
+      expect(stamps).toEqual(simulateSentAt.map(sentAt => sentAt + ttlMs));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("surfaces the transport failure once the gas simulation retries are exhausted", async () => {
+    const { client, abciQuery } = setup({ simulateFailures: Array.from({ length: 4 }, connectionResetError) });
+
+    await expect(client.signUnordered(createMessages())).rejects.toThrow(/socket hang up/);
+    expect(abciQuery).toHaveBeenCalledTimes(4);
+  });
+
+  it("does not retry a gas simulation that failed for a non-transport reason", async () => {
+    const { client, abciQuery } = setup({ simulateFailures: [new Error("Query failed with (18): invalid request")] });
+
+    await expect(client.signUnordered(createMessages())).rejects.toThrow(/invalid request/);
+    expect(abciQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a freshly stamped simulation rejected as expired as a clock problem rather than retrying it", async () => {
+    const { client, abciQuery } = setup({ simulateFailures: [expiredTxError()] });
+
+    await expect(client.signUnordered(createMessages())).rejects.toThrow(SimulationExpiredError);
+    expect(abciQuery).toHaveBeenCalledTimes(1);
+  });
+
   it("fetches chain id and account data only once across concurrent signs", async () => {
     const { client, wallet, getChainId, getAccount } = setup();
 
@@ -142,7 +186,20 @@ describe(SigningStargateWithUnorderedSupportClient.name, () => {
     return [{ typeUrl: "/test.MsgTest", value: {} }];
   }
 
-  function setup(input?: { ttlMs?: number; gasUsed?: number; gasMultiplier?: number; onSimulate?: () => void }) {
+  function connectionResetError() {
+    return Object.assign(new Error("socket hang up"), { code: "ECONNRESET" });
+  }
+
+  function expiredTxError() {
+    return new Error("Query failed with (6): rpc error: code = Unknown desc = tx timeout with gas used: '0': unknown request");
+  }
+
+  function decodeSimulatedTimeoutTimestamp(data: Uint8Array) {
+    const txBytes = SimulateRequest.decode(data).txBytes;
+    return TxBody.decode(TxRaw.decode(txBytes).bodyBytes).timeoutTimestamp!.getTime();
+  }
+
+  function setup(input?: { ttlMs?: number; gasUsed?: number; gasMultiplier?: number; onSimulate?: () => void; simulateFailures?: Error[] }) {
     const address = createAkashAddress();
     const accountNumber = faker.number.int({ min: 1, max: 1000 });
     const gasUsed = input?.gasUsed ?? 2000;
@@ -172,8 +229,15 @@ describe(SigningStargateWithUnorderedSupportClient.name, () => {
     });
 
     // Gas estimation runs the real #simulateRawTx through the query client, so mock the underlying ABCI query.
+    const simulateFailures = [...(input?.simulateFailures ?? [])];
+    const simulateSentAt: number[] = [];
     const abciQuery = vi.fn().mockImplementation(async () => {
+      simulateSentAt.push(Date.now());
       input?.onSimulate?.();
+
+      const failure = simulateFailures.shift();
+      if (failure) throw failure;
+
       return {
         code: 0,
         value: SimulateResponse.encode(SimulateResponse.fromPartial({ gasInfo: { gasUsed: BigInt(gasUsed), gasWanted: BigInt(gasUsed) } })).finish(),
@@ -187,13 +251,24 @@ describe(SigningStargateWithUnorderedSupportClient.name, () => {
       signConfig: {
         ttlMs: input?.ttlMs ?? 180_000,
         gasMultiplier: input?.gasMultiplier ?? 1.2,
-        averageGasPrice: 0.025
+        averageGasPrice: 0.025,
+        simulateRetry: { maxAttempts: 3, initialDelayMs: 1, maxDelayMs: 1 }
       }
     });
 
     const getChainId = vi.spyOn(client, "getChainId").mockResolvedValue("test-chain");
     const getAccount = vi.spyOn(client, "getAccount").mockResolvedValue(mock<Account>({ address, accountNumber }));
 
-    return { client, wallet, registry, cometClient, abciQuery, getChainId, getAccount, address, accountNumber };
+    return { client, wallet, registry, cometClient, abciQuery, simulateSentAt, getChainId, getAccount, address, accountNumber };
   }
+});
+
+describe(simulateBudgetMs.name, () => {
+  it("covers the first attempt, every retry, and the backoff between them", () => {
+    expect(simulateBudgetMs(10_000, { maxAttempts: 3, maxDelayMs: 2_000 })).toBe(46_000);
+  });
+
+  it("falls back to the shipped retry settings", () => {
+    expect(simulateBudgetMs(10_000)).toBe(46_000);
+  });
 });

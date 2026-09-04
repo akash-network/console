@@ -1,15 +1,19 @@
-import { isRetriableError } from "@akashnetwork/http-sdk";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import type { RpcClient } from "@cosmjs/tendermint-rpc";
 import type { RetryPolicy } from "cockatiel";
 import { ExponentialBackoff, handleWhen, retry } from "cockatiel";
+
+import { isRetriableTransportError } from "../retriable-transport-error/retriable-transport-error";
 
 type ExecuteRequest = Parameters<RpcClient["execute"]>[0];
 type ExecuteResponse = Awaited<ReturnType<RpcClient["execute"]>>;
 
 const NON_IDEMPOTENT_METHODS = new Set(["broadcast_tx_async", "broadcast_tx_sync", "broadcast_tx_commit"]);
 
-const BAD_STATUS_5XX_RE = /Bad status on response: 5\d{2}/;
+const ABCI_QUERY_METHOD = "abci_query";
+
+/** The simulate query carries a whole tx, `timeoutTimestamp` included, so replaying its bytes can only ever expire. */
+const SIMULATE_ABCI_QUERY_PATH = "/cosmos.tx.v1beta1.Service/Simulate";
 
 const DEFAULT_MAX_ATTEMPTS = 3;
 const DEFAULT_INITIAL_DELAY_MS = 200;
@@ -30,7 +34,7 @@ export class RetryingRpcClient implements RpcClient {
 
   constructor(rpcClient: RpcClient, options: RetryingRpcClientOptions = {}) {
     this.rpcClient = rpcClient;
-    this.#executor = retry(handleWhen(error => this.#isRetriableTransportError(error)), {
+    this.#executor = retry(handleWhen(isRetriableTransportError), {
       maxAttempts: options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS,
       backoff: new ExponentialBackoff({
         initialDelay: options.initialDelayMs ?? DEFAULT_INITIAL_DELAY_MS,
@@ -42,8 +46,8 @@ export class RetryingRpcClient implements RpcClient {
   async execute(request: ExecuteRequest): Promise<ExecuteResponse> {
     this.#logger.debug({ event: "RPC_REQUEST", method: request.method });
 
-    if (NON_IDEMPOTENT_METHODS.has(request.method)) {
-      return this.rpcClient.execute(request);
+    if (this.#isReplayUnsafe(request)) {
+      return await this.#executeOnce(request);
     }
 
     try {
@@ -54,12 +58,7 @@ export class RetryingRpcClient implements RpcClient {
         return this.rpcClient.execute(request);
       });
     } catch (error) {
-      this.#logger.error({
-        event: "RPC_REQUEST_FAILED",
-        method: request.method,
-        isRetriable: this.#isRetriableTransportError(error),
-        error
-      });
+      this.#logFailure(request, error);
       throw error;
     }
   }
@@ -68,13 +67,33 @@ export class RetryingRpcClient implements RpcClient {
     this.rpcClient.disconnect();
   }
 
-  #isRetriableTransportError(error: unknown): boolean {
-    if (!(error instanceof Error)) return false;
-    if (BAD_STATUS_5XX_RE.test(error.message)) return true;
-    if ("code" in error && isRetriableError(error as Error & { code: unknown })) return true;
-    if ("cause" in error && error.cause instanceof Error && "code" in error.cause) {
-      return isRetriableError(error.cause as Error & { code: unknown });
+  async #executeOnce(request: ExecuteRequest): Promise<ExecuteResponse> {
+    try {
+      return await this.rpcClient.execute(request);
+    } catch (error) {
+      this.#logFailure(request, error);
+      throw error;
     }
-    return false;
+  }
+
+  #logFailure(request: ExecuteRequest, error: unknown): void {
+    this.#logger.error({
+      event: "RPC_REQUEST_FAILED",
+      method: request.method,
+      isRetriable: isRetriableTransportError(error),
+      error
+    });
+  }
+
+  /**
+   * A request the transport must not replay: either it is not idempotent, or its payload embeds its own validity
+   * window, which only the layer that can rebuild that payload is allowed to retry.
+   */
+  #isReplayUnsafe(request: ExecuteRequest): boolean {
+    if (NON_IDEMPOTENT_METHODS.has(request.method)) return true;
+    if (request.method !== ABCI_QUERY_METHOD) return false;
+
+    const { params } = request;
+    return "path" in params && params.path === SIMULATE_ABCI_QUERY_PATH;
   }
 }
