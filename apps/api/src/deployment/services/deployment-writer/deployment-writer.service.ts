@@ -19,8 +19,7 @@ import {
   unbackedDeploymentSettingKeyFor
 } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
-import { MAX_ECHOED_REFERENCE_LENGTH, type NamespacedSdlSecrets } from "@src/deployment/services/sdl-reference/sdl-reference.service";
-import type { ReceivedSdlSecrets } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import { MAX_ECHOED_REFERENCE_LENGTH } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
@@ -70,11 +69,11 @@ export class DeploymentWriterService {
 
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
     const depositInDollars = this.deploymentConfig.get("DEPLOYMENT_DEFAULT_DEPOSIT");
-    const secrets = await this.#receiveSecrets(input);
-    const stored = this.#storedSecretsOf(secrets.supplied, derived);
+    const supplied = await this.#receiveSecrets(input);
+    const stored = this.#storedSecretsOf(supplied, derived);
 
     const dseq = Date.now().toString();
-    const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { secrets: secrets.byService, isTrialing: !!wallet.isTrialing });
+    const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { secrets: supplied, isTrialing: !!wallet.isTrialing });
     const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq, secrets: stored });
 
     if (wallet.isTrialing) {
@@ -320,7 +319,7 @@ export class DeploymentWriterService {
   }
 
   /** Only the manifest version is taken from the resolved SDL: the resolved manifest itself must not leave this call. Runs before any lookup so a bad reference always answers 400 rather than racing a 404. */
-  async #resolveSdl(sdl: string, options: { secrets?: NamespacedSdlSecrets; isTrialing?: boolean }) {
+  async #resolveSdl(sdl: string, options: { secrets?: SdlSecrets; isTrialing?: boolean }) {
     const result = await this.sdlService.generateResolvedManifest({ sdl, ...options, secrets: options.secrets ?? {} });
 
     if (!result.ok) {
@@ -331,7 +330,7 @@ export class DeploymentWriterService {
   }
 
   /** Reports through the same channel every other reference mistake uses, so a missing value reads identically whether the intake or substitution found it. */
-  async #receiveSecrets(input: CreateDeploymentRequest["data"]): Promise<ReceivedSdlSecrets> {
+  async #receiveSecrets(input: CreateDeploymentRequest["data"]): Promise<SdlSecrets> {
     const parsed = this.sdlService.parse(input.sdl);
 
     if (!parsed.ok) {

@@ -300,9 +300,8 @@ describe(SdlSecretsDerivationService.name, () => {
 
     const secrets = service.derive(rewritten, { includeEnvValues: true });
     const reparsed = yaml.raw<SDLInput>(dump(rewritten, { lineWidth: -1 }));
-    const byService = Object.fromEntries(Object.keys(reparsed.services).map(serviceName => [serviceName, secrets]));
 
-    expect(sdlReferenceService.substitute(reparsed, { secrets: byService })).toEqual([]);
+    expect(sdlReferenceService.substitute(reparsed, { secrets })).toEqual([]);
     expect(reparsed.services.web.env).toEqual(values.map((value, index) => `V${index}=${value}`));
   });
 
@@ -319,9 +318,8 @@ describe(SdlSecretsDerivationService.name, () => {
     const rewritten = documentWith(services);
 
     const secrets = service.derive(rewritten, { includeEnvValues: true });
-    const byService = Object.fromEntries(Object.keys(rewritten.services).map(serviceName => [serviceName, secrets]));
 
-    expect(sdlReferenceService.substitute(rewritten, { secrets: byService })).toEqual([]);
+    expect(sdlReferenceService.substitute(rewritten, { secrets })).toEqual([]);
     expect(rewritten).toEqual(submitted);
   });
 
