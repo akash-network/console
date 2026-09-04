@@ -1517,6 +1517,27 @@ describe(TopUpManagedDeploymentsService.name, () => {
       });
     });
 
+    it("still holds the claim when recording the undecided outcome throws", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, deploymentSettingRepository, fundDrainingInstrumentation } =
+        setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const deployment = createDrainingFor(owner, walletId);
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
+      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
+      deploymentSettingRepository.claimForFunding.mockResolvedValue([createFundingClaim(deployment.id)]);
+      managedSignerService.executeDerivedTx.mockRejectedValue(new TxOutcomeUnknownError("tx-hash"));
+      fundDrainingInstrumentation.recordUndecidedTxOutcome.mockImplementation(() => {
+        throw new Error("logger exploded");
+      });
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
+
+      expect(deploymentSettingRepository.releaseFundingClaim).not.toHaveBeenCalled();
+    });
+
     it("holds the claim without scheduling a reconciliation when the undecided deposit has no hash to ask about", async () => {
       const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, deploymentSettingRepository, reconcileManagedTxJobService } =
         setup();

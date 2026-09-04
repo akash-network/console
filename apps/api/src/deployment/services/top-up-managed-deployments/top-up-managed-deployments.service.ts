@@ -534,7 +534,7 @@ export class TopUpManagedDeploymentsService {
       }
 
       if (isUnknownTxOutcome(failure)) {
-        instrumentation.recordUndecidedTxOutcome({ owner, items: remaining, txHash: failure.txHash, error: failure });
+        this.#recordUndecidedOutcome(instrumentation, { owner, items: remaining, txHash: failure.txHash, error: failure });
         return { status: "undecided", txHash: failure.txHash };
       }
 
@@ -626,6 +626,18 @@ export class TopUpManagedDeploymentsService {
   #recordDeposit(instrumentation: DeploymentTopUpInstrumentation, details: { owner: string; items: CollectedMessage[] }): void {
     try {
       instrumentation.recordDeposit(details);
+    } catch {
+      return;
+    }
+  }
+
+  /** A telemetry failure escaping here would leave the outcome at its default and release the very claims an undecided deposit is holding. */
+  #recordUndecidedOutcome(
+    instrumentation: DeploymentTopUpInstrumentation,
+    details: { owner: string; items: CollectedMessage[]; txHash?: string; error: unknown }
+  ): void {
+    try {
+      instrumentation.recordUndecidedTxOutcome(details);
     } catch {
       return;
     }

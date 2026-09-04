@@ -6,6 +6,8 @@ class TxOutcomeError extends Error {
   readonly status: number;
   readonly statusCode: number;
   readonly errorCode: string;
+  /** The error handler builds the client body from `data`, so the hash reaches the caller only from here. */
+  readonly data: { txHash?: string };
 
   constructor(
     status: number,
@@ -18,6 +20,7 @@ class TxOutcomeError extends Error {
     this.status = status;
     this.statusCode = status;
     this.errorCode = errorCode;
+    this.data = { txHash };
   }
 }
 
