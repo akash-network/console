@@ -21,6 +21,11 @@ function maxBytesPerArchive(maxTotalBytes: number): number {
   return maxTotalBytes / 2;
 }
 
+/** The placeholder charged while a download is in flight must fit the ceiling, or lru-cache refuses the entry and concurrent callers each start their own download. */
+function inFlightArchiveBytes(maxArchiveBytes: number): number {
+  return Math.min(NOMINAL_ENTRY_BYTES, maxArchiveBytes);
+}
+
 const MAX_DOWNLOAD_RETRIES = 2;
 const RETRY_INITIAL_DELAY_MS = 1_000;
 const RETRY_MAX_DELAY_MS = 10_000;
@@ -75,7 +80,7 @@ export class GitHubArchiveService {
       max: limits.maxEntries ?? MAX_CACHED_ARCHIVES,
       maxSize: maxTotalBytes,
       maxEntrySize: this.#maxArchiveBytes,
-      sizeCalculation: () => NOMINAL_ENTRY_BYTES
+      sizeCalculation: () => inFlightArchiveBytes(this.#maxArchiveBytes)
     });
     this.#logger = logger;
     cacheRegistry.register("GitHubArchiveService#archives", this.#cache);

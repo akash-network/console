@@ -143,6 +143,16 @@ describe(GitHubArchiveService.name, () => {
       expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
 
+    it("shares one download between concurrent callers even when a limit sits below the nominal entry charge", async () => {
+      const { service, fetchSpy, archiveResponse } = setup({ maxTotalBytes: 2000, maxEntryBytes: 900 });
+      fetchSpy.mockImplementation(async () => archiveResponse({ "root/readme.md": "# Hello" }));
+
+      const [first, second] = await Promise.all([service.getArchive("owner", "repo", "ref"), service.getArchive("owner", "repo", "ref")]);
+
+      expect(first).toBe(second);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
     it("returns an archive too large to keep and warns instead of caching it", async () => {
       const maxEntryBytes = 1000;
       const { service, logger, installArchive, cacheStats } = setup({ maxEntryBytes });
