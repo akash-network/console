@@ -140,6 +140,70 @@ describe(SdlSecretsDerivationService.name, () => {
     });
   });
 
+  describe("whether a value already names a secret, which the grammar decides and not the prefix", () => {
+    it.each(["ac-secret://TOKEN", "ac-secret://PROD_DB", "ac-var://MODE"])("leaves %j where it stands, the grammar accepting it whole", value => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: [`T=${value}`] } });
+
+      expect(service.derive(document, { includeEnvValues: true }).secrets).toEqual({});
+      expect(document.services.web.env).toEqual([`T=${value}`]);
+    });
+
+    it.each(["ac-dc", "prefix-ac-secret://T", "ac-secret://T suffix", "ac-secret://T\n", `ac-${"z".repeat(17)}://T`])(
+      "takes %j out, the grammar refusing it as a reference",
+      value => {
+        const { service } = setup();
+        const document = documentWith({ web: { env: [`T=${value}`] } });
+
+        expect(service.derive(document, { includeEnvValues: true }).secrets).toEqual({ s0_e0: value });
+        expect(document.services.web.env).toEqual(["T=ac-secret://s0_e0"]);
+      }
+    );
+
+    it("leaves the reference of every service that carries one", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["T=ac-secret://T"] }, worker: { env: ["T=ac-secret://T"] } });
+
+      expect(service.derive(document, { includeEnvValues: true }).secrets).toEqual({});
+      expect(document.services.web.env).toEqual(["T=ac-secret://T"]);
+      expect(document.services.worker.env).toEqual(["T=ac-secret://T"]);
+    });
+
+    it("takes a value containing an equals sign whole, splitting only on the first", () => {
+      const { service } = setup();
+      const url = `postgres://u:${faker.internet.password()}@h:5432/db?ssl=true&a=b`;
+      const document = documentWith({ web: { env: [`DATABASE_URL=${url}`] } });
+
+      expect(service.derive(document, { includeEnvValues: true }).secrets).toEqual({ s0_e0: url });
+      expect(document.services.web.env).toEqual(["DATABASE_URL=ac-secret://s0_e0"]);
+    });
+  });
+
+  describe("a copy of a value the document made for itself", () => {
+    it("rewrites the env declaration an aliased list is shared through, and the copy in args with it", () => {
+      const { service } = setup();
+      const token = faker.string.alphanumeric(12);
+      const document = yaml.raw<SDLInput>(sdlSharingOneListBetweenEnvAndArgs(`API_TOKEN=${token}`));
+
+      const { secrets } = service.derive(document, { includeEnvValues: true });
+
+      expect(secrets).toEqual({ s0_e0: token });
+      expect(document.services.web.env).toEqual(["API_TOKEN=ac-secret://s0_e0"]);
+      expect(document.services.web.args).toEqual(["API_TOKEN=ac-secret://s0_e0"]);
+    });
+
+    it("leaves a value typed out a second time in args, which the env declaration cannot reach", () => {
+      const { service } = setup();
+      const token = faker.string.alphanumeric(12);
+      const document = documentWith({ web: { env: [`API_TOKEN=${token}`], args: [`--token=${token}`] } });
+
+      service.derive(document, { includeEnvValues: true });
+
+      expect(document.services.web.env).toEqual(["API_TOKEN=ac-secret://s0_e0"]);
+      expect(document.services.web.args).toEqual([`--token=${token}`]);
+    });
+  });
+
   describe("a node two services share through a yaml anchor", () => {
     it("mints one name for one shared credentials block rather than one per service", () => {
       const { service } = setup();
@@ -270,6 +334,10 @@ describe(SdlSecretsDerivationService.name, () => {
         deployment: Object.fromEntries(names.map(name => [name, { dcloud: { profile: name, count: 1 } }]))
       })
     );
+  }
+
+  function sdlSharingOneListBetweenEnvAndArgs(entry: string) {
+    return `version: "2.0"\nservices:\n  web:\n    image: ${IMAGE}\n    env: &shared\n      - ${JSON.stringify(entry)}\n    args: *shared\n`;
   }
 
   function sdlSharingCredentials(password: string) {
