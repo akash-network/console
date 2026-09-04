@@ -3,7 +3,7 @@ import { yaml } from "@akashnetwork/chain-sdk";
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 
-import type { NamespacedSdlSecrets, SdlReferenceResolver } from "./sdl-reference.service";
+import type { SdlReferenceResolver } from "./sdl-reference.service";
 import { MAX_SDL_REFERENCE_NAME_LENGTH, SdlReferenceService } from "./sdl-reference.service";
 
 const VALID_NAMES = ["A", "a", "_", "_A", "A9", `A${"b".repeat(62)}`, `A${"b".repeat(63)}`];
@@ -113,7 +113,7 @@ describe(SdlReferenceService.name, () => {
       const { service } = setup();
       const sdl = sdlWithEnv(["DATABASE_URL=ac-secret://DATABASE_URL"]);
 
-      const errors = service.substitute(sdl, { secrets: { web: { DATABASE_URL: "postgres://u:p@host/db" } } });
+      const errors = service.substitute(sdl, { secrets: { DATABASE_URL: "postgres://u:p@host/db" } });
 
       expect(errors).toEqual([]);
       expect(sdl.services.web.env).toEqual(["DATABASE_URL=postgres://u:p@host/db"]);
@@ -124,7 +124,7 @@ describe(SdlReferenceService.name, () => {
       const sdl = sdlWithEnv(["TOKEN=ac-secret://TOKEN"]);
       const env = sdl.services.web.env;
 
-      service.substitute(sdl, { secrets: { web: { TOKEN: "resolved" } } });
+      service.substitute(sdl, { secrets: { TOKEN: "resolved" } });
 
       expect(env).toBe(sdl.services.web.env);
       expect(env).toEqual(["TOKEN=resolved"]);
@@ -135,7 +135,7 @@ describe(SdlReferenceService.name, () => {
       const value = "a: b #c |x >y {z} [w] &anchor *alias \"q\" 's'\nsecond: line\n\t- dash";
       const sdl = sdlWithEnv(["WEIRD=ac-secret://WEIRD"]);
 
-      service.substitute(sdl, { secrets: { web: { WEIRD: value } } });
+      service.substitute(sdl, { secrets: { WEIRD: value } });
 
       expect(sdl.services.web.env).toEqual([`WEIRD=${value}`]);
     });
@@ -144,7 +144,7 @@ describe(SdlReferenceService.name, () => {
       const { service } = setup();
       const sdl = sdlWithEnv(["PAIR=ac-secret://PAIR"]);
 
-      service.substitute(sdl, { secrets: { web: { PAIR: "a=b=c" } } });
+      service.substitute(sdl, { secrets: { PAIR: "a=b=c" } });
 
       expect(sdl.services.web.env).toEqual(["PAIR=a=b=c"]);
     });
@@ -153,7 +153,7 @@ describe(SdlReferenceService.name, () => {
       const { service } = setup();
       const sdl = sdlWithEnv(["MIXED=prefix ac-secret://TOKEN", 'QUOTED="ac-secret://TOKEN"', "LISTED=ac,ac-secret://TOKEN"]);
 
-      const errors = service.substitute(sdl, { secrets: { web: { TOKEN: "resolved" } } });
+      const errors = service.substitute(sdl, { secrets: { TOKEN: "resolved" } });
 
       expect(errors).toEqual([]);
       expect(sdl.services.web.env).toEqual(["MIXED=prefix ac-secret://TOKEN", 'QUOTED="ac-secret://TOKEN"', "LISTED=ac,ac-secret://TOKEN"]);
@@ -162,7 +162,7 @@ describe(SdlReferenceService.name, () => {
     it("reports a value opening with a reference and trailing something else", () => {
       const { service } = setup();
 
-      const [error] = service.substitute(sdlWithEnv(["SUFFIX=ac-secret://TOKEN suffix"]), { secrets: { web: { TOKEN: "resolved" } } });
+      const [error] = service.substitute(sdlWithEnv(["SUFFIX=ac-secret://TOKEN suffix"]), { secrets: { TOKEN: "resolved" } });
 
       expect(error.message).toContain("reserved");
     });
@@ -171,7 +171,7 @@ describe(SdlReferenceService.name, () => {
       const { service } = setup();
       const sdl = sdlWithEnv(["ac-secret://TOKEN"]);
 
-      const errors = service.substitute(sdl, { secrets: { web: { TOKEN: "resolved" } } });
+      const errors = service.substitute(sdl, { secrets: { TOKEN: "resolved" } });
 
       expect(errors).toEqual([]);
       expect(sdl.services.web.env).toEqual(["ac-secret://TOKEN"]);
@@ -181,7 +181,7 @@ describe(SdlReferenceService.name, () => {
       const { service } = setup();
       const sdl = sdlWithEnv(["A=ac-secret://A"]);
 
-      const errors = service.substitute(sdl, { secrets: { web: { A: "ac-secret://B", B: "leaked" } } });
+      const errors = service.substitute(sdl, { secrets: { A: "ac-secret://B", B: "leaked" } });
 
       expect(errors).toEqual([]);
       expect(sdl.services.web.env).toEqual(["A=ac-secret://B"]);
@@ -203,46 +203,46 @@ describe(SdlReferenceService.name, () => {
       const { service } = setup();
       const sdl = sdlWithEnv(["TOKEN=ac-var://TOKEN"]);
 
-      const [error] = service.substitute(sdl, { secrets: { web: { TOKEN: "resolved" } } });
+      const [error] = service.substitute(sdl, { secrets: { TOKEN: "resolved" } });
 
       expect(error.message).toContain("unknown SDL Reference kind");
       expect(sdl.services.web.env).toEqual(["TOKEN=ac-var://TOKEN"]);
     });
 
-    it("gives each service its own value for the same name", () => {
+    it("gives every service that references one name the same value", () => {
       const { service } = setup();
       const sdl = sdlWithEnv(["TOKEN=ac-secret://TOKEN"], ["TOKEN=ac-secret://TOKEN"]);
 
-      const errors = service.substitute(sdl, { secrets: { web: { TOKEN: "web-value" }, worker: { TOKEN: "worker-value" } } });
+      const errors = service.substitute(sdl, { secrets: { TOKEN: "shared" } });
 
       expect(errors).toEqual([]);
-      expect(sdl.services.web.env).toEqual(["TOKEN=web-value"]);
-      expect(sdl.services.worker.env).toEqual(["TOKEN=worker-value"]);
+      expect(sdl.services.web.env).toEqual(["TOKEN=shared"]);
+      expect(sdl.services.worker.env).toEqual(["TOKEN=shared"]);
     });
 
-    it("reports a name one service supplies and another does not, naming the service that lacks it", () => {
+    it("names the service a missing value was referenced from", () => {
       const { service } = setup();
-      const sdl = sdlWithEnv(["TOKEN=ac-secret://TOKEN"], ["TOKEN=ac-secret://TOKEN"]);
+      const sdl = sdlWithEnv(["TOKEN=ac-secret://TOKEN"], ["OTHER=ac-secret://OTHER"]);
 
-      const [error] = service.substitute(sdl, { secrets: { web: { TOKEN: "web-value" } } });
+      const [error] = service.substitute(sdl, { secrets: { TOKEN: "resolved" } });
 
-      expect(error.message).toContain("ac-secret://TOKEN");
+      expect(error.message).toContain("ac-secret://OTHER");
       expect(error.message).toContain("worker");
       expect(error.instancePath).toBe("/services/worker/env/0");
-      expect(sdl.services.worker.env).toEqual(["TOKEN=ac-secret://TOKEN"]);
+      expect(sdl.services.worker.env).toEqual(["OTHER=ac-secret://OTHER"]);
     });
 
-    it("resolves one service while another service supplies no namespace at all", () => {
+    it("resolves one service while another references nothing", () => {
       const { service } = setup();
       const sdl = sdlWithEnv(["TOKEN=ac-secret://TOKEN"], ["PORT=8080"]);
 
-      const errors = service.substitute(sdl, { secrets: { web: { TOKEN: "web-value" } } });
+      const errors = service.substitute(sdl, { secrets: { TOKEN: "resolved" } });
 
       expect(errors).toEqual([]);
-      expect(sdl.services.web.env).toEqual(["TOKEN=web-value"]);
+      expect(sdl.services.web.env).toEqual(["TOKEN=resolved"]);
     });
 
-    it.each(["constructor", "__proto__", "toString", "hasOwnProperty"])("reports a missing namespace for the service name %j", serviceName => {
+    it.each(["constructor", "__proto__", "toString", "hasOwnProperty"])("reports a missing value for a service named %j", serviceName => {
       const { service } = setup();
       const sdl = yaml.raw<SDLInput>(sdlYaml(serviceYaml(serviceName, ["TOKEN=ac-secret://TOKEN"])));
 
@@ -260,16 +260,6 @@ describe(SdlReferenceService.name, () => {
 
       expect(error.message.length).toBeLessThan(300);
       expect(error.message).toContain(String(error.params.serviceName));
-    });
-
-    it.each([{ web: "supersecret" }, { web: ["item"] }])("reports a missing value for the non-object namespace %j", secrets => {
-      const { service } = setup();
-      const sdl = sdlWithEnv(["A=ac-secret://length"]);
-
-      const [error] = service.substitute(sdl, { secrets: secrets as unknown as NamespacedSdlSecrets });
-
-      expect(error.message).toContain("no value supplied");
-      expect(sdl.services.web.env).toEqual(["A=ac-secret://length"]);
     });
 
     it.each([42, null, { nested: true }, ["array"], true])("refuses a resolver's non-string value %j", resolved => {
@@ -313,7 +303,7 @@ describe(SdlReferenceService.name, () => {
       const [username, password] = [faker.string.alphanumeric(10), faker.internet.password()];
       const sdl = sdlWithCredentials({ username: "ac-secret://REG_USER", password: "ac-secret://REG_PASS" });
 
-      const errors = service.substitute(sdl, { secrets: { web: { REG_USER: username, REG_PASS: password } } });
+      const errors = service.substitute(sdl, { secrets: { REG_USER: username, REG_PASS: password } });
 
       expect(errors).toEqual([]);
       expect(sdl.services.web.credentials).toMatchObject({ username, password });
@@ -323,22 +313,21 @@ describe(SdlReferenceService.name, () => {
       const { service } = setup();
       const sdl = sdlWithCredentials({ password: "ac-secret://REG_PASS" });
 
-      service.substitute(sdl, { secrets: { web: { REG_PASS: faker.internet.password() } } });
+      service.substitute(sdl, { secrets: { REG_PASS: faker.internet.password() } });
 
       expect(sdl.services.web.credentials).toMatchObject({ host: "registry.example.test", email: "ops@example.test" });
     });
 
-    it("resolves a credential from its own service's namespace", () => {
+    it("resolves a credential in every service that references it", () => {
       const { service } = setup();
       const sdl = sdlWithCredentials({ password: "ac-secret://REG_PASS" }, { password: "ac-secret://REG_PASS" });
+      const password = faker.internet.password();
 
-      const [webPassword, workerPassword] = [faker.internet.password(), faker.internet.password()];
-
-      const errors = service.substitute(sdl, { secrets: { web: { REG_PASS: webPassword }, worker: { REG_PASS: workerPassword } } });
+      const errors = service.substitute(sdl, { secrets: { REG_PASS: password } });
 
       expect(errors).toEqual([]);
-      expect(sdl.services.web.credentials!.password).toBe(webPassword);
-      expect(sdl.services.worker.credentials!.password).toBe(workerPassword);
+      expect(sdl.services.web.credentials!.password).toBe(password);
+      expect(sdl.services.worker.credentials!.password).toBe(password);
     });
 
     it("quotes the reference of a credential it holds no value for, a reserved-prefix string being one no registry could accept anyway", () => {
@@ -366,7 +355,7 @@ describe(SdlReferenceService.name, () => {
       const password = `ac-dc-${faker.internet.password()}`;
       const sdl = sdlSharingOneCredentialsBlock("ac-secret://REG_PASS");
 
-      const errors = service.substitute(sdl, { secrets: { web: { REG_PASS: password }, worker: { REG_PASS: password } } });
+      const errors = service.substitute(sdl, { secrets: { REG_PASS: password } });
 
       expect(errors).toEqual([]);
       expect(sdl.services.web.credentials!.password).toBe(password);
@@ -378,7 +367,7 @@ describe(SdlReferenceService.name, () => {
       const value = `ac-dc-${faker.string.alphanumeric(16)}`;
       const sdl = sdlSharingOneEnvList("TOKEN=ac-secret://TOKEN");
 
-      const errors = service.substitute(sdl, { secrets: { web: { TOKEN: value }, worker: { TOKEN: value } } });
+      const errors = service.substitute(sdl, { secrets: { TOKEN: value } });
 
       expect(errors).toEqual([]);
       expect(sdl.services.web.env).toEqual([`TOKEN=${value}`]);
@@ -417,7 +406,7 @@ describe(SdlReferenceService.name, () => {
       const { service } = setup();
       const sdl = sdlWithEnv([`A=ac-secret://${name}`]);
 
-      const errors = service.substitute(sdl, { secrets: { web: { [name]: "resolved" } } });
+      const errors = service.substitute(sdl, { secrets: { [name]: "resolved" } });
 
       expect(errors).toEqual([]);
       expect(sdl.services.web.env).toEqual(["A=resolved"]);
@@ -427,7 +416,7 @@ describe(SdlReferenceService.name, () => {
       const { service } = setup();
       const reference = `ac-secret://${name}`;
 
-      const [error] = service.substitute(sdlWithEnv([`A=${reference}`]), { secrets: { web: { [name]: "resolved" } } });
+      const [error] = service.substitute(sdlWithEnv([`A=${reference}`]), { secrets: { [name]: "resolved" } });
 
       expect(error.message).toContain("reserved");
     });
@@ -435,7 +424,7 @@ describe(SdlReferenceService.name, () => {
     it.each(RESERVED_VALUES)("rejects the reserved value %j", value => {
       const { service } = setup();
 
-      const [error] = service.substitute(sdlWithEnv([`A=${value}`]), { secrets: { web: { X: "resolved", TOKEN: "resolved" } } });
+      const [error] = service.substitute(sdlWithEnv([`A=${value}`]), { secrets: { X: "resolved", TOKEN: "resolved" } });
 
       expect(error.message).toContain("reserved");
       expect(error.message).toContain(value);
@@ -454,7 +443,7 @@ describe(SdlReferenceService.name, () => {
       const { service } = setup();
       const sdl = sdlWithEnv(["UPPER=ac-secret://TOKEN", "LOWER=ac-secret://token"]);
 
-      service.substitute(sdl, { secrets: { web: { TOKEN: "upper", token: "lower" } } });
+      service.substitute(sdl, { secrets: { TOKEN: "upper", token: "lower" } });
 
       expect(sdl.services.web.env).toEqual(["UPPER=upper", "LOWER=lower"]);
     });
@@ -462,7 +451,7 @@ describe(SdlReferenceService.name, () => {
     it("reports a name whose case does not match the supplied one", () => {
       const { service } = setup();
 
-      const [error] = service.substitute(sdlWithEnv(["A=ac-secret://token"]), { secrets: { web: { TOKEN: "resolved" } } });
+      const [error] = service.substitute(sdlWithEnv(["A=ac-secret://token"]), { secrets: { TOKEN: "resolved" } });
 
       expect(error.message).toContain("ac-secret://token");
     });

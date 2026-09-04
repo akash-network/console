@@ -4,7 +4,7 @@ import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { jsonEncodedBytes } from "@src/deployment/config/sdl-secrets.config";
-import type { NamespacedSdlSecrets, SdlReferenceDeclaration } from "@src/deployment/services/sdl-reference/sdl-reference.service";
+import type { SdlReferenceDeclaration } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import {
   MAX_ECHOED_REFERENCE_LENGTH,
   MAX_SDL_REFERENCE_NAME_LENGTH,
@@ -20,16 +20,10 @@ import { DeploymentConfigService } from "../deployment-config/deployment-config.
 /** The kind of SDL Reference a sealed payload answers. Other kinds resolve from elsewhere and are none of this service's business. */
 const SECRET_REFERENCE_KIND = "secret";
 
-export interface ReceivedSdlSecrets {
-  /** What the client sealed, unchanged, because this is what gets re-sealed for storage: one flat name-to-value map per deployment. */
-  supplied: SdlSecrets;
-  /** The same values indexed by the service that referenced them, which is the shape resolution reads. */
-  byService: NamespacedSdlSecrets;
-}
+/** What the client sealed, unchanged: the one flat name-to-value map a deployment has, which is both what resolution reads and what gets re-sealed for storage. */
+export type ReceiveSdlSecretsResult = { ok: true; value: SdlSecrets } | { ok: false; value: ValidationError[] };
 
-export type ReceiveSdlSecretsResult = { ok: true; value: ReceivedSdlSecrets } | { ok: false; value: ValidationError[] };
-
-const NOTHING_SUPPLIED: ReceivedSdlSecrets = { supplied: {}, byService: {} };
+const NOTHING_SUPPLIED: SdlSecrets = {};
 
 function unreferencedNameError(name: string): ValidationError {
   const echoed = name.slice(0, MAX_ECHOED_REFERENCE_LENGTH);
@@ -69,7 +63,7 @@ export class SdlSecretsService {
     const supplied = await this.unsealerService.open({ seal: input.sealedSecrets, sdl: input.rawSdl });
     this.#assertWithinLimits(supplied);
 
-    const { byService, errors } = this.#assignToServices(declarations, supplied);
+    const errors = this.#mismatchesBetween(declarations, supplied);
 
     if (errors.length > 0) return { ok: false, value: errors };
 
@@ -77,10 +71,10 @@ export class SdlSecretsService {
       event: "SDL_SECRETS_RECEIVED",
       suppliedCount: Object.keys(supplied).length,
       referencedNames: [...new Set(declarations.map(declaration => declaration.name))],
-      serviceCount: Object.keys(byService).length
+      serviceCount: new Set(declarations.map(declaration => declaration.serviceName)).size
     });
 
-    return { ok: true, value: { supplied, byService } };
+    return { ok: true, value: supplied };
   }
 
   /** Returns null when nothing was supplied, so a create always has a value to write and a retry cannot inherit an abandoned attempt's token. */
@@ -96,30 +90,25 @@ export class SdlSecretsService {
     return sealed;
   }
 
-  /** Namespaces are built from the walk rather than by copying everything to every service, so a service that references nothing is handed nothing. */
-  #assignToServices(declarations: SdlReferenceDeclaration[], supplied: SdlSecrets) {
-    const byService: NamespacedSdlSecrets = Object.create(null);
+  /** Both directions are reported from one pass, so a request that gets each side wrong hears about both at once. */
+  #mismatchesBetween(declarations: SdlReferenceDeclaration[], supplied: SdlSecrets): ValidationError[] {
     const errors: ValidationError[] = [];
     const referenced = new Set<string>();
 
     for (const declaration of declarations) {
-      const value = ownValue(supplied, declaration.name);
-
-      if (typeof value !== "string") {
-        errors.push(missingSdlReferenceValueError(declaration));
+      if (typeof ownValue(supplied, declaration.name) === "string") {
+        referenced.add(declaration.name);
         continue;
       }
 
-      const namespace = (byService[declaration.serviceName] ??= Object.create(null) as SdlSecrets);
-      namespace[declaration.name] = value;
-      referenced.add(declaration.name);
+      errors.push(missingSdlReferenceValueError(declaration));
     }
 
     for (const name of Object.keys(supplied)) {
       if (!referenced.has(name)) errors.push(unreferencedNameError(name));
     }
 
-    return { byService, errors };
+    return errors;
   }
 
   /** Every bound is measured as `jsonEncodedBytes`, matching the seal budget, because a raw-length check would let a payload pass here and die on the body limit. */
