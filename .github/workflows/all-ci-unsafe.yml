@@ -54,13 +54,22 @@ jobs:
 
       - name: Decide whether to run scan
         id: decide
-        run: | # shell
+        env:
+          PR_NUMBER: ${{ steps.associated_pr.outputs.number }}
+        run: |
           # A cancelled CI run is superseded by a newer one whose own scan reports this commit's verdict;
           # reporting here as well would race that scan for the same check name on the same commit.
           if [ "${PARENT_WORKFLOW_CONCLUSION}" == "cancelled" ]; then
             echo "run_scan=false" >> "$GITHUB_OUTPUT"
             echo "report_check=false" >> "$GITHUB_OUTPUT"
             echo "skip_reason=Upstream CI was cancelled, so the superseding CI run reports instead" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${PR_NUMBER}" == "" ]; then
+            echo "run_scan=false" >> "$GITHUB_OUTPUT"
+            echo "report_check=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=PR head changed because of rebase/force push and associated PR cannot be found" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
