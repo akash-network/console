@@ -124,6 +124,19 @@ describe(MarketplaceProvidersTable.name, () => {
     expect(screen.queryByRole("button", { name: /clear search/i })).not.toBeInTheDocument();
   });
 
+  it("shows a caller-supplied empty message in place of the plain one", () => {
+    setup({ providers: [], isSearchActive: false, emptyMessage: "No providers currently offer arm64 hardware for this configuration." });
+
+    expect(screen.getByText("No providers currently offer arm64 hardware for this configuration.")).toBeInTheDocument();
+    expect(screen.queryByText("No providers found.")).not.toBeInTheDocument();
+  });
+
+  it("keeps the search empty state when a search is active, even with an empty message supplied", () => {
+    setup({ providers: [], isSearchActive: true, emptyMessage: "No providers currently offer arm64 hardware for this configuration." });
+
+    expect(screen.getByText("No providers match your search.")).toBeInTheDocument();
+  });
+
   it("omits the clear action in the search empty state when no clear handler is provided", () => {
     setup({ providers: [], isSearchActive: true });
 
@@ -338,6 +351,7 @@ describe(MarketplaceProvidersTable.name, () => {
     isSelectable?: boolean;
     gpuCount?: number;
     showProviderLink?: boolean;
+    emptyMessage?: string;
   }) {
     const onSelect = vi.fn();
     const user = userEvent.setup();
@@ -355,6 +369,7 @@ describe(MarketplaceProvidersTable.name, () => {
               isSelectable={input.isSelectable}
               gpuCount={input.gpuCount}
               showProviderLink={input.showProviderLink ?? true}
+              emptyMessage={input.emptyMessage}
             />
           </TooltipProvider>
         </IntlProvider>

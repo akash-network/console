@@ -141,7 +141,8 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
     sdl.profiles.compute[service.title] = {
       resources: {
         cpu: {
-          units: service.profile.cpu
+          units: service.profile.cpu,
+          ...(service.profile.arch ? { attributes: { arch: service.profile.arch } } : {})
         },
         memory: {
           size: `${service.profile.ram}${service.profile.ramUnit}`

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { defaultService, defaultServiceWithPlacement } from "@src/utils/sdl/data";
-import { useDeploymentGpuCount, useDeploymentHasGpu } from "./useDeploymentResourceSummary";
+import { useDeploymentCpuArch, useDeploymentGpuCount, useDeploymentHasGpu } from "./useDeploymentResourceSummary";
 
 import { renderHook } from "@testing-library/react";
 
@@ -81,5 +81,42 @@ describe(useDeploymentHasGpu.name, () => {
     };
 
     return renderHook(() => useDeploymentHasGpu(), { wrapper: Wrapper });
+  }
+});
+
+describe(useDeploymentCpuArch.name, () => {
+  it("returns the architecture a service requests", () => {
+    const { result } = setup({ arch: "arm64" });
+
+    expect(result.current).toBe("arm64");
+  });
+
+  it("returns undefined when no service requests an architecture", () => {
+    const { result } = setup({});
+
+    expect(result.current).toBeUndefined();
+  });
+
+  it("ignores a service in another placement", () => {
+    const { result } = setup({ arch: "arm64", placementId: "other-placement", scopeTo: "placement-1" });
+
+    expect(result.current).toBeUndefined();
+  });
+
+  function setup(input: { arch?: "amd64" | "arm64"; placementId?: string; scopeTo?: string }) {
+    const base = defaultServiceWithPlacement({ image: "nginx:latest" });
+    const values = {
+      ...base,
+      services: base.services.map((service, index) =>
+        index === 0 ? { ...service, placementId: input.placementId ?? service.placementId, profile: { ...service.profile, arch: input.arch } } : service
+      )
+    };
+
+    const Wrapper = ({ children }: PropsWithChildren) => {
+      const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values });
+      return <FormProvider {...form}>{children}</FormProvider>;
+    };
+
+    return renderHook(() => useDeploymentCpuArch(input.scopeTo), { wrapper: Wrapper });
   }
 });

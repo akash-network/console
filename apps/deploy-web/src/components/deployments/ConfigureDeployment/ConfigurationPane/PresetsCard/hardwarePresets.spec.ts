@@ -107,6 +107,14 @@ describe(applyPresetToProfile.name, () => {
     expect(result.storage[1]).toMatchObject({ name: "data", isPersistent: true });
   });
 
+  it("leaves a chosen CPU architecture alone, since a preset sizes hardware rather than picking it", () => {
+    const base = { ...defaultService("p").profile, arch: "arm64" as const };
+
+    const result = applyPresetToProfile(base, compute);
+
+    expect(result.arch).toBe("arm64");
+  });
+
   it("round-trips through detectPreset", () => {
     const result = applyPresetToProfile(defaultService("p").profile, DEFAULT_HARDWARE_PRESET);
 

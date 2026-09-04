@@ -634,3 +634,73 @@ describe("importSimpleSdl reclamation", () => {
     expect(parsed.reclamation).toEqual({ min_window: minWindow });
   });
 });
+
+describe("importSimpleSdl cpu architecture", () => {
+  it("imports the architecture an SDL requests", () => {
+    const services = importSimpleSdl(archSdl("arm64"));
+
+    expect(services.services[0].profile.arch).toBe("arm64");
+  });
+
+  it("leaves the architecture unset when the SDL declares no cpu attributes", () => {
+    const services = importSimpleSdl(archSdl(undefined));
+
+    expect(services.services[0].profile.arch).toBeUndefined();
+  });
+
+  it.each(["amd64", "arm64"] as const)("round-trips an explicit %s without changing it", arch => {
+    const regenerated = generateSdl(importSimpleSdl(archSdl(arch)));
+    const parsed = yaml.load(regenerated) as { profiles: { compute: Record<string, { resources: { cpu: { attributes?: { arch: string } } } }> } };
+
+    expect(parsed.profiles.compute.web.resources.cpu.attributes).toEqual({ arch });
+  });
+
+  it("writes no cpu attributes when round-tripping an SDL that declared none", () => {
+    const regenerated = generateSdl(importSimpleSdl(archSdl(undefined)));
+    const parsed = yaml.load(regenerated) as { profiles: { compute: Record<string, { resources: { cpu: { attributes?: { arch: string } } } }> } };
+
+    expect(parsed.profiles.compute.web.resources.cpu).not.toHaveProperty("attributes");
+  });
+
+  it("rejects an architecture no provider could serve", () => {
+    expect(() => importSimpleSdl(archSdl("sparc64"))).toThrow('Unsupported CPU architecture "sparc64"');
+  });
+
+  function archSdl(arch: string | undefined): string {
+    const cpuAttributes = arch ? ["          attributes:", `            arch: ${arch}`] : [];
+    return [
+      "---",
+      'version: "2.0"',
+      "services:",
+      "  web:",
+      "    image: nginx",
+      "    expose:",
+      "      - port: 80",
+      "        to:",
+      "          - global: true",
+      "profiles:",
+      "  compute:",
+      "    web:",
+      "      resources:",
+      "        cpu:",
+      "          units: 0.5",
+      ...cpuAttributes,
+      "        memory:",
+      "          size: 512Mi",
+      "        storage:",
+      "          - size: 512Mi",
+      "  placement:",
+      "    dcloud:",
+      "      pricing:",
+      "        web:",
+      "          denom: uakt",
+      "          amount: 1000",
+      "deployment:",
+      "  web:",
+      "    dcloud:",
+      "      profile: web",
+      "      count: 1",
+      ""
+    ].join("\n");
+  }
+});

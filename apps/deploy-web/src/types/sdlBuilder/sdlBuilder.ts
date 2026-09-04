@@ -234,9 +234,14 @@ export const CredentialsSchema = z
   })
   .optional();
 
+/** The architectures an SDL may ask for. Omitting the attribute is a third state, and the only one that writes nothing. */
+export const CPU_ARCHITECTURES = ["amd64", "arm64"] as const;
+
 export const ProfileSchema = z
   .object({
     cpu: z.number({ invalid_type_error: "CPU count is required." }).min(0.1, { message: "Minimum amount of CPU for a single service instance is 0.1." }),
+    /** Requested CPU architecture. Undefined writes no `arch` attribute at all, which is what every pre-arm64 deployment has. */
+    arch: z.enum(CPU_ARCHITECTURES).optional(),
     hasGpu: z.boolean().optional(),
     gpu: z.number({ invalid_type_error: "GPU amount is required." }).optional(),
     gpuModels: z.array(ProfileGpuModelSchema).optional(),
@@ -691,6 +696,7 @@ export const SdlBuilderFormValuesSchema = z
 export type ServiceType = z.infer<typeof ServiceSchema>;
 export type SdlBuilderFormValuesType = z.infer<typeof SdlBuilderFormValuesSchema>;
 export type ProfileGpuModelType = z.infer<typeof ProfileGpuModelSchema>;
+export type CpuArchType = (typeof CPU_ARCHITECTURES)[number];
 export type EnvironmentVariableType = z.infer<typeof EnvironmentVariableSchema>;
 export type AcceptType = z.infer<typeof AcceptSchema>;
 export type PlacementAttributeType = z.infer<typeof PlacementAttributeSchema>;

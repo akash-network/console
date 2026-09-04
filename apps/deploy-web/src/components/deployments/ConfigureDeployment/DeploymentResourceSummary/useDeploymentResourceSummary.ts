@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 
-import type { SdlBuilderFormValuesType } from "@src/types";
+import type { CpuArchType, SdlBuilderFormValuesType } from "@src/types";
 import { aggregateDeploymentResources, formatDeploymentResources } from "./deploymentResources";
 
 /** Returns the live "Your deployment" resource summary string derived from the current form spec. */
@@ -33,4 +33,18 @@ export function useDeploymentGpuCount(placementId?: string): number {
  */
 export function useDeploymentHasGpu(): boolean {
   return useDeploymentGpuCount() > 0;
+}
+
+/**
+ * The CPU architecture the viewed placement asks for, or undefined when it asks for none. Only an explicitly
+ * requested architecture is reported: a spec that writes no `arch` attribute is served by every provider, so
+ * naming an architecture in the marketplace's empty state would be inventing a constraint the user never set.
+ */
+export function useDeploymentCpuArch(placementId?: string): CpuArchType | undefined {
+  const { control } = useFormContext<SdlBuilderFormValuesType>();
+  const services = useWatch({ control, name: "services" });
+  return useMemo(() => {
+    const scoped = placementId ? (services ?? []).filter(service => service.placementId === placementId) : services ?? [];
+    return scoped.find(service => service.profile?.arch)?.profile?.arch;
+  }, [services, placementId]);
 }

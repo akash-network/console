@@ -4,6 +4,7 @@ import {
   CredentialsSchema,
   EndpointSchema,
   EnvironmentVariableSchema,
+  ProfileSchema,
   SdlBuilderFormValuesSchema,
   ServiceExposeHTTPProxySchema,
   ServiceSchema,
@@ -602,4 +603,31 @@ describe("EndpointSchema", () => {
     const result = EndpointSchema.safeParse({ id: "e-1", name: "endpoint-1" });
     expect(result.success).toBe(true);
   });
+});
+
+describe("ProfileSchema cpu architecture", () => {
+  it.each(["amd64", "arm64"])("accepts %s", arch => {
+    expect(ProfileSchema.safeParse(buildProfile(arch)).success).toBe(true);
+  });
+
+  it("accepts a profile that names no architecture", () => {
+    expect(ProfileSchema.safeParse(buildProfile(undefined)).success).toBe(true);
+  });
+
+  it("rejects an architecture outside the SDL enum", () => {
+    const result = ProfileSchema.safeParse(buildProfile("sparc64"));
+
+    expect(result.success).toBe(false);
+    expect((result as { error: { issues: { path: (string | number)[] }[] } }).error.issues).toContainEqual(expect.objectContaining({ path: ["arch"] }));
+  });
+
+  function buildProfile(arch: string | undefined) {
+    return {
+      cpu: 0.5,
+      ...(arch === undefined ? {} : { arch }),
+      ram: 512,
+      ramUnit: "Mi",
+      storage: [{ size: 512, unit: "Mi", isPersistent: false }]
+    };
+  }
 });

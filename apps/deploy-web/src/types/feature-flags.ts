@@ -9,4 +9,5 @@ export type FeatureFlag =
   | "ui_agent_mode_deploy"
   | "hackathons"
   | "deployment_runtime_limit"
-  | "ui_sdl_proxy_http_options";
+  | "ui_sdl_proxy_http_options"
+  | "ui_sdl_cpu_arch";
