@@ -13,7 +13,7 @@ describe(GpuService.name, () => {
   describe("getGpuModels", () => {
     it("fetches the provider-config catalog and returns the formatted vendor list", async () => {
       const { service, httpClient } = setup({
-        "10de": { name: "nvidia", devices: { d1: { name: "rtx4090", memory_size: "24Gi", interface: "PCIe" } } }
+        catalog: { "10de": { name: "nvidia", devices: { d1: { name: "rtx4090", memory_size: "24Gi", interface: "PCIe" } } } }
       });
 
       const [vendor] = await service.getGpuModels();
@@ -24,14 +24,38 @@ describe(GpuService.name, () => {
     });
   });
 
-  function setup(catalog: ProviderConfigGpusType) {
+  describe("getGpuBreakdown", () => {
+    it("serves a repeated query from cache", async () => {
+      const { service, gpuRepository } = setup();
+      gpuRepository.getGpuBreakdown.mockResolvedValue([]);
+
+      await service.getGpuBreakdown({ vendor: "nvidia" });
+      await service.getGpuBreakdown({ vendor: "nvidia" });
+
+      expect(gpuRepository.getGpuBreakdown).toHaveBeenCalledTimes(1);
+    });
+
+    it("fetches fresh results when the filters differ", async () => {
+      const { service, gpuRepository } = setup();
+      gpuRepository.getGpuBreakdown.mockResolvedValue([]);
+
+      await service.getGpuBreakdown({});
+      await service.getGpuBreakdown({ vendor: "nvidia" });
+      await service.getGpuBreakdown({ model: "nvidia" });
+
+      expect(gpuRepository.getGpuBreakdown).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  function setup(input?: { catalog?: ProviderConfigGpusType }) {
     cacheEngine.clearAllKeyInCache();
     const httpClient = mock<HttpClient>();
     const response = mock<AxiosResponse<ProviderConfigGpusType>>();
-    response.data = catalog;
+    response.data = input?.catalog ?? {};
     httpClient.get.mockResolvedValue(response);
 
-    const service = new GpuService(mock<GpuRepository>(), new GpuFormattingService(), httpClient);
-    return { service, httpClient };
+    const gpuRepository = mock<GpuRepository>();
+    const service = new GpuService(gpuRepository, new GpuFormattingService(), httpClient);
+    return { service, httpClient, gpuRepository };
   }
 });

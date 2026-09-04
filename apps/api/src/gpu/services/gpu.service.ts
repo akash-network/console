@@ -2,7 +2,7 @@ import type { HttpClient } from "@akashnetwork/http-sdk";
 import { minutesToSeconds } from "date-fns";
 import { inject, singleton } from "tsyringe";
 
-import { Memoize } from "@src/caching/helpers";
+import { Memoize, memoizeAsync } from "@src/caching/helpers";
 import type { ProviderConfigGpusType } from "@src/types/gpu";
 import { type GpuBreakdownQuery } from "../http-schemas/gpu.schema";
 import { GPU_MODELS_HTTP_CLIENT } from "../providers/gpu-models-client.provider";
@@ -87,8 +87,9 @@ export class GpuService {
     return this.gpuFormattingService.mapProviderConfig(response.data);
   }
 
-  @Memoize({ ttlInSeconds: minutesToSeconds(5) })
-  async getGpuBreakdown(query: GpuBreakdownQuery) {
-    return await this.gpuRepository.getGpuBreakdown(query);
-  }
+  readonly getGpuBreakdown = memoizeAsync((query: GpuBreakdownQuery) => this.gpuRepository.getGpuBreakdown(query), {
+    cacheItemLimit: 500,
+    ttl: minutesToSeconds(5) * 1000,
+    getCacheKey: query => [query.vendor, query.model].join("#")
+  });
 }
