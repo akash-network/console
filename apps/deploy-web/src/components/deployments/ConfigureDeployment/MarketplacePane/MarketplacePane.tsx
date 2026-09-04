@@ -83,7 +83,7 @@ export const MarketplacePane: FC<Props> = ({
             isSelectable={phase === "quoting"}
             gpuCount={gpuCount}
             showProviderLink={showProviderLink}
-            emptyMessage={requestedCpuArch ? `No providers currently offer ${requestedCpuArch} hardware for this configuration.` : undefined}
+            emptyMessage={requestedCpuArch ? `No ${requestedCpuArch} providers matched this configuration.` : undefined}
           />
         )}
       </div>

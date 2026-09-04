@@ -125,14 +125,14 @@ describe(MarketplaceProvidersTable.name, () => {
   });
 
   it("shows a caller-supplied empty message in place of the plain one", () => {
-    setup({ providers: [], isSearchActive: false, emptyMessage: "No providers currently offer arm64 hardware for this configuration." });
+    setup({ providers: [], isSearchActive: false, emptyMessage: "No arm64 providers matched this configuration." });
 
-    expect(screen.getByText("No providers currently offer arm64 hardware for this configuration.")).toBeInTheDocument();
+    expect(screen.getByText("No arm64 providers matched this configuration.")).toBeInTheDocument();
     expect(screen.queryByText("No providers found.")).not.toBeInTheDocument();
   });
 
   it("keeps the search empty state when a search is active, even with an empty message supplied", () => {
-    setup({ providers: [], isSearchActive: true, emptyMessage: "No providers currently offer arm64 hardware for this configuration." });
+    setup({ providers: [], isSearchActive: true, emptyMessage: "No arm64 providers matched this configuration." });
 
     expect(screen.getByText("No providers match your search.")).toBeInTheDocument();
   });

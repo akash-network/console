@@ -36,15 +36,17 @@ export function useDeploymentHasGpu(): boolean {
 }
 
 /**
- * The CPU architecture the viewed placement asks for, or undefined when it asks for none. Only an explicitly
- * requested architecture is reported: a spec that writes no `arch` attribute is served by every provider, so
- * naming an architecture in the marketplace's empty state would be inventing a constraint the user never set.
+ * The one CPU architecture the viewed placement asks for, or undefined when it asks for none or for several.
+ * Only an explicitly requested architecture is reported: a spec that writes no `arch` attribute is served by
+ * every provider, so naming an architecture in the marketplace's empty state would be inventing a constraint
+ * the user never set, and a placement whose services disagree has no single architecture to name.
  */
 export function useDeploymentCpuArch(placementId?: string): CpuArchType | undefined {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const services = useWatch({ control, name: "services" });
   return useMemo(() => {
     const scoped = placementId ? (services ?? []).filter(service => service.placementId === placementId) : services ?? [];
-    return scoped.find(service => service.profile?.arch)?.profile?.arch;
+    const requested = new Set(scoped.flatMap(service => service.profile?.arch ?? []));
+    return requested.size === 1 ? [...requested][0] : undefined;
   }, [services, placementId]);
 }

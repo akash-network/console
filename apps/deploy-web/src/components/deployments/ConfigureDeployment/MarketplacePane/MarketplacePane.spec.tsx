@@ -120,7 +120,7 @@ describe(MarketplacePane.name, () => {
     const { MarketplaceProvidersTable } = setup({ requestedCpuArch: "arm64" });
 
     expect(MarketplaceProvidersTable).toHaveBeenCalledWith(
-      expect.objectContaining({ emptyMessage: "No providers currently offer arm64 hardware for this configuration." }),
+      expect.objectContaining({ emptyMessage: "No arm64 providers matched this configuration." }),
       expect.anything()
     );
   });
