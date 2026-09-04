@@ -91,6 +91,13 @@ describe(renderEmailLayout.name, () => {
     expect(html).toContain('class="btn-cell"');
   });
 
+  it("repeats the button padding on the cell so Outlook keeps the button shape", () => {
+    const { html } = setup({ actions: [{ label: "Add credits", url: "https://console.akash.network/billing" }] });
+
+    expect(html).toContain("mso-padding-alt:12px 24px;");
+    expect(html).toContain("padding:12px 24px;");
+  });
+
   it("renders the footer", () => {
     const { html } = setup({});
     expect(html).toContain("Sent by Akash Console. You're receiving this because you have an Akash Console account.");

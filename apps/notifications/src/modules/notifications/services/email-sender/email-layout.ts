@@ -2,6 +2,7 @@ import escape from "lodash/escape";
 
 const LOGO_LIGHT_URL = "https://console-cdn.akash.network/akashconsole-logo.png";
 const LOGO_DARK_URL = "https://console-cdn.akash.network/akashconsole-logo-dark.png";
+const BUTTON_PADDING = "12px 24px";
 
 export interface EmailAction {
   label: string;
@@ -17,6 +18,7 @@ function isHttpUrl(url: string): boolean {
   }
 }
 
+/** Outlook renders through Word, which drops padding on an inline <a>, so the cell repeats it as mso-padding-alt. */
 function renderAction({ label, url }: EmailAction, isPrimary: boolean, isLast: boolean): string {
   const buttonClass = isPrimary ? "btn-primary" : "btn-secondary";
   const fill = isPrimary ? "background-color:#171717;" : "background-color:#ffffff;border:1px solid #171717;";
@@ -25,8 +27,8 @@ function renderAction({ label, url }: EmailAction, isPrimary: boolean, isLast: b
 
   return `<td class="btn-cell" style="${gutter}">
                 <table role="presentation" cellpadding="0" cellspacing="0" class="btn-wrap">
-                  <tr><td class="${buttonClass}" style="${fill}border-radius:8px;">
-                    <a href="${escape(url)}" class="btn-link ${buttonClass}-text" style="display:inline-block;padding:12px 24px;font-size:14px;font-weight:500;line-height:1.2;color:${textColor};text-decoration:none;">${escape(label)}</a>
+                  <tr><td class="${buttonClass}" style="${fill}border-radius:8px;mso-padding-alt:${BUTTON_PADDING};">
+                    <a href="${escape(url)}" class="btn-link ${buttonClass}-text" style="display:inline-block;padding:${BUTTON_PADDING};font-size:14px;font-weight:500;line-height:1.2;color:${textColor};text-decoration:none;">${escape(label)}</a>
                   </td></tr>
                 </table>
               </td>`;
