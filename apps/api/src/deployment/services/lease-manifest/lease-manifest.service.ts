@@ -44,7 +44,7 @@ export class LeaseManifestService {
       return this.#fallBack({ userId, dseq, reason: "nothing-recorded" });
     }
 
-    const secrets = definition.sealedSecrets ? await this.sdlSecretsService.openStored({ userId, dseq, sealedSecrets: definition.sealedSecrets }) : {};
+    const secrets = definition.sealedSecrets ? await this.#openStored(definition.sealedSecrets, { userId, dseq }) : {};
 
     const resolved = await this.sdlService.generateResolvedManifest({ sdl: definition.sdl, secrets });
 
@@ -90,9 +90,18 @@ export class LeaseManifestService {
     return null;
   }
 
-  #refuse(key: { userId: string; dseq: string }) {
+  async #openStored(sealedSecrets: string, key: { userId: string; dseq: string }) {
+    try {
+      return await this.sdlSecretsService.openStored({ ...key, sealedSecrets });
+    } catch (error) {
+      throw this.#refuse(key, error);
+    }
+  }
+
+  /** Keeps an opening failure's own error, so a key service that is merely unreachable still answers 503 rather than reading as a definition that cannot be derived. */
+  #refuse(key: { userId: string; dseq: string }, cause?: unknown) {
     this.#loggerService.error({ event: "LEASE_MANIFEST_UNRESOLVABLE", ...key });
 
-    return createError(500, UNDERIVABLE_ERROR_MESSAGE);
+    return cause ?? createError(500, UNDERIVABLE_ERROR_MESSAGE);
   }
 }

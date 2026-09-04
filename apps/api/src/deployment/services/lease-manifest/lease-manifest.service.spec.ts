@@ -293,6 +293,14 @@ describe(LeaseManifestService.name, () => {
       await expect(service.deriveFor({ dseq: DSEQ })).rejects.toBe(unreadable);
     });
 
+    it("logs a token it cannot open as the lease failure it is, not only as the cipher's", async () => {
+      const { service, sdlSecretsService, logger } = setup({ definition: { sdl: sdlWith(["API_TOKEN=ac-secret://API_TOKEN"]), sealedSecrets: "tampered" } });
+      sdlSecretsService.openStored.mockRejectedValue(Object.assign(new Error("Unable to read the stored value"), { status: 500 }));
+
+      await expect(service.deriveFor({ dseq: DSEQ })).rejects.toThrow();
+      expect(logger.error).toHaveBeenCalledWith({ event: "LEASE_MANIFEST_UNRESOLVABLE", userId: USER_ID, dseq: DSEQ });
+    });
+
     it("writes nothing to the row it read, whatever the derivation makes of it", async () => {
       const { service, deploymentSettingRepository } = setup({ definition: { sdl: sdlWith(["API_TOKEN=ac-secret://API_TOKEN"]), sealedSecrets: null } });
 
