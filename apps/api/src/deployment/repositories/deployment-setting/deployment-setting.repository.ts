@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { UserWallets, WalletSetting } from "@src/billing/model-schemas";
@@ -38,6 +38,12 @@ export type ExpiringRuntimeDeployment = {
   runtimeEndsAt: Date;
   /** The deadline as stored, in text, so a claim can match it without losing the sub-millisecond digits a `Date` drops. */
   runtimeEndsAtMarker: string;
+};
+
+export type OpenDeployment = {
+  id: string;
+  dseq: string;
+  address: string;
 };
 
 export type AutoTopUpDeployment = {
@@ -105,6 +111,42 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
 
   findAutoTopUpDeploymentsByOwner(address: string): Promise<AutoTopUpDeployment[]> {
     return this.#findAutoTopUpDeployments(address);
+  }
+
+  /**
+   * Every row still marked open, whatever its owner chose about funding, because a deployment closes on chain
+   * for reasons that have nothing to do with whether Console was funding it. Keyset-paged on `id`, the leading
+   * column of `id_auto_top_up_enabled_closed_idx`, so each batch is an index scan rather than a growing offset.
+   */
+  async *findOpenDeploymentsIteratively({ batchSize }: { batchSize: number }): AsyncGenerator<OpenDeployment[]> {
+    let cursor: string | undefined;
+
+    while (true) {
+      const batch = await this.pg
+        .select({
+          id: this.table.id,
+          dseq: this.table.dseq,
+          address: UserWallets.address
+        })
+        .from(this.table)
+        .innerJoin(Users, eq(this.table.userId, Users.id))
+        .innerJoin(UserWallets, eq(Users.id, UserWallets.userId))
+        .where(and(eq(this.table.closed, false), isNotNull(UserWallets.address), ...(cursor ? [gt(this.table.id, cursor)] : [])))
+        .orderBy(asc(this.table.id))
+        .limit(batchSize);
+
+      if (!batch.length) {
+        return;
+      }
+
+      yield batch as OpenDeployment[];
+
+      if (batch.length < batchSize) {
+        return;
+      }
+
+      cursor = batch[batch.length - 1].id;
+    }
   }
 
   async #findAutoTopUpDeployments(address?: string): Promise<AutoTopUpDeployment[]> {

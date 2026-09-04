@@ -692,6 +692,73 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("findOpenDeploymentsIteratively", () => {
+    it("yields an open deployment whose owner turned funding off, which the funding sweep never reaches", async () => {
+      const { deploymentSettingRepository, user, wallet, findOpenDeployments } = await setup();
+      const fundingOff = await deploymentSettingRepository.create({ userId: user.id, dseq: newDseq(), autoTopUpEnabled: false });
+
+      const open = await findOpenDeployments([wallet.address]);
+
+      expect(open.map(deployment => deployment.id)).toContain(fundingOff.id);
+    });
+
+    it("reports the owner address and dseq a chain lookup needs", async () => {
+      const { deploymentSettingRepository, settingId, wallet, findOpenDeployments } = await setup();
+      const setting = await deploymentSettingRepository.findById(settingId);
+
+      const open = await findOpenDeployments([wallet.address]);
+
+      expect(open).toContainEqual({ id: settingId, dseq: setting!.dseq, address: wallet.address });
+    });
+
+    it("passes over a deployment already marked closed", async () => {
+      const { deploymentSettingRepository, settingId, wallet, findOpenDeployments } = await setup();
+      await deploymentSettingRepository.markAsClosed([settingId]);
+
+      const open = await findOpenDeployments([wallet.address]);
+
+      expect(open.map(deployment => deployment.id)).not.toContain(settingId);
+    });
+
+    it("passes over a deployment whose wallet has no address yet, since there is nothing to look up", async () => {
+      const { deploymentSettingRepository, userRepository, db, userWalletsTable, findOpenDeployments } = await setup();
+      const walletlessUser = await userRepository.create({ userId: faker.string.uuid() });
+      await db.insert(userWalletsTable).values({ userId: walletlessUser.id, deploymentAllowance: "0", feeAllowance: "0", isTrialing: false });
+      const setting = await deploymentSettingRepository.create({ userId: walletlessUser.id, dseq: newDseq(), autoTopUpEnabled: true });
+
+      const open = await findOpenDeployments();
+
+      expect(open.map(deployment => deployment.id)).not.toContain(setting.id);
+    });
+
+    it("pages every open deployment exactly once when the batch is smaller than the set", async () => {
+      const { createSetting, wallet, findOpenDeployments } = await setup();
+      await createSetting();
+      await createSetting();
+      await createSetting();
+
+      const oneAtATime = await findOpenDeployments([wallet.address], 1);
+      const allAtOnce = await findOpenDeployments([wallet.address], 1000);
+
+      expect(allAtOnce).toHaveLength(4);
+      expect(oneAtATime.map(deployment => deployment.id).sort()).toEqual(allAtOnce.map(deployment => deployment.id).sort());
+    });
+
+    it("yields batches no larger than the size asked for", async () => {
+      const { deploymentSettingRepository, createSetting } = await setup();
+      await createSetting();
+      await createSetting();
+      await createSetting();
+      const sizes: number[] = [];
+
+      for await (const batch of deploymentSettingRepository.findOpenDeploymentsIteratively({ batchSize: 2 })) {
+        sizes.push(batch.length);
+      }
+
+      expect(Math.max(...sizes)).toBeLessThanOrEqual(2);
+    });
+  });
+
   describe("createDefaultIfMissing", () => {
     it("records a deployment nothing had recorded yet, with funding on", async () => {
       const { deploymentSettingRepository, user } = await setup();
@@ -766,6 +833,16 @@ describe(DeploymentSettingRepository.name, () => {
       return setting.id;
     }
 
+    async function findOpenDeployments(addresses?: string[], batchSize = 1000) {
+      const open = [];
+
+      for await (const batch of deploymentSettingRepository.findOpenDeploymentsIteratively({ batchSize })) {
+        open.push(...batch.filter(deployment => !addresses || addresses.includes(deployment.address)));
+      }
+
+      return open;
+    }
+
     async function findAutoTopUpOwners(addresses: string[]) {
       const owners = [];
 
@@ -829,6 +906,7 @@ describe(DeploymentSettingRepository.name, () => {
       deploymentSettingRepository,
       db,
       deploymentSettingsTable,
+      userWalletsTable,
       user,
       trialUser,
       wallet,
@@ -841,6 +919,7 @@ describe(DeploymentSettingRepository.name, () => {
       createLimitedSetting,
       createAnchoredSetting,
       findAutoTopUpOwners,
+      findOpenDeployments,
       backdateLastFundedAt,
       readClosed
     };
