@@ -3,6 +3,7 @@ import type { ResolvedValue } from "@src/notifications/services/notification-dat
 import type { UserOutput } from "@src/user/repositories";
 import type { CreateNotificationInput } from "../notification/notification.service";
 import { firstPurchaseBonusSentence } from "./first-purchase-bonus-offer";
+import { linkedActions } from "./notification-actions";
 
 export function trialDeploymentClosedNotification(
   user: UserOutput,
@@ -21,7 +22,7 @@ export function trialDeploymentClosedNotification(
       description:
         `Your trial deployment (dseq: ${vars.dseq}) has been closed by the system after reaching the ${vars.deploymentLifetimeInHours}-hour limit. To keep your deployment running, please add a payment method and top up your account.` +
         firstPurchaseBonusSentence(vars.firstPurchaseBonus),
-      actions: [{ label: "Add credits", url: vars.paymentLink }]
+      actions: linkedActions({ label: "Add credits", url: vars.paymentLink })
     },
     user: {
       id: user.id,

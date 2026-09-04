@@ -5,6 +5,7 @@ import type { ResolvedValue } from "@src/notifications/services/notification-dat
 import type { UserOutput } from "@src/user/repositories";
 import type { CreateNotificationInput } from "../notification/notification.service";
 import { firstPurchaseBonusSentence } from "./first-purchase-bonus-offer";
+import { linkedActions } from "./notification-actions";
 
 export function beforeCloseTrialDeploymentNotification(
   user: UserOutput,
@@ -25,7 +26,7 @@ export function beforeCloseTrialDeploymentNotification(
       description:
         `Your trial deployment will end ${timeLeft}. To keep your deployment running, please add a payment method and top up your account before then.` +
         firstPurchaseBonusSentence(vars.firstPurchaseBonus),
-      actions: [{ label: "Add credits", url: vars.paymentLink }]
+      actions: linkedActions({ label: "Add credits", url: vars.paymentLink })
     },
     user: {
       id: user.id,

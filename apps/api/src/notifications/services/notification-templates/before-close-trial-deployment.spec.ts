@@ -21,4 +21,18 @@ describe(beforeCloseTrialDeploymentNotification.name, () => {
     expect(result.payload.description).toContain("10% in bonus credits");
     expect(result.payload.actions).toEqual([{ label: "Add credits", url: "https://console.akash.network/billing?payment=true" }]);
   });
+
+  it("omits the action when a job enqueued before paymentLink existed carries no link", () => {
+    const user = createUser({ id: "user-123", email: "user@example.com" });
+
+    const result = beforeCloseTrialDeploymentNotification(user, {
+      deploymentClosedAt: "2025-10-22T07:58:47.770Z",
+      dseq: "123456",
+      owner: "akash1test",
+      firstPurchaseBonus: { bonusPercent: 10, minPurchaseUsd: 100, maxBonusUsd: 100 }
+    } as Parameters<typeof beforeCloseTrialDeploymentNotification>[1]);
+
+    expect(result.payload.actions).toBeUndefined();
+    expect(result.payload.summary).toBe("Your Trial Deployment Ends Soon");
+  });
 });
