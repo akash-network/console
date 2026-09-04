@@ -5,7 +5,15 @@ import { describe, expect, it } from "vitest";
 import { CHAIN_DB } from "@src/chain";
 import { DeploymentRepository } from "./deployment.repository";
 
-import { createAkashBlock, createAkashMessage, createDeployment, createDeploymentGroup, createDeploymentGroupResource, createTransaction } from "@test/seeders";
+import {
+  createAkashAddress,
+  createAkashBlock,
+  createAkashMessage,
+  createDeployment,
+  createDeploymentGroup,
+  createDeploymentGroupResource,
+  createTransaction
+} from "@test/seeders";
 
 const BID_TYPE = "/akash.market.v1beta5.MsgCreateBid";
 
@@ -102,9 +110,74 @@ describe(DeploymentRepository.name, () => {
 
   let testBand = 0;
 
+  describe("findClosureStates", () => {
+    it("reports a deployment the chain has closed as closed", async () => {
+      const { repository } = setup();
+      const owner = createAkashAddress();
+      const deployment = await createDeployment({ owner, closedHeight: 5_000_000 });
+
+      const states = await repository.findClosureStates([{ owner, dseq: deployment.dseq }]);
+
+      expect(states).toEqual([{ owner, dseq: deployment.dseq, isClosed: true }]);
+    });
+
+    it("reports a deployment the chain still holds open as open", async () => {
+      const { repository } = setup();
+      const owner = createAkashAddress();
+      const deployment = await createDeployment({ owner, closedHeight: undefined });
+
+      const states = await repository.findClosureStates([{ owner, dseq: deployment.dseq }]);
+
+      expect(states).toEqual([{ owner, dseq: deployment.dseq, isClosed: false }]);
+    });
+
+    it("leaves out a deployment the indexer holds no row for, so absence is not read as either state", async () => {
+      const { repository } = setup();
+
+      const states = await repository.findClosureStates([{ owner: createAkashAddress(), dseq: "999999999999" }]);
+
+      expect(states).toEqual([]);
+    });
+
+    it("matches on the owner as well as the dseq, so one owner's close cannot answer for another's", async () => {
+      const { repository } = setup();
+      const owner = createAkashAddress();
+      const otherOwner = createAkashAddress();
+      const deployment = await createDeployment({ owner, closedHeight: 5_000_000 });
+
+      const states = await repository.findClosureStates([{ owner: otherOwner, dseq: deployment.dseq }]);
+
+      expect(states).toEqual([]);
+    });
+
+    it("answers for each pair of a mixed batch", async () => {
+      const { repository } = setup();
+      const owner = createAkashAddress();
+      const closed = await createDeployment({ owner, closedHeight: 5_000_000 });
+      const open = await createDeployment({ owner, closedHeight: undefined });
+      const unknownDseq = "888888888888";
+
+      const states = await repository.findClosureStates([
+        { owner, dseq: closed.dseq },
+        { owner, dseq: open.dseq },
+        { owner, dseq: unknownDseq }
+      ]);
+
+      expect(states).toHaveLength(2);
+      expect(states).toContainEqual({ owner, dseq: closed.dseq, isClosed: true });
+      expect(states).toContainEqual({ owner, dseq: open.dseq, isClosed: false });
+    });
+
+    it("returns nothing for an empty batch without querying", async () => {
+      const { repository } = setup();
+
+      await expect(repository.findClosureStates([])).resolves.toEqual([]);
+    });
+  });
+
   function setup() {
-    // Resolve CHAIN_DB so the chain Sequelize instance (and its models) is initialized — the
-    // repository uses the static models directly and does not inject the connection itself.
+    // Resolve CHAIN_DB so the chain Sequelize instance (and its models) is initialized before the
+    // static models this repository still reads through are used.
     container.resolve(CHAIN_DB);
     const repository = container.resolve(DeploymentRepository);
     testBand += 1;
