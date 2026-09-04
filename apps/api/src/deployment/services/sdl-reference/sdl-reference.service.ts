@@ -61,9 +61,15 @@ export interface SdlReferenceResolver {
 }
 
 /** One position in an SDL where a reference may stand, holding the write back so a caller of the walk never has to know how that position spells a value. */
-interface SdlReferenceSlot {
+export interface SdlReferenceSlot {
   serviceName: string;
+  /** The service's place in the document rather than its name, because a name may spell anything and a reference name may not. */
+  serviceIndex: number;
   instancePath: string;
+  /** The container the value lives on, so a caller can tell two positions apart from one position two services share through a YAML anchor. */
+  node: object;
+  /** Where in `node` the value sits: unique within it, and spelled so it can form part of an SDL Reference name. */
+  position: string;
   value: string;
   /** Whether a value here may be quoted back to the caller, which a private registry credential never may: A1 makes it a secret whatever it holds. */
   valueIsAlwaysSecret: boolean;
@@ -131,7 +137,9 @@ function unknownKindError(reference: SdlReferenceDeclaration): ValidationError {
   });
 }
 
-function envSlotsOf(serviceName: string, service: SDLInput["services"][string]): SdlReferenceSlot[] {
+type ServiceLocation = { serviceName: string; serviceIndex: number };
+
+function envSlotsOf({ serviceName, serviceIndex }: ServiceLocation, service: SDLInput["services"][string]): SdlReferenceSlot[] {
   const env = service?.env;
 
   if (!Array.isArray(env)) return [];
@@ -143,7 +151,10 @@ function envSlotsOf(serviceName: string, service: SDLInput["services"][string]):
 
     return {
       serviceName,
+      serviceIndex,
       instancePath: `/services/${serviceName}/env/${index}`,
+      node: env,
+      position: `e${index}`,
       value: declaration.value,
       valueIsAlwaysSecret: false,
       replace: (resolved: string) => {
@@ -153,7 +164,7 @@ function envSlotsOf(serviceName: string, service: SDLInput["services"][string]):
   });
 }
 
-function credentialSlotsOf(serviceName: string, service: SDLInput["services"][string]): SdlReferenceSlot[] {
+function credentialSlotsOf({ serviceName, serviceIndex }: ServiceLocation, service: SDLInput["services"][string]): SdlReferenceSlot[] {
   const credentials = service?.credentials;
 
   if (!credentials || typeof credentials !== "object") return [];
@@ -165,7 +176,10 @@ function credentialSlotsOf(serviceName: string, service: SDLInput["services"][st
 
     return {
       serviceName,
+      serviceIndex,
       instancePath: `/services/${serviceName}/credentials/${field}`,
+      node: credentials,
+      position: `c_${field}`,
       value,
       valueIsAlwaysSecret: true,
       replace: (resolved: string) => {
@@ -232,7 +246,7 @@ export class SdlReferenceService {
   #eachReference(sdl: SDLInput, visit: SdlReferenceVisitor): ValidationError[] {
     const errors: ValidationError[] = [];
 
-    for (const slot of this.#slotsOf(sdl)) {
+    for (const slot of this.slotsOf(sdl)) {
       const error = this.#readSlot(slot, visit);
 
       if (error) errors.push(error);
@@ -242,10 +256,10 @@ export class SdlReferenceService {
   }
 
   /** Read in full before anything is written, because two services sharing one `env` list or `credentials` block through a YAML anchor share the node behind both slots, and a lazy walk would read what an earlier slot had already resolved. */
-  #slotsOf(sdl: SDLInput): SdlReferenceSlot[] {
-    return Object.entries(this.#servicesOf(sdl)).flatMap(([serviceName, service]) => [
-      ...envSlotsOf(serviceName, service),
-      ...credentialSlotsOf(serviceName, service)
+  slotsOf(sdl: SDLInput): SdlReferenceSlot[] {
+    return Object.entries(this.#servicesOf(sdl)).flatMap(([serviceName, service], serviceIndex) => [
+      ...envSlotsOf({ serviceName, serviceIndex }, service),
+      ...credentialSlotsOf({ serviceName, serviceIndex }, service)
     ]);
   }
 
