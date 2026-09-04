@@ -48,6 +48,7 @@ export interface components {
       payload: {
         summary: string;
         description: string;
+        code?: string;
         actions?: {
           label: string;
           /** Format: uri */

@@ -17,6 +17,7 @@ class NotificationJobDto extends createZodDto(
     payload: z.object({
       summary: z.string(),
       description: z.string(),
+      code: z.string().optional(),
       actions: z
         .array(
           z.object({

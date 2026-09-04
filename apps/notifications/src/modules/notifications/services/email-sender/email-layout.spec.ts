@@ -71,16 +71,37 @@ describe(renderEmailLayout.name, () => {
     expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
   });
 
+  it("renders the verification code as one selectable token", () => {
+    const { html } = setup({ code: "418902" });
+
+    expect(html).toContain(">418902</span>");
+    expect(html).not.toContain("418 902");
+    expect(html).toContain('class="code-box"');
+  });
+
+  it("renders no code block when there is no code", () => {
+    const { html } = setup({});
+    expect(html).not.toContain('class="code-box"');
+  });
+
+  it("stacks the buttons full width on a narrow screen", () => {
+    const { html } = setup({ actions: [{ label: "Add credits", url: "https://console.akash.network/billing" }] });
+
+    expect(html).toContain("@media (max-width: 480px)");
+    expect(html).toContain('class="btn-cell"');
+  });
+
   it("renders the footer", () => {
     const { html } = setup({});
     expect(html).toContain("Sent by Akash Console. You're receiving this because you have an Akash Console account.");
   });
 
-  function setup(input: { subject?: string; content?: string; actions?: EmailAction[] }) {
+  function setup(input: { subject?: string; content?: string; actions?: EmailAction[]; code?: string }) {
     const html = renderEmailLayout({
       subject: input.subject ?? faker.lorem.sentence(),
       content: input.content ?? faker.lorem.paragraph(),
-      actions: input.actions
+      actions: input.actions,
+      code: input.code
     });
     return { html };
   }

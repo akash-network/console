@@ -14,6 +14,12 @@ describe(NotificationCommandDto.name, () => {
     expect(result.payload.actions).toEqual(actions);
   });
 
+  it("keeps the verification code the email layout renders as a block", () => {
+    const result = NotificationCommandDto.schema.parse(command({ code: "418902" }));
+
+    expect(result.payload.code).toBe("418902");
+  });
+
   it("accepts a command without actions", () => {
     const result = NotificationCommandDto.schema.parse(command({}));
 
@@ -26,7 +32,7 @@ describe(NotificationCommandDto.name, () => {
     expect(result.success).toBe(false);
   });
 
-  function command(payload: { actions?: { label: string; url: string }[] }) {
+  function command(payload: { actions?: { label: string; url: string }[]; code?: string }) {
     return {
       notificationChannelId: "channel-1",
       notificationId: "creditsRunningLow.user-1",

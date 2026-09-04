@@ -30,6 +30,7 @@ describe(NotificationRouterService.name, () => {
         subject: notificationCommand.payload.summary,
         content: notificationCommand.payload.description,
         actions: notificationCommand.payload.actions,
+        code: notificationCommand.payload.code,
         notificationId: notificationCommand.notificationId
       });
     });
