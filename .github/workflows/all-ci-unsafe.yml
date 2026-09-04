@@ -75,10 +75,10 @@ jobs:
             emit_decision false false "Upstream CI was cancelled, so the superseding CI run reports instead"
           fi
 
-          # No PR owns the commit any more, so a check reported on it would hang off a commit nobody
-          # can see; whatever replaced it carries its own CI run and its own scan.
+          # Nothing to scan without a PR to read files and labels from, but the check is still reported:
+          # withholding it leaves a required check pending forever on a commit that is a PR head after all.
           if [[ "${PARENT_WORKFLOW_EVENT}" == "pull_request" && "${PR_NUMBER}" == "" ]]; then
-            emit_decision false false "PR head changed because of rebase/force push and associated PR cannot be found"
+            emit_decision false true "PR head changed because of rebase/force push and associated PR cannot be found"
           fi
 
           if [ "${PARENT_WORKFLOW_CONCLUSION}" != "success" ]; then
