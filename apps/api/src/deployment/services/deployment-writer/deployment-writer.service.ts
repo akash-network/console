@@ -1,4 +1,4 @@
-import type { ValidationError } from "@akashnetwork/chain-sdk";
+import type { SDLInput, ValidationError } from "@akashnetwork/chain-sdk";
 import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
 import { addMinutes } from "date-fns";
 import { HTTPException } from "hono/http-exception";
@@ -19,16 +19,27 @@ import {
   unbackedDeploymentSettingKeyFor
 } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
-import type { NamespacedSdlSecrets } from "@src/deployment/services/sdl-reference/sdl-reference.service";
+import { MAX_ECHOED_REFERENCE_LENGTH, type NamespacedSdlSecrets } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import type { ReceivedSdlSecrets } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
+import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import type { StoredSdlPosition, StoredSdlRefusal } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
-import { sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
+import { dropSdlValues, parseSdlForStorage, sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { denomToUdenom } from "@src/utils/math";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 import { StaleManagedDeploymentsCleanerService } from "../stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
+
+/** What becomes of the values a submitted document carries in the clear, once the console has decided what it can seal. */
+type StoredSdlValues =
+  /** Every one of them is sealed and referenced, because nothing in the request said which are secret. */
+  | "every-value-sealed"
+  /** Only a registry credential is, a seal having already said which of the rest are secret. */
+  | "only-credentials-sealed"
+  /** None are, so an `env` value is dropped and the credentials block removed, for a caller with nowhere to put them. */
+  | "every-value-dropped";
 
 @singleton()
 export class DeploymentWriterService {
@@ -48,23 +59,25 @@ export class DeploymentWriterService {
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly txService: TxService,
     private readonly jobQueueService: JobQueueService,
-    private readonly sdlSecretsService: SdlSecretsService
+    private readonly sdlSecretsService: SdlSecretsService,
+    private readonly sdlSecretsDerivationService: SdlSecretsDerivationService
   ) {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
 
   /** The dseq is minted once everything that can refuse the submitted document has run, because the token written below names it and a client sealing beforehand cannot; a refusal that needs the resolved document — a sealed registry password below the schema's minimum, say — can only come after it, and spends a dseq nothing is written under. */
   public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
-    /** SDL for storage ONLY. Never stands in for the submitted document anywhere a hash is taken. */
-    const sdl = this.#storedSdlWithinLimit(input.sdl, { secretsAreDeclared: !!input.sealedSecrets });
+    /** SDL for storage ONLY, and the values taken out of it. Never stands in for the submitted document anywhere a hash is taken. */
+    const { sdl, derived } = this.#storedSdlOf(input.sdl, input.sealedSecrets ? "only-credentials-sealed" : "every-value-sealed");
 
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
     const depositInDollars = this.deploymentConfig.get("DEPLOYMENT_DEFAULT_DEPOSIT");
     const secrets = await this.#receiveSecrets(input);
+    const stored = this.#storedSecretsOf(secrets.supplied, derived);
 
     const dseq = Date.now().toString();
     const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { secrets: secrets.byService, isTrialing: !!wallet.isTrialing });
-    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq, secrets: secrets.supplied });
+    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq, secrets: stored });
 
     if (wallet.isTrialing) {
       await this.reclaimTrialOrphanedDeployments(wallet);
@@ -166,15 +179,50 @@ export class DeploymentWriterService {
   }
 
   /** `dseq` is a log field only, so a create can run this before minting one and still say which request it refused. */
-  #storedSdlWithinLimit(submittedSdl: string, options: { secretsAreDeclared: boolean; dseq?: string }): string {
-    const { dseq } = options;
-    const { sdl, length, refusal, at } = sdlForStorage(submittedSdl, SDL_MAX_LENGTH, { keepOrdinaryEnvValues: options.secretsAreDeclared });
+  #storedSdlOf(submittedSdl: string, values: StoredSdlValues, dseq?: string): { sdl: string; derived: SdlSecrets } {
+    const parsed = parseSdlForStorage(submittedSdl);
 
-    if (sdl === null) {
-      throw this.#rejectUnstorableSdl(refusal, { dseq, length, at });
+    if (parsed.document === null) {
+      throw this.#rejectUnstorableSdl("unparseable", { dseq, length: submittedSdl.length, at: parsed.at });
     }
 
-    return sdl;
+    const derived = this.#takeValuesOutOf(parsed.document, values);
+    const { sdl, length } = sdlForStorage(parsed, SDL_MAX_LENGTH);
+
+    if (sdl === null) {
+      throw this.#rejectUnstorableSdl("too-large", { dseq, length });
+    }
+
+    return { sdl, derived };
+  }
+
+  /** Runs before the document is measured, so that what the size guard bounds is exactly what gets stored. */
+  #takeValuesOutOf(document: SDLInput, values: StoredSdlValues): SdlSecrets {
+    if (values === "every-value-dropped") {
+      dropSdlValues(document);
+
+      return {};
+    }
+
+    return this.sdlSecretsDerivationService.derive(document, { includeEnvValues: values === "every-value-sealed" }).secrets;
+  }
+
+  /**
+   * The one set of values the deployment's token carries: what the client sealed, plus what the console
+   * took out of the document itself. A name in both is refused rather than merged, because the two would
+   * be different values under one name and the stored SDL would then reference whichever won.
+   */
+  #storedSecretsOf(supplied: SdlSecrets, derived: SdlSecrets): SdlSecrets {
+    const collisions = Object.keys(derived).filter(name => Object.hasOwn(supplied, name));
+
+    if (collisions.length > 0) {
+      const echoed = collisions[0].slice(0, MAX_ECHOED_REFERENCE_LENGTH);
+      this.logger.warn({ event: "SDL_SECRETS_DERIVED_NAME_COLLIDED", name: echoed, collisionCount: collisions.length });
+
+      throw createError(400, `"${echoed}" is a name the console derives for this deployment and cannot also be supplied for it`);
+    }
+
+    return { ...supplied, ...derived };
   }
 
   /** Carries none of the document and attaches no parse error as a cause, because a `js-yaml` message quotes the line it failed on and the error handler logs the whole chain. */
@@ -257,7 +305,7 @@ export class DeploymentWriterService {
 
   public async updateByUserIdAndDseq(userId: string, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<DeploymentResponse> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
-    const sdl = this.#storedSdlWithinLimit(input.sdl, { secretsAreDeclared: false, dseq });
+    const { sdl } = this.#storedSdlOf(input.sdl, "every-value-dropped", dseq);
 
     const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { isTrialing: !!wallet.isTrialing });
     const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);

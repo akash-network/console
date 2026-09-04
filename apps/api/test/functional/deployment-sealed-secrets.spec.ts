@@ -1,14 +1,11 @@
 import type { SDLInput } from "@akashnetwork/chain-sdk";
 import { generateManifest, generateManifestVersion, yaml } from "@akashnetwork/chain-sdk";
 import { faker } from "@faker-js/faker";
-import type { protos } from "@google-cloud/kms";
-import crc32c from "fast-crc32c";
 import { CompactEncrypt, decodeProtectedHeader } from "jose";
 import nock from "nock";
-import { constants, generateKeyPairSync, privateDecrypt, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { mock } from "vitest-mock-extended";
 
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.service";
@@ -20,16 +17,14 @@ import { BlockHttpService } from "@src/chain/services/block-http/block-http.serv
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
 import { SDL_SECRETS_CONTENT_ENCRYPTION, SDL_SECRETS_SEAL_ALGORITHM } from "@src/deployment/config/sdl-secrets.config";
-import type { SdlSecretsKmsClient, SdlSecretsKmsTarget } from "@src/deployment/providers/kms.provider";
-import { SDL_SECRETS_KMS_TARGET } from "@src/deployment/providers/kms.provider";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
-import { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
 import { app } from "@src/rest-app";
 import { SecretCipherService } from "@src/secret/services/secret-cipher/secret-cipher.service";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
 
+import { registerFakeSdlSecretsKms, SDL_SECRETS_KID, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
 import { createApiKey } from "@test/seeders/api-key.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
@@ -41,31 +36,11 @@ interface OpenApiPaths {
   >;
 }
 
-const KID = "sdl-secrets.v1";
-const VERSION_NAME = "projects/console-test/locations/global/keyRings/console-api/cryptoKeys/sdl-secrets/cryptoKeyVersions/1";
 const MAX_VALUE_BYTES = 16 * 1024;
 const REGISTRY_HOST = "registry.example.test";
 const MAX_COUNT = 100;
 
-const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 3072 });
-const publicKeyPem = publicKey.export({ type: "spki", format: "pem" }).toString();
-const kmsClient = mock<SdlSecretsKmsClient>();
-kmsClient.getPublicKey.mockResolvedValue([
-  { name: VERSION_NAME, pem: publicKeyPem, pemCrc32c: { value: String(crc32c.calculate(publicKeyPem)) }, algorithm: "RSA_DECRYPT_OAEP_3072_SHA256" }
-]);
-kmsClient.asymmetricDecrypt.mockImplementation(async request => {
-  const plaintext = privateDecrypt({ key: privateKey, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" }, Buffer.from(request.ciphertext));
-
-  return [
-    {
-      plaintext,
-      plaintextCrc32c: { value: String(crc32c.calculate(plaintext)) },
-      verifiedCiphertextCrc32c: true
-    } satisfies protos.google.cloud.kms.v1.IAsymmetricDecryptResponse
-  ];
-});
-
-container.register<SdlSecretsKmsTarget>(SDL_SECRETS_KMS_TARGET, { useValue: { client: kmsClient, versionName: VERSION_NAME, kid: KID } });
+const { client: kmsClient, publicKey } = registerFakeSdlSecretsKms();
 
 function credentialsYaml(credentials?: Record<string, string>) {
   if (!credentials) return "";
@@ -197,7 +172,7 @@ describe("Deployment sealed secrets", () => {
     expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
   });
 
-  it("stores the credential values in its token and no credentials block in its sdl", async () => {
+  it("stores the credential values in its token and a credentials block that references them", async () => {
     const { apiKey, user } = await persistedUser();
     const [username, password] = [faker.string.alphanumeric(10), randomUUID()];
     const referencing = { web: { host: REGISTRY_HOST, username: "ac-secret://REG_USER", password: "ac-secret://REG_PASS" } };
@@ -205,8 +180,34 @@ describe("Deployment sealed secrets", () => {
     const response = await postDeployment(apiKey, sdlWith({ web: ["LOG_LEVEL=debug"] }, referencing), { REG_USER: username, REG_PASS: password });
 
     const setting = await settingOf(user, response);
-    expect(setting!.sdl).not.toContain("credentials");
+    expect(setting!.sdl).toContain(`host: ${REGISTRY_HOST}`);
+    expect(setting!.sdl).toContain("username: ac-secret://REG_USER");
+    expect(setting!.sdl).toContain("password: ac-secret://REG_PASS");
+    expect(setting!.sdl).not.toContain(password);
     await expect(openStoredToken(user, setting!.dseq, setting!.sealedSecrets!)).resolves.toEqual({ REG_USER: username, REG_PASS: password });
+  });
+
+  it("stores a credential the client left in the clear as a reference, with its value only in the token", async () => {
+    const { apiKey, user } = await persistedUser();
+    const [username, password] = [faker.string.alphanumeric(10), randomUUID()];
+    const inTheClear = { web: { host: REGISTRY_HOST, username, password } };
+    const token = randomUUID();
+
+    const response = await postDeployment(apiKey, sdlWith({ web: ["API_TOKEN=ac-secret://API_TOKEN", "LOG_LEVEL=debug"] }, inTheClear), {
+      API_TOKEN: token
+    });
+
+    const setting = await settingOf(user, response);
+    expect(setting!.sdl).toContain("username: ac-secret://s0_c_username");
+    expect(setting!.sdl).toContain("password: ac-secret://s0_c_password");
+    expect(setting!.sdl).toContain("LOG_LEVEL=debug");
+    expect(setting!.sdl).not.toContain(username);
+    expect(setting!.sdl).not.toContain(password);
+    await expect(openStoredToken(user, setting!.dseq, setting!.sealedSecrets!)).resolves.toEqual({
+      API_TOKEN: token,
+      s0_c_username: username,
+      s0_c_password: password
+    });
   });
 
   it("refuses a sealed credential the resolved document rejects, saying nothing of its value", async () => {
@@ -334,6 +335,59 @@ describe("Deployment sealed secrets", () => {
     const setting = await settingOf(user, response);
     const opened = await openStoredToken(user, setting!.dseq, setting!.sealedSecrets!);
     expect(await manifestVersionOfDocument(resolvedDocumentOf(setting!.sdl!, opened))).toEqual(broadcastHash());
+  });
+
+  it("stores an sdl whose resolved manifest version is the one it committed, for a create that sealed nothing", async () => {
+    const { apiKey, user } = await persistedUser();
+    const submitted = sdlWith(
+      { web: [`API_TOKEN=${randomUUID()}`, "LOG_LEVEL=debug", "INHERITED_FROM_HOST"], worker: [`DATABASE_URL=postgres://u:${randomUUID()}@h/db`] },
+      { web: { host: REGISTRY_HOST, username: faker.string.alphanumeric(10), password: randomUUID() } }
+    );
+
+    const response = await postDeployment(apiKey, submitted);
+
+    expect(response.status).toBe(201);
+    const setting = await settingOf(user, response);
+    const opened = await openStoredToken(user, setting!.dseq, setting!.sealedSecrets!);
+    expect(await manifestVersionOfDocument(resolvedDocumentOf(setting!.sdl!, opened))).toEqual(broadcastHash());
+  });
+
+  it("stores no value of a create that sealed nothing in the clear", async () => {
+    const { apiKey, user } = await persistedUser();
+    const [token, password] = [randomUUID(), randomUUID()];
+
+    const response = await postDeployment(apiKey, sdlWith({ web: [`API_TOKEN=${token}`] }, { web: { host: REGISTRY_HOST, username: "u", password } }));
+
+    const setting = await settingOf(user, response);
+    expect(JSON.stringify(setting)).not.toContain(token);
+    expect(JSON.stringify(setting)).not.toContain(password);
+  });
+
+  it("seals far more values than a client may supply, because the limits bound a seal in flight and not one it made itself", async () => {
+    const { apiKey, user } = await persistedUser();
+    const values = Object.fromEntries(Array.from({ length: MAX_COUNT * 3 }, (_, index) => [`SETTING_${index}`, randomUUID()]));
+
+    const response = await postDeployment(apiKey, sdlWith({ web: Object.entries(values).map(([name, value]) => `${name}=${value}`) }));
+
+    expect(response.status).toBe(201);
+    const setting = await settingOf(user, response);
+    await expect(openStoredToken(user, setting!.dseq, setting!.sealedSecrets!)).resolves.toEqual(
+      Object.fromEntries(Object.values(values).map((value, index) => [`s0_e${index}`, value]))
+    );
+  });
+
+  it("refuses a create it cannot seal, recording nothing and broadcasting nothing", async () => {
+    const { apiKey, user } = await persistedUser();
+    const token = randomUUID();
+    kmsClient.asymmetricDecrypt.mockRejectedValueOnce(new Error("key service unreachable"));
+
+    const response = await postDeployment(apiKey, sdlWith({ web: [`API_TOKEN=${token}`] }));
+    const body = await response.text();
+
+    expect(response.status).toBe(503);
+    expect(body).not.toContain(token);
+    expect(await deploymentSettingRepository.findOneBy({ userId: user.id })).toBeUndefined();
+    expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
   });
 
   it("stores a token bound to its owner and the deployment it was supplied for", async () => {
@@ -508,10 +562,23 @@ describe("Deployment sealed secrets", () => {
     expect(response.status).toBe(400);
   });
 
-  it("creates a deployment with no secrets at all without reaching the key service", async () => {
+  it("seals the values of a create that named none of them, spending one unwrap on the data key", async () => {
     const { apiKey, user } = await persistedUser();
 
     const response = await postDeployment(apiKey, sdlWith({ web: ["LOG_LEVEL=debug"] }));
+
+    expect(response.status).toBe(201);
+    expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(1);
+    const setting = await settingOf(user, response);
+    expect(setting!.sdl).toContain("LOG_LEVEL=ac-secret://s0_e0");
+    expect(setting!.sdl).not.toContain("LOG_LEVEL=debug");
+    await expect(openStoredToken(user, setting!.dseq, setting!.sealedSecrets!)).resolves.toEqual({ s0_e0: "debug" });
+  });
+
+  it("creates a deployment with nothing to seal without reaching the key service", async () => {
+    const { apiKey, user } = await persistedUser();
+
+    const response = await postDeployment(apiKey, sdlWith({ web: [] }));
 
     expect(response.status).toBe(201);
     expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
@@ -618,7 +685,7 @@ describe("Deployment sealed secrets", () => {
       .setProtectedHeader({
         alg: SDL_SECRETS_SEAL_ALGORITHM,
         enc: SDL_SECRETS_CONTENT_ENCRYPTION,
-        kid: KID,
+        kid: SDL_SECRETS_KID,
         sub: user.id,
         exp: Math.floor(Date.now() / 1000) + 300
       })
@@ -633,10 +700,6 @@ describe("Deployment sealed secrets", () => {
       body: JSON.stringify({ data: { sdl, sealedSecrets } }),
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey })
     });
-  }
-
-  async function warmSealingKeyAsBootWould() {
-    await container.resolve(SdlSecretsSealingKeyService).getSealingKey();
   }
 
   async function persistedUser() {

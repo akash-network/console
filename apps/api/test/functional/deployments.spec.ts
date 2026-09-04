@@ -26,6 +26,7 @@ import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
 import { deploymentVersion, marketVersion } from "@src/utils/constants";
 
+import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
 import { createApiKey } from "@test/seeders/api-key.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
 import { createDeploymentInfoErrorSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
@@ -35,6 +36,8 @@ import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 const OVERSIZED_FILLER = "z".repeat(4096);
+
+registerFakeSdlSecretsKms();
 
 describe("Deployments API", () => {
   const userRepository = container.resolve(UserRepository);
@@ -54,6 +57,7 @@ describe("Deployments API", () => {
 
   beforeAll(async () => {
     await startJobQueues();
+    await warmSealingKeyAsBootWould();
   }, 20_000);
 
   beforeEach(() => {
@@ -720,21 +724,31 @@ describe("Deployments API", () => {
       expect(setting?.sdl).toContain("INHERITED_FROM_HOST");
     });
 
-    it("records an sdl carrying none of the submitted env values", async () => {
+    it("records an sdl carrying none of the submitted env values, referencing a sealed one in each place", async () => {
       const { setting } = await createDeploymentWithSecrets();
 
       expect(setting?.sdl).not.toContain("PLACEHOLDER_API_TOKEN");
       expect(setting?.sdl).not.toContain("PLACEHOLDER_DB_PASSWORD");
       expect(setting?.sdl).not.toContain("db.example.test");
+      expect(setting?.sdl).toContain("API_TOKEN=ac-secret://s0_e0");
+      expect(setting?.sdl).toContain("DATABASE_URL=ac-secret://s0_e1");
+      expect(setting?.sealedSecrets).toEqual(expect.any(String));
     });
 
-    it("records an sdl carrying none of the submitted registry credentials", async () => {
+    it("records an sdl referencing both halves of the submitted registry credentials and carrying neither", async () => {
       const { setting } = await createDeploymentWithSecrets();
 
       expect(setting?.sdl).not.toContain("PLACEHOLDER_REGISTRY_USERNAME");
       expect(setting?.sdl).not.toContain("PLACEHOLDER_REGISTRY_PASSWORD");
-      expect(setting?.sdl).not.toContain("registry.example.test");
-      expect(setting?.sdl).not.toContain("credentials");
+      expect(setting?.sdl).toContain("username: ac-secret://s0_c_username");
+      expect(setting?.sdl).toContain("password: ac-secret://s0_c_password");
+    });
+
+    it("records an sdl keeping the registry host and email, which carry no secret", async () => {
+      const { setting } = await createDeploymentWithSecrets();
+
+      expect(setting?.sdl).toContain("host: registry.example.test");
+      expect(setting?.sdl).toContain("email: placeholder@example.test");
     });
 
     it("records an sdl that is still a deployable SDL", async () => {

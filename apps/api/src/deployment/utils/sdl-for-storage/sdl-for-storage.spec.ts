@@ -11,7 +11,7 @@ import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
-import { sdlForStorage } from "./sdl-for-storage";
+import { dropSdlValues, parseSdlForStorage, sdlForStorage } from "./sdl-for-storage";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 
@@ -20,12 +20,11 @@ const IMAGE = "ghcr.io/akash-network/hello-akash-world:2.1.0";
 /** Generous enough that every test but the size ones is measuring stripping rather than the limit. */
 const MAX_LENGTH = 128 * 1024;
 
-/** The two ways a submitted document can arrive: having named which of its values are secret, or not. */
-const SECRETS_DECLARED = { keepOrdinaryEnvValues: true } as const;
-const SECRETS_NOT_DECLARED = { keepOrdinaryEnvValues: false } as const;
+/** A caller that takes nothing out of the parsed document, leaving it to be stored as it arrived. */
+const TAKING_NOTHING_OUT = () => {};
 
 describe(sdlForStorage.name, () => {
-  describe("an env value, when the submitted document declares no secrets", () => {
+  describe("an env value, when the caller drops every value", () => {
     it("keeps the variable name and drops its value", () => {
       const token = faker.string.alphanumeric(24);
 
@@ -70,7 +69,7 @@ describe(sdlForStorage.name, () => {
     });
   });
 
-  describe("an env value, when the submitted document declares its secrets", () => {
+  describe("an env value, when the caller takes nothing out", () => {
     it("keeps the value exactly as submitted", () => {
       const token = faker.string.alphanumeric(24);
 
@@ -195,21 +194,60 @@ describe(sdlForStorage.name, () => {
   });
 
   describe("private registry credentials", () => {
-    it.each([SECRETS_DECLARED, SECRETS_NOT_DECLARED])("removes the whole block, not just the password, given %j", options => {
+    it("removes the whole block, not just the password", () => {
       const credentials = { host: "registry.example.test", username: faker.string.alphanumeric(10), password: faker.internet.password() };
 
-      const stored = storedDocumentOf(sdlWith({ web: { credentials } }), options);
+      const stored = storedWithoutValues(sdlWith({ web: { credentials } }));
 
       expect(stored.services.web).not.toHaveProperty("credentials");
     });
 
-    it.each([SECRETS_DECLARED, SECRETS_NOT_DECLARED])("removes the block of every service that declares one, given %j", options => {
+    it("removes the block of every service that declares one", () => {
       const credentials = { host: "registry.example.test", username: faker.string.alphanumeric(10), password: faker.internet.password() };
 
-      const stored = storedDocumentOf(sdlWith({ web: { credentials }, worker: { credentials } }), options);
+      const stored = storedWithoutValues(sdlWith({ web: { credentials }, worker: { credentials } }));
 
       expect(stored.services.web).not.toHaveProperty("credentials");
       expect(stored.services.worker).not.toHaveProperty("credentials");
+    });
+
+    it("leaves the block alone for a caller taking nothing out, which is a caller taking the credentials itself", () => {
+      const credentials = { host: "registry.example.test", username: faker.string.alphanumeric(10), password: faker.internet.password() };
+
+      const stored = storedWithValues(sdlWith({ web: { credentials } }));
+
+      expect(stored.services.web.credentials).toMatchObject(credentials);
+    });
+  });
+
+  describe("a caller that takes the values out itself", () => {
+    it("is handed a document still carrying every value and credential, so it has something to take", () => {
+      const credentials = { host: "registry.example.test", username: faker.string.alphanumeric(10), password: faker.internet.password() };
+      const token = faker.string.alphanumeric(24);
+      const { document } = parseSdlForStorage(sdlWith({ web: { env: [`API_TOKEN=${token}`], credentials } }));
+
+      expect(document!.services.web.env).toEqual([`API_TOKEN=${token}`]);
+      expect(document!.services.web.credentials).toMatchObject(credentials);
+    });
+
+    it("stores what the rewrite left behind rather than what arrived", () => {
+      const token = faker.string.alphanumeric(24);
+
+      const { sdl } = storedFrom(sdlWith({ web: { env: [`API_TOKEN=${token}`] } }), MAX_LENGTH, document => {
+        document.services.web.env = ["API_TOKEN=ac-secret://s0_e0"];
+      });
+
+      expect(sdl).toContain("API_TOKEN=ac-secret://s0_e0");
+      expect(sdl).not.toContain(token);
+    });
+
+    it("measures what the rewrite left rather than what arrived", () => {
+      const stored = storedFrom(sdlWith({ web: { env: ["SMALL=v"] } }), 512, document => {
+        document.services.web.env = [`SMALL=${"x".repeat(4096)}`];
+      });
+
+      expect(stored.sdl).toBeNull();
+      expect(stored.length).toBeGreaterThan(512);
     });
   });
 
@@ -267,29 +305,29 @@ describe(sdlForStorage.name, () => {
     it("stays an SDL the manifest generator still accepts", () => {
       const submitted = sdlWith({ web: { env: [`API_TOKEN=${faker.string.alphanumeric(12)}`] } });
 
-      expect(manifestFrom(storedSdlOf(submitted, SECRETS_NOT_DECLARED)).ok).toBe(true);
+      expect(manifestFrom(storedSdlOf(submitted)).ok).toBe(true);
     });
 
     it("stays an SDL the manifest generator accepts when an env value equals the service name", () => {
       const submitted = sdlWith({ wordpress: { env: ["WORDPRESS_DB_HOST=db"] }, db: {} });
 
-      expect(manifestFrom(storedSdlOf(submitted, SECRETS_NOT_DECLARED)).ok).toBe(true);
+      expect(manifestFrom(storedSdlOf(submitted)).ok).toBe(true);
     });
 
     it("stays an SDL the manifest generator accepts when an env value equals the denom", () => {
       const submitted = sdlWith({ web: { env: ["DENOM=uakt"] } });
 
-      expect(manifestFrom(storedSdlOf(submitted, SECRETS_NOT_DECLARED)).ok).toBe(true);
+      expect(manifestFrom(storedSdlOf(submitted)).ok).toBe(true);
     });
 
     it("still generates a manifest for an SDL that declares no env at all", () => {
-      expect(manifestFrom(storedSdlOf(sdlWith({ web: {} }), SECRETS_NOT_DECLARED)).ok).toBe(true);
+      expect(manifestFrom(storedSdlOf(sdlWith({ web: {} }))).ok).toBe(true);
     });
 
     it("stores an already stored SDL as the same thing again", () => {
-      const once = storedSdlOf(sdlWith({ web: { env: [`API_TOKEN=${faker.string.alphanumeric(12)}`] } }), SECRETS_NOT_DECLARED);
+      const once = storedSdlOf(sdlWith({ web: { env: [`API_TOKEN=${faker.string.alphanumeric(12)}`] } }));
 
-      expect(storedSdlOf(once, SECRETS_NOT_DECLARED)).toBe(once);
+      expect(storedSdlOf(once)).toBe(once);
     });
   });
 
@@ -297,9 +335,9 @@ describe(sdlForStorage.name, () => {
     it("reports why it was refused, carrying nothing of the document with it", () => {
       const value = faker.string.alphanumeric(10);
 
-      const result = sdlForStorage(`services:\n  web:\n    env:\n      - LEAKED=${value}\n   bad: indentation\n`, MAX_LENGTH, SECRETS_NOT_DECLARED);
+      const result = parseSdlForStorage(`services:\n  web:\n    env:\n      - LEAKED=${value}\n   bad: indentation\n`);
 
-      expect(result).toEqual({ sdl: null, length: expect.any(Number), refusal: "unparseable", at: { line: 5, column: 4 } });
+      expect(result).toEqual({ document: null, at: { line: 5, column: 4 } });
       expect(JSON.stringify(result)).not.toContain(value);
       expect(JSON.stringify(result)).not.toContain("LEAKED");
     });
@@ -307,10 +345,9 @@ describe(sdlForStorage.name, () => {
 
   describe("an SDL too large to store", () => {
     it("returns nothing rather than the document, reporting the size it measured", () => {
-      const result = sdlForStorage(sdlWith({ web: { args: ["x".repeat(2048)] } }), 512, SECRETS_NOT_DECLARED);
+      const result = storedFrom(sdlWith({ web: { args: ["x".repeat(2048)] } }), 512);
 
       expect(result.sdl).toBeNull();
-      expect(result.refusal).toBe("too-large");
       expect(result.length).toBeGreaterThan(512);
     });
 
@@ -319,7 +356,7 @@ describe(sdlForStorage.name, () => {
       const aliasCount = 512;
       const lengthIfItHadBeenSerialized = scalarLength * aliasCount;
 
-      const result = sdlForStorage(sdlAliasingOneScalar({ scalarLength, aliasCount }), 8192, SECRETS_NOT_DECLARED);
+      const result = storedFrom(sdlAliasingOneScalar({ scalarLength, aliasCount }), 8192);
 
       expect(result.sdl).toBeNull();
       expect(result.length).toBeGreaterThan(8192);
@@ -327,14 +364,14 @@ describe(sdlForStorage.name, () => {
     });
 
     it("measures an aliased scalar once per alias, as serializing it would write it", () => {
-      const oneAlias = sdlForStorage(sdlAliasingOneScalar({ scalarLength: 4096, aliasCount: 1 }), 8192, SECRETS_NOT_DECLARED).length;
-      const manyAliases = sdlForStorage(sdlAliasingOneScalar({ scalarLength: 4096, aliasCount: 512 }), 8192, SECRETS_NOT_DECLARED).length;
+      const oneAlias = storedFrom(sdlAliasingOneScalar({ scalarLength: 4096, aliasCount: 1 }), 8192).length;
+      const manyAliases = storedFrom(sdlAliasingOneScalar({ scalarLength: 4096, aliasCount: 512 }), 8192).length;
 
       expect(manyAliases).toBeGreaterThan(oneAlias);
     });
 
     it("stores a document with no anchors that fits, without consulting the estimate", () => {
-      const stripped = sdlForStorage(sdlWith({ web: { env: [`API_TOKEN=${faker.string.alphanumeric(12)}`] } }), MAX_LENGTH, SECRETS_NOT_DECLARED);
+      const stripped = storedFrom(sdlWith({ web: { env: [`API_TOKEN=${faker.string.alphanumeric(12)}`] } }), MAX_LENGTH);
 
       expect(stripped.sdl).toContain("API_TOKEN=");
       expect(stripped.length).toBe(stripped.sdl?.length);
@@ -343,7 +380,7 @@ describe(sdlForStorage.name, () => {
     it("measures a document with no anchors by serializing it exactly", () => {
       const submitted = sdlWith({ web: { args: ["x".repeat(4096)] } });
 
-      const result = sdlForStorage(submitted, 512, SECRETS_NOT_DECLARED);
+      const result = storedFrom(submitted, 512);
 
       expect(result.sdl).toBeNull();
       expect(result.length).toBe(dump(yaml.raw(submitted), { lineWidth: -1 }).length);
@@ -359,20 +396,20 @@ describe(sdlForStorage.name, () => {
     });
 
     it("returns a document that fits", () => {
-      expect(sdlForStorage(sdlWith({ web: {} }), MAX_LENGTH, SECRETS_NOT_DECLARED).sdl).toContain("services:");
+      expect(storedFrom(sdlWith({ web: {} }), MAX_LENGTH).sdl).toContain("services:");
     });
 
     it("refuses a document only the values it keeps put past the limit", () => {
       const submitted = sdlWith({ web: { env: [`BLOB=${"x".repeat(4096)}`] } });
 
-      expect(sdlForStorage(submitted, 2048, SECRETS_DECLARED).sdl).toBeNull();
-      expect(sdlForStorage(submitted, 2048, SECRETS_NOT_DECLARED).sdl).not.toBeNull();
+      expect(storedFrom(submitted, 2048, TAKING_NOTHING_OUT).sdl).toBeNull();
+      expect(storedFrom(submitted, 2048).sdl).not.toBeNull();
     });
 
     it("stores an env-heavy sdl of a realistic size against the bound production uses", () => {
       const env = Array.from({ length: 200 }, (_, index) => `SETTING_${index}=${faker.string.alphanumeric(48)}`);
 
-      const { sdl, length } = sdlForStorage(sdlWith({ web: { env } }), SDL_MAX_LENGTH, SECRETS_DECLARED);
+      const { sdl, length } = storedFrom(sdlWith({ web: { env } }), SDL_MAX_LENGTH, TAKING_NOTHING_OUT);
 
       expect(sdl).not.toBeNull();
       expect(length).toBeLessThan(SDL_MAX_LENGTH / 4);
@@ -382,21 +419,29 @@ describe(sdlForStorage.name, () => {
   type ServiceOverrides = Record<string, unknown>;
 
   function storedWithoutValues(rawSdl: string) {
-    return storedDocumentOf(rawSdl, SECRETS_NOT_DECLARED);
+    return yaml.raw<SDLInput>(storedSdlOf(rawSdl, dropSdlValues));
   }
 
   function storedWithValues(rawSdl: string) {
-    return storedDocumentOf(rawSdl, SECRETS_DECLARED);
+    return yaml.raw<SDLInput>(storedSdlOf(rawSdl, TAKING_NOTHING_OUT));
   }
 
-  function storedDocumentOf(rawSdl: string, options: { keepOrdinaryEnvValues: boolean }) {
-    return yaml.raw<SDLInput>(storedSdlOf(rawSdl, options));
-  }
-
-  function storedSdlOf(rawSdl: string, options: { keepOrdinaryEnvValues: boolean }): string {
-    const { sdl } = sdlForStorage(rawSdl, MAX_LENGTH, options);
+  function storedSdlOf(rawSdl: string, takeValuesOut: (document: SDLInput) => void = dropSdlValues): string {
+    const { sdl } = storedFrom(rawSdl, MAX_LENGTH, takeValuesOut);
     expect(sdl).not.toBeNull();
     return sdl as string;
+  }
+
+  function storedFrom(rawSdl: string, maxLength: number, takeValuesOut: (document: SDLInput) => void = dropSdlValues) {
+    const parsed = parseSdlForStorage(rawSdl);
+
+    if (parsed.document === null) {
+      throw new Error(`fixture is not parseable yaml, at line ${parsed.at?.line}`);
+    }
+
+    takeValuesOut(parsed.document);
+
+    return sdlForStorage(parsed, maxLength);
   }
 
   /** JSON is a subset of YAML, so building the fixture as an object keeps indentation out of the tests. */
