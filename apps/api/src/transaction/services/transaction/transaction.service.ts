@@ -10,7 +10,7 @@ import { averageBlockTime } from "@src/utils/constants";
 export class TransactionService {
   constructor(private readonly transactionRepository: TransactionRepository) {}
 
-  @Memoize({ ttlInSeconds: averageBlockTime })
+  @Memoize({ ttlInSeconds: averageBlockTime, maxEntries: 500 })
   async getTransactions(limit: number): Promise<ListTransactionsResponse> {
     return await this.transactionRepository.getTransactions(limit);
   }

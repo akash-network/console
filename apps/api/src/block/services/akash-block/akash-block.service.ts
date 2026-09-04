@@ -9,7 +9,7 @@ import { averageBlockTime } from "@src/utils/constants";
 export class AkashBlockService {
   constructor(private readonly akashBlockRepository: AkashBlockRepository) {}
 
-  @Memoize({ ttlInSeconds: averageBlockTime })
+  @Memoize({ ttlInSeconds: averageBlockTime, maxEntries: 500 })
   async getBlocks(limit: number): Promise<ListBlocksResponse> {
     return await this.akashBlockRepository.getBlocks(limit);
   }
