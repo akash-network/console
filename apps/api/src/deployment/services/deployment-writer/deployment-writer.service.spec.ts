@@ -254,7 +254,7 @@ describe(DeploymentWriterService.name, () => {
 
     it("builds the returned manifest before broadcasting, so a document it cannot rebuild costs no deployment on chain", async () => {
       const { service, sdlService, signerService } = setup();
-      sdlService.generateManifest.mockReturnValue({ ok: false, value: [mock<ValidationError>({ message: "unbuildable" })] });
+      sdlService.generateManifest.mockResolvedValue({ ok: false, value: [mock<ValidationError>({ message: "unbuildable" })] });
 
       await expect(service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 })).rejects.toMatchObject({ status: 400 });
 
@@ -1240,7 +1240,7 @@ describe(DeploymentWriterService.name, () => {
 
     walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
     sdlService.parse.mockReturnValue({ ok: true, value: parsedSdlValue } as any);
-    sdlService.generateManifest.mockReturnValue({ ok: true, value: manifestValue } as any);
+    sdlService.generateManifest.mockResolvedValue({ ok: true, value: manifestValue } as any);
     sdlService.generateManifestVersion.mockResolvedValue(new Uint8Array([4, 5, 6]));
     sdlService.generateResolvedManifest.mockResolvedValue({
       ok: true,

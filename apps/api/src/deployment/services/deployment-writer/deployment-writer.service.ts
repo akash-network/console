@@ -74,7 +74,7 @@ export class DeploymentWriterService {
 
     const dseq = Date.now().toString();
     const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { secrets: supplied, isTrialing: !!wallet.isTrialing });
-    const unresolvedManifest = this.#unresolvedManifestOf(input.sdl);
+    const unresolvedManifest = await this.#unresolvedManifestOf(input.sdl);
     const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq, secrets: stored });
 
     if (wallet.isTrialing) {
@@ -320,8 +320,8 @@ export class DeploymentWriterService {
   }
 
   /** Must reach only the response field: the hash, the group specs and the recorded definition all still come from the resolved build above. */
-  #unresolvedManifestOf(sdl: string): string {
-    const result = this.sdlService.generateManifest(sdl);
+  async #unresolvedManifestOf(sdl: string): Promise<string> {
+    const result = await this.sdlService.generateManifest(sdl);
 
     if (!result.ok) {
       throw this.#rejectInvalidSdl(result.value);
