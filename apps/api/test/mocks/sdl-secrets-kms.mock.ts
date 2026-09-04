@@ -12,12 +12,7 @@ export const SDL_SECRETS_KID = "sdl-secrets.v1";
 
 const VERSION_NAME = "projects/console-test/locations/global/keyRings/console-api/cryptoKeys/sdl-secrets/cryptoKeyVersions/1";
 
-/**
- * Doubles the one third-party boundary the sealed-secrets path crosses, backed by a real RSA key so a
- * seal is genuinely opened rather than waved through, and registers it at module scope so nothing has
- * resolved the real target before the first request. Every create that carries an env value now unwraps
- * a data encryption key, so any spec exercising `POST /v1/deployments` needs this.
- */
+/** Every create carrying an env value unwraps a data key, so any spec exercising `POST /v1/deployments` must call this or reach the real Cloud KMS: it doubles that boundary with a real RSA key, registered at module scope so nothing resolves the real target first. */
 export function registerFakeSdlSecretsKms() {
   const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 3072 });
   const publicKeyPem = publicKey.export({ type: "spki", format: "pem" }).toString();
@@ -44,11 +39,7 @@ export function registerFakeSdlSecretsKms() {
   return { client, publicKey };
 }
 
-/**
- * Warms the sealing key the way the boot initializer does, because wrapping a new data encryption key
- * peeks at the cache rather than waiting on it — so a spec that skips this gets a 503 on its first
- * create for a user, exactly as an instance whose boot-time warm-up failed would.
- */
+/** A spec that skips this gets a 503 on its first create for a user, exactly as an instance whose boot-time warm-up failed would, because wrapping a new data key peeks at the sealing key cache rather than waiting on it. */
 export async function warmSealingKeyAsBootWould() {
   await container.resolve(SdlSecretsSealingKeyService).getSealingKey();
 }

@@ -96,7 +96,7 @@ ${Array.from({ length: 40 }, () => `      - FILLER=${"z".repeat(4096)}`).join("\
 /** A valid SDL with nothing in it worth sealing, so a write that must state a token has null to state. */
 const SDL_WITHOUT_SECRETS = sdlAround("");
 
-/** Short enough to survive `js-yaml` truncating the line it quotes, so a partial leak of it is still detectable. */
+/** `js-yaml` trims the end of the line it quotes and never the start, so it is the variable name below that carries the leak assertion: this value survives untruncated at ten characters but would not at thirty-two. */
 const MALFORMED_SDL_VALUE = faker.string.alphanumeric(10);
 
 /** Not YAML at all, and carrying an env value, because a `js-yaml` message quotes the lines around the one it failed on. */
