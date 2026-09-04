@@ -12,9 +12,10 @@ describe(renderEmailLayout.name, () => {
 
   it("renders both logo variants for light and dark mode", () => {
     const { html } = setup({});
-    expect(html).toContain("https://console-cdn.akash.network/akashconsole-light.png");
-    expect(html).toContain("https://console-cdn.akash.network/akashconsole-dark.svg");
+    expect(html).toContain("https://console-cdn.akash.network/akashconsole-logo.png");
+    expect(html).toContain("https://console-cdn.akash.network/akashconsole-logo-dark.png");
     expect(html).toContain("@media (prefers-color-scheme: dark)");
+    expect(html).not.toContain(".svg");
   });
 
   it("renders the subject as the title and headline", () => {
