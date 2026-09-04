@@ -35,6 +35,16 @@ describe(GpuService.name, () => {
       expect(gpuRepository.getGpuBreakdown).toHaveBeenCalledTimes(1);
     });
 
+    it("distinguishes filter values that contain '#' characters", async () => {
+      const { service, gpuRepository } = setup();
+      gpuRepository.getGpuBreakdown.mockResolvedValue([]);
+
+      await service.getGpuBreakdown({ vendor: "a", model: "b#c" });
+      await service.getGpuBreakdown({ vendor: "a#b", model: "c" });
+
+      expect(gpuRepository.getGpuBreakdown).toHaveBeenCalledTimes(2);
+    });
+
     it("fetches fresh results when the filters differ", async () => {
       const { service, gpuRepository } = setup();
       gpuRepository.getGpuBreakdown.mockResolvedValue([]);

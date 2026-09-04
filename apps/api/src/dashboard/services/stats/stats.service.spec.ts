@@ -968,6 +968,16 @@ describe(StatsService.name, () => {
       expect(statsRepository.findClosedLeases).toHaveBeenCalledTimes(1);
     });
 
+    it("distinguishes an owner containing '#' from a dseq filter", async () => {
+      const { service, statsRepository } = setup();
+      statsRepository.findClosedLeases.mockResolvedValue([]);
+
+      await service.getLeasesDuration("akash1owner#123", buildLeasesDurationQuery());
+      await service.getLeasesDuration("akash1owner", buildLeasesDurationQuery({ dseq: "123" }));
+
+      expect(statsRepository.findClosedLeases).toHaveBeenCalledTimes(2);
+    });
+
     it("fetches fresh results when the owner or query differs", async () => {
       const { service, statsRepository } = setup();
       statsRepository.findClosedLeases.mockResolvedValue([]);
