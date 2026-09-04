@@ -6,6 +6,9 @@ import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { denomToUdenom } from "@src/utils/math";
 
+/** Outlives one owner's funding pass so its reservations stay shared, and expires well inside the hourly sweep that would otherwise reuse a balance predating its own deposits. */
+const BALANCE_MEMO_TTL_MS = 5 * 60_000;
+
 export class CachedBalance {
   readonly #available: number;
   readonly #headroom: number;
@@ -64,7 +67,11 @@ export class CachedBalance {
 
 @singleton()
 export class CachedBalanceService {
-  public get = memoizeAsync((address: string) => this.buildForAddress(address), { cacheItemLimit: 10_000, name: "CachedBalanceService#get" });
+  public get = memoizeAsync((address: string) => this.buildForAddress(address), {
+    cacheItemLimit: 10_000,
+    ttl: BALANCE_MEMO_TTL_MS,
+    name: "CachedBalanceService#get"
+  });
 
   private readonly logger: ReturnType<CreateLogger>;
 
@@ -77,9 +84,9 @@ export class CachedBalanceService {
   }
 
   /**
-   * Reads a fresh balance bypassing the per-address memo. The memo is keyed for
-   * the process lifetime, which suits the short-lived top-up cron but would serve
-   * stale balances to the long-running background worker across credit landings.
+   * Reads a fresh balance bypassing the per-address memo, whose window suits the
+   * short-lived top-up cron but would still serve the long-running background
+   * worker a balance taken before the credits that woke it landed.
    */
   public getFresh(address: string): Promise<CachedBalance> {
     return this.buildForAddress(address);

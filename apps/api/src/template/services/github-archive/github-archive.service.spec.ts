@@ -114,6 +114,84 @@ describe(GitHubArchiveService.name, () => {
     });
   });
 
+  describe("cache byte bounds", () => {
+    const ARCHIVE_CONTENT = "x".repeat(1500);
+
+    it("evicts the least recently used archive once the cached archives exceed the total byte bound", async () => {
+      const maxTotalBytes = 3000;
+      const { service, fetchSpy, archiveResponse, cacheStats } = setup({ maxTotalBytes, maxEntryBytes: 2000 });
+      fetchSpy.mockImplementation(async () => archiveResponse({ "root/readme.md": ARCHIVE_CONTENT }));
+
+      const first = await service.getArchive("owner", "repo", "first");
+      await service.getArchive("owner", "repo", "second");
+      await service.getArchive("owner", "repo", "first");
+
+      expect(first.retainedBytes * 2).toBeGreaterThan(maxTotalBytes);
+      expect(cacheStats()).toMatchObject({ entryCount: 1 });
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
+    });
+
+    it("keeps every archive that fits within the total byte bound", async () => {
+      const { service, fetchSpy, archiveResponse, cacheStats } = setup({ maxTotalBytes: 8000, maxEntryBytes: 2000 });
+      fetchSpy.mockImplementation(async () => archiveResponse({ "root/readme.md": ARCHIVE_CONTENT }));
+
+      await service.getArchive("owner", "repo", "first");
+      await service.getArchive("owner", "repo", "second");
+      await service.getArchive("owner", "repo", "first");
+
+      expect(cacheStats()).toMatchObject({ entryCount: 2 });
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("shares one download between concurrent callers even when a limit sits below the nominal entry charge", async () => {
+      const { service, fetchSpy, archiveResponse } = setup({ maxTotalBytes: 2000, maxEntryBytes: 900 });
+      fetchSpy.mockImplementation(async () => archiveResponse({ "root/readme.md": "# Hello" }));
+
+      const [first, second] = await Promise.all([service.getArchive("owner", "repo", "ref"), service.getArchive("owner", "repo", "ref")]);
+
+      expect(first).toBe(second);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns an archive too large to keep and warns instead of caching it", async () => {
+      const maxEntryBytes = 1000;
+      const { service, logger, fetchSpy, archiveResponse, cacheStats } = setup({ maxEntryBytes });
+      fetchSpy.mockImplementation(async () => archiveResponse({ "root/readme.md": ARCHIVE_CONTENT }));
+
+      const reader = await service.getArchive("owner", "repo", "ref");
+
+      expect(await reader.readFile("readme.md")).toBe(ARCHIVE_CONTENT);
+      expect(cacheStats()).toMatchObject({ entryCount: 0 });
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "ARCHIVE_TOO_LARGE_TO_CACHE",
+        cacheKey: "owner/repo/ref:unfiltered",
+        retainedBytes: reader.retainedBytes,
+        maxArchiveBytes: maxEntryBytes
+      });
+    });
+
+    it("warns once per key however many lookups re-parse the same oversized archive", async () => {
+      const { service, logger, fetchSpy, archiveResponse } = setup({ maxEntryBytes: 1000 });
+      fetchSpy.mockImplementation(async () => archiveResponse({ "root/readme.md": ARCHIVE_CONTENT }));
+
+      await service.getArchive("owner", "repo", "ref");
+      await service.getArchive("owner", "repo", "ref");
+
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+    });
+
+    it("warns again for an archive still too large after the cache is cleared", async () => {
+      const { service, logger, fetchSpy, archiveResponse } = setup({ maxEntryBytes: 1000 });
+      fetchSpy.mockImplementation(async () => archiveResponse({ "root/readme.md": ARCHIVE_CONTENT }));
+
+      await service.getArchive("owner", "repo", "ref");
+      service.clearCache();
+      await service.getArchive("owner", "repo", "ref");
+
+      expect(logger.warn).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe("download resilience", () => {
     it("retries when a download fails and succeeds on a later attempt", async () => {
       const { service, fetchSpy, archiveResponse } = setup();
@@ -315,11 +393,11 @@ describe(GitHubArchiveService.name, () => {
     });
   });
 
-  function setup() {
+  function setup(input?: { maxTotalBytes?: number; maxEntryBytes?: number }) {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const logger = mock<ReturnType<CreateLogger>>();
     const namesBeforeRegistration = new Set(cacheRegistry.getStats().map(stats => stats.name));
-    const service = new GitHubArchiveService(logger);
+    const service = new GitHubArchiveService(logger, input);
     const cacheName = cacheRegistry.getStats().find(stats => !namesBeforeRegistration.has(stats.name))!.name;
     const fetchSpy = vi.spyOn(globalThis, "fetch");
 

@@ -6,6 +6,12 @@ export interface RegisterableCache {
   clear(): void;
 }
 
+export interface CacheLimits {
+  maxEntries?: number;
+  maxTotalBytes?: number;
+  maxEntryBytes?: number;
+}
+
 export interface CacheStats {
   name: string;
   entryCount: number;

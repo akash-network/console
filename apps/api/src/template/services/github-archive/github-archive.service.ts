@@ -6,14 +6,28 @@ import { createGunzip } from "node:zlib";
 import tar from "tar";
 
 import type { CreateLogger } from "@src/core";
+import type { CacheLimits } from "../../../caching/cache-registry.ts";
 import { cacheRegistry, NOMINAL_ENTRY_BYTES } from "../../../caching/cache-registry.ts";
 
 /** The template repo archives are ~70 MB each, so the download budget has to bound stalls rather than total transfer time. */
 const DOWNLOAD_STALL_TIMEOUT_MS = 30_000;
 
 const MAX_CACHED_ARCHIVES = 10;
-/** An archive retaining more than this is still parsed and returned, just not kept, since getArchive resolves from the parse rather than from the cache. */
-const MAX_CACHED_ARCHIVE_BYTES = 256 * 1024 * 1024;
+/** Filtered to template files the gallery's archives retain ~2.3 MB each, so this leaves room for an order of magnitude of repo growth. */
+const MAX_CACHED_ARCHIVES_TOTAL_BYTES = 128 * 1024 * 1024;
+
+/** Half the total so one archive can never evict every other one, and an archive above it is still parsed and returned since getArchive resolves from the parse. */
+function maxBytesPerArchive(maxTotalBytes: number): number {
+  return maxTotalBytes / 2;
+}
+
+/** The placeholder charged while a download is in flight must fit the ceiling, or lru-cache refuses the entry and concurrent callers each start their own download. */
+function inFlightArchiveBytes(maxArchiveBytes: number): number {
+  return Math.min(NOMINAL_ENTRY_BYTES, maxArchiveBytes);
+}
+
+/** Bounds the set of keys already warned about, which grows by one per oversized ref until the next gallery refresh clears it. */
+const MAX_WARNED_OVERSIZED_ARCHIVES = 100;
 
 const MAX_DOWNLOAD_RETRIES = 2;
 const RETRY_INITIAL_DELAY_MS = 1_000;
@@ -57,15 +71,21 @@ async function* streamWhileMakingProgress(body: ReadableStream<Uint8Array>, onPr
 }
 
 export class GitHubArchiveService {
-  readonly #cache = new LRUCache<string, Promise<ArchiveReader>>({
-    max: MAX_CACHED_ARCHIVES,
-    maxEntrySize: MAX_CACHED_ARCHIVE_BYTES,
-    sizeCalculation: () => NOMINAL_ENTRY_BYTES
-  });
+  readonly #cache: LRUCache<string, Promise<ArchiveReader>>;
+  readonly #maxArchiveBytes: number;
+  readonly #warnedOversizedKeys = new Set<string>();
   readonly #logger: ReturnType<CreateLogger>;
   readonly #downloadPolicy: RetryPolicy;
 
-  constructor(logger: ReturnType<CreateLogger>) {
+  constructor(logger: ReturnType<CreateLogger>, limits: CacheLimits = {}) {
+    const maxTotalBytes = limits.maxTotalBytes ?? MAX_CACHED_ARCHIVES_TOTAL_BYTES;
+    this.#maxArchiveBytes = limits.maxEntryBytes ?? maxBytesPerArchive(maxTotalBytes);
+    this.#cache = new LRUCache<string, Promise<ArchiveReader>>({
+      max: limits.maxEntries ?? MAX_CACHED_ARCHIVES,
+      maxSize: maxTotalBytes,
+      maxEntrySize: this.#maxArchiveBytes,
+      sizeCalculation: () => inFlightArchiveBytes(this.#maxArchiveBytes)
+    });
     this.#logger = logger;
     cacheRegistry.register("GitHubArchiveService#archives", this.#cache);
     this.#downloadPolicy = retry(
@@ -99,12 +119,31 @@ export class GitHubArchiveService {
 
   clearCache(): void {
     this.#cache.clear();
+    this.#warnedOversizedKeys.clear();
   }
 
   /** lru-cache ignores a size given for a value it already holds, so the parsed archive has to replace its own in-flight entry. */
   #chargeRetainedBytes(cacheKey: string, archive: Promise<ArchiveReader>, retainedBytes: number): void {
     this.#cache.delete(cacheKey);
+
+    if (retainedBytes > this.#maxArchiveBytes) {
+      this.#warnArchiveTooLargeToCache(cacheKey, retainedBytes);
+      return;
+    }
+
     this.#cache.set(cacheKey, archive, { size: retainedBytes });
+  }
+
+  /** An uncacheable archive is re-parsed by every template lookup for it, so the warning is reported once per key rather than once per lookup. */
+  #warnArchiveTooLargeToCache(cacheKey: string, retainedBytes: number): void {
+    if (this.#warnedOversizedKeys.has(cacheKey)) return;
+
+    if (this.#warnedOversizedKeys.size >= MAX_WARNED_OVERSIZED_ARCHIVES) {
+      this.#warnedOversizedKeys.clear();
+    }
+
+    this.#warnedOversizedKeys.add(cacheKey);
+    this.#logger.warn({ event: "ARCHIVE_TOO_LARGE_TO_CACHE", cacheKey, retainedBytes, maxArchiveBytes: this.#maxArchiveBytes });
   }
 
   async #downloadAndParse(owner: string, repo: string, ref: string, fileFilter?: (relativePath: string) => boolean): Promise<ArchiveReader> {
