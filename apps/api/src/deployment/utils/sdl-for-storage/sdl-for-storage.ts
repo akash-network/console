@@ -6,20 +6,28 @@ import { isSdlReference } from "@src/deployment/services/sdl-reference/sdl-refer
 
 type SdlServiceDefinition = SDLInput["services"][string];
 
-/** `length` becomes an estimate once it exceeds the limit, because measuring stops there rather than running a pathological document to completion. */
-export type StrippedSdl = { sdl: string | null; length: number; error?: unknown };
+/** Why a document was not stored, so a caller can report which without reading a parse error, whose message quotes the line it failed on. */
+export type StoredSdlRefusal = "unparseable" | "too-large";
 
-/** Takes a validated SDL only, and returns re-serialized YAML that must never stand in for the raw SDL anywhere a hash is taken over it. */
-export function stripSdlSecrets(rawSdl: string, maxLength: number): StrippedSdl {
+/** Numbers only, counted from one: a `js-yaml` mark also carries `snippet` and `buffer`, which quote the document and must never leave this function. */
+export type StoredSdlPosition = { line: number; column: number };
+
+/** `length` becomes an estimate once it exceeds the limit, because measuring stops there rather than running a pathological document to completion. */
+export type StoredSdl =
+  | { sdl: string; length: number; refusal?: never; at?: never }
+  | { sdl: null; length: number; refusal: StoredSdlRefusal; at?: StoredSdlPosition };
+
+/** Runs before the manifest generator has validated anything, because it is the cheapest refusal a create has, and returns re-serialized YAML that must never stand in for the raw SDL anywhere a hash is taken over it. */
+export function sdlForStorage(rawSdl: string, maxLength: number, options: { keepOrdinaryEnvValues: boolean }): StoredSdl {
   let sdl: SDLInput;
   try {
     sdl = yaml.raw<SDLInput>(rawSdl);
   } catch (error) {
-    return { sdl: null, length: rawSdl.length, error };
+    return { sdl: null, length: rawSdl.length, refusal: "unparseable", at: positionOf(error) };
   }
 
   for (const service of serviceDefinitionsOf(sdl)) {
-    stripEnvValues(service);
+    if (!options.keepOrdinaryEnvValues) dropEnvValues(service);
     delete service.credentials;
   }
 
@@ -27,13 +35,20 @@ export function stripSdlSecrets(rawSdl: string, maxLength: number): StrippedSdl 
     const estimatedLength = estimateSerializedLength(sdl, maxLength);
 
     if (estimatedLength > maxLength) {
-      return { sdl: null, length: estimatedLength };
+      return { sdl: null, length: estimatedLength, refusal: "too-large" };
     }
   }
 
-  const stripped = dump(sdl, { lineWidth: -1 });
+  const stored = dump(sdl, { lineWidth: -1 });
 
-  return stripped.length > maxLength ? { sdl: null, length: stripped.length } : { sdl: stripped, length: stripped.length };
+  return stored.length > maxLength ? { sdl: null, length: stored.length, refusal: "too-large" } : { sdl: stored, length: stored.length };
+}
+
+/** Reads `line` and `column` and nothing else, because the other fields of a `js-yaml` mark quote the document that failed to parse. */
+function positionOf(error: unknown): StoredSdlPosition | undefined {
+  const mark = (error as { mark?: { line?: unknown; column?: unknown } })?.mark;
+
+  return typeof mark?.line === "number" && typeof mark?.column === "number" ? { line: mark.line + 1, column: mark.column + 1 } : undefined;
 }
 
 function serviceDefinitionsOf(sdl: SDLInput | undefined): SdlServiceDefinition[] {
@@ -47,7 +62,7 @@ function serviceDefinitionsOf(sdl: SDLInput | undefined): SdlServiceDefinition[]
 }
 
 /** A non-list `env` is left alone rather than failing, because the manifest generator the caller runs first already rejects that shape. */
-function stripEnvValues(service: SdlServiceDefinition): void {
+function dropEnvValues(service: SdlServiceDefinition): void {
   const env = service.env;
 
   if (!Array.isArray(env)) {

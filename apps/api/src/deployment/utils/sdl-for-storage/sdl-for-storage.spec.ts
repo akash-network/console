@@ -7,10 +7,11 @@ import { mock } from "vitest-mock-extended";
 
 import type { BillingConfig } from "@src/billing/providers";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
-import { stripSdlSecrets } from "./sdl-secret-stripping";
+import { sdlForStorage } from "./sdl-for-storage";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 
@@ -19,12 +20,16 @@ const IMAGE = "ghcr.io/akash-network/hello-akash-world:2.1.0";
 /** Generous enough that every test but the size ones is measuring stripping rather than the limit. */
 const MAX_LENGTH = 128 * 1024;
 
-describe(stripSdlSecrets.name, () => {
-  describe("environment values", () => {
+/** The two ways a submitted document can arrive: having named which of its values are secret, or not. */
+const SECRETS_DECLARED = { keepOrdinaryEnvValues: true } as const;
+const SECRETS_NOT_DECLARED = { keepOrdinaryEnvValues: false } as const;
+
+describe(sdlForStorage.name, () => {
+  describe("an env value, when the submitted document declares no secrets", () => {
     it("keeps the variable name and drops its value", () => {
       const token = faker.string.alphanumeric(24);
 
-      const stripped = strip(sdlWith({ web: { env: [`API_TOKEN=${token}`] } }));
+      const stripped = storedWithoutValues(sdlWith({ web: { env: [`API_TOKEN=${token}`] } }));
 
       expect(stripped.services.web.env).toEqual(["API_TOKEN="]);
     });
@@ -32,89 +37,150 @@ describe(stripSdlSecrets.name, () => {
     it("drops a value that itself contains an equals sign", () => {
       const password = faker.internet.password();
 
-      const stripped = strip(sdlWith({ web: { env: [`DATABASE_URL=postgres://u:${password}@h:5432/db?ssl=true&a=b`] } }));
+      const stripped = storedWithoutValues(sdlWith({ web: { env: [`DATABASE_URL=postgres://u:${password}@h:5432/db?ssl=true&a=b`] } }));
 
       expect(stripped.services.web.env).toEqual(["DATABASE_URL="]);
     });
 
     it("leaves an entry that names no value alone", () => {
-      const stripped = strip(sdlWith({ web: { env: ["INHERITED_FROM_HOST"] } }));
+      const stripped = storedWithoutValues(sdlWith({ web: { env: ["INHERITED_FROM_HOST"] } }));
 
       expect(stripped.services.web.env).toEqual(["INHERITED_FROM_HOST"]);
     });
 
     it("leaves an explicitly null env list alone", () => {
-      const stripped = strip(sdlWith({ web: { env: null } }));
+      const stripped = storedWithoutValues(sdlWith({ web: { env: null } }));
 
       expect(stripped.services.web.env).toBeNull();
     });
 
     it("leaves a service that declares no env alone", () => {
-      const stripped = strip(sdlWith({ web: {} }));
+      const stripped = storedWithoutValues(sdlWith({ web: {} }));
 
       expect(stripped.services.web).not.toHaveProperty("env");
     });
 
     it("strips the env of every service, not only the first", () => {
-      const stripped = strip(sdlWith({ web: { env: [`A=${faker.string.alphanumeric(8)}`] }, worker: { env: [`B=${faker.string.alphanumeric(8)}`] } }));
+      const stripped = storedWithoutValues(
+        sdlWith({ web: { env: [`A=${faker.string.alphanumeric(8)}`] }, worker: { env: [`B=${faker.string.alphanumeric(8)}`] } })
+      );
 
       expect(stripped.services.web.env).toEqual(["A="]);
       expect(stripped.services.worker.env).toEqual(["B="]);
     });
   });
 
+  describe("an env value, when the submitted document declares its secrets", () => {
+    it("keeps the value exactly as submitted", () => {
+      const token = faker.string.alphanumeric(24);
+
+      const kept = storedWithValues(sdlWith({ web: { env: [`API_TOKEN=${token}`] } }));
+
+      expect(kept.services.web.env).toEqual([`API_TOKEN=${token}`]);
+    });
+
+    it("keeps a value that itself contains an equals sign", () => {
+      const password = faker.internet.password();
+      const url = `postgres://u:${password}@h:5432/db?ssl=true&a=b`;
+
+      const kept = storedWithValues(sdlWith({ web: { env: [`DATABASE_URL=${url}`] } }));
+
+      expect(kept.services.web.env).toEqual([`DATABASE_URL=${url}`]);
+    });
+
+    it("keeps a value carrying yaml metacharacters byte-identical", () => {
+      const value = "a: b #c |x >y {z} [w] &anchor *alias \"q\" 's'\nsecond: line\t- dash";
+
+      const kept = storedWithValues(sdlWith({ web: { env: [`WEIRD=${value}`] } }));
+
+      expect(kept.services.web.env).toEqual([`WEIRD=${value}`]);
+    });
+
+    it("keeps an entry that names no value distinct from one whose value is empty", () => {
+      const kept = storedWithValues(sdlWith({ web: { env: ["INHERITED_FROM_HOST", "EXPLICITLY_EMPTY="] } }));
+
+      expect(kept.services.web.env).toEqual(["INHERITED_FROM_HOST", "EXPLICITLY_EMPTY="]);
+    });
+
+    it("keeps a reference beside an ordinary value", () => {
+      const token = faker.string.alphanumeric(24);
+
+      const kept = storedWithValues(sdlWith({ web: { env: ["SECRET=ac-secret://SECRET", `PLAIN=${token}`, "INHERITED_FROM_HOST"] } }));
+
+      expect(kept.services.web.env).toEqual(["SECRET=ac-secret://SECRET", `PLAIN=${token}`, "INHERITED_FROM_HOST"]);
+    });
+
+    it("keeps the env of every service, not only the first", () => {
+      const [first, second] = [faker.string.alphanumeric(8), faker.string.alphanumeric(8)];
+
+      const kept = storedWithValues(sdlWith({ web: { env: [`A=${first}`] }, worker: { env: [`B=${second}`] } }));
+
+      expect(kept.services.web.env).toEqual([`A=${first}`]);
+      expect(kept.services.worker.env).toEqual([`B=${second}`]);
+    });
+
+    it("reparses to the document that was submitted", () => {
+      const submitted = sdlWith({
+        web: { env: [`API_TOKEN=${faker.string.alphanumeric(24)}`, "SECRET=ac-secret://SECRET", "INHERITED_FROM_HOST"] },
+        worker: { env: [`DATABASE_URL=postgres://u:${faker.internet.password()}@h:5432/db?ssl=true`] }
+      });
+
+      expect(storedWithValues(submitted)).toEqual(yaml.raw<SDLInput>(submitted));
+    });
+  });
+
   describe("a value that refers to a secret rather than carrying one", () => {
     it("keeps a whole sdl reference", () => {
-      const stripped = strip(sdlWith({ web: { env: ["API_TOKEN=ac-secret://API_TOKEN"] } }));
+      const stripped = storedWithoutValues(sdlWith({ web: { env: ["API_TOKEN=ac-secret://API_TOKEN"] } }));
 
       expect(stripped.services.web.env).toEqual(["API_TOKEN=ac-secret://API_TOKEN"]);
     });
 
     it("keeps a reference whose name differs from the variable it is assigned to", () => {
-      const stripped = strip(sdlWith({ web: { env: ["DATABASE_URL=ac-secret://PROD_DB"] } }));
+      const stripped = storedWithoutValues(sdlWith({ web: { env: ["DATABASE_URL=ac-secret://PROD_DB"] } }));
 
       expect(stripped.services.web.env).toEqual(["DATABASE_URL=ac-secret://PROD_DB"]);
     });
 
     it("keeps a reference of a kind no resolver is registered for", () => {
-      const stripped = strip(sdlWith({ web: { env: ["MODE=ac-var://MODE"] } }));
+      const stripped = storedWithoutValues(sdlWith({ web: { env: ["MODE=ac-var://MODE"] } }));
 
       expect(stripped.services.web.env).toEqual(["MODE=ac-var://MODE"]);
     });
 
     it("keeps the reference of every service that carries one", () => {
-      const stripped = strip(sdlWith({ web: { env: ["T=ac-secret://T"] }, worker: { env: ["T=ac-secret://T"] } }));
+      const stripped = storedWithoutValues(sdlWith({ web: { env: ["T=ac-secret://T"] }, worker: { env: ["T=ac-secret://T"] } }));
 
       expect(stripped.services.web.env).toEqual(["T=ac-secret://T"]);
       expect(stripped.services.worker.env).toEqual(["T=ac-secret://T"]);
     });
 
     it("drops a value that merely opens with the reserved prefix", () => {
-      const stripped = strip(sdlWith({ web: { env: ["MODE=ac-dc"] } }));
+      const stripped = storedWithoutValues(sdlWith({ web: { env: ["MODE=ac-dc"] } }));
 
       expect(stripped.services.web.env).toEqual(["MODE="]);
     });
 
     it("drops a reference embedded in a larger value", () => {
-      const stripped = strip(sdlWith({ web: { env: ["T=prefix-ac-secret://T"] } }));
+      const stripped = storedWithoutValues(sdlWith({ web: { env: ["T=prefix-ac-secret://T"] } }));
 
       expect(stripped.services.web.env).toEqual(["T="]);
     });
 
     it("drops a value that is a reference followed by anything else", () => {
-      const stripped = strip(sdlWith({ web: { env: ["T=ac-secret://T suffix"] } }));
+      const stripped = storedWithoutValues(sdlWith({ web: { env: ["T=ac-secret://T suffix"] } }));
 
       expect(stripped.services.web.env).toEqual(["T="]);
     });
 
     it("drops a value that is a reference followed by a line terminator", () => {
-      const stripped = strip(sdlWith({ web: { env: ["T=ac-secret://T\n"] } }));
+      const stripped = storedWithoutValues(sdlWith({ web: { env: ["T=ac-secret://T\n"] } }));
 
       expect(stripped.services.web.env).toEqual(["T="]);
     });
 
     it("drops a value naming a kind longer than the grammar allows", () => {
-      const stripped = strip(sdlWith({ web: { env: [`T=ac-${"z".repeat(17)}://T`] } }));
+      const stripped = storedWithoutValues(sdlWith({ web: { env: [`T=ac-${"z".repeat(17)}://T`] } }));
 
       expect(stripped.services.web.env).toEqual(["T="]);
     });
@@ -122,38 +188,34 @@ describe(stripSdlSecrets.name, () => {
     it("keeps a reference while dropping an ordinary value beside it", () => {
       const token = faker.string.alphanumeric(24);
 
-      const stripped = strip(sdlWith({ web: { env: ["SECRET=ac-secret://SECRET", `PLAIN=${token}`, "INHERITED_FROM_HOST"] } }));
+      const stripped = storedWithoutValues(sdlWith({ web: { env: ["SECRET=ac-secret://SECRET", `PLAIN=${token}`, "INHERITED_FROM_HOST"] } }));
 
       expect(stripped.services.web.env).toEqual(["SECRET=ac-secret://SECRET", "PLAIN=", "INHERITED_FROM_HOST"]);
     });
   });
 
   describe("private registry credentials", () => {
-    it("removes the whole block, not just the password", () => {
-      const stripped = strip(
-        sdlWith({
-          web: {
-            credentials: { host: "registry.example.test", username: faker.string.alphanumeric(10), password: faker.internet.password() }
-          }
-        })
-      );
-
-      expect(stripped.services.web).not.toHaveProperty("credentials");
-    });
-
-    it("removes the block of every service that declares one", () => {
+    it.each([SECRETS_DECLARED, SECRETS_NOT_DECLARED])("removes the whole block, not just the password, given %j", options => {
       const credentials = { host: "registry.example.test", username: faker.string.alphanumeric(10), password: faker.internet.password() };
 
-      const stripped = strip(sdlWith({ web: { credentials }, worker: { credentials } }));
+      const stored = storedDocumentOf(sdlWith({ web: { credentials } }), options);
 
-      expect(stripped.services.web).not.toHaveProperty("credentials");
-      expect(stripped.services.worker).not.toHaveProperty("credentials");
+      expect(stored.services.web).not.toHaveProperty("credentials");
+    });
+
+    it.each([SECRETS_DECLARED, SECRETS_NOT_DECLARED])("removes the block of every service that declares one, given %j", options => {
+      const credentials = { host: "registry.example.test", username: faker.string.alphanumeric(10), password: faker.internet.password() };
+
+      const stored = storedDocumentOf(sdlWith({ web: { credentials }, worker: { credentials } }), options);
+
+      expect(stored.services.web).not.toHaveProperty("credentials");
+      expect(stored.services.worker).not.toHaveProperty("credentials");
     });
   });
 
   describe("a value that is also an ordinary part of the SDL", () => {
     it("keeps a service whose name another service's env value happens to equal", () => {
-      const stripped = strip(sdlWith({ wordpress: { env: ["WORDPRESS_DB_HOST=db"] }, db: { env: ["MYSQL_DATABASE=wordpress"] } }));
+      const stripped = storedWithoutValues(sdlWith({ wordpress: { env: ["WORDPRESS_DB_HOST=db"] }, db: { env: ["MYSQL_DATABASE=wordpress"] } }));
 
       expect(Object.keys(stripped.services)).toEqual(["wordpress", "db"]);
       expect(stripped.services.db.image).toBe(IMAGE);
@@ -162,19 +224,19 @@ describe(stripSdlSecrets.name, () => {
     });
 
     it("keeps a placement denom an env value happens to equal", () => {
-      const stripped = strip(sdlWith({ web: { env: ["DENOM=uakt"] } }));
+      const stripped = storedWithoutValues(sdlWith({ web: { env: ["DENOM=uakt"] } }));
 
       expect(stripped.profiles.placement.dcloud.pricing.web.denom).toBe("uakt");
     });
 
     it("keeps an image an env value happens to equal", () => {
-      const stripped = strip(sdlWith({ web: { image: "nginx", env: ["IMAGE_NAME=nginx"] } }));
+      const stripped = storedWithoutValues(sdlWith({ web: { image: "nginx", env: ["IMAGE_NAME=nginx"] } }));
 
       expect(stripped.services.web.image).toBe("nginx");
     });
 
     it("keeps a map key an env value happens to equal", () => {
-      const stripped = strip(sdlWith({ web: { env: ["PROFILE=dcloud"] } }));
+      const stripped = storedWithoutValues(sdlWith({ web: { env: ["PROFILE=dcloud"] } }));
 
       expect(stripped.profiles.placement).toHaveProperty("dcloud");
     });
@@ -185,7 +247,7 @@ describe(stripSdlSecrets.name, () => {
       const token = faker.string.alphanumeric(12);
       const sharedEnv = [`API_TOKEN=${token}`];
 
-      const stripped = strip(dump(sdlDocument({ web: { env: sharedEnv, args: sharedEnv } })));
+      const stripped = storedWithoutValues(dump(sdlDocument({ web: { env: sharedEnv, args: sharedEnv } })));
 
       expect(stripped.services.web.env).toEqual(["API_TOKEN="]);
       expect(stripped.services.web.args).toEqual(["API_TOKEN="]);
@@ -194,48 +256,61 @@ describe(stripSdlSecrets.name, () => {
     it("keeps a value typed out a second time in args, which the env declaration cannot reach", () => {
       const token = faker.string.alphanumeric(12);
 
-      const stripped = strip(sdlWith({ web: { env: [`API_TOKEN=${token}`], args: [`--token=${token}`] } }));
+      const stripped = storedWithoutValues(sdlWith({ web: { env: [`API_TOKEN=${token}`], args: [`--token=${token}`] } }));
 
       expect(stripped.services.web.env).toEqual(["API_TOKEN="]);
       expect(stripped.services.web.args).toEqual([`--token=${token}`]);
     });
   });
 
-  describe("the stripped output", () => {
+  describe("the stored output", () => {
     it("stays an SDL the manifest generator still accepts", () => {
       const submitted = sdlWith({ web: { env: [`API_TOKEN=${faker.string.alphanumeric(12)}`] } });
 
-      expect(manifestFrom(storedSdlOf(submitted)).ok).toBe(true);
+      expect(manifestFrom(storedSdlOf(submitted, SECRETS_NOT_DECLARED)).ok).toBe(true);
     });
 
     it("stays an SDL the manifest generator accepts when an env value equals the service name", () => {
       const submitted = sdlWith({ wordpress: { env: ["WORDPRESS_DB_HOST=db"] }, db: {} });
 
-      expect(manifestFrom(storedSdlOf(submitted)).ok).toBe(true);
+      expect(manifestFrom(storedSdlOf(submitted, SECRETS_NOT_DECLARED)).ok).toBe(true);
     });
 
     it("stays an SDL the manifest generator accepts when an env value equals the denom", () => {
       const submitted = sdlWith({ web: { env: ["DENOM=uakt"] } });
 
-      expect(manifestFrom(storedSdlOf(submitted)).ok).toBe(true);
+      expect(manifestFrom(storedSdlOf(submitted, SECRETS_NOT_DECLARED)).ok).toBe(true);
     });
 
     it("still generates a manifest for an SDL that declares no env at all", () => {
-      expect(manifestFrom(storedSdlOf(sdlWith({ web: {} }))).ok).toBe(true);
+      expect(manifestFrom(storedSdlOf(sdlWith({ web: {} }), SECRETS_NOT_DECLARED)).ok).toBe(true);
     });
 
-    it("strips an already stripped SDL to the same thing again", () => {
-      const once = storedSdlOf(sdlWith({ web: { env: [`API_TOKEN=${faker.string.alphanumeric(12)}`] } }));
+    it("stores an already stored SDL as the same thing again", () => {
+      const once = storedSdlOf(sdlWith({ web: { env: [`API_TOKEN=${faker.string.alphanumeric(12)}`] } }), SECRETS_NOT_DECLARED);
 
-      expect(storedSdlOf(once)).toBe(once);
+      expect(storedSdlOf(once, SECRETS_NOT_DECLARED)).toBe(once);
+    });
+  });
+
+  describe("an SDL that is not yaml at all", () => {
+    it("reports why it was refused, carrying nothing of the document with it", () => {
+      const value = faker.string.alphanumeric(10);
+
+      const result = sdlForStorage(`services:\n  web:\n    env:\n      - LEAKED=${value}\n   bad: indentation\n`, MAX_LENGTH, SECRETS_NOT_DECLARED);
+
+      expect(result).toEqual({ sdl: null, length: expect.any(Number), refusal: "unparseable", at: { line: 5, column: 4 } });
+      expect(JSON.stringify(result)).not.toContain(value);
+      expect(JSON.stringify(result)).not.toContain("LEAKED");
     });
   });
 
   describe("an SDL too large to store", () => {
     it("returns nothing rather than the document, reporting the size it measured", () => {
-      const result = stripSdlSecrets(sdlWith({ web: { args: ["x".repeat(2048)] } }), 512);
+      const result = sdlForStorage(sdlWith({ web: { args: ["x".repeat(2048)] } }), 512, SECRETS_NOT_DECLARED);
 
       expect(result.sdl).toBeNull();
+      expect(result.refusal).toBe("too-large");
       expect(result.length).toBeGreaterThan(512);
     });
 
@@ -244,7 +319,7 @@ describe(stripSdlSecrets.name, () => {
       const aliasCount = 512;
       const lengthIfItHadBeenSerialized = scalarLength * aliasCount;
 
-      const result = stripSdlSecrets(sdlAliasingOneScalar({ scalarLength, aliasCount }), 8192);
+      const result = sdlForStorage(sdlAliasingOneScalar({ scalarLength, aliasCount }), 8192, SECRETS_NOT_DECLARED);
 
       expect(result.sdl).toBeNull();
       expect(result.length).toBeGreaterThan(8192);
@@ -252,14 +327,14 @@ describe(stripSdlSecrets.name, () => {
     });
 
     it("measures an aliased scalar once per alias, as serializing it would write it", () => {
-      const oneAlias = stripSdlSecrets(sdlAliasingOneScalar({ scalarLength: 4096, aliasCount: 1 }), 8192).length;
-      const manyAliases = stripSdlSecrets(sdlAliasingOneScalar({ scalarLength: 4096, aliasCount: 512 }), 8192).length;
+      const oneAlias = sdlForStorage(sdlAliasingOneScalar({ scalarLength: 4096, aliasCount: 1 }), 8192, SECRETS_NOT_DECLARED).length;
+      const manyAliases = sdlForStorage(sdlAliasingOneScalar({ scalarLength: 4096, aliasCount: 512 }), 8192, SECRETS_NOT_DECLARED).length;
 
       expect(manyAliases).toBeGreaterThan(oneAlias);
     });
 
     it("stores a document with no anchors that fits, without consulting the estimate", () => {
-      const stripped = stripSdlSecrets(sdlWith({ web: { env: [`API_TOKEN=${faker.string.alphanumeric(12)}`] } }), MAX_LENGTH);
+      const stripped = sdlForStorage(sdlWith({ web: { env: [`API_TOKEN=${faker.string.alphanumeric(12)}`] } }), MAX_LENGTH, SECRETS_NOT_DECLARED);
 
       expect(stripped.sdl).toContain("API_TOKEN=");
       expect(stripped.length).toBe(stripped.sdl?.length);
@@ -268,7 +343,7 @@ describe(stripSdlSecrets.name, () => {
     it("measures a document with no anchors by serializing it exactly", () => {
       const submitted = sdlWith({ web: { args: ["x".repeat(4096)] } });
 
-      const result = stripSdlSecrets(submitted, 512);
+      const result = sdlForStorage(submitted, 512, SECRETS_NOT_DECLARED);
 
       expect(result.sdl).toBeNull();
       expect(result.length).toBe(dump(yaml.raw(submitted), { lineWidth: -1 }).length);
@@ -277,25 +352,49 @@ describe(stripSdlSecrets.name, () => {
     it("stores a document whose scalars merely contain an ampersand and an asterisk", () => {
       const submitted = sdlWith({ web: { args: ["sh", "-c", "start && tail -f *.log"], env: [`TOKEN=${faker.string.alphanumeric(8)}&x*y`] } });
 
-      const stripped = strip(submitted);
+      const stripped = storedWithoutValues(submitted);
 
       expect(stripped.services.web.args).toEqual(["sh", "-c", "start && tail -f *.log"]);
       expect(stripped.services.web.env).toEqual(["TOKEN="]);
     });
 
     it("returns a document that fits", () => {
-      expect(stripSdlSecrets(sdlWith({ web: {} }), MAX_LENGTH).sdl).toContain("services:");
+      expect(sdlForStorage(sdlWith({ web: {} }), MAX_LENGTH, SECRETS_NOT_DECLARED).sdl).toContain("services:");
+    });
+
+    it("refuses a document only the values it keeps put past the limit", () => {
+      const submitted = sdlWith({ web: { env: [`BLOB=${"x".repeat(4096)}`] } });
+
+      expect(sdlForStorage(submitted, 2048, SECRETS_DECLARED).sdl).toBeNull();
+      expect(sdlForStorage(submitted, 2048, SECRETS_NOT_DECLARED).sdl).not.toBeNull();
+    });
+
+    it("stores an env-heavy sdl of a realistic size against the bound production uses", () => {
+      const env = Array.from({ length: 200 }, (_, index) => `SETTING_${index}=${faker.string.alphanumeric(48)}`);
+
+      const { sdl, length } = sdlForStorage(sdlWith({ web: { env } }), SDL_MAX_LENGTH, SECRETS_DECLARED);
+
+      expect(sdl).not.toBeNull();
+      expect(length).toBeLessThan(SDL_MAX_LENGTH / 4);
     });
   });
 
   type ServiceOverrides = Record<string, unknown>;
 
-  function strip(rawSdl: string) {
-    return yaml.raw<SDLInput>(storedSdlOf(rawSdl));
+  function storedWithoutValues(rawSdl: string) {
+    return storedDocumentOf(rawSdl, SECRETS_NOT_DECLARED);
   }
 
-  function storedSdlOf(rawSdl: string): string {
-    const { sdl } = stripSdlSecrets(rawSdl, MAX_LENGTH);
+  function storedWithValues(rawSdl: string) {
+    return storedDocumentOf(rawSdl, SECRETS_DECLARED);
+  }
+
+  function storedDocumentOf(rawSdl: string, options: { keepOrdinaryEnvValues: boolean }) {
+    return yaml.raw<SDLInput>(storedSdlOf(rawSdl, options));
+  }
+
+  function storedSdlOf(rawSdl: string, options: { keepOrdinaryEnvValues: boolean }): string {
+    const { sdl } = sdlForStorage(rawSdl, MAX_LENGTH, options);
     expect(sdl).not.toBeNull();
     return sdl as string;
   }

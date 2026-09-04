@@ -341,7 +341,7 @@ describe(SdlReferenceService.name, () => {
       expect(sdl.services.worker.credentials!.password).toBe(workerPassword);
     });
 
-    it("reports a credential reference it holds no value for, naming the half that carries it", () => {
+    it("quotes the reference of a credential it holds no value for, a reserved-prefix string being one no registry could accept anyway", () => {
       const { service } = setup();
       const sdl = sdlWithCredentials({ password: "ac-secret://REG_PASS" });
 
