@@ -56,38 +56,40 @@ jobs:
         id: decide
         env:
           PR_NUMBER: ${{ steps.associated_pr.outputs.number }}
-        run: |
+        run: | # shell
+          emit_decision() {
+            local run_scan="$1"
+            local report_check="$2"
+            local skip_reason="$3"
+            {
+              echo "run_scan=$run_scan"
+              echo "report_check=$report_check"
+              echo "skip_reason=$skip_reason"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+
           # A cancelled CI run is superseded by a newer one whose own scan reports this commit's verdict;
           # reporting here as well would race that scan for the same check name on the same commit.
           if [ "${PARENT_WORKFLOW_CONCLUSION}" == "cancelled" ]; then
-            echo "run_scan=false" >> "$GITHUB_OUTPUT"
-            echo "report_check=false" >> "$GITHUB_OUTPUT"
-            echo "skip_reason=Upstream CI was cancelled, so the superseding CI run reports instead" >> "$GITHUB_OUTPUT"
-            exit 0
+            emit_decision false false "Upstream CI was cancelled, so the superseding CI run reports instead"
           fi
 
-          echo "report_check=true" >> "$GITHUB_OUTPUT"
+          # No PR owns the commit any more, so a check reported on it would hang off a commit nobody
+          # can see; whatever replaced it carries its own CI run and its own scan.
+          if [[ "${PARENT_WORKFLOW_EVENT}" == "pull_request" && "${PR_NUMBER}" == "" ]]; then
+            emit_decision false false "PR head changed because of rebase/force push and associated PR cannot be found"
+          fi
 
           if [ "${PARENT_WORKFLOW_CONCLUSION}" != "success" ]; then
-            echo "run_scan=false" >> "$GITHUB_OUTPUT"
-            echo "skip_reason=Upstream CI conclusion is '${PARENT_WORKFLOW_CONCLUSION}'" >> "$GITHUB_OUTPUT"
-            exit 0
+            emit_decision false true "Upstream CI conclusion is '${PARENT_WORKFLOW_CONCLUSION}'"
           fi
 
           if [[ "${PARENT_WORKFLOW_EVENT}" != "pull_request" && "${PARENT_WORKFLOW_EVENT}" != "push" ]]; then
-            echo "run_scan=false" >> "$GITHUB_OUTPUT"
-            echo "skip_reason=Upstream CI was not triggered by pull_request or push (event=${PARENT_WORKFLOW_EVENT})" >> "$GITHUB_OUTPUT"
-            exit 0
+            emit_decision false true "Upstream CI was not triggered by pull_request or push (event=${PARENT_WORKFLOW_EVENT})"
           fi
 
-          if [[ "${PR_NUMBER}" == "" && "${PARENT_WORKFLOW_EVENT}" == "pull_request" ]]; then
-            echo "run_scan=false" >> "$GITHUB_OUTPUT"
-            echo "skip_reason=PR head changed because of rebase/force push and associated PR cannot be found" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "run_scan=true" >> "$GITHUB_OUTPUT"
-          echo "skip_reason=" >> "$GITHUB_OUTPUT"
+          emit_decision true true ""
 
       - name: Note skipped check run
         if: ${{ steps.decide.outputs.report_check != 'true' }}
