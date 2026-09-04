@@ -83,7 +83,7 @@ function mapGpuInfo(info: GPUInfo): GpuInfo {
 }
 
 function mapCpuInfo(info: CPUInfo): CpuInfo {
-  return { vendor: info.vendor, model: info.model };
+  return { vendor: info.vendor, model: info.model, arch: info.arch ?? "" };
 }
 
 function mapNode(node: SdkNode): NodeState {

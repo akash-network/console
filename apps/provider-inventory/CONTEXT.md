@@ -58,6 +58,18 @@ A single instance of a service in a deployment. The **GroupSpec** lists resource
 **resource unit** / **group**:
 One entry in **GroupSpec.resources**. A set of resources (CPU, memory, GPU, storage) requested for `count` replicas. All replicas in the same unit share the same resource shape; replicas in different units may have different shapes.
 
+**requested architecture**:
+The CPU architecture a **GroupSpec** asks for, carried as the `arch` attribute on a resource's CPU. Exactly `amd64` or `arm64` — the SDL writes no implicit default, so a spec that names none is screened as `amd64` by the **bin-packer**, matching the provider bid engine. Anything else is a bad request, not an empty result.
+_Avoid_: cpu arch attribute, platform
+
+**reported architecture**:
+The architecture a **node** says it runs, from `cpu.info[].arch` in the provider's inventory stream. Empty on nodes whose inventory operator predates architecture reporting. Beats the **declared architecture** whenever both exist.
+_Avoid_: observed arch, node arch
+
+**declared architecture**:
+The `hardware-cpu-arch` **self-attribute** (or **signed-attribute**) a provider writes about itself. Unverified, so it only stands in for nodes with no **reported architecture**, and is normalized on read because providers spell it by hand (`x86_64`, `aarch64`).
+_Avoid_: hardware-cpu-arch, advertised arch
+
 **glob attribute**:
 A **GroupSpec.requirements.attributes** entry whose `key` contains `*` or `?`. Matched against provider attribute keys via PG regex (`~`). Works under SeqScan; not GIN-accelerated.
 
@@ -121,6 +133,7 @@ _Avoid_: matcher, scheduler
 - A **provider inventory** row carries `self_attributes` and `signed_attributes` (denormalised from chain queries; see `discovery loop`) plus `audited_by`.
 - Two **providers** with the same `hostUri` collapse into one stream connection (latest by `createdHeight` wins).
 - The **prefilter** reads only `provider_inventory`; the legacy `provider*` tables are not joined.
+- Architecture is checked by the **bin-packer** alone, never the **prefilter**: it needs per-node data, and an architecture-free request must screen exactly as it did before.
 - `apps/api` calls the **bid-screening proxy** for every `/v1/bid-screening` request; the proxy makes a single internal HTTP call to `apps/provider-inventory` and returns the response unchanged.
 - The legacy **provider snapshot** tables coexist; readers other than bid screening still use them.
 
@@ -147,5 +160,6 @@ _Avoid_: matcher, scheduler
 - **"snapshot"** was used for both the legacy historical row and the bid-screening current state. Resolved: legacy = **provider snapshot**, bid-screening = **provider inventory**.
 - **"online"** in `provider.isOnline` (legacy) means "passed the last 15-min HTTP probe". In `provider_inventory.is_online` it means "streamer has an open `streamStatus` channel and has received at least one message since reconnect". These will diverge intentionally.
 - **"attribute"** without qualifier is ambiguous. Always say **self-attribute** or **signed-attribute** — they are independent on-chain facts and the **prefilter** treats them differently.
+- **"architecture"** without qualifier is ambiguous, and the three senses disagree on purpose. **requested** comes from the deployment, **reported** from the node's inventory, **declared** from the provider's own attribute. Precedence is reported, then declared, then `amd64`.
 - **"available CPU"** vs **"max node free CPU"** — `total_available_cpu` is the cluster sum, used to filter on the GroupSpec total; `max_node_free_cpu` is the largest single-node free slice, used to filter on the largest replica. The first does not imply the second.
 - **"storage"** is overloaded. **Ephemeral storage** is per-node and disappears with the workload. **Persistent storage** is cluster-wide and survives. **RAM storage** is allocated against node memory. The three are tracked separately and flow through different rollup columns.

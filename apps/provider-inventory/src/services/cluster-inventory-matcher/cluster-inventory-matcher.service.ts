@@ -1,6 +1,7 @@
 import { singleton } from "tsyringe";
 
 import { canAllocate } from "@src/domain/resource-pair/resource-pair";
+import { type CpuArch, DEFAULT_CPU_ARCH, resolveNodeCpuArch } from "../../mappers/cpu-attribute-parser/cpu-attribute-parser";
 import { matchesGPU, type ParsedGPUAttributes } from "../../mappers/gpu-attribute-parser/gpu-attribute-parser";
 import type { ClusterState, MatchResult, NodeState, RequestedResourceUnit } from "../../types/inventory";
 
@@ -10,28 +11,31 @@ const GPU_CHECK_FAIL = Object.freeze({ ok: false } as const);
 const NO_CAPACITY = Object.freeze({ matched: false, error: "INSUFFICIENT_CAPACITY" } as MatchResult);
 const MATCHED = Object.freeze({ matched: true } as MatchResult);
 const EMPTY_NODES = Object.freeze([] as readonly NodeState[]);
+const NO_PROVIDER_CONTEXT = Object.freeze({ declaredCpuArch: null } as ProviderContext);
 
 @singleton()
 export class ClusterInventoryMatcherService {
-  match(cluster: ClusterState | undefined, resourceUnits: RequestedResourceUnit[]): MatchResult {
+  match(cluster: ClusterState | undefined, resourceUnits: RequestedResourceUnit[], provider: ProviderContext = NO_PROVIDER_CONTEXT): MatchResult {
     if (!cluster) return NO_CAPACITY;
 
     const clusterNodes = cluster.nodes ?? EMPTY_NODES;
     const nodeCount = clusterNodes.length;
     const nodeDeltas: NodeDelta[] = new Array(nodeCount);
+    const nodeArchs: CpuArch[] = new Array(nodeCount);
     for (let i = 0; i < nodeCount; i++) {
       nodeDeltas[i] = { cpu: 0n, mem: 0n, eph: 0n, gpu: 0n };
+      nodeArchs[i] = resolveNodeCpuArch(clusterNodes[i].cpus, provider.declaredCpuArch);
     }
     const storageDeltas: Record<string, bigint> = Object.create(null);
 
     for (let i = resourceUnits.length - 1; i >= 0; i--) {
       const group = resourceUnits[i];
-      let canonical: CanonicalHardware = { gpuSpecs: null, cpuFingerprint: group.resources.cpu.fingerprint };
+      let canonical: CanonicalHardware = { gpuSpecs: null };
 
       let remaining = group.count;
 
       for (let nodeIdx = 0; nodeIdx < nodeCount && remaining > 0; ) {
-        const result = this.#tryAdjust(clusterNodes[nodeIdx], nodeDeltas[nodeIdx], cluster.storage, storageDeltas, group, canonical);
+        const result = this.#tryAdjust(clusterNodes[nodeIdx], nodeArchs[nodeIdx], nodeDeltas[nodeIdx], cluster.storage, storageDeltas, group, canonical);
         if (!result.clusterOk) return NO_CAPACITY;
 
         if (result.nodeOk) {
@@ -63,12 +67,14 @@ export class ClusterInventoryMatcherService {
 
   #tryAdjust(
     node: NodeState,
+    nodeArch: CpuArch,
     baseDelta: NodeDelta,
     clusterStorage: ClusterState["storage"],
     storageDeltas: Record<string, bigint>,
     group: RequestedResourceUnit,
     canonical: CanonicalHardware
   ): AttemptResult {
+    if (nodeArch !== (group.resources.cpu.arch ?? DEFAULT_CPU_ARCH)) return FAIL_NODE;
     if (!canAllocate(node.cpu, group.resources.cpu.units + baseDelta.cpu)) return FAIL_NODE;
     if (!canAllocate(node.memory, group.resources.memory.quantity + baseDelta.mem)) return FAIL_NODE;
     if (!canAllocate(node.gpu.quantity, group.resources.gpu.units + baseDelta.gpu)) return FAIL_NODE;
@@ -178,9 +184,13 @@ export class ClusterInventoryMatcherService {
   }
 }
 
+/** What a provider declares about itself on chain, standing in for inventory a node has not reported. */
+export interface ProviderContext {
+  declaredCpuArch: string | null;
+}
+
 interface CanonicalHardware {
   gpuSpecs: ParsedGPUAttributes | null;
-  cpuFingerprint: string | null;
 }
 
 interface NodeDelta {

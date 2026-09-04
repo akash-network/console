@@ -69,7 +69,18 @@ describe(BidScreeningService.name, () => {
 
       await service.findMatchingProviders(makeRequest());
 
-      expect(matcher.match).toHaveBeenCalledWith(candidate.cluster, expect.any(Array));
+      expect(matcher.match).toHaveBeenCalledWith(candidate.cluster, expect.any(Array), { declaredCpuArch: null });
+    });
+
+    it("passes the candidate's declared CPU architecture to the matcher", async () => {
+      const { service, repository, matcher } = setup();
+      const candidate = makeCandidate("akash1abc", { declaredCpuArch: "arm64" });
+      repository.findCandidates.mockResolvedValue([candidate]);
+      matcher.match.mockReturnValue({ matched: true });
+
+      await service.findMatchingProviders(makeRequest());
+
+      expect(matcher.match).toHaveBeenCalledWith(candidate.cluster, expect.any(Array), { declaredCpuArch: "arm64" });
     });
 
     it("returns empty array when no candidates are returned", async () => {
@@ -247,7 +258,7 @@ function makeDowntimeRow(provider: string, overrides?: Partial<DailyDowntimeRow>
 
 function makeCandidate(
   owner: string,
-  overrides?: { isAudited?: boolean; createdAt?: string; location?: string | null; organization?: string | null }
+  overrides?: { isAudited?: boolean; createdAt?: string; location?: string | null; organization?: string | null; declaredCpuArch?: string | null }
 ): BidScreeningCandidate {
   return {
     owner,
@@ -257,6 +268,7 @@ function makeCandidate(
     updatedAt: "2026-01-01T00:00:00.000Z",
     location: overrides?.location ?? null,
     organization: overrides?.organization ?? null,
+    declaredCpuArch: overrides?.declaredCpuArch ?? null,
     cluster: {
       nodes: [
         {

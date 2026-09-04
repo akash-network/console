@@ -1,4 +1,5 @@
 import type { DailyDowntimeRow } from "@src/repositories/provider-incident/provider-incident.repository";
+import type { CpuArch } from "../mappers/cpu-attribute-parser/cpu-attribute-parser";
 import type { ParsedGPUAttributes } from "../mappers/gpu-attribute-parser/gpu-attribute-parser";
 import type { ParsedStorageAttributes } from "../mappers/storage-attribute-parser/storage-attribute-parser";
 
@@ -15,6 +16,8 @@ export interface GpuInfo {
 export interface CpuInfo {
   vendor: string;
   model: string;
+  /** Empty on nodes running an inventory operator that predates architecture reporting. */
+  arch: string;
 }
 
 export interface NodeState {
@@ -46,7 +49,7 @@ export interface ResourceAttribute {
 }
 
 export interface RequestedResources {
-  cpu: { units: bigint; fingerprint: string | null };
+  cpu: { units: bigint; arch: CpuArch | null };
   gpu: { units: bigint; attributes: ParsedGPUAttributes[] };
   memory: { quantity: bigint };
   storage: RequestedStorage[];

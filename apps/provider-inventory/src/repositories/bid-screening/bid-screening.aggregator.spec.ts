@@ -462,7 +462,7 @@ function makeUnit(input: {
     id: 1,
     count: input.count ?? 1,
     resources: {
-      cpu: { units: input.cpu ?? 0n, fingerprint: null },
+      cpu: { units: input.cpu ?? 0n, arch: null },
       memory: { quantity: input.memory ?? 0n },
       gpu: { units: input.gpu ?? 0n, attributes: parseGPUAttributes(input.gpuAttributes ?? []) },
       storage: (input.storage ?? []).map(s => ({ name: s.name, quantity: s.quantity, attributes: parseStorageAttributes(s.attributes) })),

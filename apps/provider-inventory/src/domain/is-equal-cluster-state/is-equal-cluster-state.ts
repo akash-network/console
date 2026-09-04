@@ -63,7 +63,7 @@ function cpuInfoEqual(a: readonly CpuInfo[], b: readonly CpuInfo[]): boolean {
   if (a.length !== b.length) return false;
 
   for (let i = 0; i < a.length; i++) {
-    const match = b.some(c => c.vendor === a[i].vendor && c.model === a[i].model);
+    const match = b.some(c => c.vendor === a[i].vendor && c.model === a[i].model && c.arch === a[i].arch);
     if (!match) return false;
   }
   return true;

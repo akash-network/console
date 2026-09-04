@@ -1,6 +1,7 @@
 import type { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 
-import type { RequestedResourceUnit, RequestedStorage, ResourceAttribute, ToJSON } from "../../types/inventory";
+import type { RequestedResourceUnit, RequestedStorage, ToJSON } from "../../types/inventory";
+import { parseCPUAttributes } from "../cpu-attribute-parser/cpu-attribute-parser";
 import { parseGPUAttributes } from "../gpu-attribute-parser/gpu-attribute-parser";
 import { parseStorageAttributes } from "../storage-attribute-parser/storage-attribute-parser";
 
@@ -13,7 +14,7 @@ export function mapGroupSpecToResourceUnits(request: Omit<GroupSpecJSON, "name">
       resources: {
         cpu: {
           units: resource.cpu.units.val,
-          fingerprint: getAttributeFingerprint(resource.cpu.attributes)
+          arch: parseCPUAttributes(resource.cpu.attributes ?? []).arch
         },
         gpu: {
           units: resource.gpu.units.val,
@@ -35,14 +36,6 @@ export function mapGroupSpecToResourceUnits(request: Omit<GroupSpecJSON, "name">
       count: unit.count
     };
   });
-}
-
-export function getAttributeFingerprint(attributes: ResourceAttribute[] | undefined): string | null {
-  if (!attributes || attributes.length === 0) return null;
-  return attributes
-    .map(a => `${a.key}=${a.value}`)
-    .sort()
-    .join(",");
 }
 
 export type GroupSpecJSON = ToJSON<GroupSpec>;

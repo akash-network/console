@@ -30,19 +30,18 @@ describe(mapGroupSpecToResourceUnits.name, () => {
     ]);
   });
 
-  it("returns null CPU fingerprint when no attributes are declared", () => {
+  it("returns a null CPU architecture when no attributes are declared", () => {
     const { units } = setup({});
-    expect(units[0].resources.cpu.fingerprint).toBeNull();
+    expect(units[0].resources.cpu.arch).toBeNull();
   });
 
-  it("computes a stable CPU fingerprint from sorted key=value attributes", () => {
-    const { units } = setup({
-      cpuAttributes: [
-        { key: "arch", value: "amd64" },
-        { key: "family", value: "epyc" }
-      ]
-    });
-    expect(units[0].resources.cpu.fingerprint).toBe("arch=amd64,family=epyc");
+  it("reads the requested CPU architecture off the arch attribute", () => {
+    const { units } = setup({ cpuAttributes: [{ key: "arch", value: "arm64" }] });
+    expect(units[0].resources.cpu.arch).toBe("arm64");
+  });
+
+  it("rejects a CPU attribute the SDL schema would not have produced", () => {
+    expect(() => setup({ cpuAttributes: [{ key: "family", value: "epyc" }] })).toThrow('Unsupported CPU attribute "family"');
   });
 
   it("returns an empty GPU parsedSpecs array when no GPU attributes are declared", () => {

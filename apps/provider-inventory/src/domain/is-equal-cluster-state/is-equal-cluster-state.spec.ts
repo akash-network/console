@@ -77,6 +77,12 @@ describe(isEqualClusterState.name, () => {
       expect(isEqualClusterState(a, b)).toBe(false);
     });
 
+    it("returns false when a node's reported CPU architecture changes", () => {
+      const a = buildCluster({ nodes: [buildNode({ cpus: [{ vendor: "ampere", model: "altra", arch: "" }] })] });
+      const b = buildCluster({ nodes: [buildNode({ cpus: [{ vendor: "ampere", model: "altra", arch: "arm64" }] })] });
+      expect(isEqualClusterState(a, b)).toBe(false);
+    });
+
     it("returns false when a node's storageClasses differ", () => {
       const a = buildCluster({ nodes: [buildNode({ storageClasses: ["beta2"] })] });
       const b = buildCluster({ nodes: [buildNode({ storageClasses: ["beta3"] })] });
