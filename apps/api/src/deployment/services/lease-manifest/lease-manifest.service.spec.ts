@@ -22,13 +22,23 @@ import { mockConfigService } from "@test/mocks/config-service.mock";
 const USER_ID = "3f1b6d4e-0000-4000-8000-000000000001";
 const DSEQ = "1420000000001";
 
-function sdlWith(env: string[], credentials?: Record<string, string>) {
-  const credentialsBlock = credentials
-    ? `    credentials:\n${Object.entries(credentials)
+function sdlWith(env: string[], options: { credentials?: Record<string, string>; denom?: string; gpuModel?: string } = {}) {
+  const credentialsBlock = options.credentials
+    ? `    credentials:\n${Object.entries(options.credentials)
         .map(([field, value]) => `      ${field}: ${JSON.stringify(value)}\n`)
         .join("")}`
     : "";
   const envBlock = env.map(entry => `      - ${JSON.stringify(entry)}\n`).join("");
+  const gpuBlock = options.gpuModel
+    ? [
+        `        gpu:`,
+        `          units: 1`,
+        `          attributes:`,
+        `            vendor:`,
+        `              nvidia:`,
+        `                - model: ${options.gpuModel}`
+      ].join("\n")
+    : "";
 
   return [
     `version: "2.0"`,
@@ -48,11 +58,12 @@ function sdlWith(env: string[], credentials?: Record<string, string>) {
     `          size: 128Mi`,
     `        storage:`,
     `          - size: 128Mi`,
+    gpuBlock,
     `  placement:`,
     `    dcloud:`,
     `      pricing:`,
     `        web:`,
-    `          denom: uakt`,
+    `          denom: ${options.denom ?? "uakt"}`,
     `          amount: 1000`,
     `deployment:`,
     `  web:`,
@@ -98,7 +109,9 @@ describe(LeaseManifestService.name, () => {
       const [username, password] = [randomUUID(), randomUUID()];
       const { service } = setup({
         definition: {
-          sdl: sdlWith(["LOG_LEVEL=debug"], { host: "registry.example.test", username: "ac-secret://REG_USER", password: "ac-secret://REG_PASS" }),
+          sdl: sdlWith(["LOG_LEVEL=debug"], {
+            credentials: { host: "registry.example.test", username: "ac-secret://REG_USER", password: "ac-secret://REG_PASS" }
+          }),
           sealedSecrets: "sealed"
         },
         stored: { REG_USER: username, REG_PASS: password }
@@ -106,7 +119,7 @@ describe(LeaseManifestService.name, () => {
 
       const manifest = await service.deriveFor({ dseq: DSEQ });
 
-      expect(manifest).toBe(manifestOf(sdlWith(["LOG_LEVEL=debug"], { host: "registry.example.test", username, password })));
+      expect(manifest).toBe(manifestOf(sdlWith(["LOG_LEVEL=debug"], { credentials: { host: "registry.example.test", username, password } })));
     });
 
     it("derives identical bytes from one stored definition twice over", async () => {
@@ -168,6 +181,30 @@ describe(LeaseManifestService.name, () => {
       expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ userId: USER_ID, dseq: DSEQ, sealedSecrets: "sealed" });
     });
 
+    it("logs what it derived and no part of what it resolved", async () => {
+      const token = randomUUID();
+      const { service, logger } = setup({
+        definition: { sdl: sdlWith(["API_TOKEN=ac-secret://API_TOKEN", "LOG_LEVEL=debug"]), sealedSecrets: "sealed" },
+        stored: { API_TOKEN: token }
+      });
+
+      await service.deriveFor({ dseq: DSEQ });
+
+      expect(logger.info).toHaveBeenCalledWith({ event: "LEASE_MANIFEST_DERIVED", userId: USER_ID, dseq: DSEQ, resolvedSecretCount: 1 });
+    });
+
+    it("logs nothing carrying a resolved value, whichever level it logs at", async () => {
+      const token = randomUUID();
+      const { service, logger } = setup({
+        definition: { sdl: sdlWith(["API_TOKEN=ac-secret://API_TOKEN"]), sealedSecrets: "sealed" },
+        stored: { API_TOKEN: token }
+      });
+
+      await service.deriveFor({ dseq: DSEQ });
+
+      expect(JSON.stringify([logger.info.mock.calls, logger.warn.mock.calls, logger.error.mock.calls])).not.toContain(token);
+    });
+
     it("falls back when the console recorded nothing for the deployment", async () => {
       const { service, logger } = setup({ definition: null });
 
@@ -184,6 +221,13 @@ describe(LeaseManifestService.name, () => {
 
       expect(manifest).toBeNull();
       expect(logger.info).toHaveBeenCalledWith({ event: "LEASE_MANIFEST_FALLBACK", userId: USER_ID, dseq: DSEQ, reason: "nothing-recorded" });
+    });
+
+    it("refuses a row holding a token beside no sdl rather than accepting a client manifest for it", async () => {
+      const { service, logger } = setup({ definition: { sdl: null, sealedSecrets: "sealed" } });
+
+      await expect(service.deriveFor({ dseq: DSEQ })).rejects.toMatchObject({ status: 500 });
+      expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "LEASE_MANIFEST_FALLBACK" }));
     });
 
     it("falls back when a definition carrying no reference will not re-derive", async () => {
@@ -254,13 +298,30 @@ describe(LeaseManifestService.name, () => {
       expect(deploymentSettingRepository.markClosed).not.toHaveBeenCalled();
     });
 
-    it("refuses a trial-blocked gpu no more than the create that already cleared it", async () => {
-      const stored = sdlWith(["LOG_LEVEL=debug"]);
-      const { service } = setup({ definition: { sdl: stored, sealedSecrets: null }, blockedGpuModels: ["a100"] });
+    it("derives a gpu the trial rules block, because the create it belongs to already cleared it", async () => {
+      const stored = sdlWith(["LOG_LEVEL=debug"], { gpuModel: "a100" });
+      const { service } = setup({ definition: { sdl: stored, sealedSecrets: null }, blockedGpuModels: ["nvidia/a100"] });
 
       const manifest = await service.deriveFor({ dseq: DSEQ });
 
       expect(manifest).toBe(manifestOf(stored));
+    });
+
+    it("derives resources above the trial ceilings, because the create it belongs to already cleared them", async () => {
+      const stored = sdlWith(["LOG_LEVEL=debug"]);
+      const { service } = setup({ definition: { sdl: stored, sealedSecrets: null }, trialMaxCpu: 0.05, trialMaxMemoryGi: 0.01 });
+
+      const manifest = await service.deriveFor({ dseq: DSEQ });
+
+      expect(manifest).toBe(manifestOf(stored));
+    });
+
+    it("derives an sdl priced in a denom the manifest generator would reject unpriced in the grant denom", async () => {
+      const { service } = setup({ definition: { sdl: sdlWith(["LOG_LEVEL=debug"], { denom: "uatom" }), sealedSecrets: null } });
+
+      const manifest = await service.deriveFor({ dseq: DSEQ });
+
+      expect(manifest).toBe(manifestOf(sdlWith(["LOG_LEVEL=debug"])));
     });
   });
 
@@ -268,6 +329,8 @@ describe(LeaseManifestService.name, () => {
     definition?: { sdl: string | null; sealedSecrets: string | null } | null;
     stored?: Record<string, string>;
     blockedGpuModels?: string[];
+    trialMaxCpu?: number;
+    trialMaxMemoryGi?: number;
   }) {
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     const scopedRepository = mock<DeploymentSettingRepository>();
@@ -285,8 +348,8 @@ describe(LeaseManifestService.name, () => {
       mock<BillingConfig>({
         DEPLOYMENT_GRANT_DENOM: "uakt",
         MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: [],
-        MANAGED_WALLET_TRIAL_MAX_CPU: 0,
-        MANAGED_WALLET_TRIAL_MAX_MEMORY_GI: 0
+        MANAGED_WALLET_TRIAL_MAX_CPU: input.trialMaxCpu ?? 0,
+        MANAGED_WALLET_TRIAL_MAX_MEMORY_GI: input.trialMaxMemoryGi ?? 0
       }),
       new BlockedGpuService(mockConfigService<BillingConfigService>({ MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: input.blockedGpuModels ?? [] })),
       sdlReferenceService

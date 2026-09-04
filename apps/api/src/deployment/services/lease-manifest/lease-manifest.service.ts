@@ -10,7 +10,6 @@ import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 
-/** Everything a stored definition has to say for the manifest it stands for to be derived again. */
 type StoredDefinition = { sdl: string; sealedSecrets: string | null };
 
 /** Why a deployment has no manifest of its own, which is what the residual volume of client-supplied ones is measured by. */
@@ -58,11 +57,15 @@ export class LeaseManifestService {
     return manifestToSortedJSON(resolved.value.manifest.groups);
   }
 
-  /** Scoped twice over, by the query and by the caller's own ability, so a later refactor has to defeat both to derive one user's manifest for another. */
+  /** A token beside no sdl is refused rather than fallen back on, so that safety property lives here instead of resting on the one writer that happens to fill both columns in a single statement. */
   async #findDefinition(key: { userId: string; dseq: string }): Promise<StoredDefinition | null> {
     const setting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy(key);
 
-    return setting?.sdl ? { sdl: setting.sdl, sealedSecrets: setting.sealedSecrets } : null;
+    if (setting?.sdl) return { sdl: setting.sdl, sealedSecrets: setting.sealedSecrets };
+
+    if (setting?.sealedSecrets) throw this.#refuse(key);
+
+    return null;
   }
 
   /** A definition carrying a reference is never eligible for the fallback, because accepting a client's manifest for it would mean accepting a client-supplied secret value. */
