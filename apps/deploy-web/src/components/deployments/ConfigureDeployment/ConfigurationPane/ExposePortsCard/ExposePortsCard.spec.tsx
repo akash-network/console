@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ExposeType, SdlBuilderFormValuesType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types/sdlBuilder/sdlBuilder";
-import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
+import { defaultHttpOptions, defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import {
   DEPENDENCIES,
   ExposePortsCard,
@@ -303,7 +303,8 @@ describe(ExposePortsCard.name, () => {
         sendTimeout: 60000,
         nextTries: 3,
         nextTimeout: 60000,
-        nextCases: ["error", "timeout"]
+        nextCases: ["error", "timeout"],
+        proxy: {}
       });
     });
 
@@ -359,6 +360,60 @@ describe(ExposePortsCard.name, () => {
 
       expect(screen.queryByLabelText("Port 1 accept hostnames")).not.toBeInTheDocument();
       expect(screen.queryByLabelText("Custom HTTP options")).not.toBeInTheDocument();
+    });
+
+    it("writes a typed proxy buffer size to httpOptions.proxy on Save", async () => {
+      const { getValues, openCard } = setup({ expose: [{ port: 80, as: 80 }] });
+
+      await openCard();
+      await userEvent.click(screen.getByLabelText("Custom HTTP options"));
+      fireEvent.change(screen.getByLabelText("Proxy buffer size"), { target: { value: "4096" } });
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(getValues().services[0].expose[0].httpOptions?.proxy?.bufferSize).toBe(4096);
+    });
+
+    it("surfaces the buffers-number/buffers-size together-rule error when only one is set", async () => {
+      const { openCard, trigger } = setup({ expose: [{ port: 80, as: 80 }] });
+
+      await openCard();
+      await userEvent.click(screen.getByLabelText("Custom HTTP options"));
+      fireEvent.change(screen.getByLabelText("Proxy buffers number"), { target: { value: "4" } });
+      await trigger();
+
+      expect(await screen.findByText("Buffers number and buffers size must be set together.")).toBeInTheDocument();
+    });
+
+    it("keeps an imported proxy value visible and fixable while the proxy http options flag is off", async () => {
+      const { openCard, trigger } = setup({
+        expose: [
+          {
+            port: 80,
+            as: 80,
+            hasCustomHttpOptions: true,
+            httpOptions: { ...defaultHttpOptions, nextCases: [...defaultHttpOptions.nextCases], proxy: { buffersNumber: 100, buffersSize: 8192 } }
+          }
+        ],
+        isProxyHttpOptionsEnabled: false
+      });
+
+      await openCard();
+      await trigger();
+
+      expect(screen.getByLabelText("Proxy buffers number")).toHaveValue(100);
+      expect(await screen.findByText("Buffers number must be at most 16.")).toBeInTheDocument();
+    });
+
+    it("hides the proxy fields and seeds no proxy object when the proxy http options flag is off", async () => {
+      const { getValues, openCard } = setup({ expose: [{ port: 80, as: 80 }], isProxyHttpOptionsEnabled: false });
+
+      await openCard();
+      await userEvent.click(screen.getByLabelText("Custom HTTP options"));
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(screen.queryByLabelText("Disable proxy buffering")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Proxy buffer size")).not.toBeInTheDocument();
+      expect(getValues().services[0].expose[0].httpOptions?.proxy).toBeUndefined();
     });
 
     it("clears accept hostnames and httpOptions when a configured HTTP port switches to TCP", async () => {
@@ -510,6 +565,7 @@ describe(ExposePortsCard.name, () => {
       withLogForwarding?: boolean;
       endpoints?: Array<{ id: string; name: string }>;
       locked?: boolean;
+      isProxyHttpOptionsEnabled?: boolean;
     } = {}
   ) {
     const values = defaultServiceWithPlacement(input.image !== undefined ? { image: input.image } : undefined);
@@ -545,7 +601,7 @@ describe(ExposePortsCard.name, () => {
 
     render(
       <Wrapper>
-        <ExposePortsCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES }} />
+        <ExposePortsCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES, useFlag: () => input.isProxyHttpOptionsEnabled ?? true }} />
         <ImageErrorProbe serviceIndex={0} />
         <ExposeErrorProbe serviceIndex={0} />
       </Wrapper>

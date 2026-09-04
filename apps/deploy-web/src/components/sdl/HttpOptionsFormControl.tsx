@@ -1,14 +1,18 @@
 "use client";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import type { Control } from "react-hook-form";
 import { Controller } from "react-hook-form";
 import { Checkbox, CustomTooltip, FormField, FormInput, FormItem, Label, MultipleSelector } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { InfoCircle } from "iconoir-react";
 
+import { useFlag } from "@src/hooks/useFlag";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import { hasProxyValues } from "@src/types/sdlBuilder/sdlBuilder";
 import { nextCases } from "@src/utils/sdl/data";
 import { FormPaper } from "./FormPaper";
+
+export const DEPENDENCIES = { useFlag };
 
 type Props = {
   serviceIndex: number;
@@ -16,10 +20,27 @@ type Props = {
   services: ServiceType[];
   control: Control<SdlBuilderFormValuesType, any>;
   children?: ReactNode;
+  dependencies?: typeof DEPENDENCIES;
 };
 
-export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex, exposeIndex, services }) => {
+/** Parses a proxy numeric input, preserving decimals so the schema's `.int()` rule can reject a fractional value instead of `parseInt` silently truncating it (e.g. `1.5` to `1`). */
+const parseProxyNumberInput = (value: string): number | undefined => {
+  const trimmed = value.trim();
+  if (trimmed === "") return undefined;
+  const parsed = Number(trimmed);
+  return Number.isNaN(parsed) ? undefined : parsed;
+};
+
+export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex, exposeIndex, services, dependencies: d = DEPENDENCIES }) => {
   const currentService = services[serviceIndex];
+  const isProxyHttpOptionsEnabled = d.useFlag("ui_sdl_proxy_http_options");
+  /**
+   * The schema validates `proxy` whether or not the flag renders its inputs, so a port that arrives
+   * carrying proxy values (an imported SDL) shows them even while the feature is off — otherwise its
+   * validation errors would have nowhere to render and would block saving with nothing to fix. Read
+   * once on mount so clearing the last value mid-edit can't unmount the fields under the user.
+   */
+  const [hasCarriedProxyValues] = useState(() => hasProxyValues(currentService?.expose[exposeIndex]?.httpOptions?.proxy));
 
   return (
     <FormPaper className="h-full" contentClassName="h-full flex items-start flex-col justify-between">
@@ -198,6 +219,136 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
               </FormItem>
             )}
           />
+
+          {(isProxyHttpOptionsEnabled || hasCarriedProxyValues) && (
+            <>
+              <Controller
+                control={control}
+                name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.proxy.bufferingDisable`}
+                render={({ field }) => (
+                  <div className="mb-2 flex items-center space-x-2">
+                    <Checkbox id={`proxy-buffering-disable-${serviceIndex}-${exposeIndex}`} checked={field.value} onCheckedChange={field.onChange} />
+                    <label
+                      htmlFor={`proxy-buffering-disable-${serviceIndex}-${exposeIndex}`}
+                      className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      Disable Proxy Buffering
+                    </label>
+                  </div>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.proxy.bufferSize`}
+                render={({ field }) => (
+                  <FormInput
+                    type="number"
+                    label={
+                      <div className="inline-flex items-center">
+                        Buffer Size
+                        <CustomTooltip title="Sets the nginx proxy_buffer_size for this route.">
+                          <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                        </CustomTooltip>
+                      </div>
+                    }
+                    className="mb-2 w-full"
+                    value={field.value ?? ""}
+                    onChange={event => field.onChange(parseProxyNumberInput(event.target.value))}
+                    min={0}
+                  />
+                )}
+              />
+
+              <FormField
+                control={control}
+                name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.proxy.buffersNumber`}
+                render={({ field }) => (
+                  <FormInput
+                    type="number"
+                    label={
+                      <div className="inline-flex items-center">
+                        Buffers Number
+                        <CustomTooltip title="Sets the number of nginx proxy_buffers for this route. Must be set together with Buffers Size.">
+                          <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                        </CustomTooltip>
+                      </div>
+                    }
+                    className="mb-2 w-full"
+                    value={field.value ?? ""}
+                    onChange={event => field.onChange(parseProxyNumberInput(event.target.value))}
+                    min={1}
+                  />
+                )}
+              />
+
+              <FormField
+                control={control}
+                name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.proxy.buffersSize`}
+                render={({ field }) => (
+                  <FormInput
+                    type="number"
+                    label={
+                      <div className="inline-flex items-center">
+                        Buffers Size
+                        <CustomTooltip title="Sets the size of each nginx proxy_buffers entry for this route. Must be set together with Buffers Number.">
+                          <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                        </CustomTooltip>
+                      </div>
+                    }
+                    className="mb-2 w-full"
+                    value={field.value ?? ""}
+                    onChange={event => field.onChange(parseProxyNumberInput(event.target.value))}
+                    min={1}
+                  />
+                )}
+              />
+
+              <FormField
+                control={control}
+                name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.proxy.busyBuffersSize`}
+                render={({ field }) => (
+                  <FormInput
+                    type="number"
+                    label={
+                      <div className="inline-flex items-center">
+                        Busy Buffers Size
+                        <CustomTooltip title="Sets the nginx proxy_busy_buffers_size for this route.">
+                          <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                        </CustomTooltip>
+                      </div>
+                    }
+                    className="mb-2 w-full"
+                    value={field.value ?? ""}
+                    onChange={event => field.onChange(parseProxyNumberInput(event.target.value))}
+                    min={0}
+                  />
+                )}
+              />
+
+              <FormField
+                control={control}
+                name={`services.${serviceIndex}.expose.${exposeIndex}.httpOptions.proxy.connectTimeout`}
+                render={({ field }) => (
+                  <FormInput
+                    type="number"
+                    label={
+                      <div className="inline-flex items-center">
+                        Connect Timeout
+                        <CustomTooltip title="Sets the nginx proxy_connect_timeout for this route.">
+                          <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                        </CustomTooltip>
+                      </div>
+                    }
+                    className="mb-2 w-full"
+                    value={field.value ?? ""}
+                    onChange={event => field.onChange(parseProxyNumberInput(event.target.value))}
+                    min={0}
+                  />
+                )}
+              />
+            </>
+          )}
         </>
       )}
     </FormPaper>

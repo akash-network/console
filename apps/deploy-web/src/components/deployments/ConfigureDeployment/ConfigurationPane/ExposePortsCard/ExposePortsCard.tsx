@@ -29,13 +29,24 @@ import {
 import { ChevronRightIcon, GlobeIcon, PlusIcon, SaveIcon, XIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 
+import { useFlag } from "@src/hooks/useFlag";
 import type { ExposeType, SdlBuilderFormValuesType } from "@src/types";
-import { EndpointSchema } from "@src/types/sdlBuilder/sdlBuilder";
+import { EndpointSchema, hasProxyValues } from "@src/types/sdlBuilder/sdlBuilder";
 import { defaultEndpoint, defaultHttpOptions, nextCases as nextCaseOptions, protoTypes } from "@src/utils/sdl/data";
 import { isVmImage } from "@src/utils/sdl/vmImages";
 import { exposePortsTooltip } from "../cardTooltips";
 
-export const DEPENDENCIES = { CollapsibleCard, DialogV2, DialogV2Content, DialogV2Header, DialogV2Title, DialogV2Description, DialogV2Body, DialogV2Footer };
+export const DEPENDENCIES = {
+  CollapsibleCard,
+  DialogV2,
+  DialogV2Content,
+  DialogV2Header,
+  DialogV2Title,
+  DialogV2Description,
+  DialogV2Body,
+  DialogV2Footer,
+  useFlag
+};
 
 type Props = {
   serviceIndex: number;
@@ -116,6 +127,7 @@ export const inputToHostnames = (value: string): NonNullable<ExposeType["accept"
  * of mapped ports.
  */
 export const ExposePortsCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
+  const isProxyHttpOptionsEnabled = d.useFlag("ui_sdl_proxy_http_options");
   const { control, getValues, reset, trigger, formState } = useFormContext<SdlBuilderFormValuesType>();
   const expose = useWatch({ control, name: `services.${serviceIndex}.expose` });
   const portCount = (expose ?? []).length;
@@ -187,7 +199,7 @@ export const ExposePortsCard: FC<Props> = ({ serviceIndex, locked = false, depen
 
           <d.DialogV2Body>
             <fieldset disabled={locked} className="contents">
-              <ExposePortsList serviceIndex={serviceIndex} commitsRef={endpointCommits} />
+              <ExposePortsList serviceIndex={serviceIndex} commitsRef={endpointCommits} isProxyHttpOptionsEnabled={isProxyHttpOptionsEnabled} />
             </fieldset>
           </d.DialogV2Body>
 
@@ -220,6 +232,14 @@ const parsePort = (value: string): number | undefined => {
   return Number.isNaN(parsed) ? undefined : parsed;
 };
 
+/** Parses a proxy numeric input, preserving decimals (unlike `parsePort`) so the schema's `.int()` rule can reject a fractional value instead of silently truncating it (e.g. `1.5` to `1`). */
+const parseProxyNumber = (value: string): number | undefined => {
+  const trimmed = value.trim();
+  if (trimmed === "") return undefined;
+  const parsed = Number(trimmed);
+  return Number.isNaN(parsed) ? undefined : parsed;
+};
+
 /**
  * Returns focus to the Select trigger when a nested dropdown closes so the dialog's
  * focus scope keeps ownership; without it the nested Radix focus scopes can fight
@@ -230,9 +250,10 @@ const keepFocusInDialog = (event: Event) => event.preventDefault();
 type ExposePortsListProps = {
   serviceIndex: number;
   commitsRef: EndpointCommitRegistry;
+  isProxyHttpOptionsEnabled: boolean;
 };
 
-const ExposePortsList: FC<ExposePortsListProps> = ({ serviceIndex, commitsRef }) => {
+const ExposePortsList: FC<ExposePortsListProps> = ({ serviceIndex, commitsRef, isProxyHttpOptionsEnabled }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const { fields, append, remove } = useFieldArray({ control, name: `services.${serviceIndex}.expose`, keyName: "fieldId" });
   const image = useWatch({ control, name: `services.${serviceIndex}.image` });
@@ -259,6 +280,7 @@ const ExposePortsList: FC<ExposePortsListProps> = ({ serviceIndex, commitsRef })
           exposeIndex={exposeIndex}
           commitsRef={commitsRef}
           isManagedSsh={exposeIndex === managedSshIndex}
+          isProxyHttpOptionsEnabled={isProxyHttpOptionsEnabled}
           onRemove={fields.length > 1 && exposeIndex !== managedSshIndex ? () => remove(exposeIndex) : undefined}
         />
       ))}
@@ -277,10 +299,11 @@ type ExposePortFieldsProps = {
   commitsRef: EndpointCommitRegistry;
   /** Marks the VM service's managed SSH row: its inputs are disabled and it carries the "Reserved for SSH access" caption. */
   isManagedSsh?: boolean;
+  isProxyHttpOptionsEnabled: boolean;
   onRemove?: () => void;
 };
 
-const ExposePortFields: FC<ExposePortFieldsProps> = ({ serviceIndex, exposeIndex, commitsRef, isManagedSsh = false, onRemove }) => {
+const ExposePortFields: FC<ExposePortFieldsProps> = ({ serviceIndex, exposeIndex, commitsRef, isManagedSsh = false, isProxyHttpOptionsEnabled, onRemove }) => {
   const { control, getValues, setValue } = useFormContext<SdlBuilderFormValuesType>();
   const basePath = `services.${serviceIndex}.expose.${exposeIndex}` as const;
   const endpoints = useWatch({ control, name: "endpoints" }) ?? [];
@@ -573,7 +596,7 @@ const ExposePortFields: FC<ExposePortFieldsProps> = ({ serviceIndex, exposeIndex
           <>
             <Separator className="my-2" />
 
-            <HttpOptionsFields serviceIndex={serviceIndex} exposeIndex={exposeIndex} />
+            <HttpOptionsFields serviceIndex={serviceIndex} exposeIndex={exposeIndex} isProxyHttpOptionsEnabled={isProxyHttpOptionsEnabled} />
           </>
         )}
       </fieldset>
@@ -584,6 +607,7 @@ const ExposePortFields: FC<ExposePortFieldsProps> = ({ serviceIndex, exposeIndex
 type HttpOptionsFieldsProps = {
   serviceIndex: number;
   exposeIndex: number;
+  isProxyHttpOptionsEnabled: boolean;
 };
 
 /** Numeric HTTP option fields rendered when custom options are enabled, with their seeded default. */
@@ -616,10 +640,17 @@ const fullHttpOptions = (): NonNullable<ExposeType["httpOptions"]> => ({
  * `nextCases`/numeric controllers mount only while enabled; writing only some of
  * them would leave the port silently invalid.
  */
-const HttpOptionsFields: FC<HttpOptionsFieldsProps> = ({ serviceIndex, exposeIndex }) => {
+const HttpOptionsFields: FC<HttpOptionsFieldsProps> = ({ serviceIndex, exposeIndex, isProxyHttpOptionsEnabled }) => {
   const { control, getValues, setValue } = useFormContext<SdlBuilderFormValuesType>();
   const basePath = `services.${serviceIndex}.expose.${exposeIndex}` as const;
   const hasCustomHttpOptions = useController({ control, name: `${basePath}.hasCustomHttpOptions` });
+  /**
+   * The schema validates `proxy` whether or not the flag renders its inputs, so a port that arrives
+   * carrying proxy values (an imported SDL) shows them even while the feature is off — otherwise its
+   * validation errors would have nowhere to render and would block saving with nothing to fix. Read
+   * once on mount so clearing the last value mid-edit can't unmount the fields under the user.
+   */
+  const [hasCarriedProxyValues] = useState(() => hasProxyValues(getValues(`${basePath}.httpOptions.proxy`)));
 
   const toggleCustomOptions = useCallback(
     (checked: boolean) => {
@@ -654,6 +685,8 @@ const HttpOptionsFields: FC<HttpOptionsFieldsProps> = ({ serviceIndex, exposeInd
           ))}
 
           <NextCasesField basePath={basePath} />
+
+          {(isProxyHttpOptionsEnabled || hasCarriedProxyValues) && <HttpProxyFields basePath={basePath} exposeIndex={exposeIndex} />}
         </div>
       )}
     </div>
@@ -721,6 +754,75 @@ const HttpOptionNumberField: FC<HttpOptionNumberFieldProps> = ({ basePath, optio
           min={0}
           value={field.field.value ?? ""}
           onChange={event => field.field.onChange(parsePort(event.target.value))}
+          error={!!field.fieldState.error}
+          inputClassName="h-9"
+        />
+        <FieldError>{field.fieldState.error?.message}</FieldError>
+      </FieldContent>
+    </Field>
+  );
+};
+
+/** Nginx proxy-buffer tuning fields, each key on `httpOptions.proxy`. */
+const HTTP_PROXY_NUMBER_FIELDS = [
+  { key: "bufferSize", label: "Proxy buffer size" },
+  { key: "buffersNumber", label: "Proxy buffers number" },
+  { key: "buffersSize", label: "Proxy buffers size" },
+  { key: "busyBuffersSize", label: "Proxy busy buffers size" },
+  { key: "connectTimeout", label: "Proxy connect timeout" }
+] as const;
+
+type HttpProxyFieldsProps = {
+  basePath: `services.${number}.expose.${number}`;
+  exposeIndex: number;
+};
+
+/** Proxy tuning is entirely optional: unlike `fullHttpOptions()`, no field here is seeded, so the `proxy` object stays absent until the user sets one. */
+const HttpProxyFields: FC<HttpProxyFieldsProps> = ({ basePath, exposeIndex }) => {
+  const { control } = useFormContext<SdlBuilderFormValuesType>();
+  const bufferingDisable = useController({ control, name: `${basePath}.httpOptions.proxy.bufferingDisable` });
+
+  return (
+    <div
+      role="group"
+      aria-label={`Port ${exposeIndex + 1} proxy tuning`}
+      className="flex flex-col gap-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-800"
+    >
+      <CheckboxWithLabel
+        checked={!!bufferingDisable.field.value}
+        onCheckedChange={state => bufferingDisable.field.onChange(state === "indeterminate" ? false : state)}
+        label="Disable proxy buffering"
+      />
+
+      {HTTP_PROXY_NUMBER_FIELDS.map(option => (
+        <HttpProxyNumberField key={option.key} basePath={basePath} optionKey={option.key} label={option.label} />
+      ))}
+    </div>
+  );
+};
+
+type HttpProxyNumberFieldProps = {
+  basePath: `services.${number}.expose.${number}`;
+  optionKey: (typeof HTTP_PROXY_NUMBER_FIELDS)[number]["key"];
+  label: string;
+};
+
+const HttpProxyNumberField: FC<HttpProxyNumberFieldProps> = ({ basePath, optionKey, label }) => {
+  const { control } = useFormContext<SdlBuilderFormValuesType>();
+  const field = useController({ control, name: `${basePath}.httpOptions.proxy.${optionKey}` });
+  const id = useId();
+
+  return (
+    <Field className="gap-2">
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <FieldContent>
+        <Input
+          id={id}
+          aria-label={label}
+          type="number"
+          min={0}
+          value={field.field.value ?? ""}
+          onChange={event => field.field.onChange(parseProxyNumber(event.target.value))}
           error={!!field.fieldState.error}
           inputClassName="h-9"
         />

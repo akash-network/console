@@ -105,13 +105,98 @@ export const AcceptSchema = z.object({
   value: z.string().min(1, { message: "Value is required." })
 });
 
+export const PROXY_BUFFER_SIZE_MAX = 131072;
+export const PROXY_BUFFERS_NUMBER_MAX = 16;
+export const PROXY_BUFFERS_SIZE_MAX = 131072;
+export const PROXY_BUSY_BUFFERS_SIZE_MAX = 262144;
+
+type ProxyBufferGroup = { bufferSize?: number; buffersNumber?: number; buffersSize?: number; busyBuffersSize?: number };
+
+/** Reports why the provider (nginx_gateway.go proxyBufferLines) would silently drop the proxy_buffer group, or undefined when it is valid or absent. Mirrors the provider: an unset size fills from the other, an unset count defaults to 8, a 0 reads as unset, and busy defaults to the minimum. */
+function proxyBufferGroupIssue(proxy: ProxyBufferGroup): { path: string; message: string } | undefined {
+  const bufferSize = proxy.bufferSize || undefined;
+  const busy = proxy.busyBuffersSize || undefined;
+  const effectiveBufferSize = bufferSize ?? proxy.buffersSize;
+  const effectiveBuffersSize = proxy.buffersSize ?? bufferSize;
+  const effectiveBuffersNumber = proxy.buffersNumber ?? 8;
+
+  if (busy !== undefined && effectiveBufferSize === undefined) {
+    return { path: "busyBuffersSize", message: "Set a buffer size or buffers size before busy buffers size." };
+  }
+  if (effectiveBufferSize === undefined || effectiveBuffersSize === undefined) return undefined;
+
+  const minBusy = Math.max(effectiveBufferSize, effectiveBuffersSize);
+  const maxBusy = (effectiveBuffersNumber - 1) * effectiveBuffersSize;
+  if (minBusy > maxBusy) {
+    return { path: "busyBuffersSize", message: "These buffer settings leave no room for busy buffers; increase buffers number or buffers size." };
+  }
+  if (busy !== undefined && (busy < minBusy || busy > maxBusy)) {
+    return { path: "busyBuffersSize", message: `Busy buffers size must be between ${minBusy} and ${maxBusy} bytes for these buffer settings.` };
+  }
+
+  return undefined;
+}
+
+export const ServiceExposeHTTPProxySchema = z
+  .object({
+    bufferingDisable: z.boolean().optional(),
+    bufferSize: z
+      .number()
+      .int()
+      .min(0)
+      .max(PROXY_BUFFER_SIZE_MAX, { message: `Buffer size must be at most ${PROXY_BUFFER_SIZE_MAX} bytes.` })
+      .optional(),
+    buffersNumber: z
+      .number()
+      .int()
+      .min(2, { message: "Buffers number must be at least 2." })
+      .max(PROXY_BUFFERS_NUMBER_MAX, { message: `Buffers number must be at most ${PROXY_BUFFERS_NUMBER_MAX}.` })
+      .optional(),
+    buffersSize: z
+      .number()
+      .int()
+      .min(1, { message: "Buffers size must be at least 1 byte." })
+      .max(PROXY_BUFFERS_SIZE_MAX, { message: `Buffers size must be at most ${PROXY_BUFFERS_SIZE_MAX} bytes.` })
+      .optional(),
+    busyBuffersSize: z
+      .number()
+      .int()
+      .min(0)
+      .max(PROXY_BUSY_BUFFERS_SIZE_MAX, { message: `Busy buffers size must be at most ${PROXY_BUSY_BUFFERS_SIZE_MAX} bytes.` })
+      .optional(),
+    connectTimeout: z.number().int().min(0).optional()
+  })
+  .superRefine((proxy, ctx) => {
+    const hasNumber = proxy.buffersNumber !== undefined;
+    const hasSize = proxy.buffersSize !== undefined;
+    if (hasNumber !== hasSize) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Buffers number and buffers size must be set together.",
+        path: [hasNumber ? "buffersSize" : "buffersNumber"]
+      });
+      return;
+    }
+
+    const issue = proxyBufferGroupIssue(proxy);
+    if (issue) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: issue.message, path: [issue.path] });
+    }
+  });
+
+/** Whether a port carries any explicitly set proxy value, so a hidden `proxy` block is never left validating with no field to show its error. */
+export function hasProxyValues(proxy: ServiceExposeHTTPProxyType | undefined): boolean {
+  return !!proxy && Object.values(proxy).some(value => value !== undefined);
+}
+
 export const ServiceExposeHTTPOptionsSchema = z.object({
   maxBodySize: z.number().min(1, { message: "Max body size is required." }),
   readTimeout: z.number().min(1, { message: "Read timeout is required." }),
   sendTimeout: z.number().min(1, { message: "Send timeout is required." }),
   nextTries: z.number().min(1, { message: "Next tries is required." }),
   nextTimeout: z.number().min(1, { message: "Next timeout is required." }),
-  nextCases: z.array(z.string()).min(1, { message: "Next cases is required." })
+  nextCases: z.array(z.string()).min(1, { message: "Next cases is required." }),
+  proxy: ServiceExposeHTTPProxySchema.optional()
 });
 
 export const PlacementAttributeSchema = z.object({
@@ -611,5 +696,6 @@ export type AcceptType = z.infer<typeof AcceptSchema>;
 export type PlacementAttributeType = z.infer<typeof PlacementAttributeSchema>;
 export type SignedByType = z.infer<typeof SignedBySchema>;
 export type ExposeType = z.infer<typeof ExposeSchema>;
+export type ServiceExposeHTTPProxyType = z.infer<typeof ServiceExposeHTTPProxySchema>;
 export type PlacementType = z.infer<typeof PlacementSchema>;
 export type EndpointType = z.infer<typeof EndpointSchema>;
