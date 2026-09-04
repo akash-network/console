@@ -34,14 +34,7 @@ export class ReconcileManagedTxHandler implements JobHandler<ReconcileManagedTx>
     private readonly instrumentation: ReconcileManagedTxInstrumentationService
   ) {}
 
-  /**
-   * Only a transaction the chain shows as reverted releases its claims. A transaction the chain does not show is
-   * left holding them: absence over a pooled endpoint can mean a lagging member rather than a transaction that never
-   * landed, and releasing on that would deposit a second time — the outcome the claims are held to prevent. Waiting
-   * instead costs the dedup cooldown, against a funding target measured in days.
-   *
-   * A query that fails to answer is rethrown so the job retries, since a node that recovers can still decide this.
-   */
+  /** Only a chain-confirmed revert releases the claims, because absence over a pooled endpoint can be a lagging member rather than a tx that never landed. */
   async handle(payload: JobPayload<ReconcileManagedTx>): Promise<void> {
     const { txHash, owner, claims } = payload;
     const tx = await this.txPresenceService.findTx(txHash);

@@ -33,17 +33,10 @@ type SignAndBroadcastResponse = {
   data: Pick<IndexedTx, "code" | "hash" | "rawLog">;
 };
 
-/**
- * The signer attaches an outcome to every answer of its own, so a bare gateway timeout is an intermediary giving up on
- * a signer still at work. 502 and 503 are deliberately absent: the signer maps an unreachable chain node onto those,
- * and reading them as undecided would hold funding claims over every RPC blip.
- */
+/** 502 and 503 are excluded on purpose: the signer maps an unreachable chain node onto those, and reading them as undecided would hold funding claims over every RPC blip. */
 const UNDECIDED_UPSTREAM_STATUS = 504;
 
-/**
- * Transport failures that can strike a request the signer already received. A refused connection or an unresolved
- * host is not among them: nothing reached the signer, so nothing was broadcast.
- */
+/** Transport failures that can strike a request the signer already received, unlike a refused connection or unresolved host. */
 const UNDECIDED_TRANSPORT_CODES = new Set(["ECONNABORTED", "ETIMEDOUT", "ECONNRESET", "EPIPE"]);
 
 @singleton()
@@ -110,10 +103,7 @@ export class ExternalSignerHttpSdkService {
     }
   }
 
-  /**
-   * Separates the failures that prove nothing was broadcast from the ones that leave a transaction possibly in
-   * flight, so a caller can tell a safe retry from one that could pay twice.
-   */
+  /** Separates the failures that prove nothing was broadcast from the ones that leave a tx possibly in flight. */
   private toTxOutcomeError(error: AxiosError): Error | undefined {
     const outcome = this.getSignerOutcome(error.response?.data);
 

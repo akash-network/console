@@ -27,10 +27,7 @@ export const envSchema = z
     // TTL for unordered transactions: the chain keeps the tx hash in memory for this window to reject duplicates,
     // so it must be long enough to guarantee block inclusion but short enough to bound mempool memory.
     UNORDERED_TX_TTL_MS: z.number({ coerce: true }).optional().default(30_000),
-    /**
-     * Hard ceiling on one sign-and-broadcast. `apps/api`'s TX_SIGNER_REQUEST_TIMEOUT_MS must stay above it, or a
-     * caller abort reopens the unknown-outcome window this bound exists to close.
-     */
+    /** Hard ceiling on one sign-and-broadcast, which `apps/api`'s TX_SIGNER_REQUEST_TIMEOUT_MS must stay above. */
     SIGN_AND_BROADCAST_DEADLINE_MS: z.number({ coerce: true }).positive().optional().default(150_000),
     /** Per-RPC-call deadline, without which a black-holed node consumes the whole signing budget on one request. */
     RPC_REQUEST_TIMEOUT_MS: z.number({ coerce: true }).positive().optional().default(10_000),

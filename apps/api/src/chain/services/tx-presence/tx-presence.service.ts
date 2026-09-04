@@ -10,10 +10,7 @@ export interface LandedTx {
   rawLog: string;
 }
 
-/**
- * The one error a missing transaction produces, and the only one that may be read as an answer rather than a failure
- * to get one — matching how {@link DeploymentPresenceService} reads an absent deployment.
- */
+/** The one error a missing tx produces, and so the only one readable as an answer rather than a failure to get one. */
 function isTxAbsent(error: unknown): boolean {
   return error instanceof SDKError && error.code === SDKErrorCode.NotFound;
 }
@@ -26,14 +23,7 @@ export class TxPresenceService {
     this.#chainSdk = chainSdk;
   }
 
-  /**
-   * The transaction as the chain holds it, or null when the chain answered that it holds no such transaction. Anything
-   * this cannot positively read as absent is rethrown, so a caller can never mistake an unreachable node for an answer.
-   *
-   * A null is weaker evidence than it looks: `REST_API_NODE_URL` is a pooled endpoint whose members sit at different
-   * heights, and one far enough behind reports a landed transaction absent. Treat it as "not seen", not as "never
-   * landed", wherever being wrong is expensive.
-   */
+  /** Null means "not seen", never "never landed": `REST_API_NODE_URL` is a pooled endpoint whose lagging members report a landed tx absent. */
   async findTx(hash: string): Promise<LandedTx | null> {
     try {
       const { txResponse } = await this.#chainSdk.cosmos.tx.v1beta1.getTx({ hash });

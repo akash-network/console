@@ -167,10 +167,7 @@ export class InitialDeploymentFundingService {
     }
   }
 
-  /**
-   * An undecided deposit keeps the claim: the cooldown is the only thing standing between a transaction that may still
-   * land and a second deposit for the same deployment, and it holds until the chain has been asked which happened.
-   */
+  /** An undecided deposit keeps the claim, since the cooldown is the only thing standing between a tx that may still land and a second deposit. */
   #keepsClaim(outcome: DepositOutcome, runtimeEndsAt: Date | null, currentHeight: number): boolean {
     if (outcome.status === "undecided") {
       return true;

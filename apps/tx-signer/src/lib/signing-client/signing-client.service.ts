@@ -1,4 +1,4 @@
-import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
+import { TxBody, TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { withSpan } from "@akashnetwork/instrumentation";
 import type { LoggerService } from "@akashnetwork/logging";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
@@ -39,10 +39,7 @@ const OUT_OF_GAS_RETRY_LIMIT = 3;
 /** Budget a retry needs on top of its poll window, for the simulate, sign and broadcast round trips that precede it. */
 const ATTEMPT_OVERHEAD_RESERVE_MS = 15_000;
 
-/**
- * The shortest signing deadline that still lets one attempt outlast a tx's TTL. Below it every tx that goes missing
- * reports an undecided outcome instead of a definite one, so the config refuses to start rather than degrade quietly.
- */
+/** The shortest deadline that still lets one attempt outlast a tx's TTL, below which every missing tx reports undecided instead of a definite outcome. */
 export function minSignAndBroadcastDeadlineMs(ttlMs: number): number {
   return Math.ceil(ttlMs * TX_RECOVERY_WINDOW_FACTOR);
 }
@@ -68,10 +65,7 @@ export class SigningClientService {
     this.#logger = createOtelLogger({ context: loggerContext });
   }
 
-  /**
-   * Always settles within {@link AppConfigService} `SIGN_AND_BROADCAST_DEADLINE_MS`, so the caller's request timeout is
-   * never what abandons a transaction still in flight — which is what makes a rejection here mean the tx did not land.
-   */
+  /** Settles within `SIGN_AND_BROADCAST_DEADLINE_MS`, so the caller's own timeout is never what abandons a tx still in flight. */
   async signAndBroadcast(messages: readonly EncodeObject[], options?: SignAndBroadcastOptions): Promise<IndexedTx> {
     this.#logger.debug({
       event: "SIGN_AND_BROADCAST_BEGIN",
@@ -99,16 +93,15 @@ export class SigningClientService {
         }
 
         try {
-          const txHash = await withSpan("SigningClientService.signAndBroadcast", async () => {
+          const { txHash, expiresAt } = await withSpan("SigningClientService.signAndBroadcast", async () => {
             const signedTx = await this.#client.signUnordered(messages, { granter: options?.fee?.granter, gas });
-            return await this.#broadcast(signedTx);
+            return { txHash: await this.#broadcast(signedTx), expiresAt: readExpiry(signedTx) };
           });
 
-          const pollStartedAt = Date.now();
           const foundTx = await this.#pollTx(txHash, deadline);
 
           if (!foundTx) {
-            throw this.#txNotFoundError(txHash, pollStartedAt);
+            throw this.#txNotIncludedError(txHash, expiresAt);
           }
 
           prevResult = foundTx;
@@ -141,17 +134,19 @@ export class SigningClientService {
     );
   }
 
-  /**
-   * Whether polling has outlasted the tx's own `timeoutTimestamp`, which is what separates the two ways a broadcast tx
-   * can go missing: past the TTL the chain can no longer include it, before the TTL it still can.
-   */
-  #txNotFoundError(txHash: string, pollStartedAt: number): Error {
-    if (Date.now() - pollStartedAt >= this.#ttlMs) {
-      this.#logger.error({ event: "SIGN_AND_BROADCAST_TX_NOT_INCLUDED", txHash });
+  /** A tx the chain answered for and has not included is finished only once its own `timeoutTimestamp` has passed, since until then the chain can still include it. */
+  #txNotIncludedError(txHash: string, expiresAt: Date | undefined): Error {
+    if (expiresAt && Date.now() >= expiresAt.getTime()) {
+      this.#logger.error({ event: "SIGN_AND_BROADCAST_TX_NOT_INCLUDED", txHash, expiresAt });
       return new TxNotIncludedError(txHash);
     }
 
-    this.#logger.error({ event: "SIGN_AND_BROADCAST_TX_OUTCOME_UNKNOWN", txHash });
+    return this.#undecidedOutcomeError(txHash, { expiresAt });
+  }
+
+  /** Reported for every failure after the tx was broadcast, because a caller that retries one could pay for the same thing twice. */
+  #undecidedOutcomeError(txHash: string, context: Record<string, unknown>): TxOutcomeUnknownError {
+    this.#logger.error({ event: "SIGN_AND_BROADCAST_TX_OUTCOME_UNKNOWN", txHash, ...context });
     return new TxOutcomeUnknownError(txHash);
   }
 
@@ -179,10 +174,7 @@ export class SigningClientService {
     return this.#getOutOfGasContext(outcome) !== undefined;
   }
 
-  /**
-   * A retry whose poll window cannot outlast the new tx's TTL would report an undecided outcome in place of the definite
-   * out-of-gas failure already in hand, so the budget has to fit a whole attempt or the recovery stops here.
-   */
+  /** A retry that cannot outlast the new tx's TTL would trade the definite out-of-gas failure already in hand for an undecided one. */
   #canRetryOutOfGasWithinBudget(outcome: unknown, deadline: number): boolean {
     if (!this.#canRecoverFromOutOfGas(outcome)) {
       return false;
@@ -203,6 +195,7 @@ export class SigningClientService {
     return Math.ceil(gasUsed * this.#gasRecoveryMultiplier);
   }
 
+  /** Only a {@link BroadcastTxError} proves the node refused the tx; any other failure here can carry an already-accepted tx. */
   async #broadcast(signedTx: TxRaw): Promise<string> {
     const txBytes = TxRaw.encode(signedTx).finish();
 
@@ -213,25 +206,52 @@ export class SigningClientService {
         return toHex(sha256(txBytes));
       }
 
-      throw error;
+      if (error instanceof BroadcastTxError) {
+        throw error;
+      }
+
+      throw this.#undecidedOutcomeError(toHex(sha256(txBytes)).toUpperCase(), { error });
     }
   }
 
+  /** A query that never answered leaves the outcome open however long it took, since only an answer can rule the tx out. */
   async #pollTx(hash: string, deadline: number): Promise<IndexedTx | null> {
-    const windowMs = Math.min(this.#ttlMs * TX_RECOVERY_WINDOW_FACTOR, deadline - Date.now());
+    const attempts = this.#pollAttempts(deadline);
+
+    if (!attempts) {
+      throw this.#undecidedOutcomeError(hash, { reason: "no budget left to poll" });
+    }
+
     const poller = retry(
       handleWhenResult(res => !res),
       {
-        maxAttempts: Math.max(0, Math.ceil(windowMs / TX_RECOVERY_POLL_INTERVAL_MS)),
+        maxAttempts: attempts - 1,
         backoff: new ConstantBackoff(TX_RECOVERY_POLL_INTERVAL_MS)
       }
     );
 
-    return await poller.execute(context => {
-      this.#logger.debug({ event: "TX_POLL_ATTEMPT", txHash: hash, attempt: context.attempt });
-      return this.#client.getTx(hash);
-    });
+    try {
+      return await poller.execute(context => {
+        this.#logger.debug({ event: "TX_POLL_ATTEMPT", txHash: hash, attempt: context.attempt });
+        return this.#client.getTx(hash);
+      });
+    } catch (error: unknown) {
+      throw this.#undecidedOutcomeError(hash, { error });
+    }
   }
+
+  /** Floors against the budget so no poll is scheduled to start past the deadline, while an unconstrained window keeps the full recovery span. */
+  #pollAttempts(deadline: number): number {
+    const spanAttempts = Math.ceil((this.#ttlMs * TX_RECOVERY_WINDOW_FACTOR) / TX_RECOVERY_POLL_INTERVAL_MS) + 1;
+    const budgetAttempts = Math.floor((deadline - Date.now()) / TX_RECOVERY_POLL_INTERVAL_MS) + 1;
+
+    return Math.max(0, Math.min(spanAttempts, budgetAttempts));
+  }
+}
+
+/** The expiry the signed body actually carries, read back from the bytes broadcast rather than recomputed from a clock. */
+function readExpiry(signedTx: TxRaw): Date | undefined {
+  return TxBody.decode(signedTx.bodyBytes).timeoutTimestamp;
 }
 
 interface OutOfGasInfo {

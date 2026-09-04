@@ -30,10 +30,7 @@ export class ReconcileManagedTxJobService {
     return `${ReconcileManagedTx[JOB_NAME]}.${txHash}`;
   }
 
-  /**
-   * Never throws: the funding claims a caller is holding are what prevent a second deposit, and this only shortens how
-   * long they hold. Failing the caller over it would turn a safely-held claim into a retried deposit.
-   */
+  /** Never throws: the held claims are what prevent a second deposit, so losing this only costs the cooldown. */
   async schedule(target: ReconcileManagedTxTarget): Promise<void> {
     try {
       await this.jobQueueService.enqueue(new ReconcileManagedTx(target), {

@@ -28,10 +28,7 @@ export class TxNotIncludedError extends TxOutcomeError {
   }
 }
 
-/**
- * The transaction may or may not have landed. Nothing may be retried on this outcome until the chain has been asked
- * what became of it, since a retry could deposit or create a second time.
- */
+/** May or may not have landed, so nothing may be retried on it until the chain has been asked which happened. */
 export class TxOutcomeUnknownError extends TxOutcomeError {
   constructor(txHash?: string) {
     super(504, "tx_outcome_unknown", "Your transaction is still being processed. Check whether it went through before sending it again.", txHash);

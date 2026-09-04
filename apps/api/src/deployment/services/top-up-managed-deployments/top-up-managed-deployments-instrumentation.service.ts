@@ -176,8 +176,8 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
     });
   }
 
+  /** Deliberately not tracked as a failed wallet: `walletsTopUpErrorCount` reads as "the deposit was rejected", which is the one thing an undecided outcome does not say. */
   recordUndecidedTxOutcome({ error, ...details }: { owner: string; items: FundingMessageItem[]; txHash?: string; error: unknown }): void {
-    this.topUpSummarizer.trackFailedWallet(details.owner);
     this.topUpSummarizer.inc("deploymentTopUpUndecidedCount", details.items.length);
 
     this.logger.error({

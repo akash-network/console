@@ -1,4 +1,4 @@
-import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
+import { TxBody, TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
 import type { EncodeObject } from "@cosmjs/proto-signing";
@@ -10,6 +10,8 @@ import type { AppConfigService } from "../../services/app-config/app-config.serv
 import type { SigningStargateWithUnorderedSupportClient } from "../signing-stargate-client-factory/signing-stargate-client.factory";
 import { SigningClientService } from "./signing-client.service";
 import { TxNotIncludedError, TxOutcomeUnknownError } from "./tx-outcome.error";
+
+const DEFAULT_TTL_MS = 180_000;
 
 describe(SigningClientService.name, () => {
   it("signs and broadcasts a transaction and returns the recovered transaction", async () => {
@@ -74,13 +76,27 @@ describe(SigningClientService.name, () => {
     expect(results.map(r => r.status)).toEqual(["fulfilled", "rejected", "fulfilled"]);
   });
 
-  it("propagates getTx errors without retrying", async () => {
+  it("reports an undecided outcome without retrying when the poll query itself fails", async () => {
     const { service, client } = setup();
-    const nonNetworkError = Object.assign(new Error("Invalid argument"), { code: "INVALID_ARGUMENT" });
-    client.getTx.mockRejectedValue(nonNetworkError);
+    client.broadcastTxSync.mockResolvedValue("broadcast-hash");
+    client.getTx.mockRejectedValue(Object.assign(new Error("Invalid argument"), { code: "INVALID_ARGUMENT" }));
 
-    await expect(service.signAndBroadcast(createMessages(1))).rejects.toThrow("Invalid argument");
+    const error = await service.signAndBroadcast(createMessages(1)).catch((error: unknown) => error);
+
+    expect(error).toBeInstanceOf(TxOutcomeUnknownError);
+    expect(error).toMatchObject({ data: { outcome: "unknown", txHash: "broadcast-hash" } });
     expect(client.getTx).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports an undecided outcome when the broadcast request fails without the node refusing the transaction", async () => {
+    const { service, client } = setup();
+    client.broadcastTxSync.mockRejectedValue(new Error("fetch failed"));
+
+    const error = await service.signAndBroadcast(createMessages(1)).catch((error: unknown) => error);
+
+    expect(error).toBeInstanceOf(TxOutcomeUnknownError);
+    expect(error).toMatchObject({ data: { outcome: "unknown", txHash: expect.stringMatching(/^[0-9A-F]{64}$/) } });
+    expect(client.getTx).not.toHaveBeenCalled();
   });
 
   it("rejects with a not-included outcome once polling has outlasted the transaction TTL", async () => {
@@ -103,14 +119,14 @@ describe(SigningClientService.name, () => {
     }
   });
 
-  it("rejects with an undecided outcome when the deadline cuts polling short of the transaction TTL", async () => {
+  it("rejects with an undecided outcome when the deadline cuts polling short of the transaction expiry", async () => {
     vi.useFakeTimers();
     try {
       const { service, client } = setup({ ttlMs: 10_000, deadlineMs: 14_000 });
       client.broadcastTxSync.mockResolvedValue("broadcast-hash");
       client.signUnordered.mockImplementation(async () => {
-        vi.setSystemTime(Date.now() + 12_000);
-        return signedTx();
+        vi.setSystemTime(Date.now() + 8_000);
+        return signedTx(10_000);
       });
       client.getTx.mockResolvedValue(null);
 
@@ -120,6 +136,27 @@ describe(SigningClientService.name, () => {
 
       await expect(promise).rejects.toBeInstanceOf(TxOutcomeUnknownError);
       await expect(promise).rejects.toMatchObject({ status: 504, data: { outcome: "unknown", txHash: "broadcast-hash" } });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not poll at all once the deadline has passed, and reports the outcome as undecided", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 10_000, deadlineMs: 5_000 });
+      client.broadcastTxSync.mockResolvedValue("broadcast-hash");
+      client.signUnordered.mockImplementation(async () => {
+        vi.setSystemTime(Date.now() + 6_000);
+        return signedTx(10_000);
+      });
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      await expect(promise).rejects.toBeInstanceOf(TxOutcomeUnknownError);
+      expect(client.getTx).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }
@@ -227,8 +264,10 @@ describe(SigningClientService.name, () => {
     return [{ typeUrl: "/test.MsgTest", value: { seed } }];
   }
 
-  function signedTx() {
-    return TxRaw.fromPartial({ bodyBytes: new Uint8Array([1]), authInfoBytes: new Uint8Array([2]), signatures: [new Uint8Array([3])] });
+  function signedTx(ttlMs = DEFAULT_TTL_MS) {
+    const bodyBytes = TxBody.encode(TxBody.fromPartial({ memo: "akash console", unordered: true, timeoutTimestamp: new Date(Date.now() + ttlMs) })).finish();
+
+    return TxRaw.fromPartial({ bodyBytes, authInfoBytes: new Uint8Array([2]), signatures: [new Uint8Array([3])] });
   }
 
   function outOfGasTx(input: { gasUsed: bigint; gasWanted: bigint }) {
@@ -236,10 +275,11 @@ describe(SigningClientService.name, () => {
   }
 
   function setup(input?: { ttlMs?: number; deadlineMs?: number; gasRecoveryMultiplier?: number }) {
+    const ttlMs = input?.ttlMs ?? DEFAULT_TTL_MS;
     const config = mock<AppConfigService>({
       get: vi.fn().mockImplementation(key => {
         const values = {
-          UNORDERED_TX_TTL_MS: input?.ttlMs ?? 180_000,
+          UNORDERED_TX_TTL_MS: ttlMs,
           SIGN_AND_BROADCAST_DEADLINE_MS: input?.deadlineMs ?? 600_000,
           GAS_RECOVERY_MULTIPLIER: input?.gasRecoveryMultiplier ?? 1.3
         };
@@ -248,7 +288,7 @@ describe(SigningClientService.name, () => {
     });
 
     const client = mock<SigningStargateWithUnorderedSupportClient>({
-      signUnordered: vi.fn().mockResolvedValue(signedTx()),
+      signUnordered: vi.fn().mockImplementation(async () => signedTx(ttlMs)),
       broadcastTxSync: vi.fn(async (bytes: Uint8Array) => toHex(sha256(bytes))),
       getTx: vi.fn(async (hash: string) => mock<IndexedTx>({ hash, code: 0, height: 100 }))
     });

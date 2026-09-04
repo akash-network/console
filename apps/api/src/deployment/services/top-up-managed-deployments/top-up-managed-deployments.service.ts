@@ -289,10 +289,7 @@ export class TopUpManagedDeploymentsService {
     );
   }
 
-  /**
-   * An undecided deposit keeps every claim it took: the cooldown is the only thing standing between a transaction that
-   * may still land and a second deposit for the same deployment, and it holds until the chain has been asked.
-   */
+  /** An undecided deposit keeps every claim it took, since the cooldown is the only thing standing between a tx that may still land and a second deposit. */
   #claimsToRelease(outcome: OwnerFundingOutcome, preparedClaims: FundingClaim[], messageInputs: CollectedMessage[], currentHeight: number): FundingClaim[] {
     if (outcome.status === "undecided") {
       return [];
@@ -301,11 +298,7 @@ export class TopUpManagedDeploymentsService {
     return outcome.status === "deposited" ? this.#runtimeCappedClaims(preparedClaims, messageInputs, currentHeight) : preparedClaims;
   }
 
-  /**
-   * Asks the chain what became of the transaction once its TTL has certainly passed. The held claims are what prevent a
-   * double deposit; this only shortens how long they hold when nothing landed, so a deposit with no hash to ask about
-   * simply lets them age out.
-   */
+  /** Only shortens how long the held claims hold, so a deposit with no hash to ask the chain about simply lets them age out. */
   async #scheduleReconciliation(owner: string, deposit: UndecidedDeposit, claims: FundingClaim[]): Promise<void> {
     if (!deposit.txHash) {
       return;

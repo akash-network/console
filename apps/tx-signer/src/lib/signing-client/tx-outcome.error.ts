@@ -16,20 +16,14 @@ class TxOutcomeError extends Error {
   }
 }
 
-/**
- * The transaction was broadcast but never included, and its `timeoutTimestamp` has since passed, so the chain
- * can no longer include it.
- */
+/** Broadcast but never included, and past its `timeoutTimestamp`, so the chain can no longer include it. */
 export class TxNotIncludedError extends TxOutcomeError {
   constructor(txHash: string) {
     super(502, "not_included", txHash, `Transaction ${txHash} expired without being included in a block`);
   }
 }
 
-/**
- * The transaction was broadcast and may still be included: the signing deadline stopped the wait before its
- * `timeoutTimestamp` could pass.
- */
+/** Broadcast and still includable, because the wait ended before the tx's `timeoutTimestamp` passed. */
 export class TxOutcomeUnknownError extends TxOutcomeError {
   constructor(txHash: string) {
     super(504, "unknown", txHash, `Transaction ${txHash} was broadcast but its outcome is not yet decided`);
