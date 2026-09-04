@@ -36,7 +36,7 @@ describe(ExpiringDeploymentsNotifierService.name, () => {
     expect(createNotification).toHaveBeenCalledWith(
       expect.objectContaining({
         payload: expect.objectContaining({
-          description: expect.stringContaining(`/deployments/${dseq}?tab=SETTINGS`)
+          actions: [expect.objectContaining({ url: expect.stringContaining(`/deployments/${dseq}?tab=SETTINGS`) })]
         })
       })
     );
