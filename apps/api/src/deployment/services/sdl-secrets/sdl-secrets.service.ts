@@ -13,7 +13,8 @@ import {
   SdlReferenceService
 } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
-import { SdlSecretsUnsealerService } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
+import { parseSdlSecrets, SdlSecretsUnsealerService } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
+import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
 import { SecretCipherService } from "@src/secret/services/secret-cipher/secret-cipher.service";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 
@@ -88,6 +89,22 @@ export class SdlSecretsService {
     this.#loggerService.info({ event: "SDL_SECRETS_SEALED", userId: input.userId, dseq: input.dseq, secretCount: names.length });
 
     return sealed;
+  }
+
+  /** Opens what `sealForStorage` wrote under the same binding, so a token moved to another deployment's row or another user's fails to open rather than resolving into it. */
+  async openStored(input: { userId: string; dseq: string; sealedSecrets: string }): Promise<SdlSecrets> {
+    const opened = await this.secretCipherService.decrypt(input.userId, input.sealedSecrets, { sub: input.userId, dseq: input.dseq });
+    const secrets = parseSdlSecrets(opened);
+
+    if (!secrets) {
+      this.#loggerService.error({ event: "SDL_SECRETS_STORED_PAYLOAD_INVALID", userId: input.userId, dseq: input.dseq });
+
+      throw createError(500, SECRET_UNREADABLE_ERROR_MESSAGE);
+    }
+
+    this.#loggerService.info({ event: "SDL_SECRETS_STORED_OPENED", userId: input.userId, dseq: input.dseq, secretCount: Object.keys(secrets).length });
+
+    return secrets;
   }
 
   /** Both directions are reported from one pass, so a request that gets each side wrong hears about both at once. */
