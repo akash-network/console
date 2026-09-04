@@ -1,5 +1,5 @@
 import { MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { LeaseHttpService } from "@akashnetwork/http-sdk";
 import { Trace, withSpan } from "@akashnetwork/instrumentation";
@@ -23,6 +23,7 @@ import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.se
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { RecordDeploymentSetting, recordDeploymentSettingKeyFor } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { UserRepository } from "@src/user/repositories";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
@@ -58,6 +59,7 @@ export class ManagedSignerService {
     private readonly walletReloadJobService: WalletReloadJobService,
     private readonly managedUserWalletService: ManagedUserWalletService,
     private readonly trialActivationJobService: TrialActivationJobService,
+    private readonly deploymentSettingRepository: DeploymentSettingRepository,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: ManagedSignerService.name });
@@ -179,6 +181,7 @@ export class ManagedSignerService {
     }
 
     await this.#recordCreatedDeployments(userWallet, messages);
+    await this.#recordClosedDeployments(userWallet, messages);
 
     await this.balancesService.refreshUserWalletLimits(userWallet);
     await this.#ensureAutoReloadSchedule(userWallet.userId, messages);
@@ -198,15 +201,33 @@ export class ManagedSignerService {
 
   /** A create broadcast here never passes through the deployment API that would record it, so the record is written from the landed transaction. */
   async #recordCreatedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[]) {
-    const createdDseqs = messages
-      .filter((message): message is { typeUrl: string; value: MsgCreateDeployment } => message.typeUrl.endsWith(".MsgCreateDeployment"))
-      .map(message => message.value.id?.dseq)
-      .filter(dseq => dseq !== undefined);
-
-    for (const dseq of createdDseqs) {
+    for (const dseq of this.#findDeploymentDseqs(messages, ".MsgCreateDeployment")) {
       const key = { userId: userWallet.userId, dseq: dseq.toString() };
       await this.domainEvents.publish(new RecordDeploymentSetting(key), { singletonKey: recordDeploymentSettingKeyFor(key) });
     }
+  }
+
+  /**
+   * A close is recorded from the landed transaction for the same reason a create is, since neither the deployment
+   * API's close nor the raw transaction endpoint writes the record; failing to write it must not report a close the
+   * chain already accepted as failed, so the hourly reconcile is what covers a row this misses.
+   */
+  async #recordClosedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[]) {
+    for (const dseq of this.#findDeploymentDseqs(messages, ".MsgCloseDeployment")) {
+      try {
+        await this.deploymentSettingRepository.markClosed({ userId: userWallet.userId, dseq: dseq.toString() });
+      } catch (error) {
+        this.logger.error({ event: "CLOSED_DEPLOYMENT_RECORD_FAILED", userId: userWallet.userId, dseq: dseq.toString(), error });
+      }
+    }
+  }
+
+  /** Both deployment messages carry the id in the same shape, so one of the two types describes either. */
+  #findDeploymentDseqs(messages: EncodeObject[], typeUrlSuffix: string): bigint[] {
+    return messages
+      .filter((message): message is { typeUrl: string; value: MsgCreateDeployment | MsgCloseDeployment } => message.typeUrl.endsWith(typeUrlSuffix))
+      .map(message => message.value.id?.dseq)
+      .filter((dseq): dseq is bigint => dseq !== undefined);
   }
 
   async #ensureAutoReloadSchedule(userId: UserWalletOutput["userId"], messages: EncodeObject[]) {

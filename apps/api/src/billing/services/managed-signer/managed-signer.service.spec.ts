@@ -24,6 +24,7 @@ import type { WalletReloadJobService } from "@src/billing/services/wallet-reload
 import type { CreateLogger } from "@src/core";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
+import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { RecordDeploymentSetting } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
 import { createAkashAddress } from "../../../../test/seeders";
@@ -475,6 +476,75 @@ describe(ManagedSignerService.name, () => {
 
       expect(domainEvents.publish).not.toHaveBeenCalledWith(expect.any(RecordDeploymentSetting), expect.anything());
     });
+
+    it("records a deployment closed by broadcasting its message, so no later sweep has to discover the close", async () => {
+      const { service, deploymentSettingRepository } = setupForClose();
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123)]);
+
+      expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "user-123", dseq: "123" });
+    });
+
+    it("records every deployment one transaction closes", async () => {
+      const { service, deploymentSettingRepository } = setupForClose();
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123), closeMessageFor(456)]);
+
+      expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "user-123", dseq: "123" });
+      expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "user-123", dseq: "456" });
+    });
+
+    it("records nothing closed when the close reverted on chain", async () => {
+      const { service, deploymentSettingRepository } = setupForClose({
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 11, hash: "tx-hash", rawLog: "out of gas" })
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123)])).rejects.toThrow("out of gas");
+
+      expect(deploymentSettingRepository.markClosed).not.toHaveBeenCalled();
+    });
+
+    it("records nothing closed for a transaction that closes no deployment", async () => {
+      const { service, deploymentSettingRepository } = setupForClose();
+      const createMessage: EncodeObject = {
+        typeUrl: MsgCreateDeployment.$type,
+        value: MsgCreateDeployment.fromPartial({ id: { owner: "akash1test", dseq: 123 } })
+      };
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [createMessage]);
+
+      expect(deploymentSettingRepository.markClosed).not.toHaveBeenCalled();
+    });
+
+    it("logs a failed record rather than reporting a close the chain accepted as failed", async () => {
+      const { service, logger } = setupForClose({
+        markClosed: vi.fn().mockRejectedValue(new Error("database unavailable"))
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123)])).resolves.toEqual(
+        expect.objectContaining({ code: 0, transactionHash: "tx-hash" })
+      );
+
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "CLOSED_DEPLOYMENT_RECORD_FAILED", userId: "user-123", dseq: "123" }));
+    });
+
+    function closeMessageFor(dseq: number): EncodeObject {
+      return {
+        typeUrl: MsgCloseDeployment.$type,
+        value: MsgCloseDeployment.fromPartial({ id: { owner: "akash1test", dseq } })
+      };
+    }
+
+    function setupForClose(input?: Parameters<typeof setup>[0]) {
+      return setup({
+        findOneByUserId: vi.fn().mockResolvedValue(createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: false })),
+        findById: vi.fn().mockResolvedValue(createUser({ userId: "user-123" })),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
+        publish: vi.fn().mockResolvedValue(undefined),
+        ...input
+      });
+    }
 
     it("does not publish FundDeploymentCommand when a trialing wallet creates a lease", async () => {
       const wallet = createUserWallet({
@@ -1081,6 +1151,7 @@ describe(ManagedSignerService.name, () => {
     transformChainError?: ChainErrorService["toAppError"];
     hasLeases?: LeaseHttpService["hasLeases"];
     scheduleImmediate?: WalletReloadJobService["scheduleImmediate"];
+    markClosed?: DeploymentSettingRepository["markClosed"];
     decode?: Registry["decode"];
   }) {
     const mocks = {
@@ -1130,6 +1201,9 @@ describe(ManagedSignerService.name, () => {
         refillWalletFees: vi.fn()
       }),
       trialActivationJobService: mock<TrialActivationJobService>(),
+      deploymentSettingRepository: mock<DeploymentSettingRepository>({
+        markClosed: input?.markClosed ?? vi.fn()
+      }),
       logger: mock<ReturnType<CreateLogger>>({
         error: vi.fn(),
         warn: vi.fn()
@@ -1157,6 +1231,7 @@ describe(ManagedSignerService.name, () => {
       mocks.walletReloadJobService,
       mocks.managedUserWalletService,
       mocks.trialActivationJobService,
+      mocks.deploymentSettingRepository,
       createLogger
     );
 
