@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
@@ -11,6 +11,11 @@ import { createAkashAddress } from "@test/seeders";
 
 describe(CachedBalanceService.name, () => {
   const DEFAULT_DEPOSIT_IN_USD = 0.5;
+  const MEMO_TTL_IN_MS = 5 * 60_000;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   describe("get", () => {
     const address = createAkashAddress();
@@ -49,6 +54,30 @@ describe(CachedBalanceService.name, () => {
       await service.get(address);
 
       expect(balancesService.getFreshLimits).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps sharing one balance for calls made within the memo window", async () => {
+      const { service, balancesService, elapse } = setup();
+      balancesService.getFreshLimits.mockResolvedValue({ deployment: DEPLOYMENT_LIMIT, fee: 100 });
+
+      await service.get(address);
+      elapse(MEMO_TTL_IN_MS - 1);
+      await service.get(address);
+
+      expect(balancesService.getFreshLimits).toHaveBeenCalledTimes(1);
+    });
+
+    it("builds a balance free of earlier reservations once the memo window has passed", async () => {
+      const { service, balancesService, elapse } = setup();
+      balancesService.getFreshLimits.mockResolvedValue({ deployment: DEPLOYMENT_LIMIT, fee: 100 });
+
+      const stale = await service.get(address);
+      stale.reserveSufficientAmount(DEPLOYMENT_LIMIT);
+      elapse(MEMO_TTL_IN_MS + 1);
+      const rebuilt = await service.get(address);
+
+      expect(balancesService.getFreshLimits).toHaveBeenCalledTimes(2);
+      expect(rebuilt.spendable).toBe(DEPLOYMENT_LIMIT);
     });
 
     it("throws when trying to reserve more than available", async () => {
@@ -269,6 +298,12 @@ describe(CachedBalanceService.name, () => {
   });
 
   function setup(input?: { headroomInUsd?: number; defaultDepositInUsd?: number }) {
+    let clockMs = performance.now();
+    vi.spyOn(performance, "now").mockImplementation(() => clockMs);
+    const elapse = (ms: number) => {
+      clockMs += ms;
+    };
+
     const balancesService = mock<BalancesService>();
     const deploymentConfig = mockConfigService<DeploymentConfigService>({
       AUTO_TOP_UP_BALANCE_HEADROOM_IN_USD: input?.headroomInUsd ?? 0,
@@ -279,6 +314,6 @@ describe(CachedBalanceService.name, () => {
 
     const service = new CachedBalanceService(balancesService, deploymentConfig, createLogger);
 
-    return { service, balancesService, deploymentConfig, logger, createLogger };
+    return { service, balancesService, deploymentConfig, logger, createLogger, elapse };
   }
 });
