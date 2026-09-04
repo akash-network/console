@@ -10,8 +10,13 @@ import { register } from "@src/infrastructure/db/db.module";
 import type { FullSchema } from "@src/infrastructure/db/full-schema";
 import { DbHealthzService } from "@src/infrastructure/db/services/db-healthz/db-healthz.service";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
+import { ProviderTierDemotionRepository } from "@src/modules/alert/repositories/provider-tier-demotion/provider-tier-demotion.repository";
 import { ChainAlertService } from "@src/modules/alert/services/chain-alert/chain-alert.service";
 import { DeploymentAlertService } from "@src/modules/alert/services/deployment-alert/deployment-alert.service";
+import { ProviderActiveLeasesService } from "@src/modules/alert/services/provider-active-leases/provider-active-leases.service";
+import { ProviderMaintenanceAlertService } from "@src/modules/alert/services/provider-maintenance-alert/provider-maintenance-alert.service";
+import { ProviderTierDemotionAlertService } from "@src/modules/alert/services/provider-tier-demotion-alert/provider-tier-demotion-alert.service";
+import { ProviderTierDemotionFeedService } from "@src/modules/alert/services/provider-tier-demotion-feed/provider-tier-demotion-feed.service";
 import { ReclaimAlertService } from "@src/modules/alert/services/reclaim-alert/reclaim-alert.service";
 import { WalletBalanceAlertsService } from "@src/modules/alert/services/wallet-balance-alerts/wallet-balance-alerts.service";
 import { HTTP_SDK_PROVIDERS } from "./providers/http-sdk.provider";
@@ -36,6 +41,11 @@ import * as schema from "./model-schemas";
     TemplateService,
     DeploymentAlertService,
     ReclaimAlertService,
+    ProviderActiveLeasesService,
+    ProviderMaintenanceAlertService,
+    ProviderTierDemotionRepository,
+    ProviderTierDemotionFeedService,
+    ProviderTierDemotionAlertService,
     DbHealthzService,
     ...HTTP_SDK_PROVIDERS
   ],
@@ -46,6 +56,7 @@ import * as schema from "./model-schemas";
     AlertRepository,
     DeploymentAlertService,
     ReclaimAlertService,
+    ProviderMaintenanceAlertService,
     DbHealthzService
   ]
 })

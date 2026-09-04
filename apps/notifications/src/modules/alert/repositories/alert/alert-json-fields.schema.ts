@@ -46,11 +46,24 @@ export const walletBalanceParamsSchema = z.object({
   suppressedBySystem: z.boolean().optional()
 });
 
+const providerMaintenanceNotificationSchema = z.discriminatedUnion("status", [
+  z.object({
+    status: z.literal("pending"),
+    claimId: z.string().uuid(),
+    claimedAt: z.string()
+  }),
+  z.object({
+    status: z.literal("sent"),
+    sentAt: z.string()
+  })
+]);
+
 export const generalParamsSchema = z.object({
   dseq: dseqSchema,
   type: z.string(),
   suppressedBySystem: z.boolean().optional(),
-  reclaimNotifiedAt: z.string().optional()
+  reclaimNotifiedAt: z.string().optional(),
+  providerMaintenanceNotifications: z.record(providerMaintenanceNotificationSchema).optional()
 });
 
 export const chainMessageTypeSchema = z.literal("CHAIN_MESSAGE");

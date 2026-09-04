@@ -6,9 +6,11 @@ import { and, count, eq, gt, lte, ne, or, sql } from "drizzle-orm";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { SQL } from "drizzle-orm/sql/sql";
 import difference from "lodash/difference";
+import { randomUUID } from "node:crypto";
 
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
 import { DrizzleAbility } from "@src/lib/drizzle-ability/drizzle-ability";
+import type { ProviderLeaseId } from "@src/modules/alert/types/provider-lease.type";
 import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 import * as schema from "../../model-schemas";
 import type { DeploymentBalanceJsonFields, GeneralJsonFields, WalletBalanceJsonFields } from "./alert-json-fields.schema";
@@ -81,6 +83,11 @@ export interface FindAllDeploymentAlertsConditions {
   includeSuppressed?: boolean;
 }
 
+export interface ProviderMaintenanceNotificationClaim {
+  alert: AlertOutput;
+  claimId: string;
+}
+
 /**
  * The per-deployment escrow-balance alert is retired: the block worker no longer evaluates it.
  * Rows created before the retirement still exist, so they must stay out of anything a user can
@@ -88,6 +95,7 @@ export interface FindAllDeploymentAlertsConditions {
  * while being invisible in the UI.
  */
 const RETIRED_ALERT_TYPE: AlertType = "DEPLOYMENT_BALANCE";
+const PROVIDER_MAINTENANCE_CLAIM_TIMEOUT_MS = 5 * 60 * 1000;
 
 @Injectable()
 export class AlertRepository {
@@ -218,6 +226,97 @@ export class AlertRepository {
 
       return alert && this.toOutput(alert);
     });
+  }
+
+  async claimProviderMaintenanceNotification(
+    id: string,
+    provider: string,
+    maintenanceId: string,
+    lease: ProviderLeaseId
+  ): Promise<ProviderMaintenanceNotificationClaim | undefined> {
+    const notificationKey = this.toProviderMaintenanceNotificationKey(provider, maintenanceId, lease);
+    const claimId = randomUUID();
+
+    return this.db.transaction(async transaction => {
+      const [alert] = await transaction
+        .update(schema.Alert)
+        .set({
+          params: sql`jsonb_set(
+            COALESCE(${schema.Alert.params}, '{}'::jsonb),
+            '{providerMaintenanceNotifications}',
+            COALESCE(${schema.Alert.params}->'providerMaintenanceNotifications', '{}'::jsonb)
+              || jsonb_build_object(
+                ${notificationKey}::text,
+                jsonb_build_object('status', 'pending', 'claimId', ${claimId}::text, 'claimedAt', NOW())
+              )
+          )`,
+          updatedAt: sql`NOW()`
+        })
+        .where(
+          and(
+            eq(schema.Alert.id, id),
+            sql`NOT (COALESCE(${schema.Alert.params}->'providerMaintenanceNotifications', '{}'::jsonb) ? ${notificationKey}::text)
+              OR (
+                COALESCE(${schema.Alert.params}->'providerMaintenanceNotifications', '{}'::jsonb)->${notificationKey}::text->>'status' = 'pending'
+                AND (
+                  COALESCE(${schema.Alert.params}->'providerMaintenanceNotifications', '{}'::jsonb)->${notificationKey}::text->>'claimedAt'
+                )::timestamptz <= NOW() - (${PROVIDER_MAINTENANCE_CLAIM_TIMEOUT_MS} * INTERVAL '1 millisecond')
+              )`
+          )
+        )
+        .returning();
+
+      return alert && { alert: this.toOutput(alert), claimId };
+    });
+  }
+
+  async completeProviderMaintenanceNotification(id: string, provider: string, maintenanceId: string, lease: ProviderLeaseId, claimId: string): Promise<void> {
+    const notificationKey = this.toProviderMaintenanceNotificationKey(provider, maintenanceId, lease);
+
+    await this.db
+      .update(schema.Alert)
+      .set({
+        params: sql`jsonb_set(
+          COALESCE(${schema.Alert.params}, '{}'::jsonb),
+          '{providerMaintenanceNotifications}',
+          COALESCE(${schema.Alert.params}->'providerMaintenanceNotifications', '{}'::jsonb)
+            || jsonb_build_object(${notificationKey}::text, jsonb_build_object('status', 'sent', 'sentAt', NOW()))
+        )`,
+        updatedAt: sql`NOW()`
+      })
+      .where(
+        and(
+          eq(schema.Alert.id, id),
+          sql`COALESCE(${schema.Alert.params}->'providerMaintenanceNotifications', '{}'::jsonb)->${notificationKey}::text->>'status' = 'pending'`,
+          sql`COALESCE(${schema.Alert.params}->'providerMaintenanceNotifications', '{}'::jsonb)->${notificationKey}::text->>'claimId' = ${claimId}::text`
+        )
+      );
+  }
+
+  async releaseProviderMaintenanceNotification(id: string, provider: string, maintenanceId: string, lease: ProviderLeaseId, claimId: string): Promise<void> {
+    const notificationKey = this.toProviderMaintenanceNotificationKey(provider, maintenanceId, lease);
+
+    await this.db
+      .update(schema.Alert)
+      .set({
+        params: sql`jsonb_set(
+          COALESCE(${schema.Alert.params}, '{}'::jsonb),
+          '{providerMaintenanceNotifications}',
+          COALESCE(${schema.Alert.params}->'providerMaintenanceNotifications', '{}'::jsonb) - ${notificationKey}::text
+        )`,
+        updatedAt: sql`NOW()`
+      })
+      .where(
+        and(
+          eq(schema.Alert.id, id),
+          sql`COALESCE(${schema.Alert.params}->'providerMaintenanceNotifications', '{}'::jsonb)->${notificationKey}::text->>'status' = 'pending'`,
+          sql`COALESCE(${schema.Alert.params}->'providerMaintenanceNotifications', '{}'::jsonb)->${notificationKey}::text->>'claimId' = ${claimId}::text`
+        )
+      );
+  }
+
+  private toProviderMaintenanceNotificationKey(provider: string, maintenanceId: string, lease: ProviderLeaseId): string {
+    return [provider, maintenanceId, lease.owner, lease.dseq, lease.gseq, lease.oseq, lease.bseq, lease.provider].join("/");
   }
 
   async deleteOneById(id: string): Promise<AlertOutput | undefined> {

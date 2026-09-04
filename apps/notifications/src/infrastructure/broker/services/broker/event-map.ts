@@ -2,6 +2,7 @@ import type { eventKeyRegistry } from "@src/common/config/event-key-registry.con
 import type { ChainBlockCreatedDto } from "@src/modules/alert/dto/chain-block-created.dto";
 import type { EventClosedDeploymentDto } from "@src/modules/alert/dto/event-closed-deployment.dto";
 import type { EventLeaseReclaimStartedDto } from "@src/modules/alert/dto/event-lease-reclaim-started.dto";
+import type { EventProviderMaintenanceOpenedDto } from "@src/modules/alert/dto/event-provider-maintenance-opened.dto";
 import type { AlertMessage } from "@src/modules/alert/types/message-callback.type";
 
 export type EventToPayload = {
@@ -9,4 +10,5 @@ export type EventToPayload = {
   [eventKeyRegistry.blockCreated]: ChainBlockCreatedDto;
   [eventKeyRegistry.eventCloseDeployment]: EventClosedDeploymentDto;
   [eventKeyRegistry.eventLeaseReclaimStarted]: EventLeaseReclaimStartedDto;
+  [eventKeyRegistry.eventProviderMaintenanceOpened]: EventProviderMaintenanceOpenedDto;
 };

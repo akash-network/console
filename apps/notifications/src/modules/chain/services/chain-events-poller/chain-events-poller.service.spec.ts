@@ -94,10 +94,30 @@ describe(ChainEventsPollerService.name, () => {
       CURRENT_HEIGHT + 1,
       expect.arrayContaining([
         { module: "deployment", version: "v1", source: "akash", action: ["deployment-closed"] },
-        { module: "market", version: "v1", source: "akash", action: ["lease-reclaim-started"] }
+        { module: "market", version: "v1", source: "akash", action: ["lease-reclaim-started"] },
+        { module: "provider", version: "v1beta4", source: "akash", action: ["provider-maintenance-opened"] }
       ]),
       expect.any(AbortSignal)
     );
+  });
+
+  it("does not commit the block cursor when event fetching fails", async () => {
+    const { service, blockCursorRepository, blockMessageService, txEventsService, CURRENT_HEIGHT } = await setup();
+    const committedHeights: number[] = [];
+    blockMessageService.getMessages.mockResolvedValue(generateMockBlockData({ height: CURRENT_HEIGHT + 1, time: new Date().toISOString() }));
+    txEventsService.getBlockEvents.mockRejectedValue(new Error("block results unavailable"));
+    blockCursorRepository.getNextBlockForProcessing.mockImplementation(async callback => {
+      const block = await callback(CURRENT_HEIGHT + 1);
+      committedHeights.push(block.height);
+      return block;
+    });
+
+    service.onApplicationBootstrap();
+    await delay(100);
+    await service.onModuleDestroy();
+
+    expect(blockCursorRepository.getNextBlockForProcessing).toHaveBeenCalled();
+    expect(committedHeights).toEqual([]);
   });
 
   it("retries instead of shutting down when block processing consistently fails", async () => {
