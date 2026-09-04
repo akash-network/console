@@ -13,7 +13,10 @@ import { NotificationJob } from "@src/notifications/services/notification-handle
 import { CloseTrialDeployment } from "../close-trial-deployment/close-trial-deployment.handler";
 import { TrialDeploymentLeaseCreatedHandler } from "./trial-deployment-lease-created.handler";
 
+import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
+
+const PAYMENT_LINK = "https://console.akash.network/billing?payment=true";
 
 describe(TrialDeploymentLeaseCreatedHandler.name, () => {
   it("logs a warning when wallet is not found", async () => {
@@ -111,6 +114,7 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
           deploymentClosedAt: addHours(deploymentCreatedAt, trialDeploymentLifetimeInHours).toISOString(),
           dseq: payload.dseq,
           owner: wallet.address!,
+          paymentLink: PAYMENT_LINK,
           firstPurchaseBonus: "$resolved"
         }
       }),
@@ -223,8 +227,9 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
       jobQueueService: mock<JobQueueService>({
         enqueue: input?.enqueueJob ?? vi.fn().mockResolvedValue(undefined)
       }),
-      billingConfig: mock<BillingConfigService>({
-        get: vi.fn().mockReturnValue(input?.trialDeploymentLifetimeInHours ?? 24)
+      billingConfig: mockConfigService<BillingConfigService>({
+        TRIAL_DEPLOYMENT_CLEANUP_HOURS: input?.trialDeploymentLifetimeInHours ?? 24,
+        CONSOLE_WEB_PAYMENT_LINK: PAYMENT_LINK
       })
     };
 

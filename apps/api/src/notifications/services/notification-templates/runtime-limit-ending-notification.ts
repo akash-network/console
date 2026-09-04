@@ -16,7 +16,8 @@ export function runtimeLimitEndingNotification(
       summary: "Your Akash deployment stops soon",
       description:
         `Deployment <strong>${vars.dseq}</strong> reaches its runtime limit ${timeLeft} and will be closed. ` +
-        `To keep it running, <a href="${vars.deploymentSettingsUrl}">extend the limit or switch it to always-on funding</a>.`
+        `To keep it running, extend the limit or switch it to always-on funding.`,
+      actions: [{ label: "Extend the limit", url: vars.deploymentSettingsUrl }]
     },
     user: { id: user.id, email: user.email }
   };

@@ -49,7 +49,7 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
     );
     const [{ payload }] = notificationService.createNotification.mock.calls[0];
     expect(payload.description).toContain("<strong>dark</strong>");
-    expect(payload.description).toContain(`${DEPLOY_WEB_BASE_URL}/deployments/${DSEQ}`);
+    expect(payload.actions).toEqual([{ label: "Close the deployment", url: `${DEPLOY_WEB_BASE_URL}/deployments/${DSEQ}` }]);
   });
 
   it("claims the outage before sending so a repeat sweep cannot email twice", async () => {

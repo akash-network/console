@@ -11,7 +11,8 @@ describe(emailVerificationCodeNotification.name, () => {
 
     expect(result.notificationId).toMatch(/^emailVerificationCode\.user-123\.[0-9a-f-]{36}$/);
     expect(result.payload.summary).toBe("Your verification code");
-    expect(result.payload.description).toContain("<strong>123456</strong>");
+    expect(result.payload.code).toBe("123456");
+    expect(result.payload.description).not.toContain("123456");
     expect(result.payload.description).toContain("expires in 10 minutes");
     expect(result.user).toEqual({ id: "user-123", email: "test@example.com" });
   });

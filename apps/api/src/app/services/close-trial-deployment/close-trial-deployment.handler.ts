@@ -147,6 +147,7 @@ export class CloseTrialDeploymentHandler implements JobHandler<CloseTrialDeploym
           dseq: payload.dseq,
           owner: wallet.address!,
           deploymentLifetimeInHours: this.billingConfig.get("TRIAL_DEPLOYMENT_CLEANUP_HOURS"),
+          paymentLink: this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK"),
           firstPurchaseBonus: RESOLVED_MARKER
         }
       }),

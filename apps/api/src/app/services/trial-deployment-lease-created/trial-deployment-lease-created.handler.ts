@@ -72,6 +72,7 @@ export class TrialDeploymentLeaseCreatedHandler implements JobHandler<TrialDeplo
           deploymentClosedAt: addHours(deploymentCreatedAt, trialDeploymentLifetime).toISOString(),
           dseq: payload.dseq,
           owner: wallet.address!,
+          paymentLink: this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK"),
           firstPurchaseBonus: RESOLVED_MARKER
         }
       }),

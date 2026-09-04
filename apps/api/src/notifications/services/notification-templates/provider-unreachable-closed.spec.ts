@@ -24,7 +24,7 @@ describe(providerUnreachableClosedNotification.name, () => {
     expect(result.payload.description).toContain("<strong>provider.akash.cmolls.de</strong>");
     expect(result.payload.description).toContain("14 days ago");
     expect(result.payload.description).toContain("returned");
-    expect(result.payload.description).toContain(`<a href="${REDEPLOY_URL}">Deploy it again</a>`);
+    expect(result.payload.actions).toEqual([{ label: "Deploy it again", url: REDEPLOY_URL }]);
     expect(result.user).toEqual({ id: "user-123", email: "user@example.com" });
   });
 

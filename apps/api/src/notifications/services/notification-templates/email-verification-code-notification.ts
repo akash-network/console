@@ -7,9 +7,8 @@ export function emailVerificationCodeNotification(user: { id: string; email: str
     notificationId: `emailVerificationCode.${user.id}.${randomUUID()}`,
     payload: {
       summary: "Your verification code",
-      description:
-        `Your email verification code is: <strong>${vars.code}</strong>. ` +
-        `This code expires in 10 minutes. If you did not request this code, please ignore this email.`
+      description: "Enter this code to verify your email address. It expires in 10 minutes. If you did not request it, please ignore this email.",
+      code: vars.code
     },
     user: {
       id: user.id,

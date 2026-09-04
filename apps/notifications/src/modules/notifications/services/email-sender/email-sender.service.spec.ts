@@ -64,6 +64,23 @@ describe(EmailSenderService.name, () => {
       expect(sentContent).toContain(content);
     });
 
+    it("renders the actions as buttons in the sent document", async () => {
+      const { service, novu } = await setup();
+
+      await service.send({
+        addresses: [faker.internet.email()],
+        subject: faker.lorem.sentence(),
+        content: faker.lorem.paragraph(),
+        userId: faker.string.uuid(),
+        actions: [{ label: "Add credits", url: "https://console.akash.network/billing" }]
+      });
+
+      const sentContent = novu.trigger.mock.calls[0][0].payload?.content as string;
+      expect(sentContent).toContain('href="https://console.akash.network/billing"');
+      expect(sentContent).toContain(">Add credits</a>");
+      expect(sentContent).toContain('class="btn-primary"');
+    });
+
     it("sends to every address while addressing the first one as the subscriber", async () => {
       const { service, novu } = await setup();
       const addresses = [faker.internet.email(), faker.internet.email(), faker.internet.email()];

@@ -19,8 +19,8 @@ export function autoRechargeSucceededNotification(
       summary: `Your Akash account was recharged ${amount}`,
       description:
         `We automatically charged your default payment method ${amount} to keep your deployments running. ` +
-        `Your available balance is now <strong>${balance}</strong>. ` +
-        `<a href="${vars.billingUrl}">View your billing</a>.`
+        `Your available balance is now <strong>${balance}</strong>.`,
+      actions: [{ label: "View billing", url: vars.billingUrl }]
     },
     user: {
       id: user.id,

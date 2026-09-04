@@ -171,7 +171,7 @@ describe(AutoReloadPauseService.name, () => {
       await service.recordDecline({ claim, user, decline: { isTerminal: false } });
 
       const notification = notificationService.createNotification.mock.calls[0][0];
-      expect(notification.payload.description).toContain('<a href="https://console.akash.network/billing">');
+      expect(notification.payload.actions).toEqual([{ label: "Update payment method", url: "https://console.akash.network/billing" }]);
     });
   });
 

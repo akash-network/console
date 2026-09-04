@@ -20,7 +20,8 @@ export function providerUnreachableClosedNotification(
         `Deployment <strong>${vars.dseq}</strong> has been closed. Its provider, ` +
         `<strong>${escapeHtml(toProviderHostName(vars.hostUri))}</strong>, stopped responding ${vars.downForDays} days ago and never came back, ` +
         `so the deployment was costing you money without running anything. What was left of its funds has been returned ` +
-        `to your account. <a href="${vars.redeployUrl}">Deploy it again</a> whenever you are ready.`
+        `to your account.`,
+      actions: [{ label: "Deploy it again", url: vars.redeployUrl }]
     },
     user: { id: user.id, email: user.email }
   };

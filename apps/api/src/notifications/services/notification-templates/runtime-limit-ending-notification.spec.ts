@@ -21,9 +21,8 @@ describe(runtimeLimitEndingNotification.name, () => {
     expect(result.payload.summary).toBe("Your Akash deployment stops soon");
     expect(result.payload.description).toContain("<strong>654321</strong>");
     expect(result.payload.description).toContain("in about 6 hours");
-    expect(result.payload.description).toContain(
-      '<a href="https://console.akash.network/deployments/654321?tab=SETTINGS">extend the limit or switch it to always-on funding</a>'
-    );
+    expect(result.payload.description).toContain("extend the limit or switch it to always-on funding");
+    expect(result.payload.actions).toEqual([{ label: "Extend the limit", url: "https://console.akash.network/deployments/654321?tab=SETTINGS" }]);
     expect(result.user).toEqual({ id: "user-123", email: "user@example.com" });
   });
 

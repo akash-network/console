@@ -13,8 +13,9 @@ export function afterTrialEndsNotification(
     payload: {
       summary: "Add payment info to continue using Akash",
       description:
-        `Your trial period with Akash Network has ended. To keep using the platform and access all features, please add a payment method and top up your account by visiting <a href="${vars.paymentLink}">Akash Console Payment Setup</a>` +
-        firstPurchaseBonusSentence(vars.firstPurchaseBonus)
+        `Your trial period with Akash Network has ended. To keep using the platform and access all features, please add a payment method and top up your account.` +
+        firstPurchaseBonusSentence(vars.firstPurchaseBonus),
+      actions: [{ label: "Add credits", url: vars.paymentLink }]
     },
     user: {
       id: user.id,

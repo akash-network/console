@@ -12,11 +12,27 @@ describe(trialDeploymentClosedNotification.name, () => {
       dseq: "123456",
       owner: "akash1test",
       deploymentLifetimeInHours: 24,
+      paymentLink: "https://console.akash.network/billing?payment=true",
       firstPurchaseBonus: { bonusPercent: 10, minPurchaseUsd: 100, maxBonusUsd: 100 }
     });
 
     expect(result.payload.summary).toBe("Your Trial Deployment Has Been Closed");
     expect(result.payload.description).toContain("has been closed by the system");
     expect(result.payload.description).toContain("10% in bonus credits");
+    expect(result.payload.actions).toEqual([{ label: "Add credits", url: "https://console.akash.network/billing?payment=true" }]);
+  });
+
+  it("omits the action when a job enqueued before paymentLink existed carries no link", () => {
+    const user = createUser({ id: "user-123", email: "user@example.com" });
+
+    const result = trialDeploymentClosedNotification(user, {
+      dseq: "123456",
+      owner: "akash1test",
+      deploymentLifetimeInHours: 24,
+      firstPurchaseBonus: { bonusPercent: 10, minPurchaseUsd: 100, maxBonusUsd: 100 }
+    } as Parameters<typeof trialDeploymentClosedNotification>[1]);
+
+    expect(result.payload.actions).toBeUndefined();
+    expect(result.payload.summary).toBe("Your Trial Deployment Has Been Closed");
   });
 });

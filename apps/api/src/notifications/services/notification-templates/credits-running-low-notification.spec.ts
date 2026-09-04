@@ -20,8 +20,10 @@ describe(creditsRunningLowNotification.name, () => {
     expect(result.payload.summary).toBe("Your Akash credits are running low");
     expect(result.payload.description).toContain("<strong>$12.50</strong>");
     expect(result.payload.description).toContain("about 2 days of current usage");
-    expect(result.payload.description).toContain('<a href="https://console.akash.network/billing?openPayment=true">Add credits</a>');
-    expect(result.payload.description).toContain('<a href="https://console.akash.network/billing">enable Auto Recharge</a>');
+    expect(result.payload.actions).toEqual([
+      { label: "Add credits", url: "https://console.akash.network/billing?openPayment=true" },
+      { label: "Enable Auto Recharge", url: "https://console.akash.network/billing" }
+    ]);
     expect(result.user).toEqual({ id: "user-123", email: "user@example.com" });
   });
 

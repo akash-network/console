@@ -27,7 +27,7 @@ describe(providerUnreachableNotification.name, () => {
     expect(result.payload.description).toContain("<strong>654321</strong>");
     expect(result.payload.description).toContain("<strong>provider.akash.cmolls.de</strong>");
     expect(result.payload.description).toContain("5 days");
-    expect(result.payload.description).toContain(`<a href="${DEPLOYMENT_URL}">Close the deployment</a>`);
+    expect(result.payload.actions).toEqual([{ label: "Close the deployment", url: DEPLOYMENT_URL }]);
     expect(result.payload.description).toContain("we will close the deployment for you");
     expect(result.user).toEqual({ id: "user-123", email: "user@example.com" });
   });

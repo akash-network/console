@@ -16,7 +16,7 @@ describe(autoTopUpChargeFailedNotification.name, () => {
     expect(result.payload.summary).toBe("We couldn't charge your card");
     expect(result.payload.description).toContain("declined");
     expect(result.payload.description).toContain("try again");
-    expect(result.payload.description).toContain('<a href="https://console.akash.network/billing">');
+    expect(result.payload.actions).toEqual([{ label: "Update payment method", url: "https://console.akash.network/billing" }]);
     expect(result.user).toEqual({ id: "user-123", email: "user@example.com" });
   });
 
