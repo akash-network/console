@@ -7,6 +7,7 @@ import { mock } from "vitest-mock-extended";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { BillingConfig } from "@src/billing/providers";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import type { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { CreateLogger } from "@src/core";
 import type { DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
@@ -22,7 +23,7 @@ import { mockConfigService } from "@test/mocks/config-service.mock";
 const USER_ID = "3f1b6d4e-0000-4000-8000-000000000001";
 const DSEQ = "1420000000001";
 
-function sdlWith(env: string[], options: { credentials?: Record<string, string>; denom?: string; gpuModel?: string } = {}) {
+function sdlWith(env: string[], options: { credentials?: Record<string, string>; gpuModel?: string } = {}) {
   const credentialsBlock = options.credentials
     ? `    credentials:\n${Object.entries(options.credentials)
         .map(([field, value]) => `      ${field}: ${JSON.stringify(value)}\n`)
@@ -63,7 +64,7 @@ function sdlWith(env: string[], options: { credentials?: Record<string, string>;
     `    dcloud:`,
     `      pricing:`,
     `        web:`,
-    `          denom: ${options.denom ?? "uakt"}`,
+    `          denom: uakt`,
     `          amount: 1000`,
     `deployment:`,
     `  web:`,
@@ -79,6 +80,10 @@ function manifestOf(sdl: string) {
   const result = generateManifest(yaml.raw<SDLInput>(sdl));
 
   return manifestToSortedJSON((result as Extract<typeof result, { ok: true }>).value.groups);
+}
+
+function aktToUsdRateOf(price: number) {
+  return mock<Awaited<ReturnType<DenomExchangeService["getExchangeRateToUSD"]>>>({ price });
 }
 
 describe(LeaseManifestService.name, () => {
@@ -316,12 +321,29 @@ describe(LeaseManifestService.name, () => {
       expect(manifest).toBe(manifestOf(stored));
     });
 
-    it("derives an sdl priced in a denom the manifest generator would reject unpriced in the grant denom", async () => {
-      const { service } = setup({ definition: { sdl: sdlWith(["LOG_LEVEL=debug"], { denom: "uatom" }), sealedSecrets: null } });
+    it("derives the same bytes twice over however the akt price the grant denom restates through moves between them", async () => {
+      const stored = sdlWith(["LOG_LEVEL=debug"]);
+      const { service, denomExchangeService } = setup({ definition: { sdl: stored, sealedSecrets: null }, grantDenom: "uact" });
+      denomExchangeService.getExchangeRateToUSD.mockResolvedValueOnce(aktToUsdRateOf(0.325)).mockResolvedValueOnce(aktToUsdRateOf(9));
+
+      const first = await service.deriveFor({ dseq: DSEQ });
+      const second = await service.deriveFor({ dseq: DSEQ });
+
+      expect(first).toBe(second);
+      expect(first).toBe(manifestOf(stored));
+    });
+
+    it("falls back when the akt price the grant denom restatement needs is unavailable", async () => {
+      const { service, logger } = setup({
+        definition: { sdl: sdlWith(["LOG_LEVEL=debug"]), sealedSecrets: null },
+        grantDenom: "uact",
+        aktToUsdRate: 0
+      });
 
       const manifest = await service.deriveFor({ dseq: DSEQ });
 
-      expect(manifest).toBe(manifestOf(sdlWith(["LOG_LEVEL=debug"])));
+      expect(manifest).toBeNull();
+      expect(logger.info).toHaveBeenCalledWith({ event: "LEASE_MANIFEST_FALLBACK", userId: USER_ID, dseq: DSEQ, reason: "unresolvable" });
     });
   });
 
@@ -331,6 +353,8 @@ describe(LeaseManifestService.name, () => {
     blockedGpuModels?: string[];
     trialMaxCpu?: number;
     trialMaxMemoryGi?: number;
+    grantDenom?: BillingConfig["DEPLOYMENT_GRANT_DENOM"];
+    aktToUsdRate?: number;
   }) {
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     const scopedRepository = mock<DeploymentSettingRepository>();
@@ -343,20 +367,27 @@ describe(LeaseManifestService.name, () => {
       input.definition ? mock<DeploymentSettingsOutput>({ sdl: input.definition.sdl, sealedSecrets: input.definition.sealedSecrets }) : undefined
     );
 
+    const createLogger: CreateLogger = () => logger;
+    const denomExchangeService = mock<DenomExchangeService>({
+      getExchangeRateToUSD: vi.fn().mockResolvedValue(aktToUsdRateOf(input.aktToUsdRate ?? 1))
+    });
+
     const sdlReferenceService = new SdlReferenceService();
     const sdlService = new SdlService(
       mock<BillingConfig>({
-        DEPLOYMENT_GRANT_DENOM: "uakt",
+        DEPLOYMENT_GRANT_DENOM: input.grantDenom ?? "uakt",
         MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: [],
         MANAGED_WALLET_TRIAL_MAX_CPU: input.trialMaxCpu ?? 0,
         MANAGED_WALLET_TRIAL_MAX_MEMORY_GI: input.trialMaxMemoryGi ?? 0
       }),
       new BlockedGpuService(mockConfigService<BillingConfigService>({ MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: input.blockedGpuModels ?? [] })),
-      sdlReferenceService
+      sdlReferenceService,
+      denomExchangeService,
+      createLogger
     );
 
-    const service = new LeaseManifestService(deploymentSettingRepository, authService, sdlSecretsService, sdlReferenceService, sdlService, () => logger);
+    const service = new LeaseManifestService(deploymentSettingRepository, authService, sdlSecretsService, sdlReferenceService, sdlService, createLogger);
 
-    return { service, deploymentSettingRepository, scopedRepository, authService, sdlSecretsService, sdlService, logger };
+    return { service, deploymentSettingRepository, scopedRepository, authService, sdlSecretsService, sdlService, denomExchangeService, logger };
   }
 });
