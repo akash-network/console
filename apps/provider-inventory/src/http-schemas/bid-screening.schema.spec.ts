@@ -33,6 +33,20 @@ describe("BidScreeningRequestSchema", () => {
     );
   });
 
+  it("rejects a request asking for two architectures at once", () => {
+    const result = BidScreeningRequestSchema.safeParse(
+      buildRequest([
+        { key: "arch", value: "amd64" },
+        { key: "arch", value: "arm64" }
+      ])
+    );
+
+    expect(result.success).toBe(false);
+    expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+      expect.objectContaining({ message: 'Duplicate CPU attribute "arch": a resource asks for one architecture' })
+    );
+  });
+
   function buildRequest(cpuAttributes?: { key: string; value: string }[]) {
     return {
       timezone: "America/Chicago",

@@ -1110,6 +1110,15 @@ describe(ClusterInventoryMatcherService.name, () => {
       expect(service.match(cluster, archUnits("arm64"), { declaredCpuArch: "arm64" }).matched).toBe(false);
     });
 
+    it("excludes a node reporting an architecture no request can name", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([{ ...roomyNode, cpus: [cpuInfo("ppc64le")] }]);
+
+      expect(service.match(cluster, archUnits("amd64")).matched).toBe(false);
+      expect(service.match(cluster, archUnits(null)).matched).toBe(false);
+      expect(service.match(cluster, archUnits("arm64"), { declaredCpuArch: "arm64" }).matched).toBe(false);
+    });
+
     it("treats a provider that says nothing at all as amd64", () => {
       const service = new ClusterInventoryMatcherService();
       const cluster = makeCluster([roomyNode]);

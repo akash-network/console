@@ -21,7 +21,7 @@ export class ClusterInventoryMatcherService {
     const clusterNodes = cluster.nodes ?? EMPTY_NODES;
     const nodeCount = clusterNodes.length;
     const nodeDeltas: NodeDelta[] = new Array(nodeCount);
-    const nodeArchs: CpuArch[] = new Array(nodeCount);
+    const nodeArchs: (CpuArch | null)[] = new Array(nodeCount);
     for (let i = 0; i < nodeCount; i++) {
       nodeDeltas[i] = { cpu: 0n, mem: 0n, eph: 0n, gpu: 0n };
       nodeArchs[i] = resolveNodeCpuArch(clusterNodes[i].cpus, provider.declaredCpuArch);
@@ -67,7 +67,7 @@ export class ClusterInventoryMatcherService {
 
   #tryAdjust(
     node: NodeState,
-    nodeArch: CpuArch,
+    nodeArch: CpuArch | null,
     baseDelta: NodeDelta,
     clusterStorage: ClusterState["storage"],
     storageDeltas: Record<string, bigint>,

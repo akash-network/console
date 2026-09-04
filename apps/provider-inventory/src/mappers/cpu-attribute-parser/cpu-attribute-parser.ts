@@ -19,16 +19,17 @@ export interface ParsedCPUAttributes {
   arch: CpuArch | null;
 }
 
-/**
- * Reads a requested architecture off a group spec's CPU attributes, rejecting anything the SDL schema
- * would not have produced so a request no provider could serve fails loudly instead of matching nothing.
- */
+/** Rejects anything the SDL schema would not have produced, so a request no provider could serve fails loudly instead of matching nothing. */
 export function parseCPUAttributes(attributes: ResourceAttribute[]): ParsedCPUAttributes {
   let arch: CpuArch | null = null;
 
   for (const attr of attributes) {
     if (attr.key !== "arch") {
       throw new Error(`Unsupported CPU attribute "${attr.key}"`);
+    }
+
+    if (arch) {
+      throw new Error(`Duplicate CPU attribute "arch"`);
     }
 
     const requested = CPU_ARCHITECTURES.find(candidate => candidate === attr.value);
@@ -48,10 +49,10 @@ export function normalizeCpuArch(arch: string | null | undefined): CpuArch | nul
   return ARCH_ALIASES[arch.trim().toLowerCase()] ?? null;
 }
 
-/**
- * The architecture a node runs: what its inventory reports, else what its provider declares on chain,
- * else amd64 — every node predating architecture reporting runs it.
- */
-export function resolveNodeCpuArch(cpus: readonly CpuInfo[], declaredArch: string | null): CpuArch {
-  return normalizeCpuArch(cpus[0]?.arch) ?? normalizeCpuArch(declaredArch) ?? DEFAULT_CPU_ARCH;
+/** Null when a node reports an architecture no request can name, since such a node serves neither amd64 nor arm64. */
+export function resolveNodeCpuArch(cpus: readonly CpuInfo[], declaredArch: string | null): CpuArch | null {
+  const reported = cpus[0]?.arch;
+  if (reported) return normalizeCpuArch(reported);
+
+  return normalizeCpuArch(declaredArch) ?? DEFAULT_CPU_ARCH;
 }

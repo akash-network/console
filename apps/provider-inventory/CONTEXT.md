@@ -63,11 +63,11 @@ The CPU architecture a **GroupSpec** asks for, carried as the `arch` attribute o
 _Avoid_: cpu arch attribute, platform
 
 **reported architecture**:
-The architecture a **node** says it runs, from `cpu.info[].arch` in the provider's inventory stream. Empty on nodes whose inventory operator predates architecture reporting. Beats the **declared architecture** whenever both exist.
+The architecture a **node** says it runs, from `cpu.info[].arch` in the provider's inventory stream. Empty on nodes whose inventory operator predates architecture reporting. Beats the **declared architecture** whenever both exist, and a value that is neither `amd64` nor `arm64` makes the node ineligible for every request rather than falling back.
 _Avoid_: observed arch, node arch
 
 **declared architecture**:
-The `hardware-cpu-arch` **self-attribute** (or **signed-attribute**) a provider writes about itself. Unverified, so it only stands in for nodes with no **reported architecture**, and is normalized on read because providers spell it by hand (`x86_64`, `aarch64`).
+The `hardware-cpu-arch` **self-attribute** (or **signed-attribute**) a provider writes about itself. Unverified, so it only stands in for nodes with no **reported architecture**, and is normalized on read because providers spell it by hand (`x86_64`, `aarch64`). Often not an architecture at all — mainnet declares `x86`, `x64-86`, `Zen 4`, `AMD EPYC-Rome` — so an unrecognized one counts as no declaration.
 _Avoid_: hardware-cpu-arch, advertised arch
 
 **glob attribute**:
@@ -160,6 +160,6 @@ _Avoid_: matcher, scheduler
 - **"snapshot"** was used for both the legacy historical row and the bid-screening current state. Resolved: legacy = **provider snapshot**, bid-screening = **provider inventory**.
 - **"online"** in `provider.isOnline` (legacy) means "passed the last 15-min HTTP probe". In `provider_inventory.is_online` it means "streamer has an open `streamStatus` channel and has received at least one message since reconnect". These will diverge intentionally.
 - **"attribute"** without qualifier is ambiguous. Always say **self-attribute** or **signed-attribute** — they are independent on-chain facts and the **prefilter** treats them differently.
-- **"architecture"** without qualifier is ambiguous, and the three senses disagree on purpose. **requested** comes from the deployment, **reported** from the node's inventory, **declared** from the provider's own attribute. Precedence is reported, then declared, then `amd64`.
+- **"architecture"** without qualifier is ambiguous, and the three senses disagree on purpose. **requested** comes from the deployment, **reported** from the node's inventory, **declared** from the provider's own attribute. Precedence is reported, then declared, then `amd64` — and only a **reported** value can take a node out of the running entirely.
 - **"available CPU"** vs **"max node free CPU"** — `total_available_cpu` is the cluster sum, used to filter on the GroupSpec total; `max_node_free_cpu` is the largest single-node free slice, used to filter on the largest replica. The first does not imply the second.
 - **"storage"** is overloaded. **Ephemeral storage** is per-node and disappears with the workload. **Persistent storage** is cluster-wide and survives. **RAM storage** is allocated against node memory. The three are tracked separately and flow through different rollup columns.

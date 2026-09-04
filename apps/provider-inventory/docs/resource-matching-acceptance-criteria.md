@@ -326,6 +326,12 @@ served by whatever its provider declares in the `hardware-cpu-arch` attribute, a
 declares nothing either is treated as `amd64`, which is what every node predating architecture
 reporting runs.
 
+The two sources fail differently on a value neither `amd64` nor `arm64`. A *reported* one comes from
+the node's own inventory, so a node reporting `ppc64le` serves no request at all rather than being
+claimed as `amd64`. A *declared* one is hand-written and routinely is not an architecture — mainnet
+providers declare `x86`, `x64-86`, `Zen 4`, `AMD EPYC-Rome` — so an unrecognized declaration is
+treated as no declaration and the node falls back to `amd64`.
+
 Because the comparison happens per node, replicas of one resource unit never split across
 architectures, and a provider running both serves requests for either.
 
@@ -339,8 +345,10 @@ architectures, and a provider running both serves requests for either.
   `arm64` → skipped. Reported inventory always beats a self-declaration.
 - ✅ **Match (today's fleet):** No node reports an architecture and no provider declares one;
   request names none → every node is eligible, exactly as before architecture existed.
-- ❌ **Reject request:** `arch: sparc64`, or any CPU attribute other than `arch` → rejected as a
-  bad request rather than screened against nothing.
+- ❌ **Skip node:** Node reports `ppc64le` → skipped by every request, whatever its provider
+  declares.
+- ❌ **Reject request:** `arch: sparc64`, `arch` given twice, or any CPU attribute other than
+  `arch` → rejected as a bad request rather than screened against nothing.
 
 Spelling: a *requested* architecture must be exactly `amd64` or `arm64`, matching the SDL enum.
 *Reported* and *declared* values are normalized first, so `x86_64` reads as `amd64` and `aarch64`

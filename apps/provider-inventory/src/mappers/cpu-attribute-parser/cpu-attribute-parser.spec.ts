@@ -23,6 +23,15 @@ describe(parseCPUAttributes.name, () => {
   it("rejects an attribute key other than arch", () => {
     expect(() => parseCPUAttributes([{ key: "vendor", value: "intel" }])).toThrow('Unsupported CPU attribute "vendor"');
   });
+
+  it("rejects a request asking for two architectures at once", () => {
+    expect(() =>
+      parseCPUAttributes([
+        { key: "arch", value: "amd64" },
+        { key: "arch", value: "arm64" }
+      ])
+    ).toThrow('Duplicate CPU attribute "arch"');
+  });
 });
 
 describe(normalizeCpuArch.name, () => {
@@ -65,8 +74,16 @@ describe(resolveNodeCpuArch.name, () => {
     expect(resolveNodeCpuArch([], null)).toBe("amd64");
   });
 
-  it("defaults to amd64 when the declared architecture is unrecognized", () => {
+  it("defaults to amd64 when the declared architecture is unrecognized, since providers spell it by hand", () => {
     expect(resolveNodeCpuArch([], "sparc64")).toBe("amd64");
+  });
+
+  it("resolves to no architecture when the node reports one nothing can request", () => {
+    expect(resolveNodeCpuArch([cpuInfo("ppc64le")], null)).toBeNull();
+  });
+
+  it("resolves to no architecture even when the provider declares a supported one", () => {
+    expect(resolveNodeCpuArch([cpuInfo("ppc64le")], "amd64")).toBeNull();
   });
 
   it("reads the first CPU entry, which is the one the provider bid engine checks", () => {
