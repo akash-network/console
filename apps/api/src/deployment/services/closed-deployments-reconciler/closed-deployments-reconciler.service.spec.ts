@@ -154,6 +154,38 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
     expect(countersByName["closed_deployments_reconcile_rows_closed_total"].add).not.toHaveBeenCalled();
   });
 
+  it("stops scanning once enough batches fail in a row to mean the chain database is down rather than flaky", async () => {
+    const batches = Array.from({ length: 6 }, () => [openDeployment()]);
+    const { service, deploymentRepository, logger } = setup({
+      batches,
+      findClosureStates: vi.fn().mockRejectedValue(new Error("chain database unavailable"))
+    });
+
+    await service.reconcileClosedDeployments({ dryRun: false });
+
+    expect(deploymentRepository.findClosureStates).toHaveBeenCalledTimes(3);
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "CLOSED_DEPLOYMENTS_RECONCILE_ABANDONED", failedBatches: 3 }));
+  });
+
+  it("keeps scanning when failing batches are spaced out by batches that succeed", async () => {
+    const batches = Array.from({ length: 5 }, () => [openDeployment()]);
+    const { service, deploymentRepository, logger } = setup({
+      batches,
+      findClosureStates: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("connection reset"))
+        .mockResolvedValueOnce([])
+        .mockRejectedValueOnce(new Error("connection reset"))
+        .mockResolvedValueOnce([])
+        .mockRejectedValueOnce(new Error("connection reset"))
+    });
+
+    await service.reconcileClosedDeployments({ dryRun: false });
+
+    expect(deploymentRepository.findClosureStates).toHaveBeenCalledTimes(5);
+    expect(logger.error).not.toHaveBeenCalledWith(expect.objectContaining({ event: "CLOSED_DEPLOYMENTS_RECONCILE_ABANDONED" }));
+  });
+
   it("reports a failure to read the records rather than raising it, so the funding sweep keeps its run", async () => {
     const { service, logger } = setup({ readError: new Error("database unavailable") });
 
@@ -195,6 +227,7 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
     openDeployments?: OpenDeployment[];
     batches?: OpenDeployment[][];
     closureStates?: DeploymentClosureState[];
+    findClosureStates?: DeploymentRepository["findClosureStates"];
     markAsClosed?: DeploymentSettingRepository["markAsClosed"];
     readError?: Error;
   }) {
@@ -212,7 +245,7 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
     });
 
     const deploymentRepository = mock<DeploymentRepository>({
-      findClosureStates: vi.fn().mockResolvedValue(input?.closureStates ?? [])
+      findClosureStates: input?.findClosureStates ?? vi.fn().mockResolvedValue(input?.closureStates ?? [])
     });
 
     const countersByName: Record<string, Counter> = {};

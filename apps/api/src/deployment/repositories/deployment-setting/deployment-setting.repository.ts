@@ -113,11 +113,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return this.#findAutoTopUpDeployments(address);
   }
 
-  /**
-   * Every row still marked open, whatever its owner chose about funding, because a deployment closes on chain
-   * for reasons that have nothing to do with whether Console was funding it. Keyset-paged on `id`, the leading
-   * column of `id_auto_top_up_enabled_closed_idx`, so each batch is an index scan rather than a growing offset.
-   */
+  /** Keyset-paged on `id`, the leading column of `id_auto_top_up_enabled_closed_idx`, so each batch stays an index scan. */
   async *findOpenDeploymentsIteratively({ batchSize }: { batchSize: number }): AsyncGenerator<OpenDeployment[]> {
     let cursor: string | undefined;
 
