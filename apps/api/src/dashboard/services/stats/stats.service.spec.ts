@@ -1,4 +1,4 @@
-import type { AkashBlock as Block, Provider } from "@akashnetwork/database/dbSchemas/akash";
+import type { AkashBlock as Block, Lease, Provider } from "@akashnetwork/database/dbSchemas/akash";
 import type { Day } from "@akashnetwork/database/dbSchemas/base";
 import type { CosmosHttpService } from "@akashnetwork/http-sdk";
 import { describe, expect, it } from "vitest";
@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 
 import { cacheEngine } from "@src/caching/helpers";
 import type { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
+import type { LeasesDurationQuery } from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
 import type { StatsRepository } from "../../repositories/stats";
 import { StatsService } from "./stats.service";
 import { isValidGraphDataName } from "./stats.types";
@@ -917,6 +918,85 @@ describe(StatsService.name, () => {
       expect(denomExchangeService.getExchangeRateToUSD).not.toHaveBeenCalled();
     });
   });
+
+  describe("getLeasesDuration", () => {
+    it("maps closed leases to durations with totals", async () => {
+      const { service, statsRepository } = setup();
+      const closedLease = {
+        dseq: "123",
+        oseq: 1,
+        gseq: 1,
+        providerAddress: "akash1provider",
+        createdHeight: 100,
+        closedHeight: 300,
+        createdBlock: { datetime: new Date("2024-01-01T00:00:00Z") },
+        closedBlock: { datetime: new Date("2024-01-15T00:00:00Z") }
+      };
+      statsRepository.findClosedLeases.mockResolvedValue([closedLease] as unknown as Lease[]);
+
+      const result = await service.getLeasesDuration("akash1owner", buildLeasesDurationQuery());
+
+      expect(result).toEqual({
+        leaseCount: 1,
+        totalDurationInSeconds: 1209600,
+        totalDurationInHours: 336,
+        leases: [
+          {
+            dseq: "123",
+            oseq: 1,
+            gseq: 1,
+            provider: "akash1provider",
+            startHeight: 100,
+            startDate: "2024-01-01T00:00:00.000Z",
+            closedHeight: 300,
+            closedDate: "2024-01-15T00:00:00.000Z",
+            durationInBlocks: 200,
+            durationInSeconds: 1209600,
+            durationInHours: 336
+          }
+        ]
+      });
+    });
+
+    it("serves a repeated owner and query from cache", async () => {
+      const { service, statsRepository } = setup();
+      statsRepository.findClosedLeases.mockResolvedValue([]);
+
+      await service.getLeasesDuration("akash1owner", buildLeasesDurationQuery());
+      await service.getLeasesDuration("akash1owner", buildLeasesDurationQuery());
+
+      expect(statsRepository.findClosedLeases).toHaveBeenCalledTimes(1);
+    });
+
+    it("distinguishes an owner containing '#' from a dseq filter", async () => {
+      const { service, statsRepository } = setup();
+      statsRepository.findClosedLeases.mockResolvedValue([]);
+
+      await service.getLeasesDuration("akash1owner#123", buildLeasesDurationQuery());
+      await service.getLeasesDuration("akash1owner", buildLeasesDurationQuery({ dseq: "123" }));
+
+      expect(statsRepository.findClosedLeases).toHaveBeenCalledTimes(2);
+    });
+
+    it("fetches fresh results when the owner or query differs", async () => {
+      const { service, statsRepository } = setup();
+      statsRepository.findClosedLeases.mockResolvedValue([]);
+
+      await service.getLeasesDuration("akash1owner", buildLeasesDurationQuery());
+      await service.getLeasesDuration("akash1owner", buildLeasesDurationQuery({ dseq: "123" }));
+      await service.getLeasesDuration("akash1other", buildLeasesDurationQuery());
+
+      expect(statsRepository.findClosedLeases).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  function buildLeasesDurationQuery(overrides?: Partial<LeasesDurationQuery>): LeasesDurationQuery {
+    return {
+      startDate: new Date("2024-01-01T00:00:00Z"),
+      endDate: new Date("2024-02-01T00:00:00Z"),
+      ...overrides
+    };
+  }
 
   function setup() {
     cacheEngine.clearAllKeyInCache();

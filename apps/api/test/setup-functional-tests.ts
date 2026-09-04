@@ -4,6 +4,7 @@ import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, beforeEach, expect } from "vitest";
 
 import { cacheEngine } from "@src/caching/helpers";
+import MemoryCacheEngine from "@src/caching/memoryCacheEngine";
 import { RAW_APP_CONFIG } from "@src/core/providers/raw-app-config.provider";
 import { TestDatabaseService } from "./services/test-database.service";
 
@@ -16,7 +17,7 @@ const dbService = new TestDatabaseService(testPath!);
  */
 export function clearCache(keyOrPrefix?: string) {
   if (!keyOrPrefix) {
-    cacheEngine.clearAllKeyInCache();
+    MemoryCacheEngine.clearAllCaches();
   } else if (keyOrPrefix.includes("*")) {
     // Handle wildcard patterns if needed in the future
     const prefix = keyOrPrefix.replace("*", "");
@@ -37,7 +38,7 @@ export function clearCache(keyOrPrefix?: string) {
 container.register(RAW_APP_CONFIG, { useValue: process.env });
 
 beforeAll(async () => {
-  cacheEngine.clearAllKeyInCache();
+  MemoryCacheEngine.clearAllCaches();
   await dbService.setup();
 }, 20000);
 
@@ -48,15 +49,15 @@ afterAll(async () => {
     // could be disposed in tests
   }
   await dbService.teardown();
-  cacheEngine.clearAllKeyInCache();
+  MemoryCacheEngine.clearAllCaches();
 }, 20000);
 
 beforeEach(() => {
-  cacheEngine.clearAllKeyInCache();
+  MemoryCacheEngine.clearAllCaches();
 });
 
 afterEach(() => {
-  cacheEngine.clearAllKeyInCache();
+  MemoryCacheEngine.clearAllCaches();
 });
 
 expect.extend({

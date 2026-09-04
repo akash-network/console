@@ -38,7 +38,7 @@ export class ValidatorService {
     return sortedValidators;
   }
 
-  @Memoize({ ttlInSeconds: 60 })
+  @Memoize({ ttlInSeconds: 60, maxEntries: 500 })
   public async getByAddress(address: string): Promise<GetValidatorByAddressResponse | null> {
     let cosmosResponse: RestCosmosStakingValidatorResponse;
     try {

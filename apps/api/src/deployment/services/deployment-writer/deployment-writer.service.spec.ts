@@ -17,7 +17,9 @@ import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeleteUnbackedDeploymentSetting } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
+import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import type { ReceivedSdlSecrets, SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
@@ -28,6 +30,7 @@ import { mockConfigService } from "@test/mocks/config-service.mock";
 
 const ALIASED_FILLER = "x".repeat(4096);
 const ENV_VALUE = faker.string.alphanumeric(24);
+const REGISTRY_USERNAME = faker.string.alphanumeric(10);
 const REGISTRY_PASSWORD = faker.internet.password();
 const DEPLOYMENT_SETTING_ID = faker.string.uuid();
 const GRACE_IN_MIN = 60;
@@ -73,7 +76,7 @@ ${extraPlacement}deployment:
 
 const SDL_WITH_SECRETS = sdlAround(`    credentials:
       host: registry.example.test
-      username: registry-user
+      username: ${REGISTRY_USERNAME}
       password: ${REGISTRY_PASSWORD}
     env:
       - API_TOKEN=${ENV_VALUE}
@@ -89,6 +92,9 @@ const SDL_TOO_LONG_ONCE_VALUES_ARE_KEPT = sdlAround(`    env:
       - API_TOKEN=${ENV_VALUE}
 ${Array.from({ length: 40 }, () => `      - FILLER=${"z".repeat(4096)}`).join("\n")}
 `);
+
+/** A valid SDL with nothing in it worth sealing, so a write that must state a token has null to state. */
+const SDL_WITHOUT_SECRETS = sdlAround("");
 
 /** Short enough to survive `js-yaml` truncating the line it quotes, so a partial leak of it is still detectable. */
 const MALFORMED_SDL_VALUE = faker.string.alphanumeric(10);
@@ -303,14 +309,43 @@ describe(DeploymentWriterService.name, () => {
       expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.objectContaining({ secrets: byService }));
     });
 
-    it("seals what the client supplied against the dseq it just minted", async () => {
+    it("seals what the client supplied together with the credentials it took out itself, against the dseq it just minted", async () => {
       const supplied = { TOKEN: "resolved" };
       const { service, sdlSecretsService } = setup({ received: { supplied, byService: { web: supplied } } });
       vi.spyOn(Date, "now").mockReturnValue(1748400000000);
 
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
 
-      expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith({ userId: wallet.userId, dseq: "1748400000000", secrets: supplied });
+      expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith({
+        userId: wallet.userId,
+        dseq: "1748400000000",
+        secrets: { TOKEN: "resolved", s0_c_username: REGISTRY_USERNAME, s0_c_password: REGISTRY_PASSWORD }
+      });
+    });
+
+    it("seals every env value as well when no seal said which of them are secret", async () => {
+      const { service, sdlSecretsService } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith(
+        expect.objectContaining({ secrets: { s0_e0: ENV_VALUE, s0_c_username: REGISTRY_USERNAME, s0_c_password: REGISTRY_PASSWORD } })
+      );
+    });
+
+    it("refuses a supplied name the console derives for the same deployment, before minting a dseq", async () => {
+      const supplied = { s0_c_password: "resolved" };
+      const { service, deploymentSettingRepository, signerService } = setup({ received: { supplied, byService: { web: supplied } } });
+      const dateNow = vi.spyOn(Date, "now");
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 })).rejects.toMatchObject({
+        status: 400,
+        message: expect.stringContaining("s0_c_password")
+      });
+
+      expect(dateNow).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
     });
 
     it("records the sealed token in the same write as the sdl it belongs to", async () => {
@@ -999,33 +1034,77 @@ describe(DeploymentWriterService.name, () => {
       expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ provider: "provider-2" }));
     });
 
-    it("records the sdl and the manifest version it re-commits", async () => {
-      const { service, deploymentSettingRepository } = setup();
+    it("records the sdl, the manifest version it re-commits and the token it sealed", async () => {
+      const { service, deploymentSettingRepository } = setup({ sealedSecrets: SEALED_TOKEN });
 
       await service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS });
 
       expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith({
         userId: wallet.userId,
         dseq: "100",
-        sdl: expect.stringContaining("API_TOKEN="),
-        manifestVersion: "BAUG"
+        sdl: expect.stringContaining("API_TOKEN=ac-secret://s0_e0"),
+        manifestVersion: "BAUG",
+        sealedSecrets: SEALED_TOKEN
       });
     });
 
-    it("records an sdl carrying none of the submitted env values", async () => {
+    it("seals every value of the sdl it was resubmitted, against the dseq it is updating", async () => {
+      const { service, sdlSecretsService } = setup();
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS });
+
+      expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith({
+        userId: wallet.userId,
+        dseq: "100",
+        secrets: { s0_e0: ENV_VALUE, s0_c_username: REGISTRY_USERNAME, s0_c_password: REGISTRY_PASSWORD }
+      });
+    });
+
+    it("states an absent token rather than leaving the create's beside an sdl that no longer references it", async () => {
+      const { service, deploymentSettingRepository } = setup({ sealedSecrets: null });
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITHOUT_SECRETS });
+
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ sealedSecrets: null }));
+    });
+
+    it("seals only after everything that could still refuse the update has run", async () => {
+      const { service, sdlSecretsService, deploymentReaderService } = setup();
+      deploymentReaderService.findByWalletAndDseq.mockRejectedValue(new NotFound("Deployment not found"));
+
+      await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS })).rejects.toMatchObject({ status: 404 });
+
+      expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+    });
+
+    it("records nothing and sends no manifest for an update it cannot seal", async () => {
+      const { service, sdlSecretsService, deploymentSettingRepository, providerService } = setup();
+      sdlSecretsService.sealForStorage.mockRejectedValue(createError(503, "Service temporarily unavailable"));
+
+      await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS })).rejects.toMatchObject({ status: 503 });
+
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("records an sdl carrying none of the submitted env values, referencing a sealed one in each place", async () => {
       const { service, deploymentSettingRepository } = setup();
 
       await service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS });
 
       expect(recordedSdlOf(deploymentSettingRepository)).not.toContain(ENV_VALUE);
+      expect(recordedSdlOf(deploymentSettingRepository)).toContain("API_TOKEN=ac-secret://s0_e0");
     });
 
-    it("records an sdl carrying none of the submitted registry credentials", async () => {
+    it("records an sdl referencing both halves of the submitted registry credentials and carrying neither", async () => {
       const { service, deploymentSettingRepository } = setup();
 
       await service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS });
 
       expect(recordedSdlOf(deploymentSettingRepository)).not.toContain(REGISTRY_PASSWORD);
+      expect(recordedSdlOf(deploymentSettingRepository)).not.toContain(REGISTRY_USERNAME);
+      expect(recordedSdlOf(deploymentSettingRepository)).toContain("username: ac-secret://s0_c_username");
+      expect(recordedSdlOf(deploymentSettingRepository)).toContain("password: ac-secret://s0_c_password");
     });
 
     it("records the definition even when the manifest version already matches the chain", async () => {
@@ -1135,6 +1214,8 @@ describe(DeploymentWriterService.name, () => {
     jobQueueService.enqueue.mockResolvedValue(input?.compensationEnqueued === false ? null : COMPENSATION_JOB_ID);
 
     const sdlSecretsService = mock<SdlSecretsService>();
+    /** Real rather than doubled, because what every stored-sdl assertion below measures is the document this produces. */
+    const sdlSecretsDerivationService = new SdlSecretsDerivationService(new SdlReferenceService());
     sdlSecretsService.receive.mockResolvedValue({ ok: true, value: input?.received ?? { supplied: {}, byService: {} } });
     sdlSecretsService.sealForStorage.mockResolvedValue(input?.sealedSecrets ?? null);
 
@@ -1162,7 +1243,8 @@ describe(DeploymentWriterService.name, () => {
       deploymentSettingRepository,
       txService,
       jobQueueService,
-      sdlSecretsService
+      sdlSecretsService,
+      sdlSecretsDerivationService
     );
 
     return {

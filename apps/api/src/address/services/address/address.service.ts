@@ -21,7 +21,7 @@ export class AddressService {
     private readonly validatorRepository: ValidatorRepository
   ) {}
 
-  @Memoize({ ttlInSeconds: averageBlockTime })
+  @Memoize({ ttlInSeconds: averageBlockTime, maxEntries: 500 })
   async getAddressDetails(address: string): Promise<GetAddressResponse> {
     const [balancesResponse, delegationsResponse, rewardsResponse, redelegationsResponse, latestTransactions] = await Promise.all([
       this.cosmosHttpService.getBankBalancesByAddress(address),

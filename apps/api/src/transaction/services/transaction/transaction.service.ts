@@ -15,12 +15,12 @@ export class TransactionService {
     return await this.transactionRepository.getTransactions(limit);
   }
 
-  @Memoize({ ttlInSeconds: 60 })
+  @Memoize({ ttlInSeconds: 60, maxEntries: 500 })
   async getTransactionByHash(hash: string): Promise<GetTransactionByHashResponse | null> {
     return await this.transactionRepository.getTransactionByHash(hash);
   }
 
-  @Memoize({ ttlInSeconds: averageBlockTime })
+  @Memoize({ ttlInSeconds: averageBlockTime, maxEntries: 500 })
   async getTransactionsByAddress(address: string, skip: number = -1, limit: number = -1): Promise<GetAddressTransactionsResponse> {
     return await this.transactionRepository.getTransactionsByAddress(address, skip === -1 ? undefined : skip, limit === -1 ? undefined : limit);
   }

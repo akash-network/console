@@ -12,36 +12,44 @@ export type StoredSdlRefusal = "unparseable" | "too-large";
 /** Numbers only, counted from one: a `js-yaml` mark also carries `snippet` and `buffer`, which quote the document and must never leave this function. */
 export type StoredSdlPosition = { line: number; column: number };
 
+/** `mayShareNodes` is read off the raw text rather than the parsed tree, because an anchored scalar loads as a plain string and loses the identity a tree walk would look for. */
+export type StorableSdl = { document: SDLInput; mayShareNodes: boolean };
+
+export type ParsedSdl = StorableSdl | { document: null; mayShareNodes?: never; at?: StoredSdlPosition };
+
 /** `length` becomes an estimate once it exceeds the limit, because measuring stops there rather than running a pathological document to completion. */
-export type StoredSdl =
-  | { sdl: string; length: number; refusal?: never; at?: never }
-  | { sdl: null; length: number; refusal: StoredSdlRefusal; at?: StoredSdlPosition };
+export type StoredSdl = { sdl: string | null; length: number };
 
-/** Runs before the manifest generator has validated anything, because it is the cheapest refusal a create has, and returns re-serialized YAML that must never stand in for the raw SDL anywhere a hash is taken over it. */
-export function sdlForStorage(rawSdl: string, maxLength: number, options: { keepOrdinaryEnvValues: boolean }): StoredSdl {
-  let sdl: SDLInput;
+/** Parses for storage only, before the manifest generator has validated anything, because it is the cheapest refusal a create has. */
+export function parseSdlForStorage(rawSdl: string): ParsedSdl {
   try {
-    sdl = yaml.raw<SDLInput>(rawSdl);
+    return { document: yaml.raw<SDLInput>(rawSdl), mayShareNodes: mayShareNodesOf(rawSdl) };
   } catch (error) {
-    return { sdl: null, length: rawSdl.length, refusal: "unparseable", at: positionOf(error) };
+    return { document: null, at: positionOf(error) };
   }
+}
 
-  for (const service of serviceDefinitionsOf(sdl)) {
-    if (!options.keepOrdinaryEnvValues) dropEnvValues(service);
-    delete service.credentials;
-  }
-
-  if (mayShareNodes(rawSdl)) {
-    const estimatedLength = estimateSerializedLength(sdl, maxLength);
+/** Measures and serializes whatever the caller left in the parsed document, so that what the size guard bounds is exactly what gets stored, and returns YAML that must never stand in for the raw SDL anywhere a hash is taken over it. */
+export function sdlForStorage(parsed: StorableSdl, maxLength: number): StoredSdl {
+  if (parsed.mayShareNodes) {
+    const estimatedLength = estimateSerializedLength(parsed.document, maxLength);
 
     if (estimatedLength > maxLength) {
-      return { sdl: null, length: estimatedLength, refusal: "too-large" };
+      return { sdl: null, length: estimatedLength };
     }
   }
 
-  const stored = dump(sdl, { lineWidth: -1 });
+  const stored = dump(parsed.document, { lineWidth: -1 });
 
-  return stored.length > maxLength ? { sdl: null, length: stored.length, refusal: "too-large" } : { sdl: stored, length: stored.length };
+  return stored.length > maxLength ? { sdl: null, length: stored.length } : { sdl: stored, length: stored.length };
+}
+
+/** Keeps nothing of what a document carries in the clear, for a caller with nowhere to put it: an `env` value goes and the credentials block with it. */
+export function dropSdlValues(document: SDLInput): void {
+  for (const service of serviceDefinitionsOf(document)) {
+    dropEnvValues(service);
+    delete service.credentials;
+  }
 }
 
 /** Reads `line` and `column` and nothing else, because the other fields of a `js-yaml` mark quote the document that failed to parse. */
@@ -85,8 +93,7 @@ function withoutValue(entry: string): string {
   return isSdlReference(entry.slice(valueStart + 1)) ? entry : entry.slice(0, valueStart + 1);
 }
 
-/** Reads the raw text rather than the parsed tree, because an anchored scalar loads as a plain string and loses the identity a tree walk would look for. */
-function mayShareNodes(rawSdl: string): boolean {
+function mayShareNodesOf(rawSdl: string): boolean {
   return rawSdl.includes("&") && rawSdl.includes("*");
 }
 
