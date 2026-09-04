@@ -26,6 +26,9 @@ function inFlightArchiveBytes(maxArchiveBytes: number): number {
   return Math.min(NOMINAL_ENTRY_BYTES, maxArchiveBytes);
 }
 
+/** Bounds the set of keys already warned about, which grows by one per oversized ref until the next gallery refresh clears it. */
+const MAX_WARNED_OVERSIZED_ARCHIVES = 100;
+
 const MAX_DOWNLOAD_RETRIES = 2;
 const RETRY_INITIAL_DELAY_MS = 1_000;
 const RETRY_MAX_DELAY_MS = 10_000;
@@ -70,6 +73,7 @@ async function* streamWhileMakingProgress(body: ReadableStream<Uint8Array>, onPr
 export class GitHubArchiveService {
   readonly #cache: LRUCache<string, Promise<ArchiveReader>>;
   readonly #maxArchiveBytes: number;
+  readonly #warnedOversizedKeys = new Set<string>();
   readonly #logger: ReturnType<CreateLogger>;
   readonly #downloadPolicy: RetryPolicy;
 
@@ -115,6 +119,7 @@ export class GitHubArchiveService {
 
   clearCache(): void {
     this.#cache.clear();
+    this.#warnedOversizedKeys.clear();
   }
 
   /** lru-cache ignores a size given for a value it already holds, so the parsed archive has to replace its own in-flight entry. */
@@ -122,11 +127,23 @@ export class GitHubArchiveService {
     this.#cache.delete(cacheKey);
 
     if (retainedBytes > this.#maxArchiveBytes) {
-      this.#logger.warn({ event: "ARCHIVE_TOO_LARGE_TO_CACHE", cacheKey, retainedBytes, maxArchiveBytes: this.#maxArchiveBytes });
+      this.#warnArchiveTooLargeToCache(cacheKey, retainedBytes);
       return;
     }
 
     this.#cache.set(cacheKey, archive, { size: retainedBytes });
+  }
+
+  /** An uncacheable archive is re-parsed by every template lookup for it, so the warning is reported once per key rather than once per lookup. */
+  #warnArchiveTooLargeToCache(cacheKey: string, retainedBytes: number): void {
+    if (this.#warnedOversizedKeys.has(cacheKey)) return;
+
+    if (this.#warnedOversizedKeys.size >= MAX_WARNED_OVERSIZED_ARCHIVES) {
+      this.#warnedOversizedKeys.clear();
+    }
+
+    this.#warnedOversizedKeys.add(cacheKey);
+    this.#logger.warn({ event: "ARCHIVE_TOO_LARGE_TO_CACHE", cacheKey, retainedBytes, maxArchiveBytes: this.#maxArchiveBytes });
   }
 
   async #downloadAndParse(owner: string, repo: string, ref: string, fileFilter?: (relativePath: string) => boolean): Promise<ArchiveReader> {

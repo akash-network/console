@@ -155,8 +155,8 @@ describe(GitHubArchiveService.name, () => {
 
     it("returns an archive too large to keep and warns instead of caching it", async () => {
       const maxEntryBytes = 1000;
-      const { service, logger, installArchive, cacheStats } = setup({ maxEntryBytes });
-      await installArchive({ "root/readme.md": ARCHIVE_CONTENT });
+      const { service, logger, fetchSpy, archiveResponse, cacheStats } = setup({ maxEntryBytes });
+      fetchSpy.mockImplementation(async () => archiveResponse({ "root/readme.md": ARCHIVE_CONTENT }));
 
       const reader = await service.getArchive("owner", "repo", "ref");
 
@@ -168,6 +168,27 @@ describe(GitHubArchiveService.name, () => {
         retainedBytes: reader.retainedBytes,
         maxArchiveBytes: maxEntryBytes
       });
+    });
+
+    it("warns once per key however many lookups re-parse the same oversized archive", async () => {
+      const { service, logger, fetchSpy, archiveResponse } = setup({ maxEntryBytes: 1000 });
+      fetchSpy.mockImplementation(async () => archiveResponse({ "root/readme.md": ARCHIVE_CONTENT }));
+
+      await service.getArchive("owner", "repo", "ref");
+      await service.getArchive("owner", "repo", "ref");
+
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+    });
+
+    it("warns again for an archive still too large after the cache is cleared", async () => {
+      const { service, logger, fetchSpy, archiveResponse } = setup({ maxEntryBytes: 1000 });
+      fetchSpy.mockImplementation(async () => archiveResponse({ "root/readme.md": ARCHIVE_CONTENT }));
+
+      await service.getArchive("owner", "repo", "ref");
+      service.clearCache();
+      await service.getArchive("owner", "repo", "ref");
+
+      expect(logger.warn).toHaveBeenCalledTimes(2);
     });
   });
 
