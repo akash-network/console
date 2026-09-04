@@ -1538,12 +1538,13 @@ describe("Deployments API", () => {
       await recordDefinition({ user, dseq, sdl: sdlWithEnvEntry("API_TOKEN=ac-secret://API_TOKEN"), secrets: { API_TOKEN: token } });
       const repository = container.resolve(DeploymentSettingRepository);
       const stored = await repository.findOneBy({ userId: user.id, dseq });
+      const tampered = tamper(stored!.sealedSecrets!);
       await repository.upsertDefinition({
         userId: user.id,
         dseq,
         sdl: stored!.sdl!,
         manifestVersion: stored!.manifestVersion!,
-        sealedSecrets: tamper(stored!.sealedSecrets!)
+        sealedSecrets: tampered
       });
       mockLeaseChain({ wallets, dseq });
 
@@ -1554,8 +1555,7 @@ describe("Deployments API", () => {
       expect(body).not.toContain(token);
       expect(providerService.sendManifest).not.toHaveBeenCalled();
       const after = await repository.findOneBy({ userId: user.id, dseq });
-      expect(after).toMatchObject({ sdl: stored!.sdl, manifestVersion: stored!.manifestVersion });
-      expect(after!.sealedSecrets).toEqual(expect.any(String));
+      expect(after).toMatchObject({ sdl: stored!.sdl, manifestVersion: stored!.manifestVersion, sealedSecrets: tampered });
     });
 
     it("returns not found for another user's dseq, resolving none of their stored values", async () => {
@@ -1569,6 +1569,7 @@ describe("Deployments API", () => {
       const response = await postLeases({ userApiKeySecret: stranger.userApiKeySecret, dseq, manifest: CLIENT_MANIFEST });
 
       expect(response.status).toBe(404);
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
       expect(JSON.stringify(vi.mocked(providerService.sendManifest).mock.calls)).not.toContain(token);
     });
 

@@ -2,6 +2,7 @@ import { LeaseHttpService } from "@akashnetwork/http-sdk";
 import { Trace } from "@akashnetwork/instrumentation";
 import { singleton } from "tsyringe";
 
+import { AuthService } from "@src/auth/services/auth.service";
 import { ManagedSignerService, RpcMessageService } from "@src/billing/services";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
@@ -19,13 +20,14 @@ export class LeaseService {
     private readonly deploymentReaderService: DeploymentReaderService,
     private readonly walletReaderService: WalletReaderService,
     private readonly leaseHttpService: LeaseHttpService,
-    private readonly leaseManifestService: LeaseManifestService
+    private readonly leaseManifestService: LeaseManifestService,
+    private readonly authService: AuthService
   ) {}
 
   /** The `manifest` a request carries is only the fallback for a deployment the console recorded nothing for, no longer the document a provider is sent. */
   @Trace()
-  public async createLeasesAndSendManifest({ leases, manifest, userId }: CreateLeaseRequest & { userId: string }): Promise<DeploymentResponse> {
-    const wallet = await this.walletReaderService.getWalletByUserId(userId);
+  public async createLeasesAndSendManifest({ leases, manifest }: CreateLeaseRequest): Promise<DeploymentResponse> {
+    const wallet = await this.walletReaderService.getWalletByUserId(this.authService.currentUser.id);
     const dseq = leases[0].dseq;
     const derived = await this.#derivedByDseq(leases);
 
@@ -45,6 +47,8 @@ export class LeaseService {
       await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, leaseMessages);
     }
 
+    const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+
     for (const lease of leases) {
       await this.providerService.sendManifest({
         provider: lease.provider,
@@ -54,7 +58,7 @@ export class LeaseService {
       });
     }
 
-    return await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+    return deployment;
   }
 
   /** Called before anything is broadcast, so a definition the console cannot re-derive costs no lease on chain. */

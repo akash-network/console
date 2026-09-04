@@ -1,6 +1,6 @@
 import { singleton } from "tsyringe";
 
-import { AuthService, Protected } from "@src/auth/services/auth.service";
+import { Protected } from "@src/auth/services/auth.service";
 import { type CreateLeaseResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { type CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
 import { type FallbackLeaseListResponse } from "@src/deployment/http-schemas/lease-rpc.schema";
@@ -12,17 +12,12 @@ import { LeaseService } from "@src/deployment/services/lease/lease.service";
 export class LeaseController {
   constructor(
     private readonly fallbackLeaseReaderService: FallbackLeaseReaderService,
-    private readonly leaseService: LeaseService,
-    private readonly authService: AuthService
+    private readonly leaseService: LeaseService
   ) {}
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async createLeasesAndSendManifest(input: CreateLeaseRequest): Promise<CreateLeaseResponse> {
-    const result = await this.leaseService.createLeasesAndSendManifest({
-      ...input,
-      userId: this.authService.currentUser.id
-    });
-    return { data: result };
+    return { data: await this.leaseService.createLeasesAndSendManifest(input) };
   }
 
   async listLeasesFallback(params: DatabaseLeaseListParams): Promise<FallbackLeaseListResponse> {

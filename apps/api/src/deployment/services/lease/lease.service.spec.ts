@@ -2,6 +2,7 @@ import type { LeaseHttpService } from "@akashnetwork/http-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { AuthService } from "@src/auth/services/auth.service";
 import type { WalletInitialized } from "@src/billing/repositories";
 import type { ManagedSignerService, RpcMessageService } from "@src/billing/services";
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
@@ -9,6 +10,7 @@ import type { GetDeploymentResponse } from "@src/deployment/http-schemas/deploym
 import type { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import type { LeaseManifestService } from "@src/deployment/services/lease-manifest/lease-manifest.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
+import type { UserOutput } from "@src/user/repositories";
 import { LeaseService } from "./lease.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -24,7 +26,7 @@ describe(LeaseService.name, () => {
       const { service, leaseHttpService, signerService, rpcMessageService, providerService, wallet, deployment } = setup();
       const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
 
-      const result = await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId });
+      const result = await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST });
 
       expect(leaseHttpService.list).toHaveBeenCalledWith({ owner: wallet.address, dseq: lease.dseq });
       expect(rpcMessageService.getCreateLeaseMsg).toHaveBeenCalledWith({
@@ -47,7 +49,7 @@ describe(LeaseService.name, () => {
         pagination: { next_key: null, total: "1" }
       });
 
-      const result = await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId });
+      const result = await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST });
 
       expect(rpcMessageService.getCreateLeaseMsg).not.toHaveBeenCalled();
       expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
@@ -63,19 +65,19 @@ describe(LeaseService.name, () => {
         pagination: { next_key: null, total: "1" }
       });
 
-      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId });
+      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST });
 
       expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
     });
 
     it("creates every placement lease in a single transaction when none exist", async () => {
-      const { service, signerService, rpcMessageService, providerService, wallet } = setup();
+      const { service, signerService, rpcMessageService, providerService } = setup();
       const leases = [
         { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() },
         { dseq: "100", gseq: 2, oseq: 1, provider: createAkashAddress() }
       ];
 
-      await service.createLeasesAndSendManifest({ leases, manifest: MANIFEST, userId: wallet.userId });
+      await service.createLeasesAndSendManifest({ leases, manifest: MANIFEST });
 
       expect(rpcMessageService.getCreateLeaseMsg).toHaveBeenCalledTimes(2);
       expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
@@ -88,7 +90,7 @@ describe(LeaseService.name, () => {
       const { service, providerService, wallet } = setup();
       const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
 
-      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId });
+      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST });
 
       expect(providerService.toProviderAuth).toHaveBeenCalledWith({ walletId: wallet.id, provider: lease.provider });
       expect(providerService.sendManifest).toHaveBeenCalledWith({
@@ -103,7 +105,7 @@ describe(LeaseService.name, () => {
       const { service, providerService } = setup({ derived: DERIVED_MANIFEST });
       const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
 
-      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: "user-1" });
+      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST });
 
       expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ manifest: DERIVED_MANIFEST }));
     });
@@ -112,7 +114,7 @@ describe(LeaseService.name, () => {
       const { service, providerService } = setup({ derived: null });
       const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
 
-      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: "user-1" });
+      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST });
 
       expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ manifest: MANIFEST }));
     });
@@ -124,25 +126,35 @@ describe(LeaseService.name, () => {
         { dseq: "100", gseq: 2, oseq: 1, provider: createAkashAddress() }
       ];
 
-      await service.createLeasesAndSendManifest({ leases, manifest: MANIFEST, userId: "user-1" });
+      await service.createLeasesAndSendManifest({ leases, manifest: MANIFEST });
 
       expect(leaseManifestService.deriveFor).toHaveBeenCalledOnce();
       expect(leaseManifestService.deriveFor).toHaveBeenCalledWith({ dseq: "100" });
     });
 
-    it("sends each dseq its own manifest when a request names more than one deployment", async () => {
-      const other = '{"version":"v2","groups":[{"name":"other"}]}';
-      const { service, providerService, leaseManifestService } = setup({ derived: DERIVED_MANIFEST });
-      leaseManifestService.deriveFor.mockImplementation(async ({ dseq }) => (dseq === "100" ? DERIVED_MANIFEST : other));
+    it("looks each lease's manifest up under that lease's own dseq, not the first lease's", async () => {
+      const { service, providerService, leaseManifestService } = setup();
+      leaseManifestService.deriveFor.mockImplementation(async ({ dseq }) => `manifest-of-${dseq}`);
       const leases = [
         { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() },
         { dseq: "200", gseq: 1, oseq: 1, provider: createAkashAddress() }
       ];
 
-      await service.createLeasesAndSendManifest({ leases, manifest: MANIFEST, userId: "user-1" });
+      await service.createLeasesAndSendManifest({ leases, manifest: MANIFEST });
 
-      expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ dseq: "100", manifest: DERIVED_MANIFEST }));
-      expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ dseq: "200", manifest: other }));
+      expect(vi.mocked(providerService.sendManifest).mock.calls.map(([options]) => [options.dseq, options.manifest])).toEqual([
+        ["100", "manifest-of-100"],
+        ["200", "manifest-of-200"]
+      ]);
+    });
+
+    it("reads the identity it funds the lease from off the authenticated user", async () => {
+      const { service, walletReaderService, authService } = setup();
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+
+      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST });
+
+      expect(walletReaderService.getWalletByUserId).toHaveBeenCalledWith(authService.currentUser.id);
     });
 
     it("still sends the derived manifest when the lease already exists on chain", async () => {
@@ -153,7 +165,7 @@ describe(LeaseService.name, () => {
         pagination: { next_key: null, total: "1" }
       });
 
-      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId });
+      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST });
 
       expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ manifest: DERIVED_MANIFEST }));
     });
@@ -164,7 +176,7 @@ describe(LeaseService.name, () => {
       leaseManifestService.deriveFor.mockRejectedValue(refusal);
       const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
 
-      await expect(service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: "user-1" })).rejects.toBe(refusal);
+      await expect(service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST })).rejects.toBe(refusal);
 
       expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
       expect(providerService.sendManifest).not.toHaveBeenCalled();
@@ -183,6 +195,7 @@ describe(LeaseService.name, () => {
     const leaseManifestService = mock<LeaseManifestService>({
       deriveFor: vi.fn().mockResolvedValue(input.derived === undefined ? DERIVED_MANIFEST : input.derived)
     });
+    const authService = mock<AuthService>({ currentUser: mock<UserOutput>({ id: wallet.userId }) });
 
     const deployment = mock<GetDeploymentResponse["data"]>();
 
@@ -198,7 +211,8 @@ describe(LeaseService.name, () => {
       deploymentReaderService,
       walletReaderService,
       leaseHttpService,
-      leaseManifestService
+      leaseManifestService,
+      authService
     );
 
     return {
@@ -210,6 +224,7 @@ describe(LeaseService.name, () => {
       walletReaderService,
       leaseHttpService,
       leaseManifestService,
+      authService,
       wallet,
       deployment
     };

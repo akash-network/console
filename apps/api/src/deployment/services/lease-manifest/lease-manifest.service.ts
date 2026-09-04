@@ -1,6 +1,6 @@
 import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
 import { Trace } from "@akashnetwork/instrumentation";
-import createError from "http-errors";
+import createError, { isHttpError } from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
@@ -17,6 +17,11 @@ type StoredDefinitionMiss = "nothing-recorded" | "unresolvable";
 
 /** Deliberately names no part of the definition, because the error handler echoes `message` for every `http-errors` instance regardless of `expose`. */
 const UNDERIVABLE_ERROR_MESSAGE = "Unable to derive the deployment manifest";
+
+/** A definition nothing can re-derive answers 500 for good; only the key service answers 503, and only while it is out of reach. */
+function isRetryable(error: unknown): boolean {
+  return isHttpError(error) && error.status === 503;
+}
 
 /** The manifest a lease sends its provider: what the console stored for the deployment, resolved and re-derived, rather than what the client asked for. */
 @singleton()
@@ -90,15 +95,22 @@ export class LeaseManifestService {
     return null;
   }
 
+  /** Keeps the cause's own error, so a key service that is merely unreachable still answers 503 rather than reading as a definition that cannot be derived. */
   async #openStored(sealedSecrets: string, key: { userId: string; dseq: string }) {
     try {
       return await this.sdlSecretsService.openStored({ ...key, sealedSecrets });
     } catch (error) {
-      throw this.#refuse(key, error);
+      throw isRetryable(error) ? this.#reportUnreachable(key, error) : this.#refuse(key, error);
     }
   }
 
-  /** Keeps an opening failure's own error, so a key service that is merely unreachable still answers 503 rather than reading as a definition that cannot be derived. */
+  /** A separate event from a refusal, because a blip that will succeed on retry must not count against the definitions that can never be re-derived. */
+  #reportUnreachable(key: { userId: string; dseq: string }, cause: unknown) {
+    this.#loggerService.warn({ event: "LEASE_MANIFEST_UNREACHABLE", ...key });
+
+    return cause;
+  }
+
   #refuse(key: { userId: string; dseq: string }, cause?: unknown) {
     this.#loggerService.error({ event: "LEASE_MANIFEST_UNRESOLVABLE", ...key });
 
