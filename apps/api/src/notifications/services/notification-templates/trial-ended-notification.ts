@@ -13,8 +13,9 @@ export function trialEndedNotification(
     payload: {
       summary: "Your Free Trial Has Ended",
       description:
-        `Your free trial with Akash Network has ended. To continue using the platform and accessing all features, please add a payment method and purchase some credits by visiting <a href="${vars.paymentLink}">Akash Console Payment Setup</a>.` +
-        firstPurchaseBonusSentence(vars.firstPurchaseBonus)
+        `Your free trial with Akash Network has ended. To continue using the platform and accessing all features, please add a payment method and purchase some credits.` +
+        firstPurchaseBonusSentence(vars.firstPurchaseBonus),
+      actions: [{ label: "Add credits", url: vars.paymentLink }]
     },
     user: {
       id: user.id,

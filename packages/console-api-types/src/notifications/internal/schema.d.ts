@@ -4,22 +4,6 @@
  */
 
 export interface paths {
-  "/internal/v1/users/{userId}/purge": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: operations["purge"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/internal/v1/jobs/notification": {
     parameters: {
       query?: never;
@@ -30,6 +14,22 @@ export interface paths {
     get?: never;
     put?: never;
     post: operations["createNotification"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/internal/v1/users/{userId}/purge": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["purge"];
     delete?: never;
     options?: never;
     head?: never;
@@ -48,6 +48,11 @@ export interface components {
       payload: {
         summary: string;
         description: string;
+        actions?: {
+          label: string;
+          /** Format: uri */
+          url: string;
+        }[];
       };
     };
   };
@@ -59,25 +64,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  purge: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        userId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
   createNotification: {
     parameters: {
       query?: never;
@@ -92,6 +78,25 @@ export interface operations {
     };
     responses: {
       /** @description Creates a notification job */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  purge: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        userId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
       204: {
         headers: {
           [name: string]: unknown;

@@ -22,9 +22,10 @@ export function providerUnreachableNotification(
       description:
         `The provider hosting deployment <strong>${vars.dseq}</strong>, <strong>${escapeHtml(toProviderHostName(vars.hostUri))}</strong>, ` +
         `has not responded for ${formatDistanceToNow(downSince)} and your workload is most likely down. ` +
-        `You are still paying for it. <a href="${vars.deploymentUrl}">Close the deployment</a> to get the remaining ` +
+        `You are still paying for it. Close the deployment to get the remaining ` +
         `funds back, then redeploy somewhere else. If every provider hosting this deployment is still unreachable ` +
-        `${vars.closeAfterDays} days after it went down, we will close the deployment for you and return what is left.`
+        `${vars.closeAfterDays} days after it went down, we will close the deployment for you and return what is left.`,
+      actions: [{ label: "Close the deployment", url: vars.deploymentUrl }]
     },
     user: { id: user.id, email: user.email }
   };

@@ -8,7 +8,13 @@ import { firstPurchaseBonusSentence } from "./first-purchase-bonus-offer";
 
 export function beforeCloseTrialDeploymentNotification(
   user: UserOutput,
-  vars: { deploymentClosedAt: string; dseq: string; owner: string; firstPurchaseBonus: ResolvedValue<FirstPurchaseBonusOffer | null> }
+  vars: {
+    deploymentClosedAt: string;
+    dseq: string;
+    owner: string;
+    paymentLink: string;
+    firstPurchaseBonus: ResolvedValue<FirstPurchaseBonusOffer | null>;
+  }
 ): CreateNotificationInput {
   const deploymentClosedAt = new Date(vars.deploymentClosedAt);
   const timeLeft = deploymentClosedAt.getTime() < Date.now() ? "in a few seconds" : formatDistanceToNow(deploymentClosedAt, { addSuffix: true });
@@ -18,7 +24,8 @@ export function beforeCloseTrialDeploymentNotification(
       summary: "Your Trial Deployment Ends Soon",
       description:
         `Your trial deployment will end ${timeLeft}. To keep your deployment running, please add a payment method and top up your account before then.` +
-        firstPurchaseBonusSentence(vars.firstPurchaseBonus)
+        firstPurchaseBonusSentence(vars.firstPurchaseBonus),
+      actions: [{ label: "Add credits", url: vars.paymentLink }]
     },
     user: {
       id: user.id,

@@ -12,11 +12,13 @@ describe(beforeCloseTrialDeploymentNotification.name, () => {
       deploymentClosedAt: "2025-10-22T07:58:47.770Z",
       dseq: "123456",
       owner: "akash1test",
+      paymentLink: "https://console.akash.network/billing?payment=true",
       firstPurchaseBonus: { bonusPercent: 10, minPurchaseUsd: 100, maxBonusUsd: 100 }
     });
 
     expect(result.payload.summary).toBe("Your Trial Deployment Ends Soon");
     expect(result.payload.description).toContain("Your trial deployment will end");
     expect(result.payload.description).toContain("10% in bonus credits");
+    expect(result.payload.actions).toEqual([{ label: "Add credits", url: "https://console.akash.network/billing?payment=true" }]);
   });
 });

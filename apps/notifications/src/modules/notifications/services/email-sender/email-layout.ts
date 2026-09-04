@@ -3,8 +3,44 @@ import escape from "lodash/escape";
 const LOGO_LIGHT_URL = "https://console-cdn.akash.network/akashconsole-logo.png";
 const LOGO_DARK_URL = "https://console-cdn.akash.network/akashconsole-logo-dark.png";
 
+export interface EmailAction {
+  label: string;
+  url: string;
+}
+
+function isHttpUrl(url: string): boolean {
+  try {
+    const { protocol } = new URL(url);
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function renderAction({ label, url }: EmailAction, isPrimary: boolean): string {
+  const buttonClass = isPrimary ? "btn-primary" : "btn-secondary";
+  const fill = isPrimary ? "background-color:#171717;" : "background-color:#ffffff;border:1px solid #171717;";
+  const textColor = isPrimary ? "#ffffff" : "#171717";
+
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 12px 0;">
+            <tr><td class="${buttonClass}" style="${fill}border-radius:8px;">
+              <a href="${escape(url)}" class="${buttonClass}-text" style="display:inline-block;padding:12px 24px;font-size:14px;font-weight:500;line-height:1.2;color:${textColor};text-decoration:none;">${escape(label)}</a>
+            </td></tr>
+          </table>`;
+}
+
+function renderActions(actions: EmailAction[] = []): string {
+  const renderable = actions.filter(action => isHttpUrl(action.url));
+
+  if (!renderable.length) {
+    return "";
+  }
+
+  return `<div style="padding-top:28px;">${renderable.map((action, index) => renderAction(action, index === 0)).join("\n          ")}</div>`;
+}
+
 /** The subject is user-controlled for alert emails, so it is escaped; content must already be sanitized by the caller. */
-export function renderEmailLayout({ subject, content }: { subject: string; content: string }): string {
+export function renderEmailLayout({ subject, content, actions }: { subject: string; content: string; actions?: EmailAction[] }): string {
   const escapedSubject = escape(subject);
 
   return `<!DOCTYPE html>
@@ -30,6 +66,10 @@ export function renderEmailLayout({ subject, content }: { subject: string; conte
       .muted, .footer-text { color: #a1a1aa !important; }
       .logo-light { display: none !important; }
       .logo-dark { display: inline-block !important; }
+      .btn-primary { background-color: #e5e5e5 !important; }
+      .btn-primary-text { color: #171717 !important; }
+      .btn-secondary { background-color: transparent !important; border-color: #e5e5e5 !important; }
+      .btn-secondary-text { color: #e5e5e5 !important; }
     }
   </style>
 </head>
@@ -44,6 +84,7 @@ export function renderEmailLayout({ subject, content }: { subject: string; conte
         <tr><td style="padding:36px 40px;">
           <h1 class="heading" style="margin:0 0 24px 0;font-size:24px;line-height:1.3;font-weight:700;color:#18181b;">${escapedSubject}</h1>
           <div class="body-text" style="font-size:16px;line-height:1.65;color:#3f3f46;">${content}</div>
+          ${renderActions(actions)}
         </td></tr>
         <tr><td class="card-footer" style="padding:24px 40px;background-color:#fafafa;border-top:1px solid #f0f0f1;">
           <p class="muted" style="margin:0 0 12px 0;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#a1a1aa;font-family:'SF Mono',Menlo,Consolas,monospace;">Akash &middot; The Open Compute Marketplace</p>

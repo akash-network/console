@@ -15,9 +15,11 @@ export function creditsRunningLowNotification(
       summary: "Your Akash credits are running low",
       description:
         `Your remaining credits are <strong>${balance}</strong>, about ${coverage} of current usage. ` +
-        `Add credits or turn on Auto Recharge to keep your deployments running. ` +
-        `<a href="${vars.paymentLink}">Add credits</a> or ` +
-        `<a href="${vars.billingUrl}">enable Auto Recharge</a>.`
+        `Add credits or turn on Auto Recharge to keep your deployments running.`,
+      actions: [
+        { label: "Add credits", url: vars.paymentLink },
+        { label: "Enable Auto Recharge", url: vars.billingUrl }
+      ]
     },
     user: { id: user.id, email: user.email }
   };

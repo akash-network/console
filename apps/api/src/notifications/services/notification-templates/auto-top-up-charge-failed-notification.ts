@@ -13,8 +13,8 @@ export function autoTopUpChargeFailedNotification(user: UserOutput, vars: { char
       description:
         `Your card was declined, so we couldn't add credits to your account automatically. ` +
         `We'll try again a few more times over the next several hours. If it keeps failing we'll stop and send you another email. ` +
-        `Your deployments keep running on the credits you already have. ` +
-        `<a href="${vars.billingUrl}">Update your payment method</a> if the card needs fixing.`
+        `Your deployments keep running on the credits you already have.`,
+      actions: [{ label: "Update payment method", url: vars.billingUrl }]
     },
     user: {
       id: user.id,

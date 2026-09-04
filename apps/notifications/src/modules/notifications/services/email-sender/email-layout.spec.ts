@@ -1,7 +1,7 @@
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 
-import { renderEmailLayout } from "./email-layout";
+import { type EmailAction, renderEmailLayout } from "./email-layout";
 
 describe(renderEmailLayout.name, () => {
   it("renders a complete html document", () => {
@@ -37,15 +37,50 @@ describe(renderEmailLayout.name, () => {
     expect(html).toContain(content);
   });
 
+  it("renders a primary button for the first action and a secondary one for the rest", () => {
+    const { html } = setup({
+      actions: [
+        { label: "Add credits", url: "https://console.akash.network/billing?openPayment=true" },
+        { label: "Enable Auto Recharge", url: "https://console.akash.network/billing" }
+      ]
+    });
+
+    expect(html).toContain('href="https://console.akash.network/billing?openPayment=true"');
+    expect(html).toContain(">Add credits</a>");
+    expect(html).toContain('class="btn-primary"');
+    expect(html).toContain('href="https://console.akash.network/billing"');
+    expect(html).toContain(">Enable Auto Recharge</a>");
+    expect(html).toContain('class="btn-secondary"');
+  });
+
+  it("renders no button markup when there are no actions", () => {
+    const { html } = setup({});
+    expect(html).not.toContain('class="btn-primary"');
+    expect(html).not.toContain('class="btn-secondary"');
+  });
+
+  it("drops an action whose url is not http", () => {
+    const { html } = setup({ actions: [{ label: "Add credits", url: "javascript:alert(1)" }] });
+    expect(html).not.toContain("javascript:");
+    expect(html).not.toContain('class="btn-primary"');
+  });
+
+  it("escapes html in an action label", () => {
+    const { html } = setup({ actions: [{ label: "<script>alert(1)</script>", url: "https://console.akash.network/billing" }] });
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+  });
+
   it("renders the footer", () => {
     const { html } = setup({});
     expect(html).toContain("Sent by Akash Console. You're receiving this because you have an Akash Console account.");
   });
 
-  function setup(input: { subject?: string; content?: string }) {
+  function setup(input: { subject?: string; content?: string; actions?: EmailAction[] }) {
     const html = renderEmailLayout({
       subject: input.subject ?? faker.lorem.sentence(),
-      content: input.content ?? faker.lorem.paragraph()
+      content: input.content ?? faker.lorem.paragraph(),
+      actions: input.actions
     });
     return { html };
   }

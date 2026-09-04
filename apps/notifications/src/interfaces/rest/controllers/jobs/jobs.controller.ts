@@ -16,7 +16,15 @@ class NotificationJobDto extends createZodDto(
     startAfter: z.string().datetime().optional(),
     payload: z.object({
       summary: z.string(),
-      description: z.string()
+      description: z.string(),
+      actions: z
+        .array(
+          z.object({
+            label: z.string(),
+            url: z.string().url()
+          })
+        )
+        .optional()
     })
   })
 ) {}

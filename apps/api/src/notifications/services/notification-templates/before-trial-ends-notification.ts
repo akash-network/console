@@ -25,8 +25,9 @@ export function beforeTrialEndsNotification(
       description:
         `Your free trial with Akash Network will end ${timeLeft}. You still have $${vars.remainingCredits} in free credits available and, ` +
         `${vars.activeDeployments} deployments that will be lost when your free trial ends. ` +
-        `To retain the remaining free credits and to ensure your deployments keep running when the trial ends, purchase some credits today by visiting <a href="${vars.paymentLink}">Akash Console Payment Setup</a>.` +
-        firstPurchaseBonusSentence(vars.firstPurchaseBonus)
+        `To retain the remaining free credits and to ensure your deployments keep running when the trial ends, purchase some credits today.` +
+        firstPurchaseBonusSentence(vars.firstPurchaseBonus),
+      actions: [{ label: "Add credits", url: vars.paymentLink }]
     },
     user: {
       id: user.id,

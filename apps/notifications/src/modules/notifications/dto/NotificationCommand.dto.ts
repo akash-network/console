@@ -6,7 +6,15 @@ const NotificationCommandSchema = z.object({
   notificationId: z.string().optional(),
   payload: z.object({
     summary: z.string(),
-    description: z.string()
+    description: z.string(),
+    actions: z
+      .array(
+        z.object({
+          label: z.string(),
+          url: z.string().url()
+        })
+      )
+      .optional()
   })
 });
 

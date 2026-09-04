@@ -19,7 +19,7 @@ describe(autoRechargeSucceededNotification.name, () => {
     expect(result.payload.summary).toBe("Your Akash account was recharged $50.00");
     expect(result.payload.description).toContain("$50.00");
     expect(result.payload.description).toContain("<strong>$120.50</strong>");
-    expect(result.payload.description).toContain('<a href="https://console.akash.network/billing">');
+    expect(result.payload.actions).toEqual([{ label: "View billing", url: "https://console.akash.network/billing" }]);
     expect(result.user).toEqual({ id: "user-123", email: "user@example.com" });
   });
 });

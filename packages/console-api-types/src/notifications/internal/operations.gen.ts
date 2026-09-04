@@ -3,7 +3,6 @@
 
 export const operations = {
   v1: {
-    purge: { path: "/internal/v1/users/{userId}/purge", method: "post", operationId: "purge", pathParams: ["userId"], queryParams: [], hasBody: false },
     createNotification: {
       path: "/internal/v1/jobs/notification",
       method: "post",
@@ -11,7 +10,8 @@ export const operations = {
       pathParams: [],
       queryParams: [],
       hasBody: true
-    }
+    },
+    purge: { path: "/internal/v1/users/{userId}/purge", method: "post", operationId: "purge", pathParams: ["userId"], queryParams: [], hasBody: false }
   }
 } as const;
 

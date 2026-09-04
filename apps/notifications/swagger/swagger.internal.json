@@ -1,29 +1,6 @@
 {
   "openapi": "3.0.0",
   "paths": {
-    "/internal/v1/users/{userId}/purge": {
-      "post": {
-        "operationId": "purge",
-        "parameters": [
-          {
-            "name": "userId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "Internal/Account"
-        ]
-      }
-    },
     "/internal/v1/jobs/notification": {
       "post": {
         "operationId": "createNotification",
@@ -45,6 +22,29 @@
         },
         "tags": [
           "Jobs"
+        ]
+      }
+    },
+    "/internal/v1/users/{userId}/purge": {
+      "post": {
+        "operationId": "purge",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Internal/Account"
         ]
       }
     }
@@ -80,6 +80,25 @@
               },
               "description": {
                 "type": "string"
+              },
+              "actions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string",
+                      "format": "uri"
+                    }
+                  },
+                  "required": [
+                    "label",
+                    "url"
+                  ]
+                }
               }
             },
             "required": [

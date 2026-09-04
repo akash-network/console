@@ -6,7 +6,13 @@ import { firstPurchaseBonusSentence } from "./first-purchase-bonus-offer";
 
 export function trialDeploymentClosedNotification(
   user: UserOutput,
-  vars: { dseq: string; owner: string; deploymentLifetimeInHours: number; firstPurchaseBonus: ResolvedValue<FirstPurchaseBonusOffer | null> }
+  vars: {
+    dseq: string;
+    owner: string;
+    deploymentLifetimeInHours: number;
+    paymentLink: string;
+    firstPurchaseBonus: ResolvedValue<FirstPurchaseBonusOffer | null>;
+  }
 ): CreateNotificationInput {
   return {
     notificationId: `trialDeploymentClosed.${vars.dseq}.${vars.owner}`,
@@ -14,7 +20,8 @@ export function trialDeploymentClosedNotification(
       summary: "Your Trial Deployment Has Been Closed",
       description:
         `Your trial deployment (dseq: ${vars.dseq}) has been closed by the system after reaching the ${vars.deploymentLifetimeInHours}-hour limit. To keep your deployment running, please add a payment method and top up your account.` +
-        firstPurchaseBonusSentence(vars.firstPurchaseBonus)
+        firstPurchaseBonusSentence(vars.firstPurchaseBonus),
+      actions: [{ label: "Add credits", url: vars.paymentLink }]
     },
     user: {
       id: user.id,

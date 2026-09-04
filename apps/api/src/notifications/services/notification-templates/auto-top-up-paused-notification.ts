@@ -13,7 +13,8 @@ export function autoTopUpPausedNotification(user: UserOutput, vars: { pausedAt: 
       description:
         `Your card was declined several times, so we've stopped trying to charge it. ` +
         `Your deployments will keep running until your credits run out, but nothing will be added automatically. ` +
-        `<a href="${vars.billingUrl}">Update your payment method</a> and auto top-up starts again on its own.`
+        `Once you update your payment method, auto top-up starts again on its own.`,
+      actions: [{ label: "Update payment method", url: vars.billingUrl }]
     },
     user: {
       id: user.id,
