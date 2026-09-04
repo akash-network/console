@@ -121,6 +121,8 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
         .filter(deployment => dseqSet.has(deployment.deployment.id.dseq))
         .map(deployment => ({
           dseq: deployment.deployment.id.dseq,
+          owner: deployment.deployment.id.owner,
+          denom: deployment.escrow_account.state.funds[0]?.denom ?? deployment.escrow_account.state.transferred[0]?.denom ?? "",
           createdHeight: Number(deployment.deployment.created_at),
           escrowBalance: this.#sumAmounts(deployment.escrow_account.state.funds) + this.#sumAmounts(deployment.escrow_account.state.transferred),
           isEscrowOpen: deployment.escrow_account.state.state === OPEN_ESCROW_ACCOUNT_STATE
@@ -210,6 +212,7 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
    * which would otherwise drop a drained-and-closed deployment before it can be marked closed.
    * Filters out deployments with missing data, zero balance,
    * or invalid block rates, logging warnings for each case.
+   * Then adds the closed deployments that have no lease at all, which the pass over leases cannot reach.
    *
    * @param leaseMap - Map of draining deployments without predictedClosedHeight
    * @param deploymentMap - Map of deployment info with escrow balances
@@ -219,7 +222,7 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
     leaseMap: Map<string, Omit<DrainingDeploymentOutput, "predictedClosedHeight">>,
     deploymentMap: Map<string, RpcDeploymentInfo>
   ): DrainingDeploymentOutput[] {
-    return Array.from(leaseMap.values()).reduce((acc, drainingDeployment) => {
+    const fromLeases = Array.from(leaseMap.values()).reduce((acc, drainingDeployment) => {
       const deployment = deploymentMap.get(drainingDeployment.dseq.toString());
 
       if (!deployment) {
@@ -259,5 +262,26 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
 
       return [...acc, { ...drainingDeployment, predictedClosedHeight }];
     }, [] as DrainingDeploymentOutput[]);
+
+    return [...fromLeases, ...this.#closedWithoutLease(leaseMap, deploymentMap)];
+  }
+
+  /** Only the closed ones: an open escrow with no lease is a deployment still waiting on a bid, and its zero block rate would fail the checks above. */
+  #closedWithoutLease(
+    leaseMap: Map<string, Omit<DrainingDeploymentOutput, "predictedClosedHeight">>,
+    deploymentMap: Map<string, RpcDeploymentInfo>
+  ): DrainingDeploymentOutput[] {
+    const leasedDseqs = new Set(Array.from(leaseMap.values(), lease => String(lease.dseq)));
+
+    return Array.from(deploymentMap.values())
+      .filter(deployment => !deployment.isEscrowOpen && !leasedDseqs.has(String(Number(deployment.dseq))))
+      .map(deployment => ({
+        dseq: Number(deployment.dseq),
+        owner: deployment.owner,
+        denom: deployment.denom,
+        blockRate: 0,
+        predictedClosedHeight: 0,
+        isClosed: true
+      }));
   }
 }

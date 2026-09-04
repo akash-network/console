@@ -139,17 +139,13 @@ export class DrainingDeploymentService {
 
     const dseqs = deploymentSettings.map(deployment => deployment.dseq);
     const leases = await this.findLeases(Number.MAX_SAFE_INTEGER, address, dseqs);
-
-    if (!leases.length) {
-      return [];
-    }
-
     const byDseqOwner = keyBy(leases, "dseq");
-    const [active, missingIds] = deploymentSettings.reduce<[DrainingDeployment[], string[]]>(
+    const [active, closedIds] = deploymentSettings.reduce<[DrainingDeployment[], string[]]>(
       (acc, deploymentSetting) => {
         const deployment = byDseqOwner[Number(deploymentSetting.dseq)];
 
         if (!deployment) {
+          instrumentation.recordSettingWithoutChainState({ dseq: deploymentSetting.dseq, address });
           return acc;
         }
 
@@ -167,9 +163,9 @@ export class DrainingDeploymentService {
       [[], []]
     );
 
-    if (missingIds.length && !dryRun) {
-      await this.deploymentSettingRepository.markAsClosed(missingIds);
-      instrumentation.recordDeploymentsMarkedClosed(missingIds.length);
+    if (closedIds.length && !dryRun) {
+      await this.deploymentSettingRepository.markAsClosed(closedIds);
+      instrumentation.recordDeploymentsMarkedClosed(closedIds.length);
     }
 
     return active;

@@ -13,6 +13,8 @@ export type ActiveLeaseRate = {
 
 export type RpcDeploymentInfo = {
   dseq: string;
+  owner: string;
+  denom: string;
   escrowBalance: number;
   createdHeight: number;
   isEscrowOpen: boolean;

@@ -176,6 +176,51 @@ describe(DrainingDeploymentService.name, () => {
       expect(callback).toHaveBeenCalledWith(expect.objectContaining({ address, drainingDeployments: [] }));
     });
 
+    it("marks an owner's closed deployments even when the lease source returns nothing else", async () => {
+      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const sink = mock<DeploymentTopUpInstrumentation>();
+      const address = createAkashAddress();
+      const closedSetting = createAutoTopUpDeployment({ address, dseq: "4010" });
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+        (async function* () {
+          yield { address, walletId: closedSetting.walletId, deploymentSettings: [closedSetting] };
+        })()
+      );
+      vi.spyOn(service, "findLeases").mockResolvedValue([
+        createDrainingDeployment({ dseq: Number(closedSetting.dseq), owner: address, predictedClosedHeight: 0, isClosed: true })
+      ]);
+
+      const yielded = vi.fn();
+      for await (const owner of service.findDrainingDeploymentsByOwner(currentHeight, sink)) {
+        yielded(owner);
+      }
+
+      expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledWith([closedSetting.id]);
+    });
+
+    it("records a deployment the lease source knows nothing about instead of dropping it silently", async () => {
+      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const sink = mock<DeploymentTopUpInstrumentation>();
+      const address = createAkashAddress();
+      const unknownSetting = createAutoTopUpDeployment({ address, dseq: "4011" });
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+        (async function* () {
+          yield { address, walletId: unknownSetting.walletId, deploymentSettings: [unknownSetting] };
+        })()
+      );
+      vi.spyOn(service, "findLeases").mockResolvedValue([]);
+
+      const yielded = vi.fn();
+      for await (const owner of service.findDrainingDeploymentsByOwner(currentHeight, sink)) {
+        yielded(owner);
+      }
+
+      expect(sink.recordSettingWithoutChainState).toHaveBeenCalledWith({ dseq: unknownSetting.dseq, address });
+      expect(deploymentSettingRepository.markAsClosed).not.toHaveBeenCalled();
+    });
+
     it("marks no deployment closed during a dry run", async () => {
       const { service, deploymentSettingRepository, currentHeight } = setup();
       const sink = mock<DeploymentTopUpInstrumentation>();
