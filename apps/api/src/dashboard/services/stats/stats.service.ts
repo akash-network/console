@@ -576,7 +576,8 @@ export class StatsService {
     {
       cacheItemLimit: 500,
       ttl: minutesToSeconds(5) * 1000,
-      getCacheKey: (owner, query) => [owner, query.dseq, query.startDate.toISOString(), query.endDate.toISOString()].join("#")
+      getCacheKey: (owner, query) => [owner, query.dseq, query.startDate.toISOString(), query.endDate.toISOString()].join("#"),
+      name: "StatsService#getLeasesDuration"
     }
   );
 

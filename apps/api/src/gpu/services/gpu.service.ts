@@ -90,6 +90,7 @@ export class GpuService {
   readonly getGpuBreakdown = memoizeAsync((query: GpuBreakdownQuery) => this.gpuRepository.getGpuBreakdown(query), {
     cacheItemLimit: 500,
     ttl: minutesToSeconds(5) * 1000,
-    getCacheKey: query => [query.vendor, query.model].join("#")
+    getCacheKey: query => [query.vendor, query.model].join("#"),
+    name: "GpuService#getGpuBreakdown"
   });
 }
