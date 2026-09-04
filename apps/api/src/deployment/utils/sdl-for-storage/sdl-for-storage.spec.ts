@@ -7,6 +7,8 @@ import { mock } from "vitest-mock-extended";
 
 import type { BillingConfig } from "@src/billing/providers";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import type { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
+import type { CreateLogger } from "@src/core";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
@@ -145,26 +147,26 @@ describe(sdlForStorage.name, () => {
   });
 
   describe("the stored output", () => {
-    it("stays an SDL the manifest generator still accepts", () => {
+    it("stays an SDL the manifest generator still accepts", async () => {
       const submitted = sdlWith({ web: { env: [`API_TOKEN=${faker.string.alphanumeric(12)}`] } });
 
-      expect(manifestFrom(storedSdlOf(submitted)).ok).toBe(true);
+      expect((await manifestFrom(storedSdlOf(submitted))).ok).toBe(true);
     });
 
-    it("stays an SDL the manifest generator accepts when an env value equals the service name", () => {
+    it("stays an SDL the manifest generator accepts when an env value equals the service name", async () => {
       const submitted = sdlWith({ wordpress: { env: ["WORDPRESS_DB_HOST=db"] }, db: {} });
 
-      expect(manifestFrom(storedSdlOf(submitted)).ok).toBe(true);
+      expect((await manifestFrom(storedSdlOf(submitted))).ok).toBe(true);
     });
 
-    it("stays an SDL the manifest generator accepts when an env value equals the denom", () => {
+    it("stays an SDL the manifest generator accepts when an env value equals the denom", async () => {
       const submitted = sdlWith({ web: { env: ["DENOM=uakt"] } });
 
-      expect(manifestFrom(storedSdlOf(submitted)).ok).toBe(true);
+      expect((await manifestFrom(storedSdlOf(submitted))).ok).toBe(true);
     });
 
-    it("still generates a manifest for an SDL that declares no env at all", () => {
-      expect(manifestFrom(storedSdlOf(sdlWith({ web: {} }))).ok).toBe(true);
+    it("still generates a manifest for an SDL that declares no env at all", async () => {
+      expect((await manifestFrom(storedSdlOf(sdlWith({ web: {} })))).ok).toBe(true);
     });
 
     it("stores an already stored SDL as the same thing again", () => {
@@ -338,7 +340,9 @@ describe(sdlForStorage.name, () => {
   function manifestFrom(rawSdl: string) {
     const config = mock<BillingConfig>({ DEPLOYMENT_GRANT_DENOM: "uakt", MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: [] });
     const blockedGpuService = new BlockedGpuService(mockConfigService<BillingConfigService>({ MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: [] }));
+    const denomExchangeService = mock<DenomExchangeService>();
+    const createLogger: CreateLogger = () => mock<ReturnType<CreateLogger>>();
 
-    return new SdlService(config, blockedGpuService, new SdlReferenceService()).generateManifest(rawSdl);
+    return new SdlService(config, blockedGpuService, new SdlReferenceService(), denomExchangeService, createLogger).generateManifest(rawSdl);
   }
 });

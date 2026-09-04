@@ -124,6 +124,48 @@ describe(DenomExchangeService.name, () => {
         priceChangePercentage24: 0
       });
     });
+
+    it("serves a usable price from the cache instead of querying the oracle again", async () => {
+      const { service, getAggregatedPriceV2 } = setup({});
+
+      await service.getExchangeRateToUSD("akt");
+      const second = await service.getExchangeRateToUSD("akt");
+
+      expect(second.price).toBe(0.56);
+      expect(getAggregatedPriceV2).toHaveBeenCalledTimes(1);
+    });
+
+    it("retries the oracle rather than serving an unavailable price the previous call left behind", async () => {
+      const { service, getAggregatedPriceV2 } = setup({ oracleThrows: true, latestAktPrice: null });
+
+      expect((await service.getExchangeRateToUSD("akt")).price).toBe(0);
+      await service.getExchangeRateToUSD("akt");
+
+      expect(getAggregatedPriceV2).toHaveBeenCalledTimes(2);
+    });
+
+    it("recovers on the next call once the oracle answers again", async () => {
+      const { service, getAggregatedPriceV2 } = setup({ oracleThrows: true, latestAktPrice: null });
+
+      expect((await service.getExchangeRateToUSD("akt")).price).toBe(0);
+      getAggregatedPriceV2.mockResolvedValue({ aggregatedPrice: { medianPrice: "0.56" }, priceHealth: { isHealthy: true } });
+
+      expect((await service.getExchangeRateToUSD("akt")).price).toBe(0.56);
+    });
+
+    it("reports an unavailable rate so a cached zero is not mistaken for a real price", async () => {
+      const { service, logger } = setup({ oracleThrows: true, latestAktPrice: null });
+
+      await service.getExchangeRateToUSD("akt");
+
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "EXCHANGE_RATE_UNAVAILABLE", denom: "akt" }));
+    });
+
+    it("propagates a failure that is not an unavailable price", async () => {
+      const { service } = setup({ oracleThrows: true, dbThrows: true });
+
+      await expect(service.getExchangeRateToUSD("akt")).rejects.toThrow("day table unreachable");
+    });
   });
 
   it("creates the logger with the service context", () => {
@@ -139,6 +181,7 @@ describe(DenomExchangeService.name, () => {
     oracleThrows?: boolean;
     v2HistoryThrows?: boolean;
     latestAktPrice?: number | null;
+    dbThrows?: boolean;
   }) {
     const aggregatedPriceResponse = {
       aggregatedPrice: { medianPrice: "0.56" },
@@ -164,6 +207,10 @@ describe(DenomExchangeService.name, () => {
 
     const dayRepository = mock<DayRepository>();
     dayRepository.getLatestAktPrice.mockResolvedValue("latestAktPrice" in input ? input.latestAktPrice! : 1.23);
+
+    if (input.dbThrows) {
+      dayRepository.getLatestAktPrice.mockRejectedValue(new Error("day table unreachable"));
+    }
 
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
