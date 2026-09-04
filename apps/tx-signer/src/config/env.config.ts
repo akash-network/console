@@ -36,9 +36,22 @@ export const envSchema = z
     NODE_ENV: z.enum(["development", "production", "test"]).optional().default("development"),
     PORT: z.number({ coerce: true }).optional().default(3091)
   })
-  .refine(env => env.SIGN_AND_BROADCAST_DEADLINE_MS >= minSignAndBroadcastDeadlineMs(env.UNORDERED_TX_TTL_MS), {
-    message: "SIGN_AND_BROADCAST_DEADLINE_MS must leave room for a full tx-recovery poll window derived from UNORDERED_TX_TTL_MS",
-    path: ["SIGN_AND_BROADCAST_DEADLINE_MS"]
+  .superRefine((env, ctx) => {
+    if (env.RPC_REQUEST_TIMEOUT_MS >= env.UNORDERED_TX_TTL_MS) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "RPC_REQUEST_TIMEOUT_MS must stay below UNORDERED_TX_TTL_MS so one RPC call can still be answered inside the tx window it carries",
+        path: ["RPC_REQUEST_TIMEOUT_MS"]
+      });
+    }
+
+    if (env.SIGN_AND_BROADCAST_DEADLINE_MS < minSignAndBroadcastDeadlineMs(env.UNORDERED_TX_TTL_MS, env.RPC_REQUEST_TIMEOUT_MS)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "SIGN_AND_BROADCAST_DEADLINE_MS must leave room for a full tx-recovery poll window derived from UNORDERED_TX_TTL_MS",
+        path: ["SIGN_AND_BROADCAST_DEADLINE_MS"]
+      });
+    }
   });
 
 export type EnvConfig = z.infer<typeof envSchema>;

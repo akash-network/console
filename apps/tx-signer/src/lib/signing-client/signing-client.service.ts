@@ -10,6 +10,7 @@ import { ConstantBackoff, handleWhenResult, Policy, retry } from "cockatiel";
 
 import type { AppConfigService } from "@src/services/app-config/app-config.service";
 import type { SigningStargateWithUnorderedSupportClient } from "../signing-stargate-client-factory/signing-stargate-client.factory";
+import { simulateBudgetMs } from "../signing-stargate-client-factory/signing-stargate-client.factory";
 import { TxNotIncludedError, TxOutcomeUnknownError } from "./tx-outcome.error";
 
 export interface SignAndBroadcastOptions {
@@ -36,12 +37,14 @@ const TX_RECOVERY_WINDOW_FACTOR = 1.2;
  */
 const OUT_OF_GAS_RETRY_LIMIT = 3;
 
-/** Budget a retry needs on top of its poll window, for the simulate, sign and broadcast round trips that precede it. */
-const ATTEMPT_OVERHEAD_RESERVE_MS = 15_000;
+/** What an attempt can spend before polling even starts: a gas estimation that exhausts its retries, then one broadcast. */
+function attemptOverheadMs(rpcRequestTimeoutMs: number): number {
+  return simulateBudgetMs(rpcRequestTimeoutMs) + rpcRequestTimeoutMs;
+}
 
 /** The shortest deadline that still lets one attempt outlast a tx's TTL, below which every missing tx reports undecided instead of a definite outcome. */
-export function minSignAndBroadcastDeadlineMs(ttlMs: number): number {
-  return Math.ceil(ttlMs * TX_RECOVERY_WINDOW_FACTOR);
+export function minSignAndBroadcastDeadlineMs(ttlMs: number, rpcRequestTimeoutMs: number): number {
+  return Math.ceil(ttlMs * TX_RECOVERY_WINDOW_FACTOR) + attemptOverheadMs(rpcRequestTimeoutMs);
 }
 
 /** Cosmos SDK `ErrOutOfGas` code (root `sdk` codespace). */
@@ -52,6 +55,7 @@ export class SigningClientService {
 
   readonly #ttlMs: number;
   readonly #deadlineMs: number;
+  readonly #attemptOverheadMs: number;
 
   readonly #gasRecoveryMultiplier: number;
 
@@ -61,6 +65,7 @@ export class SigningClientService {
     this.#client = client;
     this.#ttlMs = config.get("UNORDERED_TX_TTL_MS");
     this.#deadlineMs = config.get("SIGN_AND_BROADCAST_DEADLINE_MS");
+    this.#attemptOverheadMs = attemptOverheadMs(config.get("RPC_REQUEST_TIMEOUT_MS"));
     this.#gasRecoveryMultiplier = config.get("GAS_RECOVERY_MULTIPLIER");
     this.#logger = createOtelLogger({ context: loggerContext });
   }
@@ -182,7 +187,7 @@ export class SigningClientService {
 
     const remainingMs = deadline - Date.now();
 
-    if (remainingMs >= this.#ttlMs * TX_RECOVERY_WINDOW_FACTOR + ATTEMPT_OVERHEAD_RESERVE_MS) {
+    if (remainingMs >= this.#ttlMs * TX_RECOVERY_WINDOW_FACTOR + this.#attemptOverheadMs) {
       return true;
     }
 
