@@ -6,14 +6,20 @@ import { createGunzip } from "node:zlib";
 import tar from "tar";
 
 import type { CreateLogger } from "@src/core";
+import type { CacheLimits } from "../../../caching/cache-registry.ts";
 import { cacheRegistry, NOMINAL_ENTRY_BYTES } from "../../../caching/cache-registry.ts";
 
 /** The template repo archives are ~70 MB each, so the download budget has to bound stalls rather than total transfer time. */
 const DOWNLOAD_STALL_TIMEOUT_MS = 30_000;
 
 const MAX_CACHED_ARCHIVES = 10;
-/** An archive retaining more than this is still parsed and returned, just not kept, since getArchive resolves from the parse rather than from the cache. */
-const MAX_CACHED_ARCHIVE_BYTES = 256 * 1024 * 1024;
+/** Filtered to template files the gallery's archives retain ~2.3 MB each, so this leaves room for an order of magnitude of repo growth. */
+const MAX_CACHED_ARCHIVES_TOTAL_BYTES = 128 * 1024 * 1024;
+
+/** Half the total so one archive can never evict every other one, and an archive above it is still parsed and returned since getArchive resolves from the parse. */
+function maxBytesPerArchive(maxTotalBytes: number): number {
+  return maxTotalBytes / 2;
+}
 
 const MAX_DOWNLOAD_RETRIES = 2;
 const RETRY_INITIAL_DELAY_MS = 1_000;
@@ -57,15 +63,20 @@ async function* streamWhileMakingProgress(body: ReadableStream<Uint8Array>, onPr
 }
 
 export class GitHubArchiveService {
-  readonly #cache = new LRUCache<string, Promise<ArchiveReader>>({
-    max: MAX_CACHED_ARCHIVES,
-    maxEntrySize: MAX_CACHED_ARCHIVE_BYTES,
-    sizeCalculation: () => NOMINAL_ENTRY_BYTES
-  });
+  readonly #cache: LRUCache<string, Promise<ArchiveReader>>;
+  readonly #maxArchiveBytes: number;
   readonly #logger: ReturnType<CreateLogger>;
   readonly #downloadPolicy: RetryPolicy;
 
-  constructor(logger: ReturnType<CreateLogger>) {
+  constructor(logger: ReturnType<CreateLogger>, limits: CacheLimits = {}) {
+    const maxTotalBytes = limits.maxTotalBytes ?? MAX_CACHED_ARCHIVES_TOTAL_BYTES;
+    this.#maxArchiveBytes = limits.maxEntryBytes ?? maxBytesPerArchive(maxTotalBytes);
+    this.#cache = new LRUCache<string, Promise<ArchiveReader>>({
+      max: limits.maxEntries ?? MAX_CACHED_ARCHIVES,
+      maxSize: maxTotalBytes,
+      maxEntrySize: this.#maxArchiveBytes,
+      sizeCalculation: () => NOMINAL_ENTRY_BYTES
+    });
     this.#logger = logger;
     cacheRegistry.register("GitHubArchiveService#archives", this.#cache);
     this.#downloadPolicy = retry(
@@ -104,6 +115,12 @@ export class GitHubArchiveService {
   /** lru-cache ignores a size given for a value it already holds, so the parsed archive has to replace its own in-flight entry. */
   #chargeRetainedBytes(cacheKey: string, archive: Promise<ArchiveReader>, retainedBytes: number): void {
     this.#cache.delete(cacheKey);
+
+    if (retainedBytes > this.#maxArchiveBytes) {
+      this.#logger.warn({ event: "ARCHIVE_TOO_LARGE_TO_CACHE", cacheKey, retainedBytes, maxArchiveBytes: this.#maxArchiveBytes });
+      return;
+    }
+
     this.#cache.set(cacheKey, archive, { size: retainedBytes });
   }
 

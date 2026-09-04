@@ -1,15 +1,10 @@
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { LRUCache } from "lru-cache";
 
+import type { CacheLimits } from "./cache-registry";
 import { cacheRegistry, NOMINAL_ENTRY_BYTES } from "./cache-registry";
 
 export type CacheValue = NonNullable<unknown>;
-
-export interface CacheLimits {
-  maxEntries?: number;
-  maxTotalBytes?: number;
-  maxEntryBytes?: number;
-}
 
 /** Multi-MB cached responses exhausted the 2GB V8 heap on 2026-09-01; the byte ceilings bound entries stored with an explicit size. */
 const DEFAULT_LIMITS = {
