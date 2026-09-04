@@ -528,6 +528,20 @@ describe(ManagedSignerService.name, () => {
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "CLOSED_DEPLOYMENT_RECORD_FAILED", userId: "user-123", dseq: "123" }));
     });
 
+    it("records a close even when a create in the same transaction fails to publish", async () => {
+      const { service, deploymentSettingRepository } = setupForClose({
+        publish: vi.fn().mockRejectedValue(new Error("queue unavailable"))
+      });
+      const createMessage: EncodeObject = {
+        typeUrl: MsgCreateDeployment.$type,
+        value: MsgCreateDeployment.fromPartial({ id: { owner: "akash1test", dseq: 123 } })
+      };
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createMessage, closeMessageFor(456)])).rejects.toThrow("queue unavailable");
+
+      expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "user-123", dseq: "456" });
+    });
+
     function closeMessageFor(dseq: number): EncodeObject {
       return {
         typeUrl: MsgCloseDeployment.$type,

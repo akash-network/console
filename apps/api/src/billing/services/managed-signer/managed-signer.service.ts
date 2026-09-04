@@ -147,6 +147,8 @@ export class ManagedSignerService {
       throw error;
     }
 
+    await this.#recordClosedDeployments(userWallet, messages);
+
     if (hasCreateTrialLeaseMessage) {
       await this.domainEvents.publish(
         new TrialDeploymentLeaseCreated({
@@ -181,7 +183,6 @@ export class ManagedSignerService {
     }
 
     await this.#recordCreatedDeployments(userWallet, messages);
-    await this.#recordClosedDeployments(userWallet, messages);
 
     await this.balancesService.refreshUserWalletLimits(userWallet);
     await this.#ensureAutoReloadSchedule(userWallet.userId, messages);
@@ -208,9 +209,9 @@ export class ManagedSignerService {
   }
 
   /**
-   * A close is recorded from the landed transaction for the same reason a create is, since neither the deployment
-   * API's close nor the raw transaction endpoint writes the record; failing to write it must not report a close the
-   * chain already accepted as failed, so the hourly reconcile is what covers a row this misses.
+   * Recorded from the landed transaction because neither the deployment API's close nor the raw transaction endpoint
+   * writes the record, and ahead of the rest of the post-broadcast work so a batch that also creates cannot lose the
+   * close to an unrelated publish failure. A record that fails to write must never fail a close the chain accepted.
    */
   async #recordClosedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[]) {
     for (const dseq of this.#findDeploymentDseqs(messages, ".MsgCloseDeployment")) {
