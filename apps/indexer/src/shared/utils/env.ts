@@ -14,6 +14,8 @@ export const env = {
   PASSAGE_DATABASE_CS: process.env.PASSAGE_DATABASE_CS,
   JUNO_DATABASE_CS: process.env.JUNO_DATABASE_CS,
   ACTIVE_CHAIN: process.env.ACTIVE_CHAIN,
+  PROVIDER_VERIFICATION_ENABLED: process.env.PROVIDER_VERIFICATION_ENABLED === "true",
+  PROVIDER_VERIFICATION_REST_API_URL: process.env.PROVIDER_VERIFICATION_REST_API_URL,
   KEEP_CACHE: process.env.KEEP_CACHE === "true",
   STANDBY: process.env.STANDBY === "true",
   DATA_FOLDER: process.env.DATA_FOLDER ?? "./data",

@@ -2,6 +2,7 @@ import "@akashnetwork/env-loader";
 
 import { activeChain, chainDefinitions } from "@akashnetwork/database/chainDefinitions";
 import { LoggerService } from "@akashnetwork/logging";
+import { createProviderVerificationQueryClient } from "@akashnetwork/provider-verification";
 import * as Sentry from "@sentry/node";
 import { Hono } from "hono";
 
@@ -14,6 +15,7 @@ import { initDatabase } from "./db/buildDatabase";
 import { sequelize } from "./db/dbConnection";
 import { fetchValidatorKeybaseInfos } from "./db/keybaseProvider";
 import { syncPriceHistory } from "./db/priceHistoryProvider";
+import { ProviderVerificationReconciler } from "./indexers/providerVerification/providerVerificationReconciler";
 import { startServer } from "./lib/start-server/start-server";
 import { updateProvidersLocation } from "./providers/ipLocationProvider";
 import { syncProvidersInfo } from "./providers/providerStatusProvider";
@@ -128,6 +130,13 @@ function startScheduler() {
     scheduler.registerTask("Provider IP Lookup", () => updateProvidersLocation(), "30 minutes", true);
     scheduler.registerTask("USD Spending Tracker", () => updateUsdSpending(), "1 minute", true);
     scheduler.registerTask("Update provider uptime", () => updateProviderUptime(), "10 minutes", true);
+
+    if (env.PROVIDER_VERIFICATION_ENABLED) {
+      const queryClient = createProviderVerificationQueryClient(env.PROVIDER_VERIFICATION_REST_API_URL ?? activeChain.apiUrl);
+      const reconciler = new ProviderVerificationReconciler(queryClient);
+      scheduler.registerTask("Refresh Provider Verification", () => reconciler.enqueueFullReconciliation(), "5 minutes", true);
+      scheduler.registerTask("Reconcile Provider Verification", () => reconciler.runBatch().then(() => undefined), "5 seconds", true);
+    }
   }
 
   if (!activeChain.startHeight) {

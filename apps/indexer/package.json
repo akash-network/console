@@ -31,11 +31,12 @@
   },
   "dependencies": {
     "@akashnetwork/akash-api": "1.4.3",
-    "@akashnetwork/chain-sdk": "1.0.0-alpha.41",
+    "@akashnetwork/chain-sdk": "1.0.0-alpha.43",
     "@akashnetwork/database": "*",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/instrumentation": "*",
     "@akashnetwork/logging": "*",
+    "@akashnetwork/provider-verification": "*",
     "@cosmjs/crypto": "~0.38.0",
     "@cosmjs/encoding": "~0.38.0",
     "@cosmjs/proto-signing": "~0.38.0",

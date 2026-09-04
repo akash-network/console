@@ -11,8 +11,23 @@ import {
   provider,
   providerAttribute,
   providerAttributeSignature,
+  providerMaintenance,
   providerSnapshot,
-  transaction
+  transaction,
+  verificationAttestation,
+  verificationAttestationCapability,
+  verificationAuditEscrow,
+  verificationAuditEscrowCapability,
+  verificationAuditor,
+  verificationBlockEvent,
+  verificationDiscrepancy,
+  verificationGrace,
+  verificationGraceDiscrepancy,
+  verificationProviderBond,
+  verificationProviderBondUnbonding,
+  verificationProviderObservation,
+  verificationProviderSnapshot,
+  verificationProviderTierDemotion
 } from "./schema";
 
 export const deploymentGroupRelations = relations(deploymentGroup, ({ one, many }) => ({
@@ -36,11 +51,20 @@ export const providerAttributeSignatureRelations = relations(providerAttributeSi
   })
 }));
 
-export const providerRelations = relations(provider, ({ many }) => ({
+export const providerRelations = relations(provider, ({ one, many }) => ({
   providerAttributeSignatures: many(providerAttributeSignature),
   leases: many(lease),
   providerAttributes: many(providerAttribute),
-  providerSnapshots: many(providerSnapshot)
+  providerSnapshots: many(providerSnapshot),
+  verificationAttestations: many(verificationAttestation),
+  verificationAuditEscrows: many(verificationAuditEscrow),
+  verificationDiscrepancies: many(verificationDiscrepancy),
+  verificationGraceRecords: many(verificationGrace),
+  verificationBond: one(verificationProviderBond),
+  verificationObservation: one(verificationProviderObservation),
+  verificationSnapshot: one(verificationProviderSnapshot),
+  verificationTierDemotions: many(verificationProviderTierDemotion),
+  maintenanceRecords: many(providerMaintenance)
 }));
 
 export const leaseRelations = relations(lease, ({ one }) => ({
@@ -93,7 +117,8 @@ export const messageRelations = relations(message, ({ one, many }) => ({
 
 export const blockRelations = relations(block, ({ many }) => ({
   messages: many(message),
-  transactions: many(transaction)
+  transactions: many(transaction),
+  verificationBlockEvents: many(verificationBlockEvent)
 }));
 
 export const transactionRelations = relations(transaction, ({ one, many }) => ({
@@ -113,5 +138,120 @@ export const addressReferenceRelations = relations(addressReference, ({ one }) =
   transaction: one(transaction, {
     fields: [addressReference.transactionId],
     references: [transaction.id]
+  })
+}));
+
+export const verificationAuditorRelations = relations(verificationAuditor, ({ many }) => ({
+  attestations: many(verificationAttestation)
+}));
+
+export const verificationAttestationRelations = relations(verificationAttestation, ({ one, many }) => ({
+  provider: one(provider, {
+    fields: [verificationAttestation.provider],
+    references: [provider.owner]
+  }),
+  auditor: one(verificationAuditor, {
+    fields: [verificationAttestation.auditor],
+    references: [verificationAuditor.address]
+  }),
+  capabilities: many(verificationAttestationCapability)
+}));
+
+export const verificationAttestationCapabilityRelations = relations(verificationAttestationCapability, ({ one }) => ({
+  attestation: one(verificationAttestation, {
+    fields: [verificationAttestationCapability.provider, verificationAttestationCapability.auditor],
+    references: [verificationAttestation.provider, verificationAttestation.auditor]
+  })
+}));
+
+export const verificationAuditEscrowRelations = relations(verificationAuditEscrow, ({ one, many }) => ({
+  provider: one(provider, {
+    fields: [verificationAuditEscrow.provider],
+    references: [provider.owner]
+  }),
+  capabilities: many(verificationAuditEscrowCapability)
+}));
+
+export const verificationAuditEscrowCapabilityRelations = relations(verificationAuditEscrowCapability, ({ one }) => ({
+  auditEscrow: one(verificationAuditEscrow, {
+    fields: [verificationAuditEscrowCapability.audit_escrow_id],
+    references: [verificationAuditEscrow.id]
+  })
+}));
+
+export const verificationDiscrepancyRelations = relations(verificationDiscrepancy, ({ one, many }) => ({
+  provider: one(provider, {
+    fields: [verificationDiscrepancy.provider],
+    references: [provider.owner]
+  }),
+  graceRecords: many(verificationGraceDiscrepancy)
+}));
+
+export const verificationGraceRelations = relations(verificationGrace, ({ one, many }) => ({
+  provider: one(provider, {
+    fields: [verificationGrace.provider],
+    references: [provider.owner]
+  }),
+  sourceDiscrepancies: many(verificationGraceDiscrepancy)
+}));
+
+export const verificationGraceDiscrepancyRelations = relations(verificationGraceDiscrepancy, ({ one }) => ({
+  grace: one(verificationGrace, {
+    fields: [verificationGraceDiscrepancy.grace_id],
+    references: [verificationGrace.id]
+  }),
+  discrepancy: one(verificationDiscrepancy, {
+    fields: [verificationGraceDiscrepancy.discrepancy_id],
+    references: [verificationDiscrepancy.id]
+  })
+}));
+
+export const verificationProviderBondRelations = relations(verificationProviderBond, ({ one, many }) => ({
+  provider: one(provider, {
+    fields: [verificationProviderBond.provider],
+    references: [provider.owner]
+  }),
+  unbondingEntries: many(verificationProviderBondUnbonding)
+}));
+
+export const verificationProviderBondUnbondingRelations = relations(verificationProviderBondUnbonding, ({ one }) => ({
+  providerBond: one(verificationProviderBond, {
+    fields: [verificationProviderBondUnbonding.provider],
+    references: [verificationProviderBond.provider]
+  })
+}));
+
+export const verificationProviderObservationRelations = relations(verificationProviderObservation, ({ one }) => ({
+  provider: one(provider, {
+    fields: [verificationProviderObservation.provider],
+    references: [provider.owner]
+  })
+}));
+
+export const verificationProviderTierDemotionRelations = relations(verificationProviderTierDemotion, ({ one }) => ({
+  provider: one(provider, {
+    fields: [verificationProviderTierDemotion.provider],
+    references: [provider.owner]
+  })
+}));
+
+export const verificationProviderSnapshotRelations = relations(verificationProviderSnapshot, ({ one }) => ({
+  provider: one(provider, {
+    fields: [verificationProviderSnapshot.provider],
+    references: [provider.owner]
+  })
+}));
+
+export const providerMaintenanceRelations = relations(providerMaintenance, ({ one }) => ({
+  provider: one(provider, {
+    fields: [providerMaintenance.provider],
+    references: [provider.owner]
+  })
+}));
+
+export const verificationBlockEventRelations = relations(verificationBlockEvent, ({ one }) => ({
+  block: one(block, {
+    fields: [verificationBlockEvent.height],
+    references: [block.height]
   })
 }));
