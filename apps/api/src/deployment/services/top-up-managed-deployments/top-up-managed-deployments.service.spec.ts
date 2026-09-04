@@ -1535,6 +1535,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
 
+      expect(fundDrainingInstrumentation.recordUndecidedTxOutcome).toHaveBeenCalledWith(expect.objectContaining({ owner, txHash: "tx-hash" }));
       expect(deploymentSettingRepository.releaseFundingClaim).not.toHaveBeenCalled();
     });
 
