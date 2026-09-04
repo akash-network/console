@@ -11,6 +11,7 @@ import dynamic from "next/dynamic";
 
 import { LabelValue } from "@src/components/shared/LabelValue";
 import { useWallet } from "@src/context/WalletProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useProviderAttributesSchema, useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
 import type { ApiProviderDetail, ClientProviderDetailWithStatus } from "@src/types/provider";
@@ -22,6 +23,7 @@ import { Title } from "../shared/Title";
 import { ActiveLeasesGraph } from "./ActiveLeasesGraph";
 import ProviderDetailLayout, { ProviderDetailTabs } from "./ProviderDetailLayout";
 import { ProviderSpecs } from "./ProviderSpecs";
+import { ProviderVerificationDetails } from "./ProviderVerificationDetails";
 
 const NetworkCapacity = dynamic(() => import("./NetworkCapacity/NetworkCapacity"), {
   ssr: false
@@ -33,6 +35,7 @@ type Props = {
 };
 
 export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provider }) => {
+  const isProviderVerificationEnabled = useFlag("provider_verification");
   const [provider, setProvider] = useState<ClientProviderDetailWithStatus>(_provider as ClientProviderDetailWithStatus);
   const { address } = useWallet();
   const {
@@ -174,6 +177,15 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
           </>
         )}
 
+        {provider && isProviderVerificationEnabled && (
+          <div className="mt-6">
+            <Title subTitle className="mb-4 font-normal">
+              Provider verification
+            </Title>
+            <ProviderVerificationDetails providerDeclaredTier={provider.tier} verification={provider.verification} />
+          </div>
+        )}
+
         {provider && providerAttributesSchema && (
           <>
             <div className="mb-6 mt-6">
@@ -197,7 +209,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
                     <LabelValue label="Region" value={provider.locationRegion} />
                     <LabelValue label="City" value={provider.city} />
                     <LabelValue label="Location Type" value={provider.locationType} />
-                    <LabelValue label="Tier" value={provider.tier} />
+                    <LabelValue label="Tier (self-declared)" value={provider.tier} />
                   </div>
                 </CardContent>
               </Card>

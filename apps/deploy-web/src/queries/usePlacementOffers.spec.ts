@@ -1,7 +1,8 @@
+import { VerificationTier } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { ScreenedProvider } from "@src/queries/useScreenedProviders";
+import type { ProviderVerificationExclusion, ScreenedProvider } from "@src/queries/useScreenedProviders";
 import type { ApiProviderList } from "@src/types/provider";
 import type { DEPENDENCIES } from "./usePlacementOffers";
 import { usePlacementOffers } from "./usePlacementOffers";
@@ -156,6 +157,107 @@ describe(usePlacementOffers.name, () => {
     ]);
   });
 
+  it("keeps an accepted chain bid when verification preflight did not include the provider", () => {
+    const eligible = verifiedProvider({ owner: "akash1eligible", tier: VerificationTier.verification_tier_verified });
+    const { result } = setup({
+      phase: "quoting",
+      dseq: "100",
+      verificationEnabled: true,
+      screened: [eligible],
+      bids: [
+        { bid: { state: "open", price: { amount: "1900", denom: "uakt" }, id: { provider: "akash1eligible", dseq: "100", gseq: 1, oseq: 1 } } },
+        { bid: { state: "open", price: { amount: "100", denom: "uakt" }, id: { provider: "akash1excluded", dseq: "100", gseq: 1, oseq: 1 } } }
+      ]
+    });
+
+    expect(result.current.offers.map(offer => offer.owner)).toEqual(["akash1eligible", "akash1excluded"]);
+  });
+
+  it("suppresses a stale preflight exclusion after the provider has an accepted chain bid", () => {
+    const exclusion = mock<ProviderVerificationExclusion>({ owner: "akash1bidder" });
+    const { result } = setup({
+      phase: "quoting",
+      dseq: "100",
+      verificationEnabled: true,
+      screened: [],
+      screenedExclusions: [exclusion],
+      bids: [{ bid: { state: "open", price: { amount: "100", denom: "uakt" }, id: { provider: "akash1bidder", dseq: "100", gseq: 1, oseq: 1 } } }]
+    });
+
+    expect(result.current.offers.map(offer => offer.owner)).toEqual(["akash1bidder"]);
+    expect(result.current.exclusions).toEqual([]);
+  });
+
+  it("keeps incomplete verification facts eligible and marks them not evaluated", () => {
+    const provider = verifiedProvider({ owner: "akash1unknown", tier: VerificationTier.verification_tier_unspecified });
+    provider.verification = {
+      outcome: "not_evaluated",
+      incompleteFacts: ["snapshot"],
+      summary: provider.verification!.summary
+    };
+    const { result } = setup({ phase: "configuring", verificationEnabled: true, screened: [provider] });
+
+    expect(result.current.offers).toEqual([
+      expect.objectContaining({ owner: "akash1unknown", verification: expect.objectContaining({ outcome: "not_evaluated" }) })
+    ]);
+  });
+
+  it("ranks verification-eligible providers by tier before price", () => {
+    const { result } = setup({
+      phase: "quoting",
+      dseq: "100",
+      verificationEnabled: true,
+      screened: [
+        verifiedProvider({ owner: "akash1l2", tier: VerificationTier.verification_tier_verified }),
+        verifiedProvider({ owner: "akash1l3", tier: VerificationTier.verification_tier_established })
+      ],
+      bids: [
+        { bid: { state: "open", price: { amount: "100", denom: "uakt" }, id: { provider: "akash1l2", dseq: "100", gseq: 1, oseq: 1 } } },
+        { bid: { state: "open", price: { amount: "5000", denom: "uakt" }, id: { provider: "akash1l3", dseq: "100", gseq: 1, oseq: 1 } } }
+      ]
+    });
+
+    expect(result.current.offers.map(offer => offer.owner)).toEqual(["akash1l3", "akash1l2"]);
+  });
+
+  it("uses auditor count, uptime, price, then name to break verification ranking ties", () => {
+    const recentDay = new Intl.DateTimeFormat("en-CA", {
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).format(Date.now());
+    const base = { tier: VerificationTier.verification_tier_verified, auditors: ["akash1a"] };
+    const screened = [
+      verifiedProvider({ owner: "akash1pricey", organization: "Zulu", ...base }),
+      verifiedProvider({ owner: "akash1cheap", organization: "Beta", ...base }),
+      verifiedProvider({ owner: "akash1aardvark", organization: "Aardvark", ...base }),
+      verifiedProvider({
+        owner: "akash1down",
+        organization: "Alpha",
+        ...base,
+        incidents: [{ date: recentDay, hasOpenIncident: false, incidentCount: 1, downtimeSeconds: 3600 }]
+      }),
+      verifiedProvider({ owner: "akash1auditors", organization: "Omega", tier: base.tier, auditors: ["akash1a", "akash1b"] })
+    ];
+    const bids = screened.map(provider => ({
+      bid: {
+        state: "open",
+        price: { amount: provider.owner === "akash1pricey" ? "500" : "100", denom: "uakt" },
+        id: { provider: provider.owner, dseq: "100", gseq: 1, oseq: 1 }
+      }
+    }));
+    const { result } = setup({ phase: "quoting", dseq: "100", verificationEnabled: true, screened, bids });
+
+    expect(result.current.offers.map(offer => offer.owner)).toEqual(["akash1auditors", "akash1aardvark", "akash1cheap", "akash1pricey", "akash1down"]);
+  });
+
+  it("preserves server order when the placement has no verification result", () => {
+    const { result } = setup({ phase: "configuring", verificationEnabled: true, screened: [polaris(), mock<ScreenedProvider>({ owner: "akash1first" })] });
+
+    expect(result.current.offers.map(offer => offer.owner)).toEqual(["akash1aaa", "akash1first"]);
+  });
+
   it("reuses screened metadata for a bidder instead of the provider list", () => {
     const { result } = setup({
       phase: "quoting",
@@ -238,18 +340,53 @@ describe(usePlacementOffers.name, () => {
     return mock<ScreenedProvider>({ owner: "akash1aaa", organization: "Polaris", location: "us-east" });
   }
 
+  function verifiedProvider(input: {
+    owner: string;
+    tier: VerificationTier;
+    auditors?: string[];
+    organization?: string;
+    incidents?: ScreenedProvider["incidents"];
+  }): ScreenedProvider {
+    return mock<ScreenedProvider>({
+      owner: input.owner,
+      organization: input.organization ?? input.owner,
+      location: "us-east",
+      incidents: input.incidents ?? [],
+      verification: {
+        outcome: "pass",
+        summary: {
+          bestStatusValidTier: input.tier,
+          tierGateTier: input.tier,
+          capabilities: [],
+          validAttestationCount: input.auditors?.length ?? 1,
+          validAuditors: input.auditors ?? ["akash1auditor"],
+          snapshotState: "current",
+          observedHeight: "123"
+        }
+      }
+    });
+  }
+
   function setup(input: {
     phase: "configuring" | "quoting";
     dseq?: string;
     screened: ScreenedProvider[];
     screenedInvalid?: boolean;
+    screenedExclusions?: ProviderVerificationExclusion[];
+    verificationEnabled?: boolean;
     placementGseq?: number;
     providerList?: Array<Partial<ApiProviderList> & { owner: string }>;
     bidsLoading?: boolean;
     bidsError?: boolean;
     bids?: Array<{ bid: { state: string; price: { amount: string; denom: string }; id: { provider: string; dseq: string; gseq: number; oseq: number } } }>;
   }) {
-    const useScreenedProviders = vi.fn(() => ({ providers: input.screened, isLoading: false, isError: false, isInvalid: input.screenedInvalid ?? false }));
+    const useScreenedProviders = vi.fn(() => ({
+      providers: input.screened,
+      exclusions: input.screenedExclusions ?? [],
+      isLoading: false,
+      isError: false,
+      isInvalid: input.screenedInvalid ?? false
+    }));
     const useProviderList = vi.fn(() => ({ data: input.providerList ?? [], isLoading: false, isError: false }));
     const dependencies: typeof DEPENDENCIES = {
       useScreenedProviders: useScreenedProviders as never,
@@ -258,7 +395,17 @@ describe(usePlacementOffers.name, () => {
       getPlacementGseq: (() => input.placementGseq) as never
     };
     const view = renderHook(() =>
-      usePlacementOffers({ phase: input.phase, dseq: input.dseq, sdl: "sdl", placementName: "placement-1", region: "us-east" }, dependencies)
+      usePlacementOffers(
+        {
+          phase: input.phase,
+          dseq: input.dseq,
+          sdl: "sdl",
+          placementName: "placement-1",
+          region: "us-east",
+          verificationEnabled: input.verificationEnabled
+        },
+        dependencies
+      )
     );
     return { ...view, useScreenedProviders, useProviderList };
   }

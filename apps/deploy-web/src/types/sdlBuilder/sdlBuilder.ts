@@ -125,6 +125,25 @@ export const SignedBySchema = z.object({
   value: z.string().min(1, { message: "Value is required." })
 });
 
+export const VerificationCapabilitySchema = z.enum(["tee_hardware_attestation", "confidential_computing", "persistent_storage", "bare_metal"]);
+
+const VerificationAuditorSchema = z.object({
+  id: z.string().optional(),
+  value: z
+    .string()
+    .min(1, { message: "Auditor address is required." })
+    .refine(value => value === value.trim(), { message: "Auditor address cannot contain surrounding whitespace." })
+    .refine(value => value.startsWith("akash1"), { message: "Auditor address must start with akash1." })
+});
+
+export const PlacementVerificationSchema = z.object({
+  minTier: z.number().int().min(1).max(4),
+  capabilities: z.array(VerificationCapabilitySchema).optional(),
+  auditors: z.array(VerificationAuditorSchema).optional(),
+  auditorMode: z.enum(["any", "all"]).optional(),
+  minAuditorCount: z.number().int().min(0).max(4_294_967_295).optional()
+});
+
 export const CUSTOM_HOST_ID = "__CUSTOM__";
 export const CredentialsSchema = z
   .object({
@@ -269,7 +288,8 @@ export const PlacementSchema = z.object({
       allOf: z.array(SignedBySchema),
       anyOf: z.array(SignedBySchema)
     })
-    .optional()
+    .optional(),
+  verification: PlacementVerificationSchema.optional()
 });
 
 export const EndpointSchema = z.object({
@@ -610,6 +630,7 @@ export type EnvironmentVariableType = z.infer<typeof EnvironmentVariableSchema>;
 export type AcceptType = z.infer<typeof AcceptSchema>;
 export type PlacementAttributeType = z.infer<typeof PlacementAttributeSchema>;
 export type SignedByType = z.infer<typeof SignedBySchema>;
+export type PlacementVerificationType = z.infer<typeof PlacementVerificationSchema>;
 export type ExposeType = z.infer<typeof ExposeSchema>;
 export type PlacementType = z.infer<typeof PlacementSchema>;
 export type EndpointType = z.infer<typeof EndpointSchema>;

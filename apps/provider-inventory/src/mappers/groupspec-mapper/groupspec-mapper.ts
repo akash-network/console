@@ -45,4 +45,10 @@ export function getAttributeFingerprint(attributes: ResourceAttribute[] | undefi
     .join(",");
 }
 
-export type GroupSpecJSON = ToJSON<GroupSpec>;
+type GroupSpecRequirementsJSON = ToJSON<NonNullable<GroupSpec["requirements"]>>;
+
+export type GroupSpecJSON = Omit<ToJSON<GroupSpec>, "requirements"> & {
+  requirements: Omit<GroupSpecRequirementsJSON, "verification"> & {
+    verification?: GroupSpecRequirementsJSON["verification"];
+  };
+};

@@ -4,10 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { ForwardedPort, LeaseServiceStatus, LeaseStatusDto } from "@src/queries/useLeaseQuery";
-import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
-import type { ApiProviderList } from "@src/types/provider";
+import type { DeploymentGroup, LeaseDto, RpcVerificationRequirement } from "@src/types/deployment";
+import type { ApiProviderDetail, ApiProviderList, ProviderVerificationView } from "@src/types/provider";
 import { DEPENDENCIES, PlacementCard } from "./PlacementCard";
 import type { ManifestServiceDetail } from "./placementModel";
+import type { PlacementVerificationPanelProps } from "./PlacementVerificationPanel";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -166,30 +167,73 @@ describe(PlacementCard.name, () => {
     expect(screen.queryByText("Reclaiming")).not.toBeInTheDocument();
   });
 
+  it("passes the on-chain policy and API provider facts to the verification panel when enabled", () => {
+    const PlacementVerificationPanel = vi.fn((_props: PlacementVerificationPanelProps) => <div>verification-panel</div>);
+    const verification = mock<ProviderVerificationView>({ provider: "akash1p" });
+
+    setup({
+      lease: buildLease({ verification: buildVerificationRequirement(), signedBy: { all_of: ["akash1legacy"], any_of: [] } }),
+      providerDetail: buildProviderDetail(verification),
+      dependencies: { useFlag: () => true, PlacementVerificationPanel }
+    });
+
+    expect(screen.getByText("verification-panel")).toBeInTheDocument();
+    expect(PlacementVerificationPanel.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        placementName: "dcloud",
+        policy: {
+          legacySignedBy: { allOf: ["akash1legacy"], anyOf: [] },
+          verification: expect.objectContaining({ minTier: "L2" })
+        },
+        verification
+      })
+    );
+  });
+
+  it("does not mount the verification panel while the feature flag is disabled", () => {
+    const PlacementVerificationPanel = vi.fn((_props: PlacementVerificationPanelProps) => <div>verification-panel</div>);
+    const useProviderDetail = vi.fn(() => mock<ReturnType<typeof DEPENDENCIES.useProviderDetail>>({ data: null }));
+
+    setup({
+      lease: buildLease({ verification: buildVerificationRequirement() }),
+      dependencies: { useFlag: () => false, useProviderDetail, PlacementVerificationPanel }
+    });
+
+    expect(PlacementVerificationPanel).not.toHaveBeenCalled();
+    expect(useProviderDetail).toHaveBeenCalledWith("akash1p", { enabled: false });
+  });
+
   function buildLease(input?: {
     groupName?: string;
     state?: string;
     groupState?: string;
     gpuAmount?: number;
     gpuAttributes?: { key: string; value: string }[];
+    signedBy?: { all_of: string[]; any_of: string[] };
+    verification?: RpcVerificationRequirement;
   }) {
-    return mock<LeaseDto>({
+    const lease = mock<LeaseDto>({
       id: "1",
       provider: "akash1p",
       state: input?.state ?? "active",
       cpuAmount: 6,
       gpuAmount: input?.gpuAmount ?? 0,
       memoryAmount: 1_000_000,
-      storageAmount: 2_000_000,
-      group: mock<DeploymentGroup>({
-        state: input?.groupState ?? "active",
-        group_spec: {
-          name: input?.groupName ?? "dcloud",
-          requirements: { attributes: [] as { key: string; value: string }[] },
-          resources: input?.gpuAttributes ? [{ resource: { gpu: { attributes: input.gpuAttributes } } }] : ([] as DeploymentGroup["group_spec"]["resources"])
-        }
-      } as Partial<DeploymentGroup>)
+      storageAmount: 2_000_000
     });
+    lease.group = {
+      state: input?.groupState ?? "active",
+      group_spec: {
+        name: input?.groupName ?? "dcloud",
+        requirements: {
+          signed_by: input?.signedBy ?? { all_of: [], any_of: [] },
+          verification: input?.verification,
+          attributes: []
+        },
+        resources: input?.gpuAttributes ? [{ resource: { gpu: { attributes: input.gpuAttributes } } }] : []
+      }
+    } as unknown as DeploymentGroup;
+    return lease;
   }
 
   function buildStatus(serviceNames: string[], forwardedPorts: Record<string, ForwardedPort[]> = {}) {
@@ -201,12 +245,29 @@ describe(PlacementCard.name, () => {
   }
 
   function buildProvider(input?: { region?: string }) {
-    return mock<ApiProviderList>({
+    const provider = mock<ApiProviderList>({
       owner: "akash1p",
       organization: "Meridian Cloud",
       locationRegion: "",
-      attributes: input?.region ? [{ key: "region", value: input.region, auditedBy: [] }] : []
+      attributes: input?.region ? [{ key: "region", value: input.region, auditedBy: [] }] : [],
+      verification: null
     });
+    provider.verification = null;
+    return provider;
+  }
+
+  function buildProviderDetail(verification: ProviderVerificationView): ApiProviderDetail {
+    return mock<ApiProviderDetail>({ owner: "akash1p", verification });
+  }
+
+  function buildVerificationRequirement(): RpcVerificationRequirement {
+    return {
+      min_tier: "verification_tier_verified",
+      required_capabilities: ["capability_persistent_storage"],
+      required_auditors: ["akash1auditor"],
+      auditor_mode: "auditor_selection_mode_any",
+      min_auditor_count: 1
+    };
   }
 
   it.each([502, 503])("warns that the provider is not responding when lease status fails with %s", status => {
@@ -233,6 +294,7 @@ describe(PlacementCard.name, () => {
   function setup(input?: {
     lease?: LeaseDto;
     provider?: ApiProviderList;
+    providerDetail?: ApiProviderDetail | null;
     leaseStatus?: LeaseStatusDto | null;
     leaseStatusError?: unknown;
     isLeaseStatusPending?: boolean;
@@ -248,6 +310,8 @@ describe(PlacementCard.name, () => {
         isPending: !leaseStatus && !input?.leaseStatusError,
         isLoading: input?.isLeaseStatusPending ?? false
       });
+    const useProviderDetail: typeof DEPENDENCIES.useProviderDetail = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useProviderDetail>>({ data: input?.providerDetail ?? null });
     const useTeeResourceCarveouts: typeof DEPENDENCIES.useTeeResourceCarveouts = () => [];
 
     return render(
@@ -260,7 +324,7 @@ describe(PlacementCard.name, () => {
           placementServices={input?.placementServices}
           dseq="123"
           onClosed={vi.fn()}
-          dependencies={MockComponents(DEPENDENCIES, { useLeaseStatus, useTeeResourceCarveouts, ...input?.dependencies })}
+          dependencies={MockComponents(DEPENDENCIES, { useLeaseStatus, useProviderDetail, useTeeResourceCarveouts, ...input?.dependencies })}
         />
       </TooltipProvider>
     );

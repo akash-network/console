@@ -21,6 +21,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useWallet } from "@src/context/WalletProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useNetworkCapacity, useProviderList } from "@src/queries/useProvidersQuery";
 import networkStore from "@src/store/networkStore";
@@ -30,6 +31,7 @@ import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { Title } from "../shared/Title";
+import { hasAuditOrAttestation } from "./providerListFilters";
 import { ProviderMap } from "./ProviderMap";
 import { ProviderTable } from "./ProviderTable";
 
@@ -49,6 +51,7 @@ const sortOptions: { id: SortId; title: string }[] = [
 
 export const ProviderList: React.FunctionComponent = () => {
   const { address } = useWallet();
+  const isProviderVerificationEnabled = useFlag("provider_verification");
   const [pageIndex, setPageIndex] = useState(0);
   const [isFilteringActive, setIsFilteringActive] = useState(true);
   const [isFilteringFavorites, setIsFilteringFavorites] = useState(false);
@@ -109,7 +112,7 @@ export const ProviderList: React.FunctionComponent = () => {
       }
 
       if (isFilteringAudited) {
-        filteredProviders = filteredProviders.filter(x => x.isAudited);
+        filteredProviders = filteredProviders.filter(x => hasAuditOrAttestation(x, isProviderVerificationEnabled));
       }
 
       filteredProviders = filteredProviders.sort((a, b) => {
@@ -132,7 +135,7 @@ export const ProviderList: React.FunctionComponent = () => {
 
       setFilteredProviders(filteredProviders);
     }
-  }, [providers, isFilteringActive, isFilteringFavorites, isFilteringAudited, favoriteProviders, search, sort, leases]);
+  }, [providers, isFilteringActive, isFilteringFavorites, isFilteringAudited, favoriteProviders, search, sort, leases, isProviderVerificationEnabled]);
 
   const refresh = () => {
     getProviders();
@@ -228,7 +231,11 @@ export const ProviderList: React.FunctionComponent = () => {
                   <CheckboxWithLabel checked={isFilteringActive} onCheckedChange={onIsFilteringActiveClick} label="Active" />
                 </div>
                 <div>
-                  <CheckboxWithLabel checked={isFilteringAudited} onCheckedChange={onIsFilteringAuditedClick} label="Audited" />
+                  <CheckboxWithLabel
+                    checked={isFilteringAudited}
+                    onCheckedChange={onIsFilteringAuditedClick}
+                    label={isProviderVerificationEnabled ? "Audited or attested" : "Audited"}
+                  />
                 </div>
                 <div>
                   <CheckboxWithLabel checked={isFilteringFavorites} onCheckedChange={onIsFilteringFavoritesClick} label="Favorites" />

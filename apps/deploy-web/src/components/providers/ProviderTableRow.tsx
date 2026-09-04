@@ -17,13 +17,15 @@ import { UrlService } from "@src/utils/urlUtils";
 import { FavoriteButton } from "../shared/FavoriteButton";
 import { AuditorButton } from "./AuditorButton";
 import { CapacityIcon } from "./CapacityIcon";
+import { ProviderVerificationListCell } from "./ProviderVerificationListCell";
 import { Uptime } from "./Uptime";
 
 type Props = {
   provider: ClientProviderList;
+  showVerification: boolean;
 };
 
-export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) => {
+export const ProviderListRow: React.FunctionComponent<Props> = ({ provider, showVerification }) => {
   const router = useRouter();
   const { favoriteProviders, updateFavoriteProviders } = useLocalNotes();
   const isFavorite = favoriteProviders.some(x => provider.owner === x);
@@ -84,6 +86,11 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
           ) : (
             <span className="text-xs">{provider.hostUri}</span>
           )}
+        </TableCell>
+      )}
+      {showVerification && (
+        <TableCell>
+          <ProviderVerificationListCell verification={provider.verification} />
         </TableCell>
       )}
       <TableCell className="text-center">

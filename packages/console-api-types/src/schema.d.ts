@@ -3433,6 +3433,30 @@ export interface paths {
               workloadSupportChia: boolean;
               workloadSupportChiaCapabilities: string[] | null;
               featEndpointIp: boolean;
+              verification: {
+                provider: string;
+                moduleActive: boolean | null;
+                summary: {
+                  /**
+                   * @description Tier used by the chain tier gate, including active discrepancy grace
+                   * @enum {string|null}
+                   */
+                  effectiveTier: "L0" | "L1" | "L2" | "L3" | "L4" | "unknown" | null;
+                  validAuditorCount: number | null;
+                  capabilities:
+                    | ("unspecified" | "tee_hardware_attestation" | "confidential_computing" | "persistent_storage" | "bare_metal" | "unknown")[]
+                    | null;
+                  /** @enum {string} */
+                  snapshotState: "unknown" | "not_posted" | "current" | "stale" | "suspended";
+                  /** @enum {string} */
+                  maintenanceState: "unknown" | "none" | "scheduled" | "active";
+                  /** @enum {string} */
+                  reviewState: "unknown" | "none" | "under_review" | "grace";
+                };
+                /** Format: date-time */
+                observedAt: string;
+                observedHeight: string;
+              } | null;
             }[];
           };
         };
@@ -3561,6 +3585,247 @@ export interface paths {
               workloadSupportChia: boolean;
               workloadSupportChiaCapabilities: string[];
               featEndpointIp: boolean;
+              verification: {
+                provider: string;
+                /** @description Legacy, self-declared provider tier attribute; not an AEP-86 attestation */
+                providerDeclaredTier: string | null;
+                moduleActive: boolean | null;
+                provenance: {
+                  /** @enum {string} */
+                  providerTier: "provider self-declared";
+                  /** @enum {string} */
+                  inventory: "provider-signed inventory";
+                  /** @enum {string} */
+                  attestations: "auditor-attested";
+                };
+                summary: {
+                  /** @enum {string|null} */
+                  bestAttestedTier: "L0" | "L1" | "L2" | "L3" | "L4" | "unknown" | null;
+                  /**
+                   * @description Tier used by the chain tier gate, including active discrepancy grace
+                   * @enum {string|null}
+                   */
+                  effectiveTier: "L0" | "L1" | "L2" | "L3" | "L4" | "unknown" | null;
+                  capabilities:
+                    | ("unspecified" | "tee_hardware_attestation" | "confidential_computing" | "persistent_storage" | "bare_metal" | "unknown")[]
+                    | null;
+                  validAttestationCount: number | null;
+                  validAuditorCount: number | null;
+                  validAuditors: string[] | null;
+                  /** @enum {string} */
+                  snapshotState: "unknown" | "not_posted" | "current" | "stale" | "suspended";
+                  /** @enum {string} */
+                  maintenanceState: "unknown" | "none" | "scheduled" | "active";
+                  /** @enum {string} */
+                  reviewState: "unknown" | "none" | "under_review" | "grace";
+                };
+                attestations: {
+                  provider: string;
+                  auditor: string;
+                  /** @enum {string} */
+                  tier: "L0" | "L1" | "L2" | "L3" | "L4" | "unknown";
+                  capabilities: ("unspecified" | "tee_hardware_attestation" | "confidential_computing" | "persistent_storage" | "bare_metal" | "unknown")[];
+                  /** @description Base64-encoded bytes, or null when the chain field is empty */
+                  evidenceHash: string | null;
+                  fee: {
+                    denom: string;
+                    amount: string;
+                  } | null;
+                  /** @enum {string} */
+                  feeStatus: "unspecified" | "escrowed" | "released_to_auditor" | "returned_to_provider" | "unknown";
+                  /** Format: date-time */
+                  createdAt: string | null;
+                  /** Format: date-time */
+                  expiresAt: string | null;
+                  /** @enum {string} */
+                  status: "unspecified" | "valid" | "voided" | "expired" | "revoked" | "removed" | "unknown";
+                  /** @enum {string} */
+                  voidedReason: "unspecified" | "discrepancy" | "governance" | "bond_withdrawn" | "bond_slashed" | "unknown";
+                  deposit: {
+                    denom: string;
+                    amount: string;
+                  } | null;
+                  /** @enum {string} */
+                  depositStatus: "unspecified" | "escrowed" | "pending_discrepancy" | "returned_to_auditor" | "slashed" | "unknown";
+                  auditEscrowId: string;
+                  /** @enum {string} */
+                  faultAttribution: "unspecified" | "provider_fault" | "auditor_fault" | "shared_fault" | "no_fault" | "inconclusive" | "unknown";
+                }[];
+                bond: {
+                  provider: string;
+                  bondedAmount: {
+                    denom: string;
+                    amount: string;
+                  } | null;
+                  requiredForCurrentTier: {
+                    denom: string;
+                    amount: string;
+                  };
+                  unbondingEntries: {
+                    amount: {
+                      denom: string;
+                      amount: string;
+                    } | null;
+                    /** Format: date-time */
+                    completionTime: string | null;
+                  }[];
+                  slashed: boolean;
+                  /** Format: date-time */
+                  lastSlashTime: string | null;
+                } | null;
+                snapshot: {
+                  provider: string;
+                  /** @description Base64-encoded bytes, or null when the chain field is empty */
+                  snapshotHash: string | null;
+                  resourceSummary: {
+                    totalGpus: number;
+                    totalVcpus: number;
+                    totalMemoryMb: string;
+                    totalStorageMb: string;
+                    activeLeases: number;
+                    softwareVersion: string;
+                    /** @description Base64-encoded bytes, or null when the chain field is empty */
+                    softwareSignature: string | null;
+                    softwareIdentity: {
+                      version: string;
+                      artifactRef: string;
+                      digestAlgorithm: string;
+                      /** @description Base64-encoded bytes, or null when the chain field is empty */
+                      digest: string | null;
+                      signatureType: string;
+                      /** @description Base64-encoded bytes, or null when the chain field is empty */
+                      signature: string | null;
+                      signatureRef: string;
+                      publicKeyRef: string;
+                    } | null;
+                  } | null;
+                  /** Format: date-time */
+                  postedAt: string | null;
+                  /** Format: date-time */
+                  snapshotTimestamp: string | null;
+                  /** Format: date-time */
+                  complianceDeadline: string | null;
+                  suspended: boolean;
+                } | null;
+                grace: {
+                  id: string;
+                  provider: string;
+                  /** @enum {string} */
+                  preservedTier: "L0" | "L1" | "L2" | "L3" | "L4" | "unknown";
+                  sourceDiscrepancyIds: string[];
+                  /** Format: date-time */
+                  startedAt: string | null;
+                  /** Format: date-time */
+                  expiresAt: string | null;
+                  /** @enum {string} */
+                  status: "unspecified" | "active" | "expired" | "terminated" | "unknown";
+                } | null;
+                auditEscrows: {
+                  id: string;
+                  provider: string;
+                  consumedByAuditor: string | null;
+                  /** @enum {string} */
+                  requestedTier: "L0" | "L1" | "L2" | "L3" | "L4" | "unknown";
+                  requestedCapabilities: (
+                    | "unspecified"
+                    | "tee_hardware_attestation"
+                    | "confidential_computing"
+                    | "persistent_storage"
+                    | "bare_metal"
+                    | "unknown"
+                  )[];
+                  fee: {
+                    denom: string;
+                    amount: string;
+                  } | null;
+                  /** @enum {string} */
+                  feeStatus: "unspecified" | "escrowed" | "released_to_auditor" | "returned_to_provider" | "unknown";
+                  providerDeposit: {
+                    denom: string;
+                    amount: string;
+                  } | null;
+                  /** @enum {string} */
+                  providerDepositStatus: "unspecified" | "escrowed" | "returned_to_provider" | "slashed" | "unknown";
+                  /** @enum {string} */
+                  status: "unspecified" | "open" | "consumed" | "cancelled" | "expired" | "settled" | "unknown";
+                  /** Format: date-time */
+                  openedAt: string | null;
+                  /** Format: date-time */
+                  consumedAt: string | null;
+                  /** Format: date-time */
+                  expiresAt: string | null;
+                  /** @description Base64-encoded bytes, or null when the chain field is empty */
+                  metadataHash: string | null;
+                  /** @enum {string} */
+                  settlementReason: "unspecified" | "cancelled_unconsumed" | "expired_unconsumed" | "provider_fault" | "no_fault" | "unknown";
+                  /** @enum {string} */
+                  faultAttribution: "unspecified" | "provider_fault" | "auditor_fault" | "shared_fault" | "no_fault" | "inconclusive" | "unknown";
+                }[];
+                maintenance: {
+                  record: {
+                    id: string;
+                    provider: string;
+                    /** @enum {string} */
+                    maintenanceType: "unspecified" | "planned" | "emergency" | "security" | "network" | "capacity" | "unknown";
+                    /** Format: date-time */
+                    startsAt: string | null;
+                    /** Format: date-time */
+                    expectedEndsAt: string | null;
+                    /** Format: date-time */
+                    openedAt: string | null;
+                    /** Format: date-time */
+                    closedAt: string | null;
+                    /** @description Base64-encoded bytes, or null when the chain field is empty */
+                    metadataHash: string | null;
+                  } | null;
+                  /** @enum {string} */
+                  status: "unspecified" | "scheduled" | "active" | "elapsed" | "closed" | "unknown";
+                }[];
+                discrepancies: {
+                  id: string;
+                  provider: string;
+                  auditorA: string;
+                  /** @enum {string} */
+                  auditorATier: "L0" | "L1" | "L2" | "L3" | "L4" | "unknown";
+                  auditorB: string;
+                  /** @enum {string} */
+                  auditorBTier: "L0" | "L1" | "L2" | "L3" | "L4" | "unknown";
+                  /** Format: date-time */
+                  timestamp: string | null;
+                  /** @enum {string} */
+                  resolutionStatus: "unspecified" | "pending" | "resolved" | "timed_out" | "unknown";
+                  resolutionProposalId: string;
+                  graceRecordId: string;
+                  /** @enum {string} */
+                  resolutionReason:
+                    | "unspecified"
+                    | "auditor_a_correct"
+                    | "auditor_b_correct"
+                    | "both_auditors_wrong"
+                    | "provider_fault"
+                    | "shared_fault"
+                    | "evidence_inconclusive"
+                    | "governance_timeout_review"
+                    | "unknown";
+                  /** @enum {string} */
+                  faultAttribution: "unspecified" | "provider_fault" | "auditor_fault" | "shared_fault" | "no_fault" | "inconclusive" | "unknown";
+                  /** @description Base64-encoded bytes, or null when the chain field is empty */
+                  resolutionEvidenceHash: string | null;
+                }[];
+                /** Format: date-time */
+                observedAt: string;
+                observedHeight: string;
+                completeness: {
+                  params: boolean;
+                  attestations: boolean;
+                  graces: boolean;
+                  snapshot: boolean;
+                  bond: boolean;
+                  auditEscrows: boolean;
+                  maintenance: boolean;
+                  discrepancies: boolean;
+                };
+              } | null;
               uptime: {
                 id: string;
                 isOnline: boolean;
@@ -8810,6 +9075,17 @@ export interface operations {
                */
               value: string;
             }[];
+            verification?: {
+              minTier: 0 | 1 | 2 | 3 | 4;
+              /** @default [] */
+              requiredCapabilities?: (1 | 2 | 3 | 4)[];
+              /** @default [] */
+              requiredAuditors?: string[];
+              /** @default 0 */
+              auditorMode?: 0 | 1 | 2;
+              /** @default 0 */
+              minAuditorCount?: number;
+            };
           };
           /** @description Resource units with replica counts */
           resources: {
@@ -8954,6 +9230,40 @@ export interface operations {
                * @example Akash
                */
               organization: string | null;
+              verification?:
+                | {
+                    /** @enum {string} */
+                    outcome: "pass";
+                    summary: {
+                      /** @enum {integer} */
+                      bestStatusValidTier: 0 | 1 | 2 | 3 | 4 | -1;
+                      /** @enum {integer} */
+                      tierGateTier: 0 | 1 | 2 | 3 | 4 | -1;
+                      capabilities: (0 | 1 | 2 | 3 | 4 | -1)[];
+                      validAttestationCount: number;
+                      validAuditors: string[];
+                      /** @enum {string} */
+                      snapshotState: "unknown" | "not_posted" | "current" | "stale" | "suspended";
+                      observedHeight: string;
+                    };
+                  }
+                | {
+                    /** @enum {string} */
+                    outcome: "not_evaluated";
+                    incompleteFacts: ("params" | "attestations" | "graces" | "snapshot" | "module_inactive")[];
+                    summary: {
+                      /** @enum {integer} */
+                      bestStatusValidTier: 0 | 1 | 2 | 3 | 4 | -1;
+                      /** @enum {integer} */
+                      tierGateTier: 0 | 1 | 2 | 3 | 4 | -1;
+                      capabilities: (0 | 1 | 2 | 3 | 4 | -1)[];
+                      validAttestationCount: number;
+                      validAuditors: string[];
+                      /** @enum {string} */
+                      snapshotState: "unknown" | "not_posted" | "current" | "stale" | "suspended";
+                      observedHeight: string;
+                    };
+                  };
               /** @description Per-day downtime over a rolling 7-day window */
               incidents: {
                 /**
@@ -8968,6 +9278,102 @@ export interface operations {
                 /** @description Downtime clipped to that day, in seconds (max 86400) */
                 downtimeSeconds: number;
               }[];
+            }[];
+            exclusions?: {
+              owner: string;
+              firstFailure:
+                | {
+                    /** @enum {string} */
+                    code: "snapshot_not_posted";
+                  }
+                | {
+                    /** @enum {string} */
+                    code: "snapshot_suspended";
+                  }
+                | {
+                    /** @enum {string} */
+                    code: "snapshot_stale";
+                  }
+                | {
+                    /** @enum {string} */
+                    code: "insufficient_tier";
+                    /** @enum {integer} */
+                    actual: 0 | 1 | 2 | 3 | 4 | -1;
+                    /** @enum {integer} */
+                    required: 0 | 1 | 2 | 3 | 4 | -1;
+                  }
+                | {
+                    /** @enum {string} */
+                    code: "missing_capability";
+                    /** @enum {integer} */
+                    capability: 0 | 1 | 2 | 3 | 4 | -1;
+                  }
+                | {
+                    /** @enum {string} */
+                    code: "insufficient_auditor_count";
+                    actual: number;
+                    required: number;
+                  }
+                | {
+                    /** @enum {string} */
+                    code: "required_auditor_not_found";
+                    /** @enum {integer} */
+                    mode: 0 | 1 | 2 | -1;
+                    missing: string[];
+                  };
+              failures: (
+                | {
+                    /** @enum {string} */
+                    code: "snapshot_not_posted";
+                  }
+                | {
+                    /** @enum {string} */
+                    code: "snapshot_suspended";
+                  }
+                | {
+                    /** @enum {string} */
+                    code: "snapshot_stale";
+                  }
+                | {
+                    /** @enum {string} */
+                    code: "insufficient_tier";
+                    /** @enum {integer} */
+                    actual: 0 | 1 | 2 | 3 | 4 | -1;
+                    /** @enum {integer} */
+                    required: 0 | 1 | 2 | 3 | 4 | -1;
+                  }
+                | {
+                    /** @enum {string} */
+                    code: "missing_capability";
+                    /** @enum {integer} */
+                    capability: 0 | 1 | 2 | 3 | 4 | -1;
+                  }
+                | {
+                    /** @enum {string} */
+                    code: "insufficient_auditor_count";
+                    actual: number;
+                    required: number;
+                  }
+                | {
+                    /** @enum {string} */
+                    code: "required_auditor_not_found";
+                    /** @enum {integer} */
+                    mode: 0 | 1 | 2 | -1;
+                    missing: string[];
+                  }
+              )[];
+              summary: {
+                /** @enum {integer} */
+                bestStatusValidTier: 0 | 1 | 2 | 3 | 4 | -1;
+                /** @enum {integer} */
+                tierGateTier: 0 | 1 | 2 | 3 | 4 | -1;
+                capabilities: (0 | 1 | 2 | 3 | 4 | -1)[];
+                validAttestationCount: number;
+                validAuditors: string[];
+                /** @enum {string} */
+                snapshotState: "unknown" | "not_posted" | "current" | "stale" | "suspended";
+                observedHeight: string;
+              };
             }[];
           };
         };

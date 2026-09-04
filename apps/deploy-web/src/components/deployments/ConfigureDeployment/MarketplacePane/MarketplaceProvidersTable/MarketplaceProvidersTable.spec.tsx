@@ -1,10 +1,12 @@
 import { IntlProvider } from "react-intl";
+import { CapabilityFlag, VerificationTier } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { format, subDays } from "date-fns";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { PlacementOffer } from "@src/queries/usePlacementOffers";
+import type { ProviderVerificationExclusion } from "@src/queries/useScreenedProviders";
 import { MarketplaceProvidersTable } from "./MarketplaceProvidersTable";
 
 import { render, screen, within } from "@testing-library/react";
@@ -31,6 +33,29 @@ describe(MarketplaceProvidersTable.name, () => {
     setup({ providers: [buildOffer({ hostUri: "https://a.example:8443", location: null })] });
 
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+  });
+
+  it("shows auditor-attested facts for an eligible provider when verification is enabled", () => {
+    setup({ providers: [verifiedOffer()], verificationEnabled: true });
+
+    expect(screen.getByText("Auditor-attested L2")).toBeInTheDocument();
+    expect(screen.getByText("2 auditors")).toBeInTheDocument();
+    expect(screen.getByText("Persistent storage")).toBeInTheDocument();
+    expect(screen.getByText("Provider-signed inventory: current")).toBeInTheDocument();
+  });
+
+  it("does not expose verification facts while the feature flag is off", () => {
+    setup({ providers: [verifiedOffer()], verificationEnabled: false });
+
+    expect(screen.queryByText("Auditor-attested L2")).not.toBeInTheDocument();
+  });
+
+  it("shows the first exclusion reason and provides the full failure set", async () => {
+    setup({ providers: [verifiedOffer()], verificationEnabled: true, exclusions: [verificationExclusion()] });
+
+    expect(screen.getAllByText(/Auditor-attested tier is L1; L2 is required/)).not.toHaveLength(0);
+    await userEvent.click(screen.getByText("View all 2 reasons"));
+    expect(screen.getByText("Missing auditor-attested capability: Persistent storage")).toBeInTheDocument();
   });
 
   it("sorts rows by provider host when the Provider header is toggled ascending", async () => {
@@ -122,6 +147,22 @@ describe(MarketplaceProvidersTable.name, () => {
 
     expect(screen.getByText("No providers found.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /clear search/i })).not.toBeInTheDocument();
+  });
+
+  it("shows an actionable empty state when no provider meets the verification policy", () => {
+    setup({ providers: [], verificationEnabled: true, verificationRequired: true });
+
+    expect(screen.getByText("No providers currently meet this verification policy.")).toBeInTheDocument();
+    expect(screen.getByText(/lower tier/i)).toBeInTheDocument();
+    expect(screen.queryByText("No providers found.")).not.toBeInTheDocument();
+  });
+
+  it("keeps the actionable verification empty state above provider exclusions", () => {
+    setup({ providers: [], verificationEnabled: true, verificationRequired: true, exclusions: [verificationExclusion()] });
+
+    expect(screen.getByText("No providers currently meet this verification policy.")).toBeInTheDocument();
+    expect(screen.getByText(/review the exclusions below/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Auditor-attested tier is L1; L2 is required/)).not.toHaveLength(0);
   });
 
   it("omits the clear action in the search empty state when no clear handler is provided", () => {
@@ -329,6 +370,57 @@ describe(MarketplaceProvidersTable.name, () => {
     });
   }
 
+  function verifiedOffer(): PlacementOffer {
+    return mock<PlacementOffer>({
+      offerState: "searching",
+      owner: "akash1verified",
+      organization: "Verified Provider",
+      hostUri: "https://verified.example:8443",
+      location: "us-west",
+      incidents: [],
+      verification: {
+        outcome: "pass",
+        summary: {
+          bestStatusValidTier: VerificationTier.verification_tier_verified,
+          tierGateTier: VerificationTier.verification_tier_verified,
+          capabilities: [CapabilityFlag.capability_persistent_storage],
+          validAttestationCount: 2,
+          validAuditors: ["akash1auditor1", "akash1auditor2"],
+          snapshotState: "current",
+          observedHeight: "123"
+        }
+      }
+    });
+  }
+
+  function verificationExclusion(): ProviderVerificationExclusion {
+    return {
+      owner: "akash1excluded",
+      firstFailure: {
+        code: "insufficient_tier",
+        actual: VerificationTier.verification_tier_identified,
+        required: VerificationTier.verification_tier_verified
+      },
+      failures: [
+        {
+          code: "insufficient_tier",
+          actual: VerificationTier.verification_tier_identified,
+          required: VerificationTier.verification_tier_verified
+        },
+        { code: "missing_capability", capability: CapabilityFlag.capability_persistent_storage }
+      ],
+      summary: {
+        bestStatusValidTier: VerificationTier.verification_tier_identified,
+        tierGateTier: VerificationTier.verification_tier_identified,
+        capabilities: [],
+        validAttestationCount: 1,
+        validAuditors: ["akash1auditor"],
+        snapshotState: "not_posted",
+        observedHeight: "123"
+      }
+    };
+  }
+
   function setup(input: {
     providers: PlacementOffer[];
     isLoading?: boolean;
@@ -338,6 +430,9 @@ describe(MarketplaceProvidersTable.name, () => {
     isSelectable?: boolean;
     gpuCount?: number;
     showProviderLink?: boolean;
+    verificationEnabled?: boolean;
+    verificationRequired?: boolean;
+    exclusions?: ProviderVerificationExclusion[];
   }) {
     const onSelect = vi.fn();
     const user = userEvent.setup();
@@ -347,6 +442,9 @@ describe(MarketplaceProvidersTable.name, () => {
           <TooltipProvider>
             <MarketplaceProvidersTable
               providers={input.providers}
+              exclusions={input.exclusions}
+              verificationEnabled={input.verificationEnabled}
+              verificationRequired={input.verificationRequired}
               isLoading={input.isLoading}
               isSearchActive={input.isSearchActive}
               onClearSearch={input.onClearSearch}
