@@ -10,17 +10,20 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.service";
+import { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { CORE_CONFIG } from "@src/core";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
+import { SecretCipherService } from "@src/secret/services/secret-cipher/secret-cipher.service";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
@@ -1274,20 +1277,57 @@ describe("Deployments API", () => {
       expect(setting?.sdl).toContain("INHERITED_FROM_HOST");
     });
 
-    it("records an sdl carrying none of the submitted env values", async () => {
+    it("records an sdl carrying none of the submitted env values, referencing a sealed one in each place", async () => {
       const { setting } = await updateDeploymentWithSecrets();
 
       expect(setting?.sdl).not.toContain("PLACEHOLDER_API_TOKEN");
       expect(setting?.sdl).not.toContain("PLACEHOLDER_DB_PASSWORD");
       expect(setting?.sdl).not.toContain("db.example.test");
+      expect(setting?.sdl).toContain("API_TOKEN=ac-secret://s0_e0");
+      expect(setting?.sdl).toContain("DATABASE_URL=ac-secret://s0_e1");
+      expect(setting?.sealedSecrets).toEqual(expect.any(String));
     });
 
-    it("records an sdl carrying none of the submitted registry credentials", async () => {
+    it("records an sdl referencing both halves of the submitted registry credentials and carrying neither", async () => {
       const { setting } = await updateDeploymentWithSecrets();
 
+      expect(setting?.sdl).not.toContain("PLACEHOLDER_REGISTRY_USERNAME");
       expect(setting?.sdl).not.toContain("PLACEHOLDER_REGISTRY_PASSWORD");
-      expect(setting?.sdl).not.toContain("registry.example.test");
-      expect(setting?.sdl).not.toContain("credentials");
+      expect(setting?.sdl).toContain("username: ac-secret://s0_c_username");
+      expect(setting?.sdl).toContain("password: ac-secret://s0_c_password");
+    });
+
+    it("records an sdl keeping the registry host and email, which carry no secret", async () => {
+      const { setting } = await updateDeploymentWithSecrets();
+
+      expect(setting?.sdl).toContain("host: registry.example.test");
+      expect(setting?.sdl).toContain("email: placeholder@example.test");
+    });
+
+    it("stores a token bound to the deployment it updated, opening to every value the sdl carried", async () => {
+      const { user, setting } = await updateDeploymentWithSecrets();
+
+      await expect(openStoredToken(user, setting!.dseq, setting!.sealedSecrets!)).resolves.toEqual({
+        s0_e0: "PLACEHOLDER_API_TOKEN",
+        s0_e1: "postgres://placeholder:PLACEHOLDER_DB_PASSWORD@db.example.test:5432/app?ssl=true",
+        s0_c_username: "PLACEHOLDER_REGISTRY_USERNAME",
+        s0_c_password: "PLACEHOLDER_REGISTRY_PASSWORD"
+      });
+    });
+
+    it("refuses an update that resubmits the sdl it stored, whose references it holds no values for", async () => {
+      const { userApiKeySecret, user, dseq } = await setupUpdatableDeployment();
+      await putDeployment({ userApiKeySecret, dseq, sdlMock: "hello-world-sdl-with-secrets.yml" });
+      const stored = await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id, dseq });
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "PUT",
+        body: JSON.stringify({ data: { sdl: stored?.sdl } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.text()).toContain("ac-secret://s0_e0");
     });
 
     it("records an sdl that is still a deployable SDL", async () => {
@@ -1385,6 +1425,14 @@ describe("Deployments API", () => {
       });
     }
 
+    async function openStoredToken(user: { id: string }, dseq: string, token: string) {
+      return await container.resolve(ExecutionContextService).runWithContext(async () => {
+        container.resolve(AuthService).currentUser = { id: user.id } as never;
+
+        return JSON.parse(await container.resolve(SecretCipherService).decrypt(user.id, token, { sub: user.id, dseq })) as Record<string, string>;
+      });
+    }
+
     async function setupUpdatableDeployment() {
       const { userApiKeySecret, user, wallets } = await mockPersistedUser();
       const dseq = "1234";
@@ -1410,7 +1458,7 @@ describe("Deployments API", () => {
 
       expect(response.status).toBe(200);
 
-      return { setting: await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id, dseq }) };
+      return { user, setting: await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id, dseq }) };
     }
   });
 

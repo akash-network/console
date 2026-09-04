@@ -213,6 +213,24 @@ describe(SdlSecretsDerivationService.name, () => {
     });
   });
 
+  it("resolves back to the values it took out after the document has been through yaml and back", () => {
+    const { service, sdlReferenceService } = setup();
+    const values = [
+      "a: b #c |x >y {z} [w] &anchor *alias \"q\" 's'",
+      "line\nbreak\ttab",
+      "-----BEGIN KEY-----\nMIIBogIBAAJ/\\slash\n-----END KEY-----",
+      "  leading and trailing  "
+    ];
+    const rewritten = documentWith({ web: { env: values.map((value, index) => `V${index}=${value}`) } });
+
+    const { secrets } = service.derive(rewritten, { includeEnvValues: true });
+    const reparsed = yaml.raw<SDLInput>(dump(rewritten, { lineWidth: -1 }));
+    const byService = Object.fromEntries(Object.keys(reparsed.services).map(serviceName => [serviceName, secrets]));
+
+    expect(sdlReferenceService.substitute(reparsed, { secrets: byService })).toEqual([]);
+    expect(reparsed.services.web.env).toEqual(values.map((value, index) => `V${index}=${value}`));
+  });
+
   it("leaves a document that resolves back to the one it was given", () => {
     const { service, sdlReferenceService } = setup();
     const services = {

@@ -93,6 +93,9 @@ const SDL_TOO_LONG_ONCE_VALUES_ARE_KEPT = sdlAround(`    env:
 ${Array.from({ length: 40 }, () => `      - FILLER=${"z".repeat(4096)}`).join("\n")}
 `);
 
+/** A valid SDL with nothing in it worth sealing, so a write that must state a token has null to state. */
+const SDL_WITHOUT_SECRETS = sdlAround("");
+
 /** Short enough to survive `js-yaml` truncating the line it quotes, so a partial leak of it is still detectable. */
 const MALFORMED_SDL_VALUE = faker.string.alphanumeric(10);
 
@@ -1031,33 +1034,77 @@ describe(DeploymentWriterService.name, () => {
       expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ provider: "provider-2" }));
     });
 
-    it("records the sdl and the manifest version it re-commits", async () => {
-      const { service, deploymentSettingRepository } = setup();
+    it("records the sdl, the manifest version it re-commits and the token it sealed", async () => {
+      const { service, deploymentSettingRepository } = setup({ sealedSecrets: SEALED_TOKEN });
 
       await service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS });
 
       expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith({
         userId: wallet.userId,
         dseq: "100",
-        sdl: expect.stringContaining("API_TOKEN="),
-        manifestVersion: "BAUG"
+        sdl: expect.stringContaining("API_TOKEN=ac-secret://s0_e0"),
+        manifestVersion: "BAUG",
+        sealedSecrets: SEALED_TOKEN
       });
     });
 
-    it("records an sdl carrying none of the submitted env values", async () => {
+    it("seals every value of the sdl it was resubmitted, against the dseq it is updating", async () => {
+      const { service, sdlSecretsService } = setup();
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS });
+
+      expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith({
+        userId: wallet.userId,
+        dseq: "100",
+        secrets: { s0_e0: ENV_VALUE, s0_c_username: REGISTRY_USERNAME, s0_c_password: REGISTRY_PASSWORD }
+      });
+    });
+
+    it("states an absent token rather than leaving the create's beside an sdl that no longer references it", async () => {
+      const { service, deploymentSettingRepository } = setup({ sealedSecrets: null });
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITHOUT_SECRETS });
+
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ sealedSecrets: null }));
+    });
+
+    it("seals only after everything that could still refuse the update has run", async () => {
+      const { service, sdlSecretsService, deploymentReaderService } = setup();
+      deploymentReaderService.findByWalletAndDseq.mockRejectedValue(new NotFound("Deployment not found"));
+
+      await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS })).rejects.toMatchObject({ status: 404 });
+
+      expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+    });
+
+    it("records nothing and sends no manifest for an update it cannot seal", async () => {
+      const { service, sdlSecretsService, deploymentSettingRepository, providerService } = setup();
+      sdlSecretsService.sealForStorage.mockRejectedValue(createError(503, "Service temporarily unavailable"));
+
+      await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS })).rejects.toMatchObject({ status: 503 });
+
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("records an sdl carrying none of the submitted env values, referencing a sealed one in each place", async () => {
       const { service, deploymentSettingRepository } = setup();
 
       await service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS });
 
       expect(recordedSdlOf(deploymentSettingRepository)).not.toContain(ENV_VALUE);
+      expect(recordedSdlOf(deploymentSettingRepository)).toContain("API_TOKEN=ac-secret://s0_e0");
     });
 
-    it("records an sdl carrying none of the submitted registry credentials", async () => {
+    it("records an sdl referencing both halves of the submitted registry credentials and carrying neither", async () => {
       const { service, deploymentSettingRepository } = setup();
 
       await service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS });
 
       expect(recordedSdlOf(deploymentSettingRepository)).not.toContain(REGISTRY_PASSWORD);
+      expect(recordedSdlOf(deploymentSettingRepository)).not.toContain(REGISTRY_USERNAME);
+      expect(recordedSdlOf(deploymentSettingRepository)).toContain("username: ac-secret://s0_c_username");
+      expect(recordedSdlOf(deploymentSettingRepository)).toContain("password: ac-secret://s0_c_password");
     });
 
     it("records the definition even when the manifest version already matches the chain", async () => {
