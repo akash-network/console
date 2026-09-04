@@ -208,11 +208,7 @@ export class ManagedSignerService {
     }
   }
 
-  /**
-   * Recorded from the landed transaction because neither the deployment API's close nor the raw transaction endpoint
-   * writes the record, and ahead of the rest of the post-broadcast work so a batch that also creates cannot lose the
-   * close to an unrelated publish failure. A record that fails to write must never fail a close the chain accepted.
-   */
+  /** No close path writes this record, and it runs before the other post-broadcast work so a rejected publish cannot drop an accepted close. */
   async #recordClosedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[]) {
     for (const dseq of this.#findDeploymentDseqs(messages, ".MsgCloseDeployment")) {
       try {
