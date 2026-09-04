@@ -7,6 +7,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.repository";
@@ -1430,7 +1431,7 @@ describe("Deployments API", () => {
 
     async function openStoredToken(user: { id: string }, dseq: string, token: string) {
       return await container.resolve(ExecutionContextService).runWithContext(async () => {
-        container.resolve(AuthService).currentUser = { id: user.id } as never;
+        container.resolve(AuthService).currentUser = mock<UserOutput>({ id: user.id });
 
         return await container.resolve(SdlSecretsService).openStored({ userId: user.id, dseq, sealedSecrets: token });
       });
@@ -1476,7 +1477,7 @@ describe("Deployments API", () => {
       const response = await postLeases({ userApiKeySecret, dseq, manifest: '{"deliberately":"wrong"}' });
 
       expect(response.status).toBe(200);
-      expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ manifest: manifestOf(sdl) }));
+      expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ manifest: await manifestOf(sdl) }));
       expect(providerService.sendManifest).not.toHaveBeenCalledWith(expect.objectContaining({ manifest: '{"deliberately":"wrong"}' }));
     });
 
@@ -1492,7 +1493,7 @@ describe("Deployments API", () => {
       expect(response.status).toBe(200);
       expect(providerService.sendManifest).toHaveBeenCalledTimes(2);
       const sent = vi.mocked(providerService.sendManifest).mock.calls.map(([options]) => options.manifest);
-      expect(sent).toEqual([manifestOf(sdlWithEnvEntry(`API_TOKEN=${token}`)), manifestOf(sdlWithEnvEntry(`API_TOKEN=${token}`))]);
+      expect(sent).toEqual([await manifestOf(sdlWithEnvEntry(`API_TOKEN=${token}`)), await manifestOf(sdlWithEnvEntry(`API_TOKEN=${token}`))]);
       expect(sent.join("")).not.toContain("ac-secret://");
     });
 
@@ -1597,8 +1598,8 @@ describe("Deployments API", () => {
       return sdlMock("hello-world-sdl.yml").replace("    expose:", `    env:\n      - "${entry}"\n    expose:`);
     }
 
-    function manifestOf(sdl: string) {
-      const result = container.resolve(SdlService).generateManifest(sdl);
+    async function manifestOf(sdl: string) {
+      const result = await container.resolve(SdlService).generateManifest(sdl);
 
       return manifestToSortedJSON((result as Extract<typeof result, { ok: true }>).value.groups);
     }
@@ -1620,7 +1621,7 @@ describe("Deployments API", () => {
 
     async function sealForStorage(user: { id: string }, dseq: string, secrets: Record<string, string>) {
       return await container.resolve(ExecutionContextService).runWithContext(async () => {
-        container.resolve(AuthService).currentUser = { id: user.id } as never;
+        container.resolve(AuthService).currentUser = mock<UserOutput>({ id: user.id });
 
         return await container.resolve(SdlSecretsService).sealForStorage({ userId: user.id, dseq, secrets });
       });
