@@ -236,6 +236,19 @@ export class SdlReferenceService {
     return declarations;
   }
 
+  /** A reserved value counts as one, because it stands exactly where a reference stands and nothing may accept a client's manifest for the position it holds. */
+  hasAnyReference(sdl: SDLInput): boolean {
+    let found = false;
+
+    const reserved = this.#eachReference(sdl, () => {
+      found = true;
+
+      return undefined;
+    });
+
+    return found || reserved.length > 0;
+  }
+
   #eachReference(sdl: SDLInput, visit: SdlReferenceVisitor): ValidationError[] {
     const errors: ValidationError[] = [];
 
