@@ -7,6 +7,7 @@ import { DepositDeploymentMsgOptions, RpcMessageService } from "@src/billing/ser
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
+import { isUnknownTxOutcome } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { needsCreditsLowTransition } from "@src/billing/services/wallet-credits-low-check/credits-low-transition";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
@@ -15,6 +16,7 @@ import type { DryRunOptions } from "@src/core/types/console";
 import { DeploymentSettingRepository, type FundingClaim } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { AutoTopUpOwnerDeployments, DrainingDeployment } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
+import { ReconcileManagedTxJobService } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx-job.service";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { CachedBalance, CachedBalanceService } from "../cached-balance/cached-balance.service";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
@@ -24,6 +26,11 @@ import { TopUpManagedDeploymentsInstrumentationService } from "./top-up-managed-
 
 /** Bounds how long one owner's backlog of closed deployments can hold the sweep, which converges over the passes that follow. */
 const MAX_CLOSED_DEPLOYMENT_DROPS = 3;
+
+/** A deposit whose transaction may still land, which no retry may follow until the chain has said what became of it. */
+type UndecidedDeposit = { status: "undecided"; txHash?: string };
+
+type OwnerFundingOutcome = { status: "deposited" } | { status: "failed" } | UndecidedDeposit;
 
 type DepositSize = {
   affordableAmount: number;
@@ -40,6 +47,7 @@ type CollectedMessage = {
 export class TopUpManagedDeploymentsService {
   constructor(
     private readonly managedSignerService: ManagedSignerService,
+    private readonly reconcileManagedTxJobService: ReconcileManagedTxJobService,
     private readonly billingConfig: BillingConfigService,
     private readonly drainingDeploymentService: DrainingDeploymentService,
     private readonly rpcClientService: RpcMessageService,
@@ -178,16 +186,16 @@ export class TopUpManagedDeploymentsService {
     }
 
     const preparedClaims = claims.filter(claim => preparedIds.has(claim.id));
-    let deposited = false;
+    let outcome: OwnerFundingOutcome = { status: "failed" };
 
     try {
-      deposited = await this.topUpForOwner(address, messageInputs, options, instrumentation);
+      outcome = await this.topUpForOwner(address, messageInputs, options, instrumentation);
     } finally {
-      await this.#releaseFundingClaims(
-        address,
-        deposited ? this.#runtimeCappedClaims(preparedClaims, messageInputs, currentHeight) : preparedClaims,
-        instrumentation
-      );
+      await this.#releaseFundingClaims(address, this.#claimsToRelease(outcome, preparedClaims, messageInputs, currentHeight), instrumentation);
+    }
+
+    if (outcome.status === "undecided") {
+      await this.#scheduleReconciliation(address, outcome, preparedClaims);
     }
 
     await this.walletReloadService.scheduleImmediate({ walletId });
@@ -279,6 +287,31 @@ export class TopUpManagedDeploymentsService {
       deployments.map(deployment => deployment.id),
       this.deploymentConfig.get("AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN")
     );
+  }
+
+  /**
+   * An undecided deposit keeps every claim it took: the cooldown is the only thing standing between a transaction that
+   * may still land and a second deposit for the same deployment, and it holds until the chain has been asked.
+   */
+  #claimsToRelease(outcome: OwnerFundingOutcome, preparedClaims: FundingClaim[], messageInputs: CollectedMessage[], currentHeight: number): FundingClaim[] {
+    if (outcome.status === "undecided") {
+      return [];
+    }
+
+    return outcome.status === "deposited" ? this.#runtimeCappedClaims(preparedClaims, messageInputs, currentHeight) : preparedClaims;
+  }
+
+  /**
+   * Asks the chain what became of the transaction once its TTL has certainly passed. The held claims are what prevent a
+   * double deposit; this only shortens how long they hold when nothing landed, so a deposit with no hash to ask about
+   * simply lets them age out.
+   */
+  async #scheduleReconciliation(owner: string, deposit: UndecidedDeposit, claims: FundingClaim[]): Promise<void> {
+    if (!deposit.txHash) {
+      return;
+    }
+
+    await this.reconcileManagedTxJobService.schedule({ txHash: deposit.txHash, owner, claims });
   }
 
   /** A deposit the runtime limit shortened must not hold the cooldown, or a user extending that limit goes unfunded until the claim ages out. */
@@ -459,20 +492,21 @@ export class TopUpManagedDeploymentsService {
   }
 
   /**
-   * Re-broadcasting without a closed deployment is safe only because both classified shapes prove the tx was
-   * rejected whole: a fee estimation never broadcasts, and a non-zero tx code means every message reverted.
-   * The closed deployment keeps the balance it reserved, which only leaves the survivors a smaller allowance
-   * than they were already sized against before the batch was sent.
+   * Re-broadcasting without a closed deployment is safe only because the shapes it re-broadcasts on prove the tx was
+   * rejected whole: a fee estimation never broadcasts, and a non-zero tx code means every message reverted. A tx that
+   * may still land satisfies neither, so it leaves here undecided instead of being retried. The closed deployment
+   * keeps the balance it reserved, which only leaves the survivors a smaller allowance than they were already sized
+   * against before the batch was sent.
    */
   private async topUpForOwner(
     owner: string,
     ownerInputs: CollectedMessage[],
     options: DryRunOptions,
     instrumentation: DeploymentTopUpInstrumentation
-  ): Promise<boolean> {
+  ): Promise<OwnerFundingOutcome> {
     if (options.dryRun) {
       this.#recordDeposit(instrumentation, { owner, items: ownerInputs });
-      return true;
+      return { status: "deposited" };
     }
 
     const { address, walletIsTrialing: isTrialing, walletCreatedAt: createdAt, walletActivatedAt: activatedAt } = ownerInputs[0].deployment;
@@ -482,7 +516,7 @@ export class TopUpManagedDeploymentsService {
       feeAllowance = await this.managedSignerService.ensureFeeGrants({ address, isTrialing, createdAt, activatedAt });
     } catch (error: unknown) {
       await this.#recordOwnerFundingFailure({ owner, items: ownerInputs, error, instrumentation });
-      return false;
+      return { status: "failed" };
     }
 
     if (feeAllowance <= 0) {
@@ -491,7 +525,7 @@ export class TopUpManagedDeploymentsService {
         items: ownerInputs,
         error: new Error(`Fee grant missing for wallet ${owner}, unable to top up deployments`)
       });
-      return false;
+      return { status: "failed" };
     }
 
     const walletId = ownerInputs[0].deployment.walletId;
@@ -503,14 +537,19 @@ export class TopUpManagedDeploymentsService {
 
       if (!failure) {
         this.#recordDeposit(instrumentation, { owner, items: remaining });
-        return true;
+        return { status: "deposited" };
+      }
+
+      if (isUnknownTxOutcome(failure)) {
+        instrumentation.recordUndecidedTxOutcome({ owner, items: remaining, txHash: failure.txHash, error: failure });
+        return { status: "undecided", txHash: failure.txHash };
       }
 
       const closedIndex = this.chainErrorService.getClosedDeploymentMessageIndex(failure, remaining.length);
 
       if (closedIndex === undefined) {
         await this.#recordOwnerFundingFailure({ owner, items: remaining, error: failure, instrumentation });
-        return false;
+        return { status: "failed" };
       }
 
       await this.#markDeploymentClosed({ owner, item: remaining[closedIndex], messageIndex: closedIndex, error: failure, instrumentation });
@@ -518,11 +557,11 @@ export class TopUpManagedDeploymentsService {
 
       if (++closedDeploymentsDropped >= MAX_CLOSED_DEPLOYMENT_DROPS && remaining.length) {
         instrumentation.recordClosedDeploymentRetryLimit({ owner, remainingCount: remaining.length });
-        return false;
+        return { status: "failed" };
       }
     }
 
-    return false;
+    return { status: "failed" };
   }
 
   /** Runs the master-wallet classification for every failure that stops an owner's funding, whichever chain call raised it. */

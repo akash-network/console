@@ -11,6 +11,7 @@ import { RpcMessageService } from "@src/billing/services";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
+import { TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
@@ -23,6 +24,7 @@ import type {
   DrainingDeployment,
   DrainingDeploymentService
 } from "@src/deployment/services/draining-deployment/draining-deployment.service";
+import type { ReconcileManagedTxJobService } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx-job.service";
 import { mockConfigService } from "../../../../test/mocks/config-service.mock";
 import { CachedBalance, type CachedBalanceService } from "../cached-balance/cached-balance.service";
 import type { FundDrainingDeploymentsInstrumentationService } from "./fund-draining-deployments-instrumentation.service";
@@ -1472,6 +1474,68 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(deploymentSettingRepository.releaseFundingClaim).toHaveBeenCalledWith([createFundingClaim(deployment.id)]);
     });
 
+    it("holds the claim when the deposit outcome is undecided, so the next pass cannot deposit again", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, deploymentSettingRepository, fundDrainingInstrumentation } =
+        setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const deployment = createDrainingFor(owner, walletId);
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
+      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
+      deploymentSettingRepository.claimForFunding.mockResolvedValue([createFundingClaim(deployment.id)]);
+      managedSignerService.executeDerivedTx.mockRejectedValue(new TxOutcomeUnknownError("tx-hash"));
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
+
+      expect(deploymentSettingRepository.releaseFundingClaim).not.toHaveBeenCalled();
+      expect(fundDrainingInstrumentation.recordUndecidedTxOutcome).toHaveBeenCalledWith(expect.objectContaining({ owner, txHash: "tx-hash" }));
+      expect(fundDrainingInstrumentation.recordChainTxError).not.toHaveBeenCalled();
+      expect(fundDrainingInstrumentation.recordDeposit).not.toHaveBeenCalled();
+    });
+
+    it("schedules a chain reconciliation for an undecided deposit so its claim need not age out", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, deploymentSettingRepository, reconcileManagedTxJobService } =
+        setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const deployment = createDrainingFor(owner, walletId);
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
+      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
+      deploymentSettingRepository.claimForFunding.mockResolvedValue([createFundingClaim(deployment.id)]);
+      managedSignerService.executeDerivedTx.mockRejectedValue(new TxOutcomeUnknownError("tx-hash"));
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
+
+      expect(reconcileManagedTxJobService.schedule).toHaveBeenCalledWith({
+        txHash: "tx-hash",
+        owner,
+        claims: [createFundingClaim(deployment.id)]
+      });
+    });
+
+    it("holds the claim without scheduling a reconciliation when the undecided deposit has no hash to ask about", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, deploymentSettingRepository, reconcileManagedTxJobService } =
+        setup();
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const deployment = createDrainingFor(owner, walletId);
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
+      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000000));
+      deploymentSettingRepository.claimForFunding.mockResolvedValue([createFundingClaim(deployment.id)]);
+      managedSignerService.executeDerivedTx.mockRejectedValue(new TxOutcomeUnknownError());
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
+
+      expect(deploymentSettingRepository.releaseFundingClaim).not.toHaveBeenCalled();
+      expect(reconcileManagedTxJobService.schedule).not.toHaveBeenCalled();
+    });
+
     it("releases the claim before rethrowing a master-wallet insufficient-funds failure", async () => {
       const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, chainErrorService, deploymentSettingRepository } = setup();
       const owner = createAkashAddress();
@@ -1785,9 +1849,11 @@ describe(TopUpManagedDeploymentsService.name, () => {
     deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() => (async function* () {})());
     const deploymentConfig = mockConfigService<DeploymentConfigService>({ AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN: DEDUP_COOLDOWN_IN_MIN });
     const balancesService = mock<BalancesService>();
+    const reconcileManagedTxJobService = mock<ReconcileManagedTxJobService>();
 
     const service = new TopUpManagedDeploymentsService(
       managedSignerService,
+      reconcileManagedTxJobService,
       billingConfig,
       drainingDeploymentService,
       rpcMessageService,
@@ -1805,6 +1871,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     return {
       service,
       managedSignerService,
+      reconcileManagedTxJobService,
       billingConfig,
       drainingDeploymentService,
       rpcMessageService,

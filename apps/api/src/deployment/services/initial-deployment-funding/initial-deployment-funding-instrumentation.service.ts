@@ -45,6 +45,7 @@ export class InitialDeploymentFundingInstrumentationService {
   private readonly deposits: Counter;
   private readonly depositAmount: Histogram;
   private readonly skips: Counter;
+  private readonly undecidedTxOutcomes: Counter;
 
   private readonly logger = createOtelLogger({ context: "InitialDeploymentFundingService" });
 
@@ -71,6 +72,10 @@ export class InitialDeploymentFundingInstrumentationService {
     this.skips = this.metricsService.createCounter(this.meter, "initial_deployment_funding_skips_total", {
       description: "Total number of initial deployment funding runs that skipped depositing, by reason"
     });
+
+    this.undecidedTxOutcomes = this.metricsService.createCounter(this.meter, "initial_deployment_funding_undecided_tx_outcomes_total", {
+      description: "Total number of initial funding deposits whose transaction may still land, so their funding claim was held rather than released"
+    });
   }
 
   recordJobSucceeded(durationMs: number): void {
@@ -92,6 +97,11 @@ export class InitialDeploymentFundingInstrumentationService {
     this.deposits.add(1);
     this.depositAmount.record(amount, { denom });
     this.emitLog("info", { ...logContext, event: "INITIAL_FUNDING_DEPOSITED", amount, denom });
+  }
+
+  recordUndecidedTxOutcome(logContext: Record<string, unknown>): void {
+    this.undecidedTxOutcomes.add(1);
+    this.emitLog("error", { ...logContext, event: "INITIAL_FUNDING_UNDECIDED_TX_OUTCOME" });
   }
 
   recordSkipped(reason: FundingSkipReason, logContext: Record<string, unknown>): void {

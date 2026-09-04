@@ -4,6 +4,7 @@ import { type UserWalletOutput, UserWalletRepository } from "@src/billing/reposi
 import { RpcMessageService } from "@src/billing/services";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
+import { isUnknownTxOutcome } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
@@ -19,6 +20,7 @@ import { DeploymentCloseJobService } from "@src/deployment/services/deployment-c
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { InitialDeploymentFundingInstrumentationService } from "@src/deployment/services/initial-deployment-funding/initial-deployment-funding-instrumentation.service";
+import { ReconcileManagedTxJobService } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx-job.service";
 import { averageBlockCountInAnHour, COSMOS_TX_CODE_OK } from "@src/utils/constants";
 
 export interface FundOnLeaseStartedInput {
@@ -26,6 +28,11 @@ export interface FundOnLeaseStartedInput {
   address: string;
   dseq: string;
 }
+
+/** A deposit whose transaction may still land, which the job must not retry until the chain has said what became of it. */
+type UndecidedDeposit = { status: "undecided"; txHash?: string };
+
+type DepositOutcome = { status: "deposited"; fundedToTarget: boolean } | { status: "skipped" } | UndecidedDeposit;
 
 /**
  * Funds a deployment right after its lease starts so high-cost deployments
@@ -48,6 +55,7 @@ export class InitialDeploymentFundingService {
     private readonly deploymentConfig: DeploymentConfigService,
     private readonly walletReloadJobService: WalletReloadJobService,
     private readonly deploymentCloseJobService: DeploymentCloseJobService,
+    private readonly reconcileManagedTxJobService: ReconcileManagedTxJobService,
     private readonly chainErrorService: ChainErrorService,
     private readonly instrumentation: InitialDeploymentFundingInstrumentationService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
@@ -144,19 +152,47 @@ export class InitialDeploymentFundingService {
       return;
     }
 
-    let keepClaim = false;
+    let outcome: DepositOutcome = { status: "skipped" };
 
     try {
-      const fundedToTarget = await this.#depositToTarget({ walletId, address, dseq, deployment, userWallet, desiredAmount });
-      keepClaim = fundedToTarget && !this.drainingDeploymentService.isCappedByRuntimeLimit({ runtimeEndsAt }, currentHeight);
+      outcome = await this.#depositToTarget({ walletId, address, dseq, deployment, userWallet, desiredAmount });
     } finally {
-      if (!keepClaim) {
+      if (!this.#keepsClaim(outcome, runtimeEndsAt, currentHeight)) {
         await this.#releaseFundingClaims(claims, { dseq, address });
       }
     }
+
+    if (outcome.status === "undecided") {
+      await this.#scheduleReconciliation(address, outcome, claims);
+    }
   }
 
-  /** Returns whether the full desired amount landed, since a balance-capped deposit's wallet reload must be able to top up before the cooldown ends. */
+  /**
+   * An undecided deposit keeps the claim: the cooldown is the only thing standing between a transaction that may still
+   * land and a second deposit for the same deployment, and it holds until the chain has been asked which happened.
+   */
+  #keepsClaim(outcome: DepositOutcome, runtimeEndsAt: Date | null, currentHeight: number): boolean {
+    if (outcome.status === "undecided") {
+      return true;
+    }
+
+    if (outcome.status === "skipped") {
+      return false;
+    }
+
+    return outcome.fundedToTarget && !this.drainingDeploymentService.isCappedByRuntimeLimit({ runtimeEndsAt }, currentHeight);
+  }
+
+  /** Shortens how long a held claim holds when nothing landed; the claim itself is what keeps a second deposit from happening, so a missing hash just lets it age out. */
+  async #scheduleReconciliation(owner: string, deposit: UndecidedDeposit, claims: FundingClaim[]): Promise<void> {
+    if (!deposit.txHash) {
+      return;
+    }
+
+    await this.reconcileManagedTxJobService.schedule({ txHash: deposit.txHash, owner, claims });
+  }
+
+  /** Reports whether the full desired amount landed, since a balance-capped deposit's wallet reload must be able to top up before the cooldown ends. */
   async #depositToTarget({
     walletId,
     address,
@@ -168,7 +204,7 @@ export class InitialDeploymentFundingService {
     deployment: DrainingDeploymentOutput;
     userWallet: UserWalletOutput;
     desiredAmount: number;
-  }): Promise<boolean> {
+  }): Promise<DepositOutcome> {
     const balance = await this.cachedBalanceService.getFresh(address);
     const amount = Math.min(desiredAmount, balance.spendable);
 
@@ -180,14 +216,14 @@ export class InitialDeploymentFundingService {
         available: balance.available,
         spendable: balance.spendable
       });
-      return false;
+      return { status: "skipped" };
     }
 
     const feeAllowance = await this.managedSignerService.ensureFeeGrants(userWallet);
 
     if (feeAllowance <= 0) {
       this.instrumentation.recordSkipped("no_fee_allowance", { dseq, address });
-      return false;
+      return { status: "skipped" };
     }
 
     const denom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
@@ -205,8 +241,14 @@ export class InitialDeploymentFundingService {
     } catch (error) {
       if (error instanceof Error && this.chainErrorService.isDeploymentClosedError(error)) {
         this.instrumentation.recordSkipped("deployment_closed", { dseq, address, error: error.message });
-        return false;
+        return { status: "skipped" };
       }
+
+      if (isUnknownTxOutcome(error)) {
+        this.instrumentation.recordUndecidedTxOutcome({ dseq, address, txHash: error.txHash, amount });
+        return { status: "undecided", txHash: error.txHash };
+      }
+
       throw error;
     }
 
@@ -215,7 +257,7 @@ export class InitialDeploymentFundingService {
 
       if (this.chainErrorService.isDeploymentClosedError(txError)) {
         this.instrumentation.recordSkipped("deployment_closed", { dseq, address, txHash: tx.hash });
-        return false;
+        return { status: "skipped" };
       }
 
       this.logger.error({ event: "INITIAL_FUNDING_TX_FAILED", dseq, address, txHash: tx.hash, code: tx.code, rawLog: tx.rawLog });
@@ -226,7 +268,7 @@ export class InitialDeploymentFundingService {
 
     await this.scheduleWalletReload({ walletId, dseq, address });
 
-    return amount === desiredAmount;
+    return { status: "deposited", fundedToTarget: amount === desiredAmount };
   }
 
   /** Serializes the deposit against the sweep and the credits-landed pass; a deployment with no settings row funds unclaimed, since neither pass can see it. */

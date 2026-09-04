@@ -123,6 +123,40 @@ describe("Tx Sign", () => {
         message: "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue."
       });
     });
+
+    it("responds with 504 Gateway Timeout when the signer leaves the transaction outcome undecided", async () => {
+      const { user, token, wallet } = await setup({
+        signerOutcome: { status: 504, outcome: "unknown" }
+      });
+
+      const res = await app.request("/v1/tx", {
+        method: "POST",
+        body: await createMessagePayload(user.id, wallet.address),
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` }
+      });
+
+      expect(res.status).toBe(504);
+      expect(await res.json()).toMatchObject({
+        error: "TxOutcomeUnknownError",
+        code: "tx_outcome_unknown",
+        message: "Your transaction is still being processed. Check whether it went through before sending it again."
+      });
+    });
+
+    it("responds with 502 Bad Gateway when the signer proves the transaction was never included", async () => {
+      const { user, token, wallet } = await setup({
+        signerOutcome: { status: 502, outcome: "not_included" }
+      });
+
+      const res = await app.request("/v1/tx", {
+        method: "POST",
+        body: await createMessagePayload(user.id, wallet.address),
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` }
+      });
+
+      expect(res.status).toBe(502);
+      expect(await res.json()).toMatchObject({ error: "TxNotIncludedError", code: "tx_not_included" });
+    });
   });
 
   async function createMessagePayload(userId: string, address: string) {
@@ -191,7 +225,7 @@ describe("Tx Sign", () => {
     });
   }
 
-  async function setup(input?: { deploymentAllowance?: number; blockchainError?: string }) {
+  async function setup(input?: { deploymentAllowance?: number; blockchainError?: string; signerOutcome?: { status: number; outcome: string } }) {
     const txSignerNock = nock(container.resolve(BILLING_CONFIG).TX_SIGNER_BASE_URL);
 
     txSignerNock
@@ -223,7 +257,15 @@ describe("Tx Sign", () => {
         }
       });
 
-    if (input?.blockchainError) {
+    if (input?.signerOutcome) {
+      txSignerNock
+        .persist()
+        .post("/v1/tx/derived")
+        .reply(input.signerOutcome.status, {
+          message: "signer reported an outcome",
+          data: { outcome: input.signerOutcome.outcome, txHash: "SOME_HASH" }
+        });
+    } else if (input?.blockchainError) {
       txSignerNock.persist().post("/v1/tx/derived").reply(500, {
         code: 1,
         message: input.blockchainError
