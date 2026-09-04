@@ -220,6 +220,51 @@ describe(DrainingDeploymentRpcService.name, () => {
       expect(result[0]).not.toHaveProperty("isClosed");
     });
 
+    it("flags a closed deployment that never held a lease, which nothing keyed on leases could see", async () => {
+      const { service, owner, dseqs, closureHeight } = setup({
+        inputs: [{ leases: [], deployment: { escrowState: "closed", funds: 0, transferred: 0 } }]
+      });
+
+      const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
+
+      expect(result).toEqual([expect.objectContaining({ dseq: Number(dseqs[0]), isClosed: true })]);
+    });
+
+    it("leaves out an open deployment with no lease yet, which is still waiting on a bid rather than closed", async () => {
+      const { service, owner, dseqs, closureHeight, loggerService } = setup({
+        inputs: [{ leases: [], deployment: { escrowState: "open" } }]
+      });
+
+      const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
+
+      expect(result).toEqual([]);
+      expect(loggerService.warn).not.toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_BLOCK_RATE_INVALID" }));
+    });
+
+    it("flags a lease-less closed deployment alongside an owner's still-running one", async () => {
+      const { service, owner, dseqs, closureHeight } = setup({
+        inputs: [
+          { leases: [], deployment: { dseq: "500001", escrowState: "closed", funds: 0, transferred: 0 } },
+          { leases: [{ blockRate: 100 }], deployment: { dseq: "500002", escrowState: "open" } }
+        ]
+      });
+
+      const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
+
+      expect(result).toContainEqual(expect.objectContaining({ dseq: 500001, isClosed: true }));
+      expect(result).toContainEqual(expect.objectContaining({ dseq: 500002 }));
+    });
+
+    it("does not flag a closed deployment twice when it also has a closed lease", async () => {
+      const { service, owner, dseqs, closureHeight } = setup({
+        inputs: [{ leases: [{ blockRate: 10, closedHeight: 999999 }], deployment: { escrowState: "closed", funds: 0, transferred: 0 } }]
+      });
+
+      const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
+
+      expect(result).toHaveLength(1);
+    });
+
     it("keeps a flagged deployment that an open lease would place beyond the closure window", async () => {
       const { service, owner, dseqs } = setup({
         inputs: [{ leases: [{ blockRate: 1 }], deployment: { escrowState: "closed", funds: 10_000_000, transferred: 0 } }]

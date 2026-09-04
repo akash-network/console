@@ -43,6 +43,7 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
   private readonly chainTxErrors: Counter;
   private readonly masterWalletInsufficientFunds: Counter;
   private readonly deploymentsMarkedClosed: Counter;
+  private readonly settingsWithoutChainState: Counter;
   private readonly claimReleaseErrors: Counter;
   private readonly headroomConcessions: Counter;
 
@@ -97,6 +98,9 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
       description: "Total number of immediate funding deposits aborted because the master wallet had insufficient funds"
     });
 
+    this.settingsWithoutChainState = this.metricsService.createCounter(this.meter, "fund_draining_settings_without_chain_state_total", {
+      description: "Deployment records the pass could not resolve to any chain state, so it neither funded nor closed them"
+    });
     this.deploymentsMarkedClosed = this.metricsService.createCounter(this.meter, "fund_draining_deployments_deployments_marked_closed_total", {
       description: "Total number of deployments marked as closed while resolving immediate funding candidates"
     });
@@ -239,6 +243,13 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
     this.deploymentsMarkedClosed.add(count);
   }
 
+  /** Logged at debug because a churning owner produces one per pass, while the counter is what says whether the number is falling. */
+  recordSettingWithoutChainState({ dseq, address }: { dseq: string; address: string }): void {
+    this.settingsWithoutChainState.add(1);
+
+    this.emitLog("debug", { event: "FUND_DRAINING_SETTING_WITHOUT_CHAIN_STATE", dseq, address });
+  }
+
   recordCreditsLowScheduleError({ walletId, error }: { walletId: number; error: unknown }): void {
     this.emitLog("error", { event: "FUND_DRAINING_CREDITS_LOW_SCHEDULE_ERROR", walletId, error });
   }
@@ -302,7 +313,7 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
    * escaping a record* call would mark an already-completed deposit as failed and trigger a retry.
    * Metrics are emitted before logging because the OTel spec guarantees instrument writes never throw.
    */
-  private emitLog(level: "info" | "warn" | "error", payload: Record<string, unknown>): void {
+  private emitLog(level: "debug" | "info" | "warn" | "error", payload: Record<string, unknown>): void {
     try {
       this.logger[level](payload);
     } catch {

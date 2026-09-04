@@ -235,6 +235,16 @@ describe(FundDrainingDeploymentsInstrumentationService.name, () => {
     });
   });
 
+  describe("recordSettingWithoutChainState", () => {
+    it("counts a deployment record no chain state could be found for", () => {
+      const { service, settingsWithoutChainState } = setup();
+
+      service.recordSettingWithoutChainState({ dseq: "42", address: "akash1owner" });
+
+      expect(settingsWithoutChainState.add).toHaveBeenCalledWith(1);
+    });
+  });
+
   describe("recordDeploymentClosedOnChain", () => {
     it("credits the marked-closed counter and warns rather than reporting a chain tx error", () => {
       const { service, deploymentsMarkedClosed, chainTxErrors } = setup();
@@ -380,6 +390,7 @@ describe(FundDrainingDeploymentsInstrumentationService.name, () => {
       chainTxErrors: counters["fund_draining_deployments_chain_tx_errors_total"],
       masterWalletInsufficientFunds: counters["fund_draining_deployments_master_wallet_insufficient_funds_total"],
       deploymentsMarkedClosed: counters["fund_draining_deployments_deployments_marked_closed_total"],
+      settingsWithoutChainState: counters["fund_draining_settings_without_chain_state_total"],
       claimReleaseErrors: counters["fund_draining_deployments_claim_release_errors_total"],
       headroomConcessions: counters["fund_draining_deployments_headroom_concessions_total"],
       jobDuration: histograms["fund_draining_deployments_job_duration_ms"],
