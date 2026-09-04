@@ -82,7 +82,6 @@ jobs:
 
           if [[ "${PR_NUMBER}" == "" && "${PARENT_WORKFLOW_EVENT}" == "pull_request" ]]; then
             echo "run_scan=false" >> "$GITHUB_OUTPUT"
-            echo "report_check=false" >> "$GITHUB_OUTPUT"
             echo "skip_reason=PR head changed because of rebase/force push and associated PR cannot be found" >> "$GITHUB_OUTPUT"
             exit 0
           fi
