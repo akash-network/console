@@ -165,9 +165,11 @@ export const UpdateDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema
 });
 
+export const deploymentListMaxLimit = 100;
+
 export const ListDeploymentsQuerySchema = z.object({
   skip: z.coerce.number().min(0).optional(),
-  limit: z.coerce.number().min(1).default(1000).optional()
+  limit: z.coerce.number().min(1).max(deploymentListMaxLimit).default(deploymentListMaxLimit).optional()
 });
 
 export const ListDeploymentsResponseSchema = z.object({
@@ -181,8 +183,6 @@ export const ListDeploymentsResponseSchema = z.object({
     })
   })
 });
-
-export const deploymentListMaxLimit = 100;
 
 export const ListWithResourcesParamsSchema = z.object({
   address: AkashAddressSchema.openapi({
