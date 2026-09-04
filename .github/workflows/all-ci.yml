@@ -10,7 +10,7 @@ on:
 # group with the head push it arrives alongside: cancelling that run would leave its `setup` check run
 # cancelled on a commit that is still the PR head, which sinks the whole rollup.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'pull_request' && github.event.before == github.event.after && '-base-update' || '' }}
+  group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'pull_request' && github.event.action == 'synchronize' && github.event.before == github.event.after && '-base-update' || '' }}
   cancel-in-progress: true
 
 permissions:
