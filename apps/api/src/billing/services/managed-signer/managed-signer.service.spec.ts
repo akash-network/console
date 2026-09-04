@@ -542,24 +542,6 @@ describe(ManagedSignerService.name, () => {
       expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "user-123", dseq: "456" });
     });
 
-    function closeMessageFor(dseq: number): EncodeObject {
-      return {
-        typeUrl: MsgCloseDeployment.$type,
-        value: MsgCloseDeployment.fromPartial({ id: { owner: "akash1test", dseq } })
-      };
-    }
-
-    function setupForClose(input?: Parameters<typeof setup>[0]) {
-      return setup({
-        findOneByUserId: vi.fn().mockResolvedValue(createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: false })),
-        findById: vi.fn().mockResolvedValue(createUser({ userId: "user-123" })),
-        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
-        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
-        publish: vi.fn().mockResolvedValue(undefined),
-        ...input
-      });
-    }
-
     it("does not publish FundDeploymentCommand when a trialing wallet creates a lease", async () => {
       const wallet = createUserWallet({
         userId: "user-123",
@@ -1135,6 +1117,24 @@ describe(ManagedSignerService.name, () => {
 
     expect(createLogger).toHaveBeenCalledWith({ context: ManagedSignerService.name });
   });
+
+  function closeMessageFor(dseq: number): EncodeObject {
+    return {
+      typeUrl: MsgCloseDeployment.$type,
+      value: MsgCloseDeployment.fromPartial({ id: { owner: "akash1test", dseq } })
+    };
+  }
+
+  function setupForClose(input?: Parameters<typeof setup>[0]) {
+    return setup({
+      findOneByUserId: vi.fn().mockResolvedValue(createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: false })),
+      findById: vi.fn().mockResolvedValue(createUser({ userId: "user-123" })),
+      signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+      refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
+      publish: vi.fn().mockResolvedValue(undefined),
+      ...input
+    });
+  }
 
   function setupForCreate(input: { deploymentLimit: number } & Omit<NonNullable<Parameters<typeof setup>[0]>, "retrieveDeploymentLimit">) {
     const { deploymentLimit, ...rest } = input;
