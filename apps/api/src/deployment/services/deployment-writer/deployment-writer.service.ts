@@ -319,7 +319,7 @@ export class DeploymentWriterService {
     return await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
   }
 
-  /** Carries no trial limits, because the resolved build above has already applied them and cleared this document, so nothing here can refuse what that allowed. */
+  /** Must reach only the response field: the hash, the group specs and the recorded definition all still come from the resolved build above. */
   #unresolvedManifestOf(sdl: string): string {
     const result = this.sdlService.generateManifest(sdl);
 

@@ -1,3 +1,4 @@
+import type { ValidationError } from "@akashnetwork/chain-sdk";
 import { DeploymentReclamation, MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { faker } from "@faker-js/faker";
@@ -253,7 +254,7 @@ describe(DeploymentWriterService.name, () => {
 
     it("builds the returned manifest before broadcasting, so a document it cannot rebuild costs no deployment on chain", async () => {
       const { service, sdlService, signerService } = setup();
-      sdlService.generateManifest.mockReturnValue({ ok: false, value: [{ message: "unbuildable" }] } as never);
+      sdlService.generateManifest.mockReturnValue({ ok: false, value: [mock<ValidationError>({ message: "unbuildable" })] });
 
       await expect(service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 })).rejects.toMatchObject({ status: 400 });
 
