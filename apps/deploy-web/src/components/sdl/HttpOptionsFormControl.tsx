@@ -1,5 +1,5 @@
 "use client";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import type { Control } from "react-hook-form";
 import { Controller } from "react-hook-form";
 import { Checkbox, CustomTooltip, FormField, FormInput, FormItem, Label, MultipleSelector } from "@akashnetwork/ui/components";
@@ -8,6 +8,7 @@ import { InfoCircle } from "iconoir-react";
 
 import { useFlag } from "@src/hooks/useFlag";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import { hasProxyValues } from "@src/types/sdlBuilder/sdlBuilder";
 import { nextCases } from "@src/utils/sdl/data";
 import { FormPaper } from "./FormPaper";
 
@@ -33,6 +34,13 @@ const parseProxyNumberInput = (value: string): number | undefined => {
 export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex, exposeIndex, services, dependencies: d = DEPENDENCIES }) => {
   const currentService = services[serviceIndex];
   const isProxyHttpOptionsEnabled = d.useFlag("ui_sdl_proxy_http_options");
+  /**
+   * The schema validates `proxy` whether or not the flag renders its inputs, so a port that arrives
+   * carrying proxy values (an imported SDL) shows them even while the feature is off — otherwise its
+   * validation errors would have nowhere to render and would block saving with nothing to fix. Read
+   * once on mount so clearing the last value mid-edit can't unmount the fields under the user.
+   */
+  const [hasCarriedProxyValues] = useState(() => hasProxyValues(currentService?.expose[exposeIndex]?.httpOptions?.proxy));
 
   return (
     <FormPaper className="h-full" contentClassName="h-full flex items-start flex-col justify-between">
@@ -212,7 +220,7 @@ export const HttpOptionsFormControl: React.FunctionComponent<Props> = ({ control
             )}
           />
 
-          {isProxyHttpOptionsEnabled && (
+          {(isProxyHttpOptionsEnabled || hasCarriedProxyValues) && (
             <>
               <Controller
                 control={control}

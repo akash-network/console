@@ -31,7 +31,7 @@ import { nanoid } from "nanoid";
 
 import { useFlag } from "@src/hooks/useFlag";
 import type { ExposeType, SdlBuilderFormValuesType } from "@src/types";
-import { EndpointSchema } from "@src/types/sdlBuilder/sdlBuilder";
+import { EndpointSchema, hasProxyValues } from "@src/types/sdlBuilder/sdlBuilder";
 import { defaultEndpoint, defaultHttpOptions, nextCases as nextCaseOptions, protoTypes } from "@src/utils/sdl/data";
 import { isVmImage } from "@src/utils/sdl/vmImages";
 import { exposePortsTooltip } from "../cardTooltips";
@@ -644,6 +644,13 @@ const HttpOptionsFields: FC<HttpOptionsFieldsProps> = ({ serviceIndex, exposeInd
   const { control, getValues, setValue } = useFormContext<SdlBuilderFormValuesType>();
   const basePath = `services.${serviceIndex}.expose.${exposeIndex}` as const;
   const hasCustomHttpOptions = useController({ control, name: `${basePath}.hasCustomHttpOptions` });
+  /**
+   * The schema validates `proxy` whether or not the flag renders its inputs, so a port that arrives
+   * carrying proxy values (an imported SDL) shows them even while the feature is off — otherwise its
+   * validation errors would have nowhere to render and would block saving with nothing to fix. Read
+   * once on mount so clearing the last value mid-edit can't unmount the fields under the user.
+   */
+  const [hasCarriedProxyValues] = useState(() => hasProxyValues(getValues(`${basePath}.httpOptions.proxy`)));
 
   const toggleCustomOptions = useCallback(
     (checked: boolean) => {
@@ -679,7 +686,7 @@ const HttpOptionsFields: FC<HttpOptionsFieldsProps> = ({ serviceIndex, exposeInd
 
           <NextCasesField basePath={basePath} />
 
-          {isProxyHttpOptionsEnabled && <HttpProxyFields basePath={basePath} exposeIndex={exposeIndex} />}
+          {(isProxyHttpOptionsEnabled || hasCarriedProxyValues) && <HttpProxyFields basePath={basePath} exposeIndex={exposeIndex} />}
         </div>
       )}
     </div>

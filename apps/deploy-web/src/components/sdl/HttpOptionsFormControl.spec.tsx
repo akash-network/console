@@ -3,7 +3,8 @@ import { TooltipProvider } from "@akashnetwork/ui/components";
 import { describe, expect, it } from "vitest";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
-import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
+import type { ServiceExposeHTTPProxyType } from "@src/types/sdlBuilder/sdlBuilder";
+import { defaultHttpOptions, defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { DEPENDENCIES, HttpOptionsFormControl } from "./HttpOptionsFormControl";
 
 import { render, screen } from "@testing-library/react";
@@ -24,9 +25,18 @@ describe(HttpOptionsFormControl.name, () => {
     expect(screen.queryByText("Buffer Size")).not.toBeInTheDocument();
   });
 
-  function setup(input: { isProxyHttpOptionsEnabled: boolean }) {
+  it("keeps a carried proxy value visible while the flag is off", () => {
+    setup({ isProxyHttpOptionsEnabled: false, proxy: { buffersNumber: 100, buffersSize: 8192 } });
+
+    expect(screen.getByText("Buffers Number")).toBeInTheDocument();
+  });
+
+  function setup(input: { isProxyHttpOptionsEnabled: boolean; proxy?: ServiceExposeHTTPProxyType }) {
     const values = defaultServiceWithPlacement();
     values.services[0].expose[0].hasCustomHttpOptions = true;
+    if (input.proxy) {
+      values.services[0].expose[0].httpOptions = { ...defaultHttpOptions, nextCases: [...defaultHttpOptions.nextCases], proxy: input.proxy };
+    }
 
     const Wrapper = () => {
       const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values });

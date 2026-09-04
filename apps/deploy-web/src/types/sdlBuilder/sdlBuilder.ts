@@ -184,6 +184,11 @@ export const ServiceExposeHTTPProxySchema = z
     }
   });
 
+/** Whether a port carries any explicitly set proxy value, so a hidden `proxy` block is never left validating with no field to show its error. */
+export function hasProxyValues(proxy: ServiceExposeHTTPProxyType | undefined): boolean {
+  return !!proxy && Object.values(proxy).some(value => value !== undefined);
+}
+
 export const ServiceExposeHTTPOptionsSchema = z.object({
   maxBodySize: z.number().min(1, { message: "Max body size is required." }),
   readTimeout: z.number().min(1, { message: "Read timeout is required." }),

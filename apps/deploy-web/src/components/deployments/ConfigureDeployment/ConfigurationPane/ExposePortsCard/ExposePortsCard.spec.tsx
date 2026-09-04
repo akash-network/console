@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ExposeType, SdlBuilderFormValuesType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types/sdlBuilder/sdlBuilder";
-import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
+import { defaultHttpOptions, defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import {
   DEPENDENCIES,
   ExposePortsCard,
@@ -382,6 +382,26 @@ describe(ExposePortsCard.name, () => {
       await trigger();
 
       expect(await screen.findByText("Buffers number and buffers size must be set together.")).toBeInTheDocument();
+    });
+
+    it("keeps an imported proxy value visible and fixable while the proxy http options flag is off", async () => {
+      const { openCard, trigger } = setup({
+        expose: [
+          {
+            port: 80,
+            as: 80,
+            hasCustomHttpOptions: true,
+            httpOptions: { ...defaultHttpOptions, nextCases: [...defaultHttpOptions.nextCases], proxy: { buffersNumber: 100, buffersSize: 8192 } }
+          }
+        ],
+        isProxyHttpOptionsEnabled: false
+      });
+
+      await openCard();
+      await trigger();
+
+      expect(screen.getByLabelText("Proxy buffers number")).toHaveValue(100);
+      expect(await screen.findByText("Buffers number must be at most 16.")).toBeInTheDocument();
     });
 
     it("hides the proxy fields and seeds no proxy object when the proxy http options flag is off", async () => {
