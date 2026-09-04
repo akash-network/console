@@ -232,13 +232,32 @@ describe(DeploymentWriterService.name, () => {
       expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
     });
 
-    it("returns the manifest built from the resolved sdl", async () => {
+    it("returns the manifest built from the submitted sdl, not the resolved one it hashed", async () => {
       const { service } = setup();
 
       const result = await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
 
-      expect(result.manifest).toContain("resolved-group");
-      expect(result.manifest).not.toContain("test-group");
+      expect(result.manifest).toContain("test-group");
+      expect(result.manifest).not.toContain("resolved-group");
+    });
+
+    it("applies the trial limits to the manifest it hashes and not to the one it returns", async () => {
+      const { service, sdlService, walletReaderService } = setup();
+      walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, isTrialing: true });
+
+      await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
+
+      expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.objectContaining({ isTrialing: true }));
+      expect(sdlService.generateManifest).toHaveBeenCalledWith("valid-sdl");
+    });
+
+    it("builds the returned manifest before broadcasting, so a document it cannot rebuild costs no deployment on chain", async () => {
+      const { service, sdlService, signerService } = setup();
+      sdlService.generateManifest.mockReturnValue({ ok: false, value: [{ message: "unbuildable" }] } as never);
+
+      await expect(service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 })).rejects.toMatchObject({ status: 400 });
+
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
     });
 
     it("forwards the reclamation block to getCreateDeploymentMsg when the SDL declares it", async () => {
