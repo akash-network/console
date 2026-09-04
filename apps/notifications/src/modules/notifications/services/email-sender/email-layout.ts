@@ -1,7 +1,7 @@
 import escape from "lodash/escape";
 
-const LOGO_LIGHT_URL = "https://console-cdn.akash.network/akashconsole-light.png";
-const LOGO_DARK_URL = "https://console-cdn.akash.network/akashconsole-dark.svg";
+const LOGO_LIGHT_URL = "https://console-cdn.akash.network/akashconsole-logo.png";
+const LOGO_DARK_URL = "https://console-cdn.akash.network/akashconsole-logo-dark.png";
 
 /** The subject is user-controlled for alert emails, so it is escaped; content must already be sanitized by the caller. */
 export function renderEmailLayout({ subject, content }: { subject: string; content: string }): string {
@@ -38,8 +38,8 @@ export function renderEmailLayout({ subject, content }: { subject: string; conte
     <tr><td align="center" style="padding:40px 16px;">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" class="card" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e4e4e7;border-radius:12px;overflow:hidden;">
         <tr><td class="header-border" style="padding:24px 40px;border-bottom:1px solid #f0f0f1;">
-          <img src="${LOGO_LIGHT_URL}" alt="Akash Console" width="170" height="19" class="logo-light" style="display:inline-block;border:0;" />
-          <img src="${LOGO_DARK_URL}" alt="Akash Console" width="170" height="19" class="logo-dark" style="display:none;border:0;" />
+          <img src="${LOGO_LIGHT_URL}" alt="Akash Console" width="173" height="19" class="logo-light" style="display:inline-block;border:0;" />
+          <img src="${LOGO_DARK_URL}" alt="Akash Console" width="173" height="19" class="logo-dark" style="display:none;border:0;" />
         </td></tr>
         <tr><td style="padding:36px 40px;">
           <h1 class="heading" style="margin:0 0 24px 0;font-size:24px;line-height:1.3;font-weight:700;color:#18181b;">${escapedSubject}</h1>
