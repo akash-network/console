@@ -217,7 +217,7 @@ export class ProviderService {
     });
   }
 
-  @Memoize({ ttlInSeconds: 30 })
+  @Memoize({ ttlInSeconds: 30, maxEntries: 500 })
   async getProvider(address: string) {
     const nowUtc = toUTC(new Date());
     const provider = await this.providerRepository.getProviderByAddressWithAttributes(address);

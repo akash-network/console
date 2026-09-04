@@ -3,14 +3,14 @@ import "reflect-metadata";
 import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, beforeEach, expect } from "vitest";
 
-import { cacheEngine } from "@src/caching/helpers";
+import MemoryCacheEngine from "@src/caching/memoryCacheEngine";
 import { TestDatabaseService } from "./services/test-database.service";
 
 const testPath = expect.getState().testPath;
 const dbService = new TestDatabaseService(testPath!);
 
 beforeAll(async () => {
-  cacheEngine.clearAllKeyInCache();
+  MemoryCacheEngine.clearAllCaches();
   await dbService.setup();
 }, 20_000);
 
@@ -21,13 +21,13 @@ afterAll(async () => {
     // could be disposed in tests
   }
   await dbService.teardown();
-  cacheEngine.clearAllKeyInCache();
+  MemoryCacheEngine.clearAllCaches();
 }, 20_000);
 
 beforeEach(() => {
-  cacheEngine.clearAllKeyInCache();
+  MemoryCacheEngine.clearAllCaches();
 });
 
 afterEach(() => {
-  cacheEngine.clearAllKeyInCache();
+  MemoryCacheEngine.clearAllCaches();
 });
