@@ -8,6 +8,8 @@ import { DeploymentRepository } from "@src/deployment/repositories/deployment/de
 import { DeploymentSettingRepository, type OpenDeployment } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 
 const BATCH_SIZE = 1000;
+/** Bounds what an unreachable chain database can cost the funding sweep that shares this command's hour. */
+const MAX_CONSECUTIVE_BATCH_FAILURES = 3;
 
 type BatchOutcome = {
   closed: number;
@@ -20,11 +22,7 @@ type ReconcileTally = BatchOutcome & {
   failedBatches: number;
 };
 
-/**
- * A dseq's digits without leading zeros, which only a stored record can carry, so it has to be normalized both
- * on the way into the chain lookup and on the way back out of it. Stripped as text rather than through `Number`,
- * which a dseq above 2^53 would not survive intact.
- */
+/** Stripped as text rather than through `Number`, which a dseq above 2^53 would not survive intact. */
 function normalizeDseq(dseq: string): string {
   return dseq.replace(/^0+(?=\d)/, "");
 }
@@ -60,23 +58,13 @@ export class ClosedDeploymentsReconcilerService {
     });
   }
 
-  /**
-   * Brings every open deployment record back in step with the chain, whatever its owner chose about funding and
-   * whether or not it ever held a lease, because those are the two things that decide which rows the funding
-   * sweep can reach and neither has any bearing on whether a deployment is still running.
-   *
-   * Closure is read from the indexer rather than from the chain directly: the record and the indexed deployment
-   * are one indexed lookup apart, where a chain read would mean paginating every owner's whole history. Reading a
-   * source that lags is safe in one direction only, which is the direction this needs. A close it has not caught
-   * up to leaves the row open for the next run, and it can never invent a close that did not happen.
-   *
-   * Reports failure rather than raising it, because this shares the hourly command with the funding sweep and a
-   * database that would not answer here must not cost the sweep its run.
-   */
+  /** Only safe because the indexer lags in one direction: it can miss a close it has not caught up to, never invent one. */
   async reconcileClosedDeployments({ dryRun }: DryRunOptions): Promise<void> {
     const tally: ReconcileTally = { scanned: 0, closed: 0, confirmedOpen: 0, withoutChainState: 0, failedBatches: 0 };
 
     this.#logger.info({ event: "CLOSED_DEPLOYMENTS_RECONCILE_START", batchSize: BATCH_SIZE, dryRun });
+
+    let consecutiveFailures = 0;
 
     try {
       for await (const batch of this.deploymentSettingRepository.findOpenDeploymentsIteratively({ batchSize: BATCH_SIZE })) {
@@ -92,9 +80,17 @@ export class ClosedDeploymentsReconcilerService {
           if (!dryRun) {
             this.#recordOutcome(outcome);
           }
+
+          consecutiveFailures = 0;
         } catch (error) {
           tally.failedBatches++;
+          consecutiveFailures++;
           this.#logger.error({ event: "CLOSED_DEPLOYMENTS_RECONCILE_BATCH_FAILED", batchSize: batch.length, error });
+
+          if (consecutiveFailures >= MAX_CONSECUTIVE_BATCH_FAILURES) {
+            this.#logger.error({ event: "CLOSED_DEPLOYMENTS_RECONCILE_ABANDONED", ...tally, consecutiveFailures });
+            break;
+          }
         }
       }
     } catch (error) {

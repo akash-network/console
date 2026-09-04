@@ -52,10 +52,7 @@ export class DeploymentRepository {
     this.#chainDb = chainDb;
   }
 
-  /**
-   * Whether the chain has closed each of the given deployments. A deployment the indexer holds no row for is
-   * left out of the result rather than reported open, so a caller can tell "still running" from "not indexed".
-   */
+  /** A deployment the indexer holds no row for is left out rather than reported open, so a caller can tell "still running" from "not indexed". */
   async findClosureStates(deployments: DeploymentKey[]): Promise<DeploymentClosureState[]> {
     if (deployments.length === 0) return [];
 
