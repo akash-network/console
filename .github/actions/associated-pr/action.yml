@@ -47,6 +47,9 @@ outputs:
   closed:
     description: Whether the PR is closed
     value: ${{ steps.associated-pr.outputs.closed }}
+  draft:
+    description: Whether the PR is a draft
+    value: ${{ steps.associated-pr.outputs.draft }}
   changes:
     description: |
       JSON array of filenames from `export-file-changes` that were modified in the PR.
@@ -181,6 +184,7 @@ runs:
           core.setOutput('head_repo', pr.head.repo?.full_name || '');
           core.setOutput('labels', JSON.stringify((pr.labels || []).map(l => l.name)));
           core.setOutput('closed', pr.closed_at ? 'true' : 'false');
+          core.setOutput('draft', pr.draft ? 'true' : 'false');
 
           const author = pr.merged_by?.login || pr.user.login;
           core.setOutput('author', author);
