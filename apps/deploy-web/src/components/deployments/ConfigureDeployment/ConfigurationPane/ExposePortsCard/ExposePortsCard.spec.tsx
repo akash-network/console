@@ -384,6 +384,18 @@ describe(ExposePortsCard.name, () => {
       expect(await screen.findByText("Buffers number and buffers size must be set together.")).toBeInTheDocument();
     });
 
+    it("hides the proxy fields and seeds no proxy object when the proxy http options flag is off", async () => {
+      const { getValues, openCard } = setup({ expose: [{ port: 80, as: 80 }], isProxyHttpOptionsEnabled: false });
+
+      await openCard();
+      await userEvent.click(screen.getByLabelText("Custom HTTP options"));
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(screen.queryByLabelText("Disable proxy buffering")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Proxy buffer size")).not.toBeInTheDocument();
+      expect(getValues().services[0].expose[0].httpOptions?.proxy).toBeUndefined();
+    });
+
     it("clears accept hostnames and httpOptions when a configured HTTP port switches to TCP", async () => {
       const { getValues, openCard } = setup({ expose: [{ port: 80, as: 80, proto: "http" }] });
 
@@ -533,6 +545,7 @@ describe(ExposePortsCard.name, () => {
       withLogForwarding?: boolean;
       endpoints?: Array<{ id: string; name: string }>;
       locked?: boolean;
+      isProxyHttpOptionsEnabled?: boolean;
     } = {}
   ) {
     const values = defaultServiceWithPlacement(input.image !== undefined ? { image: input.image } : undefined);
@@ -568,7 +581,7 @@ describe(ExposePortsCard.name, () => {
 
     render(
       <Wrapper>
-        <ExposePortsCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES }} />
+        <ExposePortsCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES, useFlag: () => input.isProxyHttpOptionsEnabled ?? true }} />
         <ImageErrorProbe serviceIndex={0} />
         <ExposeErrorProbe serviceIndex={0} />
       </Wrapper>
