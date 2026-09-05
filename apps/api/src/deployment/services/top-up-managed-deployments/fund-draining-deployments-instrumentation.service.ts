@@ -4,7 +4,12 @@ import { singleton } from "tsyringe";
 
 import { MetricsService } from "@src/core";
 import type { DrainingDeployment } from "@src/deployment/types/draining-deployment";
-import type { DeploymentTopUpInstrumentation, FundingMessageItem, OwnerInsufficientBalanceItem } from "./deployment-top-up-instrumentation";
+import {
+  type DeploymentTopUpInstrumentation,
+  describeUnfundedOwner,
+  type FundingMessageItem,
+  type OwnerInsufficientBalanceItem
+} from "./deployment-top-up-instrumentation";
 
 export type FundDrainingFailureReason = "master_wallet_insufficient_funds" | "deposit_tx_failed" | "unknown";
 
@@ -150,9 +155,23 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
     this.emitLog("info", { event: "FUND_DRAINING_RUNTIME_LIMIT_REACHED", ...details });
   }
 
-  recordDepositBelowUsefulRunway(details: { dseq: string; address: string; desiredAmount: number; affordableAmount: number; runwayMinutes: number }): void {
+  recordDepositBelowUsefulRunway({
+    deployment,
+    ...amounts
+  }: {
+    deployment: DrainingDeployment;
+    desiredAmount: number;
+    affordableAmount: number;
+    runwayMinutes: number;
+  }): void {
     this.skips.add(1, { reason: "below_useful_runway" satisfies FundDrainingSkipReason });
-    this.emitLog("warn", { event: "FUND_DRAINING_DEPOSIT_BELOW_USEFUL_RUNWAY", ...details });
+    this.emitLog("warn", {
+      event: "FUND_DRAINING_DEPOSIT_BELOW_USEFUL_RUNWAY",
+      dseq: deployment.dseq,
+      address: deployment.address,
+      ...describeUnfundedOwner(deployment),
+      ...amounts
+    });
   }
 
   recordHeadroomConceded(details: {
@@ -199,6 +218,7 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
     this.emitLog("warn", {
       event: "FUND_DRAINING_OWNER_INSUFFICIENT_BALANCE",
       owner,
+      ...describeUnfundedOwner(deployments[0].deployment),
       spendable,
       deploymentCount: deployments.length,
       deployments: deployments.map(({ deployment, desiredAmount }) => ({ dseq: deployment.dseq, desiredAmount }))

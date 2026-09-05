@@ -331,8 +331,7 @@ export class TopUpManagedDeploymentsService {
 
           if (this.#isCappedBelowUsefulRunway({ desiredAmount, affordableAmount, runwayMinutes })) {
             instrumentation.recordDepositBelowUsefulRunway({
-              dseq: deployment.dseq,
-              address: deployment.address,
+              deployment,
               desiredAmount,
               affordableAmount,
               runwayMinutes

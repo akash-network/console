@@ -5,6 +5,17 @@ export type FundingMessageItem = { deployment: DrainingDeployment; input: Deposi
 
 export type OwnerInsufficientBalanceItem = { deployment: DrainingDeployment; desiredAmount: number };
 
+export type UnfundedOwner = { userId: string; isTrialing: boolean; autoReloadEnabled: boolean };
+
+/** Lets the "could not fund" logs tell a paid account from a trial or Auto Recharge one without a database lookup. */
+export function describeUnfundedOwner(deployment: DrainingDeployment): UnfundedOwner {
+  return {
+    userId: deployment.userId,
+    isTrialing: deployment.walletIsTrialing,
+    autoReloadEnabled: deployment.isWalletAutoTopUpEnabled
+  };
+}
+
 /**
  * Telemetry sink shared by the two deployment top-up paths: the hourly cron and the event-driven
  * immediate funding that runs when credits land. The cron's summarizer-backed instrumentation and the
@@ -15,7 +26,7 @@ export interface DeploymentTopUpInstrumentation {
   recordDeploymentPreparation(ownerAddress: string, predictedClosedHeight: number): void;
   recordInvalidDepositAmount(details: { desiredAmount: number; dseq: string; address: string; blockRate: number }): void;
   recordRuntimeLimitReached(details: { dseq: string; address: string; runtimeEndsAt: Date }): void;
-  recordDepositBelowUsefulRunway(details: { dseq: string; address: string; desiredAmount: number; affordableAmount: number; runwayMinutes: number }): void;
+  recordDepositBelowUsefulRunway(details: { deployment: DrainingDeployment; desiredAmount: number; affordableAmount: number; runwayMinutes: number }): void;
   recordHeadroomConceded(details: {
     dseq: string;
     address: string;

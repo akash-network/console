@@ -6,7 +6,7 @@ import { type CreateLogger, LOGGER_FACTORY, MetricsService } from "@src/core";
 import type { DryRunOptions } from "@src/core/types/console";
 import { TopUpSummarizer } from "@src/deployment/lib/top-up-summarizer/top-up-summarizer";
 import { DrainingDeployment } from "@src/deployment/types/draining-deployment";
-import type { DeploymentTopUpInstrumentation, OwnerInsufficientBalanceItem } from "./deployment-top-up-instrumentation";
+import { type DeploymentTopUpInstrumentation, describeUnfundedOwner, type OwnerInsufficientBalanceItem } from "./deployment-top-up-instrumentation";
 
 @scoped(Lifecycle.ResolutionScoped)
 export class TopUpManagedDeploymentsInstrumentationService implements DeploymentTopUpInstrumentation {
@@ -225,6 +225,7 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
     this.logger.warn({
       event: "TOP_UP_OWNER_INSUFFICIENT_BALANCE",
       owner,
+      ...describeUnfundedOwner(deployments[0].deployment),
       spendable,
       deploymentCount: deployments.length,
       deployments: deployments.map(({ deployment, desiredAmount }) => ({ dseq: deployment.dseq, desiredAmount })),
@@ -242,12 +243,23 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
     });
   }
 
-  recordDepositBelowUsefulRunway(details: { dseq: string; address: string; desiredAmount: number; affordableAmount: number; runwayMinutes: number }): void {
+  recordDepositBelowUsefulRunway({
+    deployment,
+    ...amounts
+  }: {
+    deployment: DrainingDeployment;
+    desiredAmount: number;
+    affordableAmount: number;
+    runwayMinutes: number;
+  }): void {
     this.topUpSummarizer.inc("depositsBelowUsefulRunwayCount");
 
     this.logger.warn({
       event: "DEPOSIT_BELOW_USEFUL_RUNWAY",
-      ...details,
+      dseq: deployment.dseq,
+      address: deployment.address,
+      ...describeUnfundedOwner(deployment),
+      ...amounts,
       dryRun: this.options?.dryRun
     });
 

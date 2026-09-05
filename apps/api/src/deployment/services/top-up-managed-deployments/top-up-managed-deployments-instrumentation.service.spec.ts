@@ -189,8 +189,8 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
     it("counts every deployment as insufficient balance and warns once for the owner", () => {
       const { service, logger, summarizer, countersByName } = setup();
       service.start(100, { dryRun: false });
-      const first = createDrainingDeployment({ isWalletAutoTopUpEnabled: true });
-      const second = createDrainingDeployment({ isWalletAutoTopUpEnabled: true, address: first.address });
+      const first = createDrainingDeployment({ isWalletAutoTopUpEnabled: true, walletIsTrialing: true });
+      const second = createDrainingDeployment({ isWalletAutoTopUpEnabled: true, walletIsTrialing: true, address: first.address, userId: first.userId });
 
       service.recordOwnerInsufficientBalance({
         owner: first.address,
@@ -207,6 +207,9 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
       expect(logger.warn).toHaveBeenCalledExactlyOnceWith({
         event: "TOP_UP_OWNER_INSUFFICIENT_BALANCE",
         owner: first.address,
+        userId: first.userId,
+        isTrialing: true,
+        autoReloadEnabled: true,
         spendable: 0,
         deploymentCount: 2,
         deployments: [
@@ -237,6 +240,46 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
       expect(summarizer.get("insufficientBalanceCount")).toBe(1);
       expect(countersByName["auto_top_up_message_preparation_errors_total"].add).not.toHaveBeenCalled();
       expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true }));
+    });
+  });
+
+  describe("recordDepositBelowUsefulRunway", () => {
+    it("counts the decline, warns with the owner's account state, and carries the dry-run flag", () => {
+      const { service, logger, summarizer, countersByName } = setup();
+      service.start(100, { dryRun: false });
+      const deployment = createDrainingDeployment({ walletIsTrialing: false, isWalletAutoTopUpEnabled: false });
+
+      service.recordDepositBelowUsefulRunway({ deployment, desiredAmount: 50_000_000, affordableAmount: 500_000, runwayMinutes: 17 });
+
+      expect(summarizer.get("depositsBelowUsefulRunwayCount")).toBe(1);
+      expect(countersByName["auto_top_up_deposits_below_useful_runway_total"].add).toHaveBeenCalledWith(1);
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "DEPOSIT_BELOW_USEFUL_RUNWAY",
+        dseq: deployment.dseq,
+        address: deployment.address,
+        userId: deployment.userId,
+        isTrialing: false,
+        autoReloadEnabled: false,
+        desiredAmount: 50_000_000,
+        affordableAmount: 500_000,
+        runwayMinutes: 17,
+        dryRun: false
+      });
+    });
+
+    it("counts the decline without emitting a metric in dry run mode", () => {
+      const { service, summarizer, countersByName } = setup();
+      service.start(100, { dryRun: true });
+
+      service.recordDepositBelowUsefulRunway({
+        deployment: createDrainingDeployment(),
+        desiredAmount: 50_000_000,
+        affordableAmount: 500_000,
+        runwayMinutes: 17
+      });
+
+      expect(summarizer.get("depositsBelowUsefulRunwayCount")).toBe(1);
+      expect(countersByName["auto_top_up_deposits_below_useful_runway_total"].add).not.toHaveBeenCalled();
     });
   });
 
