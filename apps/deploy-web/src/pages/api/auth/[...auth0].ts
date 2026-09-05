@@ -5,7 +5,7 @@ import { once } from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import { setAccountCreatedCookie } from "@src/lib/analytics/account-created-cookie";
-import type { IdentityProviderError, Session } from "@src/lib/auth0";
+import type { Session } from "@src/lib/auth0";
 import { CallbackHandlerError, MissingStateCookieError } from "@src/lib/auth0";
 import { handleAuth, handleCallback, handleLogin, handleLogout } from "@src/lib/auth0";
 import { clearSessionCookies } from "@src/lib/auth0/clearSessionCookies/clearSessionCookies";
@@ -64,13 +64,20 @@ const authHandler = once((services: AppServices) =>
         }
 
         const identityProviderError = getIdentityProviderError(error);
+        if (identityProviderError?.error === "access_denied") {
+          services.logger.info({ event: "AUTH_CALLBACK_ACCESS_DENIED" });
+          res.writeHead(302, { Location: "/login" });
+          res.end();
+          return;
+        }
+
         if (identityProviderError) {
           services.logger.warn({
             event: "AUTH_CALLBACK_IDENTITY_PROVIDER_ERROR",
             error: identityProviderError.error,
             errorDescription: identityProviderError.errorDescription
           });
-          res.writeHead(302, { Location: getLoginUrlAfterIdentityProviderError(identityProviderError) });
+          res.writeHead(302, { Location: "/login?error=provider_login_failed" });
           res.end();
           return;
         }
@@ -133,10 +140,6 @@ function isGeneralAxiosError(error: unknown): error is AxiosError {
 
 function isMissingStateCookieError(error: unknown): boolean {
   return error instanceof CallbackHandlerError && error.cause instanceof MissingStateCookieError;
-}
-
-function getLoginUrlAfterIdentityProviderError(error: IdentityProviderError): string {
-  return error.error === "access_denied" ? "/login" : "/login?error=provider_login_failed";
 }
 
 function clearSessionAndRedirectToLogin(req: NextApiRequest, res: NextApiResponse): void {
