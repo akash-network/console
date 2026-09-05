@@ -49,7 +49,7 @@ export class HonoErrorHandlerService {
           type: errorType,
           data: error.data
         },
-        { status: error.status }
+        { status: error.status, headers: error.headers }
       );
     }
 
@@ -109,6 +109,8 @@ export class HonoErrorHandlerService {
         return "bad_request";
       case 401:
         return "unauthorized";
+      case 402:
+        return "payment_required";
       case 403:
         return "forbidden";
       case 404:
