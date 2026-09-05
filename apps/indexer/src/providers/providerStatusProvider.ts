@@ -190,7 +190,8 @@ async function saveProviderStatus(
             snapshotNodeId: providerSnapshotNode.id,
             vendor: cpuInfo.vendor,
             model: cpuInfo.model,
-            vcores: cpuInfo.vcores
+            vcores: cpuInfo.vcores,
+            arch: cpuInfo.arch
           })),
           { transaction: t }
         );
