@@ -37,7 +37,7 @@ export type ProviderStatusInfo = {
     gpuAllocatable: number;
     gpuAllocated: number;
 
-    cpus: { vendor: string; model: string; vcores: number }[];
+    cpus: { vendor: string; model: string; vcores: number; arch: string | null }[];
     gpus: { vendor: string; name: string; modelId: string; interface: string; memorySize: string }[];
   }[];
 };

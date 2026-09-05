@@ -1,3 +1,5 @@
+import type { CpuArchAgreement } from "@src/utils/cpu-arch/cpu-arch";
+
 export interface ProviderList {
   owner: string;
   name: string | null;
@@ -76,6 +78,8 @@ export interface ProviderCapacityStats {
 }
 
 export interface ProviderDetail extends ProviderList {
+  reportedCpuArchs: string[];
+  cpuArchAgreement: CpuArchAgreement;
   uptime: {
     id: string;
     isOnline: boolean;

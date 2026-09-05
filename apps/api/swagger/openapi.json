@@ -10713,6 +10713,25 @@
                       "type": "string",
                       "nullable": true
                     },
+                    "reportedCpuArchs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Distinct CPU architectures the provider's nodes reported in its last successful snapshot. Known spellings such as x86_64 or aarch64 are folded onto amd64 or arm64; any other reported value is kept as reported. Empty when no node reports one.",
+                      "example": [
+                        "arm64"
+                      ]
+                    },
+                    "cpuArchAgreement": {
+                      "type": "string",
+                      "enum": [
+                        "match",
+                        "mismatch",
+                        "unknown"
+                      ],
+                      "description": "Whether the self-declared capabilities/cpu/arch attribute agrees with the architecture the nodes report. Unknown when either side is missing or the declared value is not a recognised architecture."
+                    },
                     "hardwareGpuVendor": {
                       "type": "string",
                       "nullable": true
@@ -10833,6 +10852,8 @@
                     "hostingProvider",
                     "hardwareCpu",
                     "hardwareCpuArch",
+                    "reportedCpuArchs",
+                    "cpuArchAgreement",
                     "hardwareGpuVendor",
                     "hardwareGpuModels",
                     "hardwareDisk",

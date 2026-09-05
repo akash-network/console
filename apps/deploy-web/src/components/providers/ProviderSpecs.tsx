@@ -1,9 +1,9 @@
 "use client";
 import { Badge, Card, CardContent } from "@akashnetwork/ui/components";
-import { Check } from "iconoir-react";
+import { Check, WarningCircle } from "iconoir-react";
 
 import { LabelValue } from "@src/components/shared/LabelValue";
-import type { ClientProviderDetailWithStatus } from "@src/types/provider";
+import type { ClientProviderDetailWithStatus, CpuArchAgreement } from "@src/types/provider";
 import { createFilterUnique } from "@src/utils/array";
 
 type Props = {
@@ -38,12 +38,34 @@ export const ProviderSpecs: React.FunctionComponent<Props> = ({ provider }) => {
               </Badge>
             ))}
           />
-          <LabelValue label="CPU Architecture" value={provider.hardwareCpuArch} />
+          <LabelValue label="CPU Architecture (declared)" value={provider.hardwareCpuArch || "Unknown"} />
+          <LabelValue
+            label="CPU Architecture (reported)"
+            value={<ReportedCpuArchitectures archs={provider.reportedCpuArchs ?? []} agreement={provider.cpuArchAgreement} />}
+          />
           <LabelValue label="Disk Storage" value={provider.hardwareDisk} />
           <LabelValue label="Persistent Disk Storage" value={provider.featPersistentStorageType} />
           <LabelValue label="Upload speed" value={provider.networkSpeedUp} />
         </div>
       </CardContent>
     </Card>
+  );
+};
+
+const ReportedCpuArchitectures: React.FunctionComponent<{ archs: string[]; agreement: CpuArchAgreement }> = ({ archs, agreement }) => {
+  if (archs.length === 0) return <>Unknown</>;
+
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      {archs.map(arch => (
+        <Badge key={arch}>{arch}</Badge>
+      ))}
+      {agreement === "mismatch" && (
+        <span className="flex items-center text-xs text-warning">
+          <WarningCircle className="mr-1" />
+          Differs from the declared architecture
+        </span>
+      )}
+    </span>
   );
 };

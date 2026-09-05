@@ -239,7 +239,11 @@ export interface ClientProviderList extends ApiProviderList {
   userActiveLeases?: number;
 }
 
+export type CpuArchAgreement = "match" | "mismatch" | "unknown";
+
 export interface ApiProviderDetail extends ApiProviderList {
+  reportedCpuArchs: string[];
+  cpuArchAgreement: CpuArchAgreement;
   uptime: Array<{
     id: string;
     isOnline: boolean;
