@@ -74,6 +74,7 @@ export class DeploymentWriterService {
 
     const dseq = Date.now().toString();
     const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { secrets: supplied, isTrialing: !!wallet.isTrialing });
+    const unresolvedManifest = await this.#unresolvedManifestOf(input.sdl);
     const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq, secrets: stored });
 
     if (wallet.isTrialing) {
@@ -106,7 +107,7 @@ export class DeploymentWriterService {
 
     return {
       dseq: dseq.toString(),
-      manifest: manifestToSortedJSON(manifest.groups),
+      manifest: unresolvedManifest,
       signTx: result
     };
   }
@@ -316,6 +317,17 @@ export class DeploymentWriterService {
     await this.sendManifestToProviders({ auth, dseq, manifest: manifestToSortedJSON(manifest.groups), leases: deployment.leases });
 
     return await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+  }
+
+  /** Must reach only the response field: the hash, the group specs and the recorded definition all still come from the resolved build above. */
+  async #unresolvedManifestOf(sdl: string): Promise<string> {
+    const result = await this.sdlService.generateManifest(sdl);
+
+    if (!result.ok) {
+      throw this.#rejectInvalidSdl(result.value);
+    }
+
+    return manifestToSortedJSON(result.value.groups);
   }
 
   /** Only the manifest version is taken from the resolved SDL: the resolved manifest itself must not leave this call. Runs before any lookup so a bad reference always answers 400 rather than racing a 404. */
