@@ -147,6 +147,9 @@ const gpuBreakdownRoute = createRoute({
           schema: GpuBreakdownResponseSchema
         }
       }
+    },
+    400: {
+      description: "Invalid date range: dates must be YYYY-MM-DD, startDate must not be after endDate and the range cannot exceed 366 days"
     }
   }
 });

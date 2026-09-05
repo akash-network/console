@@ -8518,7 +8518,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "startDate",
             "required": false,
             "schema": {
-              "description": "Start date (YYYY-MM-DD). Defaults to 30 days before endDate",
+              "description": "Start date (YYYY-MM-DD), inclusive. Defaults to a 30-day window ending at endDate",
               "example": "2024-01-01",
               "format": "date",
               "type": "string",
@@ -8585,6 +8585,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               },
             },
             "description": "Daily gpu breakdown rows for the requested date range, one per date, vendor and model.",
+          },
+          "400": {
+            "description": "Invalid date range: dates must be YYYY-MM-DD, startDate must not be after endDate and the range cannot exceed 366 days",
           },
         },
         "security": [],

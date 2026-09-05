@@ -273,7 +273,7 @@ describe("GPU API", () => {
     it("rejects a date range wider than 366 days", async () => {
       await setup();
 
-      const response = await app.request(`/v1/gpu-breakdown?startDate=2023-01-01&endDate=2024-12-31`);
+      const response = await app.request(`/v1/gpu-breakdown?startDate=2024-01-01&endDate=2025-01-01`);
 
       expect(response.status).toBe(400);
     });

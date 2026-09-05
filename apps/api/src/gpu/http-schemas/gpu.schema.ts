@@ -51,10 +51,14 @@ function toIsoDate(date: Date) {
   return date.toISOString().split("T")[0];
 }
 
-function daysBefore(isoDate: string, days: number) {
-  const date = new Date(`${isoDate}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() - days);
+function startOfInclusiveWindow(endDate: string, windowDays: number) {
+  const date = new Date(`${endDate}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() - (windowDays - 1));
   return toIsoDate(date);
+}
+
+function countInclusiveDays(startDate: string, endDate: string) {
+  return (Date.parse(endDate) - Date.parse(startDate)) / MS_PER_DAY + 1;
 }
 
 export const GpuBreakdownQuerySchema = z
@@ -66,7 +70,7 @@ export const GpuBreakdownQuerySchema = z
       .date()
       .optional()
       .openapi({
-        description: `Start date (YYYY-MM-DD). Defaults to ${DEFAULT_BREAKDOWN_WINDOW_DAYS} days before endDate`,
+        description: `Start date (YYYY-MM-DD), inclusive. Defaults to a ${DEFAULT_BREAKDOWN_WINDOW_DAYS}-day window ending at endDate`,
         example: "2024-01-01"
       }),
     endDate: z.string().date().optional().openapi({
@@ -76,18 +80,18 @@ export const GpuBreakdownQuerySchema = z
   })
   .transform(data => {
     const endDate = data.endDate ?? toIsoDate(new Date());
-    const startDate = data.startDate ?? daysBefore(endDate, DEFAULT_BREAKDOWN_WINDOW_DAYS);
+    const startDate = data.startDate ?? startOfInclusiveWindow(endDate, DEFAULT_BREAKDOWN_WINDOW_DAYS);
 
     return { ...data, startDate, endDate };
   })
   .refine(
     data => {
-      const spanInDays = Math.ceil((Date.parse(data.endDate) - Date.parse(data.startDate)) / MS_PER_DAY);
+      const windowDays = countInclusiveDays(data.startDate, data.endDate);
 
-      return spanInDays >= 0 && spanInDays <= MAX_BREAKDOWN_WINDOW_DAYS;
+      return windowDays >= 1 && windowDays <= MAX_BREAKDOWN_WINDOW_DAYS;
     },
     {
-      message: `Date range cannot exceed ${MAX_BREAKDOWN_WINDOW_DAYS} days and startDate must be before endDate`
+      message: `Date range cannot exceed ${MAX_BREAKDOWN_WINDOW_DAYS} days and startDate must not be after endDate`
     }
   );
 export const GpuBreakdownResponseSchema = z.array(
