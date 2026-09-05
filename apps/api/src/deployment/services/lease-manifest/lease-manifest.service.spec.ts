@@ -1,5 +1,6 @@
 import type { SDLInput } from "@akashnetwork/chain-sdk";
 import { generateManifest, manifestToSortedJSON, yaml } from "@akashnetwork/chain-sdk";
+import createError from "http-errors";
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -286,11 +287,35 @@ describe(LeaseManifestService.name, () => {
     });
 
     it("lets a token it cannot open fail the derivation untouched", async () => {
-      const unreadable = Object.assign(new Error("Unable to read the stored value"), { status: 500 });
+      const unreadable = createError(500, "Unable to read stored secrets");
       const { service, sdlSecretsService } = setup({ definition: { sdl: sdlWith(["API_TOKEN=ac-secret://API_TOKEN"]), sealedSecrets: "tampered" } });
       sdlSecretsService.openStored.mockRejectedValue(unreadable);
 
       await expect(service.deriveFor({ dseq: DSEQ })).rejects.toBe(unreadable);
+    });
+
+    it("logs a token it cannot open as the lease failure it is, not only as the cipher's", async () => {
+      const { service, sdlSecretsService, logger } = setup({ definition: { sdl: sdlWith(["API_TOKEN=ac-secret://API_TOKEN"]), sealedSecrets: "tampered" } });
+      sdlSecretsService.openStored.mockRejectedValue(createError(500, "Unable to read stored secrets"));
+
+      await expect(service.deriveFor({ dseq: DSEQ })).rejects.toThrow();
+      expect(logger.error).toHaveBeenCalledWith({ event: "LEASE_MANIFEST_UNRESOLVABLE", userId: USER_ID, dseq: DSEQ });
+    });
+
+    it("answers an unreachable key service with its own 503 rather than an underivable definition's 500", async () => {
+      const { service, sdlSecretsService } = setup({ definition: { sdl: sdlWith(["API_TOKEN=ac-secret://API_TOKEN"]), sealedSecrets: "sealed" } });
+      sdlSecretsService.openStored.mockRejectedValue(createError(503, "SDL secrets are temporarily unavailable"));
+
+      await expect(service.deriveFor({ dseq: DSEQ })).rejects.toMatchObject({ status: 503, message: "SDL secrets are temporarily unavailable" });
+    });
+
+    it("counts an unreachable key service apart from the definitions that can never be re-derived", async () => {
+      const { service, sdlSecretsService, logger } = setup({ definition: { sdl: sdlWith(["API_TOKEN=ac-secret://API_TOKEN"]), sealedSecrets: "sealed" } });
+      sdlSecretsService.openStored.mockRejectedValue(createError(503, "SDL secrets are temporarily unavailable"));
+
+      await expect(service.deriveFor({ dseq: DSEQ })).rejects.toThrow();
+      expect(logger.warn).toHaveBeenCalledWith({ event: "LEASE_MANIFEST_UNREACHABLE", userId: USER_ID, dseq: DSEQ });
+      expect(logger.error).not.toHaveBeenCalledWith(expect.objectContaining({ event: "LEASE_MANIFEST_UNRESOLVABLE" }));
     });
 
     it("writes nothing to the row it read, whatever the derivation makes of it", async () => {

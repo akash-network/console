@@ -19,8 +19,8 @@ import { MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
 import { SDL_SECRETS_CONTENT_ENCRYPTION, SDL_SECRETS_SEAL_ALGORITHM } from "@src/deployment/config/sdl-secrets.config";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
+import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { app } from "@src/rest-app";
-import { SecretCipherService } from "@src/secret/services/secret-cipher/secret-cipher.service";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
 
@@ -662,14 +662,14 @@ describe("Deployment sealed secrets", () => {
     await expect(openStoredToken(user, dseq.toString(), replaced!.sealedSecrets!)).resolves.toEqual(retriedSecrets);
   });
 
-  async function openStoredToken(user: UserOutput, dseq: string, token: string) {
+  async function openStoredToken(user: UserOutput, dseq: string, sealedSecrets: string) {
     const executionContextService = container.resolve(ExecutionContextService);
     const authService = container.resolve(AuthService);
 
     return await executionContextService.runWithContext(async () => {
       authService.currentUser = user;
 
-      return JSON.parse(await container.resolve(SecretCipherService).decrypt(user.id, token, { sub: user.id, dseq })) as Record<string, string>;
+      return await container.resolve(SdlSecretsService).openStored({ userId: user.id, dseq, sealedSecrets });
     });
   }
 
