@@ -161,6 +161,14 @@ export const ProviderResponseSchema = z.object({
   hostingProvider: z.string().nullable(),
   hardwareCpu: z.string().nullable(),
   hardwareCpuArch: z.string().nullable(),
+  reportedCpuArchs: z.array(z.string()).openapi({
+    description:
+      "Distinct CPU architectures the provider's nodes reported in its last successful snapshot, normalised to amd64 or arm64. Empty when no node reports one.",
+    example: ["arm64"]
+  }),
+  cpuArchAgreement: z.enum(["match", "mismatch", "unknown"]).openapi({
+    description: "Whether the self-declared capabilities/cpu/arch attribute agrees with the architecture the nodes report. Unknown when either side is missing."
+  }),
   hardwareGpuVendor: z.string().nullable(),
   hardwareGpuModels: z.array(z.string()),
   hardwareDisk: z.array(z.string()),

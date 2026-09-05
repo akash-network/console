@@ -1,5 +1,5 @@
 import type { Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
-import { ProviderAttributeSignature } from "@akashnetwork/database/dbSchemas/akash";
+import { ProviderAttribute, ProviderAttributeSignature } from "@akashnetwork/database/dbSchemas/akash";
 import subDays from "date-fns/subDays";
 import map from "lodash/map";
 import nock from "nock";
@@ -11,7 +11,16 @@ import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config
 import type { ProviderListResponse, ProviderResponse } from "@src/provider/http-schemas/provider.schema";
 import { app, initDb } from "@src/rest-app";
 
-import { createDay, createDeployment, createDeploymentGroup, createLease, createProvider, createProviderSnapshot } from "@test/seeders";
+import {
+  createDay,
+  createDeployment,
+  createDeploymentGroup,
+  createLease,
+  createProvider,
+  createProviderSnapshot,
+  createProviderSnapshotNode,
+  createProviderSnapshotNodeCpu
+} from "@test/seeders";
 
 describe("Providers", () => {
   let providers: Provider[];
@@ -174,6 +183,53 @@ describe("Providers", () => {
 
       expect(response.status).toBe(404);
     });
+
+    it("reports the architectures its nodes run and flags a declaration they contradict", async () => {
+      const provider = await createProviderWithNodeCpus(["arm64", null], "x86-64");
+
+      const response = await app.request(`/v1/providers/${provider.owner}`);
+
+      const data = (await response.json()) as ProviderResponse;
+      expect(response.status).toBe(200);
+      expect(data.hardwareCpuArch).toBe("x86-64");
+      expect(data.reportedCpuArchs).toEqual(["arm64"]);
+      expect(data.cpuArchAgreement).toBe("mismatch");
+    });
+
+    it("agrees when the declared architecture is spelled differently from the one the nodes report", async () => {
+      const provider = await createProviderWithNodeCpus(["x86_64"], "x86-64");
+
+      const response = await app.request(`/v1/providers/${provider.owner}`);
+
+      const data = (await response.json()) as ProviderResponse;
+      expect(data.reportedCpuArchs).toEqual(["amd64"]);
+      expect(data.cpuArchAgreement).toBe("match");
+    });
+
+    it("leaves the architecture unknown instead of assuming amd64 when nodes report none", async () => {
+      const provider = await createProviderWithNodeCpus([null], undefined);
+
+      const response = await app.request(`/v1/providers/${provider.owner}`);
+
+      const data = (await response.json()) as ProviderResponse;
+      expect(data.hardwareCpuArch).toBeNull();
+      expect(data.reportedCpuArchs).toEqual([]);
+      expect(data.cpuArchAgreement).toBe("unknown");
+    });
+
+    async function createProviderWithNodeCpus(archs: (string | null)[], declaredArch: string | undefined) {
+      const provider = await createProvider();
+      const snapshot = await createProviderSnapshot({ owner: provider.owner, isOnline: true });
+      await provider.update({ lastSuccessfulSnapshotId: snapshot.id });
+      const node = await createProviderSnapshotNode({ snapshotId: snapshot.id });
+      await Promise.all(archs.map(arch => createProviderSnapshotNodeCpu({ snapshotNodeId: node.id, arch })));
+
+      if (declaredArch) {
+        await ProviderAttribute.create({ provider: provider.owner, key: "capabilities/cpu/arch", value: declaredArch });
+      }
+
+      return provider;
+    }
   });
 
   describe("GET /v1/providers/{providerAddress}/active-leases-graph-data", () => {

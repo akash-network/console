@@ -3547,6 +3547,18 @@ export interface paths {
               hostingProvider: string | null;
               hardwareCpu: string | null;
               hardwareCpuArch: string | null;
+              /**
+               * @description Distinct CPU architectures the provider's nodes reported in its last successful snapshot, normalised to amd64 or arm64. Empty when no node reports one.
+               * @example [
+               *       "arm64"
+               *     ]
+               */
+              reportedCpuArchs: string[];
+              /**
+               * @description Whether the self-declared capabilities/cpu/arch attribute agrees with the architecture the nodes report. Unknown when either side is missing.
+               * @enum {string}
+               */
+              cpuArchAgreement: "match" | "mismatch" | "unknown";
               hardwareGpuVendor: string | null;
               hardwareGpuModels: string[];
               hardwareDisk: string[];

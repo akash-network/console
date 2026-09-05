@@ -1,4 +1,4 @@
-import { Provider, ProviderSnapshot, ProviderSnapshotNode, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
+import { Provider, ProviderSnapshot, ProviderSnapshotNode, ProviderSnapshotNodeCPU, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
 import type { ProviderAttributesSchema } from "@akashnetwork/http-sdk";
 import { AxiosError } from "axios";
 import { add } from "date-fns";
@@ -13,9 +13,10 @@ import type { Auditor } from "@src/provider/http-schemas/auditor.schema";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import { ProviderAuth, ProviderIdentity, ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
 import { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-token/provider-jwt-token.service";
-import { ProviderList } from "@src/types/provider";
+import { ProviderDetail, ProviderList } from "@src/types/provider";
 import { toUTC } from "@src/utils";
 import { forEachInChunks } from "@src/utils/array/array";
+import { getCpuArchAgreement, getReportedCpuArchs } from "@src/utils/cpu-arch/cpu-arch";
 import { mapProviderToList } from "@src/utils/map/provider";
 import { AuditorService } from "../auditors/auditors.service";
 import { ProviderAttributesSchemaService } from "../provider-attributes-schema/provider-attributes-schema.service";
@@ -218,7 +219,7 @@ export class ProviderService {
   }
 
   @Memoize({ ttlInSeconds: 30, maxEntries: 500 })
-  async getProvider(address: string) {
+  async getProvider(address: string): Promise<ProviderDetail | null> {
     const nowUtc = toUTC(new Date());
     const provider = await this.providerRepository.getProviderByAddressWithAttributes(address);
 
@@ -243,7 +244,7 @@ export class ProviderService {
           include: [
             {
               model: ProviderSnapshotNode,
-              include: [{ model: ProviderSnapshotNodeGPU }]
+              include: [{ model: ProviderSnapshotNodeGPU }, { model: ProviderSnapshotNodeCPU, attributes: ["arch"] }]
             }
           ]
         })
@@ -254,8 +255,13 @@ export class ProviderService {
       this.providerAttributesSchemaService.getProviderAttributesSchema()
     ]);
 
+    const providerList = mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot ?? undefined);
+    const reportedCpuArchs = getReportedCpuArchs(lastSuccessfulSnapshot?.nodes ?? []);
+
     return {
-      ...mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot ?? undefined),
+      ...providerList,
+      reportedCpuArchs,
+      cpuArchAgreement: getCpuArchAgreement(providerList.hardwareCpuArch, reportedCpuArchs),
       uptime: uptimeSnapshots.map(ps => ({
         id: ps.id,
         isOnline: ps.isOnline,
