@@ -6,7 +6,7 @@ import { type CreateLogger, LOGGER_FACTORY, MetricsService } from "@src/core";
 import type { DryRunOptions } from "@src/core/types/console";
 import { TopUpSummarizer } from "@src/deployment/lib/top-up-summarizer/top-up-summarizer";
 import { DrainingDeployment } from "@src/deployment/types/draining-deployment";
-import type { DeploymentTopUpInstrumentation, OwnerInsufficientBalanceItem } from "./deployment-top-up-instrumentation";
+import type { DeploymentTopUpInstrumentation, FundingMessageItem, OwnerInsufficientBalanceItem } from "./deployment-top-up-instrumentation";
 
 @scoped(Lifecycle.ResolutionScoped)
 export class TopUpManagedDeploymentsInstrumentationService implements DeploymentTopUpInstrumentation {
@@ -15,6 +15,7 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
   private readonly jobDuration: Histogram;
   private readonly depositsTotal: Counter;
   private readonly chainTxErrors: Counter;
+  private readonly undecidedTxOutcomes: Counter;
   private readonly messagePreparationErrors: Counter;
   private readonly deploymentsMarkedClosed: Counter;
   private readonly deploymentsScanned: Counter;
@@ -51,6 +52,10 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
 
     this.chainTxErrors = this.metricsService.createCounter(this.meter, "auto_top_up_chain_tx_errors_total", {
       description: "Total number of failed deposit attempts"
+    });
+
+    this.undecidedTxOutcomes = this.metricsService.createCounter(this.meter, "auto_top_up_undecided_tx_outcomes_total", {
+      description: "Total number of deposit attempts whose transaction may still land, so their funding claims were held rather than released"
     });
 
     this.messagePreparationErrors = this.metricsService.createCounter(this.meter, "auto_top_up_message_preparation_errors_total", {
@@ -168,6 +173,22 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
 
     this.execWhenEnabled(() => {
       this.chainTxErrors.add(1);
+    });
+  }
+
+  /** Deliberately not tracked as a failed wallet: `walletsTopUpErrorCount` reads as "the deposit was rejected", which is the one thing an undecided outcome does not say. */
+  recordUndecidedTxOutcome({ error, ...details }: { owner: string; items: FundingMessageItem[]; txHash?: string; error: unknown }): void {
+    this.topUpSummarizer.inc("deploymentTopUpUndecidedCount", details.items.length);
+
+    this.logger.error({
+      event: "TOP_UP_DEPLOYMENTS_UNDECIDED_TX_OUTCOME",
+      ...details,
+      ...this.serializeError(error),
+      dryRun: this.options?.dryRun
+    });
+
+    this.execWhenEnabled(() => {
+      this.undecidedTxOutcomes.add(1);
     });
   }
 

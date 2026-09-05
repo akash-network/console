@@ -104,6 +104,8 @@ export class HonoErrorHandlerService {
         return "service_unavailable";
       case 503:
         return "service_unavailable";
+      case 504:
+        return "gateway_timeout";
       default:
         return "unknown_error";
     }

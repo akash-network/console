@@ -29,6 +29,7 @@ export interface DeploymentTopUpInstrumentation {
   recordSkipped(details: { owner: string; deploymentCount: number }): void;
   recordDeposit(details: { owner: string; items: FundingMessageItem[] }): void;
   recordChainTxError(details: { owner: string; items: FundingMessageItem[]; error: unknown }): void;
+  recordUndecidedTxOutcome(details: { owner: string; items: FundingMessageItem[]; txHash?: string; error: unknown }): void;
   recordMasterWalletInsufficientFundsError(details: { owner: string; items: FundingMessageItem[]; error: unknown }): void;
   recordClaimReleaseError(details: { owner: string; deploymentIds: string[]; error: unknown }): void;
   recordDeploymentsMarkedClosed(count: number): void;

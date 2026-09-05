@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { TxNotIncludedError, TxOutcomeUnknownError } from "../../lib/signing-client/tx-outcome.error";
 import type { AppContext } from "../../types/app-context";
 import type { ChainErrorService } from "../chain-error/chain-error.service";
 import { HonoErrorHandlerService } from "./hono-error-handler.service";
@@ -27,6 +28,24 @@ describe(HonoErrorHandlerService.name, () => {
 
     const response = await service.handle(new Error("unknown error"), context);
     expect(response.status).toBe(500);
+  });
+
+  it("carries a not-included transaction outcome and its hash into the response", async () => {
+    const { service, context } = setup();
+
+    const response = await service.handle(new TxNotIncludedError("ABC123"), context);
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({ error: "TxNotIncludedError", data: { outcome: "not_included", txHash: "ABC123" } });
+  });
+
+  it("carries an undecided transaction outcome and its hash into the response", async () => {
+    const { service, context } = setup();
+
+    const response = await service.handle(new TxOutcomeUnknownError("ABC123"), context);
+
+    expect(response.status).toBe(504);
+    await expect(response.json()).resolves.toMatchObject({ error: "TxOutcomeUnknownError", data: { outcome: "unknown", txHash: "ABC123" } });
   });
 
   function setup() {

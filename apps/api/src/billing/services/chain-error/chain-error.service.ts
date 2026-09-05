@@ -5,6 +5,7 @@ import createError from "http-errors";
 import { singleton } from "tsyringe";
 
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { isTxOutcomeError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 
 const ESCROW_SETTLEMENT_UNDERFLOW_MESSAGE = "negative decimal coin amount" as const;
@@ -90,7 +91,12 @@ export class ChainErrorService {
     private readonly txManagerService: TxManagerService
   ) {}
 
+  /** A signer-classified outcome passes through untouched: re-deriving a status from its message would erase whether the tx can still land. */
   public async toAppError(error: Error, messages: readonly EncodeObject[]) {
+    if (isTxOutcomeError(error)) {
+      return error;
+    }
+
     const clues = Object.keys(this.ERRORS) as (keyof typeof this.ERRORS)[];
 
     const clue = clues.find(clue => error.message.toLowerCase().includes(clue.toLowerCase()));
