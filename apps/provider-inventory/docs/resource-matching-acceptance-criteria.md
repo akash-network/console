@@ -262,8 +262,9 @@ Kubernetes.
 
 ### AC17 — Check ordering and short-circuit
 **WHAT:** For each node, the engine checks resources in a fixed order and stops at the first
-failure: **CPU → GPU → Memory → Storage volumes (in declaration order)**.
+failure: **CPU architecture → CPU → GPU → Memory → Storage volumes (in declaration order)**.
 
+- A node of the wrong architecture (AC22) is never tested for any other dimension.
 - A node failing CPU is never tested for GPU / memory / storage on this replica.
 - A node failing GPU is never tested for memory / storage.
 - The first storage volume that fails determines the failure kind (node-level for ephemeral /
@@ -314,6 +315,45 @@ confirmed.
 
 ---
 
+### AC22 — CPU architecture matching
+**WHAT:** A replica is placed only on a node running the CPU architecture it asks for. The request
+carries it as the `arch` attribute on the resource's CPU, whose only accepted values are `amd64`
+and `arm64`. A request that names no architecture is treated as `amd64` — the SDL writes no
+implicit default, so this is the engine's default rather than the client's.
+**HOW:** Architecture is resolved per node and compared before any capacity check. A node reports
+its architecture in `cpu.info[].arch`; the first entry is authoritative. A node reporting none is
+served by whatever its provider declares in the `hardware-cpu-arch` attribute, and a provider that
+declares nothing either is treated as `amd64`, which is what every node predating architecture
+reporting runs.
+
+The two sources fail differently on a value neither `amd64` nor `arm64`. A *reported* one comes from
+the node's own inventory, so a node reporting `ppc64le` serves no request at all rather than being
+claimed as `amd64`. A *declared* one is hand-written and routinely is not an architecture — mainnet
+providers declare `x86`, `x64-86`, `Zen 4`, `AMD EPYC-Rome` — so an unrecognized declaration is
+treated as no declaration and the node falls back to `amd64`.
+
+Because the comparison happens per node, replicas of one resource unit never split across
+architectures, and a provider running both serves requests for either.
+
+- ✅ **Match:** Node reports `arm64`; request asks for `arm64` → placed.
+- ❌ **Skip node:** Node reports `amd64`; request asks for `arm64` → skipped; try next node.
+- ❌ **Skip node:** Node reports `arm64`; request names no architecture → skipped, since the
+  request means `amd64`.
+- ✅ **Match (declared stand-in):** Node reports no architecture, provider declares
+  `hardware-cpu-arch: arm64`; request asks for `arm64` → placed.
+- ❌ **Skip node:** Node reports `amd64` while its provider declares `arm64`; request asks for
+  `arm64` → skipped. Reported inventory always beats a self-declaration.
+- ✅ **Match (today's fleet):** No node reports an architecture and no provider declares one;
+  request names none → every node is eligible, exactly as before architecture existed.
+- ❌ **Skip node:** Node reports `ppc64le` → skipped by every request, whatever its provider
+  declares.
+- ❌ **Reject request:** `arch: sparc64`, `arch` given twice, or any CPU attribute other than
+  `arch` → rejected as a bad request rather than screened against nothing.
+
+Spelling: a *requested* architecture must be exactly `amd64` or `arm64`, matching the SDL enum.
+*Reported* and *declared* values are normalized first, so `x86_64` reads as `amd64` and `aarch64`
+as `arm64`.
+
 ## Worked Example — Mixed GPU Cluster, 3 Replicas
 
 **Cluster:**
@@ -352,6 +392,7 @@ Variations:
 - Main entry point: [Adjust](../cluster/kube/operators/clients/inventory/inventory.go#L214)
 - Per-replica placement: [tryAdjust](../cluster/kube/operators/clients/inventory/inventory.go#L46)
 - GPU matching: [tryAdjustGPU](../cluster/kube/operators/clients/inventory/inventory.go#L125)
+- CPU architecture matching: [tryAdjustCPU](https://github.com/akash-network/provider/pull/433)
 - Attribute parsing: [ParseGPUAttributes / ParseStorageAttributes](../cluster/types/v1beta3/clients/inventory/metrics.go)
 - Interface normalization: [FilterGPUInterface](../cluster/types/v1beta3/types.go#L160)
 - Test fixtures (4-node CPU example): [client_test.go:609-704](../cluster/kube/operators/clients/inventory/client_test.go#L609-L704)

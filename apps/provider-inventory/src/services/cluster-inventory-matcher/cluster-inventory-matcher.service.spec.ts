@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { parseCPUAttributes } from "@src/mappers/cpu-attribute-parser/cpu-attribute-parser";
 import { parseGPUAttributes } from "@src/mappers/gpu-attribute-parser/gpu-attribute-parser";
-import { getAttributeFingerprint } from "@src/mappers/groupspec-mapper/groupspec-mapper";
 import { parseStorageAttributes } from "@src/mappers/storage-attribute-parser/storage-attribute-parser";
 import type { ClusterState, CpuInfo, GpuInfo, NodeState, RequestedResourceUnit, ResourceAttribute } from "../../types/inventory";
 import { ClusterInventoryMatcherService } from "./cluster-inventory-matcher.service";
@@ -749,30 +749,30 @@ describe(ClusterInventoryMatcherService.name, () => {
       expect(service.match(cluster, [wildcardService, h100Service]).matched).toBe(true);
     });
 
-    it("places two services with different non-empty CPU fingerprints independently", () => {
+    it("places two services requesting different architectures independently", () => {
       const service = new ClusterInventoryMatcherService();
       const cluster = makeCluster([
-        { cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n },
-        { cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n }
+        { cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n, cpus: [cpuInfo("amd64")] },
+        { cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n, cpus: [cpuInfo("arm64")] }
       ]);
-      const intelService = buildResourceUnit({
+      const amdService = buildResourceUnit({
         id: 1,
         cpu: 1000n,
-        cpuAttributes: [{ key: "vendor", value: "intel" }],
+        cpuAttributes: [{ key: "arch", value: "amd64" }],
         memory: 1073741824n,
         storage: [{ name: "default", quantity: 1073741824n, attributes: [{ key: "persistent", value: "false" }] }],
         count: 1
       });
-      const amdService = buildResourceUnit({
+      const armService = buildResourceUnit({
         id: 2,
         cpu: 1000n,
-        cpuAttributes: [{ key: "vendor", value: "amd" }],
+        cpuAttributes: [{ key: "arch", value: "arm64" }],
         memory: 1073741824n,
         storage: [{ name: "default", quantity: 1073741824n, attributes: [{ key: "persistent", value: "false" }] }],
         count: 1
       });
 
-      const result = service.match(cluster, [intelService, amdService]);
+      const result = service.match(cluster, [amdService, armService]);
       expect(result.matched).toBe(true);
       expect(result.error).toBeUndefined();
     });
@@ -1039,6 +1039,95 @@ describe(ClusterInventoryMatcherService.name, () => {
     });
   });
 
+  describe("CPU architecture matching", () => {
+    it("matches a cluster reporting no architecture, as every provider does before the operator upgrade", () => {
+      const { service, cluster, resourceUnits } = setup({});
+      expect(service.match(cluster, resourceUnits).matched).toBe(true);
+    });
+
+    it("excludes an amd64-only provider from an arm64 request", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([{ ...roomyNode, cpus: [cpuInfo("amd64")] }]);
+
+      expect(service.match(cluster, archUnits("arm64")).matched).toBe(false);
+    });
+
+    it("excludes an arm64-only provider from an amd64 request", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([{ ...roomyNode, cpus: [cpuInfo("arm64")] }]);
+
+      expect(service.match(cluster, archUnits("amd64")).matched).toBe(false);
+    });
+
+    it("excludes an arm64-only provider from a request naming no architecture", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([{ ...roomyNode, cpus: [cpuInfo("arm64")] }]);
+
+      expect(service.match(cluster, archUnits(null)).matched).toBe(false);
+    });
+
+    it("serves both architectures from a mixed provider", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([
+        { ...roomyNode, cpus: [cpuInfo("amd64")] },
+        { ...roomyNode, cpus: [cpuInfo("arm64")] }
+      ]);
+
+      expect(service.match(cluster, archUnits("amd64")).matched).toBe(true);
+      expect(service.match(cluster, archUnits("arm64")).matched).toBe(true);
+    });
+
+    it("places replicas of one unit only on nodes of the requested architecture", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([
+        { cpu: 2000n, memory: 17179869184n, ephemeral: 107374182400n, cpus: [cpuInfo("arm64")] },
+        { cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n, cpus: [cpuInfo("amd64")] }
+      ]);
+
+      expect(service.match(cluster, archUnits("arm64", 2)).matched).toBe(true);
+      expect(service.match(cluster, archUnits("arm64", 3)).matched).toBe(false);
+    });
+
+    it("falls back to the declared architecture when the node reports none", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([roomyNode]);
+
+      expect(service.match(cluster, archUnits("arm64"), { declaredCpuArch: "arm64" }).matched).toBe(true);
+    });
+
+    it("normalizes a declared architecture written the way a provider spells it", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([roomyNode]);
+
+      expect(service.match(cluster, archUnits("amd64"), { declaredCpuArch: "x86_64" }).matched).toBe(true);
+      expect(service.match(cluster, archUnits("arm64"), { declaredCpuArch: "x86_64" }).matched).toBe(false);
+    });
+
+    it("ignores a declared architecture the node's own inventory contradicts", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([{ ...roomyNode, cpus: [cpuInfo("amd64")] }]);
+
+      expect(service.match(cluster, archUnits("arm64"), { declaredCpuArch: "arm64" }).matched).toBe(false);
+    });
+
+    it("excludes a node reporting an architecture no request can name", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([{ ...roomyNode, cpus: [cpuInfo("ppc64le")] }]);
+
+      expect(service.match(cluster, archUnits("amd64")).matched).toBe(false);
+      expect(service.match(cluster, archUnits(null)).matched).toBe(false);
+      expect(service.match(cluster, archUnits("arm64"), { declaredCpuArch: "arm64" }).matched).toBe(false);
+    });
+
+    it("treats a provider that says nothing at all as amd64", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([roomyNode]);
+
+      expect(service.match(cluster, archUnits("amd64"), { declaredCpuArch: null }).matched).toBe(true);
+      expect(service.match(cluster, archUnits("arm64"), { declaredCpuArch: null }).matched).toBe(false);
+    });
+  });
+
   describe("input immutability", () => {
     it("does not mutate the cluster argument on a successful match", () => {
       const service = new ClusterInventoryMatcherService();
@@ -1113,6 +1202,25 @@ describe(ClusterInventoryMatcherService.name, () => {
     return { service, cluster, resourceUnits };
   }
 });
+
+const roomyNode = { cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n };
+
+function cpuInfo(arch: string): CpuInfo {
+  return { vendor: "vendor", model: "model", arch };
+}
+
+function archUnits(arch: string | null, count = 1): RequestedResourceUnit[] {
+  return [
+    buildResourceUnit({
+      id: 1,
+      cpu: 1000n,
+      cpuAttributes: arch ? [{ key: "arch", value: arch }] : [],
+      memory: 1073741824n,
+      storage: [{ name: "default", quantity: 1073741824n, attributes: [{ key: "persistent", value: "false" }] }],
+      count
+    })
+  ];
+}
 
 function makeCluster(
   nodes: {
@@ -1221,7 +1329,7 @@ function buildResourceUnit(input: {
   return {
     id: input.id,
     resources: {
-      cpu: { units: input.cpu, fingerprint: getAttributeFingerprint(input.cpuAttributes) },
+      cpu: { units: input.cpu, arch: parseCPUAttributes(input.cpuAttributes ?? []).arch },
       gpu: { units: input.gpuUnits ?? 0n, attributes: parseGPUAttributes(input.gpuAttributes ?? []) },
       memory: { quantity: input.memory },
       storage: input.storage.map(s => ({ name: s.name, quantity: s.quantity, attributes: parseStorageAttributes(s.attributes) })),

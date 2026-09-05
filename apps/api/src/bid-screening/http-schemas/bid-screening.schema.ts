@@ -50,12 +50,37 @@ const StorageResourceSchema = z
     }
   });
 
-const ResourceSchema = z.object({
-  id: z.number().int().openapi({ description: "Resource unit ID", example: 1 }),
-  cpu: z.object({
+// Mirrors CPU_ARCHITECTURES in apps/provider-inventory, which owns the screening this route proxies to.
+const CPU_ARCHITECTURES = ["amd64", "arm64"] as const;
+
+const CpuResourceSchema = z
+  .object({
     units: ResourceValueSchema,
     attributes: z.array(AttributeSchema).optional()
-  }),
+  })
+  .superRefine((cpu, ctx) => {
+    let archSeen = false;
+
+    for (const attr of cpu.attributes ?? []) {
+      if (attr.key !== "arch") {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Unsupported CPU attribute "${attr.key}": "arch" is the only one`, path: ["attributes"] });
+      } else if (archSeen) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Duplicate CPU attribute "arch": a resource asks for one architecture`, path: ["attributes"] });
+      } else if (!CPU_ARCHITECTURES.some(architecture => architecture === attr.value)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Unsupported CPU architecture "${attr.value}": expected ${CPU_ARCHITECTURES.join(" or ")}`,
+          path: ["attributes"]
+        });
+      } else {
+        archSeen = true;
+      }
+    }
+  });
+
+const ResourceSchema = z.object({
+  id: z.number().int().openapi({ description: "Resource unit ID", example: 1 }),
+  cpu: CpuResourceSchema,
   memory: z.object({
     quantity: ResourceValueSchema,
     attributes: z.array(AttributeSchema).optional()

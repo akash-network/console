@@ -90,7 +90,7 @@ export class BidScreeningService {
     const matched: BidScreeningCandidate[] = [];
 
     for (const candidate of candidates) {
-      const matchResult = this.#matcher.match(candidate.cluster, resourceUnits);
+      const matchResult = this.#matcher.match(candidate.cluster, resourceUnits, { declaredCpuArch: candidate.declaredCpuArch });
 
       if (matchResult.matched) {
         matched.push(candidate);

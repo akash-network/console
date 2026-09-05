@@ -258,6 +258,40 @@ describe(BidScreeningRepository.name, () => {
     });
   });
 
+  describe("declared CPU architecture projection", () => {
+    it("prefers hardware-cpu-arch from signed_attributes when both sets define it", async () => {
+      await seed({
+        owner: "akash1signedarch",
+        selfAttributes: [{ key: "hardware-cpu-arch", value: "amd64" }],
+        signedAttributes: [{ key: "hardware-cpu-arch", value: "arm64", auditor: AUDITOR }]
+      });
+
+      const [row] = await repository.findCandidates([unit({})], requirements());
+
+      expect(row.declaredCpuArch).toBe("arm64");
+    });
+
+    it("falls back to self_attributes when signed_attributes has no hardware-cpu-arch", async () => {
+      await seed({
+        owner: "akash1selfarch",
+        selfAttributes: [{ key: "hardware-cpu-arch", value: "arm64" }],
+        signedAttributes: [{ key: "country", value: "us", auditor: AUDITOR }]
+      });
+
+      const [row] = await repository.findCandidates([unit({})], requirements());
+
+      expect(row.declaredCpuArch).toBe("arm64");
+    });
+
+    it("returns null when neither attribute set defines hardware-cpu-arch", async () => {
+      await seed({ owner: "akash1noarch", selfAttributes: [{ key: "country", value: "us" }] });
+
+      const [row] = await repository.findCandidates([unit({})], requirements());
+
+      expect(row.declaredCpuArch).toBeNull();
+    });
+  });
+
   describe("gpu_models filter", () => {
     it("vendor-only request matches mixed-model providers via the vendor token", async () => {
       await seed({ owner: "akash1nvidiaA100", gpuModels: ["nvidia", "nvidia/a100"], totalAvailableGpu: 8n, maxNodeFreeGpu: 8n });
@@ -662,7 +696,7 @@ function unit(input: {
     id: 1,
     count: input.count ?? 1,
     resources: {
-      cpu: { units: input.cpu ?? 0n, fingerprint: null },
+      cpu: { units: input.cpu ?? 0n, arch: null },
       memory: { quantity: input.memory ?? 0n },
       gpu: { units: input.gpu ?? 0n, attributes: parseGPUAttributes(input.gpuAttributes ?? []) },
       storage: (input.storage ?? []).map(s => ({ name: s.name, quantity: s.quantity, attributes: parseStorageAttributes(s.attributes) })),

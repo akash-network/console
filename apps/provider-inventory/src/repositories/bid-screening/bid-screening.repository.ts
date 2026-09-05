@@ -17,6 +17,8 @@ export interface BidScreeningCandidate {
   updatedAt: string;
   location: string | null;
   organization: string | null;
+  /** Self-declared CPU architecture, used for nodes whose inventory reports none. */
+  declaredCpuArch: string | null;
 }
 
 const TABLE = getTableName(providerInventory);
@@ -76,7 +78,11 @@ export class BidScreeningRepository {
           COALESCE(
             (SELECT sa->>'value' FROM jsonb_array_elements(${sql(providerInventory.signedAttributes.name)}) AS sa WHERE sa->>'key' = 'organization' LIMIT 1),
             (SELECT sa->>'value' FROM jsonb_array_elements(${sql(providerInventory.selfAttributes.name)}) AS sa WHERE sa->>'key' = 'organization' LIMIT 1)
-          ) AS organization
+          ) AS organization,
+          COALESCE(
+            (SELECT sa->>'value' FROM jsonb_array_elements(${sql(providerInventory.signedAttributes.name)}) AS sa WHERE sa->>'key' = 'hardware-cpu-arch' LIMIT 1),
+            (SELECT sa->>'value' FROM jsonb_array_elements(${sql(providerInventory.selfAttributes.name)}) AS sa WHERE sa->>'key' = 'hardware-cpu-arch' LIMIT 1)
+          ) AS "declaredCpuArch"
         FROM ${sql(TABLE)}
         WHERE ${sql(providerInventory.owner.name)} = ANY(${ownersToFetch}::text[])
       `;

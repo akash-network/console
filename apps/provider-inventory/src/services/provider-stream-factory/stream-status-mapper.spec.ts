@@ -261,13 +261,37 @@ describe(mapProviderStatusToClusterState.name, () => {
     it("maps cpu info entries", () => {
       const inventory = buildStatus({
         cluster: buildCluster({
+          nodes: [buildNode({ cpus: [{ vendor: "amd", model: "epyc", arch: "amd64" } as CPUInfo] })]
+        })
+      });
+
+      const result = mapProviderStatusToClusterState(inventory);
+
+      expect(result.nodes?.[0].cpus).toEqual([{ vendor: "amd", model: "epyc", arch: "amd64" }]);
+    });
+
+    it("maps the architecture an arm64 node reports", () => {
+      const inventory = buildStatus({
+        cluster: buildCluster({
+          nodes: [buildNode({ cpus: [{ vendor: "ampere", model: "altra", arch: "arm64" } as CPUInfo] })]
+        })
+      });
+
+      const result = mapProviderStatusToClusterState(inventory);
+
+      expect(result.nodes?.[0].cpus[0].arch).toBe("arm64");
+    });
+
+    it("maps an empty architecture for inventory that predates architecture reporting", () => {
+      const inventory = buildStatus({
+        cluster: buildCluster({
           nodes: [buildNode({ cpus: [{ vendor: "amd", model: "epyc" } as CPUInfo] })]
         })
       });
 
       const result = mapProviderStatusToClusterState(inventory);
 
-      expect(result.nodes?.[0].cpus).toEqual([{ vendor: "amd", model: "epyc" }]);
+      expect(result.nodes?.[0].cpus[0].arch).toBe("");
     });
 
     it("defaults cpu info to an empty array when absent", () => {
