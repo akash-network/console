@@ -57,6 +57,23 @@ describe(StripeTransactionService.name, () => {
       });
     });
 
+    it("marks an off-session charge so Stripe fails it instead of parking it on authentication", async () => {
+      const { service, stripe } = setup();
+
+      await service.createPaymentIntent({ ...mockPaymentParams, offSession: true });
+
+      expect(stripe.paymentIntents.create).toHaveBeenCalledWith(expect.objectContaining({ off_session: true, error_on_requires_action: true }));
+    });
+
+    it("leaves an on-session charge free to ask the present customer to authenticate", async () => {
+      const { service, stripe } = setup();
+
+      await service.createPaymentIntent(mockPaymentParams);
+
+      expect(stripe.paymentIntents.create).toHaveBeenCalledWith(expect.not.objectContaining({ off_session: expect.anything() }));
+      expect(stripe.paymentIntents.create).toHaveBeenCalledWith(expect.not.objectContaining({ error_on_requires_action: expect.anything() }));
+    });
+
     it("does not consult the idempotency-key row lookup on keyless calls", async () => {
       const { service, stripe, stripeTransactionRepository } = setup();
 
@@ -375,6 +392,27 @@ describe(StripeTransactionService.name, () => {
     });
   });
 
+  describe("cancelUnauthenticatedPaymentIntent", () => {
+    it("cancels the intent at Stripe and records the row as canceled", async () => {
+      const { service, stripe, stripeTransactionRepository } = setup();
+
+      await service.cancelUnauthenticatedPaymentIntent("pi_stalled");
+
+      expect(stripe.paymentIntents.cancel).toHaveBeenCalledWith("pi_stalled", { cancellation_reason: "abandoned" });
+      expect(stripeTransactionRepository.updateByPaymentIntentId).toHaveBeenCalledWith("pi_stalled", { status: "canceled" });
+    });
+
+    it("logs a refused cancel instead of throwing, so the decline it accompanies is still recorded", async () => {
+      const { service, stripe, logger } = setup();
+      const error = new Stripe.errors.StripeAPIError({ type: "api_error", message: "Service unavailable" });
+      vi.mocked(stripe.paymentIntents.cancel).mockRejectedValue(error);
+
+      await expect(service.cancelUnauthenticatedPaymentIntent("pi_stalled")).resolves.toBeUndefined();
+
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "PAYMENT_INTENT_CANCEL_FAILED", paymentIntentId: "pi_stalled", error }));
+    });
+  });
+
   describe("resolveTransaction", () => {
     it("returns transaction once it reaches terminal status", async () => {
       const { service, stripeTransactionRepository } = setup();
@@ -456,6 +494,7 @@ describe(StripeTransactionService.name, () => {
   function setup(params: { paymentIntent?: Stripe.Response<Stripe.PaymentIntent> } = {}) {
     const stripeTransactionRepository = mock<StripeTransactionRepository>();
     const timerService = mock<TimerService>();
+    const logger = mock<LoggerService>();
 
     const stripe = new Stripe(`sk_test_${faker.string.alphanumeric(32)}`, { apiVersion: "2025-10-29.clover", httpClient: Stripe.createFetchHttpClient() });
 
@@ -467,7 +506,7 @@ describe(StripeTransactionService.name, () => {
       timerService,
       mock<UserRepository>(),
       mock<DomainEventsService>(),
-      () => mock<LoggerService>()
+      () => logger
     );
 
     stripeTransactionRepository.create.mockImplementation(async input => ({
@@ -500,12 +539,14 @@ describe(StripeTransactionService.name, () => {
     const paymentIntentToReturn = params.paymentIntent || stripeData.paymentIntent;
     vi.spyOn(stripe.paymentIntents, "create").mockResolvedValue(paymentIntentToReturn);
     vi.spyOn(stripe.paymentIntents, "retrieve").mockResolvedValue(paymentIntentToReturn);
+    vi.spyOn(stripe.paymentIntents, "cancel").mockResolvedValue(paymentIntentToReturn);
 
     return {
       service,
       stripe,
       stripeTransactionRepository,
-      timerService
+      timerService,
+      logger
     };
   }
 });

@@ -1,12 +1,14 @@
 import { createMongoAbility } from "@casl/ability";
 import { addMilliseconds, millisecondsInHour, millisecondsInMinute, millisecondsInSecond } from "date-fns";
+import createError from "http-errors";
 import { Err, Ok, Result } from "ts-results";
 import { singleton } from "tsyringe";
 
 import { AUTO_RELOAD_AMOUNT_MIN_USD } from "@src/billing/config";
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balance.schema";
-import { type CardDecline, toCardDecline } from "@src/billing/lib/card-decline/card-decline";
+import type { PaymentIntentResult } from "@src/billing/http-schemas/stripe.schema";
+import { AUTHENTICATION_REQUIRED_DECLINE_CODE, CARD_DECLINED_ERROR_CODE, type CardDecline, toCardDecline } from "@src/billing/lib/card-decline/card-decline";
 import { centsToUsd } from "@src/billing/lib/currency/currency";
 import { type ChargeClaim, UserWalletOutput, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { AutoReloadPauseService } from "@src/billing/services/auto-reload-pause/auto-reload-pause.service";
@@ -42,6 +44,8 @@ type ReloadContext = AllResources & { job: JobMeta; triggeredByDeployment: boole
 type ReloadOutcome = { nextCheckAt: Date } | undefined;
 
 const millisecondsInDay = 24 * millisecondsInHour;
+
+const AUTHENTICATION_REQUIRED_MESSAGE = "The card requires authentication, which an automatic charge cannot provide.";
 
 @singleton()
 export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalanceReloadCheck> {
@@ -299,10 +303,15 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
         payment_method: resources.paymentMethod.id,
         amount,
         confirm: true,
+        offSession: true,
         metadata: { [AUTO_RECHARGE_METADATA_KEY]: "true" },
         idempotencyKey: `${WalletBalanceReloadCheck.name}.${resources.job.id}`,
         onAmountMismatch: "tolerate"
       });
+
+      if (result.requiresAction) {
+        throw await this.#abandonUnauthenticatedCharge(result);
+      }
 
       if (result.success) {
         await this.walletSettingRepository.resetChargeFailures(resources.walletSetting.id);
@@ -319,6 +328,19 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
 
       throw error;
     }
+  }
+
+  /** Stripe is asked to decline these outright, so one that still stalls on authentication is cancelled and reported as the decline it amounts to. */
+  async #abandonUnauthenticatedCharge(result: PaymentIntentResult): Promise<Error> {
+    if (result.paymentIntentId) {
+      await this.stripeTransactionService.cancelUnauthenticatedPaymentIntent(result.paymentIntentId);
+    }
+
+    return createError(402, AUTHENTICATION_REQUIRED_MESSAGE, {
+      errorCode: CARD_DECLINED_ERROR_CODE,
+      errorType: "payment_error",
+      declineCode: AUTHENTICATION_REQUIRED_DECLINE_CODE
+    });
   }
 
   /**

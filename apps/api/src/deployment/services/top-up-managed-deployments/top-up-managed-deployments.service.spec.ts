@@ -1742,7 +1742,13 @@ describe(TopUpManagedDeploymentsService.name, () => {
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
     jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
-    const walletReloadService = new WalletReloadJobService(walletSettingRepository, userWalletRepository, jobQueueService, createLogger);
+    const walletReloadService = new WalletReloadJobService(
+      walletSettingRepository,
+      userWalletRepository,
+      jobQueueService,
+      mockConfigService<BillingConfigService>({ AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN: 60, AUTO_RELOAD_CHARGE_BACKOFF_MAX_IN_MIN: 1440 }),
+      createLogger
+    );
 
     return {
       ...setup({ ...input, walletReloadService }),

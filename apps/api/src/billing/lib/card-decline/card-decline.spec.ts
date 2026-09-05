@@ -21,12 +21,18 @@ describe("toCardDecline", () => {
     expect(toCardDecline(cardError(undefined))).toEqual({ isTerminal: false });
   });
 
-  it.each(["lost_card", "stolen_card", "fraudulent", "pickup_card", "revocation_of_all_authorizations", "stop_payment_order", "merchant_blacklist"])(
-    "treats %s as terminal",
-    declineCode => {
-      expect(toCardDecline(cardError(declineCode))).toEqual({ declineCode, isTerminal: true });
-    }
-  );
+  it.each([
+    "lost_card",
+    "stolen_card",
+    "fraudulent",
+    "pickup_card",
+    "revocation_of_all_authorizations",
+    "stop_payment_order",
+    "merchant_blacklist",
+    "authentication_required"
+  ])("treats %s as terminal", declineCode => {
+    expect(toCardDecline(cardError(declineCode))).toEqual({ declineCode, isTerminal: true });
+  });
 
   it("ignores a Stripe outage", () => {
     expect(toCardDecline(new Stripe.errors.StripeAPIError({ type: "api_error", message: "Service unavailable" }))).toBeUndefined();

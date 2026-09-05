@@ -2,7 +2,10 @@ import Stripe from "stripe";
 
 export const CARD_DECLINED_ERROR_CODE = "card_declined";
 
-/** Codes the issuer will never approve on a retry, and reattempting them is exactly what card networks penalise. */
+/** Stripe's decline code when the issuer demands 3DS on a charge the absent customer cannot authenticate. */
+export const AUTHENTICATION_REQUIRED_DECLINE_CODE = "authentication_required";
+
+/** Codes no off-session retry can clear: the issuer will never approve them, or only the absent customer could. */
 const TERMINAL_DECLINE_CODES: ReadonlySet<string> = new Set([
   "lost_card",
   "stolen_card",
@@ -10,7 +13,8 @@ const TERMINAL_DECLINE_CODES: ReadonlySet<string> = new Set([
   "pickup_card",
   "revocation_of_all_authorizations",
   "stop_payment_order",
-  "merchant_blacklist"
+  "merchant_blacklist",
+  AUTHENTICATION_REQUIRED_DECLINE_CODE
 ]);
 
 export type CardDecline = {

@@ -1,11 +1,13 @@
 import { inject, singleton } from "tsyringe";
 
-import type { CardDecline } from "@src/billing/lib/card-decline/card-decline";
+import { calculateChargeCooldownMinutes } from "@src/billing/lib/auto-reload/charge-cooldown";
+import { AUTHENTICATION_REQUIRED_DECLINE_CODE, type CardDecline } from "@src/billing/lib/card-decline/card-decline";
 import { type ChargeClaim, UserWalletRepository, type WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { type CreateNotificationInput, NotificationService } from "@src/notifications/services/notification/notification.service";
+import { autoTopUpAuthenticationRequiredNotification } from "@src/notifications/services/notification-templates/auto-top-up-authentication-required-notification";
 import { autoTopUpChargeFailedNotification } from "@src/notifications/services/notification-templates/auto-top-up-charge-failed-notification";
 import { autoTopUpPausedNotification } from "@src/notifications/services/notification-templates/auto-top-up-paused-notification";
 import type { UserOutput } from "@src/user/repositories";
@@ -15,9 +17,6 @@ import type { UserOutput } from "@src/user/repositories";
  * send one message per attempt, and the user still hears within minutes rather than at the pause.
  */
 const FIRST_DECLINE = 1;
-
-/** Guards `2 ** exponent` against a raised decline limit, since the result is interpolated into a Postgres interval. */
-const MAX_BACKOFF_DOUBLINGS = 16;
 
 /**
  * Owns when Console stops charging a declining card and when it starts again. It lives apart from
@@ -39,21 +38,14 @@ export class AutoReloadPauseService {
     this.logger = createLogger({ context: AutoReloadPauseService.name });
   }
 
-  /**
-   * Doubles the gap after each consecutive decline, so the attempts a dead card is allowed span
-   * hours instead of landing back to back. A base of 0 keeps meaning "no cap at all".
-   */
   calculateChargeCooldownMinutes(failureCount: number): number {
-    const base = this.billingConfig.get("AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN");
-
-    if (base === 0 || failureCount <= 0) {
-      return base;
-    }
-
-    const doublings = Math.min(failureCount - 1, MAX_BACKOFF_DOUBLINGS);
-    const backedOff = Math.min(base * 2 ** doublings, this.billingConfig.get("AUTO_RELOAD_CHARGE_BACKOFF_MAX_IN_MIN"));
-
-    return Math.max(base, backedOff);
+    return calculateChargeCooldownMinutes(
+      {
+        baseMinutes: this.billingConfig.get("AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN"),
+        maxMinutes: this.billingConfig.get("AUTO_RELOAD_CHARGE_BACKOFF_MAX_IN_MIN")
+      },
+      failureCount
+    );
   }
 
   async recordDecline(input: { claim: ChargeClaim; user: UserOutput; decline: CardDecline }): Promise<void> {
@@ -75,9 +67,17 @@ export class AutoReloadPauseService {
 
     this.logger.warn({ event: "AUTO_RELOAD_PAUSED", userId: user.id, failureCount, declineCode: decline.declineCode });
 
-    await this.#notifyUser(autoTopUpPausedNotification(user, { pausedAt, billingUrl: this.#billingUrl() }));
+    await this.#notifyUser(this.#pausedNotification(user, pausedAt, decline));
     await this.#cancelPendingReloadCheck(user.id);
     await this.walletReloadJobService.scheduleCreditsLowCheck(user.id, { withCleanup: true });
+  }
+
+  #pausedNotification(user: UserOutput, pausedAt: Date, decline: CardDecline): CreateNotificationInput {
+    if (decline.declineCode === AUTHENTICATION_REQUIRED_DECLINE_CODE) {
+      return autoTopUpAuthenticationRequiredNotification(user, { pausedAt, paymentUrl: this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK") });
+    }
+
+    return autoTopUpPausedNotification(user, { pausedAt, billingUrl: this.#billingUrl() });
   }
 
   /**
