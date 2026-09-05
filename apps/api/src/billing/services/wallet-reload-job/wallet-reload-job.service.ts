@@ -46,10 +46,7 @@ export class WalletReloadJobService {
     return false;
   }
 
-  /**
-   * A check inside the charge cooldown can only lose the claim and defer itself to the reopen, so a spend
-   * event that lands there is queued straight for the reopen instead of running a full check per event.
-   */
+  /** A check inside the charge cooldown can only lose the claim and defer to the reopen, so a spend event there is queued straight for the reopen. */
   #chargeWindowReopenAfter(walletSetting: Pick<WalletSettingOutput, "lastAutoChargeAt" | "autoReloadFailureCount">): string | undefined {
     const cooldownMinutes = calculateChargeCooldownMinutes(
       {

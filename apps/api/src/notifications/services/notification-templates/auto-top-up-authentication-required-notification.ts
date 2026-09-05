@@ -1,10 +1,7 @@
 import type { UserOutput } from "@src/user/repositories";
 import type { CreateNotificationInput } from "../notification/notification.service";
 
-/**
- * Links to the Add Funds modal rather than the payment methods page: paying by hand is the one flow
- * where the user is present to give the bank the confirmation it asked for.
- */
+/** Links to Add Funds rather than payment methods: paying by hand is the one flow where the user is present to confirm with the bank. */
 export function autoTopUpAuthenticationRequiredNotification(user: UserOutput, vars: { pausedAt: Date; paymentUrl: string }): CreateNotificationInput {
   return {
     notificationId: `autoTopUpAuthenticationRequired.${user.id}.${vars.pausedAt.toISOString()}`,

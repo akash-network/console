@@ -3,10 +3,7 @@ const MAX_BACKOFF_DOUBLINGS = 16;
 
 export type ChargeCooldownConfig = { baseMinutes: number; maxMinutes: number };
 
-/**
- * Doubles the gap after each consecutive decline, so the attempts a dead card is allowed span
- * hours instead of landing back to back. A base of 0 keeps meaning "no cap at all".
- */
+/** Doubles the gap after each consecutive decline so a dead card's allowed attempts span hours; a base of 0 keeps meaning no cap at all. */
 export function calculateChargeCooldownMinutes(config: ChargeCooldownConfig, failureCount: number): number {
   if (config.baseMinutes === 0 || failureCount <= 0) {
     return config.baseMinutes;

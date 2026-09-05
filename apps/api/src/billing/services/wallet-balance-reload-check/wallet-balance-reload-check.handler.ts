@@ -330,10 +330,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     }
   }
 
-  /**
-   * Stripe is asked to decline these outright, so an intent that still comes back waiting on authentication is
-   * cancelled and reported as the decline it amounts to: nobody is present to authenticate a background charge.
-   */
+  /** Stripe is asked to decline these outright, so one that still stalls on authentication is cancelled and reported as the decline it amounts to. */
   async #abandonUnauthenticatedCharge(result: PaymentIntentResult): Promise<Error> {
     if (result.paymentIntentId) {
       await this.stripeTransactionService.cancelUnauthenticatedPaymentIntent(result.paymentIntentId);
