@@ -74,6 +74,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
         payment_method: expect.any(String),
         amount: expectedReloadAmount,
         confirm: true,
+        offSession: true,
         metadata: { auto_recharge: "true" },
         idempotencyKey: `${WalletBalanceReloadCheck.name}.${jobMeta.id}`,
         onAmountMismatch: "tolerate"
@@ -115,6 +116,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
         payment_method: expect.any(String),
         amount: expectedReloadAmount,
         confirm: true,
+        offSession: true,
         metadata: { auto_recharge: "true" },
         idempotencyKey: `${WalletBalanceReloadCheck.name}.${jobMeta.id}`,
         onAmountMismatch: "tolerate"
@@ -447,6 +449,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
         payment_method: expect.any(String),
         amount: 100,
         confirm: true,
+        offSession: true,
         metadata: { auto_recharge: "true" },
         idempotencyKey: `${WalletBalanceReloadCheck.name}.${jobMeta.id}`,
         onAmountMismatch: "tolerate"
@@ -827,12 +830,36 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       expect(walletSettingRepository.resetChargeFailures).toHaveBeenCalledWith(walletSetting.id);
     });
+  });
 
-    it("keeps the declines when the card only asked for authentication", async () => {
-      const { handler, walletSettingRepository, job, jobMeta } = setup({ balance: 10.0, autoReloadFailureCount: 2, chargeRequiresAction: true });
+  describe("when the card asks for authentication nobody is present to give", () => {
+    it("cancels the stalled intent so it does not linger as Incomplete", async () => {
+      const { handler, stripeTransactionService, job, jobMeta } = setup({ balance: 10.0, chargeRequiresAction: true });
 
-      await handler.handle(job, jobMeta);
+      await expect(handler.handle(job, jobMeta)).rejects.toThrow();
 
+      expect(stripeTransactionService.cancelUnauthenticatedPaymentIntent).toHaveBeenCalledWith("pi_requires_action");
+    });
+
+    it("records a terminal authentication decline so the wallet pauses instead of retrying every cooldown", async () => {
+      const { handler, autoReloadPauseService, claim, job, jobMeta } = setup({ balance: 10.0, chargeRequiresAction: true });
+
+      await expect(handler.handle(job, jobMeta)).rejects.toThrow();
+
+      expect(autoReloadPauseService.recordDecline).toHaveBeenCalledWith({
+        claim,
+        user: expect.objectContaining({ id: job.userId }),
+        decline: { declineCode: "authentication_required", isTerminal: true }
+      });
+    });
+
+    it("reports the charge as failed rather than triggered", async () => {
+      const { handler, instrumentationService, walletSettingRepository, job, jobMeta } = setup({ balance: 10.0, chargeRequiresAction: true });
+
+      await expect(handler.handle(job, jobMeta)).rejects.toThrow();
+
+      expect(instrumentationService.recordReloadTriggered).not.toHaveBeenCalled();
+      expect(instrumentationService.recordReloadFailed).toHaveBeenCalledWith(expect.objectContaining({ declineCode: "authentication_required" }));
       expect(walletSettingRepository.resetChargeFailures).not.toHaveBeenCalled();
     });
   });
@@ -921,7 +948,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     const stripeTransactionService = mock<StripeTransactionService>();
     stripeTransactionService.createPaymentIntent.mockResolvedValue({
       success: input?.chargeRequiresAction ? false : true,
-      ...(input?.chargeRequiresAction && { requiresAction: true }),
+      ...(input?.chargeRequiresAction && { requiresAction: true, paymentIntentId: "pi_requires_action" }),
       transactionId: faker.string.uuid(),
       transactionStatus: "succeeded"
     });

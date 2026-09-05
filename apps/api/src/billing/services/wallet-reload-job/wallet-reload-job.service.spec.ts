@@ -5,10 +5,12 @@ import { mock } from "vitest-mock-extended";
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-low-check";
 import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
+import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { JobQueueService } from "@src/core";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { WalletReloadJobService } from "./wallet-reload-job.service";
 
+import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 import { generateWalletSetting } from "@test/seeders/wallet-setting.seeder";
 
@@ -89,6 +91,42 @@ describe(WalletReloadJobService.name, () => {
 
       const [job] = jobQueueService.enqueue.mock.calls[0];
       expect((job as WalletBalanceReloadCheck).data).toMatchObject({ userId: walletSetting.userId, triggeredByDeployment: true });
+    });
+
+    it("queues a check inside the charge cooldown for the window reopen instead of running it now", async () => {
+      const { service, walletSettingRepository, jobQueueService } = setup({ cooldownMinutes: 60 });
+      const lastAutoChargeAt = new Date(Date.now() - 20 * 60_000);
+      walletSettingRepository.findByUserId.mockResolvedValue(generateWalletSetting({ autoReloadEnabled: true, lastAutoChargeAt }));
+      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+
+      await service.scheduleImmediate({ userId: faker.string.uuid() });
+
+      const [, options] = jobQueueService.enqueue.mock.calls[0];
+      const expectedReopen = new Date(lastAutoChargeAt.getTime() + 61 * 60_000).toISOString();
+      expect(options).toMatchObject({ startAfter: expectedReopen });
+    });
+
+    it("runs the check right away once the charge cooldown has passed", async () => {
+      const { service, walletSettingRepository, jobQueueService } = setup({ cooldownMinutes: 60 });
+      const lastAutoChargeAt = new Date(Date.now() - 90 * 60_000);
+      walletSettingRepository.findByUserId.mockResolvedValue(generateWalletSetting({ autoReloadEnabled: true, lastAutoChargeAt }));
+      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+
+      await service.scheduleImmediate({ userId: faker.string.uuid() });
+
+      const [, options] = jobQueueService.enqueue.mock.calls[0];
+      expect(options).not.toHaveProperty("startAfter");
+    });
+
+    it("runs the check right away for a wallet that has never been charged", async () => {
+      const { service, walletSettingRepository, jobQueueService } = setup();
+      walletSettingRepository.findByUserId.mockResolvedValue(generateWalletSetting({ autoReloadEnabled: true, lastAutoChargeAt: null }));
+      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+
+      await service.scheduleImmediate({ userId: faker.string.uuid() });
+
+      const [, options] = jobQueueService.enqueue.mock.calls[0];
+      expect(options).not.toHaveProperty("startAfter");
     });
 
     it("looks up the wallet setting by walletId when given a walletId", async () => {
@@ -371,14 +409,15 @@ describe(WalletReloadJobService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: WalletReloadJobService.name });
   });
 
-  function setup() {
+  function setup(input?: { cooldownMinutes?: number }) {
     const walletSettingRepository = mock<WalletSettingRepository>();
     const userWalletRepository = mock<UserWalletRepository>();
     const jobQueueService = mock<JobQueueService>();
+    const billingConfig = mockConfigService<BillingConfigService>({ AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN: input?.cooldownMinutes ?? 60 });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    const service = new WalletReloadJobService(walletSettingRepository, userWalletRepository, jobQueueService, createLogger);
+    const service = new WalletReloadJobService(walletSettingRepository, userWalletRepository, jobQueueService, billingConfig, createLogger);
 
     return {
       service,

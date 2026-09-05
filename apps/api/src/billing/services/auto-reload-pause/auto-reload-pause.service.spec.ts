@@ -98,6 +98,22 @@ describe(AutoReloadPauseService.name, () => {
       );
     });
 
+    it("sends the add-funds email instead of the declined-card one when the bank demanded authentication", async () => {
+      const { service, walletSettingRepository, notificationService, claim, user } = setup();
+      const pausedAt = new Date("2026-09-01T12:00:00.000Z");
+      walletSettingRepository.recordChargeDecline.mockResolvedValue({ failureCount: 1, pausedAt });
+
+      await service.recordDecline({ claim, user, decline: { declineCode: "authentication_required", isTerminal: true } });
+
+      expect(notificationService.createNotification).toHaveBeenCalledTimes(1);
+      expect(notificationService.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          notificationId: `autoTopUpAuthenticationRequired.${user.id}.${pausedAt.toISOString()}`,
+          payload: expect.objectContaining({ actions: [{ label: "Add funds", url: "https://console.akash.network/billing?openPayment=true" }] })
+        })
+      );
+    });
+
     it("leaves the wallet alone while the card still has chances left", async () => {
       const { service, walletSettingRepository, walletReloadJobService, notificationService, claim, user } = setup();
       walletSettingRepository.recordChargeDecline.mockResolvedValue({ failureCount: 2, pausedAt: null });

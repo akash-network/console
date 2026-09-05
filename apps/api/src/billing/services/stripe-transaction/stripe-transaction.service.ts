@@ -43,6 +43,12 @@ export const AUTO_RECHARGE_METADATA_KEY = "auto_recharge";
 
 const CARD_DECLINED_MESSAGE = "Payment method was declined. Please try a different card.";
 
+/** Without both, an issuer that wants 3DS leaves the intent stalled in requires_action instead of declining it. */
+const OFF_SESSION_CHARGE_OPTIONS = { off_session: true, error_on_requires_action: true } as const satisfies Pick<
+  Stripe.PaymentIntentCreateParams,
+  "off_session" | "error_on_requires_action"
+>;
+
 /** The decline code lets the reload job tell a card it can retry from one the issuer will never approve. */
 function declineCodeOf(paymentIntent: Stripe.PaymentIntent): { declineCode?: string } {
   const declineCode = paymentIntent.last_payment_error?.decline_code;
@@ -109,6 +115,7 @@ export class StripeTransactionService {
     payment_method: string;
     amount: number;
     confirm: boolean;
+    offSession?: boolean;
     metadata?: Record<string, string>;
     idempotencyKey?: string;
     onAmountMismatch: OnAmountMismatch;
@@ -294,7 +301,7 @@ export class StripeTransactionService {
 
   async #chargePaymentIntent(
     transaction: StripeTransactionOutput,
-    params: { customer: string; payment_method: string; confirm: boolean; metadata?: Record<string, string>; idempotencyKey?: string }
+    params: { customer: string; payment_method: string; confirm: boolean; offSession?: boolean; metadata?: Record<string, string>; idempotencyKey?: string }
   ): Promise<PaymentIntentResult> {
     const createOptions: Parameters<Stripe["paymentIntents"]["create"]> = [
       {
@@ -303,6 +310,7 @@ export class StripeTransactionService {
         amount: transaction.amount,
         currency: STRIPE_CURRENCY,
         confirm: params.confirm,
+        ...(params.offSession && OFF_SESSION_CHARGE_OPTIONS),
         metadata: {
           ...params.metadata,
           internal_transaction_id: transaction.id
@@ -385,6 +393,16 @@ export class StripeTransactionService {
       }
 
       throw error;
+    }
+  }
+
+  /** Best-effort: a refused cancel is logged so the authentication decline the caller is recording still lands. */
+  async cancelUnauthenticatedPaymentIntent(paymentIntentId: string): Promise<void> {
+    try {
+      await this.stripe.paymentIntents.cancel(paymentIntentId, { cancellation_reason: "abandoned" });
+      await this.stripeTransactionRepository.updateByPaymentIntentId(paymentIntentId, { status: "canceled" });
+    } catch (error) {
+      this.loggerService.error({ event: "PAYMENT_INTENT_CANCEL_FAILED", paymentIntentId, error });
     }
   }
 

@@ -1,11 +1,16 @@
+import { addMilliseconds, millisecondsInMinute } from "date-fns";
 import { inject, singleton } from "tsyringe";
 
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-low-check";
 import { isAutoReloadActive } from "@src/billing/lib/auto-reload/auto-reload";
 import { UserWalletRepository, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
+import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { EnqueueOptions, JobQueueService } from "@src/core";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
+
+/** Landing slightly past the reopen keeps the deferred check from losing the claim on the boundary and deferring again. */
+const CHARGE_WINDOW_REOPEN_BUFFER_IN_MS = millisecondsInMinute;
 
 @singleton()
 export class WalletReloadJobService {
@@ -15,6 +20,7 @@ export class WalletReloadJobService {
     private readonly walletSettingRepository: WalletSettingRepository,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly jobQueueService: JobQueueService,
+    private readonly billingConfig: BillingConfigService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: WalletReloadJobService.name });
@@ -28,11 +34,30 @@ export class WalletReloadJobService {
         : await this.walletSettingRepository.findOneBy({ walletId: input.walletId });
 
     if (isAutoReloadActive(walletSetting)) {
-      await this.scheduleForWalletSetting(walletSetting, { withCleanup: true, triggeredByDeployment: options?.triggeredByDeployment });
+      await this.scheduleForWalletSetting(walletSetting, {
+        withCleanup: true,
+        triggeredByDeployment: options?.triggeredByDeployment,
+        startAfter: this.#chargeWindowReopenAfter(walletSetting)
+      });
       return true;
     }
 
     return false;
+  }
+
+  /**
+   * A check inside the charge cooldown can only lose the claim and defer itself to the reopen, so a spend
+   * event that lands there is queued straight for the reopen instead of running a full check per event.
+   */
+  #chargeWindowReopenAfter(walletSetting: Pick<WalletSettingOutput, "lastAutoChargeAt">): string | undefined {
+    if (!walletSetting.lastAutoChargeAt) {
+      return undefined;
+    }
+
+    const cooldownInMs = this.billingConfig.get("AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN") * millisecondsInMinute;
+    const reopenAt = addMilliseconds(walletSetting.lastAutoChargeAt, cooldownInMs + CHARGE_WINDOW_REOPEN_BUFFER_IN_MS);
+
+    return reopenAt > new Date() ? reopenAt.toISOString() : undefined;
   }
 
   async scheduleCreditsLowCheckIfAutoReloadOff(input: { walletId: number }): Promise<void> {

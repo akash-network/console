@@ -1,11 +1,12 @@
 import { inject, singleton } from "tsyringe";
 
-import type { CardDecline } from "@src/billing/lib/card-decline/card-decline";
+import { AUTHENTICATION_REQUIRED_DECLINE_CODE, type CardDecline } from "@src/billing/lib/card-decline/card-decline";
 import { type ChargeClaim, UserWalletRepository, type WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { type CreateNotificationInput, NotificationService } from "@src/notifications/services/notification/notification.service";
+import { autoTopUpAuthenticationRequiredNotification } from "@src/notifications/services/notification-templates/auto-top-up-authentication-required-notification";
 import { autoTopUpChargeFailedNotification } from "@src/notifications/services/notification-templates/auto-top-up-charge-failed-notification";
 import { autoTopUpPausedNotification } from "@src/notifications/services/notification-templates/auto-top-up-paused-notification";
 import type { UserOutput } from "@src/user/repositories";
@@ -75,9 +76,17 @@ export class AutoReloadPauseService {
 
     this.logger.warn({ event: "AUTO_RELOAD_PAUSED", userId: user.id, failureCount, declineCode: decline.declineCode });
 
-    await this.#notifyUser(autoTopUpPausedNotification(user, { pausedAt, billingUrl: this.#billingUrl() }));
+    await this.#notifyUser(this.#pausedNotification(user, pausedAt, decline));
     await this.#cancelPendingReloadCheck(user.id);
     await this.walletReloadJobService.scheduleCreditsLowCheck(user.id, { withCleanup: true });
+  }
+
+  #pausedNotification(user: UserOutput, pausedAt: Date, decline: CardDecline): CreateNotificationInput {
+    if (decline.declineCode === AUTHENTICATION_REQUIRED_DECLINE_CODE) {
+      return autoTopUpAuthenticationRequiredNotification(user, { pausedAt, paymentUrl: this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK") });
+    }
+
+    return autoTopUpPausedNotification(user, { pausedAt, billingUrl: this.#billingUrl() });
   }
 
   /**
