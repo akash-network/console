@@ -119,6 +119,19 @@ describe(WalletReloadJobService.name, () => {
       expect(options).toMatchObject({ startAfter: expectedReopen });
     });
 
+    it("drops the deployment trigger from a deferred check so it re-checks active deployments when it runs", async () => {
+      const { service, walletSettingRepository, jobQueueService } = setup({ cooldownMinutes: 60 });
+      const lastAutoChargeAt = new Date(Date.now() - 20 * 60_000);
+      walletSettingRepository.findByUserId.mockResolvedValue(generateWalletSetting({ autoReloadEnabled: true, lastAutoChargeAt }));
+      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+
+      await service.scheduleImmediate({ userId: faker.string.uuid() }, { triggeredByDeployment: true });
+
+      const [job, options] = jobQueueService.enqueue.mock.calls[0];
+      expect(options).toHaveProperty("startAfter");
+      expect((job as WalletBalanceReloadCheck).data.triggeredByDeployment).toBeUndefined();
+    });
+
     it("never defers when the charge cooldown is disabled", async () => {
       const { service, walletSettingRepository, jobQueueService } = setup({ cooldownMinutes: 0 });
       walletSettingRepository.findByUserId.mockResolvedValue(generateWalletSetting({ autoReloadEnabled: true, lastAutoChargeAt: new Date() }));

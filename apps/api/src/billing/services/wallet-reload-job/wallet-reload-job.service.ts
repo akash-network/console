@@ -35,10 +35,11 @@ export class WalletReloadJobService {
         : await this.walletSettingRepository.findOneBy({ walletId: input.walletId });
 
     if (isAutoReloadActive(walletSetting)) {
+      const startAfter = this.#chargeWindowReopenAfter(walletSetting);
       await this.scheduleForWalletSetting(walletSetting, {
         withCleanup: true,
-        triggeredByDeployment: options?.triggeredByDeployment,
-        startAfter: this.#chargeWindowReopenAfter(walletSetting)
+        startAfter,
+        triggeredByDeployment: startAfter ? undefined : options?.triggeredByDeployment
       });
       return true;
     }
@@ -46,7 +47,7 @@ export class WalletReloadJobService {
     return false;
   }
 
-  /** A check inside the charge cooldown can only lose the claim and defer to the reopen, so a spend event there is queued straight for the reopen. */
+  /** A check inside the cooldown can only defer to the reopen, so it is queued there directly; the deployment flag vouches for a create that just happened and is dropped on the way. */
   #chargeWindowReopenAfter(walletSetting: Pick<WalletSettingOutput, "lastAutoChargeAt" | "autoReloadFailureCount">): string | undefined {
     const cooldownMinutes = calculateChargeCooldownMinutes(
       {
