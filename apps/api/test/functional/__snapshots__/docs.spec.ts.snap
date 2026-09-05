@@ -8513,6 +8513,28 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "type": "string",
             },
           },
+          {
+            "in": "query",
+            "name": "startDate",
+            "required": false,
+            "schema": {
+              "description": "Start date (YYYY-MM-DD). Defaults to 30 days before endDate",
+              "example": "2024-01-01",
+              "format": "date",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "required": false,
+            "schema": {
+              "description": "End date (YYYY-MM-DD), inclusive. Defaults to today (UTC)",
+              "example": "2024-01-31",
+              "format": "date",
+              "type": "string",
+            },
+          },
         ],
         "responses": {
           "200": {
@@ -8562,11 +8584,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "Gets gpu analytics breakdown by vendor and model. If no vendor or model is provided, all GPUs are returned.",
+            "description": "Daily gpu breakdown rows for the requested date range, one per date, vendor and model.",
           },
         },
         "security": [],
-        "summary": "Gets gpu analytics breakdown by vendor and model. If no vendor or model is provided, all GPUs are returned.",
+        "summary": "Gets the daily gpu analytics breakdown by vendor and model over a date range (default: last 30 days, max 366 days). If no vendor or model is provided, all GPUs are returned.",
         "tags": [
           "Gpu",
         ],

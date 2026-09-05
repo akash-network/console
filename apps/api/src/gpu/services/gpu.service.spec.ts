@@ -25,12 +25,14 @@ describe(GpuService.name, () => {
   });
 
   describe("getGpuBreakdown", () => {
+    const window = { startDate: "2024-01-01", endDate: "2024-01-31" };
+
     it("serves a repeated query from cache", async () => {
       const { service, gpuRepository } = setup();
       gpuRepository.getGpuBreakdown.mockResolvedValue([]);
 
-      await service.getGpuBreakdown({ vendor: "nvidia" });
-      await service.getGpuBreakdown({ vendor: "nvidia" });
+      await service.getGpuBreakdown({ ...window, vendor: "nvidia" });
+      await service.getGpuBreakdown({ ...window, vendor: "nvidia" });
 
       expect(gpuRepository.getGpuBreakdown).toHaveBeenCalledTimes(1);
     });
@@ -39,8 +41,8 @@ describe(GpuService.name, () => {
       const { service, gpuRepository } = setup();
       gpuRepository.getGpuBreakdown.mockResolvedValue([]);
 
-      await service.getGpuBreakdown({ vendor: "a", model: "b#c" });
-      await service.getGpuBreakdown({ vendor: "a#b", model: "c" });
+      await service.getGpuBreakdown({ ...window, vendor: "a", model: "b#c" });
+      await service.getGpuBreakdown({ ...window, vendor: "a#b", model: "c" });
 
       expect(gpuRepository.getGpuBreakdown).toHaveBeenCalledTimes(2);
     });
@@ -49,11 +51,21 @@ describe(GpuService.name, () => {
       const { service, gpuRepository } = setup();
       gpuRepository.getGpuBreakdown.mockResolvedValue([]);
 
-      await service.getGpuBreakdown({});
-      await service.getGpuBreakdown({ vendor: "nvidia" });
-      await service.getGpuBreakdown({ model: "nvidia" });
+      await service.getGpuBreakdown({ ...window });
+      await service.getGpuBreakdown({ ...window, vendor: "nvidia" });
+      await service.getGpuBreakdown({ ...window, model: "nvidia" });
 
       expect(gpuRepository.getGpuBreakdown).toHaveBeenCalledTimes(3);
+    });
+
+    it("fetches fresh results when the date range differs", async () => {
+      const { service, gpuRepository } = setup();
+      gpuRepository.getGpuBreakdown.mockResolvedValue([]);
+
+      await service.getGpuBreakdown({ ...window, vendor: "nvidia" });
+      await service.getGpuBreakdown({ startDate: "2024-02-01", endDate: "2024-02-29", vendor: "nvidia" });
+
+      expect(gpuRepository.getGpuBreakdown).toHaveBeenCalledTimes(2);
     });
   });
 

@@ -15520,7 +15520,7 @@
           "Gpu"
         ],
         "security": [],
-        "summary": "Gets gpu analytics breakdown by vendor and model. If no vendor or model is provided, all GPUs are returned.",
+        "summary": "Gets the daily gpu analytics breakdown by vendor and model over a date range (default: last 30 days, max 366 days). If no vendor or model is provided, all GPUs are returned.",
         "parameters": [
           {
             "schema": {
@@ -15537,11 +15537,33 @@
             "required": false,
             "name": "model",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Start date (YYYY-MM-DD). Defaults to 30 days before endDate",
+              "example": "2024-01-01"
+            },
+            "required": false,
+            "name": "startDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "End date (YYYY-MM-DD), inclusive. Defaults to today (UTC)",
+              "example": "2024-01-31"
+            },
+            "required": false,
+            "name": "endDate",
+            "in": "query"
           }
         ],
         "responses": {
           "200": {
-            "description": "Gets gpu analytics breakdown by vendor and model. If no vendor or model is provided, all GPUs are returned.",
+            "description": "Daily gpu breakdown rows for the requested date range, one per date, vendor and model.",
             "content": {
               "application/json": {
                 "schema": {

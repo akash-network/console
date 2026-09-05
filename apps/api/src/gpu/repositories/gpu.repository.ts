@@ -1,4 +1,4 @@
-import { sub } from "date-fns";
+import { addDays, sub } from "date-fns";
 import { QueryTypes, Sequelize } from "sequelize";
 import { inject, injectable } from "tsyringe";
 
@@ -78,7 +78,10 @@ export class GpuRepository {
     );
   }
 
-  async getGpuBreakdown({ vendor, model }: GpuBreakdownQuery) {
+  async getGpuBreakdown({ vendor, model, startDate, endDate }: GpuBreakdownQuery) {
+    const windowStart = new Date(`${startDate}T00:00:00.000Z`);
+    const windowEndExclusive = addDays(new Date(`${endDate}T00:00:00.000Z`), 1);
+
     const result = await this.#chainDb.query<{
       date: Date;
       vendor: string;
@@ -90,54 +93,65 @@ export class GpuRepository {
       gpuUtilization: number;
     }>(
       `/* gpu:breakdown */
-        WITH UTILIZATION AS (
+        WITH daily_snapshots AS (
+          SELECT DISTINCT ON (p."hostUri", DATE(ps."checkDate"))
+            ps.id AS "snapshotId",
+            p."hostUri",
+            DATE(ps."checkDate") AS date
+          FROM "providerSnapshot" ps
+          INNER JOIN "provider" p ON p."owner" = ps."owner"
+          WHERE ps."isLastSuccessOfDay" = TRUE
+            AND ps."checkDate" >= :window_start
+            AND ps."checkDate" < :window_end_exclusive
+          ORDER BY p."hostUri", DATE(ps."checkDate"), ps."checkDate" DESC
+        ),
+        gpu_nodes AS (
           SELECT
-              d."date",
-              COALESCE(gpu."vendor", 'Unknown') as "vendor",
-              COALESCE(gpu."name", 'Unknown') as "model",
-              COALESCE(COUNT(DISTINCT "dailyProviderStats"."hostUri"), 0) as provider_count,
-              COALESCE(COUNT(DISTINCT n.id), 0) as node_count,
-              COALESCE(COUNT(gpu.id), 0) as total_gpus,
-              LEAST(COALESCE(CAST(ROUND(SUM(
-                  CAST(n."gpuAllocated" as float) /
-                  NULLIF((SELECT COUNT(*)
-                          FROM "providerSnapshotNodeGPU" subgpu
-                          WHERE subgpu."snapshotNodeId" = n.id), 0)
-              )) as int), 0), COUNT(gpu.id))  as leased_gpus,
-              LEAST(CAST(COALESCE(
-                  SUM(
-                      CAST(n."gpuAllocated" as float) /
-                      NULLIF((SELECT COUNT(*)
-                              FROM "providerSnapshotNodeGPU" subgpu
-                              WHERE subgpu."snapshotNodeId" = n.id), 0)
-                  ) * 100.0 / NULLIF(COUNT(gpu.id), 0)
-              , 0) as numeric(10,2)), 100.00) as "gpuUtilization"
-          FROM "day" d
-          INNER JOIN (
-              SELECT DISTINCT ON("hostUri", DATE("checkDate"))
-                  ps.id as "snapshotId",
-                  "hostUri",
-                  DATE("checkDate") AS date,
-                  ps."isOnline"
-              FROM "providerSnapshot" ps
-              INNER JOIN "provider" ON "provider"."owner" = ps."owner"
-              WHERE ps."isLastSuccessOfDay" = TRUE
-              ORDER BY "hostUri", DATE("checkDate"), "checkDate" DESC
-          ) "dailyProviderStats" ON DATE(d."date") = "dailyProviderStats"."date"
-          INNER JOIN "providerSnapshotNode" n ON n."snapshotId" = "dailyProviderStats"."snapshotId" AND n."gpuAllocatable" > 0
-          LEFT JOIN "providerSnapshotNodeGPU" gpu ON gpu."snapshotNodeId" = n.id
-          WHERE (:vendor IS NULL OR LOWER(gpu."vendor") = LOWER(:vendor))
+            n.id,
+            n."gpuAllocated",
+            s."hostUri",
+            s.date,
+            gpu_count.total AS gpu_count
+          FROM daily_snapshots s
+          INNER JOIN "providerSnapshotNode" n ON n."snapshotId" = s."snapshotId" AND n."gpuAllocatable" > 0
+          LEFT JOIN LATERAL (
+            SELECT COUNT(*) AS total
+            FROM "providerSnapshotNodeGPU" g
+            WHERE g."snapshotNodeId" = n.id
+          ) gpu_count ON TRUE
+        )
+        SELECT
+          d."date",
+          COALESCE(gpu."vendor", 'Unknown') AS "vendor",
+          COALESCE(gpu."name", 'Unknown') AS "model",
+          COUNT(DISTINCT n."hostUri") AS provider_count,
+          COUNT(DISTINCT n.id) AS node_count,
+          COUNT(gpu.id) AS total_gpus,
+          LEAST(
+            ROUND(COALESCE(SUM(n."gpuAllocated"::float / NULLIF(n.gpu_count, 0)), 0))::int,
+            COUNT(gpu.id)
+          ) AS leased_gpus,
+          LEAST(
+            ROUND(COALESCE(SUM(n."gpuAllocated"::float / NULLIF(n.gpu_count, 0)) * 100.0 / NULLIF(COUNT(gpu.id), 0), 0)::numeric, 2),
+            100
+          )::float AS "gpuUtilization"
+        FROM "day" d
+        INNER JOIN gpu_nodes n ON n.date = DATE(d."date")
+        LEFT JOIN "providerSnapshotNodeGPU" gpu ON gpu."snapshotNodeId" = n.id
+        WHERE d."date" >= :window_start
+          AND d."date" < :window_end_exclusive
+          AND (:vendor IS NULL OR LOWER(gpu."vendor") = LOWER(:vendor))
           AND (:model IS NULL OR LOWER(gpu."name") = LOWER(:model))
-          GROUP BY d."date", gpu."vendor", gpu."name"
-          ORDER BY d."date" ASC, gpu."vendor", gpu."name"
-      )
-      SELECT * FROM UTILIZATION
-        `,
+        GROUP BY d."date", gpu."vendor", gpu."name"
+        ORDER BY d."date" ASC, gpu."vendor", gpu."name"
+      `,
       {
         type: QueryTypes.SELECT,
         replacements: {
           vendor: vendor ?? null,
-          model: model ?? null
+          model: model ?? null,
+          window_start: windowStart,
+          window_end_exclusive: windowEndExclusive
         }
       }
     );
