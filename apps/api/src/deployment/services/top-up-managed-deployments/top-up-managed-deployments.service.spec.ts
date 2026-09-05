@@ -1034,8 +1034,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       await service.topUpDrainingDeploymentsForOwner({ walletId, address: owner });
 
       expect(fundDrainingInstrumentation.recordDepositBelowUsefulRunway).toHaveBeenCalledWith({
-        dseq: deployment.dseq,
-        address: deployment.address,
+        deployment,
         desiredAmount: 1000000,
         affordableAmount: 1000,
         runwayMinutes: DEDUP_COOLDOWN_IN_MIN - 1
@@ -1157,7 +1156,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       expect(fundDrainingInstrumentation.recordHeadroomConceded).not.toHaveBeenCalled();
       expect(fundDrainingInstrumentation.recordDepositBelowUsefulRunway).toHaveBeenCalledWith(
-        expect.objectContaining({ dseq: deployment.dseq, affordableAmount: 600_000 })
+        expect.objectContaining({ deployment, affordableAmount: 600_000 })
       );
       expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
     });
