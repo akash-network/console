@@ -7,7 +7,7 @@ import { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { IndexedTx } from "@cosmjs/stargate";
 import { context, trace } from "@opentelemetry/api";
 import assert from "http-assert";
-import { BadRequest, isHttpError } from "http-errors";
+import createError, { BadRequest, isHttpError } from "http-errors";
 import pick from "lodash/pick";
 import { inject, singleton } from "tsyringe";
 
@@ -29,6 +29,7 @@ import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { BalancesService } from "../balances/balances.service";
 import { BillingConfigService } from "../billing-config/billing-config.service";
 import { ChainErrorService } from "../chain-error/chain-error.service";
+import { DeploymentDepositRefusalCache, isInsufficient } from "../deployment-deposit-refusal-cache/deployment-deposit-refusal-cache.service";
 import { TrialValidationService } from "../trial-validation/trial-validation.service";
 
 type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
@@ -58,6 +59,7 @@ export class ManagedSignerService {
     private readonly walletReloadJobService: WalletReloadJobService,
     private readonly managedUserWalletService: ManagedUserWalletService,
     private readonly trialActivationJobService: TrialActivationJobService,
+    private readonly depositRefusalCache: DeploymentDepositRefusalCache,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: ManagedSignerService.name });
@@ -245,21 +247,17 @@ export class ManagedSignerService {
     await this.trialActivationJobService.assertActivated(userWallet);
   }
 
-  /**
-   * Validates that the user wallet has sufficient balances to cover transaction fees and deployment costs.
-   * Always fetches fee allowance from the chain to ensure accuracy, as database values may be out of sync.
-   * Fetches deployment allowance from the chain only when a deployment message is present, otherwise uses cached value.
-   * Automatically refills fee authorization for eligible trial wallets if fee allowance is below FEE_ALLOWANCE_REFILL_THRESHOLD.
-   *
-   * @param userWallet - The user wallet to validate balances for
-   * @param messages - Array of transaction messages to check for deployment messages
-   * @throws {HttpError} 402 if there are not enough funds to cover the transaction fee
-   * @throws {HttpError} 402 if the deployment allowance cannot cover the deposits the create messages ask for
-   */
+  /** Fee allowance always comes from the chain and the deployment allowance only when a create is present, since the row can lag behind the chain. */
   async #validateBalances(userWallet: UserWalletOutput, messages: EncodeObject[]) {
     return withSpan("ManagedSignerService.validateBalances", async () => {
       const createDeploymentMessages = this.#getCreateDeploymentMessages(messages);
       const hasDeploymentMessage = createDeploymentMessages.length > 0;
+      const requiredDeposit = this.#sumDepositsDrawnFromGrant(createDeploymentMessages);
+
+      if (hasDeploymentMessage) {
+        await this.#refuseFromCache(userWallet, requiredDeposit);
+      }
+
       const [feeAllowance, deploymentAllowance] = await Promise.all([
         this.ensureFeeGrants(userWallet),
         !hasDeploymentMessage ? Promise.resolve(userWallet.deploymentAllowance) : this.balancesService.retrieveDeploymentLimit(userWallet)
@@ -267,10 +265,9 @@ export class ManagedSignerService {
 
       assert(feeAllowance > 0, 402, "Not enough funds to cover the transaction fee");
 
-      const requiredDeposit = this.#sumDepositsDrawnFromGrant(createDeploymentMessages);
-
-      if (hasDeploymentMessage && (deploymentAllowance <= 0 || deploymentAllowance < requiredDeposit)) {
+      if (hasDeploymentMessage && isInsufficient(deploymentAllowance, requiredDeposit)) {
         const reloadScheduled = await this.#scheduleReloadForInsufficientBalance(userWallet);
+        const { retryAfterSeconds } = this.depositRefusalCache.remember(userWallet, { chainDeploymentAllowance: deploymentAllowance, reloadScheduled });
 
         this.logger.warn({
           event: "DEPLOYMENT_CREATE_REFUSED_INSUFFICIENT_ALLOWANCE",
@@ -281,9 +278,45 @@ export class ManagedSignerService {
           reloadScheduled
         });
 
-        assert(false, 402, reloadScheduled ? INSUFFICIENT_DEPOSIT_BALANCE_RELOADING_MESSAGE : INSUFFICIENT_DEPOSIT_BALANCE_MESSAGE);
+        this.#throwInsufficientDepositBalance(reloadScheduled, retryAfterSeconds);
       }
     });
+  }
+
+  /** Re-serves a recent refusal until a funding path rewrites the wallet row, still requesting one reload if auto recharge was off at the first refusal. */
+  async #refuseFromCache(userWallet: UserWalletOutput, requiredDeposit: number): Promise<void> {
+    const cached = this.depositRefusalCache.find(userWallet, requiredDeposit);
+
+    if (!cached) {
+      return;
+    }
+
+    let reloadScheduled = cached.reloadScheduled;
+
+    if (!reloadScheduled) {
+      reloadScheduled = await this.#scheduleReloadForInsufficientBalance(userWallet);
+
+      if (reloadScheduled) {
+        this.depositRefusalCache.markReloadScheduled(userWallet.userId);
+      }
+    }
+
+    this.logger.debug({
+      event: "DEPLOYMENT_CREATE_REFUSED_FROM_CACHE",
+      userId: userWallet.userId,
+      deploymentAllowance: cached.chainDeploymentAllowance,
+      requiredDeposit,
+      reloadScheduled,
+      suppressedAttempts: cached.suppressedAttempts
+    });
+
+    this.#throwInsufficientDepositBalance(reloadScheduled, cached.retryAfterSeconds);
+  }
+
+  #throwInsufficientDepositBalance(reloadScheduled: boolean, retryAfterSeconds: number): never {
+    const message = reloadScheduled ? INSUFFICIENT_DEPOSIT_BALANCE_RELOADING_MESSAGE : INSUFFICIENT_DEPOSIT_BALANCE_MESSAGE;
+
+    throw createError(402, message, { headers: { "Retry-After": String(retryAfterSeconds) } });
   }
 
   #getCreateDeploymentMessages(messages: EncodeObject[]): { typeUrl: string; value: MsgCreateDeployment }[] {

@@ -17,6 +17,7 @@ import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
+import { DeploymentDepositRefusalCache } from "@src/billing/services/deployment-deposit-refusal-cache/deployment-deposit-refusal-cache.service";
 import type { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
@@ -182,6 +183,106 @@ describe(ManagedSignerService.name, () => {
       );
 
       expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith(expect.anything(), { triggeredByDeployment: true });
+    });
+
+    it("tells a refused client when to retry", async () => {
+      const { service } = setupForCreate({ deploymentLimit: 0 });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toMatchObject({
+        status: 402,
+        headers: { "Retry-After": "300" }
+      });
+    });
+
+    it("answers a repeated refusal from cache without re-reading the chain, re-queueing the reload or warning again", async () => {
+      const { service, balancesService, walletReloadJobService, logger } = setupForCreate({
+        deploymentLimit: 0,
+        scheduleImmediate: vi.fn().mockResolvedValue(true)
+      });
+      const refusal = expect.objectContaining({ status: 402, headers: { "Retry-After": expect.stringMatching(/^\d+$/) } });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toEqual(refusal);
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toEqual(refusal);
+
+      expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledTimes(1);
+      expect(balancesService.retrieveAndCalcFeeLimit).toHaveBeenCalledTimes(1);
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+      expect(logger.debug).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "DEPLOYMENT_CREATE_REFUSED_FROM_CACHE", userId: "user-123", reloadScheduled: true, suppressedAttempts: 1 })
+      );
+    });
+
+    it("re-reads the chain when a repeated create asks for a deposit the refused allowance covers", async () => {
+      const { service, balancesService, txManagerService } = setupForCreate({ deploymentLimit: 400000 });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow("Not enough balance");
+      await service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(300000)]);
+
+      expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledTimes(2);
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledTimes(1);
+    });
+
+    it("lets a create through as soon as the wallet row shows that credits were added", async () => {
+      const refusedWallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 0 });
+      const { service, balancesService, txManagerService } = setup({
+        findOneByUserId: vi
+          .fn()
+          .mockResolvedValueOnce(refusedWallet)
+          .mockResolvedValue({ ...refusedWallet, deploymentAllowance: 5000000 }),
+        findById: vi.fn().mockResolvedValue(createUser({ userId: "user-123" })),
+        retrieveDeploymentLimit: vi.fn().mockResolvedValueOnce(0).mockResolvedValue(5000000),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "TESTHASH", rawLog: "[]" }),
+        refreshUserWalletLimits: vi.fn()
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow("Not enough balance");
+      await service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)]);
+
+      expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledTimes(2);
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledTimes(1);
+    });
+
+    it("still requests one reload from cache when auto recharge was off at the first refusal and is on now", async () => {
+      const { service, walletReloadJobService } = setupForCreate({
+        deploymentLimit: 0,
+        scheduleImmediate: vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true)
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow(
+        "Add credits or turn on auto recharge to continue."
+      );
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow(
+        "A top up from your saved payment method is on the way, so try again in a moment."
+      );
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow(
+        "A top up from your saved payment method is on the way, so try again in a moment."
+      );
+
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not cache a refusal for a missing fee allowance", async () => {
+      const { service, balancesService } = setupForCreate({ deploymentLimit: 5000000, retrieveAndCalcFeeLimit: vi.fn().mockResolvedValue(0) });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow("transaction fee");
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow("transaction fee");
+
+      expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not cache a refusal the chain made after the pre-flight check passed", async () => {
+      const { service, balancesService, walletReloadJobService } = setupForCreate({
+        deploymentLimit: 500000,
+        signAndBroadcastWithDerivedWallet: vi.fn().mockRejectedValue(new Error("deposit invalid: insufficient balance")),
+        transformChainError: vi.fn().mockResolvedValue(createError(402, "Not enough balance to cover the deployment deposit."))
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow("Not enough balance");
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow("Not enough balance");
+
+      expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledTimes(2);
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledTimes(2);
     });
 
     it("does not schedule a reload when the broadcast fails for a reason other than balance", async () => {
@@ -1052,11 +1153,13 @@ describe(ManagedSignerService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: ManagedSignerService.name });
   });
 
-  function setupForCreate(input: { deploymentLimit: number } & Omit<NonNullable<Parameters<typeof setup>[0]>, "retrieveDeploymentLimit">) {
-    const { deploymentLimit, ...rest } = input;
+  function setupForCreate(
+    input: { deploymentLimit: number; walletDeploymentAllowance?: number } & Omit<NonNullable<Parameters<typeof setup>[0]>, "retrieveDeploymentLimit">
+  ) {
+    const { deploymentLimit, walletDeploymentAllowance = deploymentLimit, ...rest } = input;
 
     return setup({
-      findOneByUserId: vi.fn().mockResolvedValue(createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: deploymentLimit })),
+      findOneByUserId: vi.fn().mockResolvedValue(createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: walletDeploymentAllowance })),
       findById: vi.fn().mockResolvedValue(createUser({ userId: "user-123" })),
       retrieveDeploymentLimit: vi.fn().mockResolvedValue(deploymentLimit),
       signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "TESTHASH", rawLog: "[]" }),
@@ -1124,7 +1227,8 @@ describe(ManagedSignerService.name, () => {
         DEPLOYMENT_GRANT_DENOM: "uakt",
         FEE_ALLOWANCE_REFILL_AMOUNT: 1000000,
         FEE_ALLOWANCE_REFILL_THRESHOLD: 100000,
-        TRIAL_ALLOWANCE_EXPIRATION_DAYS: 30
+        TRIAL_ALLOWANCE_EXPIRATION_DAYS: 30,
+        DEPLOYMENT_CREATE_REFUSAL_CACHE_TTL_SECONDS: 300
       }),
       managedUserWalletService: mock<ManagedUserWalletService>({
         refillWalletFees: vi.fn()
@@ -1132,7 +1236,8 @@ describe(ManagedSignerService.name, () => {
       trialActivationJobService: mock<TrialActivationJobService>(),
       logger: mock<ReturnType<CreateLogger>>({
         error: vi.fn(),
-        warn: vi.fn()
+        warn: vi.fn(),
+        debug: vi.fn()
       })
     };
 
@@ -1157,6 +1262,7 @@ describe(ManagedSignerService.name, () => {
       mocks.walletReloadJobService,
       mocks.managedUserWalletService,
       mocks.trialActivationJobService,
+      new DeploymentDepositRefusalCache(mocks.billingConfigService),
       createLogger
     );
 
