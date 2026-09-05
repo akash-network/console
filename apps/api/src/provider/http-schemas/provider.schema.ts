@@ -163,11 +163,12 @@ export const ProviderResponseSchema = z.object({
   hardwareCpuArch: z.string().nullable(),
   reportedCpuArchs: z.array(z.string()).openapi({
     description:
-      "Distinct CPU architectures the provider's nodes reported in its last successful snapshot, normalised to amd64 or arm64. Empty when no node reports one.",
+      "Distinct CPU architectures the provider's nodes reported in its last successful snapshot. Known spellings such as x86_64 or aarch64 are folded onto amd64 or arm64; any other reported value is kept as reported. Empty when no node reports one.",
     example: ["arm64"]
   }),
   cpuArchAgreement: z.enum(["match", "mismatch", "unknown"]).openapi({
-    description: "Whether the self-declared capabilities/cpu/arch attribute agrees with the architecture the nodes report. Unknown when either side is missing."
+    description:
+      "Whether the self-declared capabilities/cpu/arch attribute agrees with the architecture the nodes report. Unknown when either side is missing or the declared value is not a recognised architecture."
   }),
   hardwareGpuVendor: z.string().nullable(),
   hardwareGpuModels: z.array(z.string()),

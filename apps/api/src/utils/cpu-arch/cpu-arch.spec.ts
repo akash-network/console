@@ -66,8 +66,8 @@ describe(getCpuArchAgreement.name, () => {
     expect(getCpuArchAgreement("x86-64", ["arm64"])).toBe("mismatch");
   });
 
-  it("mismatches when the declared value is not an architecture at all", () => {
-    expect(getCpuArchAgreement("Zen 4", ["amd64"])).toBe("mismatch");
+  it.each(["x86", "Zen 4", "riscv64"])("is unknown rather than a mismatch when the declared value %j is not a requestable architecture", declared => {
+    expect(getCpuArchAgreement(declared, ["amd64"])).toBe("unknown");
   });
 
   it("is unknown when nothing is declared", () => {

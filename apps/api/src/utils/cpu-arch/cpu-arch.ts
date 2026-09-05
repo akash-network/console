@@ -12,6 +12,8 @@ const CPU_ARCH_ALIASES: Record<string, string> = {
   "arm-64": "arm64"
 };
 
+const REQUESTABLE_CPU_ARCHS = new Set(Object.values(CPU_ARCH_ALIASES));
+
 export function normalizeCpuArch(arch: string | null | undefined): string | null {
   const trimmed = arch?.trim().toLowerCase();
   if (!trimmed) return null;
@@ -28,9 +30,10 @@ export function getReportedCpuArchs(nodes: ProviderSnapshotNode[]): string[] {
   return Array.from(new Set(archs)).sort();
 }
 
+/** An unrecognised declaration counts as no declaration, as it does in bid screening, so mainnet values like "x86" or "Zen 4" are never called a mismatch. */
 export function getCpuArchAgreement(declaredCpuArch: string | null, reportedCpuArchs: string[]): CpuArchAgreement {
   const declared = normalizeCpuArch(declaredCpuArch);
-  if (!declared || reportedCpuArchs.length === 0) return "unknown";
+  if (!declared || !REQUESTABLE_CPU_ARCHS.has(declared) || reportedCpuArchs.length === 0) return "unknown";
 
   return reportedCpuArchs.includes(declared) ? "match" : "mismatch";
 }

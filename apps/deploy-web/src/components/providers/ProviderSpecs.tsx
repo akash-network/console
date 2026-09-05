@@ -41,7 +41,7 @@ export const ProviderSpecs: React.FunctionComponent<Props> = ({ provider }) => {
           <LabelValue label="CPU Architecture (declared)" value={provider.hardwareCpuArch || "Unknown"} />
           <LabelValue
             label="CPU Architecture (reported)"
-            value={<ReportedCpuArchitectures archs={provider.reportedCpuArchs} agreement={provider.cpuArchAgreement} />}
+            value={<ReportedCpuArchitectures archs={provider.reportedCpuArchs ?? []} agreement={provider.cpuArchAgreement} />}
           />
           <LabelValue label="Disk Storage" value={provider.hardwareDisk} />
           <LabelValue label="Persistent Disk Storage" value={provider.featPersistentStorageType} />

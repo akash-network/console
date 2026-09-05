@@ -31,6 +31,13 @@ describe(ProviderSpecs.name, () => {
     expect(screen.queryByText("amd64")).not.toBeInTheDocument();
   });
 
+  it("shows unknown instead of crashing on a response that predates the reported architectures", () => {
+    setup({ hardwareCpuArch: "x86-64", reportedCpuArchs: undefined, cpuArchAgreement: undefined });
+
+    expect(screen.getByText("x86-64")).toBeInTheDocument();
+    expect(screen.getByText("Unknown")).toBeInTheDocument();
+  });
+
   function setup(overrides: Partial<Parameters<typeof buildProvider>[0]>) {
     const provider = mock<ClientProviderDetailWithStatus>(
       buildProvider({ hardwareGpuVendor: "nvidia", hardwareCpu: "epyc", hardwareMemory: "ddr5", ...overrides })
