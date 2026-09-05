@@ -134,18 +134,22 @@ const gpuBreakdownRoute = createRoute({
   tags: ["Gpu"],
   security: SECURITY_NONE,
   cache: { maxAge: 120, staleWhileRevalidate: 300 },
-  summary: "Gets gpu analytics breakdown by vendor and model. If no vendor or model is provided, all GPUs are returned.",
+  summary:
+    "Gets the daily gpu analytics breakdown by vendor and model over a date range (default: last 30 days, max 366 days). If no vendor or model is provided, all GPUs are returned.",
   request: {
     query: GpuBreakdownQuerySchema
   },
   responses: {
     200: {
-      description: "Gets gpu analytics breakdown by vendor and model. If no vendor or model is provided, all GPUs are returned.",
+      description: "Daily gpu breakdown rows for the requested date range, one per date, vendor and model.",
       content: {
         "application/json": {
           schema: GpuBreakdownResponseSchema
         }
       }
+    },
+    400: {
+      description: "Invalid date range: dates must be YYYY-MM-DD, startDate must not be after endDate and the range cannot exceed 366 days"
     }
   }
 });

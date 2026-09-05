@@ -5742,12 +5742,14 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Gets gpu analytics breakdown by vendor and model. If no vendor or model is provided, all GPUs are returned. */
+    /** Gets the daily gpu analytics breakdown by vendor and model over a date range (default: last 30 days, max 366 days). If no vendor or model is provided, all GPUs are returned. */
     get: {
       parameters: {
         query?: {
           vendor?: string;
           model?: string;
+          startDate?: string;
+          endDate?: string;
         };
         header?: never;
         path?: never;
@@ -5755,7 +5757,7 @@ export interface paths {
       };
       requestBody?: never;
       responses: {
-        /** @description Gets gpu analytics breakdown by vendor and model. If no vendor or model is provided, all GPUs are returned. */
+        /** @description Daily gpu breakdown rows for the requested date range, one per date, vendor and model. */
         200: {
           headers: {
             [name: string]: unknown;
@@ -5772,6 +5774,13 @@ export interface paths {
               gpuUtilization: number;
             }[];
           };
+        };
+        /** @description Invalid date range: dates must be YYYY-MM-DD, startDate must not be after endDate and the range cannot exceed 366 days */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
         };
       };
     };

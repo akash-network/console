@@ -5,6 +5,7 @@ import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import type { ProviderSnapshot, ProviderSnapshotNode } from "@akashnetwork/database/dbSchemas/akash";
 import type { Day, Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { faker } from "@faker-js/faker";
+import { sub } from "date-fns";
 import nock from "nock";
 import { afterAll, describe, expect, it } from "vitest";
 
@@ -30,6 +31,8 @@ describe("GPU API", () => {
   const now = new Date();
   now.setUTCHours(12, 0, 0, 0);
   const date = formatUTCDate(now);
+  const beforeDefaultWindow = sub(now, { days: 45 });
+  const dateBeforeDefaultWindow = formatUTCDate(beforeDefaultWindow);
 
   afterAll(async () => {
     nock.cleanAll();
@@ -214,56 +217,73 @@ describe("GPU API", () => {
   });
 
   describe("GET /v1/gpu-breakdown", () => {
-    it("returns GPU breakdown data", async () => {
+    const todayRows = [
+      { date: `${date}T00:00:00.000Z`, vendor: "amd", model: "gpu2", providerCount: 1, nodeCount: 1, totalGpus: 1, leasedGpus: 1, gpuUtilization: 100 },
+      { date: `${date}T00:00:00.000Z`, vendor: "amd", model: "gpu3", providerCount: 1, nodeCount: 1, totalGpus: 1, leasedGpus: 1, gpuUtilization: 100 },
+      { date: `${date}T00:00:00.000Z`, vendor: "nvidia", model: "gpu0", providerCount: 1, nodeCount: 1, totalGpus: 1, leasedGpus: 1, gpuUtilization: 100 },
+      { date: `${date}T00:00:00.000Z`, vendor: "nvidia", model: "gpu1", providerCount: 1, nodeCount: 1, totalGpus: 1, leasedGpus: 1, gpuUtilization: 100 }
+    ];
+    const rowBeforeDefaultWindow = {
+      date: `${dateBeforeDefaultWindow}T00:00:00.000Z`,
+      vendor: "nvidia",
+      model: "gpu0",
+      providerCount: 1,
+      nodeCount: 1,
+      totalGpus: 2,
+      leasedGpus: 1,
+      gpuUtilization: 50
+    };
+
+    it("returns the last 30 days of GPU breakdown data by default", async () => {
       await setup();
 
       const response = await app.request(`/v1/gpu-breakdown`);
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      expect(await response.json()).toEqual(todayRows);
+    });
 
-      expect(data).toEqual([
-        {
-          date: `${date}T00:00:00.000Z`,
-          vendor: "amd",
-          model: "gpu2",
-          providerCount: 1,
-          nodeCount: 1,
-          totalGpus: 1,
-          leasedGpus: 1,
-          gpuUtilization: "100.00"
-        },
-        {
-          date: `${date}T00:00:00.000Z`,
-          vendor: "amd",
-          model: "gpu3",
-          providerCount: 1,
-          nodeCount: 1,
-          totalGpus: 1,
-          leasedGpus: 1,
-          gpuUtilization: "100.00"
-        },
-        {
-          date: `${date}T00:00:00.000Z`,
-          vendor: "nvidia",
-          model: "gpu0",
-          providerCount: 1,
-          nodeCount: 1,
-          totalGpus: 1,
-          leasedGpus: 1,
-          gpuUtilization: "100.00"
-        },
-        {
-          date: `${date}T00:00:00.000Z`,
-          vendor: "nvidia",
-          model: "gpu1",
-          providerCount: 1,
-          nodeCount: 1,
-          totalGpus: 1,
-          leasedGpus: 1,
-          gpuUtilization: "100.00"
-        }
-      ]);
+    it("returns GPU breakdown data for the requested date range", async () => {
+      await setup();
+
+      const response = await app.request(`/v1/gpu-breakdown?startDate=${dateBeforeDefaultWindow}&endDate=${dateBeforeDefaultWindow}`);
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual([rowBeforeDefaultWindow]);
+    });
+
+    it("filters GPU breakdown data by vendor", async () => {
+      await setup();
+
+      const response = await app.request(`/v1/gpu-breakdown?vendor=AMD`);
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual(todayRows.filter(row => row.vendor === "amd"));
+    });
+
+    it("filters GPU breakdown data by model across the requested date range", async () => {
+      await setup();
+
+      const response = await app.request(`/v1/gpu-breakdown?model=gpu0&startDate=${dateBeforeDefaultWindow}&endDate=${date}`);
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual([rowBeforeDefaultWindow, ...todayRows.filter(row => row.model === "gpu0")]);
+    });
+
+    it("rejects a date range wider than 366 days", async () => {
+      await setup();
+
+      const response = await app.request(`/v1/gpu-breakdown?startDate=2024-01-01&endDate=2025-01-01`);
+
+      expect(response.status).toBe(400);
+    });
+
+    it("rejects a startDate after the endDate", async () => {
+      await setup();
+
+      const response = await app.request(`/v1/gpu-breakdown?startDate=${date}&endDate=${dateBeforeDefaultWindow}`);
+
+      expect(response.status).toBe(400);
     });
   });
 
@@ -398,6 +418,40 @@ describe("GPU API", () => {
     transactions?: Transaction[];
   } = {};
   let isDbInitialized = false;
+
+  async function seedGpuSnapshotBeforeDefaultWindow(owner: string) {
+    await createDay({
+      date: dateBeforeDefaultWindow,
+      aktPrice: 1,
+      firstBlockHeight: 1000,
+      lastBlockHeight: 1100,
+      lastBlockHeightYet: 1100
+    });
+    const snapshot = await createProviderSnapshot({
+      owner,
+      checkDate: beforeDefaultWindow,
+      isOnline: true,
+      isLastSuccessOfDay: true
+    });
+    const node = await createProviderSnapshotNode({
+      snapshotId: snapshot.id,
+      name: "GPU 0",
+      gpuAllocatable: 2,
+      gpuAllocated: 1
+    });
+    await Promise.all(
+      ["pcie", "sxm"].map(gpuInterface =>
+        createProviderSnapshotNodeGpu({
+          snapshotNodeId: node.id,
+          vendor: "nvidia",
+          name: "gpu0",
+          modelId: faker.string.alpha(10),
+          interface: gpuInterface,
+          memorySize: 1024
+        })
+      )
+    );
+  }
 
   async function setup() {
     if (isDbInitialized) {
@@ -572,6 +626,8 @@ describe("GPU API", () => {
         lastSuccessfulSnapshotId: testData.providerSnapshots[1].id
       })
     ]);
+
+    await seedGpuSnapshotBeforeDefaultWindow(testData.providers[0].owner);
 
     const block = await createAkashBlock({
       dayId: testData.day.id,
