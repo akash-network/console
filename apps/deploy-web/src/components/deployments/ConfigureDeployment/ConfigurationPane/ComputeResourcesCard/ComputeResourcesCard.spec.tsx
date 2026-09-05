@@ -156,6 +156,51 @@ describe(ComputeResourcesCard.name, () => {
     expect(analyticsService.track).not.toHaveBeenCalledWith("configure_cpu_count_changed", expect.anything());
   });
 
+  it("writes the chosen CPU architecture to the service profile", async () => {
+    const { getValues } = setup({});
+
+    await userEvent.click(screen.getByLabelText("CPU Architecture"));
+    await userEvent.click(screen.getByRole("option", { name: "arm64" }));
+
+    expect(getValues().services[0].profile.arch).toBe("arm64");
+  });
+
+  it("clears the architecture when the default is chosen, so the SDL keeps writing none", async () => {
+    const { getValues } = setup({ arch: "arm64" });
+
+    await userEvent.click(screen.getByLabelText("CPU Architecture"));
+    await userEvent.click(screen.getByRole("option", { name: "Default (amd64)" }));
+
+    expect(getValues().services[0].profile.arch).toBeUndefined();
+  });
+
+  it("tracks the chosen CPU architecture", async () => {
+    const { analyticsService } = setup({});
+
+    await userEvent.click(screen.getByLabelText("CPU Architecture"));
+    await userEvent.click(screen.getByRole("option", { name: "arm64" }));
+
+    expect(analyticsService.track).toHaveBeenCalledWith("configure_cpu_arch_changed", { category: "deployments", arch: "arm64" });
+  });
+
+  it("hides the architecture selector while the flag is off", () => {
+    setup({ isCpuArchEnabled: false });
+
+    expect(screen.queryByLabelText("CPU Architecture")).not.toBeInTheDocument();
+  });
+
+  it("shows an imported architecture even while the flag is off", () => {
+    setup({ isCpuArchEnabled: false, arch: "arm64" });
+
+    expect(screen.getByLabelText("CPU Architecture")).toBeInTheDocument();
+  });
+
+  it("disables the architecture selector while locked", () => {
+    setup({ locked: true });
+
+    expect(screen.getByLabelText("CPU Architecture")).toBeDisabled();
+  });
+
   function setup(input: {
     ram?: number;
     ramUnit?: string;
@@ -163,12 +208,15 @@ describe(ComputeResourcesCard.name, () => {
     storageUnit?: string;
     cpuError?: string;
     locked?: boolean;
+    arch?: "amd64" | "arm64";
+    isCpuArchEnabled?: boolean;
     resolver?: Resolver<SdlBuilderFormValuesType>;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const values = defaultServiceWithPlacement({
       profile: {
         cpu: 0.5,
+        arch: input.arch,
         gpu: 1,
         gpuModels: [{ vendor: "nvidia" }],
         hasGpu: false,
@@ -193,10 +241,11 @@ describe(ComputeResourcesCard.name, () => {
 
     const analyticsService = mock<AnalyticsService>();
     const useServices: typeof DEPENDENCIES.useServices = () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService });
+    const useFlag: typeof DEPENDENCIES.useFlag = () => input.isCpuArchEnabled ?? true;
 
     render(
       <Wrapper>
-        <ComputeResourcesCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES, useServices, ...input.dependencies }} />
+        <ComputeResourcesCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES, useServices, useFlag, ...input.dependencies }} />
       </Wrapper>
     );
 

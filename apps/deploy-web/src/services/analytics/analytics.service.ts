@@ -116,6 +116,7 @@ export type AnalyticsEvent =
   | "configure_gpu_type_selected"
   | "configure_gpu_count_changed"
   | "configure_cpu_count_changed"
+  | "configure_cpu_arch_changed"
   | "configure_sdl_imported"
   | "configure_sdl_downloaded"
   | "configure_sdl_copied"

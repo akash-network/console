@@ -47,6 +47,8 @@ interface Props {
   gpuCount?: number;
   /** Whether provider names link to their detail pages. */
   showProviderLink: boolean;
+  /** Replaces the generic no-provider text when the spec asks for something specific enough to name, e.g. a CPU architecture. */
+  emptyMessage?: string;
 }
 
 export const MarketplaceProvidersTable: FC<Props> = ({
@@ -58,7 +60,8 @@ export const MarketplaceProvidersTable: FC<Props> = ({
   onSelect,
   isSelectable = true,
   gpuCount = 0,
-  showProviderLink
+  showProviderLink,
+  emptyMessage
 }) => {
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -98,7 +101,7 @@ export const MarketplaceProvidersTable: FC<Props> = ({
         </div>
       );
     }
-    return <p className="p-4 text-sm text-muted-foreground">No providers found.</p>;
+    return <p className="p-4 text-sm text-muted-foreground">{emptyMessage ?? "No providers found."}</p>;
   }
 
   const sortedRows = table.getRowModel().rows;

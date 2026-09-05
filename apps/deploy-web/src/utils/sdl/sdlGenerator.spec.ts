@@ -382,3 +382,58 @@ describe("proxy manifest round-trip", () => {
     expect(groups[0].services[0].expose[0].httpOptions?.proxy).toEqual(fullProxy);
   });
 });
+
+describe("CPU architecture", () => {
+  it("writes no cpu attributes when the service names no architecture", () => {
+    const parsed = yaml.load(generateSdl(buildArchFormValues(undefined))) as ComputeYaml;
+
+    expect(parsed.profiles.compute.web.resources.cpu).toEqual({ units: 0.5 });
+  });
+
+  it.each(["amd64", "arm64"] as const)("writes %s as a cpu arch attribute", arch => {
+    const parsed = yaml.load(generateSdl(buildArchFormValues(arch))) as ComputeYaml;
+
+    expect(parsed.profiles.compute.web.resources.cpu).toEqual({ units: 0.5, attributes: { arch } });
+  });
+
+  it("produces byte-identical SDL to a service with no architecture field at all", () => {
+    const withUndefined = generateSdl(buildArchFormValues(undefined));
+    const withoutTheField = generateSdl(buildArchFormValues());
+
+    expect(withUndefined).toBe(withoutTheField);
+  });
+
+  it("carries the architecture onto the manifest group spec a provider matches on", () => {
+    const parsedYaml = yaml.load(generateSdl(buildArchFormValues("arm64")));
+
+    const groups = getManifest(parsedYaml);
+
+    expect(groups[0].services[0].resources.cpu.attributes).toEqual([{ key: "arch", value: "arm64" }]);
+  });
+
+  type ComputeYaml = { profiles: { compute: Record<string, { resources: { cpu: { units: number; attributes?: { arch: string } } } }> } };
+
+  function buildArchFormValues(...arch: ["amd64" | "arm64" | undefined] | []): SdlBuilderFormValuesType {
+    const placement: PlacementType = { id: "p-1", name: "dcloud" };
+    const service = {
+      id: "web-id",
+      title: "web",
+      image: "nginx:latest",
+      profile: {
+        cpu: 0.5,
+        ...(arch.length ? { arch: arch[0] } : {}),
+        ram: 512,
+        ramUnit: "Mi",
+        storage: [{ size: 512, unit: "Mi", isPersistent: false }],
+        hasGpu: false,
+        gpu: 0
+      },
+      expose: [{ port: 80, as: 80, global: true, to: [] }],
+      placementId: "p-1",
+      pricing: { amount: 1000, denom: "uakt" },
+      count: 1
+    } as ServiceType;
+
+    return { placements: [placement], services: [service] } as SdlBuilderFormValuesType;
+  }
+});

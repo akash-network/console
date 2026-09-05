@@ -2,6 +2,7 @@ import yaml from "js-yaml";
 import { nanoid } from "nanoid";
 
 import type {
+  CpuArchType,
   EndpointType,
   ExposeType,
   PlacementAttributeType,
@@ -11,7 +12,7 @@ import type {
   ServiceExposeHTTPProxyType,
   ServiceType
 } from "@src/types";
-import { ReclamationMinWindowSchema, RESERVED_ENV_KEYS } from "@src/types/sdlBuilder/sdlBuilder";
+import { CPU_ARCHITECTURES, ReclamationMinWindowSchema, RESERVED_ENV_KEYS } from "@src/types/sdlBuilder/sdlBuilder";
 import { CustomValidationError } from "../deploymentData";
 import { capitalizeFirstLetter } from "../stringUtils";
 import { defaultHttpOptions } from "./data";
@@ -79,6 +80,7 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
 
       service.profile = {
         cpu: compute.resources.cpu.units,
+        arch: getCpuArch(compute.resources.cpu.attributes),
         gpu: compute.resources.gpu ? compute.resources.gpu.units : 0,
         gpuModels: compute.resources.gpu ? getGpuModels(compute.resources.gpu.attributes.vendor) : [],
         interconnect: compute.resources.gpu ? getGpuInterconnect(compute.resources.gpu.attributes) : undefined,
@@ -215,6 +217,22 @@ const getResourceDigit = (size: string): number => {
 const getResourceUnit = (size: string): string => {
   const match = size.match(/[a-zA-Z]+/g);
   return match ? capitalizeFirstLetter(match[0]) : "";
+};
+
+/**
+ * Reads the requested CPU architecture from `cpu.attributes.arch`, leaving it off when the SDL sets none
+ * so a round trip through the builder keeps writing no CPU attributes at all.
+ */
+const getCpuArch = (attributes: { arch?: unknown } | undefined): CpuArchType | undefined => {
+  const arch = attributes?.arch;
+  if (arch === undefined || arch === null) return undefined;
+
+  const supported = CPU_ARCHITECTURES.find(candidate => candidate === arch);
+  if (!supported) {
+    throw new CustomValidationError(`Unsupported CPU architecture "${arch}". Expected ${CPU_ARCHITECTURES.join(" or ")}.`);
+  }
+
+  return supported;
 };
 
 /**

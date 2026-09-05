@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useController, useFormContext } from "react-hook-form";
 import {
   Field,
@@ -11,14 +11,30 @@ import {
   FormMessage,
   Input,
   NumberUnitInput,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   useFieldError
 } from "@akashnetwork/ui/components";
 
 import { useServices } from "@src/context/ServicesProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { memoryUnits, storageUnits, validationConfig } from "@src/utils/akash/units";
+import { SELECT_TRUNCATE_VALUE } from "../selectStyles";
 
-export const DEPENDENCIES = { NumberUnitInput, useFieldError, useServices };
+export const DEPENDENCIES = { NumberUnitInput, useFieldError, useServices, useFlag };
+
+/** Value standing in for "write no architecture at all", which a Select cannot express as an empty string. */
+const DEFAULT_ARCH_OPTION = "default";
+
+const ARCH_OPTIONS = [
+  { value: DEFAULT_ARCH_OPTION, label: "Default (amd64)" },
+  { value: "amd64", label: "amd64" },
+  { value: "arm64", label: "arm64" }
+] as const;
 
 type Props = {
   serviceIndex: number;
@@ -37,6 +53,19 @@ export const ComputeResourcesCard: FC<Props> = ({ serviceIndex, locked = false, 
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const { analyticsService } = d.useServices();
   const cpuFocusValueRef = useRef<number | null>(null);
+  const isCpuArchEnabled = d.useFlag("ui_sdl_cpu_arch");
+
+  const arch = useController({ control, name: `services.${serviceIndex}.profile.arch` });
+  /**
+   * An architecture imported from an SDL stays visible with the flag off, so the value is never
+   * silently carried into a deployment through a control the user cannot see.
+   */
+  const [hasCarriedArch] = useState(() => !!arch.field.value);
+
+  const selectCpuArch = (value: string) => {
+    arch.field.onChange(value === DEFAULT_ARCH_OPTION ? undefined : value);
+    analyticsService.track("configure_cpu_arch_changed", { category: "deployments", arch: value });
+  };
 
   const ram = useController({ control, name: `services.${serviceIndex}.profile.ram` });
   const ramUnit = useController({ control, name: `services.${serviceIndex}.profile.ramUnit` });
@@ -126,6 +155,26 @@ export const ComputeResourcesCard: FC<Props> = ({ serviceIndex, locked = false, 
           </FieldContent>
         </Field>
       </div>
+
+      {(isCpuArchEnabled || hasCarriedArch) && (
+        <Field className="gap-2">
+          <FieldLabel>CPU Architecture</FieldLabel>
+          <FieldContent>
+            <Select value={arch.field.value ?? DEFAULT_ARCH_OPTION} onValueChange={selectCpuArch} disabled={locked}>
+              <SelectTrigger aria-label="CPU Architecture" className={`h-9 ${SELECT_TRUNCATE_VALUE}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ARCH_OPTIONS.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FieldContent>
+        </Field>
+      )}
     </>
   );
 };

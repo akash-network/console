@@ -116,6 +116,27 @@ describe(MarketplacePane.name, () => {
     return { ...buildScreenedProvider(), offerState: "searching", ...overrides };
   }
 
+  it("explains an empty provider list by architecture when the spec asks for one", () => {
+    const { MarketplaceProvidersTable } = setup({ requestedCpuArch: "arm64" });
+
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(
+      expect.objectContaining({ emptyMessage: "No arm64 providers matched this configuration." }),
+      expect.anything()
+    );
+  });
+
+  it("leaves the empty message generic when the spec asks for no architecture", () => {
+    const { MarketplaceProvidersTable } = setup({});
+
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ emptyMessage: undefined }), expect.anything());
+  });
+
+  it("scopes the requested architecture to the placement it renders bids for", () => {
+    const { useDeploymentCpuArch } = setup({ selectedPlacementId: "placement-2" });
+
+    expect(useDeploymentCpuArch).toHaveBeenCalledWith("placement-2");
+  });
+
   function setup(
     input: {
       sdl?: string;
@@ -130,6 +151,7 @@ describe(MarketplacePane.name, () => {
       isInvalid?: boolean;
       isSearchActive?: boolean;
       gpuCount?: number;
+      requestedCpuArch?: "amd64" | "arm64";
       isOnboarded?: boolean;
       selectedPlacementId?: string;
       selectedBidId?: string;
@@ -155,12 +177,14 @@ describe(MarketplacePane.name, () => {
       </button>
     ));
     const useDeploymentGpuCount = vi.fn(() => input.gpuCount ?? 0);
+    const useDeploymentCpuArch = vi.fn(() => input.requestedCpuArch);
     const dependencies: typeof DEPENDENCIES = {
       usePlacementOffers: usePlacementOffers as never,
       useProviderSearch: useProviderSearch as never,
       MarketplaceProvidersTable: MarketplaceProvidersTable as never,
       ProviderSearchInput,
       useDeploymentGpuCount,
+      useDeploymentCpuArch,
       useIsOnboarded: () => input.isOnboarded ?? true
     };
     const user = userEvent.setup();
@@ -178,6 +202,6 @@ describe(MarketplacePane.name, () => {
         dependencies={dependencies}
       />
     );
-    return { usePlacementOffers, useProviderSearch, MarketplaceProvidersTable, useDeploymentGpuCount, user };
+    return { usePlacementOffers, useProviderSearch, MarketplaceProvidersTable, useDeploymentGpuCount, useDeploymentCpuArch, user };
   }
 });

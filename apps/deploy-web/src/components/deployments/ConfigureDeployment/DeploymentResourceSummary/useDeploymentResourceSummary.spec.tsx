@@ -2,9 +2,9 @@ import type { PropsWithChildren } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { describe, expect, it } from "vitest";
 
-import type { SdlBuilderFormValuesType } from "@src/types";
-import { defaultService, defaultServiceWithPlacement } from "@src/utils/sdl/data";
-import { useDeploymentGpuCount, useDeploymentHasGpu } from "./useDeploymentResourceSummary";
+import type { CpuArchType, SdlBuilderFormValuesType } from "@src/types";
+import { defaultPlacement, defaultService, defaultServiceWithPlacement } from "@src/utils/sdl/data";
+import { useDeploymentCpuArch, useDeploymentGpuCount, useDeploymentHasGpu } from "./useDeploymentResourceSummary";
 
 import { renderHook } from "@testing-library/react";
 
@@ -81,5 +81,56 @@ describe(useDeploymentHasGpu.name, () => {
     };
 
     return renderHook(() => useDeploymentHasGpu(), { wrapper: Wrapper });
+  }
+});
+
+describe(useDeploymentCpuArch.name, () => {
+  it("returns the architecture a service requests", () => {
+    const { result } = setup({ services: [{ arch: "arm64" }] });
+
+    expect(result.current).toBe("arm64");
+  });
+
+  it("returns undefined when no service requests an architecture", () => {
+    const { result } = setup({ services: [{}] });
+
+    expect(result.current).toBeUndefined();
+  });
+
+  it("ignores a service in another placement", () => {
+    const { result } = setup({ services: [{ arch: "arm64", placementId: "other-placement" }], scopeTo: "placement-1" });
+
+    expect(result.current).toBeUndefined();
+  });
+
+  it("returns the architecture shared by every service that requests one", () => {
+    const { result } = setup({ services: [{ arch: "arm64" }, {}, { arch: "arm64" }] });
+
+    expect(result.current).toBe("arm64");
+  });
+
+  it("returns undefined when scoped services request different architectures", () => {
+    const { result } = setup({ services: [{ arch: "arm64" }, { arch: "amd64" }] });
+
+    expect(result.current).toBeUndefined();
+  });
+
+  function setup(input: { services: Array<{ arch?: CpuArchType; placementId?: string }>; scopeTo?: string }) {
+    const placement = defaultPlacement();
+    const values: SdlBuilderFormValuesType = {
+      placements: [placement],
+      endpoints: [],
+      services: input.services.map(service => {
+        const built = defaultService(service.placementId ?? placement.id, { image: "nginx:latest" });
+        return { ...built, profile: { ...built.profile, arch: service.arch } };
+      })
+    };
+
+    const Wrapper = ({ children }: PropsWithChildren) => {
+      const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values });
+      return <FormProvider {...form}>{children}</FormProvider>;
+    };
+
+    return renderHook(() => useDeploymentCpuArch(input.scopeTo), { wrapper: Wrapper });
   }
 });
