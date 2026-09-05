@@ -310,6 +310,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       expect(instrumentationService.recordReloadFailed).toHaveBeenCalledWith({
         mode: "prediction",
+        triggeredByDeployment: false,
         error,
         logContext: expect.objectContaining({
           walletAddress: expect.any(String),
@@ -518,7 +519,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     });
 
     it("charges on a deployment-triggered check without consulting the active-deployment count", async () => {
-      const { handler, stripeTransactionService, deploymentRepository, job, jobMeta } = setup({
+      const { handler, stripeTransactionService, deploymentRepository, instrumentationService, job, jobMeta } = setup({
         autoReloadMode: "threshold",
         balance: 0,
         autoReloadThresholdUsd: 20,
@@ -531,10 +532,11 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       expect(deploymentRepository.countActiveByOwner).not.toHaveBeenCalled();
       expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ amount: 100 }));
+      expect(instrumentationService.recordReloadTriggered).toHaveBeenCalledWith(expect.objectContaining({ triggeredByDeployment: true }));
     });
 
     it("charges when at or below the threshold and there is at least one active deployment", async () => {
-      const { handler, stripeTransactionService, deploymentRepository, wallet, job, jobMeta } = setup({
+      const { handler, stripeTransactionService, deploymentRepository, instrumentationService, wallet, job, jobMeta } = setup({
         autoReloadMode: "threshold",
         balance: 10,
         autoReloadThresholdUsd: 20,
@@ -546,6 +548,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       expect(deploymentRepository.countActiveByOwner).toHaveBeenCalledWith(wallet.address);
       expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ amount: 100 }));
+      expect(instrumentationService.recordReloadTriggered).toHaveBeenCalledWith(expect.objectContaining({ triggeredByDeployment: false }));
     });
 
     it("clamps the charge to the $25 minimum when the stored amount is below it", async () => {
@@ -575,6 +578,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       expect(instrumentationService.recordReloadFailed).toHaveBeenCalledWith({
         mode: "threshold",
+        triggeredByDeployment: false,
         error,
         logContext: expect.objectContaining({ walletAddress: expect.any(String), balance: 10, threshold: 20, reloadAmount: 100 })
       });

@@ -73,6 +73,8 @@ Checks are **spend-event-driven**, not fixed to a daily cadence. A check is enqu
 3. After every spending broadcast, after initial deployment funding, and after each escrow top-up cycle.
 4. On a self-rescheduled job that acts only as a safety net: 24h out normally, or at the charge-window reopen when the previous check was rate-limited.
 
+Every `WALLET_BALANCE_RELOADED`, `WALLET_BALANCE_RELOAD_SKIPPED`, and `WALLET_BALANCE_RELOAD_FAILED` line and the matching counters carry `triggeredByDeployment` (`triggered_by_deployment` on the counters), so a charge caused by a refused deployment create or by initial funding is distinguishable from one caused by spend (CON-843).
+
 Because pg-boss's `singleton` policy uniqueness applies only to *active* jobs, an immediate enqueue is never swallowed by the pending daily safety-net job. Top-ups therefore happen within seconds of the balance crossing the threshold.
 
 ## Validation flow
