@@ -4,6 +4,7 @@ import { inject, singleton } from "tsyringe";
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-low-check";
 import { isAutoReloadActive } from "@src/billing/lib/auto-reload/auto-reload";
+import { calculateChargeCooldownMinutes } from "@src/billing/lib/auto-reload/charge-cooldown";
 import { UserWalletRepository, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { EnqueueOptions, JobQueueService } from "@src/core";
@@ -49,13 +50,20 @@ export class WalletReloadJobService {
    * A check inside the charge cooldown can only lose the claim and defer itself to the reopen, so a spend
    * event that lands there is queued straight for the reopen instead of running a full check per event.
    */
-  #chargeWindowReopenAfter(walletSetting: Pick<WalletSettingOutput, "lastAutoChargeAt">): string | undefined {
-    if (!walletSetting.lastAutoChargeAt) {
+  #chargeWindowReopenAfter(walletSetting: Pick<WalletSettingOutput, "lastAutoChargeAt" | "autoReloadFailureCount">): string | undefined {
+    const cooldownMinutes = calculateChargeCooldownMinutes(
+      {
+        baseMinutes: this.billingConfig.get("AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN"),
+        maxMinutes: this.billingConfig.get("AUTO_RELOAD_CHARGE_BACKOFF_MAX_IN_MIN")
+      },
+      walletSetting.autoReloadFailureCount
+    );
+
+    if (!walletSetting.lastAutoChargeAt || cooldownMinutes === 0) {
       return undefined;
     }
 
-    const cooldownInMs = this.billingConfig.get("AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN") * millisecondsInMinute;
-    const reopenAt = addMilliseconds(walletSetting.lastAutoChargeAt, cooldownInMs + CHARGE_WINDOW_REOPEN_BUFFER_IN_MS);
+    const reopenAt = addMilliseconds(walletSetting.lastAutoChargeAt, cooldownMinutes * millisecondsInMinute + CHARGE_WINDOW_REOPEN_BUFFER_IN_MS);
 
     return reopenAt > new Date() ? reopenAt.toISOString() : undefined;
   }

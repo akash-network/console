@@ -106,6 +106,30 @@ describe(WalletReloadJobService.name, () => {
       expect(options).toMatchObject({ startAfter: expectedReopen });
     });
 
+    it("defers by the backed-off cooldown the wallet's declines have earned", async () => {
+      const { service, walletSettingRepository, jobQueueService } = setup({ cooldownMinutes: 60 });
+      const lastAutoChargeAt = new Date(Date.now() - 90 * 60_000);
+      walletSettingRepository.findByUserId.mockResolvedValue(generateWalletSetting({ autoReloadEnabled: true, lastAutoChargeAt, autoReloadFailureCount: 2 }));
+      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+
+      await service.scheduleImmediate({ userId: faker.string.uuid() });
+
+      const [, options] = jobQueueService.enqueue.mock.calls[0];
+      const expectedReopen = new Date(lastAutoChargeAt.getTime() + 121 * 60_000).toISOString();
+      expect(options).toMatchObject({ startAfter: expectedReopen });
+    });
+
+    it("never defers when the charge cooldown is disabled", async () => {
+      const { service, walletSettingRepository, jobQueueService } = setup({ cooldownMinutes: 0 });
+      walletSettingRepository.findByUserId.mockResolvedValue(generateWalletSetting({ autoReloadEnabled: true, lastAutoChargeAt: new Date() }));
+      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+
+      await service.scheduleImmediate({ userId: faker.string.uuid() });
+
+      const [, options] = jobQueueService.enqueue.mock.calls[0];
+      expect(options).not.toHaveProperty("startAfter");
+    });
+
     it("runs the check right away once the charge cooldown has passed", async () => {
       const { service, walletSettingRepository, jobQueueService } = setup({ cooldownMinutes: 60 });
       const lastAutoChargeAt = new Date(Date.now() - 90 * 60_000);
@@ -413,7 +437,10 @@ describe(WalletReloadJobService.name, () => {
     const walletSettingRepository = mock<WalletSettingRepository>();
     const userWalletRepository = mock<UserWalletRepository>();
     const jobQueueService = mock<JobQueueService>();
-    const billingConfig = mockConfigService<BillingConfigService>({ AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN: input?.cooldownMinutes ?? 60 });
+    const billingConfig = mockConfigService<BillingConfigService>({
+      AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN: input?.cooldownMinutes ?? 60,
+      AUTO_RELOAD_CHARGE_BACKOFF_MAX_IN_MIN: 1440
+    });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 

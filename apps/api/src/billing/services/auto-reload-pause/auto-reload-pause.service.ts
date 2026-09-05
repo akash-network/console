@@ -1,5 +1,6 @@
 import { inject, singleton } from "tsyringe";
 
+import { calculateChargeCooldownMinutes } from "@src/billing/lib/auto-reload/charge-cooldown";
 import { AUTHENTICATION_REQUIRED_DECLINE_CODE, type CardDecline } from "@src/billing/lib/card-decline/card-decline";
 import { type ChargeClaim, UserWalletRepository, type WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
@@ -16,9 +17,6 @@ import type { UserOutput } from "@src/user/repositories";
  * send one message per attempt, and the user still hears within minutes rather than at the pause.
  */
 const FIRST_DECLINE = 1;
-
-/** Guards `2 ** exponent` against a raised decline limit, since the result is interpolated into a Postgres interval. */
-const MAX_BACKOFF_DOUBLINGS = 16;
 
 /**
  * Owns when Console stops charging a declining card and when it starts again. It lives apart from
@@ -40,21 +38,14 @@ export class AutoReloadPauseService {
     this.logger = createLogger({ context: AutoReloadPauseService.name });
   }
 
-  /**
-   * Doubles the gap after each consecutive decline, so the attempts a dead card is allowed span
-   * hours instead of landing back to back. A base of 0 keeps meaning "no cap at all".
-   */
   calculateChargeCooldownMinutes(failureCount: number): number {
-    const base = this.billingConfig.get("AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN");
-
-    if (base === 0 || failureCount <= 0) {
-      return base;
-    }
-
-    const doublings = Math.min(failureCount - 1, MAX_BACKOFF_DOUBLINGS);
-    const backedOff = Math.min(base * 2 ** doublings, this.billingConfig.get("AUTO_RELOAD_CHARGE_BACKOFF_MAX_IN_MIN"));
-
-    return Math.max(base, backedOff);
+    return calculateChargeCooldownMinutes(
+      {
+        baseMinutes: this.billingConfig.get("AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN"),
+        maxMinutes: this.billingConfig.get("AUTO_RELOAD_CHARGE_BACKOFF_MAX_IN_MIN")
+      },
+      failureCount
+    );
   }
 
   async recordDecline(input: { claim: ChargeClaim; user: UserOutput; decline: CardDecline }): Promise<void> {

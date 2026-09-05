@@ -1746,7 +1746,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       walletSettingRepository,
       userWalletRepository,
       jobQueueService,
-      mockConfigService<BillingConfigService>({ AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN: 60 }),
+      mockConfigService<BillingConfigService>({ AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN: 60, AUTO_RELOAD_CHARGE_BACKOFF_MAX_IN_MIN: 1440 }),
       createLogger
     );
 
