@@ -17,6 +17,7 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
   private readonly chainTxErrors: Counter;
   private readonly messagePreparationErrors: Counter;
   private readonly deploymentsMarkedClosed: Counter;
+  private readonly settingsWithoutChainState: Counter;
   private readonly deploymentsScanned: Counter;
   private readonly depositAmount: Histogram;
   private readonly predictedCloseBlocks: Histogram;
@@ -61,6 +62,9 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
       description: "Total number of deployments marked as closed by the auto top-up job"
     });
 
+    this.settingsWithoutChainState = this.metricsService.createCounter(this.meter, "auto_top_up_settings_without_chain_state_total", {
+      description: "Deployment records the sweep could not resolve to any chain state, so it neither funded nor closed them"
+    });
     this.deploymentsScanned = this.metricsService.createCounter(this.meter, "auto_top_up_deployments_scanned_total", {
       description: "Total number of draining deployments the auto top-up job evaluated for funding"
     });
@@ -262,6 +266,15 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
     this.execWhenEnabled(() => {
       this.deploymentsMarkedClosed.add(count);
     });
+  }
+
+  /** Logged at debug because a churning owner produces one per pass, while the counter is what says whether the number is falling. */
+  recordSettingWithoutChainState({ dseq, address }: { dseq: string; address: string }): void {
+    this.execWhenEnabled(() => {
+      this.settingsWithoutChainState.add(1);
+    });
+
+    this.logger.debug({ event: "TOP_UP_SETTING_WITHOUT_CHAIN_STATE", dseq, address, dryRun: this.options?.dryRun });
   }
 
   recordDeploymentClosedOnChain({
