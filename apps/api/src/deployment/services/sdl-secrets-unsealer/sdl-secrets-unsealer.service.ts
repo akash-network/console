@@ -57,6 +57,25 @@ function isSdlBound(header: SealHeader) {
   return header.sdlHash !== undefined;
 }
 
+function decodeSecretsJson(plaintext: string): unknown {
+  try {
+    return JSON.parse(plaintext);
+  } catch {
+    return null;
+  }
+}
+
+/** Shared with the read of a token the console sealed itself, so one place decides whether a payload is a flat set of secrets. */
+export function parseSdlSecrets(plaintext: string): SdlSecrets | null {
+  const decoded = decodeSecretsJson(plaintext);
+
+  if (!decoded || typeof decoded !== "object" || Array.isArray(decoded) || Object.values(decoded).some(value => typeof value !== "string")) {
+    return null;
+  }
+
+  return decoded as SdlSecrets;
+}
+
 /** Holds only what makes a seal a seal — the claims a client must prove and the flat string payload — because the wire format lives in `KmsWrappedJweService`. */
 @singleton()
 export class SdlSecretsUnsealerService {
@@ -173,21 +192,13 @@ export class SdlSecretsUnsealerService {
   }
 
   #parseSecrets(plaintext: Buffer): SdlSecrets {
-    const secrets = this.#decodeSecretsJson(plaintext);
+    const secrets = parseSdlSecrets(plaintext.toString("utf8"));
 
-    if (!secrets || typeof secrets !== "object" || Array.isArray(secrets) || Object.values(secrets).some(value => typeof value !== "string")) {
+    if (!secrets) {
       throw this.#reject(400, "SDL_SECRETS_SEAL_PAYLOAD_INVALID", "Sealed secrets must be a flat object of string values", {});
     }
 
-    return secrets as SdlSecrets;
-  }
-
-  #decodeSecretsJson(plaintext: Buffer): unknown {
-    try {
-      return JSON.parse(plaintext.toString("utf8"));
-    } catch {
-      return null;
-    }
+    return secrets;
   }
 
   #reject(status: number, event: string, message: string, details: Record<string, unknown>) {

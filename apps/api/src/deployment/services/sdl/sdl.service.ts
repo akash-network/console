@@ -7,8 +7,8 @@ import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers"
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
-import type { NamespacedSdlSecrets } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
+import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { sdlRequestsGpuInterconnect } from "@src/deployment/utils/gpu-interconnect/gpu-interconnect";
 import { findTrialResourceViolation } from "@src/deployment/utils/group-resources/group-resources";
 import { restatePricesInGrantDenom } from "@src/deployment/utils/price-denom/price-denom";
@@ -56,7 +56,7 @@ export class SdlService {
   }
 
   /** The only path that substitutes SDL References, and the only caller of the substitution walk, so a resolved manifest exists nowhere a caller has not asked for one. */
-  async generateResolvedManifest(input: { sdl: string; secrets: NamespacedSdlSecrets; isTrialing?: boolean }): Promise<GenerateResolvedManifestResult> {
+  async generateResolvedManifest(input: { sdl: string; secrets: SdlSecrets; isTrialing?: boolean }): Promise<GenerateResolvedManifestResult> {
     const parsed = this.parse(input.sdl);
 
     if (!parsed.ok) return parsed;

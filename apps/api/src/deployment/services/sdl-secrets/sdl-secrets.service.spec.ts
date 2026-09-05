@@ -25,16 +25,16 @@ function sdlWith(services: Record<string, string[]>): SDLInput {
 
 describe(SdlSecretsService.name, () => {
   describe("receive", () => {
-    it("hands a referenced value to the service that referenced it", async () => {
+    it("returns the value a reference names", async () => {
       const { service } = setup({ supplied: { TOKEN: "resolved" } });
 
       const result = await service.receive({ sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN"] }), rawSdl: RAW_SDL, sealedSecrets: SEAL });
 
       expect(result.ok).toBe(true);
-      expect(receivedOf(result).byService).toEqual({ web: { TOKEN: "resolved" } });
+      expect(receivedOf(result)).toEqual({ TOKEN: "resolved" });
     });
 
-    it("hands one supplied value to every service that references it", async () => {
+    it("accepts one value several services reference", async () => {
       const { service } = setup({ supplied: { TOKEN: "shared" } });
 
       const result = await service.receive({
@@ -43,10 +43,10 @@ describe(SdlSecretsService.name, () => {
         sealedSecrets: SEAL
       });
 
-      expect(receivedOf(result).byService).toEqual({ web: { TOKEN: "shared" }, worker: { TOKEN: "shared" }, cron: { TOKEN: "shared" } });
+      expect(receivedOf(result)).toEqual({ TOKEN: "shared" });
     });
 
-    it("hands a service only the names it references", async () => {
+    it("accepts names referenced from different services", async () => {
       const { service } = setup({ supplied: { TOKEN: "one", DATABASE_URL: "two" } });
 
       const result = await service.receive({
@@ -55,10 +55,10 @@ describe(SdlSecretsService.name, () => {
         sealedSecrets: SEAL
       });
 
-      expect(receivedOf(result).byService).toEqual({ web: { TOKEN: "one" }, db: { DATABASE_URL: "two" } });
+      expect(receivedOf(result)).toEqual({ TOKEN: "one", DATABASE_URL: "two" });
     });
 
-    it("hands nothing to a service that references nothing", async () => {
+    it("accepts a document whose other service references nothing", async () => {
       const { service } = setup({ supplied: { TOKEN: "resolved" } });
 
       const result = await service.receive({
@@ -67,20 +67,7 @@ describe(SdlSecretsService.name, () => {
         sealedSecrets: SEAL
       });
 
-      expect(Object.keys(receivedOf(result).byService)).toEqual(["web"]);
-    });
-
-    it("keeps what the client sealed unchanged, for storage", async () => {
-      const supplied = { TOKEN: "one", DATABASE_URL: "two" };
-      const { service } = setup({ supplied });
-
-      const result = await service.receive({
-        sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN", "DATABASE_URL=ac-secret://DATABASE_URL"] }),
-        rawSdl: RAW_SDL,
-        sealedSecrets: SEAL
-      });
-
-      expect(receivedOf(result).supplied).toEqual(supplied);
+      expect(receivedOf(result)).toEqual({ TOKEN: "resolved" });
     });
 
     it("names a reference it holds no value for", async () => {
@@ -147,12 +134,12 @@ describe(SdlSecretsService.name, () => {
       expect(JSON.stringify(errorsOf(result))).not.toContain(value);
     });
 
-    it("resolves a name spelling an Object.prototype member from what was supplied for it", async () => {
+    it("accepts a name spelling an Object.prototype member supplied for it", async () => {
       const { service } = setup({ supplied: JSON.parse('{"constructor":"resolved"}') as SdlSecrets });
 
       const result = await service.receive({ sdl: sdlWith({ web: ["C=ac-secret://constructor"] }), rawSdl: RAW_SDL, sealedSecrets: SEAL });
 
-      expect(receivedOf(result).byService).toEqual({ web: { constructor: "resolved" } });
+      expect(result.ok).toBe(true);
     });
 
     it("refuses a reference whose name spells an Object.prototype member nothing was supplied for", async () => {
@@ -168,7 +155,7 @@ describe(SdlSecretsService.name, () => {
 
       const result = await service.receive({ sdl: sdlWith({ web: ["LOG_LEVEL=debug"] }), rawSdl: RAW_SDL });
 
-      expect(receivedOf(result)).toEqual({ supplied: {}, byService: {} });
+      expect(receivedOf(result)).toEqual({});
       expect(unsealerService.open).not.toHaveBeenCalled();
     });
 
@@ -391,6 +378,62 @@ describe(SdlSecretsService.name, () => {
     });
   });
 
+  describe("openStored", () => {
+    it("opens the token under the binding the seal was written with", async () => {
+      const { service, secretCipherService } = setup({ stored: { TOKEN: "one" } });
+
+      await service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: SEAL });
+
+      expect(secretCipherService.decrypt).toHaveBeenCalledWith("user-1", SEAL, { sub: "user-1", dseq: "1420000" });
+    });
+
+    it("returns every value the token carries", async () => {
+      const secrets = { TOKEN: faker.string.alphanumeric(32), DATABASE_URL: `postgres://app:${faker.string.alphanumeric(16)}@db/app` };
+      const { service } = setup({ stored: secrets });
+
+      await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: SEAL })).resolves.toEqual(secrets);
+    });
+
+    it("says nothing about a value in what it logs", async () => {
+      const value = faker.string.alphanumeric(32);
+      const { service, logger } = setup({ stored: { TOKEN: value } });
+
+      await service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: SEAL });
+
+      expect(logger.info).toHaveBeenCalledWith({ event: "SDL_SECRETS_STORED_OPENED", userId: "user-1", dseq: "1420000", secretCount: 1 });
+    });
+
+    it("refuses a payload that is not a flat set of string values", async () => {
+      const { service, secretCipherService } = setup();
+      secretCipherService.decrypt.mockResolvedValue(JSON.stringify({ TOKEN: { nested: "one" } }));
+
+      await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: SEAL })).rejects.toMatchObject({ status: 500 });
+    });
+
+    it("refuses a payload that is not json at all", async () => {
+      const { service, secretCipherService } = setup();
+      secretCipherService.decrypt.mockResolvedValue("not-json");
+
+      await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: SEAL })).rejects.toMatchObject({ status: 500 });
+    });
+
+    it("logs a payload it cannot read as the fault of the console that wrote it", async () => {
+      const { service, secretCipherService, logger } = setup();
+      secretCipherService.decrypt.mockResolvedValue("[]");
+
+      await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: SEAL })).rejects.toThrow();
+      expect(logger.error).toHaveBeenCalledWith({ event: "SDL_SECRETS_STORED_PAYLOAD_INVALID", userId: "user-1", dseq: "1420000" });
+    });
+
+    it("lets a token the cipher refuses fail untouched", async () => {
+      const refusal = Object.assign(new Error("Unable to read the stored value"), { status: 500 });
+      const { service, secretCipherService } = setup();
+      secretCipherService.decrypt.mockRejectedValue(refusal);
+
+      await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: SEAL })).rejects.toBe(refusal);
+    });
+  });
+
   function receivedOf(result: Awaited<ReturnType<SdlSecretsService["receive"]>>) {
     return (result as Extract<typeof result, { ok: true }>).value;
   }
@@ -399,9 +442,12 @@ describe(SdlSecretsService.name, () => {
     return (result as Extract<typeof result, { ok: false }>).value;
   }
 
-  function setup(input?: { supplied?: SdlSecrets; maxCount?: number; maxValueBytes?: number }) {
+  function setup(input?: { supplied?: SdlSecrets; stored?: SdlSecrets; maxCount?: number; maxValueBytes?: number }) {
     const unsealerService = mock<SdlSecretsUnsealerService>({ open: vi.fn().mockResolvedValue(input?.supplied ?? {}) });
-    const secretCipherService = mock<SecretCipherService>({ encrypt: vi.fn().mockResolvedValue("encrypted") });
+    const secretCipherService = mock<SecretCipherService>({
+      encrypt: vi.fn().mockResolvedValue("encrypted"),
+      decrypt: vi.fn().mockResolvedValue(JSON.stringify(input?.stored ?? {}))
+    });
     const config = mockConfigService<DeploymentConfigService>({
       SDL_SECRETS_MAX_COUNT: input?.maxCount ?? MAX_COUNT,
       SDL_SECRETS_MAX_VALUE_BYTES: input?.maxValueBytes ?? MAX_VALUE_BYTES
