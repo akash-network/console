@@ -7,6 +7,7 @@ import { MetricsService } from "@src/core";
 
 type ReloadMetricInput = {
   mode: WalletSettingOutput["autoReloadMode"];
+  triggeredByDeployment: boolean;
   coverageRatio?: number;
   projectedCost?: number;
   logContext: Record<string, unknown>;
@@ -92,12 +93,14 @@ export class WalletBalanceReloadCheckInstrumentationService {
 
   recordReloadTriggered(input: ReloadMetricInput & { amount: number }): void {
     this.reloadsTriggered.add(1, {
-      mode: input.mode
+      mode: input.mode,
+      triggered_by_deployment: String(input.triggeredByDeployment)
     });
     this.#recordCoverage(input);
     this.logger.info({
       ...input.logContext,
       mode: input.mode,
+      triggeredByDeployment: input.triggeredByDeployment,
       amount: input.amount,
       event: "WALLET_BALANCE_RELOADED"
     });
@@ -106,12 +109,15 @@ export class WalletBalanceReloadCheckInstrumentationService {
   recordReloadSkipped(input: ReloadMetricInput & { reason: "zero_cost" | "sufficient_balance" | "no_active_deployments" | "charge_rate_limited" }): void {
     this.reloadsSkipped.add(1, {
       mode: input.mode,
+      triggered_by_deployment: String(input.triggeredByDeployment),
       reason: input.reason
     });
     this.#recordCoverage(input);
     this.logger.info({
       ...input.logContext,
       mode: input.mode,
+      triggeredByDeployment: input.triggeredByDeployment,
+      reason: input.reason,
       event: "WALLET_BALANCE_RELOAD_SKIPPED"
     });
   }
@@ -125,15 +131,17 @@ export class WalletBalanceReloadCheckInstrumentationService {
     }
   }
 
-  recordReloadFailed(input: Pick<ReloadMetricInput, "mode" | "logContext"> & { error: unknown; declineCode?: string }): void {
+  recordReloadFailed(input: Pick<ReloadMetricInput, "mode" | "triggeredByDeployment" | "logContext"> & { error: unknown; declineCode?: string }): void {
     this.reloadFailures.add(1, {
       mode: input.mode,
+      triggered_by_deployment: String(input.triggeredByDeployment),
       error_type: input.error instanceof Error ? input.error.constructor.name : "Unknown",
       decline_code: input.declineCode ?? "none"
     });
     this.logger.error({
       ...input.logContext,
       mode: input.mode,
+      triggeredByDeployment: input.triggeredByDeployment,
       event: "WALLET_BALANCE_RELOAD_FAILED",
       declineCode: input.declineCode,
       error: input.error
