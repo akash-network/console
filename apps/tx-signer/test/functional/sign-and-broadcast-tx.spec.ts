@@ -9,8 +9,9 @@ import {
   TxBody,
   TxRaw
 } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
-import { fromBase64, toBase64 } from "@cosmjs/encoding";
+import { fromBase64, fromHex, toBase64 } from "@cosmjs/encoding";
 import type { Registry } from "@cosmjs/proto-signing";
+import { SimulateRequest } from "cosmjs-types/cosmos/tx/v1beta1/service";
 import nock from "nock";
 import { container } from "tsyringe";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
@@ -28,7 +29,7 @@ const DERIVATION_INDEX = 1;
 interface JsonRpcRequest {
   id: number | string;
   method: string;
-  params?: { path?: string; tx?: string };
+  params?: { path?: string; tx?: string; data?: string };
 }
 
 describe(TxController.name, () => {
@@ -68,6 +69,40 @@ describe(TxController.name, () => {
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ data: { code: 0, hash: txHash, rawLog: "" } });
+  });
+
+  it("retries a gas simulation that failed at the transport with a transaction window opened for the retry", async () => {
+    const { txHash, getSimulatedTimeoutTimestamps } = mockRpcNode({ failSimulateTimes: 1 });
+
+    const res = await app.request("/v1/tx/derived", {
+      method: "POST",
+      body: JSON.stringify({ data: { derivationIndex: DERIVATION_INDEX, messages: await buildDerivedMessages() } }),
+      headers: authorizedHeaders()
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ data: { code: 0, hash: txHash, rawLog: "" } });
+
+    const [firstAttempt, secondAttempt] = getSimulatedTimeoutTimestamps();
+    expect(getSimulatedTimeoutTimestamps()).toHaveLength(2);
+    expect(secondAttempt).toBeGreaterThan(firstAttempt);
+  });
+
+  it("reports the transport failure and stops after four gas simulation attempts when every one fails", async () => {
+    const { getSimulatedTimeoutTimestamps } = mockRpcNode({ failSimulateTimes: 10 });
+
+    const res = await app.request("/v1/tx/derived", {
+      method: "POST",
+      body: JSON.stringify({ data: { derivationIndex: DERIVATION_INDEX, messages: await buildDerivedMessages() } }),
+      headers: authorizedHeaders()
+    });
+
+    const body = await res.text();
+
+    expect(getSimulatedTimeoutTimestamps()).toHaveLength(4);
+    expect(res.status).toBe(503);
+    expect(body).toMatch(/Bad status on response: 503/);
+    expect(body).not.toMatch(/tx timeout/);
   });
 
   it("rejects a tx request that carries no API key", async () => {
@@ -201,7 +236,9 @@ describe(TxController.name, () => {
     return [{ typeUrl: message.typeUrl, value: toBase64(registry.encode(message)) }];
   }
 
-  function mockRpcNode(input: { chainId?: string; accountNumber?: number; sequence?: number; gasUsed?: number; height?: number; txHash?: string } = {}) {
+  function mockRpcNode(
+    input: { chainId?: string; accountNumber?: number; sequence?: number; gasUsed?: number; height?: number; txHash?: string; failSimulateTimes?: number } = {}
+  ) {
     const chainId = input.chainId ?? "sandbox-01";
     const accountNumber = input.accountNumber ?? 42;
     const sequence = input.sequence ?? 7;
@@ -209,6 +246,8 @@ describe(TxController.name, () => {
     const height = input.height ?? 1_000;
     const txHash = input.txHash ?? "AB".repeat(32);
     const broadcastedTxs: string[] = [];
+    const simulatedTxs: string[] = [];
+    let simulateFailuresLeft = input.failSimulateTimes ?? 0;
 
     const accountValue = toBase64(
       QueryAccountResponse.encode(
@@ -226,6 +265,8 @@ describe(TxController.name, () => {
     const simulateValue = toBase64(
       SimulateResponse.encode(SimulateResponse.fromPartial({ gasInfo: { gasUsed: BigInt(gasUsed), gasWanted: BigInt(gasUsed) } })).finish()
     );
+
+    const isSimulate = (request: JsonRpcRequest) => request.method === "abci_query" && request.params?.path?.includes("Simulate") === true;
 
     const reply = (request: JsonRpcRequest) => {
       const base = { jsonrpc: "2.0", id: request.id };
@@ -260,7 +301,7 @@ describe(TxController.name, () => {
             }
           };
         case "abci_query": {
-          const value = request.params?.path?.includes("Simulate") ? simulateValue : accountValue;
+          const value = isSimulate(request) ? simulateValue : accountValue;
           return { ...base, result: { response: { code: 0, log: "", info: "", index: "0", value, height: String(height), codespace: "" } } };
         }
         case "broadcast_tx_sync":
@@ -290,8 +331,31 @@ describe(TxController.name, () => {
     nock(process.env.RPC_NODE_ENDPOINT ?? "http://localhost:26657")
       .persist()
       .post(/.*/)
-      .reply(200, (_uri, requestBody) => reply(requestBody as JsonRpcRequest));
+      .reply((_uri, requestBody) => {
+        const request = requestBody as JsonRpcRequest;
 
-    return { txHash, chainId, accountNumber, sequence, gasUsed, height, getBroadcastedTxs: () => broadcastedTxs };
+        if (isSimulate(request)) {
+          simulatedTxs.push(request.params!.data!);
+
+          if (simulateFailuresLeft > 0) {
+            simulateFailuresLeft -= 1;
+            return [503, ""];
+          }
+        }
+
+        return [200, reply(request)];
+      });
+
+    return {
+      txHash,
+      chainId,
+      accountNumber,
+      sequence,
+      gasUsed,
+      height,
+      getBroadcastedTxs: () => broadcastedTxs,
+      getSimulatedTimeoutTimestamps: () =>
+        simulatedTxs.map(data => TxBody.decode(TxRaw.decode(SimulateRequest.decode(fromHex(data)).txBytes).bodyBytes).timeoutTimestamp!.getTime())
+    };
   }
 });

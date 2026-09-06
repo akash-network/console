@@ -66,6 +66,40 @@ describe(RetryingRpcClient.name, () => {
     expect(inner.execute).toHaveBeenCalledTimes(1);
   });
 
+  it("does not retry a gas simulation query, whose payload carries its own validity window", async () => {
+    const { client, inner } = setup({ responses: [new Error("Bad status on response: 500"), okResponse("would-recover")] });
+
+    await expect(client.execute(buildRequest("abci_query", { path: "/cosmos.tx.v1beta1.Service/Simulate" }))).rejects.toThrow(/Bad status on response: 500/);
+    expect(inner.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries other abci queries", async () => {
+    const { client, inner } = setup({ responses: [new Error("Bad status on response: 500"), okResponse("recovered")] });
+
+    const result = await client.execute(buildRequest("abci_query", { path: "/cosmos.auth.v1beta1.Query/Account" }));
+
+    expect(result.result).toBe("recovered");
+    expect(inner.execute).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a request aborted by the per-request timeout", async () => {
+    const timeout = new DOMException("The operation was aborted due to timeout", "TimeoutError");
+    const { client, inner } = setup({ responses: [timeout, okResponse("recovered")] });
+
+    const result = await client.execute(buildRequest("abci_query"));
+
+    expect(result.result).toBe("recovered");
+    expect(inner.execute).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry a gas simulation query aborted by the per-request timeout", async () => {
+    const timeout = new DOMException("The operation was aborted due to timeout", "TimeoutError");
+    const { client, inner } = setup({ responses: [timeout, okResponse("would-recover")] });
+
+    await expect(client.execute(buildRequest("abci_query", { path: "/cosmos.tx.v1beta1.Service/Simulate" }))).rejects.toThrow(/aborted due to timeout/);
+    expect(inner.execute).toHaveBeenCalledTimes(1);
+  });
+
   it("does not retry on 4xx-shaped errors", async () => {
     const { client, inner } = setup({ responses: [new Error("Bad status on response: 404"), okResponse("would-recover")] });
 
@@ -88,8 +122,8 @@ describe(RetryingRpcClient.name, () => {
     expect(inner.disconnect).toHaveBeenCalledTimes(1);
   });
 
-  function buildRequest(method: string) {
-    return { jsonrpc: "2.0" as const, id: faker.number.int(), method, params: {} };
+  function buildRequest(method: string, params: Record<string, string> = {}) {
+    return { jsonrpc: "2.0" as const, id: faker.number.int(), method, params };
   }
 
   function okResponse(result: unknown): RpcResponse {
