@@ -5,6 +5,7 @@ export * from "./provider.seeder";
 export * from "./provider-snapshot.seeder";
 export * from "./provider-snapshot-node.seeder";
 export * from "./provider-snapshot-node-gpu.seeder";
+export * from "./provider-snapshot-node-cpu.seeder";
 export * from "./deployment.seeder";
 export * from "./deployment-group.seeder";
 export * from "./deployment-group-resource.seeder";

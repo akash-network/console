@@ -1,5 +1,5 @@
 import { createProviderSDK } from "@akashnetwork/chain-sdk";
-import type { NodeResources, ResourcesMetric, Status as ProviderStatus } from "@akashnetwork/chain-sdk/private-types/provider.akash.v1";
+import type { CPUInfo, NodeResources, ResourcesMetric, Status as ProviderStatus } from "@akashnetwork/chain-sdk/private-types/provider.akash.v1";
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { minutesToMilliseconds } from "date-fns";
 import memoize from "lodash/memoize";
@@ -73,11 +73,7 @@ export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: n
         capabilitiesStorageNVME: !!node.capabilities?.storageClasses.includes("beta3"),
         gpuAllocatable: parsedResources.allocatableGPU,
         gpuAllocated: parsedResources.allocatedGPU,
-        cpus: (node.resources?.cpu?.info ?? []).map(cpuInfo => ({
-          vendor: cpuInfo.vendor,
-          model: cpuInfo.model,
-          vcores: cpuInfo.vcores
-        })),
+        cpus: (node.resources?.cpu?.info ?? []).map(mapCpuInfo),
         gpus: (node.resources?.gpu?.info ?? []).map(gpuInfo => ({
           vendor: gpuInfo.vendor,
           name: gpuInfo.name,
@@ -88,6 +84,15 @@ export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: n
       };
     }),
     storage: storage as unknown as ProviderStatusInfo["storage"]
+  };
+}
+
+export function mapCpuInfo(cpuInfo: CPUInfo): ProviderStatusInfo["nodes"][number]["cpus"][number] {
+  return {
+    vendor: cpuInfo.vendor,
+    model: cpuInfo.model,
+    vcores: cpuInfo.vcores,
+    arch: cpuInfo.arch || null
   };
 }
 

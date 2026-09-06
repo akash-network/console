@@ -100,6 +100,8 @@ export function buildProvider(overrides?: Partial<ApiProviderDetail>): ApiProvid
     workloadSupportChia: faker.datatype.boolean(),
     workloadSupportChiaCapabilities: [],
     featEndpointIp: faker.datatype.boolean(),
+    reportedCpuArchs: [],
+    cpuArchAgreement: "unknown",
     uptime: [],
     ...overrides
   } as ApiProviderDetail;
