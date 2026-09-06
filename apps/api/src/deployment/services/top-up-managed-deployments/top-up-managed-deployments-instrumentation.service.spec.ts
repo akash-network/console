@@ -100,6 +100,28 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
     });
   });
 
+  describe("recordSettingWithoutChainState", () => {
+    it("counts a deployment record no chain state could be found for", () => {
+      const { service, countersByName } = setup();
+      service.start(100, { dryRun: false });
+
+      service.recordSettingWithoutChainState({ dseq: "42", address: "akash1owner" });
+
+      expect(countersByName["auto_top_up_settings_without_chain_state_total"].add).toHaveBeenCalledWith(1);
+    });
+
+    it("logs the record it could not resolve", () => {
+      const { service, logger } = setup();
+      service.start(100, { dryRun: false });
+
+      service.recordSettingWithoutChainState({ dseq: "42", address: "akash1owner" });
+
+      expect(logger.debug).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "TOP_UP_SETTING_WITHOUT_CHAIN_STATE", dseq: "42", address: "akash1owner", dryRun: false })
+      );
+    });
+  });
+
   describe("recordDeploymentCloseMarkFailed", () => {
     it("warns without claiming the deployment was marked closed", () => {
       const { service, logger, summarizer } = setup();

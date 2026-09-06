@@ -94,13 +94,13 @@ export class InitialDeploymentFundingService {
   async #fundOnLeaseStarted({ walletId, address, dseq }: FundOnLeaseStartedInput): Promise<void> {
     const [deployment] = await this.drainingDeploymentService.findLeases(Number.MAX_SAFE_INTEGER, address, [dseq]);
 
-    if (!deployment) {
-      throw new Error(`Lease for deployment ${dseq} owned by ${address} is not visible on chain yet`);
-    }
-
-    if (deployment.closedHeight) {
+    if (deployment?.isClosed || deployment?.closedHeight) {
       this.instrumentation.recordSkipped("deployment_closed", { dseq, address });
       return;
+    }
+
+    if (!deployment || deployment.hasNoLease) {
+      throw new Error(`Lease for deployment ${dseq} owned by ${address} is not visible on chain yet`);
     }
 
     const currentHeight = await this.blockHttpService.getCurrentHeight();

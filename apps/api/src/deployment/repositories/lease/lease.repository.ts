@@ -13,6 +13,8 @@ export interface DrainingDeploymentOutput {
   predictedClosedHeight: number;
   closedHeight?: number;
   isClosed?: boolean;
+  /** Set on chain deployments the lease query returned nothing for, whose zero block rate makes them unfundable. */
+  hasNoLease?: boolean;
 }
 
 export interface ActiveLeaseOnProvider {

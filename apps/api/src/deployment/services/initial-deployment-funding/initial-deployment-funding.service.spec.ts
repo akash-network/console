@@ -39,6 +39,25 @@ describe(InitialDeploymentFundingService.name, () => {
     expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
   });
 
+  it("throws when the chain has the deployment but not its lease yet", async () => {
+    const { service, drainingDeploymentService, managedSignerService } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ blockRate: 0, predictedClosedHeight: 0, hasNoLease: true })]);
+
+    await expect(service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" })).rejects.toThrow("not visible on chain yet");
+
+    expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+  });
+
+  it("skips funding when a lease-less deployment has already closed instead of retrying for its lease", async () => {
+    const { service, drainingDeploymentService, managedSignerService, instrumentation } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ blockRate: 0, isClosed: true, hasNoLease: true })]);
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+    expect(instrumentation.recordSkipped).toHaveBeenCalledWith("deployment_closed", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
+  });
+
   it("skips funding when the deployment is closed", async () => {
     const { service, drainingDeploymentService, managedSignerService, instrumentation } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ closedHeight: 900 })]);
