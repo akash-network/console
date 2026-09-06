@@ -42,9 +42,10 @@ describe("Fair Use Policy acceptance", () => {
 
       await app.request("/v1/user/acceptFairUsePolicy", { method: "POST", headers });
       const firstAcceptedAt = (await userRepository.findById(user.id))?.fairUsePolicyAcceptedAt;
-      await app.request("/v1/user/acceptFairUsePolicy", { method: "POST", headers });
+      const secondResponse = await app.request("/v1/user/acceptFairUsePolicy", { method: "POST", headers });
       const secondAcceptedAt = (await userRepository.findById(user.id))?.fairUsePolicyAcceptedAt;
 
+      expect(secondResponse.status).toBe(204);
       expect(firstAcceptedAt).toBeInstanceOf(Date);
       expect(secondAcceptedAt).toEqual(firstAcceptedAt);
     });

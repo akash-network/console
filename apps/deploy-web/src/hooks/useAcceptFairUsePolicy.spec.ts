@@ -23,12 +23,13 @@ describe(useAcceptFairUsePolicy.name, () => {
 
   it("reports a failed acceptance without throwing so the modal stays up for a retry", async () => {
     const error = new Error("network down");
-    const { result, errorHandler, checkSession } = setup({ postError: error });
+    const { result, errorHandler, checkSession, analyticsService } = setup({ postError: error });
 
     await act(() => result.current.accept());
 
     expect(errorHandler.reportError).toHaveBeenCalledWith({ error, tags: { category: "user" } });
     expect(checkSession).not.toHaveBeenCalled();
+    expect(analyticsService.track).not.toHaveBeenCalled();
     expect(result.current.isAccepting).toBe(false);
   });
 

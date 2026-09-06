@@ -18,8 +18,8 @@ export function useAcceptFairUsePolicy(dependencies: typeof DEPENDENCIES = DEPEN
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async () => {
-      analyticsService.track("fair_use_policy_accepted", { category: "user" });
       await consoleApiHttpClient.post("/v1/user/acceptFairUsePolicy");
+      analyticsService.track("fair_use_policy_accepted", { category: "user" });
       await checkSession();
     },
     onError: error => errorHandler.reportError({ error, tags: { category: "user" } })
