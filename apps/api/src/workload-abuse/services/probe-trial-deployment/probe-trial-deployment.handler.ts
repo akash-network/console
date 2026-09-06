@@ -53,6 +53,19 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
       return;
     }
 
+    const existingDetection = await this.detectionRepository.findOneBy({ walletId, dseq, verdict: "hard" });
+
+    if (existingDetection) {
+      this.logger.info({
+        event: "TRIAL_WORKLOAD_PROBE_FINISHED",
+        reason: "ALREADY_DETECTED",
+        ...context,
+        userId: wallet.userId,
+        detectionId: existingDetection.id
+      });
+      return;
+    }
+
     const report = await this.probeService.probe({ wallet, dseq });
     this.instrumentation.recordProbe(report);
 

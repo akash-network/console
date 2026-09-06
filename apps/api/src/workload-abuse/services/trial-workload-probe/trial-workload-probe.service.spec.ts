@@ -70,6 +70,19 @@ describe(TrialWorkloadProbeService.name, () => {
     expect(logTailService.collect).toHaveBeenCalledWith(expect.objectContaining({ services: ["ssh"] }));
   });
 
+  it("probes at most eight services per lease however many the provider reports", async () => {
+    const { service, wallet, shellProbeService, logTailService, logger } = setup({
+      leases: [createRpcLease()],
+      services: Object.fromEntries(Array.from({ length: 12 }, (_, index) => [`svc${index}`, 1]))
+    });
+
+    await service.probe({ wallet, dseq: DSEQ });
+
+    expect(shellProbeService.run).toHaveBeenCalledTimes(8);
+    expect(logTailService.collect.mock.calls[0][0].services).toHaveLength(8);
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_WORKLOAD_PROBE_SERVICES_CAPPED", reported: 12, probed: 8 }));
+  });
+
   it("scans the shell output, the log tail and the stored SDL together", async () => {
     const { service, wallet } = setup({
       leases: [createRpcLease()],

@@ -119,7 +119,25 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     };
   }
 
-  function setup(input: { enabled?: boolean; wallet?: ReturnType<typeof createUserWallet> | null; report?: ProbeReport; maxAttempts?: number }) {
+  it("stops probing a deployment that already carries a confirmed detection", async () => {
+    const { handler, probeService, probeJobService, logger } = setup({ existingDetection: true });
+
+    await handler.handle(PAYLOAD);
+
+    expect(probeService.probe).not.toHaveBeenCalled();
+    expect(probeJobService.scheduleNext).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "TRIAL_WORKLOAD_PROBE_FINISHED", reason: "ALREADY_DETECTED", detectionId: "detection-0" })
+    );
+  });
+
+  function setup(input: {
+    enabled?: boolean;
+    wallet?: ReturnType<typeof createUserWallet> | null;
+    report?: ProbeReport;
+    maxAttempts?: number;
+    existingDetection?: boolean;
+  }) {
     const wallet = input.wallet === undefined ? createUserWallet({ isTrialing: true }) : input.wallet;
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findById.mockResolvedValue(wallet ?? undefined);
@@ -128,6 +146,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     const probeJobService = mock<TrialWorkloadProbeJobService>();
     const detectionRepository = mock<WorkloadAbuseDetectionRepository>();
     detectionRepository.create.mockResolvedValue(mock<WorkloadAbuseDetectionOutput>({ id: "detection-1" }));
+    detectionRepository.findOneBy.mockResolvedValue(input.existingDetection ? mock<WorkloadAbuseDetectionOutput>({ id: "detection-0" }) : undefined);
     const instrumentation = mock<WorkloadAbuseInstrumentationService>();
     const config = mockConfigService<WorkloadAbuseConfigService>({
       WORKLOAD_ABUSE_PROBE_ENABLED: input.enabled ?? true,

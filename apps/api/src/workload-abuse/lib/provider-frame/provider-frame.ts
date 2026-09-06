@@ -12,10 +12,7 @@ export type ProviderFrame =
 
 const IGNORED_FRAME: ProviderFrame = { kind: "ignore" };
 
-/**
- * Decodes one provider-proxy client message. Binary provider frames reach the client as a JSON-serialized Buffer
- * (`{type:"Buffer",data:[...]}`), text frames as a plain string, and proxy-level outcomes as `closed` / `error`.
- */
+/** Decodes one provider-proxy client message, where binary provider frames arrive as a JSON-serialized Buffer, text frames as a plain string, and proxy outcomes as `closed` / `error`. */
 export function decodeProviderFrame(raw: string): ProviderFrame {
   const parsed = parseJson(raw);
   if (!isRecord(parsed)) return IGNORED_FRAME;

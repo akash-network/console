@@ -1,9 +1,10 @@
-import { addMinutes } from "date-fns";
+import { addMinutes, subHours } from "date-fns";
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, type Job, JOB_NAME, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import type { DryRunOptions } from "@src/core/types/console";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 
 export class ProbeTrialDeployment implements Job {
@@ -38,6 +39,7 @@ export class TrialWorkloadProbeJobService {
   constructor(
     private readonly jobQueueService: JobQueueService,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
+    private readonly detectionRepository: WorkloadAbuseDetectionRepository,
     private readonly config: WorkloadAbuseConfigService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -65,21 +67,30 @@ export class TrialWorkloadProbeJobService {
       return;
     }
 
-    const deployments = await this.deploymentSettingRepository.findLiveTrialDeployments({
-      maxAgeHours: this.config.get("WORKLOAD_ABUSE_RECONCILE_MAX_AGE_HOURS")
-    });
+    const maxAgeHours = this.config.get("WORKLOAD_ABUSE_RECONCILE_MAX_AGE_HOURS");
+    const deployments = await this.deploymentSettingRepository.findLiveTrialDeployments({ maxAgeHours });
     this.logger.info({ event: "TRIAL_WORKLOAD_PROBE_RECONCILE_START", count: deployments.length, dryRun });
 
     if (dryRun) return;
 
     const pendingKeys = await this.jobQueueService.findPendingSingletonKeys(ProbeTrialDeployment[JOB_NAME]);
+    const detectedTargets = await this.detectionRepository.findRecentHardTargets({ since: subHours(new Date(), maxAgeHours) });
+    const detectedKeys = new Set(detectedTargets.map(probeTrialDeploymentKeyFor));
     let scheduled = 0;
     let alreadyScheduled = 0;
+    let alreadyDetected = 0;
     let failed = 0;
 
     for (const deployment of deployments) {
-      if (pendingKeys.has(probeTrialDeploymentKeyFor(deployment))) {
+      const key = probeTrialDeploymentKeyFor(deployment);
+
+      if (pendingKeys.has(key)) {
         alreadyScheduled++;
+        continue;
+      }
+
+      if (detectedKeys.has(key)) {
+        alreadyDetected++;
         continue;
       }
 
@@ -96,7 +107,7 @@ export class TrialWorkloadProbeJobService {
       }
     }
 
-    this.logger.info({ event: "TRIAL_WORKLOAD_PROBE_RECONCILE_END", found: deployments.length, scheduled, alreadyScheduled, failed });
+    this.logger.info({ event: "TRIAL_WORKLOAD_PROBE_RECONCILE_END", found: deployments.length, scheduled, alreadyScheduled, alreadyDetected, failed });
   }
 
   /** `startAfter` never sits in the past, because pg-boss derives a job's retention from it and would archive an overdue job before a worker sees it. */

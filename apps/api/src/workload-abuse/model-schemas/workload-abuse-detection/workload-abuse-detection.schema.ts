@@ -20,7 +20,7 @@ export const WorkloadAbuseDetections = pgTable(
       .notNull(),
     walletId: integer("wallet_id").notNull(),
     dseq: varchar("dseq").notNull(),
-    provider: varchar("provider", { length: 255 }).notNull(),
+    provider: text("provider").notNull(),
     verdict: workloadAbuseVerdictEnum("verdict").notNull(),
     probeStatus: varchar("probe_status", { length: 64 }).notNull(),
     signals: jsonb("signals").$type<DetectionSignal[]>().notNull(),

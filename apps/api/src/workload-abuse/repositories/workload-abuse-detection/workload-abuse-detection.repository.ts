@@ -1,3 +1,4 @@
+import { and, eq, gt } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -20,5 +21,12 @@ export class WorkloadAbuseDetectionRepository extends BaseRepository<Table, Work
 
   accessibleBy(...abilityParams: AbilityParams) {
     return new WorkloadAbuseDetectionRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
+  }
+
+  async findRecentHardTargets({ since }: { since: Date }): Promise<Array<{ walletId: number; dseq: string }>> {
+    return await this.cursor
+      .selectDistinct({ walletId: this.table.walletId, dseq: this.table.dseq })
+      .from(this.table)
+      .where(and(eq(this.table.verdict, "hard"), gt(this.table.createdAt, since)));
   }
 }

@@ -40,10 +40,7 @@ export type ProviderStreamInput = {
 const INVALID_CERTIFICATE_REASON_PREFIX = "invalidCertificate";
 const TOKEN_EXPIRED_ERROR = "tokenExpired";
 
-/**
- * Opens one provider stream through provider-proxy and collects it to completion. The proxy dials the provider on
- * the first message, which must carry no `data`, and pins the provider certificate to the chain before forwarding.
- */
+/** Collects one provider stream to completion through provider-proxy, whose opening message must carry no `data` because the proxy dials the provider on it. */
 @singleton()
 export class ProviderStreamService {
   constructor(@inject(PROVIDER_PROXY_SOCKET_FACTORY) private readonly createSocket: ProviderProxySocketFactory) {}

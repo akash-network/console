@@ -5,7 +5,7 @@ CREATE TABLE "workload_abuse_detections" (
 	"user_id" uuid NOT NULL,
 	"wallet_id" integer NOT NULL,
 	"dseq" varchar NOT NULL,
-	"provider" varchar(255) NOT NULL,
+	"provider" text NOT NULL,
 	"verdict" "workload_abuse_verdict" NOT NULL,
 	"probe_status" varchar(64) NOT NULL,
 	"signals" jsonb NOT NULL,

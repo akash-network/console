@@ -1,9 +1,10 @@
-import { addMinutes } from "date-fns";
+import { addMinutes, subHours } from "date-fns";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { CreateLogger, JobQueueService } from "@src/core";
 import type { DeploymentSettingRepository, LiveTrialDeployment } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import type { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import type { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 import { ProbeTrialDeployment, probeTrialDeploymentKeyFor, TrialWorkloadProbeJobService } from "./trial-workload-probe-job.service";
 
@@ -123,6 +124,20 @@ describe(TrialWorkloadProbeJobService.name, () => {
       );
     });
 
+    it("leaves a deployment that already carries a confirmed detection alone", async () => {
+      const { service, jobQueueService, detectionRepository, logger } = setup({ live, detected: [{ walletId: 1, dseq: "1" }], now: LEASE_CREATED_AT });
+
+      await service.reconcile({ dryRun: false });
+
+      expect(detectionRepository.findRecentHardTargets).toHaveBeenCalledWith({ since: subHours(LEASE_CREATED_AT, 26) });
+      expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ walletId: 2, dseq: "2" }) }),
+        expect.anything()
+      );
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_WORKLOAD_PROBE_RECONCILE_END", scheduled: 1, alreadyDetected: 1 }));
+    });
+
     it("skips the sweep while probing is disabled", async () => {
       const { service, deploymentSettingRepository } = setup({ enabled: false, live });
 
@@ -132,7 +147,13 @@ describe(TrialWorkloadProbeJobService.name, () => {
     });
   });
 
-  function setup(input: { enabled?: boolean; live?: LiveTrialDeployment[]; pendingKeys?: string[]; now?: Date }) {
+  function setup(input: {
+    enabled?: boolean;
+    live?: LiveTrialDeployment[];
+    pendingKeys?: string[];
+    detected?: Array<{ walletId: number; dseq: string }>;
+    now?: Date;
+  }) {
     if (input.now) vi.useFakeTimers({ now: input.now, toFake: ["Date"] });
     else vi.useRealTimers();
 
@@ -141,6 +162,8 @@ describe(TrialWorkloadProbeJobService.name, () => {
     jobQueueService.findPendingSingletonKeys.mockResolvedValue(new Set(input.pendingKeys ?? []));
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.findLiveTrialDeployments.mockResolvedValue(input.live ?? []);
+    const detectionRepository = mock<WorkloadAbuseDetectionRepository>();
+    detectionRepository.findRecentHardTargets.mockResolvedValue(input.detected ?? []);
     const config = mockConfigService<WorkloadAbuseConfigService>({
       WORKLOAD_ABUSE_PROBE_ENABLED: input.enabled ?? true,
       WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: [5, 20, 60],
@@ -151,8 +174,8 @@ describe(TrialWorkloadProbeJobService.name, () => {
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    const service = new TrialWorkloadProbeJobService(jobQueueService, deploymentSettingRepository, config, createLogger);
+    const service = new TrialWorkloadProbeJobService(jobQueueService, deploymentSettingRepository, detectionRepository, config, createLogger);
 
-    return { service, jobQueueService, deploymentSettingRepository, logger };
+    return { service, jobQueueService, deploymentSettingRepository, detectionRepository, logger };
   }
 });

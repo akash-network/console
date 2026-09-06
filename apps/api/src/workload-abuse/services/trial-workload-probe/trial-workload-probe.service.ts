@@ -39,6 +39,8 @@ export type ProbeReport = {
 };
 
 const PROVIDER_SCOPES = ["status", "logs", "shell"] as const;
+/** The probed provider reports its own service list, so a hostile one must not be able to stretch a run past this many shell sessions. */
+const MAX_PROBED_SERVICES_PER_LEASE = 8;
 /** Bounds the audit row; the full shell output stays in the job log, which has its own line cap. */
 const MAX_EXCERPT_LENGTH = 8_192;
 
@@ -116,14 +118,25 @@ export class TrialWorkloadProbeService {
     if (services.length === 0) return { status: "no_running_service", lease: probedLease };
 
     const target = { hostUri: provider.hostUri, providerAddress, token: auth.token, dseq, gseq, oseq };
+    const probedServices = services.slice(0, MAX_PROBED_SERVICES_PER_LEASE);
 
-    for (const service of services) {
+    if (probedServices.length < services.length) {
+      this.logger.warn({
+        event: "TRIAL_WORKLOAD_PROBE_SERVICES_CAPPED",
+        dseq,
+        provider: providerAddress,
+        reported: services.length,
+        probed: probedServices.length
+      });
+    }
+
+    for (const service of probedServices) {
       const shell = await this.shellProbeService.run({ ...target, service });
       probedLease.shellStatuses.push(shell.status);
       if (shell.output) sources.push({ kind: "shell", service, text: shell.output });
     }
 
-    const logs = await this.logTailService.collect({ ...target, services });
+    const logs = await this.logTailService.collect({ ...target, services: probedServices });
     probedLease.logStatus = logs.status;
     if (logs.lines.length > 0) sources.push({ kind: "logs", text: logs.lines.join("\n") });
 
