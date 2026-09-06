@@ -54,9 +54,38 @@ describe(SigningClientService.name, () => {
     const result = await service.signAndBroadcast(createMessages(1));
 
     const [txBytes] = client.broadcastTxSync.mock.calls[0];
-    const expectedHash = toHex(sha256(txBytes));
+    const expectedHash = toHex(sha256(txBytes)).toUpperCase();
     expect(client.getTx).toHaveBeenCalledWith(expectedHash);
     expect(result.hash).toBe(expectedHash);
+  });
+
+  it("polls for a transaction the node never answered for, so a broadcast that timed out can still settle", async () => {
+    const { service, client } = setup();
+    client.broadcastTxSync.mockRejectedValue(Object.assign(new Error("The operation was aborted due to timeout"), { name: "TimeoutError" }));
+
+    const result = await service.signAndBroadcast(createMessages(1));
+
+    const [txBytes] = client.broadcastTxSync.mock.calls[0];
+    const expectedHash = toHex(sha256(txBytes)).toUpperCase();
+    expect(client.getTx).toHaveBeenCalledWith(expectedHash);
+    expect(result.hash).toBe(expectedHash);
+  });
+
+  it("reports a not-included outcome when a broadcast that timed out is followed by a transaction that never lands", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 10_000 });
+      client.broadcastTxSync.mockRejectedValue(Object.assign(new Error("The operation was aborted due to timeout"), { name: "TimeoutError" }));
+      client.getTx.mockResolvedValue(null);
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      await expect(promise).rejects.toBeInstanceOf(TxNotIncludedError);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does not let a failing transaction affect the others", async () => {
@@ -137,6 +166,27 @@ describe(SigningClientService.name, () => {
 
       await expect(promise).rejects.toBeInstanceOf(TxOutcomeUnknownError);
       await expect(promise).rejects.toMatchObject({ status: 504, data: { outcome: "unknown", txHash: "broadcast-hash" } });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stops polling at the deadline rather than after a fixed number of attempts when each query is slow", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 60_000, deadlineMs: 20_000 });
+      client.broadcastTxSync.mockResolvedValue("broadcast-hash");
+      client.getTx.mockImplementation(async () => {
+        await new Promise(resolve => setTimeout(resolve, 4_000));
+        return null;
+      });
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(120_000);
+
+      await expect(promise).rejects.toBeInstanceOf(TxOutcomeUnknownError);
+      expect(client.getTx).toHaveBeenCalledTimes(4);
     } finally {
       vi.useRealTimers();
     }

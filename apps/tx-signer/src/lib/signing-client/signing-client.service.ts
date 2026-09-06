@@ -6,9 +6,10 @@ import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { BroadcastTxError, type IndexedTx } from "@cosmjs/stargate";
-import { ConstantBackoff, handleWhenResult, Policy, retry } from "cockatiel";
+import { ConstantBackoff, Policy, retry } from "cockatiel";
 
 import type { AppConfigService } from "@src/services/app-config/app-config.service";
+import { isRetriableTransportError } from "../retriable-transport-error/retriable-transport-error";
 import type { SigningStargateWithUnorderedSupportClient } from "../signing-stargate-client-factory/signing-stargate-client.factory";
 import { simulateBudgetMs } from "../signing-stargate-client-factory/signing-stargate-client.factory";
 import { TxNotIncludedError, TxOutcomeUnknownError } from "./tx-outcome.error";
@@ -207,51 +208,62 @@ export class SigningClientService {
     try {
       return await this.#client.broadcastTxSync(txBytes);
     } catch (error: unknown) {
-      if (error instanceof Error && error.message.toLowerCase().includes("tx already exists in cache")) {
-        return toHex(sha256(txBytes));
-      }
-
       if (error instanceof BroadcastTxError) {
         throw error;
       }
 
-      throw this.#undecidedOutcomeError(toHex(sha256(txBytes)).toUpperCase(), { error });
+      const txHash = deriveTxHash(txBytes);
+
+      if (error instanceof Error && error.message.toLowerCase().includes("tx already exists in cache")) {
+        return txHash;
+      }
+
+      if (isRetriableTransportError(error)) {
+        this.#logger.warn({ event: "SIGN_AND_BROADCAST_BROADCAST_UNANSWERED", txHash, error });
+        return txHash;
+      }
+
+      throw this.#undecidedOutcomeError(txHash, { error });
     }
   }
 
-  /** A query that never answered leaves the outcome open however long it took, since only an answer can rule the tx out. */
+  /** Stops on a wall clock rather than an attempt count, so a slow `getTx` spends the window instead of running the poll past the deadline. */
   async #pollTx(hash: string, deadline: number): Promise<IndexedTx | null> {
-    const attempts = this.#pollAttempts(deadline);
-
-    if (!attempts) {
+    if (Date.now() >= deadline) {
       throw this.#undecidedOutcomeError(hash, { reason: "no budget left to poll" });
     }
 
-    const poller = retry(
-      handleWhenResult(res => !res),
-      {
-        maxAttempts: attempts - 1,
-        backoff: new ConstantBackoff(TX_RECOVERY_POLL_INTERVAL_MS)
-      }
-    );
+    const pollUntil = Math.min(deadline, Date.now() + this.#ttlMs * TX_RECOVERY_WINDOW_FACTOR);
 
     try {
-      return await poller.execute(context => {
-        this.#logger.debug({ event: "TX_POLL_ATTEMPT", txHash: hash, attempt: context.attempt });
-        return this.#client.getTx(hash);
-      });
+      for (let attempt = 0; ; attempt++) {
+        this.#logger.debug({ event: "TX_POLL_ATTEMPT", txHash: hash, attempt });
+
+        const tx = await this.#client.getTx(hash);
+
+        if (tx) {
+          return tx;
+        }
+
+        if (Date.now() + TX_RECOVERY_POLL_INTERVAL_MS > pollUntil) {
+          return null;
+        }
+
+        await delay(TX_RECOVERY_POLL_INTERVAL_MS);
+      }
     } catch (error: unknown) {
       throw this.#undecidedOutcomeError(hash, { error });
     }
   }
+}
 
-  /** Floors against the budget so no poll is scheduled to start past the deadline, while an unconstrained window keeps the full recovery span. */
-  #pollAttempts(deadline: number): number {
-    const spanAttempts = Math.ceil((this.#ttlMs * TX_RECOVERY_WINDOW_FACTOR) / TX_RECOVERY_POLL_INTERVAL_MS) + 1;
-    const budgetAttempts = Math.floor((deadline - Date.now()) / TX_RECOVERY_POLL_INTERVAL_MS) + 1;
+/** Tendermint indexes a tx under the uppercase hex of its hash, which is also what a `broadcastTxSync` the node answered returns. */
+function deriveTxHash(txBytes: Uint8Array): string {
+  return toHex(sha256(txBytes)).toUpperCase();
+}
 
-    return Math.max(0, Math.min(spanAttempts, budgetAttempts));
-  }
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /** The expiry the signed body actually carries, read back from the bytes broadcast rather than recomputed from a clock. */
