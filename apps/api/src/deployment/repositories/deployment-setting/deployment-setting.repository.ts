@@ -202,6 +202,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
           eq(this.table.closed, false),
           eq(UserWallets.isTrialing, true),
           isNotNull(UserWallets.address),
+          isNull(UserWallets.abuseLockedAt),
           gt(this.table.createdAt, sql`(now() at time zone 'utc') - make_interval(hours => ${sql.raw(String(hours))})`)
         )
       )

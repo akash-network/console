@@ -69,6 +69,8 @@ export const envSchema = z.object({
     .default("false")
     .transform(value => value === "true"),
   WORKLOAD_ABUSE_SIGNATURES: z.string().default("{}").transform(compileSignatures),
+  /** `detect` records hard verdicts without acting on them, so a rollout can be compared against manual review first. */
+  WORKLOAD_ABUSE_ENFORCEMENT_MODE: z.enum(["detect", "enforce"]).default("detect"),
   WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: z.string().default("5,20,60").transform(parseMinutesList),
   WORKLOAD_ABUSE_PROBE_INTERVAL_MIN: z.number({ coerce: true }).int().positive().default(60),
   WORKLOAD_ABUSE_PROBE_JITTER_MIN: z.number({ coerce: true }).int().nonnegative().default(10),

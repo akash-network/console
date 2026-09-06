@@ -1,0 +1,153 @@
+import { AuthzHttpService, LeaseHttpService, LIVE_LEASE_STATES } from "@akashnetwork/http-sdk";
+import type { EncodeObject } from "@cosmjs/proto-signing";
+import { inject, singleton } from "tsyringe";
+
+import { UserWalletRepository, type WalletInitialized } from "@src/billing/repositories";
+import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
+import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
+import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
+import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
+import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
+import { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
+import { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
+
+export const ABUSE_LOCK_REASON = "workload_abuse";
+
+export type EnforcementOutcome = {
+  depositGrantRevoked: boolean;
+  feeGrantRevoked: boolean;
+  closedDseqs: string[];
+};
+
+/** The chain reports a revoke of a grant that no longer exists this way, which an earlier attempt of the same wipe can have caused. */
+const GRANT_MISSING_PATTERN = /not found/i;
+
+/**
+ * Wipes a trial wallet caught mining: the deposit grant goes first so nothing new can be created, the live deployments
+ * are closed while the fee grant still pays for the closes, then the fee grant goes and the wallet is zeroed and
+ * locked in one write. Every step re-reads chain state, so a retry after a partial failure resumes where it stopped.
+ */
+@singleton()
+export class TrialAbuseEnforcementService {
+  private readonly logger: ReturnType<CreateLogger>;
+
+  constructor(
+    private readonly txManagerService: TxManagerService,
+    private readonly authzHttpService: AuthzHttpService,
+    private readonly rpcMessageService: RpcMessageService,
+    private readonly signerService: ManagedSignerService,
+    private readonly leaseHttpService: LeaseHttpService,
+    private readonly deploymentWriterService: DeploymentWriterService,
+    private readonly chainErrorService: ChainErrorService,
+    private readonly userWalletRepository: UserWalletRepository,
+    private readonly detectionRepository: WorkloadAbuseDetectionRepository,
+    private readonly probeJobService: TrialWorkloadProbeJobService,
+    private readonly instrumentation: WorkloadAbuseInstrumentationService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.logger = createLogger({ context: TrialAbuseEnforcementService.name });
+  }
+
+  async enforce(input: { wallet: WalletInitialized; detectionId: string }): Promise<EnforcementOutcome> {
+    const { wallet, detectionId } = input;
+    await this.detectionRepository.updateById(detectionId, { action: "enforcing", enforcementError: null, updatedAt: new Date() });
+
+    try {
+      await this.probeJobService.cancelForWallet(wallet.id);
+      const granter = await this.txManagerService.getFundingWalletAddress();
+      const depositGrantRevoked = await this.#revokeDepositGrant(granter, wallet.address);
+      const closedDseqs = await this.#closeLiveDeployments(wallet);
+      const feeGrantRevoked = await this.#revokeFeeGrant(granter, wallet.address);
+      await this.userWalletRepository.lockForAbuse(wallet.id, ABUSE_LOCK_REASON);
+      await this.detectionRepository.updateById(detectionId, { action: "enforced", updatedAt: new Date() });
+      this.instrumentation.recordEnforcement("enforced");
+
+      const outcome = { depositGrantRevoked, feeGrantRevoked, closedDseqs };
+      this.logger.warn({ event: "TRIAL_WORKLOAD_ABUSE_ENFORCED", detectionId, walletId: wallet.id, userId: wallet.userId, owner: wallet.address, ...outcome });
+
+      return outcome;
+    } catch (error) {
+      await this.detectionRepository.updateById(detectionId, { action: "enforcement_failed", enforcementError: toErrorMessage(error), updatedAt: new Date() });
+      this.instrumentation.recordEnforcement("failed");
+      this.logger.error({
+        event: "TRIAL_WORKLOAD_ABUSE_ENFORCEMENT_FAILED",
+        detectionId,
+        walletId: wallet.id,
+        userId: wallet.userId,
+        owner: wallet.address,
+        error
+      });
+      throw error;
+    }
+  }
+
+  async #revokeDepositGrant(granter: string, grantee: string): Promise<boolean> {
+    if (!(await this.authzHttpService.hasDepositDeploymentGrant(granter, grantee))) return false;
+
+    await this.#executeRevoke(this.rpcMessageService.getRevokeDepositDeploymentGrantMsg({ granter, grantee }));
+    return true;
+  }
+
+  async #revokeFeeGrant(granter: string, grantee: string): Promise<boolean> {
+    if (!(await this.authzHttpService.hasFeeAllowance(granter, grantee))) return false;
+
+    await this.#executeRevoke(this.rpcMessageService.getRevokeAllowanceMsg({ granter, grantee }));
+    return true;
+  }
+
+  async #executeRevoke(message: EncodeObject): Promise<void> {
+    try {
+      await this.signerService.executeFundingTx([message]);
+    } catch (error) {
+      if (isGrantMissingError(error)) return;
+      throw error;
+    }
+  }
+
+  /** An unsettleable escrow is skipped for this pass and fails the run at the end, so the queue retries the close later without blocking the other deployments. */
+  async #closeLiveDeployments(wallet: WalletInitialized): Promise<string[]> {
+    const dseqs = await this.#findLiveDseqs(wallet.address);
+    const closed: string[] = [];
+    const unsettleable: string[] = [];
+
+    for (const dseq of dseqs) {
+      try {
+        await this.deploymentWriterService.close(wallet, dseq);
+        closed.push(dseq);
+      } catch (error) {
+        if (error instanceof Error && this.chainErrorService.isUnsettleableDeploymentError(error)) {
+          unsettleable.push(dseq);
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    if (unsettleable.length > 0) {
+      throw new Error(`Deployments ${unsettleable.join(", ")} cannot be closed until their escrow settles`);
+    }
+
+    return closed;
+  }
+
+  async #findLiveDseqs(owner: string): Promise<string[]> {
+    const responses = await Promise.all(LIVE_LEASE_STATES.map(state => this.leaseHttpService.list({ owner, state })));
+
+    return [...new Set(responses.flatMap(response => response.leases.map(lease => lease.lease.id.dseq)))];
+  }
+}
+
+function isGrantMissingError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+
+  const originalError = (error as { originalError?: unknown }).originalError;
+  const messages = [error.message, originalError instanceof Error ? originalError.message : undefined];
+
+  return messages.some(message => message && GRANT_MISSING_PATTERN.test(message));
+}
+
+function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}

@@ -11,7 +11,16 @@ import { NotificationService } from "@src/notifications/services/notification/no
 import { creditsRunningLowNotification } from "@src/notifications/services/notification-templates/credits-running-low-notification";
 import { type UserOutput, UserRepository } from "@src/user/repositories";
 
-type SkipReason = "auto_reload_enabled" | "no_wallet" | "trialing" | "no_email" | "zero_cost" | "sufficient_balance" | "already_notified" | "low_unconfirmed";
+type SkipReason =
+  | "auto_reload_enabled"
+  | "no_wallet"
+  | "trialing"
+  | "abuse_locked"
+  | "no_email"
+  | "zero_cost"
+  | "sufficient_balance"
+  | "already_notified"
+  | "low_unconfirmed";
 
 type NotLowReason = Extract<SkipReason, "zero_cost" | "sufficient_balance">;
 
@@ -144,6 +153,11 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
 
     if (wallet.isTrialing) {
       this.#skip("trialing", userId);
+      return;
+    }
+
+    if (wallet.abuseLockedAt) {
+      this.#skip("abuse_locked", userId);
       return;
     }
 

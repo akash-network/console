@@ -9,6 +9,7 @@ export class WorkloadAbuseInstrumentationService {
   private readonly meter: Meter;
   private readonly probes: Counter;
   private readonly detections: Counter;
+  private readonly enforcements: Counter;
 
   constructor(metricsService: MetricsService) {
     this.meter = metricsService.getMeter("workload-abuse", "1.0.0");
@@ -18,6 +19,9 @@ export class WorkloadAbuseInstrumentationService {
     this.detections = metricsService.createCounter(this.meter, "workload_abuse_detections_total", {
       description: "Trial workload detections recorded, by verdict"
     });
+    this.enforcements = metricsService.createCounter(this.meter, "workload_abuse_enforcements_total", {
+      description: "Trial abuse enforcement runs, by result"
+    });
   }
 
   recordProbe(input: { verdict: WorkloadVerdict; probeStatus: string }): void {
@@ -26,5 +30,9 @@ export class WorkloadAbuseInstrumentationService {
 
   recordDetection(verdict: WorkloadVerdict): void {
     this.detections.add(1, { verdict });
+  }
+
+  recordEnforcement(result: "enforced" | "failed" | "skipped"): void {
+    this.enforcements.add(1, { result });
   }
 }

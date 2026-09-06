@@ -1,8 +1,9 @@
 import { inject, singleton } from "tsyringe";
 
 import { isWalletInitialized, UserWalletRepository } from "@src/billing/repositories";
-import { type CreateLogger, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
+import { EnforceTrialAbuse, enforceTrialAbuseKeyFor } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
 import { type ProbeReport, TrialWorkloadProbeService } from "@src/workload-abuse/services/trial-workload-probe/trial-workload-probe.service";
 import { ProbeTrialDeployment, TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
@@ -27,6 +28,7 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
     private readonly detectionRepository: WorkloadAbuseDetectionRepository,
     private readonly instrumentation: WorkloadAbuseInstrumentationService,
     private readonly config: WorkloadAbuseConfigService,
+    private readonly jobQueueService: JobQueueService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: ProbeTrialDeploymentHandler.name });
@@ -57,6 +59,11 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
       return;
     }
 
+    if (wallet.abuseLockedAt) {
+      this.logger.debug({ event: "TRIAL_WORKLOAD_PROBE_SKIPPED", reason: "ABUSE_LOCKED", ...context, userId: wallet.userId });
+      return;
+    }
+
     const existingDetection = await this.detectionRepository.findOneBy({ walletId, dseq, verdict: "hard" });
 
     if (existingDetection) {
@@ -67,6 +74,7 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
         userId: wallet.userId,
         detectionId: existingDetection.id
       });
+      await this.#enforce(wallet, existingDetection.id, context);
       return;
     }
 
@@ -78,9 +86,7 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
       return;
     }
 
-    if (report.verdict !== "clean") {
-      await this.#recordDetection(wallet, dseq, report);
-    }
+    const detectionId = report.verdict === "clean" ? undefined : await this.#recordDetection(wallet, dseq, report);
 
     this.logger.info({
       event: "TRIAL_WORKLOAD_PROBED",
@@ -96,7 +102,10 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
       }))
     });
 
-    if (report.verdict === "hard") return;
+    if (report.verdict === "hard") {
+      if (detectionId) await this.#enforce(wallet, detectionId, context);
+      return;
+    }
 
     if (attempt >= this.config.get("WORKLOAD_ABUSE_PROBE_MAX_PER_DEPLOYMENT")) {
       this.logger.info({ event: "TRIAL_WORKLOAD_PROBE_FINISHED", reason: "MAX_ATTEMPTS", ...context, userId: wallet.userId });
@@ -106,7 +115,7 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
     await this.probeJobService.scheduleNext(payload);
   }
 
-  async #recordDetection(wallet: { id: number; userId: string; address: string }, dseq: string, report: ProbeReport): Promise<void> {
+  async #recordDetection(wallet: { id: number; userId: string; address: string }, dseq: string, report: ProbeReport): Promise<string> {
     const detection = await this.detectionRepository.create({
       userId: wallet.userId,
       walletId: wallet.id,
@@ -129,5 +138,17 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
       verdict: report.verdict,
       signals: report.signals.map(signal => ({ bucket: signal.bucket, category: signal.category, source: signal.source, service: signal.service }))
     });
+
+    return detection.id;
+  }
+
+  /** Detect mode records the verdict and stops there, so a rollout can be compared against manual review before anything is wiped. */
+  async #enforce(wallet: { id: number; userId: string }, detectionId: string, context: Record<string, unknown>): Promise<void> {
+    if (this.config.get("WORKLOAD_ABUSE_ENFORCEMENT_MODE") !== "enforce") {
+      this.logger.info({ event: "TRIAL_WORKLOAD_ABUSE_ENFORCEMENT_DEFERRED", reason: "DETECT_MODE", ...context, userId: wallet.userId, detectionId });
+      return;
+    }
+
+    await this.jobQueueService.enqueue(new EnforceTrialAbuse({ walletId: wallet.id, detectionId }), { singletonKey: enforceTrialAbuseKeyFor(wallet.id) });
   }
 }
