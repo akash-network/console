@@ -1,8 +1,10 @@
 import { Block } from "@akashnetwork/database/dbSchemas";
 import { AkashMessage, Deployment, DeploymentGroup, DeploymentGroupResource, Lease } from "@akashnetwork/database/dbSchemas/akash";
 import { Transaction } from "@akashnetwork/database/dbSchemas/base";
-import { FindAndCountOptions, FindOptions, literal, Op, WhereOptions } from "sequelize";
-import { singleton } from "tsyringe";
+import { FindAndCountOptions, FindOptions, literal, Op, QueryTypes, type Sequelize, WhereOptions } from "sequelize";
+import { inject, singleton } from "tsyringe";
+
+import { CHAIN_DB } from "@src/chain";
 
 export interface StaleDeploymentsOptions {
   createdHeight: number;
@@ -33,8 +35,40 @@ export interface StaleDeploymentsOutput {
   dseq: number;
 }
 
+export interface DeploymentKey {
+  owner: string;
+  dseq: string;
+}
+
+export interface DeploymentClosureState extends DeploymentKey {
+  isClosed: boolean;
+}
+
 @singleton()
 export class DeploymentRepository {
+  readonly #chainDb: Sequelize;
+
+  constructor(@inject(CHAIN_DB) chainDb: Sequelize) {
+    this.#chainDb = chainDb;
+  }
+
+  /** A deployment the indexer holds no row for is left out rather than reported open, so a caller can tell "still running" from "not indexed". */
+  async findClosureStates(deployments: DeploymentKey[]): Promise<DeploymentClosureState[]> {
+    if (deployments.length === 0) return [];
+
+    return await this.#chainDb.query<DeploymentClosureState>(
+      `/* deployment:closureStatesByOwnerAndDseq */
+      SELECT d."owner", d."dseq", d."closedHeight" IS NOT NULL AS "isClosed"
+      FROM deployment d
+      JOIN unnest($1::text[], $2::text[]) AS t(owner, dseq)
+        ON d."owner" = t.owner AND d."dseq" = t.dseq`,
+      {
+        bind: [deployments.map(deployment => deployment.owner), deployments.map(deployment => deployment.dseq)],
+        type: QueryTypes.SELECT
+      }
+    );
+  }
+
   async findByOwnerAndDseq(owner: string, dseq: string): Promise<Deployment | null> {
     return await Deployment.findOne({
       where: { owner, dseq }
