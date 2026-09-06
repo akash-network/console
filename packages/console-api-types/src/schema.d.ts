@@ -628,6 +628,8 @@ export interface paths {
                 githubUsername?: string | null;
                 /** Format: date-time */
                 onboardingSkippedAt?: string | null;
+                /** Format: date-time */
+                fairUsePolicyAcceptedAt?: string | null;
               };
               isNewUser: boolean;
             };
@@ -679,6 +681,8 @@ export interface paths {
                 githubUsername?: string | null;
                 /** Format: date-time */
                 onboardingSkippedAt?: string | null;
+                /** Format: date-time */
+                fairUsePolicyAcceptedAt?: string | null;
               };
             };
           };
@@ -901,6 +905,47 @@ export interface paths {
       requestBody?: never;
       responses: {
         /** @description Onboarding skipped */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/user/acceptFairUsePolicy": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Accept the Fair Use Policy */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Fair Use Policy accepted */
         204: {
           headers: {
             [name: string]: unknown;
@@ -6459,6 +6504,7 @@ export interface components {
               dseq: string;
               type: string;
               suppressedBySystem?: boolean;
+              reclaimNotifiedAt?: string;
             };
             conditions:
               | {
@@ -6499,6 +6545,7 @@ export interface components {
               dseq: string;
               type: string;
               suppressedBySystem?: boolean;
+              reclaimNotifiedAt?: string;
             };
             conditions:
               | {
@@ -6635,6 +6682,7 @@ export interface components {
               dseq: string;
               type: string;
               suppressedBySystem?: boolean;
+              reclaimNotifiedAt?: string;
             };
             conditions:
               | {
@@ -6682,6 +6730,7 @@ export interface components {
               dseq: string;
               type: string;
               suppressedBySystem?: boolean;
+              reclaimNotifiedAt?: string;
             };
             conditions:
               | {
@@ -6851,6 +6900,7 @@ export interface components {
               dseq: string;
               type: string;
               suppressedBySystem?: boolean;
+              reclaimNotifiedAt?: string;
             };
             conditions:
               | {
@@ -6898,6 +6948,7 @@ export interface components {
               dseq: string;
               type: string;
               suppressedBySystem?: boolean;
+              reclaimNotifiedAt?: string;
             };
             conditions:
               | {

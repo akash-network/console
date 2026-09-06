@@ -148,6 +148,7 @@ async function executeCliHandler(name: string, handler: () => Promise<unknown>, 
           twitterUsername: null,
           githubUsername: null,
           onboardingSkippedAt: null,
+          fairUsePolicyAcceptedAt: null,
           userId: "system:cli-user",
           username: "___cli_user___",
           trial: false

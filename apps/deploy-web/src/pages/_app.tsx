@@ -21,6 +21,7 @@ import { AccountCreatedTracker } from "@src/components/analytics/AccountCreatedT
 import { AppBootstrap } from "@src/components/AppBootstrap/AppBootstrap";
 import { RequireAuth } from "@src/components/auth/RequireAuth/RequireAuth";
 import { AddCreditsHost } from "@src/components/billing-usage/AddCreditsHost/AddCreditsHost";
+import { RequireFairUsePolicy } from "@src/components/fair-use-policy/RequireFairUsePolicy/RequireFairUsePolicy";
 import { AppThemeProvider } from "@src/components/layout/AppThemeProvider";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
@@ -60,20 +61,22 @@ const App: React.FunctionComponent<Props> = props => {
         <UserProviders>
           <AccountCreatedTracker />
           <RequireAuth isPublic={isPublic}>
-            <FlagProvider>
-              <WalletProvider>
-                <PaymentPollingProvider>
-                  <AddCreditsHost />
-                  <NavigationGuardProvider>
-                    <RequireOnboarding isPublic={isPublic}>
-                      <WaitForFeatureFlags>
-                        <Component {...pageProps} />
-                      </WaitForFeatureFlags>
-                    </RequireOnboarding>
-                  </NavigationGuardProvider>
-                </PaymentPollingProvider>
-              </WalletProvider>
-            </FlagProvider>
+            <RequireFairUsePolicy isPublic={isPublic}>
+              <FlagProvider>
+                <WalletProvider>
+                  <PaymentPollingProvider>
+                    <AddCreditsHost />
+                    <NavigationGuardProvider>
+                      <RequireOnboarding isPublic={isPublic}>
+                        <WaitForFeatureFlags>
+                          <Component {...pageProps} />
+                        </WaitForFeatureFlags>
+                      </RequireOnboarding>
+                    </NavigationGuardProvider>
+                  </PaymentPollingProvider>
+                </WalletProvider>
+              </FlagProvider>
+            </RequireFairUsePolicy>
           </RequireAuth>
         </UserProviders>
       </BootLoadingProvider>

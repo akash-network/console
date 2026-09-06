@@ -15,6 +15,7 @@ export interface UserSettings {
   plan?: IPlan;
   emailVerified?: boolean;
   onboardingSkippedAt?: string | null;
+  fairUsePolicyAcceptedAt?: string | null;
 }
 
 export type CustomUserProfile = UserProfile & UserSettings;

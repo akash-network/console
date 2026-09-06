@@ -124,7 +124,8 @@ export class ManagedSignerService {
       this.anonymousValidateService.validateDeploymentGpuModels(messages, userWallet),
       this.anonymousValidateService.validateDeploymentGpuInterconnect(messages, userWallet),
       this.anonymousValidateService.validateDeploymentResources(messages, userWallet),
-      this.anonymousValidateService.validateLeaseGpuModels(messages, userWallet)
+      this.anonymousValidateService.validateLeaseGpuModels(messages, userWallet),
+      this.anonymousValidateService.validateFairUsePolicyAccepted(messages, userWallet)
     ]);
 
     const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));

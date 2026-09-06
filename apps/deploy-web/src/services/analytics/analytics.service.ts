@@ -106,6 +106,7 @@ export type AnalyticsEvent =
   | "onboarding_deploy_click"
   | "onboarding_choose_provider_click"
   | "onboarding_skipped"
+  | "fair_use_policy_accepted"
   | "add_credits_opened"
   | "add_credits_amount_selected"
   | "add_credits_payment_method_selected"

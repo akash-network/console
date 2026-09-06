@@ -351,6 +351,13 @@
       "when": 1788379408171,
       "tag": "0049_auto_top_up_decline_pause",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1788714893741,
+      "tag": "0050_fair_use_policy_accepted_at",
+      "breakpoints": true
     }
   ]
 }

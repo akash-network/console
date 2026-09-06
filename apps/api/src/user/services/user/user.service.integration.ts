@@ -398,6 +398,43 @@ describe(UserService.name, () => {
     });
   });
 
+  describe("acceptFairUsePolicy", () => {
+    it("sets fairUsePolicyAcceptedAt when it has not been set", async () => {
+      const { service, userRepository } = setup();
+      const user = await userRepository.create({
+        userId: faker.string.uuid(),
+        username: `test-user-${faker.string.uuid()}`,
+        email: faker.internet.email(),
+        emailVerified: false,
+        subscribedToNewsletter: false
+      });
+
+      await service.acceptFairUsePolicy(user.id);
+
+      const updatedUser = await userRepository.findById(user.id);
+      expect(updatedUser?.fairUsePolicyAcceptedAt).toBeInstanceOf(Date);
+    });
+
+    it("preserves the original timestamp when called again", async () => {
+      const { service, userRepository } = setup();
+      const user = await userRepository.create({
+        userId: faker.string.uuid(),
+        username: `test-user-${faker.string.uuid()}`,
+        email: faker.internet.email(),
+        emailVerified: false,
+        subscribedToNewsletter: false
+      });
+
+      await service.acceptFairUsePolicy(user.id);
+      const firstAcceptedAt = (await userRepository.findById(user.id))?.fairUsePolicyAcceptedAt;
+
+      await service.acceptFairUsePolicy(user.id);
+      const secondAcceptedAt = (await userRepository.findById(user.id))?.fairUsePolicyAcceptedAt;
+
+      expect(secondAcceptedAt).toEqual(firstAcceptedAt);
+    });
+  });
+
   function createRegisterInput(overrides: Partial<RegisterUserInput> = {}): RegisterUserInput {
     return {
       userId: faker.string.uuid(),

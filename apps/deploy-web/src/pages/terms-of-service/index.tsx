@@ -325,7 +325,9 @@ export function TermsOfService() {
           own independent analysis of the risks specific to your use of the Services.
         </p>
 
-        <h2 className="mb-2 text-xl">7. Prohibited Use</h2>
+        <h2 id="prohibited-use" className="mb-2 text-xl">
+          7. Prohibited Use
+        </h2>
         <p className="mb-4">
           You may not use the Services to engage in the following categories of activity (each a &quot;Prohibited Use&quot;). The specific types of activities
           listed below are representative, but not exhaustive.

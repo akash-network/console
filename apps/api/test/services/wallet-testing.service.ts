@@ -12,7 +12,7 @@ import { WalletInitializerService } from "@src/billing/services";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
-import type { UserOutput } from "@src/user/repositories";
+import { type UserOutput, UserRepository } from "@src/user/repositories";
 
 export class WalletTestingService<T extends Hono<any>> {
   constructor(private readonly app: T) {}
@@ -136,7 +136,14 @@ export class WalletTestingService<T extends Hono<any>> {
       throw new Error("User registration failed");
     }
 
+    await this.acceptFairUsePolicy(body.data.id);
+
     return { user: body.data, token: access_token };
+  }
+
+  /** Registration leaves the policy unaccepted, and a trial create without it is refused, so every test user accepts up front. */
+  async acceptFairUsePolicy(userId: string) {
+    await container.resolve(UserRepository).updateById(userId, { fairUsePolicyAcceptedAt: new Date() });
   }
 
   async getWalletByUserId(userId: string, token: string): Promise<{ id: number; address: string; creditAmount: number }> {
