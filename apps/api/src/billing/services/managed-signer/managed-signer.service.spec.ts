@@ -195,8 +195,8 @@ describe(ManagedSignerService.name, () => {
       });
     });
 
-    it("answers a repeated refusal from cache without re-reading the chain, re-queueing the reload or warning again", async () => {
-      const { service, balancesService, walletReloadJobService, logger } = setupForCreate({
+    it("answers a repeated refusal from cache without re-reading the chain or warning again", async () => {
+      const { service, balancesService, logger } = setupForCreate({
         deploymentLimit: 0,
         scheduleImmediate: vi.fn().mockResolvedValue(true)
       });
@@ -207,10 +207,23 @@ describe(ManagedSignerService.name, () => {
 
       expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledTimes(1);
       expect(balancesService.retrieveAndCalcFeeLimit).toHaveBeenCalledTimes(1);
-      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledTimes(1);
       expect(logger.warn).toHaveBeenCalledTimes(1);
       expect(logger.debug).toHaveBeenCalledWith(
         expect.objectContaining({ event: "DEPLOYMENT_CREATE_REFUSED_FROM_CACHE", userId: "user-123", reloadScheduled: true, suppressedAttempts: 1 })
+      );
+    });
+
+    it("stops promising a top up once auto recharge is paused between retries", async () => {
+      const { service } = setupForCreate({
+        deploymentLimit: 0,
+        scheduleImmediate: vi.fn().mockResolvedValueOnce(true).mockResolvedValue(false)
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow(
+        "A top up from your saved payment method is on the way, so try again in a moment."
+      );
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow(
+        "Add credits or turn on auto recharge to continue."
       );
     });
 
@@ -244,7 +257,7 @@ describe(ManagedSignerService.name, () => {
       expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledTimes(1);
     });
 
-    it("still requests one reload from cache when auto recharge was off at the first refusal and is on now", async () => {
+    it("picks up auto recharge being turned on between retries", async () => {
       const { service, walletReloadJobService } = setupForCreate({
         deploymentLimit: 0,
         scheduleImmediate: vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true)
@@ -260,7 +273,7 @@ describe(ManagedSignerService.name, () => {
         "A top up from your saved payment method is on the way, so try again in a moment."
       );
 
-      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledTimes(2);
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledTimes(3);
     });
 
     it("does not cache a refusal for a missing fee allowance", async () => {

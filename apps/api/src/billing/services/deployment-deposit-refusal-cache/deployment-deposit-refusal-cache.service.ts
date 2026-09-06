@@ -11,17 +11,14 @@ const ENTRY_BYTES = 128;
 
 type RefusedWallet = Pick<UserWalletOutput, "userId" | "deploymentAllowance">;
 
-export interface DepositRefusal {
+export interface CachedDepositRefusal {
   chainDeploymentAllowance: number;
-  reloadScheduled: boolean;
-}
-
-export interface CachedDepositRefusal extends DepositRefusal {
   suppressedAttempts: number;
   retryAfterSeconds: number;
 }
 
-interface DepositRefusalEntry extends DepositRefusal {
+interface DepositRefusalEntry {
+  chainDeploymentAllowance: number;
   /** Every funding path writes the fresh grant to the wallet row, so a row that still shows this value has not been funded since the refusal. */
   walletDeploymentAllowanceSnapshot: number;
   suppressedAttempts: number;
@@ -60,28 +57,19 @@ export class DeploymentDepositRefusalCache {
 
     return {
       chainDeploymentAllowance: entry.chainDeploymentAllowance,
-      reloadScheduled: entry.reloadScheduled,
       suppressedAttempts: entry.suppressedAttempts,
       retryAfterSeconds: this.#getRetryAfterSeconds(userWallet.userId)
     };
   }
 
-  remember(userWallet: RefusedWallet, refusal: DepositRefusal): { retryAfterSeconds: number } {
+  remember(userWallet: RefusedWallet, chainDeploymentAllowance: number): { retryAfterSeconds: number } {
     this.#entries.set(userWallet.userId, {
-      ...refusal,
+      chainDeploymentAllowance,
       walletDeploymentAllowanceSnapshot: userWallet.deploymentAllowance,
       suppressedAttempts: 0
     });
 
     return { retryAfterSeconds: this.#getRetryAfterSeconds(userWallet.userId) };
-  }
-
-  markReloadScheduled(userId: string): void {
-    const entry = this.#entries.peek(userId);
-
-    if (entry) {
-      entry.reloadScheduled = true;
-    }
   }
 
   #getRetryAfterSeconds(userId: string): number {

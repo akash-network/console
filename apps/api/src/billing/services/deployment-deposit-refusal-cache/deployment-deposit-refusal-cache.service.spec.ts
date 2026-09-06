@@ -18,18 +18,18 @@ describe(DeploymentDepositRefusalCache.name, () => {
 
     it("returns the refusal while the wallet row still shows the refused snapshot and the deposit still exceeds the allowance", () => {
       const { cache, wallet } = setup({ ttlSeconds: 300 });
-      cache.remember(wallet, { chainDeploymentAllowance: 400000, reloadScheduled: true });
+      cache.remember(wallet, 400000);
 
       const cached = cache.find(wallet, 500000);
 
-      expect(cached).toMatchObject({ chainDeploymentAllowance: 400000, reloadScheduled: true, suppressedAttempts: 1 });
+      expect(cached).toMatchObject({ chainDeploymentAllowance: 400000, suppressedAttempts: 1 });
       expect(cached!.retryAfterSeconds).toBeGreaterThan(0);
       expect(cached!.retryAfterSeconds).toBeLessThanOrEqual(300);
     });
 
     it("drops the refusal once the wallet row shows a different allowance", () => {
       const { cache, wallet } = setup();
-      cache.remember(wallet, { chainDeploymentAllowance: 0, reloadScheduled: false });
+      cache.remember(wallet, 0);
 
       expect(cache.find({ ...wallet, deploymentAllowance: wallet.deploymentAllowance + 1 }, 500000)).toBeUndefined();
       expect(cache.find(wallet, 500000)).toBeUndefined();
@@ -37,7 +37,7 @@ describe(DeploymentDepositRefusalCache.name, () => {
 
     it("misses without dropping the refusal when the cached allowance covers a smaller deposit", () => {
       const { cache, wallet } = setup();
-      cache.remember(wallet, { chainDeploymentAllowance: 400000, reloadScheduled: false });
+      cache.remember(wallet, 400000);
 
       expect(cache.find(wallet, 300000)).toBeUndefined();
       expect(cache.find(wallet, 500000)).toBeDefined();
@@ -45,14 +45,14 @@ describe(DeploymentDepositRefusalCache.name, () => {
 
     it("refuses any deposit when the cached allowance is zero", () => {
       const { cache, wallet } = setup();
-      cache.remember(wallet, { chainDeploymentAllowance: 0, reloadScheduled: false });
+      cache.remember(wallet, 0);
 
       expect(cache.find(wallet, 1)).toBeDefined();
     });
 
     it("counts every attempt answered from the cache", () => {
       const { cache, wallet } = setup();
-      cache.remember(wallet, { chainDeploymentAllowance: 0, reloadScheduled: false });
+      cache.remember(wallet, 0);
 
       cache.find(wallet, 500000);
       cache.find(wallet, 500000);
@@ -65,32 +65,13 @@ describe(DeploymentDepositRefusalCache.name, () => {
     it("answers with the full ttl as the retry delay", () => {
       const { cache, wallet } = setup({ ttlSeconds: 300 });
 
-      expect(cache.remember(wallet, { chainDeploymentAllowance: 0, reloadScheduled: false })).toEqual({ retryAfterSeconds: 300 });
-    });
-  });
-
-  describe("markReloadScheduled", () => {
-    it("flags a remembered refusal as having its reload scheduled", () => {
-      const { cache, wallet } = setup();
-      cache.remember(wallet, { chainDeploymentAllowance: 0, reloadScheduled: false });
-
-      cache.markReloadScheduled(wallet.userId);
-
-      expect(cache.find(wallet, 500000)?.reloadScheduled).toBe(true);
-    });
-
-    it("does nothing for a wallet that was never refused", () => {
-      const { cache, wallet } = setup();
-
-      cache.markReloadScheduled(wallet.userId);
-
-      expect(cache.find(wallet, 500000)).toBeUndefined();
+      expect(cache.remember(wallet, 0)).toEqual({ retryAfterSeconds: 300 });
     });
   });
 
   it("registers itself so a registry-wide clear empties it", () => {
     const { cache, wallet } = setup();
-    cache.remember(wallet, { chainDeploymentAllowance: 0, reloadScheduled: false });
+    cache.remember(wallet, 0);
 
     cacheRegistry.clearAll();
 

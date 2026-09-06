@@ -285,7 +285,7 @@ export class ManagedSignerService {
 
       if (hasDeploymentMessage && isInsufficient(deploymentAllowance, requiredDeposit)) {
         const reloadScheduled = await this.#scheduleReloadForInsufficientBalance(userWallet);
-        const { retryAfterSeconds } = this.depositRefusalCache.remember(userWallet, { chainDeploymentAllowance: deploymentAllowance, reloadScheduled });
+        const { retryAfterSeconds } = this.depositRefusalCache.remember(userWallet, deploymentAllowance);
 
         this.logger.warn({
           event: "DEPLOYMENT_CREATE_REFUSED_INSUFFICIENT_ALLOWANCE",
@@ -301,7 +301,7 @@ export class ManagedSignerService {
     });
   }
 
-  /** Re-serves a recent refusal until a funding path rewrites the wallet row, still requesting one reload if auto recharge was off at the first refusal. */
+  /** Re-serves a recent refusal until a funding path rewrites the wallet row, re-reading auto recharge every time so a pause mid-window still changes the answer. */
   async #refuseFromCache(userWallet: UserWalletOutput, requiredDeposit: number): Promise<void> {
     const cached = this.depositRefusalCache.find(userWallet, requiredDeposit);
 
@@ -309,15 +309,7 @@ export class ManagedSignerService {
       return;
     }
 
-    let reloadScheduled = cached.reloadScheduled;
-
-    if (!reloadScheduled) {
-      reloadScheduled = await this.#scheduleReloadForInsufficientBalance(userWallet);
-
-      if (reloadScheduled) {
-        this.depositRefusalCache.markReloadScheduled(userWallet.userId);
-      }
-    }
+    const reloadScheduled = await this.#scheduleReloadForInsufficientBalance(userWallet);
 
     this.logger.debug({
       event: "DEPLOYMENT_CREATE_REFUSED_FROM_CACHE",
