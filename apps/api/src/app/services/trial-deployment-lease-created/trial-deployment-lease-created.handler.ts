@@ -7,6 +7,7 @@ import { BillingConfigService } from "@src/billing/services/billing-config/billi
 import { type CreateLogger, DOMAIN_EVENT_NAME, EventPayload, JobHandler, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { RESOLVED_MARKER } from "@src/notifications/services/notification-data-resolver/notification-data-resolver.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
+import { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import { CloseTrialDeployment } from "../close-trial-deployment/close-trial-deployment.handler";
 
 @singleton()
@@ -21,7 +22,8 @@ export class TrialDeploymentLeaseCreatedHandler implements JobHandler<TrialDeplo
     private readonly userWalletRepository: UserWalletRepository,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger,
     private readonly jobQueueService: JobQueueService,
-    private readonly billingConfig: BillingConfigService
+    private readonly billingConfig: BillingConfigService,
+    private readonly probeJobService: TrialWorkloadProbeJobService
   ) {
     this.logger = createLogger({ context: TrialDeploymentLeaseCreatedHandler.name });
   }
@@ -91,6 +93,7 @@ export class TrialDeploymentLeaseCreatedHandler implements JobHandler<TrialDeplo
         startAfter: addHours(deploymentCreatedAt, trialDeploymentLifetime).toISOString()
       }
     );
+    await this.probeJobService.scheduleInitial({ walletId: wallet.id, dseq: payload.dseq, leaseCreatedAt: deploymentCreatedAt });
 
     if (payload.isFirstLease) {
       await this.jobQueueService.enqueue(

@@ -52,10 +52,12 @@ export class ProviderService {
 
   async toProviderAuth(
     auth: { walletId: number; provider: string },
-    scope: Parameters<ProviderJwtTokenService["getGranularLeases"]>[0]["scope"] = ["send-manifest"]
+    scope: Parameters<ProviderJwtTokenService["getGranularLeases"]>[0]["scope"] = ["send-manifest"],
+    options: { ttl?: number } = {}
   ): Promise<ProviderAuth> {
     const result = await this.jwtTokenService.generateJwtToken({
       walletId: auth.walletId,
+      ttl: options.ttl,
       leases: this.jwtTokenService.getGranularLeases({
         provider: auth.provider,
         scope

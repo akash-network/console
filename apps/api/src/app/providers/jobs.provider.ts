@@ -10,6 +10,7 @@ import { DeleteUnbackedDeploymentSettingHandler } from "@src/deployment/services
 import { ReconcileManagedTxHandler } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx.handler";
 import { RecordDeploymentSettingHandler } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { NotificationHandler } from "@src/notifications/services/notification-handler/notification.handler";
+import { ProbeTrialDeploymentHandler } from "@src/workload-abuse/services/probe-trial-deployment/probe-trial-deployment.handler";
 import { AutoRechargeSucceededHandler } from "../services/auto-recharge-succeeded/auto-recharge-succeeded.handler";
 import { CloseExpiredDeploymentHandler } from "../services/close-expired-deployment/close-expired-deployment.handler";
 import { CloseTrialDeploymentHandler } from "../services/close-trial-deployment/close-trial-deployment.handler";
@@ -42,7 +43,8 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(ActivateTrialHandler),
     container.resolve(DeleteUnbackedDeploymentSettingHandler),
     container.resolve(RecordDeploymentSettingHandler),
-    container.resolve(ReconcileManagedTxHandler)
+    container.resolve(ReconcileManagedTxHandler),
+    container.resolve(ProbeTrialDeploymentHandler)
   ]);
 }
 

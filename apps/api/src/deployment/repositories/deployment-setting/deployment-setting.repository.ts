@@ -46,6 +46,13 @@ export type OpenDeployment = {
   address: string;
 };
 
+export type LiveTrialDeployment = {
+  userId: string;
+  dseq: string;
+  walletId: number;
+  createdAt: Date;
+};
+
 export type AutoTopUpDeployment = {
   id: string;
   userId: string;
@@ -176,6 +183,34 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .orderBy(desc(this.table.id));
 
     return deployments as AutoTopUpDeployment[];
+  }
+
+  /**
+   * Trial deployments the reconcile sweep should have a probe for. `closed` is Console bookkeeping that drifts from the
+   * chain, so this only picks candidates and the probe job re-checks liveness on chain.
+   */
+  async findLiveTrialDeployments({ maxAgeHours }: { maxAgeHours: number }): Promise<LiveTrialDeployment[]> {
+    const hours = Math.max(1, Math.trunc(maxAgeHours));
+    const deployments = await this.pg
+      .select({
+        userId: this.table.userId,
+        dseq: this.table.dseq,
+        walletId: UserWallets.id,
+        createdAt: this.table.createdAt
+      })
+      .from(this.table)
+      .innerJoin(UserWallets, eq(UserWallets.userId, this.table.userId))
+      .where(
+        and(
+          eq(this.table.closed, false),
+          eq(UserWallets.isTrialing, true),
+          isNotNull(UserWallets.address),
+          gt(this.table.createdAt, sql`(now() at time zone 'utc') - make_interval(hours => ${sql.raw(String(hours))})`)
+        )
+      )
+      .orderBy(desc(this.table.createdAt));
+
+    return deployments as LiveTrialDeployment[];
   }
 
   /**

@@ -10,6 +10,7 @@ import { DOMAIN_EVENT_NAME } from "@src/core";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
+import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import { CloseTrialDeployment } from "../close-trial-deployment/close-trial-deployment.handler";
 import { TrialDeploymentLeaseCreatedHandler } from "./trial-deployment-lease-created.handler";
 
@@ -214,6 +215,16 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: TrialDeploymentLeaseCreatedHandler.name });
   });
 
+  it("schedules the first workload probe for the lease", async () => {
+    const wallet = createUserWallet({ isTrialing: true });
+    const deploymentCreatedAt = new Date("2026-09-06T13:19:00.000Z");
+    const { handler, probeJobService } = setup({ findWalletById: vi.fn().mockResolvedValue(wallet) });
+
+    await handler.handle({ walletId: wallet.id, dseq: "test-dseq", createdAt: deploymentCreatedAt.toISOString(), version: 1, isFirstLease: false });
+
+    expect(probeJobService.scheduleInitial).toHaveBeenCalledWith({ walletId: wallet.id, dseq: "test-dseq", leaseCreatedAt: deploymentCreatedAt });
+  });
+
   function setup(input?: {
     findWalletById?: UserWalletRepository["findById"];
     enqueueJob?: JobQueueService["enqueue"];
@@ -230,12 +241,19 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
       billingConfig: mockConfigService<BillingConfigService>({
         TRIAL_DEPLOYMENT_CLEANUP_HOURS: input?.trialDeploymentLifetimeInHours ?? 24,
         CONSOLE_WEB_PAYMENT_LINK: PAYMENT_LINK
-      })
+      }),
+      probeJobService: mock<TrialWorkloadProbeJobService>()
     };
 
     const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
 
-    const handler = new TrialDeploymentLeaseCreatedHandler(mocks.userWalletRepository, createLogger, mocks.jobQueueService, mocks.billingConfig);
+    const handler = new TrialDeploymentLeaseCreatedHandler(
+      mocks.userWalletRepository,
+      createLogger,
+      mocks.jobQueueService,
+      mocks.billingConfig,
+      mocks.probeJobService
+    );
 
     return { handler, createLogger, ...mocks };
   }

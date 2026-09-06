@@ -1,0 +1,61 @@
+import type { CompiledSignature, SignatureBucket } from "@src/workload-abuse/config/env.config";
+
+export type EvidenceSourceKind = "sdl" | "logs" | "shell";
+
+export type EvidenceSource = { kind: EvidenceSourceKind; service?: string; text: string };
+
+export type DetectionSignal = { bucket: SignatureBucket; category: string; source: EvidenceSourceKind; service?: string; snippet: string };
+
+export type WorkloadVerdict = "hard" | "soft" | "proxy" | "clean";
+
+const MAX_SNIPPET_LENGTH = 180;
+const SNIPPET_LEAD_IN = 60;
+/** Any one soft category alone (a port number, the word nonce) shows up in honest workloads. */
+const MIN_SOFT_CATEGORIES_FOR_VERDICT = 3;
+
+/** One signal per category per source, so a chatty miner log produces an auditable table rather than thousands of rows. */
+export function scanForSignals(sources: EvidenceSource[], signatures: CompiledSignature[]): DetectionSignal[] {
+  const signals: DetectionSignal[] = [];
+  const seen = new Set<string>();
+
+  for (const source of sources) {
+    for (const line of source.text.split("\n")) {
+      if (!line.trim()) continue;
+
+      for (const signature of signatures) {
+        const match = signature.pattern.exec(line);
+        if (!match) continue;
+
+        const key = `${signature.bucket}|${signature.category}|${source.kind}|${source.service ?? ""}`;
+        if (seen.has(key)) continue;
+
+        seen.add(key);
+        signals.push({
+          bucket: signature.bucket,
+          category: signature.category,
+          source: source.kind,
+          service: source.service,
+          snippet: toSnippet(line, match.index)
+        });
+      }
+    }
+  }
+
+  return signals;
+}
+
+export function toVerdict(signals: DetectionSignal[]): WorkloadVerdict {
+  if (signals.some(signal => signal.bucket === "hard")) return "hard";
+
+  const softCategories = new Set(signals.filter(signal => signal.bucket === "soft").map(signal => signal.category));
+  if (softCategories.size >= MIN_SOFT_CATEGORIES_FOR_VERDICT) return "soft";
+
+  if (signals.some(signal => signal.bucket === "proxy")) return "proxy";
+
+  return "clean";
+}
+
+function toSnippet(line: string, matchIndex: number): string {
+  const start = Math.max(0, matchIndex - SNIPPET_LEAD_IN);
+  return line.slice(start, start + MAX_SNIPPET_LENGTH).trim();
+}
