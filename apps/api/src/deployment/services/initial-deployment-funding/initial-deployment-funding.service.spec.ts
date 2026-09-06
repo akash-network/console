@@ -48,6 +48,16 @@ describe(InitialDeploymentFundingService.name, () => {
     expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
   });
 
+  it("skips funding when a lease-less deployment has already closed instead of retrying for its lease", async () => {
+    const { service, drainingDeploymentService, managedSignerService, instrumentation } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ blockRate: 0, isClosed: true, hasNoLease: true })]);
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+    expect(instrumentation.recordSkipped).toHaveBeenCalledWith("deployment_closed", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
+  });
+
   it("skips funding when the deployment is closed", async () => {
     const { service, drainingDeploymentService, managedSignerService, instrumentation } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ closedHeight: 900 })]);
