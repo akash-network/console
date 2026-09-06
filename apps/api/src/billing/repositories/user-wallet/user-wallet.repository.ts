@@ -167,6 +167,10 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     await this.updateById(id, { deploymentAllowance: 0, feeAllowance: 0, isTrialing: false, abuseLockedAt: new Date(), abuseLockedReason: reason });
   }
 
+  async clearAbuseLock(id: UserWalletOutput["id"]): Promise<void> {
+    await this.updateById(id, { abuseLockedAt: null, abuseLockedReason: null });
+  }
+
   @Trace()
   async findOneByUserId(userId: UserWalletOutput["userId"]) {
     if (!userId) return undefined;

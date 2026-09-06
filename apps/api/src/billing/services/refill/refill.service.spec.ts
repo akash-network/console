@@ -38,6 +38,21 @@ describe(RefillService.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up", expect.objectContaining({ amount_cents: amountUsd, amount_usd: 1 }));
     });
 
+    it("clears the abuse lock of a wallet that pays and leaves an unlocked wallet alone", async () => {
+      const { service, userWalletRepository, walletInitializerService, balancesService } = setup();
+      const lockedWallet = createInitializedUserWallet({ userId, abuseLockedAt: new Date(), abuseLockedReason: "workload_abuse" });
+      walletInitializerService.ensureWallet.mockResolvedValue(lockedWallet);
+      userWalletRepository.claimActivation.mockResolvedValue(undefined);
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
+
+      await service.topUpWallet(amountUsd, userId);
+      walletInitializerService.ensureWallet.mockResolvedValue(createInitializedUserWallet({ userId }));
+      await service.topUpWallet(amountUsd, userId);
+
+      expect(userWalletRepository.clearAbuseLock).toHaveBeenCalledTimes(1);
+      expect(userWalletRepository.clearAbuseLock).toHaveBeenCalledWith(lockedWallet.id);
+    });
+
     it("attaches payment context to the balance_top_up analytics event", async () => {
       const { service, userWalletRepository, managedUserWalletService, balancesService, analyticsService, walletInitializerService } = setup();
       const existingWallet = createInitializedUserWallet({ userId });

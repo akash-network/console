@@ -175,6 +175,23 @@ describe(UserWalletRepository.name, () => {
     });
   });
 
+  describe("clearAbuseLock", () => {
+    it("removes the lock and its reason without touching the allowances", async () => {
+      const { userWalletRepository, wallet } = await setup();
+      await userWalletRepository.lockForAbuse(wallet.id, "workload_abuse");
+
+      await userWalletRepository.clearAbuseLock(wallet.id);
+
+      expect(await userWalletRepository.findById(wallet.id)).toMatchObject({
+        abuseLockedAt: null,
+        abuseLockedReason: null,
+        deploymentAllowance: 0,
+        feeAllowance: 0,
+        isTrialing: false
+      });
+    });
+  });
+
   describe("findDrainingWallets", () => {
     it("leaves a wallet locked for abuse out of the fee refill", async () => {
       const { userWalletRepository, wallet } = await setup();
