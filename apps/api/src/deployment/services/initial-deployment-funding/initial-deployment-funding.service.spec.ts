@@ -39,6 +39,15 @@ describe(InitialDeploymentFundingService.name, () => {
     expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
   });
 
+  it("throws when the chain has the deployment but not its lease yet", async () => {
+    const { service, drainingDeploymentService, managedSignerService } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ blockRate: 0, predictedClosedHeight: 0, hasNoLease: true })]);
+
+    await expect(service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" })).rejects.toThrow("not visible on chain yet");
+
+    expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+  });
+
   it("skips funding when the deployment is closed", async () => {
     const { service, drainingDeploymentService, managedSignerService, instrumentation } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ closedHeight: 900 })]);

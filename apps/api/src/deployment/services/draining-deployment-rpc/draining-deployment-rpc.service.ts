@@ -212,7 +212,7 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
    * which would otherwise drop a drained-and-closed deployment before it can be marked closed.
    * Filters out deployments with missing data, zero balance,
    * or invalid block rates, logging warnings for each case.
-   * Then adds the closed deployments that have no lease at all, which the pass over leases cannot reach.
+   * Then adds the deployments that have no lease at all, which the pass over leases cannot reach.
    *
    * @param leaseMap - Map of draining deployments without predictedClosedHeight
    * @param deploymentMap - Map of deployment info with escrow balances
@@ -263,25 +263,26 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
       return [...acc, { ...drainingDeployment, predictedClosedHeight }];
     }, [] as DrainingDeploymentOutput[]);
 
-    return [...fromLeases, ...this.#closedWithoutLease(leaseMap, deploymentMap)];
+    return [...fromLeases, ...this.#withoutLease(leaseMap, deploymentMap)];
   }
 
-  /** Only the closed ones: an open escrow with no lease is a deployment still waiting on a bid, and its zero block rate would fail the checks above. */
-  #closedWithoutLease(
+  /** Carries a zero block rate, so a caller must close these or skip them rather than read them as fundable. */
+  #withoutLease(
     leaseMap: Map<string, Omit<DrainingDeploymentOutput, "predictedClosedHeight">>,
     deploymentMap: Map<string, RpcDeploymentInfo>
   ): DrainingDeploymentOutput[] {
     const leasedDseqs = new Set(Array.from(leaseMap.values(), lease => String(lease.dseq)));
 
     return Array.from(deploymentMap.values())
-      .filter(deployment => !deployment.isEscrowOpen && !leasedDseqs.has(String(Number(deployment.dseq))))
+      .filter(deployment => !leasedDseqs.has(String(Number(deployment.dseq))))
       .map(deployment => ({
         dseq: Number(deployment.dseq),
         owner: deployment.owner,
         denom: deployment.denom,
         blockRate: 0,
         predictedClosedHeight: 0,
-        isClosed: true
+        isClosed: !deployment.isEscrowOpen,
+        hasNoLease: true
       }));
   }
 }

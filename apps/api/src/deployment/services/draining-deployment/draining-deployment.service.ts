@@ -151,13 +151,19 @@ export class DrainingDeploymentService {
 
         if (deployment.isClosed || deployment.closedHeight) {
           acc[1].push(deploymentSetting.id);
-        } else {
-          acc[0].push({
-            ...deploymentSetting,
-            predictedClosedHeight: deployment.predictedClosedHeight,
-            blockRate: deployment.blockRate
-          });
+          return acc;
         }
+
+        if (deployment.hasNoLease) {
+          return acc;
+        }
+
+        acc[0].push({
+          ...deploymentSetting,
+          predictedClosedHeight: deployment.predictedClosedHeight,
+          blockRate: deployment.blockRate
+        });
+
         return acc;
       },
       [[], []]

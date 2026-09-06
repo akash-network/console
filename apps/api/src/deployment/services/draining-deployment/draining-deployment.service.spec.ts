@@ -17,7 +17,7 @@ import type { DeploymentCloseJobService } from "../deployment-close-job/deployme
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DrainingDeploymentRpcService } from "../draining-deployment-rpc/draining-deployment-rpc.service";
 import type { DeploymentTopUpInstrumentation } from "../top-up-managed-deployments/deployment-top-up-instrumentation";
-import { DrainingDeploymentService } from "./draining-deployment.service";
+import { type AutoTopUpOwnerDeployments, DrainingDeploymentService } from "./draining-deployment.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createAkashAddress } from "@test/seeders";
@@ -219,6 +219,31 @@ describe(DrainingDeploymentService.name, () => {
 
       expect(sink.recordSettingWithoutChainState).toHaveBeenCalledWith({ dseq: unknownSetting.dseq, address });
       expect(deploymentSettingRepository.markAsClosed).not.toHaveBeenCalled();
+    });
+
+    it("leaves a deployment still waiting on a bid out of the missing-chain-state count", async () => {
+      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const sink = mock<DeploymentTopUpInstrumentation>();
+      const address = createAkashAddress();
+      const unleasedSetting = createAutoTopUpDeployment({ address, dseq: "4012" });
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+        (async function* () {
+          yield { address, walletId: unleasedSetting.walletId, deploymentSettings: [unleasedSetting] };
+        })()
+      );
+      vi.spyOn(service, "findLeases").mockResolvedValue([
+        createDrainingDeployment({ dseq: Number(unleasedSetting.dseq), owner: address, predictedClosedHeight: 0, blockRate: 0, hasNoLease: true })
+      ]);
+
+      const yielded: AutoTopUpOwnerDeployments[] = [];
+      for await (const owner of service.findDrainingDeploymentsByOwner(currentHeight, sink)) {
+        yielded.push(owner);
+      }
+
+      expect(sink.recordSettingWithoutChainState).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.markAsClosed).not.toHaveBeenCalled();
+      expect(yielded[0].activeDeployments).toEqual([]);
     });
 
     it("marks no deployment closed during a dry run", async () => {

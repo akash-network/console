@@ -227,17 +227,17 @@ describe(DrainingDeploymentRpcService.name, () => {
 
       const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
 
-      expect(result).toEqual([expect.objectContaining({ dseq: Number(dseqs[0]), isClosed: true })]);
+      expect(result).toEqual([expect.objectContaining({ dseq: Number(dseqs[0]), isClosed: true, hasNoLease: true })]);
     });
 
-    it("leaves out an open deployment with no lease yet, which is still waiting on a bid rather than closed", async () => {
+    it("reports an open deployment with no lease yet as unclosed, since it is still waiting on a bid", async () => {
       const { service, owner, dseqs, closureHeight, loggerService } = setup({
         inputs: [{ leases: [], deployment: { escrowState: "open" } }]
       });
 
       const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
 
-      expect(result).toEqual([]);
+      expect(result).toEqual([expect.objectContaining({ dseq: Number(dseqs[0]), isClosed: false, hasNoLease: true, blockRate: 0 })]);
       expect(loggerService.warn).not.toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_BLOCK_RATE_INVALID" }));
     });
 

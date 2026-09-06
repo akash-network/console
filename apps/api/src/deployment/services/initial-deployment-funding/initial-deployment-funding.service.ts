@@ -94,7 +94,7 @@ export class InitialDeploymentFundingService {
   async #fundOnLeaseStarted({ walletId, address, dseq }: FundOnLeaseStartedInput): Promise<void> {
     const [deployment] = await this.drainingDeploymentService.findLeases(Number.MAX_SAFE_INTEGER, address, [dseq]);
 
-    if (!deployment) {
+    if (!deployment || deployment.hasNoLease) {
       throw new Error(`Lease for deployment ${dseq} owned by ${address} is not visible on chain yet`);
     }
 
