@@ -67,11 +67,18 @@ export class RetryingRpcClient implements RpcClient {
     this.rpcClient.disconnect();
   }
 
+  /**
+   * A replay-unsafe request's non-transport rejection is the node's considered answer, which only the caller can
+   * classify: a duplicate broadcast and an expired simulation both arrive here, and both are outcomes it handles.
+   */
   async #executeOnce(request: ExecuteRequest): Promise<ExecuteResponse> {
     try {
       return await this.rpcClient.execute(request);
     } catch (error) {
-      this.#logFailure(request, error);
+      if (isRetriableTransportError(error)) {
+        this.#logFailure(request, error);
+      }
+
       throw error;
     }
   }
