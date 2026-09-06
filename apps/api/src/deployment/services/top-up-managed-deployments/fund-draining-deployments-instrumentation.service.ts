@@ -41,6 +41,7 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
   private readonly messagePreparationErrors: Counter;
   private readonly insufficientBalanceWithAutoReload: Counter;
   private readonly chainTxErrors: Counter;
+  private readonly undecidedTxOutcomes: Counter;
   private readonly masterWalletInsufficientFunds: Counter;
   private readonly deploymentsMarkedClosed: Counter;
   private readonly claimReleaseErrors: Counter;
@@ -91,6 +92,10 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
 
     this.chainTxErrors = this.metricsService.createCounter(this.meter, "fund_draining_deployments_chain_tx_errors_total", {
       description: "Total number of failed immediate funding deposit attempts"
+    });
+
+    this.undecidedTxOutcomes = this.metricsService.createCounter(this.meter, "fund_draining_deployments_undecided_tx_outcomes_total", {
+      description: "Total number of immediate funding deposits whose transaction may still land, so their funding claims were held rather than released"
     });
 
     this.masterWalletInsufficientFunds = this.metricsService.createCounter(this.meter, "fund_draining_deployments_master_wallet_insufficient_funds_total", {
@@ -210,6 +215,17 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
     this.emitLog("error", {
       event: "FUND_DRAINING_CHAIN_TX_ERROR",
       owner,
+      deposits: this.serializeDeposits(items),
+      error
+    });
+  }
+
+  recordUndecidedTxOutcome({ owner, items, txHash, error }: { owner: string; items: FundingMessageItem[]; txHash?: string; error: unknown }): void {
+    this.undecidedTxOutcomes.add(1);
+    this.emitLog("error", {
+      event: "FUND_DRAINING_UNDECIDED_TX_OUTCOME",
+      owner,
+      txHash,
       deposits: this.serializeDeposits(items),
       error
     });

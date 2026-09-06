@@ -14,6 +14,7 @@ import type { UnorderedTxSignConfig } from "./signing-stargate-client.factory";
 import { createSigningStargateClientFactory, SigningStargateWithUnorderedSupportClient } from "./signing-stargate-client.factory";
 
 const SIGN_CONFIG: UnorderedTxSignConfig = { ttlMs: 180_000, gasMultiplier: 1.2, averageGasPrice: 0.025 };
+const RPC_REQUEST_TIMEOUT_MS = 10_000;
 
 describe(createSigningStargateClientFactory.name, () => {
   it("builds an RpcClient via the injected factory and passes it to Comet38Client", () => {
@@ -30,9 +31,9 @@ describe(createSigningStargateClientFactory.name, () => {
     } as unknown as typeof Comet38Client;
 
     const factory = createSigningStargateClientFactory(createRpcClient, MockComet38Client, mockFactory);
-    const result = factory(endpoint, signer, { signConfig: SIGN_CONFIG });
+    const result = factory(endpoint, signer, { signConfig: SIGN_CONFIG, rpcRequestTimeoutMs: RPC_REQUEST_TIMEOUT_MS });
 
-    expect(createRpcClient).toHaveBeenCalledWith(endpoint);
+    expect(createRpcClient).toHaveBeenCalledWith(endpoint, RPC_REQUEST_TIMEOUT_MS);
     expect(MockComet38Client.create).toHaveBeenCalledWith(mockRpcClient);
     expect(mockFactory).toHaveBeenCalledWith(mockCometClient, signer, { signConfig: SIGN_CONFIG });
     expect(result).toBe(mockClient);
@@ -53,7 +54,7 @@ describe(createSigningStargateClientFactory.name, () => {
     } as unknown as typeof Comet38Client;
 
     const factory = createSigningStargateClientFactory(createRpcClient, MockComet38Client, mockFactory);
-    factory(endpoint, signer, { registry, signConfig: SIGN_CONFIG });
+    factory(endpoint, signer, { registry, signConfig: SIGN_CONFIG, rpcRequestTimeoutMs: RPC_REQUEST_TIMEOUT_MS });
 
     expect(mockFactory).toHaveBeenCalledWith(mockCometClient, signer, { registry, signConfig: SIGN_CONFIG });
   });

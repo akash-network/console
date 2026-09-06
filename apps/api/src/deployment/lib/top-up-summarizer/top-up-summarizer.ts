@@ -4,6 +4,7 @@ interface TopUpSummary {
   deploymentCount: number;
   deploymentTopUpCount: number;
   deploymentTopUpErrorCount: number;
+  deploymentTopUpUndecidedCount: number;
   deploymentsMarkedClosedCount: number;
   insufficientBalanceCount: number;
   depositsBelowUsefulRunwayCount: number;
@@ -32,6 +33,8 @@ export class TopUpSummarizer {
 
   private deploymentTopUpErrorCount = 0;
 
+  private deploymentTopUpUndecidedCount = 0;
+
   private deploymentsMarkedClosedCount = 0;
 
   private minPredictedClosedHeight?: number;
@@ -56,6 +59,7 @@ export class TopUpSummarizer {
       | "deploymentCount"
       | "deploymentTopUpCount"
       | "deploymentTopUpErrorCount"
+      | "deploymentTopUpUndecidedCount"
       | "deploymentsMarkedClosedCount"
       | "insufficientBalanceCount"
       | "depositsBelowUsefulRunwayCount"
@@ -116,6 +120,7 @@ export class TopUpSummarizer {
       deploymentCount: this.deploymentCount,
       deploymentTopUpCount: this.deploymentTopUpCount,
       deploymentTopUpErrorCount: this.deploymentTopUpErrorCount,
+      deploymentTopUpUndecidedCount: this.deploymentTopUpUndecidedCount,
       deploymentsMarkedClosedCount: this.deploymentsMarkedClosedCount,
       insufficientBalanceCount: this.insufficientBalanceCount,
       depositsBelowUsefulRunwayCount: this.depositsBelowUsefulRunwayCount,

@@ -72,7 +72,9 @@ export const envSchema = z.object({
   MASTER_WALLET_AKT_RESERVE: z.number({ coerce: true }).int().nonnegative().default(2_000_000_000),
   MASTER_WALLET_MAX_MINT_UAKT: z.number({ coerce: true }).int().nonnegative().default(5_000_000_000),
   TX_SIGNER_BASE_URL: z.string(),
-  TX_SIGNER_API_KEY: z.string().min(32)
+  TX_SIGNER_API_KEY: z.string().min(32),
+  /** Must stay above the signer's own `SIGN_AND_BROADCAST_DEADLINE_MS`, or aborting here abandons a tx the signer is still broadcasting. */
+  TX_SIGNER_REQUEST_TIMEOUT_MS: z.number({ coerce: true }).positive().default(180_000)
 });
 
 export type BillingConfig = z.infer<typeof envSchema>;
