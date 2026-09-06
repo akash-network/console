@@ -1,6 +1,6 @@
 {
-  "id": "3fe32cff-eec2-4c25-9330-a1dfe028de08",
-  "prevId": "1baab3b2-77e6-45fc-a1a0-070eea5ed256",
+  "id": "5bd1a611-9b71-43ba-9ac6-260581ff5218",
+  "prevId": "0f93730b-52a1-4661-8558-cfe5a66a4c39",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1574,7 +1574,7 @@
         },
         "provider": {
           "name": "provider",
-          "type": "varchar(255)",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },

@@ -62,7 +62,7 @@ export class EnforceTrialAbuseHandler implements JobHandler<EnforceTrialAbuse> {
 
     if (wallet.abuseLockedAt) {
       this.logger.info({ event: "TRIAL_WORKLOAD_ABUSE_ENFORCEMENT_SKIPPED", reason: "ALREADY_LOCKED", ...context, userId: wallet.userId });
-      await this.detectionRepository.updateById(detectionId, { action: "enforced", updatedAt: new Date() });
+      await this.detectionRepository.markWalletEnforced(walletId);
       this.instrumentation.recordEnforcement("skipped");
       return;
     }

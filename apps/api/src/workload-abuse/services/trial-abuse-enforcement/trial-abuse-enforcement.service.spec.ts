@@ -35,8 +35,19 @@ describe(TrialAbuseEnforcementService.name, () => {
       enforcementError: null,
       updatedAt: expect.any(Date)
     });
-    expect(detectionRepository.updateById).toHaveBeenLastCalledWith(DETECTION_ID, { action: "enforced", updatedAt: expect.any(Date) });
+    expect(detectionRepository.markWalletEnforced).toHaveBeenCalledWith(wallet.id);
     expect(instrumentation.recordEnforcement).toHaveBeenCalledWith("enforced");
+  });
+
+  it("does not count a wipe that landed as failed when the bookkeeping after the lock throws", async () => {
+    const { service, wallet, calls, detectionRepository, instrumentation } = setup({ liveDseqs: [] });
+    detectionRepository.markWalletEnforced.mockRejectedValue(new Error("db down"));
+
+    await expect(service.enforce({ wallet, detectionId: DETECTION_ID })).rejects.toThrow("db down");
+
+    expect(calls).toContain("lock");
+    expect(detectionRepository.updateById).not.toHaveBeenCalledWith(DETECTION_ID, expect.objectContaining({ action: "enforcement_failed" }));
+    expect(instrumentation.recordEnforcement).not.toHaveBeenCalledWith("failed");
   });
 
   it("skips a revoke the chain no longer holds and tolerates one it reports as already gone", async () => {

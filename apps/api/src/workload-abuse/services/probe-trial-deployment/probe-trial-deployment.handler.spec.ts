@@ -165,6 +165,17 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     expect(handler.requiresPermission()).toEqual([]);
   });
 
+  it("re-queues the wipe for an already confirmed deployment instead of probing it again", async () => {
+    const { handler, wallet, probeService, jobQueueService } = setup({ existingDetection: true, enforcementMode: "enforce" });
+
+    await handler.handle(PAYLOAD);
+
+    expect(probeService.probe).not.toHaveBeenCalled();
+    expect(jobQueueService.enqueue).toHaveBeenCalledWith(new EnforceTrialAbuse({ walletId: wallet.id, detectionId: "detection-0" }), {
+      singletonKey: `enforceTrialAbuse.${wallet.id}`
+    });
+  });
+
   function setup(input: {
     enabled?: boolean;
     wallet?: ReturnType<typeof createUserWallet> | null;

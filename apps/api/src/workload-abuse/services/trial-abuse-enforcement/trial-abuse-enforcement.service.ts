@@ -54,20 +54,10 @@ export class TrialAbuseEnforcementService {
     const { wallet, detectionId } = input;
     await this.detectionRepository.updateById(detectionId, { action: "enforcing", enforcementError: null, updatedAt: new Date() });
 
+    let outcome: EnforcementOutcome;
+
     try {
-      await this.probeJobService.cancelForWallet(wallet.id);
-      const granter = await this.txManagerService.getFundingWalletAddress();
-      const depositGrantRevoked = await this.#revokeDepositGrant(granter, wallet.address);
-      const closedDseqs = await this.#closeLiveDeployments(wallet);
-      const feeGrantRevoked = await this.#revokeFeeGrant(granter, wallet.address);
-      await this.userWalletRepository.lockForAbuse(wallet.id, ABUSE_LOCK_REASON);
-      await this.detectionRepository.updateById(detectionId, { action: "enforced", updatedAt: new Date() });
-      this.instrumentation.recordEnforcement("enforced");
-
-      const outcome = { depositGrantRevoked, feeGrantRevoked, closedDseqs };
-      this.logger.warn({ event: "TRIAL_WORKLOAD_ABUSE_ENFORCED", detectionId, walletId: wallet.id, userId: wallet.userId, owner: wallet.address, ...outcome });
-
-      return outcome;
+      outcome = await this.#wipe(wallet);
     } catch (error) {
       await this.detectionRepository.updateById(detectionId, { action: "enforcement_failed", enforcementError: toErrorMessage(error), updatedAt: new Date() });
       this.instrumentation.recordEnforcement("failed");
@@ -81,6 +71,24 @@ export class TrialAbuseEnforcementService {
       });
       throw error;
     }
+
+    await this.detectionRepository.markWalletEnforced(wallet.id);
+    this.instrumentation.recordEnforcement("enforced");
+    this.logger.warn({ event: "TRIAL_WORKLOAD_ABUSE_ENFORCED", detectionId, walletId: wallet.id, userId: wallet.userId, owner: wallet.address, ...outcome });
+
+    return outcome;
+  }
+
+  /** The lock is the last step, so anything that fails before it leaves the wallet unlocked for the retry and anything after it cannot undo an enforcement that landed. */
+  async #wipe(wallet: WalletInitialized): Promise<EnforcementOutcome> {
+    await this.probeJobService.cancelForWallet(wallet.id);
+    const granter = await this.txManagerService.getFundingWalletAddress();
+    const depositGrantRevoked = await this.#revokeDepositGrant(granter, wallet.address);
+    const closedDseqs = await this.#closeLiveDeployments(wallet);
+    const feeGrantRevoked = await this.#revokeFeeGrant(granter, wallet.address);
+    await this.userWalletRepository.lockForAbuse(wallet.id, ABUSE_LOCK_REASON);
+
+    return { depositGrantRevoked, feeGrantRevoked, closedDseqs };
   }
 
   async #revokeDepositGrant(granter: string, grantee: string): Promise<boolean> {

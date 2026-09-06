@@ -1,4 +1,4 @@
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, ne } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -28,5 +28,13 @@ export class WorkloadAbuseDetectionRepository extends BaseRepository<Table, Work
       .selectDistinct({ walletId: this.table.walletId, dseq: this.table.dseq })
       .from(this.table)
       .where(and(eq(this.table.verdict, "hard"), gt(this.table.createdAt, since)));
+  }
+
+  /** A locked wallet settles every confirmed detection it has, including the ones whose own enforcement job never ran or failed. */
+  async markWalletEnforced(walletId: number): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({ action: "enforced", enforcementError: null, updatedAt: new Date() })
+      .where(and(eq(this.table.walletId, walletId), eq(this.table.verdict, "hard"), ne(this.table.action, "enforced")));
   }
 }

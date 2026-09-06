@@ -25,7 +25,7 @@ describe(EnforceTrialAbuseHandler.name, () => {
     expect(enforcementService.enforce).toHaveBeenCalledWith({ wallet, detectionId: PAYLOAD.detectionId });
   });
 
-  it("marks the detection enforced without acting again when the wallet is already locked", async () => {
+  it("settles the wallet's detections without acting again when the wallet is already locked", async () => {
     const { handler, enforcementService, detectionRepository, instrumentation } = setup({
       wallet: createUserWallet({ isTrialing: false, abuseLockedAt: new Date() })
     });
@@ -33,7 +33,7 @@ describe(EnforceTrialAbuseHandler.name, () => {
     await handler.handle(PAYLOAD);
 
     expect(enforcementService.enforce).not.toHaveBeenCalled();
-    expect(detectionRepository.updateById).toHaveBeenCalledWith(PAYLOAD.detectionId, { action: "enforced", updatedAt: expect.any(Date) });
+    expect(detectionRepository.markWalletEnforced).toHaveBeenCalledWith(PAYLOAD.walletId);
     expect(instrumentation.recordEnforcement).toHaveBeenCalledWith("skipped");
   });
 
