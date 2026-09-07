@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { BillingConfig } from "@src/billing/providers";
@@ -7,6 +7,7 @@ import type { ManagedSignerService, ManagedUserWalletService } from "@src/billin
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 
 import { createInitializedUserWallet, createUserWallet } from "@test/seeders/user-wallet.seeder";
@@ -39,7 +40,7 @@ describe(RefillService.name, () => {
     });
 
     it("asks to clear the abuse lock on every payment, so a lock applied after the wallet was read is still cleared", async () => {
-      const { service, userWalletRepository, walletInitializerService, balancesService } = setup();
+      const { service, userWalletRepository, walletInitializerService, balancesService, logger } = setup();
       const unlockedWallet = createInitializedUserWallet({ userId, abuseLockedAt: null, abuseLockedReason: null });
       walletInitializerService.ensureWallet.mockResolvedValue(unlockedWallet);
       userWalletRepository.claimActivation.mockResolvedValue(undefined);
@@ -49,19 +50,34 @@ describe(RefillService.name, () => {
       await service.topUpWallet(amountUsd, userId);
 
       expect(userWalletRepository.clearAbuseLock).toHaveBeenCalledWith(unlockedWallet.id);
+      expect(logger.info).toHaveBeenCalledWith({ event: "WALLET_ABUSE_LOCK_CLEARED", walletId: unlockedWallet.id, userId: unlockedWallet.userId });
+    });
+
+    it("does not report a cleared lock when the wallet held none", async () => {
+      const { service, userWalletRepository, walletInitializerService, balancesService, logger } = setup();
+      walletInitializerService.ensureWallet.mockResolvedValue(createInitializedUserWallet({ userId }));
+      userWalletRepository.claimActivation.mockResolvedValue(undefined);
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
+      userWalletRepository.clearAbuseLock.mockResolvedValue(false);
+
+      await service.topUpWallet(amountUsd, userId);
+
+      expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "WALLET_ABUSE_LOCK_CLEARED" }));
     });
 
     it("settles the payment even when clearing the abuse lock fails", async () => {
-      const { service, userWalletRepository, walletInitializerService, balancesService, analyticsService } = setup();
+      const { service, userWalletRepository, walletInitializerService, balancesService, analyticsService, logger } = setup();
       const wallet = createInitializedUserWallet({ userId });
       walletInitializerService.ensureWallet.mockResolvedValue(wallet);
       userWalletRepository.claimActivation.mockResolvedValue(undefined);
       balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
-      userWalletRepository.clearAbuseLock.mockRejectedValue(new Error("deadlock detected"));
+      const error = new Error("deadlock detected");
+      userWalletRepository.clearAbuseLock.mockRejectedValue(error);
 
       await expect(service.topUpWallet(amountUsd, userId)).resolves.toEqual({ walletId: wallet.id, address: wallet.address });
 
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up", expect.objectContaining({ amount_cents: amountUsd }));
+      expect(logger.error).toHaveBeenCalledWith({ event: "WALLET_ABUSE_LOCK_CLEAR_FAILED", walletId: wallet.id, userId: wallet.userId, error });
     });
 
     it("attaches payment context to the balance_top_up analytics event", async () => {
@@ -155,6 +171,8 @@ describe(RefillService.name, () => {
       const balancesService = mock<BalancesService>();
       const walletInitializerService = mock<WalletInitializerService>();
       const analyticsService = mock<AnalyticsService>();
+      const logger = mock<ReturnType<CreateLogger>>();
+      const createLogger = vi.fn<CreateLogger>(() => logger);
 
       billingConfig.FEE_ALLOWANCE_REFILL_AMOUNT = 1000;
 
@@ -165,7 +183,8 @@ describe(RefillService.name, () => {
         managedSignerService,
         balancesService,
         walletInitializerService,
-        analyticsService
+        analyticsService,
+        createLogger
       );
 
       return {
@@ -176,7 +195,8 @@ describe(RefillService.name, () => {
         managedSignerService,
         balancesService,
         walletInitializerService,
-        analyticsService
+        analyticsService,
+        logger
       };
     }
   });
@@ -277,6 +297,8 @@ describe(RefillService.name, () => {
       const balancesService = mock<BalancesService>();
       const walletInitializerService = mock<WalletInitializerService>();
       const analyticsService = mock<AnalyticsService>();
+      const logger = mock<ReturnType<CreateLogger>>();
+      const createLogger = vi.fn<CreateLogger>(() => logger);
 
       billingConfig.FEE_ALLOWANCE_REFILL_AMOUNT = 1000;
 
@@ -287,7 +309,8 @@ describe(RefillService.name, () => {
         managedSignerService,
         balancesService,
         walletInitializerService,
-        analyticsService
+        analyticsService,
+        createLogger
       );
 
       return {
@@ -298,7 +321,8 @@ describe(RefillService.name, () => {
         managedSignerService,
         balancesService,
         walletInitializerService,
-        analyticsService
+        analyticsService,
+        logger
       };
     }
   });
