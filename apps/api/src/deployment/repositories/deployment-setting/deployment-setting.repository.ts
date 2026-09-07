@@ -185,10 +185,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return deployments as AutoTopUpDeployment[];
   }
 
-  /**
-   * Trial deployments the reconcile sweep should have a probe for. `closed` is Console bookkeeping that drifts from the
-   * chain, so this only picks candidates and the probe job re-checks liveness on chain.
-   */
+  /** `closed` is Console bookkeeping that drifts from the chain, so these are candidates the probe job re-checks on chain. */
   async findLiveTrialDeployments({ maxAgeHours }: { maxAgeHours: number }): Promise<LiveTrialDeployment[]> {
     const hours = Math.max(1, Math.trunc(maxAgeHours));
     const deployments = await this.pg
