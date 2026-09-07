@@ -38,6 +38,7 @@ jobs:
       run_scan: ${{ steps.decide.outputs.run_scan }}
       event: ${{ env.PARENT_WORKFLOW_EVENT }}
       check_run_id: ${{ steps.create_check.outputs.check_run_id }}
+      check_run_sha: ${{ steps.report_target.outputs.sha }}
       skip_reason: ${{ steps.decide.outputs.skip_reason }}
     steps:
       - name: Checkout repository
@@ -100,13 +101,80 @@ jobs:
         run: | # shell
           echo "No \`security-scan\` check reported for ${PARENT_WORKFLOW_HEAD_SHA}: ${SKIP_REASON}" >> "$GITHUB_STEP_SUMMARY"
 
+      # A pull request in a stack is rewritten whenever a branch below it moves, and an empty retrigger commit
+      # does the same by hand, leaving CI's commit off the pull request: the verdict belongs on the commit the
+      # merge box reads, as long as that commit holds the content this run scanned.
+      - name: Resolve commit to report on
+        id: report_target
+        if: ${{ steps.decide.outputs.report_check == 'true' }}
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PR_NUMBER: ${{ steps.associated_pr.outputs.number }}
+        with:
+          script: | # js
+            const scannedSha = process.env.PARENT_WORKFLOW_HEAD_SHA;
+
+            const findPullRequest = async () => {
+              const number = Number(process.env.PR_NUMBER);
+              if (number) {
+                const { data } = await github.rest.pulls.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: number
+                });
+                return data;
+              }
+
+              const parentRun = context.payload.workflow_run;
+              if (!parentRun || !parentRun.head_branch) return null;
+
+              const { data } = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: "open",
+                head: `${parentRun.head_repository?.owner?.login || context.repo.owner}:${parentRun.head_branch}`
+              });
+              return data[0] || null;
+            };
+
+            const holdsScannedContent = async sha => {
+              const { data } = await github.rest.repos.compareCommitsWithBasehead({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                basehead: `${scannedSha}...${sha}`
+              });
+              return !data.files || data.files.length === 0;
+            };
+
+            const resolveShaToReportOn = async () => {
+              if (process.env.PARENT_WORKFLOW_EVENT !== "pull_request") return scannedSha;
+
+              const pull = await findPullRequest();
+              if (!pull || pull.head.sha === scannedSha) return scannedSha;
+
+              if (!(await holdsScannedContent(pull.head.sha))) {
+                core.info(`#${pull.number} moved to ${pull.head.sha}, which changes content and gets its own scan`);
+                return scannedSha;
+              }
+
+              core.info(`Reporting on ${pull.head.sha}: #${pull.number} moved off ${scannedSha} without changing content`);
+              return pull.head.sha;
+            };
+
+            core.setOutput("sha", await resolveShaToReportOn().catch(error => {
+              core.warning(`Reporting on ${scannedSha}: resolving the pull request head failed with ${error.message}`);
+              return scannedSha;
+            }));
+
       - name: Create check run
         id: create_check
         if: ${{ steps.decide.outputs.report_check == 'true' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          REPORT_SHA: ${{ steps.report_target.outputs.sha }}
         with:
           script: | # js
-            const sha = process.env.PARENT_WORKFLOW_HEAD_SHA;
+            const sha = process.env.REPORT_SHA;
             const workflowRunUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
             const res = await github.rest.checks.create({
               name: "security-scan",
@@ -345,11 +413,12 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           CHECK_RUN_ID: ${{ needs.create-check-run.outputs.check_run_id }}
+          CHECK_RUN_SHA: ${{ needs.create-check-run.outputs.check_run_sha }}
           CONCLUSION: ${{ steps.final.outputs.conclusion }}
           SUMMARY: ${{ steps.final.outputs.summary }}
         with:
           script: | # js
-            const sha = process.env.PARENT_WORKFLOW_HEAD_SHA;
+            const sha = process.env.CHECK_RUN_SHA;
             const checkRunId = Number(process.env.CHECK_RUN_ID);
             const workflowRunUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
 
