@@ -49,7 +49,7 @@ export class SdlSecretsDerivationService {
   }
 }
 
-/** Prefers the name the slot's own position spells, so re-supplying a value replaces the stored name rather than growing the token. */
+/** A minted name need only be unique: it must not be one any reference in the document already stands on, or that one value would resolve into two places. */
 function mintName(preferred: string, taken: Set<string>): string {
   let candidate = preferred;
   let suffix = 2;

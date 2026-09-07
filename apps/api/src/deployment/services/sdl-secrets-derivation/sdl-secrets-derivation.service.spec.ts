@@ -272,14 +272,39 @@ describe(SdlSecretsDerivationService.name, () => {
       expect(document.services.web.env).toEqual(["B=ac-secret://s0_e1", "C=ac-secret://s0_e1_2"]);
     });
 
-    it("reuses the name a slot's own position spells when nothing else is standing on it", () => {
-      const { service } = setup();
+    it("mints a name unique in the document, whatever it happens to spell", () => {
+      const { service, sdlReferenceService } = setup();
       const document = documentWith({ web: { env: ["A=ac-secret://s0_e0", "B=resupplied"] } });
 
       const secrets = service.derive(document, { includeEnvValues: true });
 
-      expect(secrets).toEqual({ s0_e1: "resupplied" });
-      expect(document.services.web.env).toEqual(["A=ac-secret://s0_e0", "B=ac-secret://s0_e1"]);
+      expect(Object.keys(secrets)).toHaveLength(1);
+      expect(Object.keys(secrets)[0]).not.toBe("s0_e0");
+      expect(sdlReferenceService.validate(document)).toEqual([]);
+    });
+
+    it("mints a fresh name for a credential even when a seal supplied the env values", () => {
+      const { service } = setup();
+      const document = documentWith({
+        web: { env: ["A=ac-secret://MY_TOKEN"], credentials: { host: REGISTRY_HOST, username: "u", password: "p" } }
+      });
+
+      const secrets = service.derive(document, { includeEnvValues: false });
+
+      expect(Object.keys(secrets).sort()).toEqual(["s0_c_password", "s0_c_username"]);
+      expect(document.services.web.env).toEqual(["A=ac-secret://MY_TOKEN"]);
+    });
+
+    it("avoids a client-chosen seal name a credential position would otherwise mint onto", () => {
+      const { service } = setup();
+      const document = documentWith({
+        web: { env: ["A=ac-secret://s0_c_username"], credentials: { host: REGISTRY_HOST, username: "u", password: "p" } }
+      });
+
+      const secrets = service.derive(document, { includeEnvValues: false });
+
+      expect(Object.keys(secrets)).not.toContain("s0_c_username");
+      expect(document.services.web.env).toEqual(["A=ac-secret://s0_c_username"]);
     });
 
     it("gives every colliding slot a name of its own rather than one they share", () => {
