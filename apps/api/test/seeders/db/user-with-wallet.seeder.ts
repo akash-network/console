@@ -2,14 +2,18 @@ import { container } from "tsyringe";
 
 import type { ApiPgDatabase, ApiPgTables } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
-import { UserRepository } from "@src/user/repositories";
+import { type UserInput, UserRepository } from "@src/user/repositories";
 import { createAkashAddress } from "../akash-address.seeder";
 
 type UserWalletInsert = ApiPgTables["UserWallets"]["$inferInsert"];
 
-export async function seedUserWithWallet(overrides: Omit<Partial<UserWalletInsert>, "userId"> = {}) {
+export async function seedUser(overrides: UserInput = {}) {
+  return await container.resolve(UserRepository).create(overrides);
+}
+
+export async function seedUserWithWallet({ user: userOverrides, ...overrides }: Omit<Partial<UserWalletInsert>, "userId"> & { user?: UserInput } = {}) {
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
-  const user = await container.resolve(UserRepository).create({});
+  const user = await seedUser(userOverrides);
   const [wallet] = await db
     .insert(resolveTable("UserWallets"))
     .values({
