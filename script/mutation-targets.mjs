@@ -7,8 +7,8 @@ import { resolveConfig } from "vitest/node";
 const MAX_RANGES = Number(process.env.MAX_MUTATION_RANGES ?? 200);
 const SPEC_EXTENSIONS = [".spec.ts", ".spec.tsx", ".spec.mts"];
 
-/** A mutant in a declaration or a generated file pins nothing, and no app's coverage config bothers to exclude them. */
-const NEVER_MUTATED = ["**/*.d.ts", "**/*.gen.ts"];
+/** A mutant in a declaration, a generated file or a spec pins nothing, and not every app's coverage config bothers to exclude them. */
+const NEVER_MUTATED = ["**/*.d.ts", "**/*.gen.ts", "**/*.spec.*", "**/*.test.*"];
 
 /** An unset coverage.include means vitest measures whatever the tests load, which has no glob form, so the source tree stands in for it. */
 const WHOLE_SOURCE_TREE = ["src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"];
@@ -31,21 +31,24 @@ async function mutationTargets(workspace, base) {
   }
 
   const isMutatable = await coverageScopeOf(workspace);
-  const ranges = changedLineRanges(workspace, mergeBaseWith(base)).filter(({ file }) => isMutatable(file));
+  const changed = changedLineRanges(workspace, mergeBaseWith(base)).filter(({ file }) => isMutatable(file));
+
+  if (changed.length === 0) {
+    return { skip: `no mutatable source line changed in ${workspace}` };
+  }
+
+  const specsBySource = colocatedSpecsBySource(workspace, changed);
+  const ranges = changed.filter(({ file }) => specsBySource.has(file));
 
   if (ranges.length === 0) {
-    return { skip: `no mutatable source line changed in ${workspace}` };
+    return { skip: `none of the changed files in ${workspace} has a colocated spec, so no mutant could be killed` };
   }
 
   if (ranges.length > MAX_RANGES) {
     return { skip: `${ranges.length} changed line ranges exceed the limit of ${MAX_RANGES}` };
   }
 
-  const specs = colocatedSpecsOf(workspace, ranges);
-
-  if (specs.length === 0) {
-    return { skip: `none of the changed files in ${workspace} has a colocated spec, so no mutant could be killed` };
-  }
+  const specs = [...new Set([...specsBySource.values()].flat())];
 
   return {
     mutate: ranges.map(({ file, start, end }) => `${file}:${start}-${end}`).join(","),
@@ -106,15 +109,15 @@ function git(args) {
  * A changed file's own spec is the suite that has to kill its mutants, so running just those turns the dry run from
  * the whole suite into seconds; a file without one only ever contributed mutants nothing would reach.
  */
-function colocatedSpecsOf(workspace, ranges) {
+function colocatedSpecsBySource(workspace, ranges) {
   const sources = [...new Set(ranges.map(({ file }) => file))];
-  const specs = sources.flatMap(source => {
+  const specsOf = source => {
     const withoutExtension = source.replace(/\.[^./]+$/, "");
 
     return SPEC_EXTENSIONS.map(extension => `${withoutExtension}${extension}`).filter(spec => existsSync(join(workspace, spec)));
-  });
+  };
 
-  return [...new Set(specs)];
+  return new Map(sources.map(source => [source, specsOf(source)]).filter(([, specs]) => specs.length > 0));
 }
 
 function unitTestScriptOf(workspace) {

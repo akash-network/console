@@ -49,7 +49,7 @@ function summary() {
     lines.push(
       ...survived
         .slice(0, MAX_SURVIVOR_ROWS)
-        .map(({ file, location, mutatorName, replacement }) => `| \`${file}:${location.start.line}\` | ${mutatorName} | ${inlineCode(truncate(replacement))} |`)
+        .map(({ file, location, mutatorName, replacement }) => `| \`${file}:${location.start.line}\` | ${mutatorName} | ${replacementCell(replacement)} |`)
     );
 
     if (survived.length > MAX_SURVIVOR_ROWS) lines.push(`| _and ${survived.length - MAX_SURVIVOR_ROWS} more_ | | |`);
@@ -77,17 +77,13 @@ function fileList(mutants) {
   );
 }
 
-/** Replacements are code and routinely contain backticks, so the fence has to outgrow the longest run inside them. */
-function inlineCode(text) {
-  const longestBacktickRun = Math.max(0, ...[...text.matchAll(/`+/g)].map(([run]) => run.length));
-  const fence = "`".repeat(longestBacktickRun + 1);
-  const padding = longestBacktickRun > 0 ? " " : "";
-
-  return `${fence}${padding}${text}${padding}${fence}`;
+/** An HTML code element keeps the raw replacement intact where a markdown code span cannot: backticks stay literal and the entity keeps a pipe from ending the cell. */
+function replacementCell(replacement) {
+  return `<code>${truncate(replacement).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\|/g, "&#124;")}</code>`;
 }
 
 function truncate(replacement = "") {
-  const singleLine = replacement.replace(/\s+/g, " ").replace(/\|/g, "\\|");
+  const singleLine = replacement.replace(/\s+/g, " ");
 
   return singleLine.length > 80 ? `${singleLine.slice(0, 77)}...` : singleLine;
 }

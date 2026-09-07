@@ -138,7 +138,13 @@ jobs:
           {
             echo "### Mutation testing: $APP"
             echo
-            echo "Mutated $RANGES changed line range(s), scoped to the files the app measures coverage on, against their own specs: \`$TEST_FILES\`."
+            # A fenced block, not an inline code span: the spec paths come from PR-controlled file names,
+            # and a backtick in one would otherwise close the span and let raw markdown into the summary.
+            echo "Mutated $RANGES changed line range(s), scoped to the files the app measures coverage on, against their own specs:"
+            echo
+            echo '```'
+            echo "$TEST_FILES"
+            echo '```'
             echo
             echo "$summary"
             echo
