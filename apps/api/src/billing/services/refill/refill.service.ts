@@ -138,19 +138,18 @@ export class RefillService {
     this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit: currentLimit, nextLimit });
   }
 
+  /** A wallet locked as an abusive trial becomes an ordinary paying wallet the moment it pays, so fee refills and credit alerts resume for it. */
+  private async clearAbuseLockOnPayment(userWallet: UserWalletOutput) {
+    if (!(await this.userWalletRepository.clearAbuseLock(userWallet.id))) return;
+
+    this.logger.info({ event: "WALLET_ABUSE_LOCK_CLEARED", walletId: userWallet.id, userId: userWallet.userId });
+  }
+
   /**
    * Returns the user's wallet, creating and activating it as needed —
    * funding with real money must activate a wallet even when the user never started a trial.
    * The activation claim no-ops for already-activated wallets.
    */
-  /** A wallet locked as an abusive trial becomes an ordinary paying wallet the moment it pays, so fee refills and credit alerts resume for it. */
-  private async clearAbuseLockOnPayment(userWallet: UserWalletOutput) {
-    if (!userWallet.abuseLockedAt) return;
-
-    await this.userWalletRepository.clearAbuseLock(userWallet.id);
-    this.logger.info({ event: "WALLET_ABUSE_LOCK_CLEARED", walletId: userWallet.id, userId: userWallet.userId, reason: userWallet.abuseLockedReason });
-  }
-
   private async ensureActivatedWallet(userId: UserWalletOutput["userId"]) {
     const userWallet = await this.walletInitializerService.ensureWallet(userId);
 

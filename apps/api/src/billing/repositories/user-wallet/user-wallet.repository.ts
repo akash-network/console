@@ -167,8 +167,15 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     await this.updateById(id, { deploymentAllowance: 0, feeAllowance: 0, isTrialing: false, abuseLockedAt: new Date(), abuseLockedReason: reason });
   }
 
-  async clearAbuseLock(id: UserWalletOutput["id"]): Promise<void> {
-    await this.updateById(id, { abuseLockedAt: null, abuseLockedReason: null });
+  /** Re-checks the lock in SQL so a lock applied after the payer read the wallet is still cleared by that payment. */
+  async clearAbuseLock(id: UserWalletOutput["id"]): Promise<boolean> {
+    const [cleared] = await this.cursor
+      .update(this.table)
+      .set({ abuseLockedAt: null, abuseLockedReason: null })
+      .where(this.whereAccessibleBy(and(eq(this.table.id, id), isNotNull(this.table.abuseLockedAt))))
+      .returning({ id: this.table.id });
+
+    return !!cleared;
   }
 
   @Trace()

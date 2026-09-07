@@ -38,19 +38,17 @@ describe(RefillService.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up", expect.objectContaining({ amount_cents: amountUsd, amount_usd: 1 }));
     });
 
-    it("clears the abuse lock of a wallet that pays and leaves an unlocked wallet alone", async () => {
+    it("asks to clear the abuse lock on every payment, so a lock applied after the wallet was read is still cleared", async () => {
       const { service, userWalletRepository, walletInitializerService, balancesService } = setup();
-      const lockedWallet = createInitializedUserWallet({ userId, abuseLockedAt: new Date(), abuseLockedReason: "workload_abuse" });
-      walletInitializerService.ensureWallet.mockResolvedValue(lockedWallet);
+      const unlockedWallet = createInitializedUserWallet({ userId, abuseLockedAt: null, abuseLockedReason: null });
+      walletInitializerService.ensureWallet.mockResolvedValue(unlockedWallet);
       userWalletRepository.claimActivation.mockResolvedValue(undefined);
       balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
+      userWalletRepository.clearAbuseLock.mockResolvedValue(true);
 
       await service.topUpWallet(amountUsd, userId);
-      walletInitializerService.ensureWallet.mockResolvedValue(createInitializedUserWallet({ userId }));
-      await service.topUpWallet(amountUsd, userId);
 
-      expect(userWalletRepository.clearAbuseLock).toHaveBeenCalledTimes(1);
-      expect(userWalletRepository.clearAbuseLock).toHaveBeenCalledWith(lockedWallet.id);
+      expect(userWalletRepository.clearAbuseLock).toHaveBeenCalledWith(unlockedWallet.id);
     });
 
     it("attaches payment context to the balance_top_up analytics event", async () => {

@@ -180,7 +180,7 @@ describe(UserWalletRepository.name, () => {
       const { userWalletRepository, wallet } = await setup();
       await userWalletRepository.lockForAbuse(wallet.id, "workload_abuse");
 
-      await userWalletRepository.clearAbuseLock(wallet.id);
+      await expect(userWalletRepository.clearAbuseLock(wallet.id)).resolves.toBe(true);
 
       expect(await userWalletRepository.findById(wallet.id)).toMatchObject({
         abuseLockedAt: null,
@@ -189,6 +189,12 @@ describe(UserWalletRepository.name, () => {
         feeAllowance: 0,
         isTrialing: false
       });
+    });
+
+    it("reports no clear for a wallet that holds no lock", async () => {
+      const { userWalletRepository, wallet } = await setup();
+
+      await expect(userWalletRepository.clearAbuseLock(wallet.id)).resolves.toBe(false);
     });
   });
 
