@@ -21,6 +21,7 @@ import { CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { SDL_SECRETS_CONTENT_ENCRYPTION, SDL_SECRETS_SEAL_ALGORITHM } from "@src/deployment/config/sdl-secrets.config";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -141,7 +142,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     const { apiKey, user } = await patchable({ secrets });
     const rotated = randomUUID();
 
-    const response = await patch(apiKey, { services: { web: { env: { API_TOKEN: rotated } } } }, { s0_e0: rotated });
+    const response = await patch(apiKey, { services: { web: {} } }, { s0_e0: rotated });
 
     expect(response.status).toBe(200);
     await expect(openStored(user)).resolves.toEqual({ s0_e0: rotated, s0_e1: secrets.s0_e1 });
@@ -208,6 +209,16 @@ describe("PATCH /v1/deployments/{dseq}", () => {
       expect(await response.json()).toMatchObject({ message: "Unable to read stored secrets", code: "stored_secrets_unreadable" });
     });
 
+    it("still refuses when every value is supplied fresh, the case where overwriting could have succeeded", async () => {
+      const { apiKey, user } = await patchable();
+      const tampered = await flipFirstCiphertextCharacterOfToken(user);
+
+      const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, { s0_e0: randomUUID(), s0_e1: randomUUID() });
+
+      expect(response.status).toBe(500);
+      expect((await settingOf(user))?.sealedSecrets).toBe(tampered);
+    });
+
     it("leaves the row intact, tampered token and all", async () => {
       const { apiKey, user } = await patchable();
       const tampered = await flipFirstCiphertextCharacterOfToken(user);
@@ -230,7 +241,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     await patch(apiKey, { services: { web: { env: { DATABASE_URL: kept } } } });
     vi.mocked(providerService.sendManifest).mockClear();
 
-    await patch(apiKey, { services: { web: { image: "nginx:1.27", env: { API_TOKEN: rotated } } } }, { s0_e0: rotated });
+    await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, { s0_e0: rotated });
 
     const expected = await manifestOf(storedSdl([`API_TOKEN=${rotated}`, `DATABASE_URL=${kept}`], "nginx:1.27"));
     expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ manifest: expected }));
@@ -269,7 +280,11 @@ describe("PATCH /v1/deployments/{dseq}", () => {
       });
 
       expect(response.status).toBe(200);
-      expect((await settingOf(user))?.sdl).not.toContain("attacker/image");
+      const stored = (await settingOf(user))!.sdl!;
+      expect(stored).toContain("API_TOKEN");
+      expect(stored).toContain("DATABASE_URL");
+      expect(stored).not.toContain("INJECTED");
+      expect(stored).not.toContain("attacker/image");
     });
 
     it("answers 404 for a deployment the console recorded no sdl for", async () => {
@@ -381,6 +396,65 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     });
   });
 
+  describe("http options over the wire", () => {
+    it("accepts zero as a way to clear a timeout", async () => {
+      const { apiKey, user } = await patchable();
+
+      const response = await patch(apiKey, { services: { web: { expose: { "80": { httpOptions: { readTimeout: 0 } } } } } });
+
+      expect(response.status).toBe(200);
+      expect((await settingOf(user))?.sdl).toContain("read_timeout: 0");
+    });
+
+    it("refuses a negative timeout", async () => {
+      const { apiKey } = await patchable();
+
+      const response = await patch(apiKey, { services: { web: { expose: { "80": { httpOptions: { readTimeout: -1 } } } } } });
+
+      expect(response.status).toBe(400);
+    });
+
+    it("adds no options node for a patch that assigns none", async () => {
+      const { apiKey, user } = await patchable();
+
+      const response = await patch(apiKey, { services: { web: { expose: { "80": { httpOptions: {} } } } } });
+
+      expect(response.status).toBe(200);
+      expect((await settingOf(user))?.sdl).not.toContain("http_options");
+    });
+  });
+
+  describe("the size of the set it would store", () => {
+    it("refuses a merged set past the count a deployment may carry", async () => {
+      const { apiKey } = await patchable();
+      capSecretCountAt(1);
+
+      const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
+
+      expect(response.status).toBe(400);
+    });
+
+    it("persists nothing when the merged set is refused", async () => {
+      const { apiKey, user } = await patchable();
+      const before = await settingOf(user);
+      capSecretCountAt(1);
+
+      await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
+
+      expect((await settingOf(user))?.sdl).toBe(before!.sdl);
+      expect((await settingOf(user))?.sealedSecrets).toBe(before!.sealedSecrets);
+    });
+
+    it("accepts a merged set exactly at the count", async () => {
+      const { apiKey } = await patchable();
+      capSecretCountAt(2);
+
+      const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
+
+      expect(response.status).toBe(200);
+    });
+  });
+
   it("refuses an expected manifest version longer than the column can hold", async () => {
     const { apiKey } = await patchable();
 
@@ -415,6 +489,13 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
     expect(response.status).toBe(401);
   });
+
+  function capSecretCountAt(maxCount: number) {
+    const config = container.resolve(DeploymentConfigService);
+    const passThrough = config.get.bind(config);
+
+    vi.spyOn(config, "get").mockImplementation((key: Parameters<typeof passThrough>[0]) => (key === "SDL_SECRETS_MAX_COUNT" ? maxCount : passThrough(key)));
+  }
 
   async function manifestOf(sdl: string) {
     const manifest = generateManifest(yaml.raw<SDLInput>(sdl));
