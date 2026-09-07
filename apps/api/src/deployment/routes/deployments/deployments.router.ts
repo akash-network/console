@@ -216,7 +216,7 @@ const patchRoute = createRoute({
   path: "/v1/deployments/{dseq}",
   summary: "Patch a deployment",
   description:
-    "Patches the SDL the console stored for this deployment; the SDL is never accepted from the request. Only the services named are touched. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw.",
+    "Patches the SDL the console stored for this deployment; the SDL is never accepted from the request. Only the services named are touched. A patched environment variable is re-appended to its service's env list, so the order shown by GET may differ afterwards. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw.",
   operationId: "patchDeployment",
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,

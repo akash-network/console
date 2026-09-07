@@ -2110,7 +2110,7 @@ export interface paths {
     head?: never;
     /**
      * Patch a deployment
-     * @description Patches the SDL the console stored for this deployment; the SDL is never accepted from the request. Only the services named are touched. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw.
+     * @description Patches the SDL the console stored for this deployment; the SDL is never accepted from the request. Only the services named are touched. A patched environment variable is re-appended to its service's env list, so the order shown by GET may differ afterwards. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw.
      */
     patch: operations["patchDeployment"];
     trace?: never;
@@ -8257,7 +8257,7 @@ export interface operations {
                 image?: string;
                 command?: string[] | null;
                 args?: string[] | null;
-                /** @description Merged into the service's env, keyed by environment variable name. A null value removes the variable. */
+                /** @description Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. */
                 env?: {
                   [key: string]: string | null;
                 };

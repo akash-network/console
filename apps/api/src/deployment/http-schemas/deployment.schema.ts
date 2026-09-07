@@ -165,7 +165,8 @@ export const UpdateDeploymentRequestSchema = z.object({
 const ENV_VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 const PatchEnvSchema = z.record(z.string().regex(ENV_VARIABLE_NAME), z.string().nullable()).openapi({
-  description: "Merged into the service's env, keyed by environment variable name. A null value removes the variable."
+  description:
+    "Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change."
 });
 
 /** `nonnegative` rather than `positive`: the grammar gives every one of these `minimum: 0`, and 0 is how a timeout is cleared. */
