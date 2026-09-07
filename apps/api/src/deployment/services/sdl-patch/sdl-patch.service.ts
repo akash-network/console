@@ -68,8 +68,9 @@ export class SdlPatchService {
 
   #applyToService(service: SdlServiceNode, patch: PatchService, at: PatchTarget): void {
     if (patch.image !== undefined) service.image = patch.image;
-    if (patch.command !== undefined) service.command = patch.command;
-    if (patch.args !== undefined) service.args = patch.args;
+
+    this.#applyClearableList(service, "command", patch.command);
+    this.#applyClearableList(service, "args", patch.args);
 
     if (patch.env !== undefined) {
       this.#assertNotShared(service.env, { ...at, field: "env" });
@@ -80,6 +81,14 @@ export class SdlPatchService {
       this.#assertNotShared(service.credentials, { ...at, field: "credentials" });
       this.#applyCredentials(service, patch.credentials, at);
     }
+  }
+
+  /** A cleared list is removed rather than written as `null`, matching how a cleared `env` and cleared `credentials` behave, so a read never shows a field the user did not write. */
+  #applyClearableList(service: SdlServiceNode, field: "command" | "args", value: string[] | null | undefined): void {
+    if (value === undefined) return;
+
+    if (value === null) delete service[field];
+    else service[field] = value;
   }
 
   /** Rewrites a named variable where it already stands, so an `ac-secret://` reference keeps the position its stored name was minted from. */

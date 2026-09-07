@@ -22,13 +22,29 @@ describe(SdlPatchService.name, () => {
     expect(document.services.web.args).toEqual(["-c", "new"]);
   });
 
-  it("clears command and args given null", () => {
+  it("removes command and args given null, rather than storing a null the user never wrote", () => {
     const { service, document } = setup({ services: { web: { image: "nginx", command: ["sh"], args: ["-c", "old"] } } });
 
     service.apply(document, { web: { command: null, args: null } });
 
-    expect(document.services.web.command).toBeNull();
-    expect(document.services.web.args).toBeNull();
+    expect("command" in document.services.web).toBe(false);
+    expect("args" in document.services.web).toBe(false);
+  });
+
+  it("leaves a command the patch does not name", () => {
+    const { service, document } = setup({ services: { web: { image: "nginx", command: ["sh"] } } });
+
+    service.apply(document, { web: { args: ["-c", "new"] } });
+
+    expect(document.services.web.command).toEqual(["sh"]);
+  });
+
+  it("clears a command on a service that never declared one without adding the key", () => {
+    const { service, document } = setup({ services: { web: { image: "nginx" } } });
+
+    service.apply(document, { web: { command: null } });
+
+    expect("command" in document.services.web).toBe(false);
   });
 
   it("leaves a field the patch does not name", () => {
