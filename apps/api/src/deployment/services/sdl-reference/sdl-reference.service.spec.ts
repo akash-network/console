@@ -560,6 +560,44 @@ describe(SdlReferenceService.name, () => {
     });
   });
 
+  describe("hasAnyReference", () => {
+    it("reports none for an sdl whose values are all plain", () => {
+      const { service } = setup();
+
+      expect(service.hasAnyReference(sdlWithEnv(["PORT=8080", "MODE=production"]))).toBe(false);
+    });
+
+    it("reports one for an env value that is a reference", () => {
+      const { service } = setup();
+
+      expect(service.hasAnyReference(sdlWithEnv(["TOKEN=ac-secret://TOKEN"]))).toBe(true);
+    });
+
+    it("reports one for a registry credential that is a reference", () => {
+      const { service } = setup();
+
+      expect(service.hasAnyReference(sdlWithCredentials({ password: "ac-secret://REG_PASS" }))).toBe(true);
+    });
+
+    it("reports one for a reference of a kind nothing resolves", () => {
+      const { service } = setup();
+
+      expect(service.hasAnyReference(sdlWithEnv(["TOKEN=ac-var://TOKEN"]))).toBe(true);
+    });
+
+    it.each(RESERVED_VALUES)("reports one for the reserved value %j, which stands where a reference stands", value => {
+      const { service } = setup();
+
+      expect(service.hasAnyReference(sdlWithEnv([`MODE=${value}`]))).toBe(true);
+    });
+
+    it("reports none for an sdl with no services at all", () => {
+      const { service } = setup();
+
+      expect(service.hasAnyReference(yaml.raw<SDLInput>(`version: "2.0"`))).toBe(false);
+    });
+  });
+
   function setup(input: { resolvers?: SdlReferenceResolver[] } = {}) {
     const service = new SdlReferenceService();
     input.resolvers?.forEach(resolver => service.register(resolver));
