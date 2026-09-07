@@ -130,8 +130,20 @@ describe(FundDrainingDeploymentsInstrumentationService.name, () => {
   describe("recordOwnerInsufficientBalance", () => {
     it("counts every deployment as insufficient balance and warns once for the owner", () => {
       const { service, messagePreparationErrors, insufficientBalanceWithAutoReload } = setup();
-      const first = mock<DrainingDeployment>({ dseq: "123", address: "akash1owner", isWalletAutoTopUpEnabled: true });
-      const second = mock<DrainingDeployment>({ dseq: "456", address: "akash1owner", isWalletAutoTopUpEnabled: true });
+      const first = mock<DrainingDeployment>({
+        dseq: "123",
+        address: "akash1owner",
+        userId: "user-1",
+        walletIsTrialing: false,
+        isWalletAutoTopUpEnabled: true
+      });
+      const second = mock<DrainingDeployment>({
+        dseq: "456",
+        address: "akash1owner",
+        userId: "user-1",
+        walletIsTrialing: false,
+        isWalletAutoTopUpEnabled: true
+      });
 
       service.recordOwnerInsufficientBalance({
         owner: "akash1owner",
@@ -147,6 +159,9 @@ describe(FundDrainingDeploymentsInstrumentationService.name, () => {
       expect(mockLogger.warn).toHaveBeenCalledExactlyOnceWith({
         event: "FUND_DRAINING_OWNER_INSUFFICIENT_BALANCE",
         owner: "akash1owner",
+        userId: "user-1",
+        isTrialing: false,
+        autoReloadEnabled: true,
         spendable: 0,
         deploymentCount: 2,
         deployments: [
@@ -163,6 +178,34 @@ describe(FundDrainingDeploymentsInstrumentationService.name, () => {
       service.recordOwnerInsufficientBalance({ owner: "akash1owner", spendable: 0, deployments: [{ deployment, desiredAmount: 1_000_000 }] });
 
       expect(insufficientBalanceWithAutoReload.add).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("recordDepositBelowUsefulRunway", () => {
+    it("increments skips with a below_useful_runway reason and warns with the owner's account state", () => {
+      const { service, skips } = setup();
+      const deployment = mock<DrainingDeployment>({
+        dseq: "123",
+        address: "akash1owner",
+        userId: "user-1",
+        walletIsTrialing: true,
+        isWalletAutoTopUpEnabled: false
+      });
+
+      service.recordDepositBelowUsefulRunway({ deployment, desiredAmount: 50_000_000, affordableAmount: 500_000, runwayMinutes: 17 });
+
+      expect(skips.add).toHaveBeenCalledWith(1, { reason: "below_useful_runway" });
+      expect(mockLogger.warn).toHaveBeenCalledWith({
+        event: "FUND_DRAINING_DEPOSIT_BELOW_USEFUL_RUNWAY",
+        dseq: "123",
+        address: "akash1owner",
+        userId: "user-1",
+        isTrialing: true,
+        autoReloadEnabled: false,
+        desiredAmount: 50_000_000,
+        affordableAmount: 500_000,
+        runwayMinutes: 17
+      });
     });
   });
 
