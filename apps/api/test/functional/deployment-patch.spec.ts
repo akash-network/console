@@ -148,6 +148,28 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     await expect(openStored(user)).resolves.toEqual({ s0_e0: rotated, s0_e1: secrets.s0_e1 });
   });
 
+  it("leaves every other name resolvable when a patched variable moves and is renamed", async () => {
+    const secrets = { s0_e0: randomUUID(), s0_e1: randomUUID() };
+    const { apiKey, user } = await patchable({ secrets });
+    const rotated = randomUUID();
+
+    const response = await patch(apiKey, { services: { web: { env: { API_TOKEN: rotated } } } });
+
+    expect(response.status).toBe(200);
+    const stored = await openStored(user);
+    expect(Object.values(stored)).toEqual(expect.arrayContaining([rotated, secrets.s0_e1]));
+    const setting = await settingOf(user);
+    expect((await container.resolve(SdlService).generateResolvedManifest({ sdl: setting!.sdl!, secrets: stored })).ok).toBe(true);
+  });
+
+  it("drops the name a moved variable used to be stored under", async () => {
+    const { apiKey, user } = await patchable({ secrets: { s0_e0: randomUUID(), s0_e1: randomUUID() } });
+
+    await patch(apiKey, { services: { web: { env: { API_TOKEN: randomUUID() } } } });
+
+    expect(Object.keys(await openStored(user))).not.toContain("s0_e0");
+  });
+
   it("keeps every stored value resolvable when the sdl changes and no secrets are supplied", async () => {
     const secrets = { s0_e0: randomUUID(), s0_e1: randomUUID() };
     const { apiKey, user } = await patchable({ secrets });
