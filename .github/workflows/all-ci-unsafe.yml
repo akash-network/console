@@ -11,11 +11,12 @@ on:
     types: [completed]
   # pull_request: # uncomment to test this workflow in PR
 
-# Keyed on the scanned commit, not the branch: a branch-wide key lets a newer commit's scan cancel an
-# older commit's scan mid-flight, orphaning the check run it already created as permanently pending.
+# Keyed on the scanned commit, not the branch, and never cancelled: cancelling a scan mid-flight orphans the
+# check run it already created as permanently pending, and one commit is scanned twice whenever the stack it
+# belongs to dispatches CI twice for it.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
