@@ -161,6 +161,23 @@ export const UpdateDeploymentRequestSchema = z.object({
   })
 });
 
+const PatchEnvSchema = z.record(z.string(), z.string().nullable()).openapi({
+  description: "Merged into the service's env. A null value removes the variable."
+});
+
+export const PatchServiceSchema = z
+  .object({
+    image: z.string(),
+    command: z.array(z.string()).nullable(),
+    args: z.array(z.string()).nullable(),
+    env: PatchEnvSchema,
+    credentials: z
+      .object({ host: z.string(), username: z.string(), password: z.string() })
+      .nullable()
+      .openapi({ description: "Private registry pull credentials. Null clears them." })
+  })
+  .partial();
+
 export const UpdateDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema
 });
@@ -313,6 +330,7 @@ export type CloseDeploymentResponse = z.infer<typeof CloseDeploymentResponseSche
 export type DepositDeploymentRequest = z.infer<typeof DepositDeploymentRequestSchema>;
 export type DepositDeploymentResponse = z.infer<typeof DepositDeploymentResponseSchema>;
 export type UpdateDeploymentRequest = z.infer<typeof UpdateDeploymentRequestSchema>;
+export type PatchService = z.infer<typeof PatchServiceSchema>;
 export type UpdateDeploymentResponse = z.infer<typeof UpdateDeploymentResponseSchema>;
 export type ListWithResourcesParams = z.infer<typeof ListWithResourcesParamsSchema>;
 export type ListWithResourcesQuery = z.infer<typeof ListWithResourcesQuerySchema>;
