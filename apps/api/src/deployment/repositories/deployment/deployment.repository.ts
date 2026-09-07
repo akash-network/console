@@ -21,6 +21,18 @@ export interface DeploymentsBeforeCutoffOptions {
   cutoffHeight: number;
 }
 
+/** Both dates are inclusive calendar days, as the usage history window defines them. */
+export interface DeploymentActivityWindow {
+  startDate: string;
+  endDate: string;
+}
+
+function startOfDayAfter(date: string) {
+  const dayAfter = new Date(`${date}T00:00:00.000Z`);
+  dayAfter.setUTCDate(dayAfter.getUTCDate() + 1);
+  return dayAfter;
+}
+
 export interface DatabaseDeploymentListParams {
   owner?: string;
   state?: "active" | "closed";
@@ -75,13 +87,16 @@ export class DeploymentRepository {
     });
   }
 
-  async countActiveByOwner(owner: string, startDate?: string, endDate?: string): Promise<number> {
+  async countActiveByOwner(owner: string, window?: DeploymentActivityWindow): Promise<number> {
+    if (!window) {
+      return await Deployment.count({ where: { owner, closedHeight: null } });
+    }
+
     return await Deployment.count({
       where: {
         owner,
-        closedHeight: null,
-        ...(startDate && { "$createdBlock.datetime$": { [Op.gte]: startDate } }),
-        ...(endDate && { "$closedBlock.datetime$": { [Op.lte]: endDate } })
+        "$createdBlock.datetime$": { [Op.lt]: startOfDayAfter(window.endDate) },
+        [Op.or]: [{ closedHeight: null }, { "$closedBlock.datetime$": { [Op.gte]: window.startDate } }]
       },
       include: [
         { model: Block, as: "createdBlock" },

@@ -432,6 +432,27 @@ describe("GET /v1/usage/history/stats", () => {
     return { owners, expectUsageStats };
   }
 
+  async function seedDeploymentsAroundWindow() {
+    await initDb();
+    const now = new Date();
+    now.setUTCHours(12, 0, 0, 0);
+    const owner = createAkashAddress();
+
+    const blocks = await Promise.all([
+      createAkashBlock({ height: 900001, datetime: subDays(now, 10) }),
+      createAkashBlock({ height: 900002, datetime: subDays(now, 8) }),
+      createAkashBlock({ height: 900003, datetime: subDays(now, 2) })
+    ]);
+
+    await Promise.all([
+      createDeployment({ owner, dseq: "9001", createdHeight: blocks[0].height, closedHeight: blocks[2].height }),
+      createDeployment({ owner, dseq: "9002", createdHeight: blocks[2].height, closedHeight: null }),
+      createDeployment({ owner, dseq: "9003", createdHeight: blocks[0].height, closedHeight: blocks[1].height })
+    ]);
+
+    return { owner, startDate: formatUTCDate(subDays(now, 5)), endDate: formatUTCDate(now) };
+  }
+
   it("returns usage stats for a valid address with default date range", async () => {
     const { owners, expectUsageStats } = setup();
     const response = await app.request(`/v1/usage/history/stats?address=${owners[0]}`);
@@ -461,6 +482,16 @@ describe("GET /v1/usage/history/stats", () => {
     expect(data.averageSpentPerDay).toBe(0);
     expect(data.totalDeployments).toBe(0);
     expect(data.averageDeploymentsPerDay).toBe(0);
+  });
+
+  it("counts the deployments that were active during the window", async () => {
+    const { expectUsageStats } = setup();
+    const { owner, startDate, endDate } = await seedDeploymentsAroundWindow();
+
+    const response = await app.request(`/v1/usage/history/stats?address=${owner}&startDate=${startDate}&endDate=${endDate}`);
+    const data = await expectUsageStats(response);
+
+    expect(data.totalDeployments).toBe(2);
   });
 
   it("responds with 400 for invalid address format", async () => {
