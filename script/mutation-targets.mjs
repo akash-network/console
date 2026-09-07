@@ -27,7 +27,7 @@ async function mutationTargets(workspace, base) {
   }
 
   const isMutatable = await coverageScopeOf(workspace);
-  const ranges = changedLineRanges(workspace, base).filter(({ file }) => isMutatable(file));
+  const ranges = changedLineRanges(workspace, mergeBaseWith(base)).filter(({ file }) => isMutatable(file));
 
   if (ranges.length === 0) {
     return { skip: `no mutatable source line changed in ${workspace}` };
@@ -57,6 +57,15 @@ async function coverageScopeOf(workspace) {
   return file => isMeasured(file) && !isExcluded(file);
 }
 
+/** A shallow CI checkout has no common history to merge-base against, in which case the given ref is already the base. */
+function mergeBaseWith(base) {
+  try {
+    return git(["merge-base", base, "HEAD"]).trim();
+  } catch {
+    return base;
+  }
+}
+
 function changedLineRanges(workspace, base) {
   const diff = execFileSync("git", ["diff", "--unified=0", base, "HEAD", "--", `${workspace}/src`], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
   const ranges = [];
@@ -76,6 +85,10 @@ function changedLineRanges(workspace, base) {
   }
 
   return ranges;
+}
+
+function git(args) {
+  return execFileSync("git", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "ignore"] });
 }
 
 function unitTestScriptOf(workspace) {
