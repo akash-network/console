@@ -7522,6 +7522,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
       "put": {
+        "deprecated": true,
+        "description": "Deprecated. Resubmits the whole SDL, so rotating one secret means re-supplying every other value the document carries, and the console cannot return a stored value for you to resupply. This endpoint will be removed in a future release.",
         "operationId": "updateDeployment",
         "parameters": [
           {
@@ -7943,7 +7945,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "ApiKeyAuth": [],
           },
         ],
-        "summary": "Update a deployment",
+        "summary": "Update a deployment (deprecated)",
         "tags": [
           "Deployments",
         ],

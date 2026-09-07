@@ -164,8 +164,11 @@ deploymentsRouter.openapi(depositRoute, async function routeDepositDeployment(c)
 const updateRoute = createRoute({
   method: "put",
   path: "/v1/deployments/{dseq}",
-  summary: "Update a deployment",
+  summary: "Update a deployment (deprecated)",
+  description:
+    "Deprecated. Resubmits the whole SDL, so rotating one secret means re-supplying every other value the document carries, and the console cannot return a stored value for you to resupply. This endpoint will be removed in a future release.",
   operationId: "updateDeployment",
+  deprecated: true,
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,
   request: {
