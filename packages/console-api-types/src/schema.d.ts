@@ -8282,7 +8282,7 @@ export interface operations {
                     };
                   };
                 };
-                /** @description Keyed by volume name. Mount point only — sizes are fixed at create. */
+                /** @description Keyed by volume name. Mount point and read-only flag only — sizes are fixed at create. */
                 storage?: {
                   [key: string]: {
                     mount?: string;
@@ -8440,7 +8440,7 @@ export interface operations {
           };
         };
       };
-      /** @description The deployment's stored state could not be read. Permanent rather than transient, so a retry cannot help, and the stored token is left untouched: `code` is `stored_secrets_unreadable` when the sealed secrets would not open and `stored_sdl_unreadable` when the recorded SDL would not parse */
+      /** @description The deployment's stored state could not be read: `code` is `stored_secrets_unreadable` when the sealed secrets would not open and `stored_sdl_unreadable` when the recorded SDL would not parse. Both are permanent rather than transient, so a retry cannot help, and both leave the stored token untouched. A 500 carrying any other `code` is an unexpected failure and promises neither of those things */
       500: {
         headers: {
           [name: string]: unknown;
