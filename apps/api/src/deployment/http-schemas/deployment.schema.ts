@@ -168,6 +168,24 @@ const PatchEnvSchema = z.record(z.string().regex(ENV_VARIABLE_NAME), z.string().
   description: "Merged into the service's env, keyed by environment variable name. A null value removes the variable."
 });
 
+const PatchHttpOptionsSchema = z
+  .object({
+    maxBodySize: z.number().int().positive(),
+    readTimeout: z.number().int().positive(),
+    sendTimeout: z.number().int().positive(),
+    nextTries: z.number().int().positive(),
+    nextTimeout: z.number().int().positive(),
+    nextCases: z.array(z.string())
+  })
+  .partial();
+
+const PatchExposeSchema = z
+  .object({
+    accept: z.array(z.string()).openapi({ description: "Custom domains. Replaces the existing list." }),
+    httpOptions: PatchHttpOptionsSchema
+  })
+  .partial();
+
 export const PatchServiceSchema = z
   .object({
     image: z.string(),
@@ -177,7 +195,13 @@ export const PatchServiceSchema = z
     credentials: z
       .object({ host: z.string(), username: z.string(), password: z.string() })
       .nullable()
-      .openapi({ description: "Private registry pull credentials. Null clears them." })
+      .openapi({ description: "Private registry pull credentials. Null clears them." }),
+    expose: z.record(z.string(), PatchExposeSchema).openapi({
+      description: "Keyed by container port. Only hosts and http options are patchable; endpoint kind and count are fixed at create."
+    }),
+    storage: z.record(z.string(), z.object({ mount: z.string(), readOnly: z.boolean() }).partial()).openapi({
+      description: "Keyed by volume name. Mount point only — sizes are fixed at create."
+    })
   })
   .partial();
 

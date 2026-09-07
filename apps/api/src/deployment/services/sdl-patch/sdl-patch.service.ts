@@ -6,6 +6,10 @@ import type { PatchService } from "@src/deployment/http-schemas/deployment.schem
 import { MAX_ECHOED_REFERENCE_LENGTH, ownValue, readEnvDeclaration } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 
 type SdlServiceNode = SDLInput["services"][string];
+type SdlExposeNode = NonNullable<SdlServiceNode["expose"]>[number];
+type SdlHttpOptionsNode = NonNullable<SdlExposeNode["http_options"]>;
+type SdlStorageNode = NonNullable<NonNullable<SdlServiceNode["params"]>["storage"]>[string];
+type PatchExpose = NonNullable<PatchService["expose"]>[string];
 
 type PatchTarget = { serviceName: string; shared: Set<object>; written: Set<string> };
 
@@ -27,15 +31,41 @@ function assignsEnv(patch: PatchService["env"]): patch is NonNullable<PatchServi
   return patch !== undefined && Object.keys(patch).length > 0;
 }
 
+function echo(key: string): string {
+  return key.slice(0, MAX_ECHOED_REFERENCE_LENGTH);
+}
+
+/** An empty options object assigns nothing, and synthesising the node for it would leave a read showing an `http_options: {}` the user never wrote. */
+function assignsHttpOptions(patch: PatchExpose): boolean {
+  return patch.httpOptions !== undefined && Object.values(patch.httpOptions).some(value => value !== undefined);
+}
+
+/** Every node a patch could write through, so sharing is judged against the object that would actually be mutated. */
+function writableNodesOf(service: SdlServiceNode): object[] {
+  const nodes: unknown[] = [service, service.env, service.credentials, service.expose, service.params, service.params?.storage];
+
+  if (Array.isArray(service.expose)) {
+    for (const entry of service.expose) nodes.push(entry, entry?.http_options);
+  }
+
+  const storage = service.params?.storage;
+
+  if (isNode(storage)) {
+    for (const volume of Object.values(storage)) nodes.push(volume);
+  }
+
+  return nodes.filter(isNode);
+}
+
 /** A node reachable twice is one a write would change in a place the request did not name, whether the second reacher is another service or another part of the same one. */
 function sharedNodesOf(services: SDLInput["services"]): Set<object> {
   const seen = new Set<object>();
   const shared = new Set<object>();
 
   for (const service of Object.values(services)) {
-    for (const node of [service, service?.env, service?.credentials]) {
-      if (!isNode(node)) continue;
+    if (!isNode(service)) continue;
 
+    for (const node of writableNodesOf(service)) {
       if (seen.has(node)) shared.add(node);
 
       seen.add(node);
@@ -43,10 +73,6 @@ function sharedNodesOf(services: SDLInput["services"]): Set<object> {
   }
 
   return shared;
-}
-
-function echo(key: string): string {
-  return key.slice(0, MAX_ECHOED_REFERENCE_LENGTH);
 }
 
 /** Applies a partial service definition to the stored SDL, naming only keys the caller sent and never a value, because its messages are echoed back and logged. */
@@ -88,6 +114,10 @@ export class SdlPatchService {
       this.#assertNotShared(service.credentials, { ...at, field: "credentials" });
       this.#applyCredentials(service, patch.credentials, at);
     }
+
+    if (patch.expose !== undefined) this.#applyExpose(service, patch.expose, at);
+
+    if (patch.storage !== undefined) this.#applyStorage(service, patch.storage, at);
   }
 
   /** A cleared list is removed rather than written as `null`, so a read never shows a field the user did not write. */
@@ -132,6 +162,70 @@ export class SdlPatchService {
 
     for (const field of ["username", "password"] as const) {
       if (patch[field] !== undefined) target.written.add(`/services/${target.serviceName}/credentials/${field}`);
+    }
+  }
+
+  /**
+   * Matched on the container port the endpoint declares, because an endpoint's kind and count are fixed
+   * at create; the grammar allows two endpoints to share one port and differ only by `proto` or `as`, so
+   * an address matching more than one is refused rather than resolved to the first.
+   */
+  #applyExpose(service: SdlServiceNode, patch: NonNullable<PatchService["expose"]>, at: PatchTarget): void {
+    const exposed = Array.isArray(service.expose) ? service.expose : [];
+
+    for (const [port, entryPatch] of Object.entries(patch)) {
+      const matches = exposed.filter(candidate => String(candidate?.port) === port);
+
+      if (matches.length === 0) {
+        throw this.#reject(`service "${echo(at.serviceName)}" exposes no port "${echo(port)}"`);
+      }
+
+      if (matches.length > 1) {
+        throw this.#reject(
+          `service "${echo(at.serviceName)}" exposes port "${echo(port)}" ${matches.length} times, so this patch cannot say which endpoint it means`
+        );
+      }
+
+      this.#assertNotShared(matches[0], { ...at, field: `expose on port ${echo(port)}` });
+      this.#applyExposeEntry(matches[0], entryPatch, at, port);
+    }
+  }
+
+  #applyExposeEntry(entry: SdlExposeNode, patch: PatchExpose, at: PatchTarget, port: string): void {
+    if (patch.accept !== undefined) entry.accept = patch.accept;
+
+    if (!assignsHttpOptions(patch)) return;
+
+    this.#assertNotShared(entry.http_options, { ...at, field: `http options on port ${echo(port)}` });
+    entry.http_options ??= {};
+    this.#applyHttpOptions(entry.http_options, patch.httpOptions!);
+  }
+
+  /** Spelled out one key at a time so the compiler checks the SDL key each camelCase field lands on; `nextCases` is cast because the request accepts any string where the SDL names a closed set. */
+  #applyHttpOptions(target: SdlHttpOptionsNode, patch: NonNullable<PatchExpose["httpOptions"]>): void {
+    if (patch.maxBodySize !== undefined) target.max_body_size = patch.maxBodySize;
+    if (patch.readTimeout !== undefined) target.read_timeout = patch.readTimeout;
+    if (patch.sendTimeout !== undefined) target.send_timeout = patch.sendTimeout;
+    if (patch.nextTries !== undefined) target.next_tries = patch.nextTries;
+    if (patch.nextTimeout !== undefined) target.next_timeout = patch.nextTimeout;
+    if (patch.nextCases !== undefined) target.next_cases = patch.nextCases as SdlHttpOptionsNode["next_cases"];
+  }
+
+  /** Volume sizes are fixed at create, so only the mount point moves and a volume the profile does not declare is refused rather than added. */
+  #applyStorage(service: SdlServiceNode, patch: NonNullable<PatchService["storage"]>, at: PatchTarget): void {
+    const declared = service.params?.storage;
+
+    for (const [volumeName, volumePatch] of Object.entries(patch)) {
+      const volume: SdlStorageNode | undefined = declared ? ownValue(declared, volumeName) : undefined;
+
+      if (!volume) {
+        throw this.#reject(`service "${echo(at.serviceName)}" declares no storage volume "${echo(volumeName)}"`);
+      }
+
+      this.#assertNotShared(volume, { ...at, field: `storage volume ${echo(volumeName)}` });
+
+      if (volumePatch.mount !== undefined) volume.mount = volumePatch.mount;
+      if (volumePatch.readOnly !== undefined) volume.readOnly = volumePatch.readOnly;
     }
   }
 
