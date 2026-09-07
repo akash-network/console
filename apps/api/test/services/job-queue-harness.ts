@@ -30,6 +30,7 @@ export interface JobRow<TData = Record<string, unknown>> {
 interface JobSelector {
   singletonKey?: string;
   singletonKeyLike?: string;
+  data?: Record<string, string>;
 }
 
 function db() {
@@ -68,11 +69,18 @@ export function useJobWorkers(resolveHandlers: () => JobHandler<Job>[]) {
   };
 }
 
-function selectorFilter({ singletonKey, singletonKeyLike }: JobSelector) {
-  if (singletonKey) return sql`and singleton_key = ${singletonKey}`;
-  if (singletonKeyLike) return sql`and singleton_key like ${singletonKeyLike}`;
+/** A payload selector, because a domain event published without a singleton key has no other way to name one job among many. */
+function selectorFilter({ singletonKey, singletonKeyLike, data }: JobSelector) {
+  let filter = sql``;
 
-  return sql``;
+  if (singletonKey) filter = sql`${filter} and singleton_key = ${singletonKey}`;
+  else if (singletonKeyLike) filter = sql`${filter} and singleton_key like ${singletonKeyLike}`;
+
+  for (const [key, value] of Object.entries(data ?? {})) {
+    filter = sql`${filter} and data->>${key} = ${value}`;
+  }
+
+  return filter;
 }
 
 export async function findJobRows<TData = Record<string, unknown>>(jobName: string, selector: JobSelector = {}): Promise<JobRow<TData>[]> {
