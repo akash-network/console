@@ -144,19 +144,33 @@ export class DeploymentWriterService {
   }): Promise<void> {
     const { owner, ...definition } = input;
 
+    const singletonKey = unbackedDeploymentSettingKeyFor(input);
+
     await this.txService.transaction(async () => {
       const deploymentSettingId = await this.recordDefinition(definition);
 
       const compensationId = await this.jobQueueService.enqueue(new DeleteUnbackedDeploymentSetting({ deploymentSettingId, owner, dseq: input.dseq }), {
-        singletonKey: unbackedDeploymentSettingKeyFor(input),
+        singletonKey,
         startAfter: addMinutes(new Date(), this.deploymentConfig.get("UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN")).toISOString(),
         ...unbackedDeploymentSettingRetryOptions(this.deploymentConfig)
       });
 
-      if (!compensationId) {
+      if (compensationId) return;
+
+      if (!(await this.compensationIsAlreadyWaiting(singletonKey))) {
         throw new Error(`Refusing to record deployment setting ${deploymentSettingId} without a compensation: the queue accepted no job`);
       }
+
+      this.logger.info({ event: "UNBACKED_DEPLOYMENT_SETTING_COMPENSATION_ALREADY_WAITING", deploymentSettingId, owner, dseq: input.dseq });
     });
+  }
+
+  /**
+   * A retry of a create on the same dseq upserts the same row, and the queue's exclusive policy refuses a second
+   * job for its key, so the compensation the abandoned attempt left behind is already the one this row needs.
+   */
+  private async compensationIsAlreadyWaiting(singletonKey: string): Promise<boolean> {
+    return await this.jobQueueService.hasPendingSingleton({ name: DeleteUnbackedDeploymentSetting[JOB_NAME], singletonKey });
   }
 
   /** A failure must stay logged rather than raised: the create already succeeded, and an uncancelled compensation still asks the chain before deleting. */

@@ -83,9 +83,7 @@ export class ClosedDeploymentsReconcilerService {
     let consecutiveFailures = 0;
 
     try {
-      const pendingCompensationKeys = dryRun
-        ? new Set<string>()
-        : await this.jobQueueService.findPendingSingletonKeys(DeleteUnbackedDeploymentSetting[JOB_NAME]);
+      const pendingCompensationKeys = await this.#readPendingCompensationKeys();
       const unbackedBefore = subMinutes(new Date(), this.deploymentConfig.get("UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN"));
 
       for await (const batch of this.deploymentSettingRepository.findOpenDeploymentsIteratively({ batchSize: BATCH_SIZE })) {
@@ -153,12 +151,28 @@ export class ClosedDeploymentsReconcilerService {
       await this.deploymentSettingRepository.markAsClosed(idsToClose);
     }
 
-    const compensated = dryRun ? unbacked.length : await this.#compensate(unbacked, pendingCompensationKeys);
+    const compensated = dryRun
+      ? unbacked.filter(deployment => !pendingCompensationKeys.has(unbackedDeploymentSettingKeyFor(deployment))).length
+      : await this.#compensate(unbacked, pendingCompensationKeys);
 
     return { closed: idsToClose.length, confirmedOpen, withoutChainState, compensated };
   }
 
-  /** Skips a row whose compensation is already waiting, so the hourly run cannot stack jobs behind one the create path or an earlier run enqueued. */
+  /** A snapshot only spares the queue inserts its exclusive policy would refuse anyway, so a queue it cannot read must not cost the run its close detection. */
+  async #readPendingCompensationKeys(): Promise<Set<string>> {
+    try {
+      return await this.jobQueueService.findPendingSingletonKeys(DeleteUnbackedDeploymentSetting[JOB_NAME]);
+    } catch (error) {
+      this.#logger.error({ event: "CLOSED_DEPLOYMENTS_RECONCILE_PENDING_COMPENSATIONS_UNREADABLE", error });
+      return new Set();
+    }
+  }
+
+  /**
+   * Skips a row whose compensation is already waiting, so the hourly run cannot stack jobs behind one the create
+   * path or an earlier run enqueued, and gives up on the rest of the batch rather than raising, since the closes
+   * beside them are already committed and an unreachable queue would otherwise log a line per row.
+   */
   async #compensate(unbacked: OpenDeployment[], pendingCompensationKeys: Set<string>): Promise<number> {
     let compensated = 0;
 
@@ -167,14 +181,19 @@ export class ClosedDeploymentsReconcilerService {
 
       if (pendingCompensationKeys.has(singletonKey)) continue;
 
-      const jobId = await this.jobQueueService.enqueue(
-        new DeleteUnbackedDeploymentSetting({ deploymentSettingId: deployment.id, owner: deployment.address, dseq: deployment.dseq }),
-        { singletonKey, priority: BACKLOG_COMPENSATION_PRIORITY, ...unbackedDeploymentSettingRetryOptions(this.deploymentConfig) }
-      );
+      try {
+        const jobId = await this.jobQueueService.enqueue(
+          new DeleteUnbackedDeploymentSetting({ deploymentSettingId: deployment.id, owner: deployment.address, dseq: deployment.dseq }),
+          { singletonKey, priority: BACKLOG_COMPENSATION_PRIORITY, ...unbackedDeploymentSettingRetryOptions(this.deploymentConfig) }
+        );
 
-      if (jobId) {
-        pendingCompensationKeys.add(singletonKey);
-        compensated++;
+        if (jobId) {
+          pendingCompensationKeys.add(singletonKey);
+          compensated++;
+        }
+      } catch (error) {
+        this.#logger.error({ event: "CLOSED_DEPLOYMENTS_RECONCILE_COMPENSATION_ENQUEUE_FAILED", deploymentSettingId: deployment.id, compensated, error });
+        break;
       }
     }
 

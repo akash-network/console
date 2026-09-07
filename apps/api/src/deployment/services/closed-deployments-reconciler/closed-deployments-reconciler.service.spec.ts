@@ -196,7 +196,6 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
     await service.reconcileClosedDeployments({ dryRun: true });
 
     expect(deploymentSettingRepository.markAsClosed).not.toHaveBeenCalled();
-    expect(jobQueueService.findPendingSingletonKeys).not.toHaveBeenCalled();
     expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     expect(countersByName["closed_deployments_reconcile_rows_closed_total"].add).not.toHaveBeenCalled();
     expect(countersByName["closed_deployments_reconcile_rows_compensated_total"].add).not.toHaveBeenCalled();
@@ -212,6 +211,19 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
     expect(logger.info).toHaveBeenCalledWith(
       expect.objectContaining({ event: "CLOSED_DEPLOYMENTS_RECONCILE_END", scanned: 2, closed: 1, compensated: 1, dryRun: true })
     );
+  });
+
+  it("leaves a row whose compensation is already waiting out of what a dry run reports", async () => {
+    const waiting = openDeployment({ createdAt: subMinutes(new Date(), GRACE_IN_MIN + 1) });
+    const { service, logger } = setup({
+      openDeployments: [waiting],
+      closureStates: [],
+      pendingCompensationKeys: [unbackedDeploymentSettingKeyFor(waiting)]
+    });
+
+    await service.reconcileClosedDeployments({ dryRun: true });
+
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CLOSED_DEPLOYMENTS_RECONCILE_END", compensated: 0, dryRun: true }));
   });
 
   it("keeps reconciling the remaining batches when one of them fails", async () => {
@@ -230,19 +242,34 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CLOSED_DEPLOYMENTS_RECONCILE_END", failedBatches: 1, closed: 1 }));
   });
 
-  it("fails the batch rather than the run when the queue refuses a compensation", async () => {
+  it("keeps the closes a batch already committed when the queue refuses a compensation beside them", async () => {
+    const closed = openDeployment();
     const unbacked = openDeployment({ createdAt: subMinutes(new Date(), GRACE_IN_MIN + 1) });
     const { service, logger, countersByName } = setup({
-      openDeployments: [unbacked],
+      openDeployments: [closed, unbacked],
+      closureStates: [closureState(closed, true)],
+      enqueue: vi.fn().mockRejectedValue(new Error("queue down"))
+    });
+
+    await service.reconcileClosedDeployments({ dryRun: false });
+
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "CLOSED_DEPLOYMENTS_RECONCILE_COMPENSATION_ENQUEUE_FAILED" }));
+    expect(countersByName["closed_deployments_reconcile_rows_closed_total"].add).toHaveBeenCalledWith(1);
+    expect(countersByName["closed_deployments_reconcile_rows_compensated_total"].add).toHaveBeenCalledWith(0);
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CLOSED_DEPLOYMENTS_RECONCILE_END", failedBatches: 0, closed: 1 }));
+  });
+
+  it("gives up on the rest of a batch's compensations once the queue refuses one, rather than a line per row", async () => {
+    const unbacked = Array.from({ length: 3 }, () => openDeployment({ createdAt: subMinutes(new Date(), GRACE_IN_MIN + 1) }));
+    const { service, jobQueueService } = setup({
+      openDeployments: unbacked,
       closureStates: [],
       enqueue: vi.fn().mockRejectedValue(new Error("queue down"))
     });
 
     await service.reconcileClosedDeployments({ dryRun: false });
 
-    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "CLOSED_DEPLOYMENTS_RECONCILE_BATCH_FAILED" }));
-    expect(countersByName["closed_deployments_reconcile_rows_compensated_total"].add).not.toHaveBeenCalled();
-    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CLOSED_DEPLOYMENTS_RECONCILE_END", failedBatches: 1 }));
+    expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
   });
 
   it("credits a failed batch with nothing it did not write", async () => {
@@ -299,16 +326,19 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
     expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "CLOSED_DEPLOYMENTS_RECONCILE_END" }));
   });
 
-  it("reports a failure to read the waiting compensations rather than raising it", async () => {
+  it("keeps closing records the chain closed when the waiting compensations cannot be read", async () => {
+    const closed = openDeployment();
     const { service, deploymentSettingRepository, logger } = setup({
-      openDeployments: [openDeployment()],
+      openDeployments: [closed],
+      closureStates: [closureState(closed, true)],
       findPendingSingletonKeys: vi.fn().mockRejectedValue(new Error("queue unavailable"))
     });
 
-    await expect(service.reconcileClosedDeployments({ dryRun: false })).resolves.toBeUndefined();
+    await service.reconcileClosedDeployments({ dryRun: false });
 
-    expect(deploymentSettingRepository.findOpenDeploymentsIteratively).not.toHaveBeenCalled();
-    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "CLOSED_DEPLOYMENTS_RECONCILE_FAILED" }));
+    expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledWith([closed.id]);
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "CLOSED_DEPLOYMENTS_RECONCILE_PENDING_COMPENSATIONS_UNREADABLE" }));
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CLOSED_DEPLOYMENTS_RECONCILE_END", closed: 1 }));
   });
 
   it("reads nothing from the chain when no record is open", async () => {

@@ -680,6 +680,30 @@ describe(DeploymentWriterService.name, () => {
       );
     });
 
+    it("goes on with the create when the queue refused the compensation because one is already waiting for the row", async () => {
+      const { service, signerService, logger } = setup({ compensationEnqueued: false, compensationAlreadyWaiting: true });
+      vi.spyOn(Date, "now").mockReturnValue(1748400000000);
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 })).resolves.toMatchObject({ dseq: "1748400000000" });
+
+      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "UNBACKED_DEPLOYMENT_SETTING_COMPENSATION_ALREADY_WAITING", dseq: "1748400000000" })
+      );
+    });
+
+    it("asks about the waiting compensation under the key the create would have enqueued", async () => {
+      const { service, jobQueueService } = setup({ compensationEnqueued: false, compensationAlreadyWaiting: true });
+      vi.spyOn(Date, "now").mockReturnValue(1748400000000);
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(jobQueueService.hasPendingSingleton).toHaveBeenCalledWith({
+        name: DeleteUnbackedDeploymentSetting[JOB_NAME],
+        singletonKey: "deleteUnbackedDeploymentSetting.user-1.1748400000000"
+      });
+    });
+
     it("refuses the create when the queue accepted no compensation", async () => {
       const { service } = setup({ compensationEnqueued: false });
 
@@ -1854,6 +1878,7 @@ describe(DeploymentWriterService.name, () => {
     defaultDeposit?: number;
     transactionRuns?: boolean;
     compensationEnqueued?: boolean;
+    compensationAlreadyWaiting?: boolean;
     manifestVersion?: Uint8Array;
     received?: SdlSecrets;
     sealedSecrets?: string | null;
@@ -1883,6 +1908,7 @@ describe(DeploymentWriterService.name, () => {
     txService.transaction.mockImplementation(async cb => (input?.transactionRuns === false ? (undefined as never) : await cb()));
     const jobQueueService = mock<JobQueueService>();
     jobQueueService.enqueue.mockResolvedValue(input?.compensationEnqueued === false ? null : COMPENSATION_JOB_ID);
+    jobQueueService.hasPendingSingleton.mockResolvedValue(input?.compensationAlreadyWaiting ?? false);
 
     const sdlSecretsService = mock<SdlSecretsService>();
     /** Real rather than doubled, because what every stored-sdl assertion below measures is the document this produces. */
