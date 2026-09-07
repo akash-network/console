@@ -343,6 +343,32 @@ describe("PATCH /v1/deployments/{dseq}", () => {
         sealedSecrets: before!.sealedSecrets
       });
     });
+
+    it("refuses the slower of two concurrent patches that both read the same version", async () => {
+      const { apiKey } = await patchable();
+      const { atBarrier, release } = holdTheFirstSeal();
+
+      const slower = patch(apiKey, { services: { web: { image: "nginx:slower" } } });
+      await atBarrier;
+      const faster = await patch(apiKey, { services: { web: { image: "nginx:faster" } } });
+      release();
+
+      expect(faster.status).toBe(200);
+      expect((await slower).status).toBe(409);
+    });
+
+    it("keeps what the faster of two concurrent patches wrote", async () => {
+      const { apiKey, user } = await patchable();
+      const { atBarrier, release } = holdTheFirstSeal();
+
+      const slower = patch(apiKey, { services: { web: { image: "nginx:slower" } } });
+      await atBarrier;
+      await patch(apiKey, { services: { web: { image: "nginx:faster" } } });
+      release();
+      await slower;
+
+      expect((await settingOf(user))!.sdl).toContain("nginx:faster");
+    });
   });
 
   describe("a patch re-sent after a broadcast the client never saw succeed", () => {
@@ -589,6 +615,28 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     const resolved = await container.resolve(SdlService).generateResolvedManifest({ sdl, secrets });
 
     return resolved.ok ? Buffer.from(resolved.value.manifestVersion).toString("base64") : Buffer.from("unresolvable-fixture").toString("base64");
+  }
+
+  function holdTheFirstSeal() {
+    const sdlSecretsService = container.resolve(SdlSecretsService);
+    const seal = sdlSecretsService.sealForStorage.bind(sdlSecretsService);
+    let reached!: () => void;
+    let release!: () => void;
+    const atBarrier = new Promise<void>(resolve => (reached = resolve));
+    const held = new Promise<void>(resolve => (release = resolve));
+    let isFirst = true;
+
+    vi.spyOn(sdlSecretsService, "sealForStorage").mockImplementation(async input => {
+      if (isFirst) {
+        isFirst = false;
+        reached();
+        await held;
+      }
+
+      return await seal(input);
+    });
+
+    return { atBarrier, release };
   }
 
   async function manifestVersionOf(response: Response) {
