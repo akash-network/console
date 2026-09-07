@@ -61,9 +61,14 @@ jobs:
               "yarn.lock",
               "bun.lockb",
             ]);
+            const generatedApiArtifacts = new Set([
+              "apps/api/swagger/openapi.json",
+              "packages/console-api-types/src/schema.d.ts",
+            ]);
             const totalChangedLines = files.reduce((total, file) => {
               const path = file.filename ?? "";
               const isIgnoredFile = excludedLockfiles.has(path) ||
+                generatedApiArtifacts.has(path) ||
                 (path.includes("/drizzle/meta/") && path.endsWith('.json')) || path.endsWith('.md') ||
                 path.endsWith(".gen.ts") ||
                 path.includes("/generated/");
