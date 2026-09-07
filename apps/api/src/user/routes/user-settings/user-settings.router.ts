@@ -156,3 +156,25 @@ userSettingsRouter.openapi(skipOnboardingRoute, async function skipOnboarding(c)
   await container.resolve(UserController).skipOnboarding();
   return c.body(null, 204);
 });
+
+const acceptFairUsePolicyRoute = createRoute({
+  method: "post",
+  path: "/v1/user/acceptFairUsePolicy",
+  operationId: "acceptFairUsePolicy",
+  summary: "Accept the Fair Use Policy",
+  tags: ["Users"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  responses: {
+    204: {
+      description: "Fair Use Policy accepted"
+    },
+    401: {
+      description: "Unauthorized"
+    }
+  }
+});
+
+userSettingsRouter.openapi(acceptFairUsePolicyRoute, async function acceptFairUsePolicy(c) {
+  await container.resolve(UserController).acceptFairUsePolicy();
+  return c.body(null, 204);
+});

@@ -19,6 +19,7 @@ export function createUser({
   lastUserAgent = faker.internet.userAgent(),
   lastFingerprint = faker.word.noun(),
   onboardingSkippedAt = null,
+  fairUsePolicyAcceptedAt = faker.date.recent(),
   createdAt = faker.date.recent(),
   trial = false
 }: Partial<UserOutput> = {}): UserOutput {
@@ -39,6 +40,7 @@ export function createUser({
     lastUserAgent,
     lastFingerprint,
     onboardingSkippedAt,
+    fairUsePolicyAcceptedAt,
     createdAt,
     trial
   };

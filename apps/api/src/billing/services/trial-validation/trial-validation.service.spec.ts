@@ -7,12 +7,15 @@ import { mock } from "vitest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
+import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import type { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
-import { TrialValidationService } from "./trial-validation.service";
+import type { UserRepository } from "@src/user/repositories";
+import { FAIR_USE_POLICY_REQUIRED_ERROR_CODE, TrialValidationService } from "./trial-validation.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createBid } from "@test/seeders/bid.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(TrialValidationService.name, () => {
@@ -265,6 +268,61 @@ describe(TrialValidationService.name, () => {
     return bid;
   }
 
+  describe("validateFairUsePolicyAccepted", () => {
+    it("skips validation when wallet is not trialing", async () => {
+      const wallet = createUserWallet({ isTrialing: false });
+      const { service, userRepository } = setupFairUse({ flagEnabled: true });
+
+      await service.validateFairUsePolicyAccepted([createDeploymentMessage()], wallet);
+
+      expect(userRepository.findById).not.toHaveBeenCalled();
+    });
+
+    it("skips validation when there is no MsgCreateDeployment", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service, userRepository } = setupFairUse({ flagEnabled: true });
+
+      await service.validateFairUsePolicyAccepted([createLeaseMessage()], wallet);
+
+      expect(userRepository.findById).not.toHaveBeenCalled();
+    });
+
+    it("skips validation when the gate flag is disabled", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service, userRepository } = setupFairUse({ flagEnabled: false });
+
+      await service.validateFairUsePolicyAccepted([createDeploymentMessage()], wallet);
+
+      expect(userRepository.findById).not.toHaveBeenCalled();
+    });
+
+    it("passes when the trial user has accepted the policy", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service, userRepository } = setupFairUse({ flagEnabled: true, user: createUser({ fairUsePolicyAcceptedAt: new Date() }) });
+
+      await expect(service.validateFairUsePolicyAccepted([createDeploymentMessage()], wallet)).resolves.toBeUndefined();
+
+      expect(userRepository.findById).toHaveBeenCalledWith(wallet.userId);
+    });
+
+    it("rejects with 403 and the fair_use_policy_required code when the trial user has not accepted", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupFairUse({ flagEnabled: true, user: createUser({ fairUsePolicyAcceptedAt: null }) });
+
+      await expect(service.validateFairUsePolicyAccepted([createDeploymentMessage()], wallet)).rejects.toMatchObject({
+        status: 403,
+        errorCode: FAIR_USE_POLICY_REQUIRED_ERROR_CODE
+      });
+    });
+
+    it("rejects with 403 when the user row cannot be found", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service } = setupFairUse({ flagEnabled: true, user: undefined });
+
+      await expect(service.validateFairUsePolicyAccepted([createDeploymentMessage()], wallet)).rejects.toMatchObject({ status: 403 });
+    });
+  });
+
   describe("validateDeploymentResources", () => {
     it("skips validation when wallet is not trialing", async () => {
       const wallet = createUserWallet({ isTrialing: false });
@@ -451,6 +509,8 @@ describe(TrialValidationService.name, () => {
       mock<ProviderRepository>(),
       mock<BidHttpService>(),
       mock<BlockedGpuService>(),
+      mock<UserRepository>(),
+      mock<FeatureFlagsService>(),
       createLoggerStub().createLogger
     );
     return { service };
@@ -463,7 +523,15 @@ describe(TrialValidationService.name, () => {
     const config = mockConfigService<BillingConfigService>({
       MANAGED_WALLET_TRIAL_MIN_TOP_UP_AMOUNT: input.trialMin
     });
-    const service = new TrialValidationService(config, providerRepository, bidHttpService, blockedGpuService, createLoggerStub().createLogger);
+    const service = new TrialValidationService(
+      config,
+      providerRepository,
+      bidHttpService,
+      blockedGpuService,
+      mock<UserRepository>(),
+      mock<FeatureFlagsService>(),
+      createLoggerStub().createLogger
+    );
     return { service };
   }
 
@@ -476,7 +544,15 @@ describe(TrialValidationService.name, () => {
       MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: input.blockedGpuModels
     });
     const blockedGpuService = new BlockedGpuService(blockedGpuConfig);
-    const service = new TrialValidationService(config, providerRepository, bidHttpService, blockedGpuService, createLoggerStub().createLogger);
+    const service = new TrialValidationService(
+      config,
+      providerRepository,
+      bidHttpService,
+      blockedGpuService,
+      mock<UserRepository>(),
+      mock<FeatureFlagsService>(),
+      createLoggerStub().createLogger
+    );
     return { service, config, providerRepository, bidHttpService, blockedGpuService };
   }
 
@@ -486,8 +562,33 @@ describe(TrialValidationService.name, () => {
       MANAGED_WALLET_TRIAL_MAX_MEMORY_GI: input.maxMemoryGi
     });
     const { createLogger, logger } = createLoggerStub();
-    const service = new TrialValidationService(config, mock<ProviderRepository>(), mock<BidHttpService>(), mock<BlockedGpuService>(), createLogger);
+    const service = new TrialValidationService(
+      config,
+      mock<ProviderRepository>(),
+      mock<BidHttpService>(),
+      mock<BlockedGpuService>(),
+      mock<UserRepository>(),
+      mock<FeatureFlagsService>(),
+      createLogger
+    );
     return { service, logger };
+  }
+
+  function setupFairUse(input: { flagEnabled: boolean; user?: ReturnType<typeof createUser> }) {
+    const userRepository = mock<UserRepository>();
+    userRepository.findById.mockResolvedValue(input.user);
+    const featureFlagsService = mock<FeatureFlagsService>();
+    featureFlagsService.isEnabled.mockReturnValue(input.flagEnabled);
+    const service = new TrialValidationService(
+      mock<BillingConfigService>(),
+      mock<ProviderRepository>(),
+      mock<BidHttpService>(),
+      mock<BlockedGpuService>(),
+      userRepository,
+      featureFlagsService,
+      createLoggerStub().createLogger
+    );
+    return { service, userRepository, featureFlagsService };
   }
 
   function createLoggerStub() {

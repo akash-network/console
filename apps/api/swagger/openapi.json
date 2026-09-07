@@ -2054,6 +2054,11 @@
                           "type": "string",
                           "nullable": true,
                           "format": "date-time"
+                        },
+                        "fairUsePolicyAcceptedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
                         }
                       },
                       "required": [
@@ -2144,6 +2149,11 @@
                           "nullable": true
                         },
                         "onboardingSkippedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "fairUsePolicyAcceptedAt": {
                           "type": "string",
                           "nullable": true,
                           "format": "date-time"
@@ -2364,6 +2374,31 @@
         "responses": {
           "204": {
             "description": "Onboarding skipped"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/v1/user/acceptFairUsePolicy": {
+      "post": {
+        "operationId": "acceptFairUsePolicy",
+        "summary": "Accept the Fair Use Policy",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Fair Use Policy accepted"
           },
           "401": {
             "description": "Unauthorized"
@@ -18496,6 +18531,9 @@
                       },
                       "suppressedBySystem": {
                         "type": "boolean"
+                      },
+                      "reclaimNotifiedAt": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -18776,6 +18814,9 @@
                       },
                       "suppressedBySystem": {
                         "type": "boolean"
+                      },
+                      "reclaimNotifiedAt": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -19602,6 +19643,9 @@
                       },
                       "suppressedBySystem": {
                         "type": "boolean"
+                      },
+                      "reclaimNotifiedAt": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -19903,6 +19947,9 @@
                       },
                       "suppressedBySystem": {
                         "type": "boolean"
+                      },
+                      "reclaimNotifiedAt": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -20863,6 +20910,9 @@
                         },
                         "suppressedBySystem": {
                           "type": "boolean"
+                        },
+                        "reclaimNotifiedAt": {
+                          "type": "string"
                         }
                       },
                       "required": [
@@ -21164,6 +21214,9 @@
                         },
                         "suppressedBySystem": {
                           "type": "boolean"
+                        },
+                        "reclaimNotifiedAt": {
+                          "type": "string"
                         }
                       },
                       "required": [

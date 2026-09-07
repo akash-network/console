@@ -316,6 +316,7 @@ export class JobQueueService implements Disposable {
                 twitterUsername: null,
                 githubUsername: null,
                 onboardingSkippedAt: null,
+                fairUsePolicyAcceptedAt: null,
                 userId: "system:bg-job-user",
                 username: "___bg_job_user___",
                 trial: false

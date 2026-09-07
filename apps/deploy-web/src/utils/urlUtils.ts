@@ -68,6 +68,7 @@ export const UrlService = {
   faq: (q?: FaqAnchorType) => `/faq${q ? "#" + q : ""}`,
   privacyPolicy: () => "/privacy-policy",
   termsOfService: () => "/terms-of-service",
+  prohibitedUse: () => "/terms-of-service#prohibited-use",
 
   // User
   userSettings: () => "/user/settings",

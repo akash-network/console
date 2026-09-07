@@ -13434,6 +13434,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "emailVerified": {
                           "type": "boolean",
                         },
+                        "fairUsePolicyAcceptedAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "githubUsername": {
                           "nullable": true,
                           "type": "string",
@@ -14406,6 +14411,31 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/user/acceptFairUsePolicy": {
+      "post": {
+        "operationId": "acceptFairUsePolicy",
+        "responses": {
+          "204": {
+            "description": "Fair Use Policy accepted",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Accept the Fair Use Policy",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
     "/v1/user/addFavoriteTemplate/{templateId}": {
       "post": {
         "parameters": [
@@ -14611,6 +14641,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         },
                         "emailVerified": {
                           "type": "boolean",
+                        },
+                        "fairUsePolicyAcceptedAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string",
                         },
                         "githubUsername": {
                           "nullable": true,

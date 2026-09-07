@@ -150,6 +150,17 @@ describe(UserService.name, () => {
     });
   });
 
+  describe("acceptFairUsePolicy", () => {
+    it("persists the acceptance time with a set-if-null guard so it is written once and never overwritten", async () => {
+      const userId = faker.string.uuid();
+      const { service, userRepository } = setup();
+
+      await service.acceptFairUsePolicy(userId);
+
+      expect(userRepository.updateBy).toHaveBeenCalledWith({ id: userId, fairUsePolicyAcceptedAt: null }, { fairUsePolicyAcceptedAt: expect.any(Date) });
+    });
+  });
+
   it("creates the logger with the service context", () => {
     const { createLogger } = setup();
 

@@ -83,4 +83,10 @@ export class UserController {
     const userId = this.authService.currentUser.id;
     await this.userService.skipOnboarding(userId);
   }
+
+  async acceptFairUsePolicy() {
+    assert(this.authService.currentUser?.id, 401);
+    const userId = this.authService.currentUser.id;
+    await this.userService.acceptFairUsePolicy(userId);
+  }
 }
