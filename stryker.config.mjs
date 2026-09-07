@@ -5,6 +5,7 @@
  */
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const number = (name, fallback) => Number(process.env[name] ?? fallback);
 const breakThreshold = process.env.STRYKER_BREAK ? number("STRYKER_BREAK", 0) : null;
@@ -12,8 +13,14 @@ const breakThreshold = process.env.STRYKER_BREAK ? number("STRYKER_BREAK", 0) : 
 /** Relative on purpose: an absolute path would point vitest at the real workspace instead of Stryker's mutated copy. */
 const unitOnlyConfigFile = ["vitest.mutation.config.ts", "vitest.mutation.config.mts"].find(name => existsSync(join(process.cwd(), name)));
 
+/** Absolute because Stryker resolves a relative plugin path against the workspace it runs from, not against this file. */
+const observabilityIgnorer = fileURLToPath(new URL("script/stryker-observability-ignorer.mjs", import.meta.url));
+
 export default {
   testRunner: "vitest",
+  plugins: ["@stryker-mutator/*", observabilityIgnorer],
+  /** A mutant inside a log call can only survive: the arguments are not part of the behaviour a unit test asserts on. */
+  ignorers: ["observability"],
   vitest: {
     /** Off by default: vitest's related-file detection fails on some suites, and Stryker treats that as zero tests. */
     related: process.env.STRYKER_VITEST_RELATED === "true",
