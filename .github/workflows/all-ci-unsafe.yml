@@ -125,7 +125,7 @@ jobs:
 
           pr="$PR_NUMBER"
           if [[ -z "$pr" ]]; then
-            pr=$(gh api "repos/$GITHUB_REPOSITORY/pulls" -f state=open -f head="$PR_HEAD" --jq '.[0].number // ""') || pr=""
+            pr=$(gh api -X GET "repos/$GITHUB_REPOSITORY/pulls" -f state=open -f head="$PR_HEAD" --jq '.[0].number // ""') || pr=""
           fi
           [[ -n "$pr" ]] || report_on "$PARENT_WORKFLOW_HEAD_SHA"
 
