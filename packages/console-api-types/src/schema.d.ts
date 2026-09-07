@@ -494,7 +494,7 @@ export interface paths {
             }[];
           };
         };
-        /** @description Invalid address format */
+        /** @description Invalid address format or invalid date range: dates must be YYYY-MM-DD, startDate must not be after endDate and the range cannot exceed 366 days */
         400: {
           headers: {
             [name: string]: unknown;
@@ -562,7 +562,7 @@ export interface paths {
             };
           };
         };
-        /** @description Invalid address format */
+        /** @description Invalid address format or invalid date range: dates must be YYYY-MM-DD, startDate must not be after endDate and the range cannot exceed 366 days */
         400: {
           headers: {
             [name: string]: unknown;

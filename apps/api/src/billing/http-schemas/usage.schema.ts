@@ -2,44 +2,57 @@ import { z } from "@hono/zod-openapi";
 
 import { AkashAddressSchema } from "@src/utils/schema";
 
+const DEFAULT_USAGE_WINDOW_DAYS = 30;
+const MAX_USAGE_WINDOW_DAYS = 366;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function toIsoDate(date: Date) {
+  return date.toISOString().split("T")[0];
+}
+
+function startOfInclusiveWindow(endDate: string, windowDays: number) {
+  const date = new Date(`${endDate}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() - (windowDays - 1));
+  return toIsoDate(date);
+}
+
+function countInclusiveDays(startDate: string, endDate: string) {
+  return (Date.parse(endDate) - Date.parse(startDate)) / MS_PER_DAY + 1;
+}
+
 export const GetUsageHistoryQuerySchema = z
   .object({
     address: AkashAddressSchema.openapi({
       description: "The wallet address to get billing and usage data for",
       example: "akash18andxgtd6r08zzfpcdqg9pdr6smks7gv76tyt6"
     }),
-    startDate: z.string().date().optional().openapi({
-      description: "Start date (YYYY-MM-DD). Defaults to 30 days before endDate",
-      example: "2024-01-01"
-    }),
+    startDate: z
+      .string()
+      .date()
+      .optional()
+      .openapi({
+        description: `Start date (YYYY-MM-DD), inclusive. Defaults to a ${DEFAULT_USAGE_WINDOW_DAYS}-day window ending at endDate`,
+        example: "2024-01-01"
+      }),
     endDate: z.string().date().optional().openapi({
-      description: "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
+      description: "End date (YYYY-MM-DD), inclusive. Defaults to today (UTC)",
       example: "2024-01-31"
     })
   })
   .transform(data => {
-    const endDate = data.endDate ?? new Date().toISOString().split("T")[0];
+    const endDate = data.endDate ?? toIsoDate(new Date());
+    const startDate = data.startDate ?? startOfInclusiveWindow(endDate, DEFAULT_USAGE_WINDOW_DAYS);
 
-    if (data.startDate) {
-      return { ...data, startDate: data.startDate, endDate };
-    }
-
-    const startDate = new Date(`${endDate}T00:00:00.000Z`);
-    startDate.setUTCDate(startDate.getUTCDate() - 30);
-
-    return { ...data, startDate: startDate.toISOString().split("T")[0], endDate };
+    return { ...data, startDate, endDate };
   })
   .refine(
     data => {
-      const end = new Date(data.endDate);
-      const start = new Date(data.startDate);
+      const windowDays = countInclusiveDays(data.startDate, data.endDate);
 
-      const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
-
-      return start <= end && daysDiff <= 366;
+      return windowDays >= 1 && windowDays <= MAX_USAGE_WINDOW_DAYS;
     },
     {
-      message: "Date range cannot exceed 366 days and startDate must be before endDate"
+      message: `Date range cannot exceed ${MAX_USAGE_WINDOW_DAYS} days and startDate must not be after endDate`
     }
   );
 
