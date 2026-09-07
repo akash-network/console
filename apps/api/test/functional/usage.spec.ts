@@ -1,5 +1,5 @@
 import { subDays } from "date-fns";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { UsageHistoryResponse, UsageHistoryStats } from "@src/billing/http-schemas/usage.schema";
 import { app, initDb } from "@src/rest-app";
@@ -413,10 +413,17 @@ describe("GET /v1/usage/history", () => {
 
   it("uses current date as default endDate when not provided", async () => {
     const { now, owners } = await setup();
-    const startDate = formatUTCDate(subDays(now, 5));
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(now);
 
-    const response = await app.request(`/v1/usage/history?address=${owners[0]}&startDate=${startDate}`);
-    await expectUsageHistory(response, 6);
+    try {
+      const startDate = formatUTCDate(subDays(now, 5));
+
+      const response = await app.request(`/v1/usage/history?address=${owners[0]}&startDate=${startDate}`);
+      await expectUsageHistory(response, 6);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

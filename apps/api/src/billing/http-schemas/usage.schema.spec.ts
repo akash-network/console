@@ -41,11 +41,17 @@ describe("Usage Schema", () => {
     });
 
     it("defaults endDate to today and covers 30 days when both dates are omitted", () => {
-      const result = GetUsageHistoryQuerySchema.parse({ address });
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2024-11-15T23:59:59.999Z"));
 
-      expect(result.endDate).toBe(new Date().toISOString().split("T")[0]);
-      const windowDays = (Date.parse(result.endDate) - Date.parse(result.startDate)) / (24 * 60 * 60 * 1000) + 1;
-      expect(windowDays).toBe(30);
+      try {
+        const result = GetUsageHistoryQuerySchema.parse({ address });
+
+        expect(result.endDate).toBe("2024-11-15");
+        expect(result.startDate).toBe("2024-10-17");
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("accepts a single-day range", () => {
