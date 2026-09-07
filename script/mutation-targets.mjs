@@ -1,10 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import picomatch from "picomatch";
 import { resolveConfig } from "vitest/node";
 
 const MAX_RANGES = Number(process.env.MAX_MUTATION_RANGES ?? 200);
+const SPEC_EXTENSIONS = [".spec.ts", ".spec.tsx", ".spec.mts"];
 
 /** A mutant in a declaration or a generated file pins nothing, and no app's coverage config bothers to exclude them. */
 const NEVER_MUTATED = ["**/*.d.ts", "**/*.gen.ts"];
@@ -37,9 +38,16 @@ async function mutationTargets(workspace, base) {
     return { skip: `${ranges.length} changed line ranges exceed the limit of ${MAX_RANGES}` };
   }
 
+  const specs = colocatedSpecsOf(workspace, ranges);
+
+  if (specs.length === 0) {
+    return { skip: `none of the changed files in ${workspace} has a colocated spec, so no mutant could be killed` };
+  }
+
   return {
     mutate: ranges.map(({ file, start, end }) => `${file}:${start}-${end}`).join(","),
     ranges: ranges.length,
+    testFiles: specs.join(","),
     testEnv: envPrefixOf(testScript)
   };
 }
@@ -91,6 +99,21 @@ function git(args) {
   return execFileSync("git", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "ignore"] });
 }
 
+/**
+ * A changed file's own spec is the suite that has to kill its mutants, so running just those turns the dry run from
+ * the whole suite into seconds; a file without one only ever contributed mutants nothing would reach.
+ */
+function colocatedSpecsOf(workspace, ranges) {
+  const sources = [...new Set(ranges.map(({ file }) => file))];
+  const specs = sources.flatMap(source => {
+    const withoutExtension = source.replace(/\.[^./]+$/, "");
+
+    return SPEC_EXTENSIONS.map(extension => `${withoutExtension}${extension}`).filter(spec => existsSync(join(workspace, spec)));
+  });
+
+  return [...new Set(specs)];
+}
+
 function unitTestScriptOf(workspace) {
   const { scripts = {} } = JSON.parse(readFileSync(join(workspace, "package.json"), "utf8"));
 
@@ -108,8 +131,8 @@ function envPrefixOf(testScript) {
   return assignments.join(" ");
 }
 
-function report({ mutate = "", ranges = 0, testEnv = "", skip = null }) {
-  const json = JSON.stringify({ mutate, ranges, testEnv, skip });
+function report({ mutate = "", ranges = 0, testFiles = "", testEnv = "", skip = null }) {
+  const json = JSON.stringify({ mutate, ranges, testFiles, testEnv, skip });
 
   if (outFile) writeFileSync(outFile, `${json}\n`);
   else process.stdout.write(`${json}\n`);

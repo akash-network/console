@@ -107,7 +107,7 @@ jobs:
 
           node script/mutation-targets.mjs "$APP_PATH" "$base" --out mutation-targets.json
 
-          jq -r '"mutate=\(.mutate)", "ranges=\(.ranges)", "test_env=\(.testEnv)"' mutation-targets.json >> "$GITHUB_OUTPUT"
+          jq -r '"mutate=\(.mutate)", "ranges=\(.ranges)", "test_files=\(.testFiles)", "test_env=\(.testEnv)"' mutation-targets.json >> "$GITHUB_OUTPUT"
 
           skip=$(jq -r '.skip // empty' mutation-targets.json)
           if [[ -n "$skip" ]]; then
@@ -120,6 +120,7 @@ jobs:
         env:
           APP: ${{ inputs.app }}
           MUTATE: ${{ steps.mutation_targets.outputs.mutate }}
+          TEST_FILES: ${{ steps.mutation_targets.outputs.test_files }}
           TEST_ENV: ${{ steps.mutation_targets.outputs.test_env }}
           RANGES: ${{ steps.mutation_targets.outputs.ranges }}
           STRYKER_JSON_REPORT: ${{ github.workspace }}/mutation-report.json
@@ -127,17 +128,17 @@ jobs:
           status=0
           # $TEST_ENV is an unquoted list of KEY=value tokens on purpose: `env` applies them, and nothing else gets re-parsed.
           # shellcheck disable=SC2086
-          env $TEST_ENV npx stryker run "$GITHUB_WORKSPACE/stryker.config.mjs" --mutate "$MUTATE" || status=$?
+          env $TEST_ENV npx stryker run "$GITHUB_WORKSPACE/stryker.config.mjs" --mutate "$MUTATE" --testFiles "$TEST_FILES" || status=$?
 
           score_status=0
           summary=$(node "$GITHUB_WORKSPACE/script/mutation-report.mjs" "$STRYKER_JSON_REPORT" \
             --min "$MUTATION_MIN_SCORE" \
-            --reproduce "cd apps/$APP && npx stryker run ../../stryker.config.mjs --mutate '$MUTATE'") || score_status=$?
+            --reproduce "cd apps/$APP && npx stryker run ../../stryker.config.mjs --mutate '$MUTATE' --testFiles '$TEST_FILES'") || score_status=$?
 
           {
             echo "### Mutation testing: $APP"
             echo
-            echo "Mutated $RANGES changed line range(s), scoped to the files the app measures coverage on."
+            echo "Mutated $RANGES changed line range(s), scoped to the files the app measures coverage on, against their own specs: \`$TEST_FILES\`."
             echo
             echo "$summary"
             echo
