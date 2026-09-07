@@ -344,6 +344,10 @@ export class DeploymentWriterService {
    * Patches the SDL the console stored rather than one a client resubmits, refusing everything it can
    * before the single write so a refusal leaves the row untouched. The ability is passed in rather than
    * read from request state, because this service is a singleton.
+   *
+   * A patch is read-modify-write, so a caller naming no version is still guarded on the version this call
+   * read: without that, two concurrent unguarded patches would each build on the same document and the
+   * later one would silently discard the earlier. A row recording no version yet cannot be guarded on one.
    */
   public async patchByUserIdAndDseq(
     userId: string,
@@ -376,7 +380,7 @@ export class DeploymentWriterService {
       sdl: patchedSdl,
       manifestVersion: recordedVersion,
       sealedSecrets,
-      expectedManifestVersion: input.ifManifestVersion
+      expectedManifestVersion: input.ifManifestVersion ?? stored.manifestVersion
     });
 
     if (!recordedId) {
@@ -404,14 +408,17 @@ export class DeploymentWriterService {
   }
 
   /** Read through the caller's own ability as well as their id, so a definition is unreachable by anyone the ability excludes even before the write re-checks it. */
-  async #findStoredDefinition(key: { userId: string; dseq: string }, ability: AnyAbility): Promise<{ sdl: string; sealedSecrets: string | null }> {
+  async #findStoredDefinition(
+    key: { userId: string; dseq: string },
+    ability: AnyAbility
+  ): Promise<{ sdl: string; sealedSecrets: string | null; manifestVersion?: string }> {
     const setting = await this.deploymentSettingRepository.accessibleBy(ability, "read").findOneBy(key);
 
     if (!setting?.sdl) {
       throw createError(404, NOT_PATCHABLE_MESSAGE);
     }
 
-    return { sdl: setting.sdl, sealedSecrets: setting.sealedSecrets };
+    return { sdl: setting.sdl, sealedSecrets: setting.sealedSecrets, manifestVersion: setting.manifestVersion ?? undefined };
   }
 
   /** The caller did not supply this document, so an unparseable one is the console's fault and never a 400. */

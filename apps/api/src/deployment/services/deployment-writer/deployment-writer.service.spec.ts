@@ -1206,6 +1206,7 @@ describe(DeploymentWriterService.name, () => {
   });
 
   describe("patchByUserIdAndDseq", () => {
+    const STORED_VERSION = "U1RPUkVEVkVSU0lPTg==";
     const STORED_SDL = [
       'version: "2.0"',
       "services:",
@@ -1667,6 +1668,36 @@ describe(DeploymentWriterService.name, () => {
         expect(result.manifestVersion).toBe(Buffer.from(new Uint8Array([1, 2, 3])).toString("base64"));
       });
 
+      it("guards a patch naming no version on the version it read, so a concurrent patch cannot be discarded unseen", async () => {
+        const { service, ability, deploymentSettingRepository } = setup();
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).toHaveBeenCalledWith(
+          expect.objectContaining({ expectedManifestVersion: STORED_VERSION })
+        );
+      });
+
+      it("prefers the version the caller named over the one it read", async () => {
+        const { service, ability, deploymentSettingRepository } = setup();
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } }, ifManifestVersion: "Q0xJRU5U" }, ability);
+
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).toHaveBeenCalledWith(
+          expect.objectContaining({ expectedManifestVersion: "Q0xJRU5U" })
+        );
+      });
+
+      it("guards on nothing when the row records no version to guard on", async () => {
+        const { service, ability, deploymentSettingRepository } = setup({ storedVersion: null });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).toHaveBeenCalledWith(
+          expect.objectContaining({ expectedManifestVersion: undefined })
+        );
+      });
+
       it("resolves the very bytes it recorded", async () => {
         const { service, ability, sdlService, deploymentSettingRepository } = setup();
 
@@ -1680,6 +1711,7 @@ describe(DeploymentWriterService.name, () => {
     function setup(input?: {
       sdl?: string;
       setting?: DeploymentSettingsOutput | undefined;
+      storedVersion?: string | null;
       storedToken?: string | null;
       held?: Record<string, string>;
       supplied?: Record<string, string>;
@@ -1699,8 +1731,9 @@ describe(DeploymentWriterService.name, () => {
 
       const deploymentSettingRepository = mock<DeploymentSettingRepository>();
       const scoped = mock<DeploymentSettingRepository>();
+      const storedVersion = input?.storedVersion === undefined ? STORED_VERSION : input.storedVersion;
       scoped.findOneBy.mockResolvedValue(
-        hasSetting ? mock<DeploymentSettingsOutput>({ sdl: input?.sdl ?? STORED_SDL, sealedSecrets: storedToken }) : undefined
+        hasSetting ? mock<DeploymentSettingsOutput>({ sdl: input?.sdl ?? STORED_SDL, sealedSecrets: storedToken, manifestVersion: storedVersion }) : undefined
       );
       scoped.replaceDefinitionIfVersionMatches.mockResolvedValue("written" in (input ?? {}) ? input!.written : randomUUID());
       deploymentSettingRepository.accessibleBy.mockReturnValue(scoped);
