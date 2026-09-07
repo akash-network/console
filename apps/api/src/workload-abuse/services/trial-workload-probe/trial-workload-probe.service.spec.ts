@@ -83,6 +83,19 @@ describe(TrialWorkloadProbeService.name, () => {
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_WORKLOAD_PROBE_SERVICES_CAPPED", reported: 12, probed: 8 }));
   });
 
+  it("probes at most four leases per deployment however many the dseq has", async () => {
+    const { service, wallet, shellProbeService, logger } = setup({
+      leases: Array.from({ length: 7 }, (_, index) => createRpcLease({ gseq: index + 1 })),
+      services: { ssh: 1 }
+    });
+
+    const report = await service.probe({ wallet, dseq: DSEQ });
+
+    expect(report.leases).toHaveLength(4);
+    expect(shellProbeService.run).toHaveBeenCalledTimes(4);
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_WORKLOAD_PROBE_LEASES_CAPPED", reported: 7, probed: 4 }));
+  });
+
   it("scans the shell output, the log tail and the stored SDL together", async () => {
     const { service, wallet } = setup({
       leases: [createRpcLease()],

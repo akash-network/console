@@ -41,6 +41,8 @@ export type ProbeReport = {
 const PROVIDER_SCOPES = ["status", "logs", "shell"] as const;
 /** The probed provider reports its own service list, so a hostile one must not be able to stretch a run past this many shell sessions. */
 const MAX_PROBED_SERVICES_PER_LEASE = 8;
+/** A deployment's own SDL decides how many groups it has, so a hostile one must not be able to stretch a run past this many leases. */
+const MAX_PROBED_LEASES_PER_DEPLOYMENT = 4;
 /** Bounds the audit row; the full shell output stays in the job log, which has its own line cap. */
 const MAX_EXCERPT_LENGTH = 8_192;
 
@@ -76,7 +78,18 @@ export class TrialWorkloadProbeService {
     const probedLeases: ProbedLease[] = [];
     const statuses: ProbeStatus[] = [];
 
-    for (const lease of leases) {
+    const leasesToProbe = leases.slice(0, MAX_PROBED_LEASES_PER_DEPLOYMENT);
+
+    if (leasesToProbe.length < leases.length) {
+      this.logger.warn({
+        event: "TRIAL_WORKLOAD_PROBE_LEASES_CAPPED",
+        dseq: input.dseq,
+        reported: leases.length,
+        probed: leasesToProbe.length
+      });
+    }
+
+    for (const lease of leasesToProbe) {
       const probed = await this.#probeLease(input.wallet, lease, sources);
       statuses.push(probed.status);
       if (probed.lease) probedLeases.push(probed.lease);
