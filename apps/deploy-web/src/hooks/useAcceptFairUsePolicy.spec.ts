@@ -33,6 +33,16 @@ describe(useAcceptFairUsePolicy.name, () => {
     expect(checkSession).not.toHaveBeenCalled();
     expect(analyticsService.track).not.toHaveBeenCalled();
     expect(result.current.isAccepting).toBe(false);
+    expect(result.current.hasAccepted).toBe(false);
+  });
+
+  it("keeps the acceptance once the api confirms it, even though the refreshed profile never carries the timestamp", async () => {
+    const { result, checkSession } = setup({});
+
+    await act(() => result.current.accept());
+
+    expect(checkSession).toHaveBeenCalledTimes(1);
+    expect(result.current.hasAccepted).toBe(true);
   });
 
   function setup(input: { acceptError?: Error }) {

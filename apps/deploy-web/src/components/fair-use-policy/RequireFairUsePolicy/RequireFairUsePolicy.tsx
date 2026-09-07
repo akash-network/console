@@ -30,8 +30,8 @@ export function RequireFairUsePolicy({ children, isPublic, dependencies: d = DEP
   const { user } = d.useUser();
   const { isTrialing } = d.useWallet();
   const isGateEnabled = d.useFlag("fair_use_policy_gate");
-  const { accept, isAccepting } = d.useAcceptFairUsePolicy();
-  const mustAccept = !isPublic && isGateEnabled && isTrialing && !!user?.userId && !user.fairUsePolicyAcceptedAt;
+  const { accept, isAccepting, hasAccepted } = d.useAcceptFairUsePolicy();
+  const mustAccept = !isPublic && isGateEnabled && isTrialing && !!user?.userId && !user.fairUsePolicyAcceptedAt && !hasAccepted;
 
   return (
     <>

@@ -24,6 +24,12 @@ describe(RequireFairUsePolicy.name, () => {
     expect(screen.queryByTestId("fair-use-policy-modal")).not.toBeInTheDocument();
   });
 
+  it("stops demanding acceptance once it is confirmed, even while the profile still lacks the timestamp", () => {
+    setup({ userId: "u1", fairUsePolicyAcceptedAt: null, hasAccepted: true });
+
+    expect(screen.queryByTestId("fair-use-policy-modal")).not.toBeInTheDocument();
+  });
+
   it("never demands acceptance while the gate flag is off", () => {
     setup({ userId: "u1", fairUsePolicyAcceptedAt: null, isGateEnabled: false });
 
@@ -63,6 +69,7 @@ describe(RequireFairUsePolicy.name, () => {
     loggedOut?: boolean;
     isTrialing?: boolean;
     isGateEnabled?: boolean;
+    hasAccepted?: boolean;
   }) {
     const accept = vi.fn();
     const dependencies: typeof DEPENDENCIES = {
@@ -75,7 +82,7 @@ describe(RequireFairUsePolicy.name, () => {
         })) as typeof DEPENDENCIES.useUser,
       useWallet: () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? true }),
       useFlag: flag => flag === "fair_use_policy_gate" && (input.isGateEnabled ?? true),
-      useAcceptFairUsePolicy: () => ({ accept, isAccepting: false }),
+      useAcceptFairUsePolicy: () => ({ accept, isAccepting: false, hasAccepted: input.hasAccepted ?? false }),
       FairUsePolicyModal: ({ onAccept }) => (
         <div data-testid="fair-use-policy-modal">
           <button data-testid="fair-use-policy-accept-button" onClick={onAccept}>
