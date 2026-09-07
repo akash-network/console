@@ -10,35 +10,35 @@ import { DeploymentSettingController } from "./deployment-setting.controller";
 import { createUser } from "@test/seeders/user.seeder";
 
 describe(DeploymentSettingController.name, () => {
-  describe("findOrCreateV2", () => {
+  describe("findV2", () => {
     it("uses provided userId", async () => {
       const { controller, deploymentSettingService, setting } = setup();
       const userId = faker.string.uuid();
       const dseq = faker.string.numeric(6);
-      deploymentSettingService.findOrCreateByUserIdAndDseq.mockResolvedValue(setting);
+      deploymentSettingService.findByUserIdAndDseq.mockResolvedValue(setting);
 
-      const result = await controller.findOrCreateV2({ dseq, userId });
+      const result = await controller.findV2({ dseq, userId });
 
       expect(result).toEqual({ data: setting });
-      expect(deploymentSettingService.findOrCreateByUserIdAndDseq).toHaveBeenCalledWith({ userId, dseq });
+      expect(deploymentSettingService.findByUserIdAndDseq).toHaveBeenCalledWith({ userId, dseq });
     });
 
     it("defaults userId to current user when not provided", async () => {
       const { controller, deploymentSettingService, setting, user } = setup();
       const dseq = faker.string.numeric(6);
-      deploymentSettingService.findOrCreateByUserIdAndDseq.mockResolvedValue(setting);
+      deploymentSettingService.findByUserIdAndDseq.mockResolvedValue(setting);
 
-      const result = await controller.findOrCreateV2({ dseq });
+      const result = await controller.findV2({ dseq });
 
       expect(result).toEqual({ data: setting });
-      expect(deploymentSettingService.findOrCreateByUserIdAndDseq).toHaveBeenCalledWith({ userId: user.id, dseq });
+      expect(deploymentSettingService.findByUserIdAndDseq).toHaveBeenCalledWith({ userId: user.id, dseq });
     });
 
     it("throws 404 when setting not found", async () => {
       const { controller, deploymentSettingService } = setup();
-      deploymentSettingService.findOrCreateByUserIdAndDseq.mockResolvedValue(undefined);
+      deploymentSettingService.findByUserIdAndDseq.mockResolvedValue(undefined);
 
-      await expect(() => controller.findOrCreateV2({ dseq: faker.string.numeric(6) })).rejects.toThrow("Deployment setting not found");
+      await expect(() => controller.findV2({ dseq: faker.string.numeric(6) })).rejects.toThrow("Deployment setting not found");
     });
   });
 

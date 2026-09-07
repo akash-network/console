@@ -12,7 +12,7 @@ import {
   type UpdateDeploymentSettingRequest
 } from "@src/deployment/http-schemas/deployment-setting.schema";
 
-type FindOrCreateV2Input = FindDeploymentSettingV2Params & FindDeploymentSettingV2Query;
+type FindV2Input = FindDeploymentSettingV2Params & FindDeploymentSettingV2Query;
 type UpsertV2Input = FindDeploymentSettingV2Params & FindDeploymentSettingV2Query & UpdateDeploymentSettingRequest["data"];
 import { DeploymentSettingService } from "@src/deployment/services/deployment-setting/deployment-setting.service";
 
@@ -24,8 +24,8 @@ export class DeploymentSettingController {
   ) {}
 
   @Protected([{ action: "read", subject: "DeploymentSetting" }])
-  async findOrCreateByUserIdAndDseq(params: FindDeploymentSettingParams): Promise<DeploymentSettingResponse> {
-    const setting = await this.deploymentSettingService.findOrCreateByUserIdAndDseq(params);
+  async findByUserIdAndDseq(params: FindDeploymentSettingParams): Promise<DeploymentSettingResponse> {
+    const setting = await this.deploymentSettingService.findByUserIdAndDseq(params);
     assert(setting, 404, "Deployment setting not found");
     return { data: setting };
   }
@@ -44,9 +44,9 @@ export class DeploymentSettingController {
   }
 
   @Protected([{ action: "read", subject: "DeploymentSetting" }])
-  async findOrCreateV2(input: FindOrCreateV2Input): Promise<DeploymentSettingResponse> {
+  async findV2(input: FindV2Input): Promise<DeploymentSettingResponse> {
     const userId = input.userId ?? this.authService.currentUser.id;
-    const setting = await this.deploymentSettingService.findOrCreateByUserIdAndDseq({ userId, dseq: input.dseq });
+    const setting = await this.deploymentSettingService.findByUserIdAndDseq({ userId, dseq: input.dseq });
     assert(setting, 404, "Deployment setting not found");
     return { data: setting };
   }

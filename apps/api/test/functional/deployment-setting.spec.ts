@@ -36,7 +36,7 @@ describe("Deployment Settings", () => {
       expect(response.status).toBe(401);
     });
 
-    it("returns a new deployment setting if not found", async () => {
+    it("returns 404 and stores nothing when no setting exists for the deployment", async () => {
       const { token, user } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
 
@@ -46,23 +46,8 @@ describe("Deployment Settings", () => {
         }
       });
 
-      expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({
-        data: {
-          id: expect.any(String),
-          userId: user.id,
-          dseq,
-          autoTopUpEnabled: true,
-          sdl: null,
-          createdAt: expect.any(String),
-          updatedAt: expect.any(String),
-          estimatedTopUpAmount: expect.any(Number),
-          topUpFrequencyMs: expect.any(Number),
-          runtimeLimitHours: null,
-          runtimeEndsAt: null,
-          closed: false
-        }
-      });
+      expect(response.status).toBe(404);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toBeUndefined();
     });
 
     it("hands back none of what the console remembers the deployment by", async () => {
@@ -84,20 +69,6 @@ describe("Deployment Settings", () => {
       expect(data).not.toHaveProperty("manifestVersion");
       expect(data).not.toHaveProperty("sealedSecrets");
       expect(body).not.toContain(sealedSecrets);
-    });
-
-    it("enables auto top-up on a lazily created row without consulting the owner's wallet", async () => {
-      const { token, user } = await setup({ hasManagedWallet: false });
-      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
-
-      const response = await app.request(`/v1/deployment-settings/${user.id}/${dseq}`, {
-        headers: {
-          authorization: `Bearer ${token}`
-        }
-      });
-
-      expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ data: expect.objectContaining({ autoTopUpEnabled: true }) });
     });
 
     it("returns 404 when accessing other user's deployment settings", async () => {
@@ -555,18 +526,17 @@ describe("Deployment Settings", () => {
     });
   }
 
-  async function setup(input: { hasManagedWallet?: boolean } = {}) {
+  async function setup() {
     const user = await userRepository.create({ userId: faker.string.uuid() });
     const walletAddress = createAkashAddress();
     const token = faker.string.alphanumeric(40);
 
     const wallet = createUserWallet({ userId: user.id, address: walletAddress });
-    const resolvedWallet = input.hasManagedWallet === false ? undefined : wallet;
 
     vi.spyOn(userAuthTokenService, "getValidUserId").mockResolvedValue(user.userId);
     vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(userWalletRepository);
-    vi.spyOn(userWalletRepository, "findFirst").mockResolvedValue(resolvedWallet);
-    vi.spyOn(userWalletRepository, "findOneByUserId").mockResolvedValue(resolvedWallet);
+    vi.spyOn(userWalletRepository, "findFirst").mockResolvedValue(wallet);
+    vi.spyOn(userWalletRepository, "findOneByUserId").mockResolvedValue(wallet);
     vi.spyOn(leaseRepository, "findOneByDseqAndOwner").mockResolvedValue(createDrainingDeployment());
 
     return { user, token, wallet };

@@ -1,4 +1,3 @@
-import { ForbiddenError } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { PostgresError } from "postgres";
 import { describe, expect, it } from "vitest";
@@ -19,64 +18,32 @@ import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(DeploymentSettingService.name, () => {
-  describe("findOrCreateByUserIdAndDseq", () => {
-    it("returns existing setting when found", async () => {
-      const { service, deploymentSettingRepository, userWalletRepository } = setup();
+  describe("findByUserIdAndDseq", () => {
+    it("returns the stored setting", async () => {
+      const { service, deploymentSettingRepository } = setup();
       const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
       const existing = createDeploymentSettingsOutput(params);
 
       deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
       deploymentSettingRepository.findOneBy.mockResolvedValue(existing);
 
-      const result = await service.findOrCreateByUserIdAndDseq(params);
+      const result = await service.findByUserIdAndDseq(params);
 
+      expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(expect.anything(), "read");
       expect(result).toEqual(expect.objectContaining({ userId: params.userId, dseq: params.dseq }));
-      expect(userWalletRepository.findOneByUserId).not.toHaveBeenCalled();
-      expect(deploymentSettingRepository.create).not.toHaveBeenCalled();
     });
 
-    it("leaves auto top-up to the repository default rather than deciding it from the wallet", async () => {
-      const { service, deploymentSettingRepository, userWalletRepository } = setup();
-      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
-      const created = createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: true });
-
-      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
-      deploymentSettingRepository.create.mockResolvedValue(created);
-
-      const result = await service.findOrCreateByUserIdAndDseq(params);
-
-      expect(deploymentSettingRepository.create).toHaveBeenCalledWith(params);
-      expect(userWalletRepository.findOneByUserId).not.toHaveBeenCalled();
-      expect(result).toEqual(expect.objectContaining({ autoTopUpEnabled: true }));
-    });
-
-    it("schedules no wallet reload for a deployment whose owner asked for nothing", async () => {
-      const { service, deploymentSettingRepository, walletReloadJobService } = setup();
+    it("returns undefined and writes no row when nothing is stored for the deployment", async () => {
+      const { service, deploymentSettingRepository } = setup();
       const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
 
       deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
       deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
-      deploymentSettingRepository.create.mockResolvedValue(createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: true }));
 
-      await service.findOrCreateByUserIdAndDseq(params);
-
-      expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
-    });
-
-    it("returns undefined on ForbiddenError", async () => {
-      const { service, deploymentSettingRepository, userWalletRepository } = setup();
-      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
-
-      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
-      userWalletRepository.findOneByUserId.mockResolvedValue(undefined);
-      const forbiddenError = Object.create(ForbiddenError.prototype);
-      deploymentSettingRepository.create.mockRejectedValue(forbiddenError);
-
-      const result = await service.findOrCreateByUserIdAndDseq(params);
+      const result = await service.findByUserIdAndDseq(params);
 
       expect(result).toBeUndefined();
+      expect(deploymentSettingRepository.create).not.toHaveBeenCalled();
     });
   });
 

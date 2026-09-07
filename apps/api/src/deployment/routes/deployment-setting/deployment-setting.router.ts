@@ -49,7 +49,7 @@ const getRoute = createRoute({
 });
 deploymentSettingRouter.openapi(getRoute, async function routeGetDeploymentSettings(c) {
   const params = c.req.valid("param");
-  const result = await container.resolve(DeploymentSettingController).findOrCreateByUserIdAndDseq(params);
+  const result = await container.resolve(DeploymentSettingController).findByUserIdAndDseq(params);
 
   return c.json(result, 200);
 });
@@ -183,7 +183,7 @@ const getRouteV2 = createRoute({
   }
 });
 deploymentSettingRouter.openapi(getRouteV2, async function routeGetDeploymentSettingsV2(c) {
-  const result = await container.resolve(DeploymentSettingController).findOrCreateV2({ ...c.req.valid("param"), ...c.req.valid("query") });
+  const result = await container.resolve(DeploymentSettingController).findV2({ ...c.req.valid("param"), ...c.req.valid("query") });
   return c.json(result, 200);
 });
 
