@@ -54,6 +54,17 @@ function assignsStorage(patch: PatchStorage): boolean {
   return patch.mount !== undefined || patch.readOnly !== undefined;
 }
 
+/** Naming a field a patch leaves untouched is not a write, so an anchored service is only refused once the patch would actually change it. */
+function assignsService(patch: PatchService): boolean {
+  const { expose, storage, ...fields } = patch;
+
+  return (
+    Object.values(fields).some(value => value !== undefined) ||
+    Object.values(expose ?? {}).some(assignsExpose) ||
+    Object.values(storage ?? {}).some(assignsStorage)
+  );
+}
+
 /** Every node a patch could write through, so sharing is judged against the object that would actually be mutated. */
 function writableNodesOf(service: SdlServiceNode): object[] {
   const nodes: unknown[] = [service, service.env, service.credentials, service.expose, service.params, service.params?.storage];
@@ -112,7 +123,7 @@ export class SdlPatchService {
   }
 
   #applyToService(service: SdlServiceNode, patch: PatchService, at: PatchTarget): void {
-    this.#assertNotShared(service, { ...at, field: "definition" });
+    if (assignsService(patch)) this.#assertNotShared(service, { ...at, field: "definition" });
 
     if (patch.image !== undefined) service.image = patch.image;
 

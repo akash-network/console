@@ -204,7 +204,8 @@ export const PatchServiceSchema = z
       description: "Keyed by volume name. Mount point and read-only flag only — sizes are fixed at create."
     })
   })
-  .partial();
+  .partial()
+  .refine(patch => Object.keys(patch).length > 0, { message: "At least one field must be patched" });
 
 export const UpdateDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema

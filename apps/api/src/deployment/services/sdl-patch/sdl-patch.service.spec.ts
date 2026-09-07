@@ -238,6 +238,30 @@ describe(SdlPatchService.name, () => {
       expect(() => service.apply(document, { web: { image: "nginx:1.27" } })).toThrow();
       expect(document.services.worker.image).toBe("nginx");
     });
+
+    it("accepts a patch naming no field, rather than refusing a write it would never make", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx" } }, aliasWebAs: "worker" });
+
+      service.apply(document, { web: {} });
+
+      expect(document.services.worker.image).toBe("nginx");
+    });
+
+    it("accepts a patch whose only sub-patch assigns nothing", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 80, accept: ["a.test"] }] } }, aliasWebAs: "worker" });
+
+      service.apply(document, { web: { expose: { "80": {} } } });
+
+      expect(document.services.worker.expose?.[0].accept).toEqual(["a.test"]);
+    });
+
+    it("still refuses a sub-patch that does assign through the alias", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 80, accept: ["a.test"] }] } }, aliasWebAs: "worker" });
+
+      expect(() => service.apply(document, { web: { expose: { "80": { accept: ["b.test"] } } } })).toThrow(
+        /share its definition with another part of the document/
+      );
+    });
   });
 
   describe("credentials", () => {
