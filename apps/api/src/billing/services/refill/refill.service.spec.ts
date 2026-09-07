@@ -51,6 +51,19 @@ describe(RefillService.name, () => {
       expect(userWalletRepository.clearAbuseLock).toHaveBeenCalledWith(unlockedWallet.id);
     });
 
+    it("settles the payment even when clearing the abuse lock fails", async () => {
+      const { service, userWalletRepository, walletInitializerService, balancesService, analyticsService } = setup();
+      const wallet = createInitializedUserWallet({ userId });
+      walletInitializerService.ensureWallet.mockResolvedValue(wallet);
+      userWalletRepository.claimActivation.mockResolvedValue(undefined);
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
+      userWalletRepository.clearAbuseLock.mockRejectedValue(new Error("deadlock detected"));
+
+      await expect(service.topUpWallet(amountUsd, userId)).resolves.toEqual({ walletId: wallet.id, address: wallet.address });
+
+      expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up", expect.objectContaining({ amount_cents: amountUsd }));
+    });
+
     it("attaches payment context to the balance_top_up analytics event", async () => {
       const { service, userWalletRepository, managedUserWalletService, balancesService, analyticsService, walletInitializerService } = setup();
       const existingWallet = createInitializedUserWallet({ userId });

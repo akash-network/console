@@ -138,11 +138,15 @@ export class RefillService {
     this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit: currentLimit, nextLimit });
   }
 
-  /** A wallet locked as an abusive trial becomes an ordinary paying wallet the moment it pays, so fee refills and credit alerts resume for it. */
+  /** A failed clear is logged instead of thrown: authorizeSpending has already raised the on-chain allowance, so rolling the settlement back would let a webhook retry credit the same charge twice. */
   private async clearAbuseLockOnPayment(userWallet: UserWalletOutput) {
-    if (!(await this.userWalletRepository.clearAbuseLock(userWallet.id))) return;
+    try {
+      if (!(await this.userWalletRepository.clearAbuseLock(userWallet.id))) return;
 
-    this.logger.info({ event: "WALLET_ABUSE_LOCK_CLEARED", walletId: userWallet.id, userId: userWallet.userId });
+      this.logger.info({ event: "WALLET_ABUSE_LOCK_CLEARED", walletId: userWallet.id, userId: userWallet.userId });
+    } catch (error) {
+      this.logger.error({ event: "WALLET_ABUSE_LOCK_CLEAR_FAILED", walletId: userWallet.id, userId: userWallet.userId, error });
+    }
   }
 
   /**
