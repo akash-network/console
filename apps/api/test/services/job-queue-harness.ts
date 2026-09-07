@@ -43,6 +43,7 @@ function jobTable() {
 /** Disposes on teardown because a worker left running outlives a test's interceptors and then calls the real chain. */
 export function useJobWorkers(resolveHandlers: () => JobHandler<Job>[]) {
   let ready: Promise<JobQueueService> | undefined;
+  let started: Promise<void> | undefined;
 
   afterAll(async () => {
     if (ready) await (await ready).dispose();
@@ -62,7 +63,7 @@ export function useJobWorkers(resolveHandlers: () => JobHandler<Job>[]) {
     return {
       jobQueue,
       enqueue: (job: Job, options?: EnqueueOptions) => jobQueue.enqueue(job, options),
-      startWorkers: () => jobQueue.startWorkers(WORKER_OPTIONS)
+      startWorkers: () => (started ??= jobQueue.startWorkers(WORKER_OPTIONS))
     };
   };
 }
