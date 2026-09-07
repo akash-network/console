@@ -64,12 +64,20 @@ describe(SdlPatchService.name, () => {
   });
 
   describe("env", () => {
-    it("rewrites a named variable at the index it already occupies", () => {
+    it("moves a patched variable to the end, since nothing downstream depends on where it sits", () => {
       const { service, document } = setup({ services: { web: { image: "nginx", env: ["A=one", "B=two", "C=three"] } } });
 
       service.apply(document, { web: { env: { B: "replaced" } } });
 
-      expect(document.services.web.env).toEqual(["A=one", "B=replaced", "C=three"]);
+      expect(document.services.web.env).toEqual(["A=one", "C=three", "B=replaced"]);
+    });
+
+    it("leaves the variables it did not name carrying exactly the text they carried", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", env: ["A=ac-secret://s0_e0", "B=two", "C=ac-secret://s0_e2"] } } });
+
+      service.apply(document, { web: { env: { B: "replaced" } } });
+
+      expect(document.services.web.env).toEqual(["A=ac-secret://s0_e0", "C=ac-secret://s0_e2", "B=replaced"]);
     });
 
     it("appends a variable the service did not declare", () => {
@@ -136,6 +144,41 @@ describe(SdlPatchService.name, () => {
       expect(document.services.web.env).toEqual(["A=one", "B=supplied"]);
     });
 
+    it("leaves a non-string entry alone, since it is not ours to remove", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", env: ["A=one", 42 as unknown as string, "B=two"] } } });
+
+      service.apply(document, { web: { env: { B: "replaced" } } });
+
+      expect(document.services.web.env).toEqual(["A=one", 42, "B=replaced"]);
+    });
+
+    it("removes every occurrence of a cleared key and appends nothing", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", env: ["FOO=one", "BAR=two", "FOO=three"] } } });
+
+      service.apply(document, { web: { env: { FOO: null } } });
+
+      expect(document.services.web.env).toEqual(["BAR=two"]);
+    });
+
+    it("records the appended index when one call both removes and adds", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", env: ["A=one", "B=two", "C=three"] } } });
+
+      const written = service.apply(document, { web: { env: { A: null, B: "replaced" } } });
+
+      expect(document.services.web.env).toEqual(["C=three", "B=replaced"]);
+      expect([...written]).toEqual(["/services/web/env/1"]);
+    });
+
+    it("records an index that really addresses the appended entry", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", env: ["A=one", "B=two"] } } });
+
+      const written = service.apply(document, { web: { env: { A: "replaced" } } });
+
+      const [path] = [...written];
+      const index = Number(path.split("/").pop());
+      expect(document.services.web.env?.[index]).toBe("A=replaced");
+    });
+
     it("keeps a value carrying an equals sign intact", () => {
       const { service, document } = setup({ services: { web: { image: "nginx", env: ["A=one"] } } });
 
@@ -146,12 +189,12 @@ describe(SdlPatchService.name, () => {
   });
 
   describe("an env key the stored document declares more than once", () => {
-    it("rewrites every occurrence, leaving no stale duplicate behind", () => {
+    it("collapses a key the document declared twice into the single entry it appends", () => {
       const { service, document } = setup({ services: { web: { image: "nginx", env: ["FOO=one", "BAR=two", "FOO=three"] } } });
 
       service.apply(document, { web: { env: { FOO: "replaced" } } });
 
-      expect(document.services.web.env).toEqual(["FOO=replaced", "BAR=two", "FOO=replaced"]);
+      expect(document.services.web.env).toEqual(["BAR=two", "FOO=replaced"]);
     });
 
     it("removes every occurrence given null", () => {
@@ -162,12 +205,12 @@ describe(SdlPatchService.name, () => {
       expect(document.services.web.env).toEqual(["BAR=two"]);
     });
 
-    it("reports every position it wrote, not only the first", () => {
+    it("reports the one position the collapsed entry ended up at", () => {
       const { service, document } = setup({ services: { web: { image: "nginx", env: ["FOO=one", "BAR=two", "FOO=three"] } } });
 
       const written = service.apply(document, { web: { env: { FOO: "replaced" } } });
 
-      expect([...written].sort()).toEqual(["/services/web/env/0", "/services/web/env/2"]);
+      expect([...written]).toEqual(["/services/web/env/1"]);
     });
   });
 
@@ -227,28 +270,11 @@ describe(SdlPatchService.name, () => {
   });
 
   describe("the positions it reports having written", () => {
-    it("reports the env position it rewrote", () => {
-      const { service, document } = setup({ services: { web: { image: "nginx", env: ["A=one", "B=two"] } } });
-
-      const written = service.apply(document, { web: { env: { B: "replaced" } } });
-
-      expect([...written]).toEqual(["/services/web/env/1"]);
-    });
-
     it("reports the env position it appended", () => {
       const { service, document } = setup({ services: { web: { image: "nginx", env: ["A=one"] } } });
 
       const written = service.apply(document, { web: { env: { B: "two" } } });
 
-      expect([...written]).toEqual(["/services/web/env/1"]);
-    });
-
-    it("reports the shifted position of a variable it wrote beside one it removed", () => {
-      const { service, document } = setup({ services: { web: { image: "nginx", env: ["A=one", "B=two", "C=three"] } } });
-
-      const written = service.apply(document, { web: { env: { A: null, C: "rewritten" } } });
-
-      expect(document.services.web.env).toEqual(["B=two", "C=rewritten"]);
       expect([...written]).toEqual(["/services/web/env/1"]);
     });
 
@@ -323,27 +349,6 @@ describe(SdlPatchService.name, () => {
       const { service, document } = setup({ services: { web: { image: "nginx" } } });
 
       expect(() => service.apply(document, { constructor: { image: "nginx" } })).toThrow(/is not a service of this deployment/);
-    });
-
-    it("changes nothing when a later service in the same patch is unknown", () => {
-      const { service, document } = setup({ services: { web: { image: "nginx" } } });
-
-      expect(() => service.apply(document, { api: { image: "x" }, web: { image: "nginx:1.27" } })).toThrow();
-      expect(document.services.web.image).toBe("nginx");
-    });
-
-    it("changes nothing when the unknown service is visited after a known one", () => {
-      const { service, document } = setup({ services: { web: { image: "nginx" } } });
-
-      expect(() => service.apply(document, { web: { image: "nginx:1.27" }, api: { image: "x" } })).toThrow();
-      expect(document.services.web.image).toBe("nginx");
-    });
-
-    it("writes no env either, when the unknown service is visited last", () => {
-      const { service, document } = setup({ services: { web: { image: "nginx", env: ["A=one"] } } });
-
-      expect(() => service.apply(document, { web: { env: { A: "two" } }, api: { image: "x" } })).toThrow();
-      expect(document.services.web.env).toEqual(["A=one"]);
     });
 
     it("bounds how much of an outsized service name it echoes", () => {

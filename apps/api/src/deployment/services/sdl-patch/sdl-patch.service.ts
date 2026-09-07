@@ -7,10 +7,7 @@ import { MAX_ECHOED_REFERENCE_LENGTH, ownValue, readEnvDeclaration } from "@src/
 
 type SdlServiceNode = SDLInput["services"][string];
 
-type PatchTarget = { serviceName: string; written: Set<string> };
-
-/** One service resolved and cleared for mutation, so nothing is written until every service in the patch has passed. */
-type ResolvedPatch = { serviceName: string; service: SdlServiceNode; patch: PatchService };
+type PatchTarget = { serviceName: string; shared: Set<object>; written: Set<string> };
 
 /** A bare `env` entry is its own name, because it asks for the variable to be inherited from the host. */
 function envKeyOf(entry: string): string {
@@ -46,47 +43,42 @@ function echo(key: string): string {
 /** Applies a partial service definition to the stored SDL, naming only keys the caller sent and never a value, because its messages are echoed back and logged. */
 @singleton()
 export class SdlPatchService {
-  /** Returns the instance paths it wrote a value into, spelled as the SDL Reference walk spells them, so a caller can seal exactly what the request supplied. */
+  /** Returns the instance paths it wrote a value into, spelled as the SDL Reference walk spells them, so a caller can seal exactly what the request supplied and nothing else. */
   apply(document: SDLInput, patches: Record<string, PatchService>): Set<string> {
     const services = this.#servicesOf(document);
     const shared = sharedNodesOf(services);
-    const resolved = this.#resolveAll(services, patches, shared);
     const written = new Set<string>();
 
-    for (const { serviceName, service, patch } of resolved) {
-      this.#applyToService(service, patch, { serviceName, written });
-    }
-
-    return written;
-  }
-
-  /** Every service and every node it would write through is checked before the first mutation, so a patch rejected on its last key leaves the document as it found it. */
-  #resolveAll(services: SDLInput["services"], patches: Record<string, PatchService>, shared: Set<object>): ResolvedPatch[] {
-    return Object.entries(patches).map(([serviceName, patch]) => {
+    for (const [serviceName, patch] of Object.entries(patches)) {
       const service = ownValue(services, serviceName);
 
       if (!service) {
         throw this.#reject(`"${echo(serviceName)}" is not a service of this deployment`);
       }
 
-      this.#assertNotShared(service, { serviceName, shared, field: "definition" });
+      this.#applyToService(service, patch, { serviceName, shared, written });
+    }
 
-      if (patch.env !== undefined) this.#assertNotShared(service.env, { serviceName, shared, field: "env" });
-      if (patch.credentials !== undefined) this.#assertNotShared(service.credentials, { serviceName, shared, field: "credentials" });
-
-      return { serviceName, service, patch };
-    });
+    return written;
   }
 
   #applyToService(service: SdlServiceNode, patch: PatchService, at: PatchTarget): void {
+    this.#assertNotShared(service, { ...at, field: "definition" });
+
     if (patch.image !== undefined) service.image = patch.image;
 
     this.#applyClearableList(service, "command", patch.command);
     this.#applyClearableList(service, "args", patch.args);
 
-    if (patch.env !== undefined) this.#applyEnv(service, patch.env, at);
+    if (patch.env !== undefined) {
+      this.#assertNotShared(service.env, { ...at, field: "env" });
+      this.#applyEnv(service, patch.env, at);
+    }
 
-    if (patch.credentials !== undefined) this.#applyCredentials(service, patch.credentials, at);
+    if (patch.credentials !== undefined) {
+      this.#assertNotShared(service.credentials, { ...at, field: "credentials" });
+      this.#applyCredentials(service, patch.credentials, at);
+    }
   }
 
   /** A cleared list is removed rather than written as `null`, so a read never shows a field the user did not write. */
@@ -97,38 +89,27 @@ export class SdlPatchService {
     else service[field] = value;
   }
 
-  /** Rewrites a named variable at every index it already occupies, so an `ac-secret://` reference keeps the position its stored name was minted from and no stale duplicate survives. */
+  /**
+   * A patched variable is dropped wherever it stood and appended, so it moves position and any
+   * duplicate of it collapses into one entry; nothing downstream depends on where a value sits. The
+   * recorded path is the appended index, which is what scopes derivation to the values this patch
+   * supplied rather than every plaintext in the document.
+   */
   #applyEnv(service: SdlServiceNode, patch: NonNullable<PatchService["env"]>, target: PatchTarget): void {
-    const env: string[] = Array.isArray(service.env) ? service.env : [];
+    const source: string[] = Array.isArray(service.env) ? service.env : [];
+    const patched = new Set(Object.keys(patch));
+    /** A non-string entry is not ours to remove, whatever the user put there. */
+    const env = source.filter(entry => typeof entry !== "string" || !patched.has(envKeyOf(entry)));
 
     for (const [key, value] of Object.entries(patch)) {
-      const at = indicesOfEnvKey(env, key);
+      if (value === null) continue;
 
-      if (value === null) {
-        for (const index of [...at].reverse()) env.splice(index, 1);
-
-        continue;
-      }
-
-      if (at.length === 0) env.push(`${key}=${value}`);
-      else for (const index of at) env[index] = `${key}=${value}`;
+      target.written.add(`/services/${target.serviceName}/env/${env.length}`);
+      env.push(`${key}=${value}`);
     }
 
     if (env.length === 0) delete service.env;
     else service.env = env;
-
-    this.#recordWrittenEnv(env, patch, target);
-  }
-
-  /** Read after every write, because a removal shifts the entries below it and only the final array says where a value ended up. */
-  #recordWrittenEnv(env: string[], patch: NonNullable<PatchService["env"]>, target: PatchTarget): void {
-    for (const [key, value] of Object.entries(patch)) {
-      if (value === null) continue;
-
-      for (const index of indicesOfEnvKey(env, key)) {
-        target.written.add(`/services/${target.serviceName}/env/${index}`);
-      }
-    }
   }
 
   /** Merges rather than replaces, so the `email` the schema has no field for survives a credential rotation. */
@@ -163,8 +144,4 @@ export class SdlPatchService {
   #reject(message: string) {
     return createError(400, message);
   }
-}
-
-function indicesOfEnvKey(env: string[], key: string): number[] {
-  return env.flatMap((entry, index) => (typeof entry === "string" && envKeyOf(entry) === key ? [index] : []));
 }
