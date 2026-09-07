@@ -111,17 +111,54 @@ describe(JobQueueService.name, () => {
       expect(pgBoss.getQueues).toHaveBeenCalledWith(["test", "another"]);
     });
 
-    it("warns when a handler declares a policy the live queue does not carry", async () => {
-      const { service, logger } = setup({ queues: [liveQueue({ policy: "standard" })] });
+    it("rewrites the policy of an unpartitioned live queue onto the one its handler declares", async () => {
+      const { service, pgBoss, logger } = setup({ queues: [liveQueue({ policy: "standard", partition: false })] });
 
       await service.registerHandlers([new SingletonTestHandler(vi.fn())]);
 
+      expect(pgBoss.getDb().executeSql).toHaveBeenCalledWith(expect.stringMatching(/UPDATE \S+\.queue SET policy = \$2/), ["test", "singleton"]);
+      expect(logger.info).toHaveBeenCalledWith({ event: "JOB_QUEUE_POLICY_CONVERGED", queue: "test", from: "standard", to: "singleton" });
+    });
+
+    it("rewrites the policy back to standard for a handler that stopped declaring one", async () => {
+      const { service, pgBoss } = setup({ queues: [liveQueue({ policy: "singleton", partition: false })] });
+
+      await service.registerHandlers([new TestHandler(vi.fn())]);
+
+      expect(pgBoss.getDb().executeSql).toHaveBeenCalledWith(expect.stringContaining("SET policy = $2"), ["test", "standard"]);
+    });
+
+    it("leaves the policy of a live queue that already matches its handler untouched", async () => {
+      const { service, pgBoss } = setup({ queues: [liveQueue({ policy: "singleton", partition: false })] });
+
+      await service.registerHandlers([new SingletonTestHandler(vi.fn())]);
+
+      expect(pgBoss.getDb().executeSql).not.toHaveBeenCalled();
+    });
+
+    it("warns instead of rewriting the policy of a partitioned queue, whose table lacks the other policies' indexes", async () => {
+      const { service, pgBoss, logger } = setup({ queues: [liveQueue({ policy: "standard", partition: true })] });
+
+      await service.registerHandlers([new SingletonTestHandler(vi.fn())]);
+
+      expect(pgBoss.getDb().executeSql).not.toHaveBeenCalled();
       expect(logger.warn).toHaveBeenCalledWith({
         event: "JOB_QUEUE_POLICY_UNCHANGEABLE",
         queue: "test",
         declared: "singleton",
         live: "standard"
       });
+    });
+
+    it("still converges the retry settings when the policy rewrite fails", async () => {
+      const error = new Error("update failed");
+      const { service, pgBoss, logger } = setup({ queues: [liveQueue({ policy: "standard", partition: false, retryDelay: 0 })] });
+      vi.mocked(pgBoss.getDb().executeSql).mockRejectedValue(error);
+
+      await service.registerHandlers([new SingletonTestHandler(vi.fn())]);
+
+      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_QUEUE_POLICY_CONVERGE_FAILED", queue: "test", error });
+      expect(pgBoss.updateQueue).toHaveBeenCalledWith("test", expect.objectContaining({ retryDelay: 30 }));
     });
 
     it("starts workers even when it cannot converge the queue settings", async () => {
@@ -745,6 +782,7 @@ describe(JobQueueService.name, () => {
     return mock<QueueResult>({
       name: TestJob[JOB_NAME],
       policy: "standard",
+      partition: false,
       retryLimit: 5,
       retryBackoff: true,
       retryDelay: 30,

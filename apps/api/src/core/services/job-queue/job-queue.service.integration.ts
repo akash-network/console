@@ -78,6 +78,18 @@ describe(JobQueueService.name, () => {
     expect(after.created_on).toEqual(before.created_on);
   });
 
+  it("rewrites a queue created as standard onto the exclusive policy its handler declares, so a second job under one key is refused", async () => {
+    const singletonKey = "row-1";
+    const { jobQueue, handler, createLegacyQueue, enqueue, findQueue } = await setup({ queueName: "exclusive-late", policy: "exclusive" });
+    await createLegacyQueue({ policy: "standard" });
+
+    await jobQueue.registerHandlers([handler]);
+
+    expect((await findQueue()).policy).toBe("exclusive");
+    expect(await enqueue({ singletonKey })).toEqual(expect.any(String));
+    expect(await enqueue({ singletonKey })).toBeNull();
+  });
+
   it("gives a queue it creates for the first time the same base delay", async () => {
     const { jobQueue, handler, findQueue } = await setup({ queueName: "never-seen" });
 
@@ -176,8 +188,8 @@ describe(JobQueueService.name, () => {
         handle: input.handle ?? vi.fn().mockResolvedValue(undefined)
       } satisfies JobHandler<Job>,
       enqueue: (options?: EnqueueOptions) => jobQueue.enqueue(new ScopedJob(), options),
-      createLegacyQueue: () =>
-        pgBoss.createQueue(queueName, { retryLimit: RETRY_LIMIT, retryBackoff: true, retryDelayMax: RETRY_DELAY_MAX_IN_SECONDS, policy }),
+      createLegacyQueue: (overrides?: { policy?: PgBossQueue["policy"] }) =>
+        pgBoss.createQueue(queueName, { retryLimit: RETRY_LIMIT, retryBackoff: true, retryDelayMax: RETRY_DELAY_MAX_IN_SECONDS, policy, ...overrides }),
       findQueue: async () => {
         const rows = await db.execute<QueueRow>(
           sql`select name, policy, retry_limit, retry_backoff, retry_delay, retry_delay_max, created_on::text, updated_on::text
