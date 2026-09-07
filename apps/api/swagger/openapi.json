@@ -4874,7 +4874,7 @@
                                 "type": "string",
                                 "nullable": true
                               },
-                              "description": "Merged into the service's env. A null value removes the variable."
+                              "description": "Merged into the service's env, keyed by environment variable name. A null value removes the variable."
                             },
                             "credentials": {
                               "type": "object",
@@ -5371,12 +5371,24 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "error": {
+                      "type": "string"
+                    },
                     "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
                       "type": "string"
                     }
                   },
                   "required": [
-                    "message"
+                    "error",
+                    "message",
+                    "code",
+                    "type"
                   ]
                 }
               }
@@ -5389,12 +5401,24 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "error": {
+                      "type": "string"
+                    },
                     "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
                       "type": "string"
                     }
                   },
                   "required": [
-                    "message"
+                    "error",
+                    "message",
+                    "code",
+                    "type"
                   ]
                 }
               }
@@ -5407,34 +5431,84 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "error": {
+                      "type": "string"
+                    },
                     "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
                       "type": "string"
                     }
                   },
                   "required": [
-                    "message"
+                    "error",
+                    "message",
+                    "code",
+                    "type"
                   ]
                 }
               }
             }
           },
           "500": {
-            "description": "The stored secrets could not be read. Permanent rather than transient: `code` is `stored_secrets_unreadable` and the stored token is left untouched, so a retry cannot help",
+            "description": "The deployment's stored state could not be read. Permanent rather than transient, so a retry cannot help, and the stored token is left untouched: `code` is `stored_secrets_unreadable` when the sealed secrets would not open and `stored_sdl_unreadable` when the recorded SDL would not parse",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "error": {
+                      "type": "string"
+                    },
                     "message": {
                       "type": "string"
                     },
                     "code": {
                       "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
                     }
                   },
                   "required": [
+                    "error",
                     "message",
-                    "code"
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The key management service is temporarily unreachable. Transient and worth retrying, unlike the 500 above",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
                   ]
                 }
               }

@@ -203,6 +203,14 @@ deploymentsRouter.openapi(updateRoute, async function routeUpdateDeployment(c) {
   return c.json(result, 200);
 });
 
+/** What `HonoErrorHandlerService` actually returns for a refused request, rather than the `message` alone the first draft of this route declared. */
+const ErrorResponseSchema = z.object({
+  error: z.string(),
+  message: z.string(),
+  code: z.string(),
+  type: z.string()
+});
+
 const patchRoute = createRoute({
   method: "patch",
   path: "/v1/deployments/{dseq}",
@@ -240,7 +248,7 @@ const patchRoute = createRoute({
         "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, or leaves a reference with no value",
       content: {
         "application/json": {
-          schema: z.object({ message: z.string() })
+          schema: ErrorResponseSchema
         }
       }
     },
@@ -248,7 +256,7 @@ const patchRoute = createRoute({
       description: "No SDL is recorded for this deployment, so there is nothing to patch",
       content: {
         "application/json": {
-          schema: z.object({ message: z.string() })
+          schema: ErrorResponseSchema
         }
       }
     },
@@ -256,16 +264,24 @@ const patchRoute = createRoute({
       description: "The deployment definition changed since the manifest version this patch expected",
       content: {
         "application/json": {
-          schema: z.object({ message: z.string() })
+          schema: ErrorResponseSchema
         }
       }
     },
     500: {
       description:
-        "The stored secrets could not be read. Permanent rather than transient: `code` is `stored_secrets_unreadable` and the stored token is left untouched, so a retry cannot help",
+        "The deployment's stored state could not be read. Permanent rather than transient, so a retry cannot help, and the stored token is left untouched: `code` is `stored_secrets_unreadable` when the sealed secrets would not open and `stored_sdl_unreadable` when the recorded SDL would not parse",
       content: {
         "application/json": {
-          schema: z.object({ message: z.string(), code: z.string() })
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    503: {
+      description: "The key management service is temporarily unreachable. Transient and worth retrying, unlike the 500 above",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
         }
       }
     }

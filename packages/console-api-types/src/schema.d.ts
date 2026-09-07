@@ -8257,7 +8257,7 @@ export interface operations {
                 image?: string;
                 command?: string[] | null;
                 args?: string[] | null;
-                /** @description Merged into the service's env. A null value removes the variable. */
+                /** @description Merged into the service's env, keyed by environment variable name. A null value removes the variable. */
                 env?: {
                   [key: string]: string | null;
                 };
@@ -8405,7 +8405,10 @@ export interface operations {
         };
         content: {
           "application/json": {
+            error: string;
             message: string;
+            code: string;
+            type: string;
           };
         };
       };
@@ -8416,7 +8419,10 @@ export interface operations {
         };
         content: {
           "application/json": {
+            error: string;
             message: string;
+            code: string;
+            type: string;
           };
         };
       };
@@ -8427,19 +8433,38 @@ export interface operations {
         };
         content: {
           "application/json": {
+            error: string;
             message: string;
+            code: string;
+            type: string;
           };
         };
       };
-      /** @description The stored secrets could not be read. Permanent rather than transient: `code` is `stored_secrets_unreadable` and the stored token is left untouched, so a retry cannot help */
+      /** @description The deployment's stored state could not be read. Permanent rather than transient, so a retry cannot help, and the stored token is left untouched: `code` is `stored_secrets_unreadable` when the sealed secrets would not open and `stored_sdl_unreadable` when the recorded SDL would not parse */
       500: {
         headers: {
           [name: string]: unknown;
         };
         content: {
           "application/json": {
+            error: string;
             message: string;
             code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description The key management service is temporarily unreachable. Transient and worth retrying, unlike the 500 above */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
           };
         };
       };
