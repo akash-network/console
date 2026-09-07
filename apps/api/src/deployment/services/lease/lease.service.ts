@@ -5,7 +5,7 @@ import { inject, singleton } from "tsyringe";
 
 import { ManagedSignerService, RpcMessageService } from "@src/billing/services";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
-import { CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { type DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { type CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
 import { LeaseManifestService } from "@src/deployment/services/lease-manifest/lease-manifest.service";
