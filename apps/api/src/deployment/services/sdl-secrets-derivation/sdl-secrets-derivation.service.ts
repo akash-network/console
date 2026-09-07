@@ -17,6 +17,7 @@ export class SdlSecretsDerivationService {
   derive(document: SDLInput, options: { includeEnvValues: boolean }): SdlSecrets {
     const secrets: SdlSecrets = {};
     const takenByNode = new Map<object, Set<string>>();
+    const takenNames = this.#namesAlreadyReferencedIn(document);
 
     for (const slot of this.sdlReferenceService.slotsOf(document)) {
       if (!this.#isDerivable(slot, options)) continue;
@@ -26,8 +27,9 @@ export class SdlSecretsDerivationService {
 
       if (takenInNode.has(slot.position)) continue;
 
-      const name = `s${slot.serviceIndex}_${slot.position}`;
+      const name = mintName(`s${slot.serviceIndex}_${slot.position}`, takenNames);
       takenInNode.add(slot.position);
+      takenNames.add(name);
       secrets[name] = slot.value;
       slot.replace(`ac-${DERIVED_REFERENCE_KIND}://${name}`);
     }
@@ -35,9 +37,35 @@ export class SdlSecretsDerivationService {
     return secrets;
   }
 
+  /**
+   * Read before anything is written, because a document that already carries references — every
+   * document the console stored — would otherwise have a name minted onto a position whose spelling
+   * another slot is still standing on, and one value would then resolve into two places.
+   */
+  #namesAlreadyReferencedIn(document: SDLInput): Set<string> {
+    return new Set(this.sdlReferenceService.declarationsOf(document, DERIVED_REFERENCE_KIND).map(declaration => declaration.name));
+  }
+
   #isDerivable(slot: SdlReferenceSlot, options: { includeEnvValues: boolean }): boolean {
     if (isSdlReference(slot.value)) return false;
 
     return slot.valueIsAlwaysSecret || options.includeEnvValues;
   }
+}
+
+/**
+ * Prefers the name the slot's own position spells, so re-supplying a value lands back on the name the
+ * deployment already stored it under and the token is replaced rather than grown. Terminates because
+ * the taken set is finite and every candidate it tries is distinct.
+ */
+function mintName(preferred: string, taken: Set<string>): string {
+  let candidate = preferred;
+  let suffix = 2;
+
+  while (taken.has(candidate)) {
+    candidate = `${preferred}_${suffix}`;
+    suffix++;
+  }
+
+  return candidate;
 }
