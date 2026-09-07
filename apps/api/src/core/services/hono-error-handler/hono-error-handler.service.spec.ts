@@ -89,6 +89,20 @@ describe(HonoErrorHandlerService.name, () => {
     });
   });
 
+  describe("when an HttpError carries headers", () => {
+    it("forwards them on the response alongside the payment_required code", async () => {
+      const { service, mockContext } = setup();
+      const error = createHttpError(402, "Not enough balance to cover the deployment deposit.", { headers: { "Retry-After": "300" } });
+
+      await service.handle(error, mockContext);
+
+      expect(mockContext.body).toHaveBeenCalledWith(
+        expect.stringContaining('"code":"payment_required"'),
+        expect.objectContaining({ status: 402, headers: expect.objectContaining({ "Retry-After": "300" }) })
+      );
+    });
+  });
+
   describe("when error contains non-JSON values", () => {
     it("handles bigint values in http errors", async () => {
       const { service, mockContext } = setup();

@@ -60,10 +60,32 @@ describe("Tx Sign", () => {
       });
 
       expect(res.status).toBe(402);
+      expect(res.headers.get("Retry-After")).toMatch(/^[1-9]\d*$/);
       expect(await res.json()).toMatchObject({
         error: "PaymentRequiredError",
+        code: "payment_required",
         message: "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue."
       });
+    });
+
+    it("keeps refusing a retried create with the same answer while the wallet stays unfunded", async () => {
+      const { user, token, wallet } = await setup({
+        deploymentAllowance: DEPLOYMENT_DEPOSIT_UDENOM - 1
+      });
+      const request = async () =>
+        app.request("/v1/tx", {
+          method: "POST",
+          body: await createMessageForDeployment(user.id, wallet.address),
+          headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` }
+        });
+
+      const first = await request();
+      const second = await request();
+
+      expect(first.status).toBe(402);
+      expect(second.status).toBe(402);
+      expect(second.headers.get("Retry-After")).toMatch(/^[1-9]\d*$/);
+      expect(await second.json()).toEqual(await first.json());
     });
 
     it("creates blockchain transaction", async () => {
