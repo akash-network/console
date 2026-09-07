@@ -10,6 +10,9 @@ const SPEC_EXTENSIONS = [".spec.ts", ".spec.tsx", ".spec.mts"];
 /** A mutant in a declaration or a generated file pins nothing, and no app's coverage config bothers to exclude them. */
 const NEVER_MUTATED = ["**/*.d.ts", "**/*.gen.ts"];
 
+/** An unset coverage.include means vitest measures whatever the tests load, which has no glob form, so the source tree stands in for it. */
+const WHOLE_SOURCE_TREE = ["src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"];
+
 const [workspacePath, baseRef, ...flags] = process.argv.slice(2);
 const outFile = flags[flags.indexOf("--out") + 1];
 
@@ -58,8 +61,8 @@ async function mutationTargets(workspace, base) {
  */
 async function coverageScopeOf(workspace) {
   const { vitestConfig } = await resolveConfig({ root: workspace });
-  const { include = [], exclude = [] } = vitestConfig.coverage;
-  const isMeasured = picomatch(include);
+  const { include, exclude = [] } = vitestConfig.coverage;
+  const isMeasured = picomatch(include?.length ? include : WHOLE_SOURCE_TREE);
   const isExcluded = picomatch([...exclude, ...NEVER_MUTATED]);
 
   return file => isMeasured(file) && !isExcluded(file);
