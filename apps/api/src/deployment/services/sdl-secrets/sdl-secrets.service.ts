@@ -1,5 +1,5 @@
 import type { SDLInput, ValidationError } from "@akashnetwork/chain-sdk";
-import createError from "http-errors";
+import createError, { isHttpError } from "http-errors";
 import { decodeProtectedHeader } from "jose";
 import { inject, singleton } from "tsyringe";
 
@@ -26,6 +26,11 @@ const SECRET_REFERENCE_KIND = "secret";
 export type ReceiveSdlSecretsResult = { ok: true; value: SdlSecrets } | { ok: false; value: ValidationError[] };
 
 const NOTHING_SUPPLIED: SdlSecrets = {};
+
+/** An unreachable key service answers 503 and will succeed on retry, so it is not evidence that anything moved the stored data. */
+function isRetryable(error: unknown): boolean {
+  return isHttpError(error) && error.status === 503;
+}
 
 /** Reads the protected header without a key, so a token that cannot be decrypted can still say which data key and deployment it claims to belong to. */
 function claimsOf(sealedSecrets: string): Record<string, unknown> | undefined {
@@ -88,11 +93,7 @@ export class SdlSecretsService {
     return { ok: true, value: supplied };
   }
 
-  /**
-   * Bounds the whole set a deployment would carry, not merely what one request supplied. A patch merges
-   * what it was given over what the deployment already held, so measuring the request alone would let
-   * the stored token grow past the configured ceiling one bounded request at a time.
-   */
+  /** Bounds the whole set a deployment would carry, because measuring one request alone would let a merge grow the stored token past the ceiling one request at a time. */
   assertStorable(secrets: SdlSecrets): void {
     this.#assertWithinLimits(secrets);
   }
@@ -110,10 +111,7 @@ export class SdlSecretsService {
     return sealed;
   }
 
-  /**
-   * Opens a client's seal without holding it to what the SDL declares, because a patch supplies only the
-   * values that changed and every other reference resolves from what the deployment already stored.
-   */
+  /** Opens a client's seal without holding it to what the SDL declares, because a patch supplies only what changed and the rest resolves from what is stored. */
   async receiveForMerge(input: { rawSdl: string; sealedSecrets: string }): Promise<SdlSecrets> {
     const supplied = await this.unsealerService.open({ seal: input.sealedSecrets, sdl: input.rawSdl });
     this.#assertWithinLimits(supplied);
@@ -139,22 +137,19 @@ export class SdlSecretsService {
     return secrets;
   }
 
-  /**
-   * A token that will not open is not a transient condition: a failed authentication tag is evidence that
-   * something moved the data, so the failure is recorded against the deployment and the row is left exactly
-   * as it stands. Only the protected header's claims are logged — they name the data key, the user and the
-   * deployment, and carry none of the ciphertext.
-   */
+  /** Records only a permanent failure, and only the header's claims, which name the data key, the user and the deployment and carry none of the ciphertext. */
   async #decryptStored(input: { userId: string; dseq: string; sealedSecrets: string }): Promise<string> {
     try {
       return await this.secretCipherService.decrypt(input.userId, input.sealedSecrets, { sub: input.userId, dseq: input.dseq });
     } catch (error) {
-      this.#loggerService.error({
-        event: "SECRET_DECRYPT_FAILED",
-        userId: input.userId,
-        dseq: input.dseq,
-        claims: claimsOf(input.sealedSecrets)
-      });
+      if (!isRetryable(error)) {
+        this.#loggerService.error({
+          event: "SECRET_DECRYPT_FAILED",
+          userId: input.userId,
+          dseq: input.dseq,
+          claims: claimsOf(input.sealedSecrets)
+        });
+      }
 
       throw error;
     }

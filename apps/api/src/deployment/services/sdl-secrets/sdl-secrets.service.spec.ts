@@ -475,6 +475,24 @@ describe(SdlSecretsService.name, () => {
 
         await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toMatchObject({ status: 503 });
       });
+
+      it("records nothing for a key service that is merely unreachable, which is no evidence of tampering", async () => {
+        const { service, secretCipherService, logger } = setup();
+        secretCipherService.decrypt.mockRejectedValue(createError(503, "Service temporarily unavailable"));
+
+        await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toThrow();
+
+        expect(logger.error).not.toHaveBeenCalledWith(expect.objectContaining({ event: "SECRET_DECRYPT_FAILED" }));
+      });
+
+      it("still records a permanent failure that carries no status at all", async () => {
+        const { service, secretCipherService, logger } = setup();
+        secretCipherService.decrypt.mockRejectedValue(new Error("boom"));
+
+        await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toThrow();
+
+        expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SECRET_DECRYPT_FAILED" }));
+      });
     });
   });
 

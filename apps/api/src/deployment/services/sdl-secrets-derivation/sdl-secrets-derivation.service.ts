@@ -13,15 +13,7 @@ const DERIVED_REFERENCE_KIND = "secret";
 export class SdlSecretsDerivationService {
   constructor(private readonly sdlReferenceService: SdlReferenceService) {}
 
-  /**
-   * Mutates the document it is given, which must therefore be a copy the caller keeps to itself: the
-   * manifest is generated from the submitted SDL and has to see the real values.
-   *
-   * `onlyAt` bounds the walk to the positions a caller actually wrote. A patch hands over a whole
-   * stored document, most of which it never touched, and without the bound every plaintext value
-   * anywhere in it — including in services the request never named — would be sealed away and become
-   * unreadable to its owner.
-   */
+  /** Mutates the document it is given, and `onlyAt` bounds the walk to positions the caller wrote, or a stored document's untouched plaintext would be sealed away from its owner. */
   derive(document: SDLInput, options: { includeEnvValues: boolean; onlyAt?: ReadonlySet<string> }): SdlSecrets {
     const secrets: SdlSecrets = {};
     const takenByNode = new Map<object, Set<string>>();
