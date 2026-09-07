@@ -1,6 +1,6 @@
 import { inject, singleton } from "tsyringe";
 
-import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 
 /** Records a deployment created through the transaction endpoint, which bypasses the deployment API and so leaves the funding sweep with no row to find. */
@@ -36,6 +36,10 @@ export class RecordDeploymentSettingHandler implements JobHandler<RecordDeployme
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: RecordDeploymentSettingHandler.name });
+  }
+
+  requiresPermission(): JobPermissions {
+    return [];
   }
 
   /** Unscoped because job execution runs under an empty ability, which a scoped read would throw on before any SQL ran. */

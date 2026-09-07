@@ -77,6 +77,12 @@ describe(AutoRechargeSucceededHandler.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: AutoRechargeSucceededHandler.name });
   });
 
+  it("declares no permissions for its execution", () => {
+    const { handler } = setup({ user: null });
+
+    expect(handler.requiresPermission()).toEqual([]);
+  });
+
   function setup(input: {
     user: ReturnType<typeof createUser> | null;
     wallet?: ReturnType<typeof createUserWallet>;

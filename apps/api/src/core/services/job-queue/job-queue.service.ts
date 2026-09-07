@@ -1,4 +1,4 @@
-import { createMongoAbility, MongoAbility } from "@casl/ability";
+import { createMongoAbility, type MongoAbility, type RawRuleOf } from "@casl/ability";
 import { context, propagation, SpanStatusCode, trace } from "@opentelemetry/api";
 import {
   Job as PgBossJob,
@@ -321,12 +321,12 @@ export class JobQueueService implements Disposable {
                 username: "___bg_job_user___",
                 trial: false
               });
-              this.executionContextService.set("ABILITY", createMongoAbility<MongoAbility>());
               this.logger.info({
                 event: "JOB_STARTED",
                 jobId: job.id
               });
               try {
+                this.executionContextService.set("ABILITY", createMongoAbility<MongoAbility>(handler.requiresPermission(job.data)));
                 await handler.handle(job.data, { id: job.id });
                 this.logger.info({
                   event: "JOB_DONE",
@@ -421,10 +421,14 @@ export type JobType<T extends Job> = {
 
 export type JobMeta = Pick<PgBossJob, "id">;
 
+export type JobPermissions = RawRuleOf<MongoAbility>[];
+
 export interface JobHandler<T extends Job> {
   accepts: JobType<T>;
   concurrency?: ProcessOptions["concurrency"];
   policy?: PgBossQueue["policy"];
+  /** Declared rules gate rather than filter: `accessibleBy` refuses outright any action its rules omit, so a declaration covers everything the handler's services ask for. */
+  requiresPermission(payload: JobPayload<T>): JobPermissions;
   handle(payload: JobPayload<T>, job?: JobMeta): Promise<void>;
 }
 

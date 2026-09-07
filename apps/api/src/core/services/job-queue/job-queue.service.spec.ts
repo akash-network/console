@@ -1,14 +1,15 @@
+import { type MongoAbility, subject } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import type { Job as PgBossJob, PgBoss, QueueResult, WorkHandler } from "pg-boss";
 import type { Sql } from "postgres";
-import { describe, expect, it, vi } from "vitest";
-import { mock, mockDeep } from "vitest-mock-extended";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
+import { mock, mockDeep, type MockProxy } from "vitest-mock-extended";
 
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { CoreConfigService } from "../core-config/core-config.service";
 import type { ExecutionContextService } from "../execution-context/execution-context.service";
 import type { TxService } from "../tx/tx.service";
-import { type EnqueueOptions, type Job, JOB_NAME, type JobHandler, JobQueueService } from "./job-queue.service";
+import { type EnqueueOptions, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, JobQueueService } from "./job-queue.service";
 
 describe(JobQueueService.name, () => {
   describe("registerHandlers", () => {
@@ -440,6 +441,82 @@ describe(JobQueueService.name, () => {
       expect(handleFn).toHaveBeenCalledWith({ message: "Job 1", userId: "user-1" }, { id: job.id });
     });
 
+    it("installs the permissions the handler declares for its execution", async () => {
+      const { service, pgBoss, executionContextService } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new ReadPaymentMethodTestHandler(vi.fn().mockResolvedValue(undefined))]);
+      await service.startWorkers({ concurrency: 1 });
+
+      const ability = installedAbility(executionContextService);
+      expect(ability.can("read", "PaymentMethod")).toBe(true);
+      expect(ability.can("update", "PaymentMethod")).toBe(false);
+    });
+
+    it("installs an ability without rules when the handler declares no permissions", async () => {
+      const { service, pgBoss, executionContextService } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockResolvedValue(undefined))]);
+      await service.startWorkers({ concurrency: 1 });
+
+      const ability = installedAbility(executionContextService);
+      expect(abilityInstallations(executionContextService)).toHaveLength(1);
+      expect(ability.rules).toEqual([]);
+      expect(ability.can("read", "PaymentMethod")).toBe(false);
+    });
+
+    it("declares the permissions from the payload the handler is given", async () => {
+      const { service, pgBoss } = setup();
+      const handler = new ReadOwnPaymentMethodTestHandler(vi.fn().mockResolvedValue(undefined));
+      const requiresPermission = vi.spyOn(handler, "requiresPermission");
+      const job = deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([handler]);
+      await service.startWorkers({ concurrency: 1 });
+
+      expect(requiresPermission).toHaveBeenCalledWith(job.data);
+    });
+
+    it("keeps the conditions the handler declares for the job at hand", async () => {
+      const { service, pgBoss, executionContextService } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new ReadOwnPaymentMethodTestHandler(vi.fn().mockResolvedValue(undefined))]);
+      await service.startWorkers({ concurrency: 1 });
+
+      const ability = installedAbility(executionContextService);
+      expect(ability.can("read", subject("PaymentMethod", { userId: "user-1" }))).toBe(true);
+      expect(ability.can("read", subject("PaymentMethod", { userId: "user-2" }))).toBe(false);
+    });
+
+    it("installs the declared permissions before running the handler", async () => {
+      const { service, pgBoss, executionContextService } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+      const handle = vi.fn(async () => {
+        expect(installedAbility(executionContextService).can("read", "PaymentMethod")).toBe(true);
+      });
+
+      await service.registerHandlers([new ReadPaymentMethodTestHandler(handle)]);
+      await service.startWorkers({ concurrency: 1 });
+
+      expect(handle).toHaveBeenCalledTimes(1);
+    });
+
+    it("fails the job when the handler cannot declare its permissions", async () => {
+      const error = new Error("Permissions unavailable");
+      const { service, pgBoss, logger } = setup();
+      const handle = vi.fn().mockResolvedValue(undefined);
+      const job = deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new UndeclarablePermissionTestHandler(handle, error)]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      expect(result.status).toBe("rejected");
+      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_FAILED", jobId: job.id, error });
+      expect(handle).not.toHaveBeenCalled();
+    });
+
     it("uses default options when none provided", async () => {
       const handleFn = vi.fn().mockResolvedValue(undefined);
       const handler = new TestHandler(handleFn);
@@ -521,6 +598,10 @@ describe(JobQueueService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: JobQueueService.name });
   });
 
+  it("obliges every handler to declare the permissions its execution needs", () => {
+    expectTypeOf<JobHandler<TestJob>["requiresPermission"]>().toBeFunction();
+  });
+
   function setup(input?: { pgBoss?: PgBoss; postgresDbUri?: string; queues?: QueueResult[] }) {
     const mocks = {
       logger: mock<ReturnType<CreateLogger>>(),
@@ -577,12 +658,50 @@ describe(JobQueueService.name, () => {
   class TestHandler implements JobHandler<TestJob> {
     readonly accepts = TestJob;
     constructor(public readonly handle: JobHandler<TestJob>["handle"]) {}
+
+    requiresPermission(): JobPermissions {
+      return [];
+    }
   }
 
   class SingletonTestHandler implements JobHandler<TestJob> {
     readonly accepts = TestJob;
     readonly policy = "singleton" as const;
     constructor(public readonly handle: JobHandler<TestJob>["handle"]) {}
+
+    requiresPermission(): JobPermissions {
+      return [];
+    }
+  }
+
+  class ReadPaymentMethodTestHandler implements JobHandler<TestJob> {
+    readonly accepts = TestJob;
+    constructor(public readonly handle: JobHandler<TestJob>["handle"]) {}
+
+    requiresPermission(): JobPermissions {
+      return [{ action: "read", subject: "PaymentMethod" }];
+    }
+  }
+
+  class ReadOwnPaymentMethodTestHandler implements JobHandler<TestJob> {
+    readonly accepts = TestJob;
+    constructor(public readonly handle: JobHandler<TestJob>["handle"]) {}
+
+    requiresPermission(payload: JobPayload<TestJob>): JobPermissions {
+      return [{ action: "read", subject: "PaymentMethod", conditions: { userId: payload.userId } }];
+    }
+  }
+
+  class UndeclarablePermissionTestHandler implements JobHandler<TestJob> {
+    readonly accepts = TestJob;
+    constructor(
+      public readonly handle: JobHandler<TestJob>["handle"],
+      private readonly error: Error
+    ) {}
+
+    requiresPermission(): JobPermissions {
+      throw this.error;
+    }
   }
 
   class AnotherTestJob implements Job {
@@ -596,6 +715,30 @@ describe(JobQueueService.name, () => {
   class AnotherTestHandler implements JobHandler<AnotherTestJob> {
     readonly accepts = AnotherTestJob;
     constructor(public readonly handle: JobHandler<AnotherTestJob>["handle"]) {}
+
+    requiresPermission(): JobPermissions {
+      return [];
+    }
+  }
+
+  function deliverOneJob(pgBoss: PgBoss, data: Record<string, unknown>) {
+    const job = { id: "1", data };
+    vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: WorkHandler<unknown>) => {
+      await processFn([job as PgBossJob<unknown>]);
+      return "work-id";
+    });
+
+    return job;
+  }
+
+  function abilityInstallations(executionContextService: MockProxy<ExecutionContextService>) {
+    return vi.mocked(executionContextService.set).mock.calls.filter(([key]) => key === "ABILITY");
+  }
+
+  function installedAbility(executionContextService: MockProxy<ExecutionContextService>) {
+    const [installation] = abilityInstallations(executionContextService);
+
+    return installation[1] as MongoAbility;
   }
 
   function liveQueue(overrides?: Partial<QueueResult>) {

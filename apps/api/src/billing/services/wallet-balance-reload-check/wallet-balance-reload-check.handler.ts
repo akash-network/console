@@ -16,7 +16,7 @@ import { BalancesService } from "@src/billing/services/balances/balances.service
 import { type PaymentMethod, PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { AUTO_RECHARGE_METADATA_KEY, StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
-import { JobHandler, JobMeta, JobPayload } from "@src/core";
+import { JobHandler, JobMeta, JobPayload, type JobPermissions } from "@src/core";
 import type { Require } from "@src/core/types/require.type";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
@@ -77,6 +77,10 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     private readonly instrumentationService: WalletBalanceReloadCheckInstrumentationService,
     private readonly autoReloadPauseService: AutoReloadPauseService
   ) {}
+
+  requiresPermission(): JobPermissions {
+    return [];
+  }
 
   async handle(payload: JobPayload<WalletBalanceReloadCheck>, job: JobMeta): Promise<void> {
     const startTime = Date.now();

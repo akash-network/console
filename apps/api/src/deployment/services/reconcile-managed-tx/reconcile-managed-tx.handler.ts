@@ -1,7 +1,7 @@
 import { singleton } from "tsyringe";
 
 import { TxPresenceService } from "@src/chain/services/tx-presence/tx-presence.service";
-import { type Job, JOB_NAME, type JobHandler, type JobPayload } from "@src/core";
+import { type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions } from "@src/core";
 import { DeploymentSettingRepository, type FundingClaim } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { ReconcileManagedTxInstrumentationService } from "./reconcile-managed-tx-instrumentation.service";
@@ -33,6 +33,10 @@ export class ReconcileManagedTxHandler implements JobHandler<ReconcileManagedTx>
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly instrumentation: ReconcileManagedTxInstrumentationService
   ) {}
+
+  requiresPermission(): JobPermissions {
+    return [];
+  }
 
   /** Only a chain-confirmed revert releases the claims, because absence over a pooled endpoint can be a lagging member rather than a tx that never landed. */
   async handle(payload: JobPayload<ReconcileManagedTx>): Promise<void> {

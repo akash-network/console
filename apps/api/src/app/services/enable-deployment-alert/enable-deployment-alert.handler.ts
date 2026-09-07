@@ -1,7 +1,7 @@
 import { inject, singleton } from "tsyringe";
 
 import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
-import type { JobHandler, JobPayload } from "@src/core";
+import type { JobHandler, JobPayload, JobPermissions } from "@src/core";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 
@@ -18,6 +18,10 @@ export class EnableDeploymentAlertHandler implements JobHandler<EnableDeployment
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: EnableDeploymentAlertHandler.name });
+  }
+
+  requiresPermission(): JobPermissions {
+    return [];
   }
 
   async handle(payload: JobPayload<EnableDeploymentAlertCommand>): Promise<void> {

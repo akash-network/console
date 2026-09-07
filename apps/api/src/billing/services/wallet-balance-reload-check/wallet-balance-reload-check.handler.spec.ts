@@ -868,6 +868,12 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     });
   });
 
+  it("declares no permissions for its execution", () => {
+    const { handler } = setup();
+
+    expect(handler.requiresPermission()).toEqual([]);
+  });
+
   function declinedCardError(declineCode: string) {
     return new Stripe.errors.StripeCardError({
       type: "card_error",

@@ -1,7 +1,7 @@
 import { inject, singleton } from "tsyringe";
 
 import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
-import type { JobHandler, JobPayload } from "@src/core";
+import type { JobHandler, JobPayload, JobPermissions } from "@src/core";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { FundDrainingDeploymentsInstrumentationService } from "@src/deployment/services/top-up-managed-deployments/fund-draining-deployments-instrumentation.service";
 import { TopUpManagedDeploymentsService } from "@src/deployment/services/top-up-managed-deployments/top-up-managed-deployments.service";
@@ -27,6 +27,10 @@ export class FundDrainingDeploymentsHandler implements JobHandler<FundDrainingDe
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: FundDrainingDeploymentsHandler.name });
+  }
+
+  requiresPermission(): JobPermissions {
+    return [];
   }
 
   async handle(payload: JobPayload<FundDrainingDeploymentsCommand>): Promise<void> {

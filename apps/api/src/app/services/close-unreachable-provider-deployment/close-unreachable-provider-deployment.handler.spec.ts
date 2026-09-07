@@ -138,6 +138,12 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     await expect(handler.handle(aPayload())).rejects.toThrow("connection terminated");
   });
 
+  it("declares no permissions for its execution", () => {
+    const { handler } = setup();
+
+    expect(handler.requiresPermission()).toEqual([]);
+  });
+
   function aPayload(): JobPayload<CloseUnreachableProviderDeploymentCommand> {
     return { owner: OWNER, dseq: DSEQ, version: 1 };
   }

@@ -223,6 +223,12 @@ describe(TrialStartedHandler.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: TrialStartedHandler.name });
   });
 
+  it("declares no permissions for its execution", () => {
+    const { handler } = setup();
+
+    expect(handler.requiresPermission()).toEqual([]);
+  });
+
   function setup(input?: {
     findUserById?: UserRepository["findById"];
     createNotification?: NotificationService["createNotification"];

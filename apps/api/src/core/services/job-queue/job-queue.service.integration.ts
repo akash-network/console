@@ -169,7 +169,12 @@ describe(JobQueueService.name, () => {
 
     return {
       jobQueue,
-      handler: { accepts: ScopedJob, policy, handle: input.handle ?? vi.fn().mockResolvedValue(undefined) } satisfies JobHandler<Job>,
+      handler: {
+        accepts: ScopedJob,
+        policy,
+        requiresPermission: () => [],
+        handle: input.handle ?? vi.fn().mockResolvedValue(undefined)
+      } satisfies JobHandler<Job>,
       enqueue: (options?: EnqueueOptions) => jobQueue.enqueue(new ScopedJob(), options),
       createLegacyQueue: () =>
         pgBoss.createQueue(queueName, { retryLimit: RETRY_LIMIT, retryBackoff: true, retryDelayMax: RETRY_DELAY_MAX_IN_SECONDS, policy }),

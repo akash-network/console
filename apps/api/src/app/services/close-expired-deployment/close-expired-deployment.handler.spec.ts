@@ -133,6 +133,12 @@ describe(CloseExpiredDeploymentHandler.name, () => {
     });
   });
 
+  it("declares no permissions for its execution", () => {
+    const { handler } = setup();
+
+    expect(handler.requiresPermission()).toEqual([]);
+  });
+
   function expectRetriedLater(deploymentCloseJobService: ReturnType<typeof setup>["deploymentCloseJobService"], setting: DeploymentSettingsOutput) {
     expect(deploymentCloseJobService.schedule).toHaveBeenCalledWith(
       { deploymentSettingId: setting.id, userId: setting.userId, dseq: setting.dseq },

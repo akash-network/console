@@ -45,6 +45,12 @@ describe(FundDrainingDeploymentsHandler.name, () => {
     expect(handler.policy).toBe("singleton");
   });
 
+  it("declares no permissions for its execution", () => {
+    const { handler } = setup();
+
+    expect(handler.requiresPermission()).toEqual([]);
+  });
+
   function setup(params?: { topUpManagedDeploymentsService?: Partial<TopUpManagedDeploymentsService> }) {
     const topUpManagedDeploymentsService = mock<TopUpManagedDeploymentsService>({
       topUpDrainingDeploymentsForOwner: vi.fn().mockResolvedValue(undefined),

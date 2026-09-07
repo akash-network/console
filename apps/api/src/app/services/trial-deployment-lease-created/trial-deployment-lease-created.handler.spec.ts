@@ -225,6 +225,12 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
     expect(probeJobService.scheduleInitial).toHaveBeenCalledWith({ walletId: wallet.id, dseq: "test-dseq", leaseCreatedAt: deploymentCreatedAt });
   });
 
+  it("declares no permissions for its execution", () => {
+    const { handler } = setup();
+
+    expect(handler.requiresPermission()).toEqual([]);
+  });
+
   function setup(input?: {
     findWalletById?: UserWalletRepository["findById"];
     enqueueJob?: JobQueueService["enqueue"];

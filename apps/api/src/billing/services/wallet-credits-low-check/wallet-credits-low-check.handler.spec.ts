@@ -391,6 +391,12 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: WalletCreditsLowCheckHandler.name });
   });
 
+  it("declares no permissions for its execution", () => {
+    const { handler } = setup();
+
+    expect(handler.requiresPermission()).toEqual([]);
+  });
+
   function setup(input?: {
     autoReloadEnabled?: boolean;
     autoReloadPausedAt?: Date;

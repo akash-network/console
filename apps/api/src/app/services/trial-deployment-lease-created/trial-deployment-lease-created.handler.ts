@@ -4,7 +4,7 @@ import { inject, singleton } from "tsyringe";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { type CreateLogger, DOMAIN_EVENT_NAME, EventPayload, JobHandler, JobQueueService, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, DOMAIN_EVENT_NAME, EventPayload, JobHandler, type JobPermissions, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { RESOLVED_MARKER } from "@src/notifications/services/notification-data-resolver/notification-data-resolver.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 import { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
@@ -26,6 +26,10 @@ export class TrialDeploymentLeaseCreatedHandler implements JobHandler<TrialDeplo
     private readonly probeJobService: TrialWorkloadProbeJobService
   ) {
     this.logger = createLogger({ context: TrialDeploymentLeaseCreatedHandler.name });
+  }
+
+  requiresPermission(): JobPermissions {
+    return [];
   }
 
   async handle(payload: EventPayload<TrialDeploymentLeaseCreated>): Promise<void> {

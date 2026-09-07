@@ -49,6 +49,12 @@ describe(RecordDeploymentSettingHandler.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: RecordDeploymentSettingHandler.name });
   });
 
+  it("declares no permissions for its execution", () => {
+    const { handler } = setup({});
+
+    expect(handler.requiresPermission()).toEqual([]);
+  });
+
   function setup(input: { wasMissing?: boolean; writeRejectsWith?: unknown }) {
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.createDefaultIfMissing.mockImplementation(async () => {

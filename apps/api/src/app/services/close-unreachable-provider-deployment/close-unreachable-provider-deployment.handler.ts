@@ -3,7 +3,7 @@ import { inject, singleton } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
-import { type CreateLogger, type JobHandler, type JobPayload, JobQueueService, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, type JobHandler, type JobPayload, type JobPermissions, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { TxService } from "@src/core/services/tx/tx.service";
 import { CloseUnreachableProviderDeploymentCommand } from "@src/deployment/commands/close-unreachable-provider-deployment.command";
 import type { DarkDeployment } from "@src/deployment/lib/dark-deployment/dark-deployment";
@@ -43,6 +43,10 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: CloseUnreachableProviderDeploymentHandler.name });
+  }
+
+  requiresPermission(): JobPermissions {
+    return [];
   }
 
   async handle(payload: JobPayload<CloseUnreachableProviderDeploymentCommand>): Promise<void> {
