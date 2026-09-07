@@ -345,6 +345,52 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     });
   });
 
+  describe("a patch re-sent after a broadcast the client never saw succeed", () => {
+    it("answers 200 rather than 409, the row already carrying the version this patch computes", async () => {
+      const { apiKey, user } = await patchable();
+      const original = (await settingOf(user))!.manifestVersion!;
+      await patch(apiKey, { services: { web: { image: "nginx:1.27" } }, ifManifestVersion: original });
+
+      const retry = await patch(apiKey, { services: { web: { image: "nginx:1.27" } }, ifManifestVersion: original });
+
+      expect(retry.status).toBe(200);
+    });
+
+    it("recomputes the version the first attempt recorded, rather than a new one", async () => {
+      const { apiKey, user } = await patchable();
+      const original = (await settingOf(user))!.manifestVersion!;
+      await patch(apiKey, { services: { web: { image: "nginx:1.27" } }, ifManifestVersion: original });
+      const applied = (await settingOf(user))!.manifestVersion;
+
+      const retry = await patch(apiKey, { services: { web: { image: "nginx:1.27" } }, ifManifestVersion: original });
+
+      expect(await manifestVersionOf(retry)).toBe(applied);
+    });
+
+    it("answers 200 for a re-sent env patch, whose stored name and position churn on the first attempt", async () => {
+      const { apiKey, user } = await patchable({ secrets: { s0_e0: randomUUID(), s0_e1: randomUUID() } });
+      const original = (await settingOf(user))!.manifestVersion!;
+      const rotated = randomUUID();
+      await patch(apiKey, { services: { web: { env: { API_TOKEN: rotated } } }, ifManifestVersion: original });
+
+      const retry = await patch(apiKey, { services: { web: { env: { API_TOKEN: rotated } } }, ifManifestVersion: original });
+
+      expect(retry.status).toBe(200);
+    });
+
+    it("recomputes the same version for a re-sent env patch", async () => {
+      const { apiKey, user } = await patchable({ secrets: { s0_e0: randomUUID(), s0_e1: randomUUID() } });
+      const original = (await settingOf(user))!.manifestVersion!;
+      const rotated = randomUUID();
+      await patch(apiKey, { services: { web: { env: { API_TOKEN: rotated } } }, ifManifestVersion: original });
+      const applied = (await settingOf(user))!.manifestVersion;
+
+      const retry = await patch(apiKey, { services: { web: { env: { API_TOKEN: rotated } } }, ifManifestVersion: original });
+
+      expect(await manifestVersionOf(retry)).toBe(applied);
+    });
+  });
+
   describe("a key the deployment does not have", () => {
     it("answers 400 naming a service the sdl does not declare", async () => {
       const { apiKey } = await patchable();
@@ -543,6 +589,12 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     const resolved = await container.resolve(SdlService).generateResolvedManifest({ sdl, secrets });
 
     return resolved.ok ? Buffer.from(resolved.value.manifestVersion).toString("base64") : Buffer.from("unresolvable-fixture").toString("base64");
+  }
+
+  async function manifestVersionOf(response: Response) {
+    const { data } = (await response.json()) as { data?: { manifestVersion?: string } };
+
+    return data?.manifestVersion;
   }
 
   async function settingOf(user: UserOutput) {
