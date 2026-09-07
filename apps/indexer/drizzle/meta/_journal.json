@@ -78,6 +78,13 @@
       "when": 1763100000000,
       "tag": "0010_add_arch_to_provider_snapshot_node_cpu",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1763200000000,
+      "tag": "0011_fix_provider_snapshot_join_key_statistics",
+      "breakpoints": true
     }
   ]
 }
