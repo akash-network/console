@@ -22,7 +22,7 @@
   ],
   "workspaces": {
     ".": {
-      "entry": [".eslintrc.js", ".prettierrc.js"],
+      "entry": [".eslintrc.js", ".prettierrc.js", "script/*.mjs"],
       "ignoreDependencies": [
         "@interchain-ui/react",
         "drizzle-orm",

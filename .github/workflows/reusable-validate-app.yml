@@ -28,8 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TEST_SCRIPT_NAME: ${{ github.event_name == 'merge_group' && 'test' || 'test:cov' }}
-      # Stryker fails the mutation step when the score over the changed lines drops below this.
-      STRYKER_BREAK: 80
+      # The mutation step fails when the score over the reached mutants of the changed lines drops below this.
+      MUTATION_MIN_SCORE: 80
       # A diff this wide is a PR to split, not a mutation run to sit through.
       MAX_MUTATION_RANGES: 200
     steps:
@@ -93,55 +93,16 @@ jobs:
           APP_PATH: apps/${{ inputs.app }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: | # shell
-          test_script=$(jq -r '.scripts["test:unit"] // .scripts.test // ""' "$APP_PATH/package.json")
-          if [[ "$test_script" != *vitest* ]]; then
-            echo "Mutation testing skipped: $APP_PATH does not run its unit tests on vitest." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
           git fetch --no-tags --depth=1 origin "$BASE_SHA"
 
-          # Stryker mutates `file:startLine-endLine`, so only the lines this PR added or changed get mutants.
-          # Tests, type declarations and declarative wiring produce mutants no test should pin.
-          mutate=$(git diff --unified=0 "$BASE_SHA" HEAD -- "$APP_PATH/src" | awk -v prefix="$APP_PATH/" '
-            /^\+\+\+ / {
-              file = substr($0, 7)
-              sub("^" prefix, "", file)
-              mutatable = file ~ /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/ &&
-                file !~ /\.(spec|integration|test|e2e)\.[a-z]+$/ &&
-                file !~ /\.d\.ts$/ &&
-                file !~ /(^|\/)(test|tests|__tests__|__mocks__|scripts?|drizzle|migrations)\// &&
-                file !~ /(^|\/)(routes?|routers?|http-schemas|schemas|config|providers)\// &&
-                file !~ /\.schema\.ts$/ &&
-                file !~ /(^|\/)index\.tsx?$/ &&
-                file !~ /\.gen\.ts$/
-              next
-            }
-            /^@@ / && mutatable {
-              split(substr($3, 2), hunk, ",")
-              start = hunk[1] + 0
-              count = (length(hunk) < 2 ? 1 : hunk[2] + 0)
-              if (count > 0) printf "%s%s:%d-%d", (found++ ? "," : ""), file, start, start + count - 1
-            }
-          ')
+          node script/mutation-targets.mjs "$APP_PATH" "$BASE_SHA" --out mutation-targets.json
 
-          if [[ -z "$mutate" ]]; then
-            echo "Mutation testing skipped: no mutatable source line changed in $APP_PATH." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
+          jq -r '"mutate=\(.mutate)", "ranges=\(.ranges)", "test_env=\(.testEnv)"' mutation-targets.json >> "$GITHUB_OUTPUT"
+
+          skip=$(jq -r '.skip // empty' mutation-targets.json)
+          if [[ -n "$skip" ]]; then
+            echo "Mutation testing skipped: $skip." >> "$GITHUB_STEP_SUMMARY"
           fi
-
-          ranges=$(( $(tr -cd ',' <<< "$mutate" | wc -c) + 1 ))
-          if (( ranges > MAX_MUTATION_RANGES )); then
-            echo "Mutation testing skipped: $ranges changed line ranges exceed the limit of $MAX_MUTATION_RANGES." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          # Reuse whatever the app's own unit-test script exports, so mutation runs see the env its tests need.
-          test_env=$(awk '{ for (i = 1; i <= NF; i++) { if ($i ~ /^[A-Za-z_][A-Za-z0-9_]*=[A-Za-z0-9_.:\/-]*$/) printf "%s ", $i; else exit } }' <<< "$test_script")
-
-          echo "mutate=$mutate" >> "$GITHUB_OUTPUT"
-          echo "test_env=$test_env" >> "$GITHUB_OUTPUT"
-          echo "ranges=$ranges" >> "$GITHUB_OUTPUT"
 
       - name: Run mutation testing
         if: ${{ steps.mutation_targets.outputs.mutate != '' }}
@@ -158,25 +119,23 @@ jobs:
           # shellcheck disable=SC2086
           env $TEST_ENV npx stryker run "$GITHUB_WORKSPACE/stryker.config.mjs" --mutate "$MUTATE" || status=$?
 
+          score_status=0
+          summary=$(node "$GITHUB_WORKSPACE/script/mutation-report.mjs" "$STRYKER_JSON_REPORT" \
+            --min "$MUTATION_MIN_SCORE" \
+            --reproduce "cd apps/$APP && npx stryker run ../../stryker.config.mjs --mutate '$MUTATE'") || score_status=$?
+
           {
             echo "### Mutation testing: $APP"
             echo
-            echo "Mutated $RANGES changed line range(s); the score has to stay at or above ${STRYKER_BREAK}%."
+            echo "Mutated $RANGES changed line range(s), scoped to the files the app measures coverage on."
             echo
-            jq -r '
-              [.files | to_entries[] | .key as $file | .value.mutants[]
-                | select(.status == "Survived" or .status == "NoCoverage")
-                | "| `\($file):\(.location.start.line)` | \(.mutatorName) | \(.status) |"] as $rows
-              | if ($rows | length) == 0
-                then "Every mutant was killed."
-                else (["| location | mutator | status |", "| --- | --- | --- |"] + $rows | join("\n"))
-                end
-            ' "$STRYKER_JSON_REPORT" || echo "Stryker produced no report; see the step log."
+            echo "$summary"
             echo
             echo "Add the \`ignore-mutations-testing\` label to skip this check."
           } >> "$GITHUB_STEP_SUMMARY"
 
-          exit $status
+          if (( status != 0 )); then exit $status; fi
+          exit $score_status
 
       - name: Teardown tests environment
         if: ${{ always() && steps.tests_details.outputs.requires_env_setup == 'true' }}
