@@ -2110,7 +2110,7 @@ export interface paths {
     head?: never;
     /**
      * Patch a deployment
-     * @description Patches the SDL the console stored for this deployment; the SDL is never accepted from the request. Only the services named are touched. A patched environment variable is re-appended to its service's env list, so the order shown by GET may differ afterwards. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw.
+     * @description Patches the SDL the console stored for this deployment; the SDL is never accepted from the request. Only the services named are touched. A patched environment variable is re-appended to its service's env list, so the order shown by GET may differ afterwards. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw. Re-sending the identical request repairs that: it recomputes the same manifest version, is accepted rather than refused, and goes on to broadcast and push the manifest.
      */
     patch: operations["patchDeployment"];
     trace?: never;
@@ -8291,7 +8291,7 @@ export interface operations {
                 };
               };
             };
-            /** @description Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on. */
+            /** @description Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very patch produces, which makes a retry of it succeed. */
             ifManifestVersion?: string;
           };
         };
@@ -8426,7 +8426,7 @@ export interface operations {
           };
         };
       };
-      /** @description The deployment definition changed since the manifest version this patch expected */
+      /** @description The deployment definition changed since the manifest version this patch expected. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds */
       409: {
         headers: {
           [name: string]: unknown;

@@ -216,7 +216,7 @@ const patchRoute = createRoute({
   path: "/v1/deployments/{dseq}",
   summary: "Patch a deployment",
   description:
-    "Patches the SDL the console stored for this deployment; the SDL is never accepted from the request. Only the services named are touched. A patched environment variable is re-appended to its service's env list, so the order shown by GET may differ afterwards. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw.",
+    "Patches the SDL the console stored for this deployment; the SDL is never accepted from the request. Only the services named are touched. A patched environment variable is re-appended to its service's env list, so the order shown by GET may differ afterwards. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw. Re-sending the identical request repairs that: it recomputes the same manifest version, is accepted rather than refused, and goes on to broadcast and push the manifest.",
   operationId: "patchDeployment",
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,
@@ -261,7 +261,8 @@ const patchRoute = createRoute({
       }
     },
     409: {
-      description: "The deployment definition changed since the manifest version this patch expected",
+      description:
+        "The deployment definition changed since the manifest version this patch expected. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
