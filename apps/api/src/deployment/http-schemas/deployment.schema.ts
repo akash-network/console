@@ -168,13 +168,14 @@ const PatchEnvSchema = z.record(z.string().regex(ENV_VARIABLE_NAME), z.string().
   description: "Merged into the service's env, keyed by environment variable name. A null value removes the variable."
 });
 
+/** `nonnegative` rather than `positive`: the grammar gives every one of these `minimum: 0`, and 0 is how a timeout is cleared. */
 const PatchHttpOptionsSchema = z
   .object({
-    maxBodySize: z.number().int().positive(),
-    readTimeout: z.number().int().positive(),
-    sendTimeout: z.number().int().positive(),
-    nextTries: z.number().int().positive(),
-    nextTimeout: z.number().int().positive(),
+    maxBodySize: z.number().int().nonnegative(),
+    readTimeout: z.number().int().nonnegative(),
+    sendTimeout: z.number().int().nonnegative(),
+    nextTries: z.number().int().nonnegative(),
+    nextTimeout: z.number().int().nonnegative(),
     nextCases: z.array(z.string())
   })
   .partial();
