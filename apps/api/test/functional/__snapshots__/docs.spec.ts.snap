@@ -8937,11 +8937,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "type": "array",
                   },
                   "manifest": {
+                    "deprecated": true,
+                    "description": "The manifest to send to the provider, in YAML format (deprecated)",
                     "type": "string",
                   },
                 },
                 "required": [
-                  "manifest",
                   "leases",
                 ],
                 "type": "object",

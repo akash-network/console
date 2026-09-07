@@ -41,8 +41,7 @@ export class LeaseManifestService {
 
   /** Re-derives without trial limits, which gate a create rather than shape a manifest, so no lease is refused by a rule the create it belongs to already cleared. */
   @Trace()
-  async deriveFor({ dseq }: { dseq: string }): Promise<string | null> {
-    const userId = this.authService.currentUser.id;
+  async deriveFor({ dseq, userId }: { dseq: string; userId: string }): Promise<string | null> {
     const definition = await this.#findDefinition({ userId, dseq });
 
     if (!definition) {

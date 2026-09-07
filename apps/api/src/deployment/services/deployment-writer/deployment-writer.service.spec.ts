@@ -1,3 +1,4 @@
+import type { ValidationError } from "@akashnetwork/chain-sdk";
 import { DeploymentReclamation, MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { faker } from "@faker-js/faker";
@@ -232,13 +233,32 @@ describe(DeploymentWriterService.name, () => {
       expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
     });
 
-    it("returns the manifest built from the resolved sdl", async () => {
+    it("returns the manifest built from the submitted sdl, not the resolved one it hashed", async () => {
       const { service } = setup();
 
       const result = await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
 
-      expect(result.manifest).toContain("resolved-group");
-      expect(result.manifest).not.toContain("test-group");
+      expect(result.manifest).toContain("test-group");
+      expect(result.manifest).not.toContain("resolved-group");
+    });
+
+    it("applies the trial limits to the manifest it hashes and not to the one it returns", async () => {
+      const { service, sdlService, walletReaderService } = setup();
+      walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, isTrialing: true });
+
+      await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
+
+      expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.objectContaining({ isTrialing: true }));
+      expect(sdlService.generateManifest).toHaveBeenCalledWith("valid-sdl");
+    });
+
+    it("builds the returned manifest before broadcasting, so a document it cannot rebuild costs no deployment on chain", async () => {
+      const { service, sdlService, signerService } = setup();
+      sdlService.generateManifest.mockResolvedValue({ ok: false, value: [mock<ValidationError>({ message: "unbuildable" })] });
+
+      await expect(service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 })).rejects.toMatchObject({ status: 400 });
+
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
     });
 
     it("forwards the reclamation block to getCreateDeploymentMsg when the SDL declares it", async () => {
@@ -1220,7 +1240,7 @@ describe(DeploymentWriterService.name, () => {
 
     walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
     sdlService.parse.mockReturnValue({ ok: true, value: parsedSdlValue } as any);
-    sdlService.generateManifest.mockReturnValue({ ok: true, value: manifestValue } as any);
+    sdlService.generateManifest.mockResolvedValue({ ok: true, value: manifestValue } as any);
     sdlService.generateManifestVersion.mockResolvedValue(new Uint8Array([4, 5, 6]));
     sdlService.generateResolvedManifest.mockResolvedValue({
       ok: true,

@@ -3,7 +3,10 @@ import { z } from "zod";
 import { AkashAddressSchema, DseqSchema } from "@src/utils/schema";
 
 export const CreateLeaseRequestSchema = z.object({
-  manifest: z.string(),
+  manifest: z.string().optional().openapi({
+    description: "The manifest to send to the provider, in YAML format (deprecated)",
+    deprecated: true
+  }),
   leases: z.array(
     z.object({
       dseq: DseqSchema,

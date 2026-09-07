@@ -212,9 +212,10 @@ describe("Managed Wallet API Deployment Flow", () => {
 
     expect(deploymentResponse.data).toMatchObject({
       dseq: expect.any(String),
-      // until manifest is not ignored by lease create API, it returns secrets as is
-      manifest: expect.stringMatching(/(secret-value|another secret value)/)
+      manifest: expect.stringContaining("ac-secret://TEST_SECRET")
     });
+    expect(deploymentResponse.data.manifest).not.toContain("secret-value");
+    expect(deploymentResponse.data.manifest).not.toContain("another secret value");
 
     try {
       const bid = await waitForBids(api, deploymentResponse.data.dseq);
