@@ -18,8 +18,9 @@ import type { DeploymentSettingRepository } from "@src/deployment/repositories/d
 import { DeleteUnbackedDeploymentSetting } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
-import type { ReceivedSdlSecrets, SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import type { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
+import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
@@ -301,17 +302,16 @@ describe(DeploymentWriterService.name, () => {
     });
 
     it("resolves the manifest from the values the intake handed back", async () => {
-      const byService = { web: { TOKEN: "resolved" } };
-      const { service, sdlService } = setup({ received: { supplied: { TOKEN: "resolved" }, byService } });
+      const received = { TOKEN: "resolved" };
+      const { service, sdlService } = setup({ received });
 
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
 
-      expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.objectContaining({ secrets: byService }));
+      expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.objectContaining({ secrets: received }));
     });
 
     it("seals what the client supplied together with the credentials it took out itself, against the dseq it just minted", async () => {
-      const supplied = { TOKEN: "resolved" };
-      const { service, sdlSecretsService } = setup({ received: { supplied, byService: { web: supplied } } });
+      const { service, sdlSecretsService } = setup({ received: { TOKEN: "resolved" } });
       vi.spyOn(Date, "now").mockReturnValue(1748400000000);
 
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
@@ -334,8 +334,7 @@ describe(DeploymentWriterService.name, () => {
     });
 
     it("refuses a supplied name the console derives for the same deployment, before minting a dseq", async () => {
-      const supplied = { s0_c_password: "resolved" };
-      const { service, deploymentSettingRepository, signerService } = setup({ received: { supplied, byService: { web: supplied } } });
+      const { service, deploymentSettingRepository, signerService } = setup({ received: { s0_c_password: "resolved" } });
       const dateNow = vi.spyOn(Date, "now");
 
       await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 })).rejects.toMatchObject({
@@ -367,8 +366,8 @@ describe(DeploymentWriterService.name, () => {
     });
 
     it("seals once for the whole create", async () => {
-      const supplied = Object.fromEntries(Array.from({ length: 12 }, (_, index) => [`SECRET_${index}`, "value"]));
-      const { service, sdlSecretsService } = setup({ received: { supplied, byService: { web: supplied, worker: supplied } } });
+      const received = Object.fromEntries(Array.from({ length: 12 }, (_, index) => [`SECRET_${index}`, "value"]));
+      const { service, sdlSecretsService } = setup({ received });
 
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
 
@@ -492,7 +491,7 @@ describe(DeploymentWriterService.name, () => {
     });
 
     it("says nothing about a supplied value in what it logs", async () => {
-      const { service, logger } = setup({ received: { supplied: { TOKEN: ENV_VALUE }, byService: { web: { TOKEN: ENV_VALUE } } } });
+      const { service, logger } = setup({ received: { TOKEN: ENV_VALUE } });
 
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
 
@@ -1184,7 +1183,7 @@ describe(DeploymentWriterService.name, () => {
     transactionRuns?: boolean;
     compensationEnqueued?: boolean;
     manifestVersion?: Uint8Array;
-    received?: ReceivedSdlSecrets;
+    received?: SdlSecrets;
     sealedSecrets?: string | null;
   }) {
     const signerService = mock<ManagedSignerService>();
@@ -1216,7 +1215,7 @@ describe(DeploymentWriterService.name, () => {
     const sdlSecretsService = mock<SdlSecretsService>();
     /** Real rather than doubled, because what every stored-sdl assertion below measures is the document this produces. */
     const sdlSecretsDerivationService = new SdlSecretsDerivationService(new SdlReferenceService());
-    sdlSecretsService.receive.mockResolvedValue({ ok: true, value: input?.received ?? { supplied: {}, byService: {} } });
+    sdlSecretsService.receive.mockResolvedValue({ ok: true, value: input?.received ?? {} });
     sdlSecretsService.sealForStorage.mockResolvedValue(input?.sealedSecrets ?? null);
 
     walletReaderService.getWalletByUserId.mockResolvedValue(wallet);

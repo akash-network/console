@@ -43,11 +43,8 @@ function readEnvDeclaration(entry: string): { key: string; value: string } | nul
   return valueStart === -1 ? null : { key: entry.slice(0, valueStart), value: entry.slice(valueStart + 1) };
 }
 
-/** One namespace per service, so two services can reference the same name and receive their own value. */
-export type NamespacedSdlSecrets = Record<string, SdlSecrets>;
-
 export interface SdlReferenceContext {
-  secrets: NamespacedSdlSecrets;
+  secrets: SdlSecrets;
 }
 
 export interface SdlReferenceTarget {
@@ -85,18 +82,14 @@ export interface SdlReferenceDeclaration extends SdlReferenceTarget {
 
 type SdlReferenceVisitor = (reference: SdlReferenceDeclaration, slot: SdlReferenceSlot) => ValidationError | undefined;
 
-/** A service or reference name may spell an `Object.prototype` member, and a bare lookup would answer such a name with an inherited function. */
+/** A reference name may spell an `Object.prototype` member, and a bare lookup would answer such a name with an inherited function. */
 export function ownValue<T>(record: Record<string, T>, key: string): T | undefined {
   return Object.hasOwn(record, key) ? record[key] : undefined;
 }
 
 const secretReferenceResolver: SdlReferenceResolver = {
   kind: "secret",
-  resolve: ({ serviceName, name }, { secrets }) => {
-    const namespace = ownValue(secrets, serviceName);
-
-    return typeof namespace === "object" && namespace !== null ? ownValue(namespace, name) : undefined;
-  }
+  resolve: ({ name }, { secrets }) => ownValue(secrets, name)
 };
 
 function referenceError(instancePath: string, message: string, params: Record<string, unknown>): ValidationError {

@@ -692,9 +692,8 @@ describe("Deployment sealed secrets", () => {
 
   function resolvedDocumentOf(storedSdl: string, secrets: Record<string, string>) {
     const document = yaml.raw<SDLInput>(storedSdl);
-    const byService = Object.fromEntries(Object.keys(document.services).map(serviceName => [serviceName, secrets]));
 
-    expect(container.resolve(SdlReferenceService).substitute(document, { secrets: byService })).toEqual([]);
+    expect(container.resolve(SdlReferenceService).substitute(document, { secrets })).toEqual([]);
 
     return document;
   }
