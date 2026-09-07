@@ -353,6 +353,53 @@ describe(SdlSecretsDerivationService.name, () => {
     });
   });
 
+  describe("the positions a caller bounds it to", () => {
+    it("takes only the value at a position the caller named", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["A=one", "B=two"] } });
+
+      const secrets = service.derive(document, { includeEnvValues: true, onlyAt: new Set(["/services/web/env/1"]) });
+
+      expect(secrets).toEqual({ s0_e1: "two" });
+      expect(document.services.web.env).toEqual(["A=one", "B=ac-secret://s0_e1"]);
+    });
+
+    it("leaves a plaintext value in a service the caller did not name", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["A=one"] }, worker: { env: ["B=two"] } });
+
+      const secrets = service.derive(document, { includeEnvValues: true, onlyAt: new Set(["/services/web/env/0"]) });
+
+      expect(secrets).toEqual({ s0_e0: "one" });
+      expect(document.services.worker.env).toEqual(["B=two"]);
+    });
+
+    it("leaves a registry credential the caller did not name, secret though the position is", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { credentials: { host: REGISTRY_HOST, username: "u", password: "p" } } });
+
+      const secrets = service.derive(document, { includeEnvValues: false, onlyAt: new Set(["/services/web/credentials/password"]) });
+
+      expect(Object.keys(secrets)).toEqual(["s0_c_password"]);
+      expect(document.services.web.credentials).toMatchObject({ username: "u" });
+    });
+
+    it("takes nothing when the caller names no position at all", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["A=one"] } });
+
+      expect(service.derive(document, { includeEnvValues: true, onlyAt: new Set() })).toEqual({});
+      expect(document.services.web.env).toEqual(["A=one"]);
+    });
+
+    it("still walks the whole document when the caller names no bound", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["A=one"] }, worker: { env: ["B=two"] } });
+
+      expect(service.derive(document, { includeEnvValues: true })).toEqual({ s0_e0: "one", s1_e0: "two" });
+    });
+  });
+
   describe("the names it mints", () => {
     it("are names the reference grammar accepts", () => {
       const { service } = setup();
