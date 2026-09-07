@@ -8,7 +8,11 @@ import type { ApiPgDatabase } from "@src/core";
 import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { UserRepository } from "@src/user/repositories";
-import { DeleteUnbackedDeploymentSetting, DeleteUnbackedDeploymentSettingHandler } from "./delete-unbacked-deployment-setting.handler";
+import {
+  DeleteUnbackedDeploymentSetting,
+  DeleteUnbackedDeploymentSettingHandler,
+  unbackedDeploymentSettingKeyFor
+} from "./delete-unbacked-deployment-setting.handler";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
@@ -59,13 +63,13 @@ describe(DeleteUnbackedDeploymentSettingHandler.name, () => {
   });
 
   it("deletes a setting no deployment backs, run the way a worker runs it", async () => {
-    const { settingId, answerChainWith, enqueueCompensation, startWorkers, findSetting } = await setup();
+    const { settingId, answerChainWith, enqueueCompensation, startWorkers, findSetting, compensationKey } = await setup();
     answerChainWith(ABSENT_FROM_CHAIN);
 
     await enqueueCompensation();
     await startWorkers();
 
-    await expectJobCompleted(DeleteUnbackedDeploymentSetting[JOB_NAME]);
+    await expectJobCompleted(DeleteUnbackedDeploymentSetting[JOB_NAME], { singletonKey: compensationKey });
     expect(await findSetting(settingId)).toBeUndefined();
   });
 
@@ -162,6 +166,7 @@ describe(DeleteUnbackedDeploymentSettingHandler.name, () => {
     const user = await container.resolve(UserRepository).create({});
     const setting = await seedDeploymentSetting({ userId: user.id, sdl: 'version: "2.0"', manifestVersion: "BAUG" });
     const dseq = setting.dseq;
+    const compensationKey = unbackedDeploymentSettingKeyFor({ userId: user.id, dseq });
 
     answerLatestBlockWith(addMinutes(new Date(setting.createdAt ?? new Date()), input.chainMinutesAhead ?? CHAIN_MINUTES_AHEAD));
 
@@ -227,7 +232,9 @@ describe(DeleteUnbackedDeploymentSettingHandler.name, () => {
       failLatestBlock,
       pinnedHeights,
       findSetting,
-      enqueueCompensation: () => enqueue(new DeleteUnbackedDeploymentSetting({ deploymentSettingId: setting.id, owner, dseq })),
+      compensationKey,
+      enqueueCompensation: () =>
+        enqueue(new DeleteUnbackedDeploymentSetting({ deploymentSettingId: setting.id, owner, dseq }), { singletonKey: compensationKey }),
       startWorkers
     };
   }

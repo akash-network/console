@@ -57,7 +57,7 @@ const jobWorkers = useJobWorkers(() => [container.resolve(DeleteUnbackedDeployme
 
 type CompensationPayload = { deploymentSettingId: string; owner: string; dseq: string; version: number };
 
-type CompensationRow = JobRow<CompensationPayload>;
+type CompensationRow = JobRow<CompensationPayload> & { singleton_key: string };
 
 describe(DeploymentWriterService.name, () => {
   afterEach(() => {
@@ -184,7 +184,9 @@ describe(DeploymentWriterService.name, () => {
   }
 
   async function findCompensations(userId: string): Promise<CompensationRow[]> {
-    return await findJobRows<CompensationPayload>(DeleteUnbackedDeploymentSetting[JOB_NAME], { singletonKeyLike: `%.${userId}.%` });
+    const rows = await findJobRows<CompensationPayload>(DeleteUnbackedDeploymentSetting[JOB_NAME], { singletonKeyLike: `%.${userId}.%` });
+
+    return rows as CompensationRow[];
   }
 
   async function setup() {

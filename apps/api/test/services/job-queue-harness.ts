@@ -22,9 +22,14 @@ export interface JobRow<TData = Record<string, unknown>> {
   retry_backoff: boolean;
   retry_delay: number;
   retry_delay_max: number | null;
-  singleton_key: string;
+  singleton_key: string | null;
   data: TData;
   start_after: string;
+}
+
+interface JobSelector {
+  singletonKey?: string;
+  singletonKeyLike?: string;
 }
 
 function db() {
@@ -62,12 +67,18 @@ export function useJobWorkers(resolveHandlers: () => JobHandler<Job>[]) {
   };
 }
 
-export async function findJobRows<TData = Record<string, unknown>>(jobName: string, options: { singletonKeyLike?: string } = {}): Promise<JobRow<TData>[]> {
-  const singletonKeyFilter = options.singletonKeyLike ? sql`and singleton_key like ${options.singletonKeyLike}` : sql``;
+function selectorFilter({ singletonKey, singletonKeyLike }: JobSelector) {
+  if (singletonKey) return sql`and singleton_key = ${singletonKey}`;
+  if (singletonKeyLike) return sql`and singleton_key like ${singletonKeyLike}`;
+
+  return sql``;
+}
+
+export async function findJobRows<TData = Record<string, unknown>>(jobName: string, selector: JobSelector = {}): Promise<JobRow<TData>[]> {
   const rows = await db().execute(
     sql`select state, output, retry_count, retry_limit, retry_backoff, retry_delay, retry_delay_max, singleton_key, data, start_after::text
         from ${jobTable()}
-        where name = ${jobName} ${singletonKeyFilter}
+        where name = ${jobName} ${selectorFilter(selector)}
         order by created_on`
   );
 
@@ -85,12 +96,17 @@ function describeFailure(output: unknown) {
 }
 
 /** Reports what a job recorded, because pg-boss reschedules a throwing handler silently and a side-effect wait alone times out with no cause. */
-export async function expectJobCompleted(jobName: string, options: { timeout?: number; singletonKeyLike?: string } = {}): Promise<JobRow> {
+export async function expectJobCompleted(jobName: string, options: JobSelector & { timeout?: number } = {}): Promise<JobRow> {
   return await vi.waitFor(
     async () => {
-      const [row] = await findJobRows(jobName, options);
+      const rows = await findJobRows(jobName, options);
 
-      if (!row) throw new Error(`No "${jobName}" job was enqueued`);
+      if (rows.length === 0) throw new Error(`No "${jobName}" job was enqueued`);
+      if (rows.length > 1) {
+        throw new Error(`${rows.length} "${jobName}" jobs match, so this cannot tell which one to report on. Narrow it with singletonKey or singletonKeyLike.`);
+      }
+
+      const [row] = rows;
       if (row.state === "completed") return row;
 
       throw new Error(`Job "${jobName}" is ${row.state} instead of completed. It recorded:\n${describeFailure(row.output)}`);
@@ -99,10 +115,8 @@ export async function expectJobCompleted(jobName: string, options: { timeout?: n
   );
 }
 
-export async function makeJobDue(jobName: string, options: { singletonKey?: string } = {}): Promise<void> {
-  const singletonKeyFilter = options.singletonKey ? sql`and singleton_key = ${options.singletonKey}` : sql``;
-
-  await db().execute(sql`update ${jobTable()} set start_after = now() where name = ${jobName} ${singletonKeyFilter}`);
+export async function makeJobDue(jobName: string, selector: JobSelector = {}): Promise<void> {
+  await db().execute(sql`update ${jobTable()} set start_after = now() where name = ${jobName} ${selectorFilter(selector)}`);
 }
 
 /** Lets a fixture be built through the ability-scoped services a request uses, which the worker's own empty ability would refuse. */
