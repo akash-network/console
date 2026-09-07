@@ -104,3 +104,4 @@ profile-results.json
 .github/workflows/test*.yml
 
 .stryker-tmp/
+**/reports/mutation/
