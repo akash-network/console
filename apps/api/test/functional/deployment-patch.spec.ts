@@ -313,7 +313,11 @@ describe("PATCH /v1/deployments/{dseq}", () => {
       const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } }, ifManifestVersion: "AAAAmovedon" });
 
       expect(response.status).toBe(409);
-      expect((await settingOf(user))?.sdl).toBe(before!.sdl);
+      expect(await settingOf(user)).toMatchObject({
+        sdl: before!.sdl,
+        manifestVersion: before!.manifestVersion,
+        sealedSecrets: before!.sealedSecrets
+      });
     });
   });
 
@@ -392,7 +396,11 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
       await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, { s0_eTYPO: randomUUID() });
 
-      expect((await settingOf(user))?.sdl).toBe(before!.sdl);
+      expect(await settingOf(user)).toMatchObject({
+        sdl: before!.sdl,
+        manifestVersion: before!.manifestVersion,
+        sealedSecrets: before!.sealedSecrets
+      });
     });
   });
 
@@ -441,8 +449,11 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
       await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
 
-      expect((await settingOf(user))?.sdl).toBe(before!.sdl);
-      expect((await settingOf(user))?.sealedSecrets).toBe(before!.sealedSecrets);
+      expect(await settingOf(user)).toMatchObject({
+        sdl: before!.sdl,
+        manifestVersion: before!.manifestVersion,
+        sealedSecrets: before!.sealedSecrets
+      });
     });
 
     it("accepts a merged set exactly at the count", async () => {
