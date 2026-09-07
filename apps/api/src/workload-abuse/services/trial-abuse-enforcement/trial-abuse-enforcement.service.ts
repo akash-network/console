@@ -79,14 +79,14 @@ export class TrialAbuseEnforcementService {
     return outcome;
   }
 
-  /** The lock is the last step, so anything that fails before it leaves the wallet unlocked for the retry and anything after it cannot undo an enforcement that landed. */
+  /** The lock commits before the probes are cancelled, so a wipe that fails partway leaves the wallet unlocked and still monitored for the retry. */
   async #wipe(wallet: WalletInitialized): Promise<EnforcementOutcome> {
-    await this.probeJobService.cancelForWallet(wallet.id);
     const granter = await this.txManagerService.getFundingWalletAddress();
     const depositGrantRevoked = await this.#revokeDepositGrant(granter, wallet.address);
     const closedDseqs = await this.#closeLiveDeployments(wallet);
     const feeGrantRevoked = await this.#revokeFeeGrant(granter, wallet.address);
     await this.userWalletRepository.lockForAbuse(wallet.id, ABUSE_LOCK_REASON);
+    await this.probeJobService.cancelForWallet(wallet.id);
 
     return { depositGrantRevoked, feeGrantRevoked, closedDseqs };
   }

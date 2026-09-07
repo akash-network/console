@@ -22,12 +22,12 @@ const REVOKE_DEPOSIT = mock<ReturnType<RpcMessageService["getRevokeDepositDeploy
 const REVOKE_FEE = mock<ReturnType<RpcMessageService["getRevokeAllowanceMsg"]>>({ typeUrl: "/cosmos.feegrant.v1beta1.MsgRevokeAllowance" });
 
 describe(TrialAbuseEnforcementService.name, () => {
-  it("revokes the deposit grant, closes every live deployment, revokes the fee grant, then locks the wallet, in that order", async () => {
+  it("revokes the deposit grant, closes every live deployment, revokes the fee grant, locks the wallet, then cancels its probes, in that order", async () => {
     const { service, wallet, calls, userWalletRepository, detectionRepository, instrumentation } = setup({ liveDseqs: ["11", "22"] });
 
     const outcome = await service.enforce({ wallet, detectionId: DETECTION_ID });
 
-    expect(calls).toEqual(["cancelProbes", "revoke:deposit", "close:11", "close:22", "revoke:fee", "lock"]);
+    expect(calls).toEqual(["revoke:deposit", "close:11", "close:22", "revoke:fee", "lock", "cancelProbes"]);
     expect(userWalletRepository.lockForAbuse).toHaveBeenCalledWith(wallet.id, ABUSE_LOCK_REASON);
     expect(outcome).toEqual({ depositGrantRevoked: true, feeGrantRevoked: true, closedDseqs: ["11", "22"] });
     expect(detectionRepository.updateById).toHaveBeenNthCalledWith(1, DETECTION_ID, {
@@ -58,7 +58,7 @@ describe(TrialAbuseEnforcementService.name, () => {
 
     expect(signerService.executeFundingTx).toHaveBeenCalledTimes(1);
     expect(signerService.executeFundingTx).toHaveBeenCalledWith([REVOKE_FEE]);
-    expect(calls).toEqual(["cancelProbes", "lock"]);
+    expect(calls).toEqual(["lock", "cancelProbes"]);
     expect(outcome).toEqual({ depositGrantRevoked: false, feeGrantRevoked: true, closedDseqs: [] });
   });
 
@@ -93,14 +93,15 @@ describe(TrialAbuseEnforcementService.name, () => {
     expect(instrumentation.recordEnforcement).toHaveBeenCalledWith("failed");
   });
 
-  it("leaves the wallet untouched and rethrows when a revoke fails for another reason", async () => {
-    const { service, wallet, signerService, userWalletRepository, deploymentWriterService } = setup({ liveDseqs: ["11"] });
+  it("leaves the wallet untouched and keeps its probes scheduled when a revoke fails for another reason", async () => {
+    const { service, wallet, signerService, userWalletRepository, deploymentWriterService, probeJobService } = setup({ liveDseqs: ["11"] });
     signerService.executeFundingTx.mockRejectedValueOnce(new Error("account sequence mismatch"));
 
     await expect(service.enforce({ wallet, detectionId: DETECTION_ID })).rejects.toThrow("account sequence mismatch");
 
     expect(deploymentWriterService.close).not.toHaveBeenCalled();
     expect(userWalletRepository.lockForAbuse).not.toHaveBeenCalled();
+    expect(probeJobService.cancelForWallet).not.toHaveBeenCalled();
   });
 
   function setup(input: { liveDseqs: string[]; hasDepositGrant?: boolean; hasFeeGrant?: boolean }) {
@@ -170,6 +171,7 @@ describe(TrialAbuseEnforcementService.name, () => {
       chainErrorService,
       userWalletRepository,
       detectionRepository,
+      probeJobService,
       instrumentation,
       logger
     };
