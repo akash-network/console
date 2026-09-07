@@ -238,7 +238,7 @@ export const PatchDeploymentRequestSchema = z.object({
     sealedSecrets: z.string().optional(),
     ifManifestVersion: z.string().max(MAX_MANIFEST_VERSION_LENGTH).optional().openapi({
       description:
-        "Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very patch produces, which makes a retry of it succeed."
+        "Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very patch produces, which makes a retry of it succeed. Omitting this does not turn the guard off: the patch is then guarded on the version it read for itself, so a concurrent patch still answers 409 rather than overwriting it."
     })
   })
 });

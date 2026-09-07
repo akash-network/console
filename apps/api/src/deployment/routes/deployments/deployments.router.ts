@@ -262,7 +262,7 @@ const patchRoute = createRoute({
     },
     409: {
       description:
-        "The deployment definition changed since the manifest version this patch expected. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds",
+        "The deployment definition changed between this patch reading it and writing it. A patch naming no `ifManifestVersion` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds",
       content: {
         "application/json": {
           schema: ErrorResponseSchema

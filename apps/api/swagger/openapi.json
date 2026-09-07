@@ -4966,7 +4966,7 @@
                       "ifManifestVersion": {
                         "type": "string",
                         "maxLength": 64,
-                        "description": "Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very patch produces, which makes a retry of it succeed."
+                        "description": "Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very patch produces, which makes a retry of it succeed. Omitting this does not turn the guard off: the patch is then guarded on the version it read for itself, so a concurrent patch still answers 409 rather than overwriting it."
                       }
                     },
                     "required": [
@@ -5420,7 +5420,7 @@
             }
           },
           "409": {
-            "description": "The deployment definition changed since the manifest version this patch expected. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds",
+            "description": "The deployment definition changed between this patch reading it and writing it. A patch naming no `ifManifestVersion` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds",
             "content": {
               "application/json": {
                 "schema": {
