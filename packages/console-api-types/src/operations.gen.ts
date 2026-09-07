@@ -96,6 +96,14 @@ export const operations = {
       queryParams: ["timezone", "startDate", "endDate"],
       hasBody: false
     },
+    acceptFairUsePolicy: {
+      path: "/v1/user/acceptFairUsePolicy",
+      method: "post",
+      operationId: "acceptFairUsePolicy",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
     getDeploymentFundingConfig: {
       path: "/v1/deployment-funding-config",
       method: "get",

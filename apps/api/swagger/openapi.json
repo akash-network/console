@@ -2383,6 +2383,7 @@
     },
     "/v1/user/acceptFairUsePolicy": {
       "post": {
+        "operationId": "acceptFairUsePolicy",
         "summary": "Accept the Fair Use Policy",
         "tags": [
           "Users"

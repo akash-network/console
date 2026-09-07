@@ -55,7 +55,11 @@ export default [
       "simple-import-sort/imports": [
         "error",
         {
-          groups: [["^\\u0000"], ["^react", "^(?!(@src|@test))@?\\w"], ["^@src", "^\\.\\.(?!/?$)", "^\\.\\./?$", "^\\./(?=.*/)(?!/?$)", "^\\.(?!/?$)", "^\\./?$"]]
+          groups: [
+            ["^\\u0000"],
+            ["^react", "^(?!(@src|@test))@?\\w"],
+            ["^@src", "^\\.\\.(?!/?$)", "^\\.\\./?$", "^\\./(?=.*/)(?!/?$)", "^\\.(?!/?$)", "^\\./?$"]
+          ]
         }
       ],
       "@stylistic/space-infix-ops": ["error", { int32Hint: false }],
@@ -70,7 +74,7 @@ export default [
         {
           additionalVerbs: {
             get: { collection: ["export"] },
-            post: { collection: ["deposit", "screen", "apply", "validate", "confirm"] },
+            post: { collection: ["deposit", "screen", "apply", "validate", "confirm", "accept"] },
             delete: { single: ["close"] }
           }
         }

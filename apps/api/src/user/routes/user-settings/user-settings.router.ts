@@ -160,6 +160,7 @@ userSettingsRouter.openapi(skipOnboardingRoute, async function skipOnboarding(c)
 const acceptFairUsePolicyRoute = createRoute({
   method: "post",
   path: "/v1/user/acceptFairUsePolicy",
+  operationId: "acceptFairUsePolicy",
   summary: "Accept the Fair Use Policy",
   tags: ["Users"],
   security: SECURITY_BEARER_OR_API_KEY,

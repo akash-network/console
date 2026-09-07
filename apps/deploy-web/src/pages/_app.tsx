@@ -61,22 +61,22 @@ const App: React.FunctionComponent<Props> = props => {
         <UserProviders>
           <AccountCreatedTracker />
           <RequireAuth isPublic={isPublic}>
-            <RequireFairUsePolicy isPublic={isPublic}>
-              <FlagProvider>
-                <WalletProvider>
-                  <PaymentPollingProvider>
-                    <AddCreditsHost />
-                    <NavigationGuardProvider>
-                      <RequireOnboarding isPublic={isPublic}>
-                        <WaitForFeatureFlags>
+            <FlagProvider>
+              <WalletProvider>
+                <PaymentPollingProvider>
+                  <AddCreditsHost />
+                  <NavigationGuardProvider>
+                    <RequireOnboarding isPublic={isPublic}>
+                      <WaitForFeatureFlags>
+                        <RequireFairUsePolicy isPublic={isPublic}>
                           <Component {...pageProps} />
-                        </WaitForFeatureFlags>
-                      </RequireOnboarding>
-                    </NavigationGuardProvider>
-                  </PaymentPollingProvider>
-                </WalletProvider>
-              </FlagProvider>
-            </RequireFairUsePolicy>
+                        </RequireFairUsePolicy>
+                      </WaitForFeatureFlags>
+                    </RequireOnboarding>
+                  </NavigationGuardProvider>
+                </PaymentPollingProvider>
+              </WalletProvider>
+            </FlagProvider>
           </RequireAuth>
         </UserProviders>
       </BootLoadingProvider>

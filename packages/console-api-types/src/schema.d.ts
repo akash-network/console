@@ -936,31 +936,7 @@ export interface paths {
     get?: never;
     put?: never;
     /** Accept the Fair Use Policy */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Fair Use Policy accepted */
-        204: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-        /** @description Unauthorized */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
+    post: operations["acceptFairUsePolicy"];
     delete?: never;
     options?: never;
     head?: never;
@@ -7918,6 +7894,31 @@ export interface operations {
         content: {
           "text/csv": string;
         };
+      };
+    };
+  };
+  acceptFairUsePolicy: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Fair Use Policy accepted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };
