@@ -7,25 +7,28 @@ import { MAX_ECHOED_REFERENCE_LENGTH, ownValue, readEnvDeclaration } from "@src/
 
 type SdlServiceNode = SDLInput["services"][string];
 
-/** Where a patch is being applied, plus the set it records each written value position into. */
-type PatchTarget = { serviceName: string; shared: Set<object>; written: Set<string> };
+type PatchTarget = { serviceName: string; written: Set<string> };
 
-/** Where an `env` entry with no `=` is its own name, because a bare entry asks for the variable to be inherited from the host. */
+/** One service resolved and cleared for mutation, so nothing is written until every service in the patch has passed. */
+type ResolvedPatch = { serviceName: string; service: SdlServiceNode; patch: PatchService };
+
+/** A bare `env` entry is its own name, because it asks for the variable to be inherited from the host. */
 function envKeyOf(entry: string): string {
   return readEnvDeclaration(entry)?.key ?? entry;
 }
 
-/**
- * The `env` lists and `credentials` blocks reachable from more than one service, which a YAML anchor
- * makes possible: patching through such a node would silently rewrite a service the request never named.
- */
+function isNode(value: unknown): value is object {
+  return !!value && typeof value === "object";
+}
+
+/** A node reachable twice is one a write would change in a place the request did not name, whether the second reacher is another service or another part of the same one. */
 function sharedNodesOf(services: SDLInput["services"]): Set<object> {
   const seen = new Set<object>();
   const shared = new Set<object>();
 
   for (const service of Object.values(services)) {
-    for (const node of [service?.env, service?.credentials]) {
-      if (!node || typeof node !== "object") continue;
+    for (const node of [service, service?.env, service?.credentials]) {
+      if (!isNode(node)) continue;
 
       if (seen.has(node)) shared.add(node);
 
@@ -36,34 +39,43 @@ function sharedNodesOf(services: SDLInput["services"]): Set<object> {
   return shared;
 }
 
-/**
- * Applies a partial service definition to the SDL the console stored, mutating the document it is given.
- * Every message it raises names only a key the caller itself sent, never a value, because those messages
- * are echoed to the caller and logged.
- */
+function echo(key: string): string {
+  return key.slice(0, MAX_ECHOED_REFERENCE_LENGTH);
+}
+
+/** Applies a partial service definition to the stored SDL, naming only keys the caller sent and never a value, because its messages are echoed back and logged. */
 @singleton()
 export class SdlPatchService {
-  /**
-   * Returns the instance paths this patch wrote a value into, spelled the way the SDL Reference walk
-   * spells them, so a caller can seal exactly what the request supplied and leave every other value in
-   * the document as it found it.
-   */
+  /** Returns the instance paths it wrote a value into, spelled as the SDL Reference walk spells them, so a caller can seal exactly what the request supplied. */
   apply(document: SDLInput, patches: Record<string, PatchService>): Set<string> {
     const services = this.#servicesOf(document);
     const shared = sharedNodesOf(services);
+    const resolved = this.#resolveAll(services, patches, shared);
     const written = new Set<string>();
 
-    for (const [serviceName, patch] of Object.entries(patches)) {
+    for (const { serviceName, service, patch } of resolved) {
+      this.#applyToService(service, patch, { serviceName, written });
+    }
+
+    return written;
+  }
+
+  /** Every service and every node it would write through is checked before the first mutation, so a patch rejected on its last key leaves the document as it found it. */
+  #resolveAll(services: SDLInput["services"], patches: Record<string, PatchService>, shared: Set<object>): ResolvedPatch[] {
+    return Object.entries(patches).map(([serviceName, patch]) => {
       const service = ownValue(services, serviceName);
 
       if (!service) {
         throw this.#reject(`"${echo(serviceName)}" is not a service of this deployment`);
       }
 
-      this.#applyToService(service, patch, { serviceName, shared, written });
-    }
+      this.#assertNotShared(service, { serviceName, shared, field: "definition" });
 
-    return written;
+      if (patch.env !== undefined) this.#assertNotShared(service.env, { serviceName, shared, field: "env" });
+      if (patch.credentials !== undefined) this.#assertNotShared(service.credentials, { serviceName, shared, field: "credentials" });
+
+      return { serviceName, service, patch };
+    });
   }
 
   #applyToService(service: SdlServiceNode, patch: PatchService, at: PatchTarget): void {
@@ -72,18 +84,12 @@ export class SdlPatchService {
     this.#applyClearableList(service, "command", patch.command);
     this.#applyClearableList(service, "args", patch.args);
 
-    if (patch.env !== undefined) {
-      this.#assertNotShared(service.env, { ...at, field: "env" });
-      this.#applyEnv(service, patch.env, at);
-    }
+    if (patch.env !== undefined) this.#applyEnv(service, patch.env, at);
 
-    if (patch.credentials !== undefined) {
-      this.#assertNotShared(service.credentials, { ...at, field: "credentials" });
-      this.#applyCredentials(service, patch.credentials, at);
-    }
+    if (patch.credentials !== undefined) this.#applyCredentials(service, patch.credentials, at);
   }
 
-  /** A cleared list is removed rather than written as `null`, matching how a cleared `env` and cleared `credentials` behave, so a read never shows a field the user did not write. */
+  /** A cleared list is removed rather than written as `null`, so a read never shows a field the user did not write. */
   #applyClearableList(service: SdlServiceNode, field: "command" | "args", value: string[] | null | undefined): void {
     if (value === undefined) return;
 
@@ -91,35 +97,37 @@ export class SdlPatchService {
     else service[field] = value;
   }
 
-  /** Rewrites a named variable where it already stands, so an `ac-secret://` reference keeps the position its stored name was minted from. */
+  /** Rewrites a named variable at every index it already occupies, so an `ac-secret://` reference keeps the position its stored name was minted from and no stale duplicate survives. */
   #applyEnv(service: SdlServiceNode, patch: NonNullable<PatchService["env"]>, target: PatchTarget): void {
     const env: string[] = Array.isArray(service.env) ? service.env : [];
 
     for (const [key, value] of Object.entries(patch)) {
-      const at = env.findIndex(entry => typeof entry === "string" && envKeyOf(entry) === key);
+      const at = indicesOfEnvKey(env, key);
 
       if (value === null) {
-        if (at !== -1) env.splice(at, 1);
+        for (const index of [...at].reverse()) env.splice(index, 1);
 
         continue;
       }
 
-      const entry = `${key}=${value}`;
-
-      if (at === -1) env.push(entry);
-      else env[at] = entry;
+      if (at.length === 0) env.push(`${key}=${value}`);
+      else for (const index of at) env[index] = `${key}=${value}`;
     }
 
     if (env.length === 0) delete service.env;
     else service.env = env;
 
-    /** Recorded after every write, because a removal shifts the entries below it and only the final array says where a value ended up. */
+    this.#recordWrittenEnv(env, patch, target);
+  }
+
+  /** Read after every write, because a removal shifts the entries below it and only the final array says where a value ended up. */
+  #recordWrittenEnv(env: string[], patch: NonNullable<PatchService["env"]>, target: PatchTarget): void {
     for (const [key, value] of Object.entries(patch)) {
       if (value === null) continue;
 
-      const index = env.findIndex(entry => typeof entry === "string" && envKeyOf(entry) === key);
-
-      if (index !== -1) target.written.add(`/services/${target.serviceName}/env/${index}`);
+      for (const index of indicesOfEnvKey(env, key)) {
+        target.written.add(`/services/${target.serviceName}/env/${index}`);
+      }
     }
   }
 
@@ -139,9 +147,11 @@ export class SdlPatchService {
   }
 
   #assertNotShared(node: unknown, at: { serviceName: string; shared: Set<object>; field: string }): void {
-    if (!node || typeof node !== "object" || !at.shared.has(node)) return;
+    if (!isNode(node) || !at.shared.has(node)) return;
 
-    throw this.#reject(`an SDL anchor makes service "${echo(at.serviceName)}" share its ${at.field} with another service, so patching it would change both`);
+    throw this.#reject(
+      `an SDL anchor makes service "${echo(at.serviceName)}" share its ${at.field} with another part of the document, so patching it would change both`
+    );
   }
 
   #servicesOf(document: SDLInput): SDLInput["services"] {
@@ -155,6 +165,6 @@ export class SdlPatchService {
   }
 }
 
-function echo(key: string): string {
-  return key.slice(0, MAX_ECHOED_REFERENCE_LENGTH);
+function indicesOfEnvKey(env: string[], key: string): number[] {
+  return env.flatMap((entry, index) => (typeof entry === "string" && envKeyOf(entry) === key ? [index] : []));
 }

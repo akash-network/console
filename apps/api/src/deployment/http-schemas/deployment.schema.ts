@@ -161,8 +161,11 @@ export const UpdateDeploymentRequestSchema = z.object({
   })
 });
 
-const PatchEnvSchema = z.record(z.string(), z.string().nullable()).openapi({
-  description: "Merged into the service's env. A null value removes the variable."
+/** A key carrying `=` would be written as `NAME=REST=value` and read back as a different variable, silently overwriting it and leaving the supplied value unsealed. */
+const ENV_VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+const PatchEnvSchema = z.record(z.string().regex(ENV_VARIABLE_NAME), z.string().nullable()).openapi({
+  description: "Merged into the service's env, keyed by environment variable name. A null value removes the variable."
 });
 
 export const PatchServiceSchema = z

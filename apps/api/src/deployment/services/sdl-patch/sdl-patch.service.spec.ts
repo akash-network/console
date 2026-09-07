@@ -145,6 +145,47 @@ describe(SdlPatchService.name, () => {
     });
   });
 
+  describe("an env key the stored document declares more than once", () => {
+    it("rewrites every occurrence, leaving no stale duplicate behind", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", env: ["FOO=one", "BAR=two", "FOO=three"] } } });
+
+      service.apply(document, { web: { env: { FOO: "replaced" } } });
+
+      expect(document.services.web.env).toEqual(["FOO=replaced", "BAR=two", "FOO=replaced"]);
+    });
+
+    it("removes every occurrence given null", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", env: ["FOO=one", "BAR=two", "FOO=three"] } } });
+
+      service.apply(document, { web: { env: { FOO: null } } });
+
+      expect(document.services.web.env).toEqual(["BAR=two"]);
+    });
+
+    it("reports every position it wrote, not only the first", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", env: ["FOO=one", "BAR=two", "FOO=three"] } } });
+
+      const written = service.apply(document, { web: { env: { FOO: "replaced" } } });
+
+      expect([...written].sort()).toEqual(["/services/web/env/0", "/services/web/env/2"]);
+    });
+  });
+
+  describe("a whole service definition two names share", () => {
+    it("refuses an image patch through the alias rather than rewriting both", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx" } }, aliasWebAs: "worker" });
+
+      expect(() => service.apply(document, { web: { image: "nginx:1.27" } })).toThrow(/share its definition with another part of the document/);
+    });
+
+    it("leaves the aliased service untouched", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx" } }, aliasWebAs: "worker" });
+
+      expect(() => service.apply(document, { web: { image: "nginx:1.27" } })).toThrow();
+      expect(document.services.worker.image).toBe("nginx");
+    });
+  });
+
   describe("credentials", () => {
     it("replaces the three fields it carries", () => {
       const { service, document } = setup({
@@ -291,6 +332,20 @@ describe(SdlPatchService.name, () => {
       expect(document.services.web.image).toBe("nginx");
     });
 
+    it("changes nothing when the unknown service is visited after a known one", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx" } } });
+
+      expect(() => service.apply(document, { web: { image: "nginx:1.27" }, api: { image: "x" } })).toThrow();
+      expect(document.services.web.image).toBe("nginx");
+    });
+
+    it("writes no env either, when the unknown service is visited last", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", env: ["A=one"] } } });
+
+      expect(() => service.apply(document, { web: { env: { A: "two" } }, api: { image: "x" } })).toThrow();
+      expect(document.services.web.env).toEqual(["A=one"]);
+    });
+
     it("bounds how much of an outsized service name it echoes", () => {
       const { service, document } = setup({ services: { web: { image: "nginx" } } });
       const outsized = "n".repeat(500);
@@ -305,7 +360,7 @@ describe(SdlPatchService.name, () => {
     it("refuses to patch env through a shared list", () => {
       const { service, document } = setup({ services: { web: { image: "nginx" }, worker: { image: "busybox" } }, shareEnv: ["A=one"] });
 
-      expect(() => service.apply(document, { web: { env: { A: "two" } } })).toThrow(/share its env with another service/);
+      expect(() => service.apply(document, { web: { env: { A: "two" } } })).toThrow(/share its env with another part of the document/);
     });
 
     it("leaves the shared list untouched when it refuses", () => {
@@ -322,7 +377,7 @@ describe(SdlPatchService.name, () => {
       });
 
       expect(() => service.apply(document, { web: { credentials: { host: "r.test", username: "u", password: "rotated" } } })).toThrow(
-        /share its credentials with another service/
+        /share its credentials with another part of the document/
       );
     });
 
@@ -348,6 +403,7 @@ describe(SdlPatchService.name, () => {
     services: Record<string, SDLInput["services"][string]>;
     shareEnv?: string[];
     shareCredentials?: NonNullable<SDLInput["services"][string]["credentials"]>;
+    aliasWebAs?: string;
   }) {
     const services = { ...input.services };
 
@@ -355,6 +411,8 @@ describe(SdlPatchService.name, () => {
       if (input.shareEnv) services[name] = { ...services[name], env: input.shareEnv };
       if (input.shareCredentials) services[name] = { ...services[name], credentials: input.shareCredentials };
     }
+
+    if (input.aliasWebAs) services[input.aliasWebAs] = services.web;
 
     const document: SDLInput = {
       version: "2.0",
