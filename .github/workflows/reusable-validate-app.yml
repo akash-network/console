@@ -92,10 +92,20 @@ jobs:
         env:
           APP_PATH: apps/${{ inputs.app }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          MERGE_REF: refs/pull/${{ github.event.pull_request.number }}/merge
         run: | # shell
-          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          # The checkout is the merge commit, so its first parent is the base tip: diffing against it
+          # leaves out whatever landed on the base branch after the PR was opened.
+          git fetch --no-tags --depth=2 origin "+$MERGE_REF:$MERGE_REF" || true
 
-          node script/mutation-targets.mjs "$APP_PATH" "$BASE_SHA" --out mutation-targets.json
+          if git cat-file -e "HEAD^1^{commit}" 2> /dev/null; then
+            base=HEAD^1
+          else
+            git fetch --no-tags --depth=1 origin "$BASE_SHA"
+            base="$BASE_SHA"
+          fi
+
+          node script/mutation-targets.mjs "$APP_PATH" "$base" --out mutation-targets.json
 
           jq -r '"mutate=\(.mutate)", "ranges=\(.ranges)", "test_env=\(.testEnv)"' mutation-targets.json >> "$GITHUB_OUTPUT"
 

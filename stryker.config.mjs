@@ -26,6 +26,8 @@ export default {
   tempDirName: ".stryker-tmp",
   concurrency: number("STRYKER_CONCURRENCY", 2),
   timeoutMS: number("STRYKER_TIMEOUT_MS", 60_000),
+  /** The dry run executes the whole unit suite once, which outlasts Stryker's 5-minute default on a CI runner. */
+  dryRunTimeoutMinutes: number("STRYKER_DRY_RUN_TIMEOUT_MINUTES", 20),
   timeoutFactor: 2.5,
   maxTestRunnerReuse: 20,
   ignorePatterns: [".stryker-tmp", "coverage", "dist", ".next", "reports"],
