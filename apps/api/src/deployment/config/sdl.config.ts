@@ -5,3 +5,6 @@ export const SDL_MAX_LENGTH = 128 * 1024;
 
 /** Bounds a submitted SDL on the field, because the create route's raised body limit would otherwise hand every SDL the room made for a seal. */
 export const MAX_SUBMITTED_SDL_LENGTH = DEFAULT_BODY_LIMIT_BYTES;
+
+/** Matches the `manifest_version` column, so a client-supplied expectation cannot reach a query unbounded. */
+export const MAX_MANIFEST_VERSION_LENGTH = 64;
