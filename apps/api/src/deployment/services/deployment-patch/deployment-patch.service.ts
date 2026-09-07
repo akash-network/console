@@ -25,16 +25,13 @@ import { ProviderService } from "@src/provider/services/provider/provider.servic
 
 const SECRET_REFERENCE_KIND = "secret";
 
+/** Distinct from the sealed-secret failure so a client can tell which half of the stored state it cannot read, both being permanent. */
+const STORED_SDL_UNREADABLE_ERROR_CODE = "stored_sdl_unreadable";
+
 /** A deployment the console never recorded an SDL for has nothing to patch, and the SDL is deliberately not accepted from the request. */
 const NOT_PATCHABLE_MESSAGE = "This deployment has no SDL recorded by the console, so there is nothing to patch";
 
-/**
- * Patches the SDL the console stored for a deployment, rather than the one a client resubmits.
- *
- * Everything that can refuse the request runs before the single write, so a refusal leaves the stored
- * SDL and the stored token exactly as they were. The cheap structural refusals run before either token
- * is opened, so a malformed patch costs no key-service call at all.
- */
+/** Patches the SDL the console stored rather than one a client resubmits, refusing everything it can before the single write so a refusal leaves the row untouched. */
 @singleton()
 export class DeploymentPatchService {
   readonly #logger: ReturnType<CreateLogger>;
@@ -128,7 +125,7 @@ export class DeploymentPatchService {
     if (parsed.document === null) {
       this.#logger.error({ event: "DEPLOYMENT_STORED_SDL_UNPARSEABLE", ...key });
 
-      throw createError(500, "The SDL recorded for this deployment cannot be read");
+      throw createError(500, "The SDL recorded for this deployment cannot be read", { errorCode: STORED_SDL_UNREADABLE_ERROR_CODE });
     }
 
     return parsed;
@@ -147,12 +144,7 @@ export class DeploymentPatchService {
     return sdl;
   }
 
-  /**
-   * The one set the patched deployment's token carries: what it already held, overlaid by what the
-   * request supplied and then by what the patched document itself gave up, pruned to exactly the names
-   * the document still references. A name the SDL no longer mentions is dropped rather than kept, and a
-   * name it mentions with no value anywhere is left for the resolve below to refuse by name.
-   */
+  /** What the deployment held, overlaid by what the request supplied and then by what the patched document gave up, pruned to the names the document still references. */
   #mergeAndPrune(sets: { held: SdlSecrets; supplied: SdlSecrets; derived: SdlSecrets }, document: SDLInput): SdlSecrets {
     const overlaid: SdlSecrets = { ...sets.held, ...sets.supplied, ...sets.derived };
     const referenced = new Set(this.sdlReferenceService.declarationsOf(document, SECRET_REFERENCE_KIND).map(declaration => declaration.name));
@@ -166,11 +158,7 @@ export class DeploymentPatchService {
     return merged;
   }
 
-  /**
-   * A supplied name the patched SDL does not reference is refused rather than dropped, the same answer
-   * a whole-SDL update gives: a misspelt name would otherwise be silently discarded and the caller
-   * would believe a credential had rotated when nothing had changed.
-   */
+  /** A misspelt name is refused rather than dropped, so a caller cannot receive a 200 believing a credential rotated when nothing changed. */
   #assertEverySuppliedNameIsReferenced(supplied: SdlSecrets, referenced: ReadonlySet<string>): void {
     const unreferenced = Object.keys(supplied).filter(name => !referenced.has(name));
 
