@@ -1,3 +1,5 @@
+import type { SDLInput } from "@akashnetwork/chain-sdk";
+import { yaml } from "@akashnetwork/chain-sdk";
 import createError from "http-errors";
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
@@ -144,6 +146,44 @@ describe(DeploymentPatchService.name, () => {
       expect(sdl).not.toContain("LOG_LEVEL=trace");
       expect(sdl).toContain("LOG_LEVEL=ac-secret://s1_e0");
       expect(sealedFor()).toEqual({ s0_e0: "token", s1_e0: "trace" });
+    });
+  });
+
+  describe("the name a re-supplied value ends up stored under", () => {
+    it("gives a patched variable a different derived name, since names need only be unique", async () => {
+      const { service, sealedFor } = setup({ held: { s0_e0: "token", s0_e1: "kept" } });
+
+      await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { env: { API_TOKEN: "rotated" } } } });
+
+      const names = Object.keys(sealedFor());
+      expect(names).not.toContain("s0_e0");
+      expect(Object.values(sealedFor())).toEqual(expect.arrayContaining(["rotated", "kept"]));
+    });
+
+    it("drops the name the value used to be stored under from the re-sealed token", async () => {
+      const { service, sealedFor } = setup({ held: { s0_e0: "token", s0_e1: "kept" } });
+
+      await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { env: { API_TOKEN: "rotated" } } } });
+
+      expect(sealedFor()).not.toHaveProperty("s0_e0");
+    });
+
+    it("keeps the value of every variable the patch did not name, whatever name it now sits under", async () => {
+      const { service, sealedFor } = setup({ held: { s0_e0: "token", s0_e1: "kept" } });
+
+      await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { env: { API_TOKEN: "rotated" } } } });
+
+      expect(Object.values(sealedFor())).toContain("kept");
+    });
+
+    it("records an sdl whose references all resolve against the re-sealed token", async () => {
+      const { service, sealedFor, deploymentSettingRepository, sdlReferenceService } = setup({ held: { s0_e0: "token", s0_e1: "kept" } });
+
+      await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { env: { API_TOKEN: "rotated" } } } });
+
+      const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
+      const document = yaml.raw<SDLInput>(sdl);
+      expect(sdlReferenceService.substitute(document, { secrets: sealedFor() })).toEqual([]);
     });
   });
 
@@ -501,6 +541,7 @@ describe(DeploymentPatchService.name, () => {
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger: CreateLogger = () => logger;
 
+    const sdlReferenceService = new SdlReferenceService();
     const service = new DeploymentPatchService(
       walletReaderService,
       deploymentReaderService,
@@ -508,7 +549,7 @@ describe(DeploymentPatchService.name, () => {
       mock<AuthService>(),
       new SdlPatchService(),
       sdlService,
-      new SdlReferenceService(),
+      sdlReferenceService,
       sdlSecretsService,
       new SdlSecretsDerivationService(new SdlReferenceService()),
       signerService,
@@ -530,6 +571,7 @@ describe(DeploymentPatchService.name, () => {
       providerService,
       signerService,
       logger,
+      sdlReferenceService,
       sealedFor
     };
   }
