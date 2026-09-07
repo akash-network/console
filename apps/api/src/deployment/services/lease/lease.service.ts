@@ -2,7 +2,6 @@ import { LeaseHttpService } from "@akashnetwork/http-sdk";
 import { Trace } from "@akashnetwork/instrumentation";
 import { singleton } from "tsyringe";
 
-import { AuthService } from "@src/auth/services/auth.service";
 import { ManagedSignerService, RpcMessageService } from "@src/billing/services";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { type DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
@@ -20,16 +19,15 @@ export class LeaseService {
     private readonly deploymentReaderService: DeploymentReaderService,
     private readonly walletReaderService: WalletReaderService,
     private readonly leaseHttpService: LeaseHttpService,
-    private readonly leaseManifestService: LeaseManifestService,
-    private readonly authService: AuthService
+    private readonly leaseManifestService: LeaseManifestService
   ) {}
 
   /** The `manifest` a request carries is only the fallback for a deployment the console recorded nothing for, no longer the document a provider is sent. */
   @Trace()
-  public async createLeasesAndSendManifest({ leases, manifest }: CreateLeaseRequest): Promise<DeploymentResponse> {
-    const wallet = await this.walletReaderService.getWalletByUserId(this.authService.currentUser.id);
+  public async createLeasesAndSendManifest({ leases, manifest, userId }: CreateLeaseRequest & { userId: string }): Promise<DeploymentResponse> {
+    const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const dseq = leases[0].dseq;
-    const derived = await this.#derivedByDseq(leases);
+    const derived = await this.#derivedByDseq(leases, userId);
 
     // Leases for all groups are created in one tx, so one existing lease means all exist:
     // skip creation when already on-chain to keep retries idempotent.
@@ -62,11 +60,12 @@ export class LeaseService {
   }
 
   /** Called before anything is broadcast, so a definition the console cannot re-derive costs no lease on chain. */
-  async #derivedByDseq(leases: CreateLeaseRequest["leases"]): Promise<Map<string, string | null>> {
+  async #derivedByDseq(leases: CreateLeaseRequest["leases"], userId: string): Promise<Map<string, string | null>> {
     const derived = new Map<string, string | null>();
 
     for (const { dseq } of leases) {
-      if (!derived.has(dseq)) derived.set(dseq, await this.leaseManifestService.deriveFor({ dseq }));
+      if (derived.has(dseq)) continue;
+      derived.set(dseq, await this.leaseManifestService.deriveFor({ dseq, userId }));
     }
 
     return derived;

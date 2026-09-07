@@ -93,7 +93,7 @@ describe(LeaseManifestService.name, () => {
       const stored = sdlWith(["LOG_LEVEL=debug"]);
       const { service } = setup({ definition: { sdl: stored, sealedSecrets: null } });
 
-      const manifest = await service.deriveFor({ dseq: DSEQ });
+      const manifest = await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
 
       expect(manifest).toBe(manifestOf(stored));
     });
@@ -105,7 +105,7 @@ describe(LeaseManifestService.name, () => {
         stored: { API_TOKEN: token }
       });
 
-      const manifest = await service.deriveFor({ dseq: DSEQ });
+      const manifest = await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
 
       expect(manifest).toBe(manifestOf(sdlWith([`API_TOKEN=${token}`])));
       expect(manifest).not.toContain("ac-secret://");
@@ -123,7 +123,7 @@ describe(LeaseManifestService.name, () => {
         stored: { REG_USER: username, REG_PASS: password }
       });
 
-      const manifest = await service.deriveFor({ dseq: DSEQ });
+      const manifest = await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
 
       expect(manifest).toBe(manifestOf(sdlWith(["LOG_LEVEL=debug"], { credentials: { host: "registry.example.test", username, password } })));
     });
@@ -134,8 +134,8 @@ describe(LeaseManifestService.name, () => {
         stored: { API_TOKEN: randomUUID() }
       });
 
-      const first = await service.deriveFor({ dseq: DSEQ });
-      const second = await service.deriveFor({ dseq: DSEQ });
+      const first = await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
+      const second = await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
 
       expect(first).toBe(second);
       expect(first).toEqual(expect.any(String));
@@ -144,7 +144,7 @@ describe(LeaseManifestService.name, () => {
     it("reads the definition of the authenticated user, which no caller can name for it", async () => {
       const { service, scopedRepository } = setup({ definition: { sdl: sdlWith([]), sealedSecrets: null } });
 
-      await service.deriveFor({ dseq: DSEQ });
+      await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
 
       expect(scopedRepository.findOneBy).toHaveBeenCalledWith({ userId: USER_ID, dseq: DSEQ });
     });
@@ -155,7 +155,7 @@ describe(LeaseManifestService.name, () => {
         stored: { API_TOKEN: "value" }
       });
 
-      await service.deriveFor({ dseq: DSEQ });
+      await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
 
       expect(sdlSecretsService.openStored).toHaveBeenCalledWith(expect.objectContaining({ userId: USER_ID }));
     });
@@ -163,7 +163,7 @@ describe(LeaseManifestService.name, () => {
     it("reads the definition scoped to the caller's own ability", async () => {
       const { service, deploymentSettingRepository, authService } = setup({ definition: { sdl: sdlWith([]), sealedSecrets: null } });
 
-      await service.deriveFor({ dseq: DSEQ });
+      await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
 
       expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
     });
@@ -171,7 +171,7 @@ describe(LeaseManifestService.name, () => {
     it("opens no stored token for a definition that has none", async () => {
       const { service, sdlSecretsService } = setup({ definition: { sdl: sdlWith(["LOG_LEVEL=debug"]), sealedSecrets: null } });
 
-      await service.deriveFor({ dseq: DSEQ });
+      await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
 
       expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
     });
@@ -182,7 +182,7 @@ describe(LeaseManifestService.name, () => {
         stored: { API_TOKEN: "value" }
       });
 
-      await service.deriveFor({ dseq: DSEQ });
+      await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
 
       expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ userId: USER_ID, dseq: DSEQ, sealedSecrets: "sealed" });
     });
@@ -194,7 +194,7 @@ describe(LeaseManifestService.name, () => {
         stored: { API_TOKEN: token }
       });
 
-      await service.deriveFor({ dseq: DSEQ });
+      await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
 
       expect(logger.info).toHaveBeenCalledWith({ event: "LEASE_MANIFEST_DERIVED", userId: USER_ID, dseq: DSEQ, resolvedSecretCount: 1 });
     });
@@ -206,7 +206,7 @@ describe(LeaseManifestService.name, () => {
         stored: { API_TOKEN: token }
       });
 
-      await service.deriveFor({ dseq: DSEQ });
+      await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
 
       expect(JSON.stringify([logger.info.mock.calls, logger.warn.mock.calls, logger.error.mock.calls])).not.toContain(token);
     });
@@ -214,7 +214,7 @@ describe(LeaseManifestService.name, () => {
     it("falls back when the console recorded nothing for the deployment", async () => {
       const { service, logger } = setup({ definition: null });
 
-      const manifest = await service.deriveFor({ dseq: DSEQ });
+      const manifest = await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
 
       expect(manifest).toBeNull();
       expect(logger.info).toHaveBeenCalledWith({ event: "LEASE_MANIFEST_FALLBACK", userId: USER_ID, dseq: DSEQ, reason: "nothing-recorded" });
@@ -223,7 +223,7 @@ describe(LeaseManifestService.name, () => {
     it("falls back when the row it found carries no sdl", async () => {
       const { service, logger } = setup({ definition: { sdl: null, sealedSecrets: null } });
 
-      const manifest = await service.deriveFor({ dseq: DSEQ });
+      const manifest = await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
 
       expect(manifest).toBeNull();
       expect(logger.info).toHaveBeenCalledWith({ event: "LEASE_MANIFEST_FALLBACK", userId: USER_ID, dseq: DSEQ, reason: "nothing-recorded" });
@@ -232,14 +232,14 @@ describe(LeaseManifestService.name, () => {
     it("refuses a row holding a token beside no sdl rather than accepting a client manifest for it", async () => {
       const { service, logger } = setup({ definition: { sdl: null, sealedSecrets: "sealed" } });
 
-      await expect(service.deriveFor({ dseq: DSEQ })).rejects.toMatchObject({ status: 500 });
+      await expect(service.deriveFor({ dseq: DSEQ, userId: USER_ID })).rejects.toMatchObject({ status: 500 });
       expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "LEASE_MANIFEST_FALLBACK" }));
     });
 
     it("falls back when a definition carrying no reference will not re-derive", async () => {
       const { service, logger } = setup({ definition: { sdl: "version: '2.0'\nservices: {}", sealedSecrets: null } });
 
-      const manifest = await service.deriveFor({ dseq: DSEQ });
+      const manifest = await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
 
       expect(manifest).toBeNull();
       expect(logger.info).toHaveBeenCalledWith({ event: "LEASE_MANIFEST_FALLBACK", userId: USER_ID, dseq: DSEQ, reason: "unresolvable" });
@@ -248,7 +248,7 @@ describe(LeaseManifestService.name, () => {
     it("refuses a definition whose reference has no stored value rather than falling back", async () => {
       const { service } = setup({ definition: { sdl: sdlWith(["API_TOKEN=ac-secret://API_TOKEN"]), sealedSecrets: null } });
 
-      await expect(service.deriveFor({ dseq: DSEQ })).rejects.toMatchObject({ status: 500 });
+      await expect(service.deriveFor({ dseq: DSEQ, userId: USER_ID })).rejects.toMatchObject({ status: 500 });
     });
 
     it("refuses a definition whose token is missing the name its sdl references", async () => {
@@ -257,32 +257,32 @@ describe(LeaseManifestService.name, () => {
         stored: { SOMETHING_ELSE: "value" }
       });
 
-      await expect(service.deriveFor({ dseq: DSEQ })).rejects.toMatchObject({ status: 500 });
+      await expect(service.deriveFor({ dseq: DSEQ, userId: USER_ID })).rejects.toMatchObject({ status: 500 });
     });
 
     it("refuses a stored sdl that will not parse rather than assuming it carries no reference", async () => {
       const { service } = setup({ definition: { sdl: "services:\n  - web\n :::", sealedSecrets: null } });
 
-      await expect(service.deriveFor({ dseq: DSEQ })).rejects.toMatchObject({ status: 500 });
+      await expect(service.deriveFor({ dseq: DSEQ, userId: USER_ID })).rejects.toMatchObject({ status: 500 });
     });
 
     it("refuses a sealed definition that will not re-derive even with no reference left in its sdl", async () => {
       const { service } = setup({ definition: { sdl: "version: '2.0'\nservices: {}", sealedSecrets: "sealed" }, stored: {} });
 
-      await expect(service.deriveFor({ dseq: DSEQ })).rejects.toMatchObject({ status: 500 });
+      await expect(service.deriveFor({ dseq: DSEQ, userId: USER_ID })).rejects.toMatchObject({ status: 500 });
     });
 
     it("says nothing of the definition in the refusal it reports", async () => {
       const token = randomUUID();
       const { service } = setup({ definition: { sdl: sdlWith([`API_TOKEN=ac-secret://${token.replace(/-/g, "_")}`]), sealedSecrets: null } });
 
-      await expect(service.deriveFor({ dseq: DSEQ })).rejects.toMatchObject({ message: "Unable to derive the deployment manifest" });
+      await expect(service.deriveFor({ dseq: DSEQ, userId: USER_ID })).rejects.toMatchObject({ message: "Unable to derive the deployment manifest" });
     });
 
     it("logs the refusal so a definition nothing can re-derive is measurable", async () => {
       const { service, logger } = setup({ definition: { sdl: sdlWith(["API_TOKEN=ac-secret://API_TOKEN"]), sealedSecrets: null } });
 
-      await expect(service.deriveFor({ dseq: DSEQ })).rejects.toThrow();
+      await expect(service.deriveFor({ dseq: DSEQ, userId: USER_ID })).rejects.toThrow();
       expect(logger.error).toHaveBeenCalledWith({ event: "LEASE_MANIFEST_UNRESOLVABLE", userId: USER_ID, dseq: DSEQ });
     });
 
@@ -291,14 +291,14 @@ describe(LeaseManifestService.name, () => {
       const { service, sdlSecretsService } = setup({ definition: { sdl: sdlWith(["API_TOKEN=ac-secret://API_TOKEN"]), sealedSecrets: "tampered" } });
       sdlSecretsService.openStored.mockRejectedValue(unreadable);
 
-      await expect(service.deriveFor({ dseq: DSEQ })).rejects.toBe(unreadable);
+      await expect(service.deriveFor({ dseq: DSEQ, userId: USER_ID })).rejects.toBe(unreadable);
     });
 
     it("logs a token it cannot open as the lease failure it is, not only as the cipher's", async () => {
       const { service, sdlSecretsService, logger } = setup({ definition: { sdl: sdlWith(["API_TOKEN=ac-secret://API_TOKEN"]), sealedSecrets: "tampered" } });
       sdlSecretsService.openStored.mockRejectedValue(createError(500, "Unable to read stored secrets"));
 
-      await expect(service.deriveFor({ dseq: DSEQ })).rejects.toThrow();
+      await expect(service.deriveFor({ dseq: DSEQ, userId: USER_ID })).rejects.toThrow();
       expect(logger.error).toHaveBeenCalledWith({ event: "LEASE_MANIFEST_UNRESOLVABLE", userId: USER_ID, dseq: DSEQ });
     });
 
@@ -306,14 +306,17 @@ describe(LeaseManifestService.name, () => {
       const { service, sdlSecretsService } = setup({ definition: { sdl: sdlWith(["API_TOKEN=ac-secret://API_TOKEN"]), sealedSecrets: "sealed" } });
       sdlSecretsService.openStored.mockRejectedValue(createError(503, "SDL secrets are temporarily unavailable"));
 
-      await expect(service.deriveFor({ dseq: DSEQ })).rejects.toMatchObject({ status: 503, message: "SDL secrets are temporarily unavailable" });
+      await expect(service.deriveFor({ dseq: DSEQ, userId: USER_ID })).rejects.toMatchObject({
+        status: 503,
+        message: "SDL secrets are temporarily unavailable"
+      });
     });
 
     it("counts an unreachable key service apart from the definitions that can never be re-derived", async () => {
       const { service, sdlSecretsService, logger } = setup({ definition: { sdl: sdlWith(["API_TOKEN=ac-secret://API_TOKEN"]), sealedSecrets: "sealed" } });
       sdlSecretsService.openStored.mockRejectedValue(createError(503, "SDL secrets are temporarily unavailable"));
 
-      await expect(service.deriveFor({ dseq: DSEQ })).rejects.toThrow();
+      await expect(service.deriveFor({ dseq: DSEQ, userId: USER_ID })).rejects.toThrow();
       expect(logger.warn).toHaveBeenCalledWith({ event: "LEASE_MANIFEST_UNREACHABLE", userId: USER_ID, dseq: DSEQ });
       expect(logger.error).not.toHaveBeenCalledWith(expect.objectContaining({ event: "LEASE_MANIFEST_UNRESOLVABLE" }));
     });
@@ -321,7 +324,7 @@ describe(LeaseManifestService.name, () => {
     it("writes nothing to the row it read, whatever the derivation makes of it", async () => {
       const { service, deploymentSettingRepository } = setup({ definition: { sdl: sdlWith(["API_TOKEN=ac-secret://API_TOKEN"]), sealedSecrets: null } });
 
-      await expect(service.deriveFor({ dseq: DSEQ })).rejects.toThrow();
+      await expect(service.deriveFor({ dseq: DSEQ, userId: USER_ID })).rejects.toThrow();
 
       expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
       expect(deploymentSettingRepository.updateById).not.toHaveBeenCalled();
@@ -332,7 +335,7 @@ describe(LeaseManifestService.name, () => {
       const stored = sdlWith(["LOG_LEVEL=debug"], { gpuModel: "a100" });
       const { service } = setup({ definition: { sdl: stored, sealedSecrets: null }, blockedGpuModels: ["nvidia/a100"] });
 
-      const manifest = await service.deriveFor({ dseq: DSEQ });
+      const manifest = await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
 
       expect(manifest).toBe(manifestOf(stored));
     });
@@ -341,7 +344,7 @@ describe(LeaseManifestService.name, () => {
       const stored = sdlWith(["LOG_LEVEL=debug"]);
       const { service } = setup({ definition: { sdl: stored, sealedSecrets: null }, trialMaxCpu: 0.05, trialMaxMemoryGi: 0.01 });
 
-      const manifest = await service.deriveFor({ dseq: DSEQ });
+      const manifest = await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
 
       expect(manifest).toBe(manifestOf(stored));
     });
@@ -351,8 +354,8 @@ describe(LeaseManifestService.name, () => {
       const { service, denomExchangeService } = setup({ definition: { sdl: stored, sealedSecrets: null }, grantDenom: "uact" });
       denomExchangeService.getExchangeRateToUSD.mockResolvedValueOnce(aktToUsdRateOf(0.325)).mockResolvedValueOnce(aktToUsdRateOf(9));
 
-      const first = await service.deriveFor({ dseq: DSEQ });
-      const second = await service.deriveFor({ dseq: DSEQ });
+      const first = await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
+      const second = await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
 
       expect(first).toBe(second);
       expect(first).toBe(manifestOf(stored));
@@ -365,7 +368,7 @@ describe(LeaseManifestService.name, () => {
         aktToUsdRate: 0
       });
 
-      const manifest = await service.deriveFor({ dseq: DSEQ });
+      const manifest = await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
 
       expect(manifest).toBeNull();
       expect(logger.info).toHaveBeenCalledWith({ event: "LEASE_MANIFEST_FALLBACK", userId: USER_ID, dseq: DSEQ, reason: "unresolvable" });
