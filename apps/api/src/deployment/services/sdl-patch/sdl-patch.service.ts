@@ -10,6 +10,7 @@ type SdlExposeNode = NonNullable<SdlServiceNode["expose"]>[number];
 type SdlHttpOptionsNode = NonNullable<SdlExposeNode["http_options"]>;
 type SdlStorageNode = NonNullable<NonNullable<SdlServiceNode["params"]>["storage"]>[string];
 type PatchExpose = NonNullable<PatchService["expose"]>[string];
+type PatchStorage = NonNullable<PatchService["storage"]>[string];
 
 type PatchTarget = { serviceName: string; shared: Set<object>; written: Set<string> };
 
@@ -38,6 +39,19 @@ function echo(key: string): string {
 /** An empty options object assigns nothing, and synthesising the node for it would leave a read showing an `http_options: {}` the user never wrote. */
 function assignsHttpOptions(patch: PatchExpose): boolean {
   return patch.httpOptions !== undefined && Object.values(patch.httpOptions).some(value => value !== undefined);
+}
+
+/** A port has to be declared before it is compared, because `String(undefined)` is `"undefined"` and a patch key spelled that way would otherwise match an entry declaring no port at all. */
+function declaresPort(entry: SdlExposeNode | undefined, port: string): boolean {
+  return entry?.port !== undefined && String(entry.port) === port;
+}
+
+function assignsExpose(patch: PatchExpose): boolean {
+  return patch.accept !== undefined || assignsHttpOptions(patch);
+}
+
+function assignsStorage(patch: PatchStorage): boolean {
+  return patch.mount !== undefined || patch.readOnly !== undefined;
 }
 
 /** Every node a patch could write through, so sharing is judged against the object that would actually be mutated. */
@@ -174,7 +188,7 @@ export class SdlPatchService {
     const exposed = Array.isArray(service.expose) ? service.expose : [];
 
     for (const [port, entryPatch] of Object.entries(patch)) {
-      const matches = exposed.filter(candidate => String(candidate?.port) === port);
+      const matches = exposed.filter(candidate => declaresPort(candidate, port));
 
       if (matches.length === 0) {
         throw this.#reject(`service "${echo(at.serviceName)}" exposes no port "${echo(port)}"`);
@@ -185,6 +199,8 @@ export class SdlPatchService {
           `service "${echo(at.serviceName)}" exposes port "${echo(port)}" ${matches.length} times, so this patch cannot say which endpoint it means`
         );
       }
+
+      if (!assignsExpose(entryPatch)) continue;
 
       this.#assertNotShared(matches[0], { ...at, field: `expose on port ${echo(port)}` });
       this.#applyExposeEntry(matches[0], entryPatch, at, port);
@@ -221,6 +237,8 @@ export class SdlPatchService {
       if (!volume) {
         throw this.#reject(`service "${echo(at.serviceName)}" declares no storage volume "${echo(volumeName)}"`);
       }
+
+      if (!assignsStorage(volumePatch)) continue;
 
       this.#assertNotShared(volume, { ...at, field: `storage volume ${echo(volumeName)}` });
 

@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import { MAX_ECHOED_REFERENCE_LENGTH, SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlPatchService } from "./sdl-patch.service";
 
+type SdlExposeEntry = NonNullable<SDLInput["services"][string]["expose"]>[number];
+
 describe(SdlPatchService.name, () => {
   it("replaces the image of the named service", () => {
     const { service, document } = setup({ services: { web: { image: "nginx" } } });
@@ -459,6 +461,27 @@ describe(SdlPatchService.name, () => {
       expect(() => service.apply(document, { web: { expose: { "8080": { accept: ["x.test"] } } } })).toThrow();
       expect(document.services.web.expose?.[0].accept).toEqual(["old.test"]);
     });
+
+    it('refuses a port spelled "undefined" rather than matching an endpoint that declares none', () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ accept: ["old.test"] } as SdlExposeEntry] } } });
+
+      expect(() => service.apply(document, { web: { expose: { undefined: { accept: ["x.test"] } } } })).toThrow(/exposes no port "undefined"/);
+      expect(document.services.web.expose?.[0].accept).toEqual(["old.test"]);
+    });
+
+    it("still refuses an unknown port carrying a sub-patch that assigns nothing", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 80 }] } } });
+
+      expect(() => service.apply(document, { web: { expose: { "8080": {} } } })).toThrow(/exposes no port "8080"/);
+    });
+
+    it("writes no http options node for a sub-patch that assigns nothing", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 80 }] } } });
+
+      service.apply(document, { web: { expose: { "80": {} } } });
+
+      expect(document.services.web.expose?.[0]).toEqual({ port: 80 });
+    });
   });
 
   describe("storage", () => {
@@ -600,6 +623,39 @@ describe(SdlPatchService.name, () => {
       });
 
       expect(() => service.apply(document, { web: { storage: { data: { mount: "/srv" } } } })).toThrow(/share its storage volume data/);
+    });
+
+    it("accepts an expose sub-patch that assigns nothing, rather than refusing a write it would never make", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx" }, worker: { image: "busybox" } },
+        shareExpose: [{ port: 80, accept: ["a.test"] }]
+      });
+
+      service.apply(document, { web: { expose: { "80": {} } } });
+
+      expect(document.services.worker.expose?.[0].accept).toEqual(["a.test"]);
+    });
+
+    it("accepts an http options sub-patch that assigns nothing on a shared options block", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx" }, worker: { image: "busybox" } },
+        shareHttpOptions: { max_body_size: 1024 }
+      });
+
+      service.apply(document, { web: { expose: { "80": { httpOptions: {} } } } });
+
+      expect(document.services.worker.expose?.[0].http_options).toEqual({ max_body_size: 1024 });
+    });
+
+    it("accepts a storage sub-patch that assigns nothing, rather than refusing a write it would never make", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx" }, worker: { image: "busybox" } },
+        shareStorage: { data: { mount: "/data" } }
+      });
+
+      service.apply(document, { web: { storage: { data: {} } } });
+
+      expect(document.services.worker.params?.storage?.data).toEqual({ mount: "/data" });
     });
   });
 
