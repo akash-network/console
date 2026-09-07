@@ -9,6 +9,7 @@ import type { ManagedSignerService } from "@src/billing/services/managed-signer/
 import type { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { CreateLogger } from "@src/core";
+import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import type { DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
@@ -332,6 +333,39 @@ describe(DeploymentPatchService.name, () => {
 
       await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } }, ifManifestVersion: "STALE" })).rejects.toThrow();
       expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("stored state the console cannot read or store back", () => {
+    it("answers a permanent 5xx when the recorded sdl will not parse", async () => {
+      const { service } = setup({ sdl: "services: [this is not: valid: yaml" });
+
+      await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } })).rejects.toMatchObject({
+        status: 500,
+        errorCode: "stored_sdl_unreadable"
+      });
+    });
+
+    it("writes nothing when the recorded sdl will not parse", async () => {
+      const { service, deploymentSettingRepository } = setup({ sdl: "services: [this is not: valid: yaml" });
+
+      await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } })).rejects.toThrow();
+      expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
+    });
+
+    it("refuses a patched document too large to store, naming the bound", async () => {
+      const { service } = setup({ held: {}, sdl: STORED_SDL });
+
+      await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "n".repeat(SDL_MAX_LENGTH + 1) } } })).rejects.toMatchObject({
+        status: 400
+      });
+    });
+
+    it("writes nothing when the patched document is too large to store", async () => {
+      const { service, deploymentSettingRepository } = setup({ held: {}, sdl: STORED_SDL });
+
+      await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "n".repeat(SDL_MAX_LENGTH + 1) } } })).rejects.toThrow();
+      expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
     });
   });
 
