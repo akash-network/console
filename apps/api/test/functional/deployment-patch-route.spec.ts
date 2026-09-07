@@ -89,6 +89,14 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
     expect(response.status).toBe(400);
   });
 
+  it("refuses a service patch naming no field before it reaches the controller", async () => {
+    const { apiKey } = await persistedUser();
+
+    const response = await patch(apiKey, { services: { web: {} } });
+
+    expect(response.status).toBe(400);
+  });
+
   it("refuses an env key that is not an environment variable name", async () => {
     const { apiKey } = await persistedUser();
 
