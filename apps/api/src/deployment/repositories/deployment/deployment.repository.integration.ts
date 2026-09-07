@@ -17,6 +17,9 @@ import {
 
 const BID_TYPE = "/akash.market.v1beta5.MsgCreateBid";
 
+/** Well above the ascending bands the GPU tests claim, so date-based blocks never collide with them. */
+const BLOCK_HEIGHT_BAND = 9_000_000;
+
 describe(DeploymentRepository.name, () => {
   describe("findAllWithGpuResources", () => {
     it("yields a single-GPU deployment with its bid message", async () => {
@@ -109,6 +112,7 @@ describe(DeploymentRepository.name, () => {
   });
 
   let testBand = 0;
+  let blockHeightCounter = 0;
 
   describe("findClosureStates", () => {
     it("reports a deployment the chain has closed as closed", async () => {
@@ -175,6 +179,84 @@ describe(DeploymentRepository.name, () => {
     });
   });
 
+  describe("countActiveByOwner", () => {
+    const WINDOW = { startDate: "2025-03-01", endDate: "2025-03-31" };
+
+    it("counts a deployment that is still open inside the window", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-03-05" });
+
+      await expect(repository.countActiveByOwner(owner, WINDOW)).resolves.toBe(1);
+    });
+
+    it("counts a deployment that closed inside the window", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-03-05", closedOn: "2025-03-10" });
+
+      await expect(repository.countActiveByOwner(owner, WINDOW)).resolves.toBe(1);
+    });
+
+    it("counts a deployment that spans the whole window", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-02-01", closedOn: "2025-04-10" });
+
+      await expect(repository.countActiveByOwner(owner, WINDOW)).resolves.toBe(1);
+    });
+
+    it("counts a deployment created on the last day of the window", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-03-31" });
+
+      await expect(repository.countActiveByOwner(owner, WINDOW)).resolves.toBe(1);
+    });
+
+    it("counts a deployment closed on the first day of the window", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-02-01", closedOn: "2025-03-01" });
+
+      await expect(repository.countActiveByOwner(owner, WINDOW)).resolves.toBe(1);
+    });
+
+    it("leaves out a deployment that closed before the window", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-02-01", closedOn: "2025-02-20" });
+
+      await expect(repository.countActiveByOwner(owner, WINDOW)).resolves.toBe(0);
+    });
+
+    it("leaves out a deployment created after the window", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-04-05" });
+
+      await expect(repository.countActiveByOwner(owner, WINDOW)).resolves.toBe(0);
+    });
+
+    it("counts only the deployments of the owner asked for", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-03-05" });
+      await seedDeployment({ owner: createAkashAddress(), createdOn: "2025-03-05" });
+
+      await expect(repository.countActiveByOwner(owner, WINDOW)).resolves.toBe(1);
+    });
+
+    it("counts every deployment overlapping the window, whatever its state", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-03-02" });
+      await seedDeployment({ owner, createdOn: "2025-03-03", closedOn: "2025-03-20" });
+      await seedDeployment({ owner, createdOn: "2025-01-10", closedOn: "2025-01-20" });
+
+      await expect(repository.countActiveByOwner(owner, WINDOW)).resolves.toBe(2);
+    });
+
+    it("counts only the deployments still open when no window is given", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-03-02" });
+      await seedDeployment({ owner, createdOn: "2025-03-03", closedOn: "2025-03-20" });
+
+      await expect(repository.countActiveByOwner(owner)).resolves.toBe(1);
+    });
+  });
+
   function setup() {
     // Resolve CHAIN_DB so the chain Sequelize instance (and its models) is initialized before the
     // static models this repository still reads through are used.
@@ -184,7 +266,7 @@ describe(DeploymentRepository.name, () => {
     // Each test owns a disjoint, ascending height band so its query (minHeight = base) sees only
     // its own deployments: lower bands are filtered out, higher bands are seeded by later tests.
     const base = 1_000_000 + testBand * 10_000;
-    return { repository, base, band: testBand };
+    return { repository, base, band: testBand, owner: createAkashAddress() };
   }
 
   async function collect<T>(generator: AsyncGenerator<T>) {
@@ -197,6 +279,21 @@ describe(DeploymentRepository.name, () => {
   // test), distinct bands keep ids unique across tests in the shared per-file database.
   function orderedId(band: number, seq: number) {
     return `${band.toString(16).padStart(8, "0")}-0000-4000-8000-${seq.toString(16).padStart(12, "0")}`;
+  }
+
+  async function seedDeployment(input: { owner: string; createdOn: string; closedOn?: string }) {
+    const createdHeight = await seedBlockAt(input.createdOn);
+    const closedHeight = input.closedOn ? await seedBlockAt(input.closedOn) : undefined;
+
+    return await createDeployment({ owner: input.owner, createdHeight, closedHeight, dseq: faker.string.numeric(12) });
+  }
+
+  async function seedBlockAt(date: string) {
+    blockHeightCounter += 1;
+    const height = BLOCK_HEIGHT_BAND + blockHeightCounter;
+    await createAkashBlock({ height, datetime: new Date(`${date}T12:00:00.000Z`) });
+
+    return height;
   }
 
   async function seedGpuDeployment(input: {
