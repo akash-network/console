@@ -1,20 +1,30 @@
 import type { Counter } from "@opentelemetry/api";
+import { subMinutes } from "date-fns";
 import { inject, singleton } from "tsyringe";
 
-import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { MetricsService } from "@src/core/services/metrics/metrics.service";
 import type { DryRunOptions } from "@src/core/types/console";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DeploymentSettingRepository, type OpenDeployment } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import {
+  DeleteUnbackedDeploymentSetting,
+  unbackedDeploymentSettingKeyFor,
+  unbackedDeploymentSettingRetryOptions
+} from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
+import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 
 const BATCH_SIZE = 1000;
 /** Bounds what an unreachable chain database can cost the funding sweep that shares this command's hour. */
 const MAX_CONSECUTIVE_BATCH_FAILURES = 3;
+/** Below pg-boss's default of 0, so a backlog of old records never delays the compensation a create just enqueued. */
+const BACKLOG_COMPENSATION_PRIORITY = -1;
 
 type BatchOutcome = {
   closed: number;
   confirmedOpen: number;
   withoutChainState: number;
+  compensated: number;
 };
 
 type ReconcileTally = BatchOutcome & {
@@ -37,10 +47,13 @@ export class ClosedDeploymentsReconcilerService {
   readonly #rowsClosed: Counter;
   readonly #rowsConfirmedOpen: Counter;
   readonly #rowsWithoutChainState: Counter;
+  readonly #rowsCompensated: Counter;
 
   constructor(
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly deploymentRepository: DeploymentRepository,
+    private readonly jobQueueService: JobQueueService,
+    private readonly deploymentConfig: DeploymentConfigService,
     metricsService: MetricsService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -54,28 +67,37 @@ export class ClosedDeploymentsReconcilerService {
       description: "Deployment records left open because the chain still holds their deployment open"
     });
     this.#rowsWithoutChainState = metricsService.createCounter(meter, "closed_deployments_reconcile_rows_without_chain_state_total", {
-      description: "Deployment records left alone because the indexer holds no deployment for them"
+      description: "Deployment records left alone because the indexer holds no deployment for them yet"
+    });
+    this.#rowsCompensated = metricsService.createCounter(meter, "closed_deployments_reconcile_rows_compensated_total", {
+      description: "Deployment records handed to the unbacked-setting compensation because the indexer never saw their deployment"
     });
   }
 
-  /** Only safe because the indexer lags in one direction: it can miss a close it has not caught up to, never invent one. */
+  /** Only safe because the indexer lags in one direction: it can miss a close it has not caught up to, never invent one; a record it never saw is handed to the compensation, which asks the chain itself before deleting. */
   async reconcileClosedDeployments({ dryRun }: DryRunOptions): Promise<void> {
-    const tally: ReconcileTally = { scanned: 0, closed: 0, confirmedOpen: 0, withoutChainState: 0, failedBatches: 0 };
+    const tally: ReconcileTally = { scanned: 0, closed: 0, confirmedOpen: 0, withoutChainState: 0, compensated: 0, failedBatches: 0 };
 
     this.#logger.info({ event: "CLOSED_DEPLOYMENTS_RECONCILE_START", batchSize: BATCH_SIZE, dryRun });
 
     let consecutiveFailures = 0;
 
     try {
+      const pendingCompensationKeys = dryRun
+        ? new Set<string>()
+        : await this.jobQueueService.findPendingSingletonKeys(DeleteUnbackedDeploymentSetting[JOB_NAME]);
+      const unbackedBefore = subMinutes(new Date(), this.deploymentConfig.get("UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN"));
+
       for await (const batch of this.deploymentSettingRepository.findOpenDeploymentsIteratively({ batchSize: BATCH_SIZE })) {
         tally.scanned += batch.length;
 
         try {
-          const outcome = await this.#reconcileBatch(batch, dryRun);
+          const outcome = await this.#reconcileBatch(batch, { dryRun, pendingCompensationKeys, unbackedBefore });
 
           tally.closed += outcome.closed;
           tally.confirmedOpen += outcome.confirmedOpen;
           tally.withoutChainState += outcome.withoutChainState;
+          tally.compensated += outcome.compensated;
 
           if (!dryRun) {
             this.#recordOutcome(outcome);
@@ -101,11 +123,15 @@ export class ClosedDeploymentsReconcilerService {
     this.#logger.info({ event: "CLOSED_DEPLOYMENTS_RECONCILE_END", ...tally, dryRun });
   }
 
-  async #reconcileBatch(batch: OpenDeployment[], dryRun: boolean): Promise<BatchOutcome> {
+  async #reconcileBatch(
+    batch: OpenDeployment[],
+    { dryRun, pendingCompensationKeys, unbackedBefore }: { dryRun: boolean; pendingCompensationKeys: Set<string>; unbackedBefore: Date }
+  ): Promise<BatchOutcome> {
     const closureStates = await this.deploymentRepository.findClosureStates(batch.map(({ address, dseq }) => ({ owner: address, dseq: normalizeDseq(dseq) })));
     const closedByKey = new Map(closureStates.map(state => [closureKey(state), state.isClosed]));
 
     const idsToClose: string[] = [];
+    const unbacked: OpenDeployment[] = [];
     let confirmedOpen = 0;
     let withoutChainState = 0;
 
@@ -116,6 +142,8 @@ export class ClosedDeploymentsReconcilerService {
         idsToClose.push(deployment.id);
       } else if (isClosedOnChain === false) {
         confirmedOpen++;
+      } else if (deployment.createdAt < unbackedBefore) {
+        unbacked.push(deployment);
       } else {
         withoutChainState++;
       }
@@ -125,13 +153,39 @@ export class ClosedDeploymentsReconcilerService {
       await this.deploymentSettingRepository.markAsClosed(idsToClose);
     }
 
-    return { closed: idsToClose.length, confirmedOpen, withoutChainState };
+    const compensated = dryRun ? unbacked.length : await this.#compensate(unbacked, pendingCompensationKeys);
+
+    return { closed: idsToClose.length, confirmedOpen, withoutChainState, compensated };
+  }
+
+  /** Skips a row whose compensation is already waiting, so the hourly run cannot stack jobs behind one the create path or an earlier run enqueued. */
+  async #compensate(unbacked: OpenDeployment[], pendingCompensationKeys: Set<string>): Promise<number> {
+    let compensated = 0;
+
+    for (const deployment of unbacked) {
+      const singletonKey = unbackedDeploymentSettingKeyFor(deployment);
+
+      if (pendingCompensationKeys.has(singletonKey)) continue;
+
+      const jobId = await this.jobQueueService.enqueue(
+        new DeleteUnbackedDeploymentSetting({ deploymentSettingId: deployment.id, owner: deployment.address, dseq: deployment.dseq }),
+        { singletonKey, priority: BACKLOG_COMPENSATION_PRIORITY, ...unbackedDeploymentSettingRetryOptions(this.deploymentConfig) }
+      );
+
+      if (jobId) {
+        pendingCompensationKeys.add(singletonKey);
+        compensated++;
+      }
+    }
+
+    return compensated;
   }
 
   /** Credited per batch and only after its write landed, so a run that dies part way still reports what it converged. */
-  #recordOutcome({ closed, confirmedOpen, withoutChainState }: BatchOutcome): void {
+  #recordOutcome({ closed, confirmedOpen, withoutChainState, compensated }: BatchOutcome): void {
     this.#rowsClosed.add(closed);
     this.#rowsConfirmedOpen.add(confirmedOpen);
     this.#rowsWithoutChainState.add(withoutChainState);
+    this.#rowsCompensated.add(compensated);
   }
 }

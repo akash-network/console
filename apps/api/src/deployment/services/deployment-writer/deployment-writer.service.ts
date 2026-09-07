@@ -24,7 +24,8 @@ import {
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import {
   DeleteUnbackedDeploymentSetting,
-  unbackedDeploymentSettingKeyFor
+  unbackedDeploymentSettingKeyFor,
+  unbackedDeploymentSettingRetryOptions
 } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
@@ -149,10 +150,7 @@ export class DeploymentWriterService {
       const compensationId = await this.jobQueueService.enqueue(new DeleteUnbackedDeploymentSetting({ deploymentSettingId, owner, dseq: input.dseq }), {
         singletonKey: unbackedDeploymentSettingKeyFor(input),
         startAfter: addMinutes(new Date(), this.deploymentConfig.get("UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN")).toISOString(),
-        retryLimit: this.deploymentConfig.get("UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT"),
-        retryBackoff: true,
-        retryDelay: this.deploymentConfig.get("UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC"),
-        retryDelayMax: this.deploymentConfig.get("UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN") * 60
+        ...unbackedDeploymentSettingRetryOptions(this.deploymentConfig)
       });
 
       if (!compensationId) {

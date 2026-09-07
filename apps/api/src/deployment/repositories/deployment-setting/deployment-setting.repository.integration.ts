@@ -702,13 +702,13 @@ describe(DeploymentSettingRepository.name, () => {
       expect(open.map(deployment => deployment.id)).toContain(fundingOff.id);
     });
 
-    it("reports the owner address and dseq a chain lookup needs", async () => {
-      const { deploymentSettingRepository, settingId, wallet, findOpenDeployments } = await setup();
+    it("reports what a chain lookup and a compensation for the record need", async () => {
+      const { deploymentSettingRepository, settingId, user, wallet, findOpenDeployments } = await setup();
       const setting = await deploymentSettingRepository.findById(settingId);
 
       const open = await findOpenDeployments([wallet.address]);
 
-      expect(open).toContainEqual({ id: settingId, dseq: setting!.dseq, address: wallet.address });
+      expect(open).toContainEqual({ id: settingId, userId: user.id, dseq: setting!.dseq, address: wallet.address, createdAt: new Date(setting!.createdAt) });
     });
 
     it("passes over a deployment already marked closed", async () => {
