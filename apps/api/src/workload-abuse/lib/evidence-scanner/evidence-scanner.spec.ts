@@ -40,6 +40,24 @@ describe("evidence scanner", () => {
       expect(signals.map(signal => signal.source)).toEqual(["logs", "sdl"]);
     });
 
+    it("keeps the same category from two services as two signals", () => {
+      const signals = scanForSignals(
+        [
+          { kind: "shell", service: "web", text: "nonce found" },
+          { kind: "shell", service: "worker", text: "nonce found" }
+        ],
+        SIGNATURES
+      );
+
+      expect(signals.map(signal => signal.service)).toEqual(["web", "worker"]);
+    });
+
+    it("trims the snippet it stores", () => {
+      const [signal] = scanForSignals([{ kind: "logs", text: "   stratum+tcp://pool   " }], SIGNATURES);
+
+      expect(signal.snippet).toBe("stratum+tcp://pool");
+    });
+
     it("bounds the snippet around the match", () => {
       const line = `${"a".repeat(300)} stratum+tcp://pool ${"b".repeat(300)}`;
 
@@ -68,6 +86,12 @@ describe("evidence scanner", () => {
 
       expect(toVerdict(two)).toBe("clean");
       expect(toVerdict(three)).toBe("soft");
+    });
+
+    it("stays proxy when soft signals are present but too few to count", () => {
+      const signals = scanForSignals([{ kind: "shell", text: "10 H/s\npool:3333\n1 comm=xray" }], SIGNATURES);
+
+      expect(toVerdict(signals)).toBe("proxy");
     });
 
     it("reports proxy tunnels separately from mining", () => {

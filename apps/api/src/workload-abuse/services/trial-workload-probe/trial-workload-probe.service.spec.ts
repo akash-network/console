@@ -96,6 +96,15 @@ describe(TrialWorkloadProbeService.name, () => {
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_WORKLOAD_PROBE_LEASES_CAPPED", reported: 7, probed: 4 }));
   });
 
+  it("logs no cap warning when the lease and service counts are within bounds", async () => {
+    const { service, wallet, logger } = setup({ leases: [createRpcLease()], services: { ssh: 1 } });
+
+    await service.probe({ wallet, dseq: DSEQ });
+
+    expect(logger.warn).not.toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_WORKLOAD_PROBE_LEASES_CAPPED" }));
+    expect(logger.warn).not.toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_WORKLOAD_PROBE_SERVICES_CAPPED" }));
+  });
+
   it("scans the shell output, the log tail and the stored SDL together", async () => {
     const { service, wallet } = setup({
       leases: [createRpcLease()],
