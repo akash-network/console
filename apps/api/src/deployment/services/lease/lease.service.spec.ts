@@ -117,6 +117,38 @@ describe(LeaseService.name, () => {
       expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ manifest: MANIFEST }));
     });
 
+    it("sends the derived manifest for a request that carried none", async () => {
+      const { service, providerService, wallet } = setup({ derived: DERIVED_MANIFEST });
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+
+      await service.createLeasesAndSendManifest({ leases: [lease], userId: wallet.userId });
+
+      expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ manifest: DERIVED_MANIFEST }));
+    });
+
+    it("costs no lease on chain when the request carries no manifest and the console recorded nothing to derive one from", async () => {
+      const { service, signerService, providerService, wallet } = setup({ derived: null });
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+
+      await expect(service.createLeasesAndSendManifest({ leases: [lease], userId: wallet.userId })).rejects.toMatchObject({ status: 422 });
+
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("sends nothing to any provider once one placement of the deployment has no manifest to send", async () => {
+      const { service, providerService, leaseManifestService, wallet } = setup();
+      leaseManifestService.deriveFor.mockImplementation(async ({ dseq }) => (dseq === "100" ? DERIVED_MANIFEST : null));
+      const leases = [
+        { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() },
+        { dseq: "200", gseq: 1, oseq: 1, provider: createAkashAddress() }
+      ];
+
+      await expect(service.createLeasesAndSendManifest({ leases, userId: wallet.userId })).rejects.toMatchObject({ status: 422 });
+
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
     it("derives once for a deployment however many placements it leases", async () => {
       const { service, leaseManifestService, wallet } = setup({ derived: DERIVED_MANIFEST });
       const leases = [

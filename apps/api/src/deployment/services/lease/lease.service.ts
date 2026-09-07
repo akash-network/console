@@ -1,5 +1,6 @@
 import { LeaseHttpService } from "@akashnetwork/http-sdk";
 import { Trace } from "@akashnetwork/instrumentation";
+import { HTTPException } from "hono/http-exception";
 import { singleton } from "tsyringe";
 
 import { ManagedSignerService, RpcMessageService } from "@src/billing/services";
@@ -27,7 +28,7 @@ export class LeaseService {
   public async createLeasesAndSendManifest({ leases, manifest, userId }: CreateLeaseRequest & { userId: string }): Promise<DeploymentResponse> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const dseq = leases[0].dseq;
-    const derived = await this.#derivedByDseq(leases, userId);
+    const manifests = await this.#manifestsByDseq(leases, userId, manifest);
 
     // Leases for all groups are created in one tx, so one existing lease means all exist:
     // skip creation when already on-chain to keep retries idempotent.
@@ -51,7 +52,7 @@ export class LeaseService {
       await this.providerService.sendManifest({
         provider: lease.provider,
         dseq: lease.dseq,
-        manifest: derived.get(lease.dseq) ?? manifest,
+        manifest: manifests.get(lease.dseq)!,
         auth: await this.providerService.toProviderAuth({ walletId: wallet.id, provider: lease.provider })
       });
     }
@@ -59,16 +60,24 @@ export class LeaseService {
     return deployment;
   }
 
-  /** Called before anything is broadcast, so a definition the console cannot re-derive costs no lease on chain. */
-  async #derivedByDseq(leases: CreateLeaseRequest["leases"], userId: string): Promise<Map<string, string | null>> {
-    const derived = new Map<string, string | null>();
+  /** Called before anything is broadcast, so a definition the console cannot re-derive costs no lease on chain and no provider a partial send. */
+  async #manifestsByDseq(leases: CreateLeaseRequest["leases"], userId: string, requested: string | undefined): Promise<Map<string, string>> {
+    const manifests = new Map<string, string>();
 
     for (const { dseq } of leases) {
-      if (derived.has(dseq)) continue;
-      derived.set(dseq, await this.leaseManifestService.deriveFor({ dseq, userId }));
+      if (manifests.has(dseq)) continue;
+
+      const manifest = (await this.leaseManifestService.deriveFor({ dseq, userId })) ?? requested;
+      if (!manifest) {
+        throw new HTTPException(422, {
+          message: `No manifest to send for lease ${dseq}. Please provide a manifest in the request body or re-create deployment from scratch`
+        });
+      }
+
+      manifests.set(dseq, manifest);
     }
 
-    return derived;
+    return manifests;
   }
 
   async #hasActiveLease(owner: string, dseq: string): Promise<boolean> {
