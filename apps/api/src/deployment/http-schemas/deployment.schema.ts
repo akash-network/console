@@ -201,7 +201,7 @@ export const PatchServiceSchema = z
       description: "Keyed by container port. Only hosts and http options are patchable; endpoint kind and count are fixed at create."
     }),
     storage: z.record(z.string(), z.object({ mount: z.string(), readOnly: z.boolean() }).partial()).openapi({
-      description: "Keyed by volume name. Mount point only — sizes are fixed at create."
+      description: "Keyed by volume name. Mount point and read-only flag only — sizes are fixed at create."
     })
   })
   .partial();
