@@ -62,6 +62,11 @@ jobs:
         run: |
           npm run knip -- --workspace apps/${{ inputs.app }}
 
+      # Apps opt in by exposing a `validate:types` script; the others short-circuit until they can pass it.
+      - name: Validate types
+        run: |
+          npm run --if-present validate:types --workspace=apps/${{ inputs.app }}
+
       - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
         if: ${{ steps.tests_details.outputs.requires_env_setup == 'true' }}
 
