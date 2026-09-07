@@ -1,10 +1,11 @@
 import { LeaseHttpService } from "@akashnetwork/http-sdk";
 import { Trace } from "@akashnetwork/instrumentation";
 import { HTTPException } from "hono/http-exception";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { ManagedSignerService, RpcMessageService } from "@src/billing/services";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
+import { CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { type DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { type CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
 import { LeaseManifestService } from "@src/deployment/services/lease-manifest/lease-manifest.service";
@@ -13,6 +14,8 @@ import { DeploymentReaderService } from "../deployment-reader/deployment-reader.
 
 @singleton()
 export class LeaseService {
+  readonly #logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly signerService: ManagedSignerService,
     private readonly rpcMessageService: RpcMessageService,
@@ -20,8 +23,11 @@ export class LeaseService {
     private readonly deploymentReaderService: DeploymentReaderService,
     private readonly walletReaderService: WalletReaderService,
     private readonly leaseHttpService: LeaseHttpService,
-    private readonly leaseManifestService: LeaseManifestService
-  ) {}
+    private readonly leaseManifestService: LeaseManifestService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.#logger = createLogger({ context: "lease-service" });
+  }
 
   /** The `manifest` a request carries is only the fallback for a deployment the console recorded nothing for, no longer the document a provider is sent. */
   @Trace()
@@ -67,7 +73,12 @@ export class LeaseService {
     for (const { dseq } of leases) {
       if (manifests.has(dseq)) continue;
 
-      const manifest = (await this.leaseManifestService.deriveFor({ dseq, userId })) ?? requested;
+      const derivedManifest = await this.leaseManifestService.deriveFor({ dseq, userId });
+      const manifest = derivedManifest ?? requested;
+      if (!derivedManifest && requested) {
+        this.#logger.warn({ event: "LEASE_MANIFEST_FALLBACK_USED", dseq });
+      }
+
       if (!manifest) {
         throw new HTTPException(422, {
           message: `No manifest to send for lease ${dseq}. Please provide a manifest in the request body or re-create deployment from scratch`

@@ -1,4 +1,5 @@
 import type { LeaseHttpService } from "@akashnetwork/http-sdk";
+import type { LoggerService } from "@akashnetwork/logging";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -239,7 +240,8 @@ describe(LeaseService.name, () => {
       deploymentReaderService,
       walletReaderService,
       leaseHttpService,
-      leaseManifestService
+      leaseManifestService,
+      () => mock<LoggerService>()
     );
 
     return {
