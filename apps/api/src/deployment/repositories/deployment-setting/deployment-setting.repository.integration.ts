@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 import { hoursToMilliseconds } from "date-fns";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
@@ -816,6 +816,184 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("replaceDefinitionIfVersionMatches", () => {
+    it("replaces the definition when the version the caller read is still current", async () => {
+      const { deploymentSettingRepository, user, createDefinition, readDefinition, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA" });
+
+      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken,
+        expectedManifestVersion: "AAAA"
+      });
+
+      expect(id).toEqual(expect.any(String));
+      expect(await readDefinition(dseq)).toMatchObject({
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken
+      });
+    });
+
+    it("refuses when the version the caller read is no longer current", async () => {
+      const { deploymentSettingRepository, user, createDefinition, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA" });
+
+      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken,
+        expectedManifestVersion: "STALE"
+      });
+
+      expect(id).toBeUndefined();
+    });
+
+    it("leaves every column as it was when it refuses", async () => {
+      const { deploymentSettingRepository, user, createDefinition, readDefinition, sealedToken, otherSealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA", sealedSecrets: otherSealedToken });
+      const before = await readDefinition(dseq);
+
+      await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken,
+        expectedManifestVersion: "STALE"
+      });
+
+      expect(await readDefinition(dseq)).toEqual(before);
+    });
+
+    it("awards the write to exactly one of several patches that read the same version", async () => {
+      const { deploymentSettingRepository, user, createDefinition, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA" });
+
+      const results = await Promise.all(
+        Array.from({ length: 5 }, (_, attempt) =>
+          deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+            userId: user.id,
+            dseq,
+            sdl: `version: '2.0' # patch ${attempt}`,
+            manifestVersion: `V${attempt}`,
+            sealedSecrets: sealedToken,
+            expectedManifestVersion: "AAAA"
+          })
+        )
+      );
+
+      expect(results.filter(Boolean)).toHaveLength(1);
+    });
+
+    it("leaves the one version that won as the current one", async () => {
+      const { deploymentSettingRepository, user, createDefinition, readDefinition, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA" });
+
+      await Promise.all(
+        Array.from({ length: 5 }, (_, attempt) =>
+          deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+            userId: user.id,
+            dseq,
+            sdl: `version: '2.0' # patch ${attempt}`,
+            manifestVersion: `V${attempt}`,
+            sealedSecrets: sealedToken,
+            expectedManifestVersion: "AAAA"
+          })
+        )
+      );
+
+      const stored = await readDefinition(dseq);
+      expect(stored?.manifestVersion).toMatch(/^V\d$/);
+      expect(stored?.sdl).toBe(`version: '2.0' # patch ${stored?.manifestVersion?.slice(1)}`);
+    });
+
+    it("replaces without a guard when the caller states no expectation", async () => {
+      const { deploymentSettingRepository, user, createDefinition, readDefinition, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA" });
+
+      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken
+      });
+
+      expect(id).toEqual(expect.any(String));
+      expect(await readDefinition(dseq)).toMatchObject({ manifestVersion: "BBBB" });
+    });
+
+    it("clears the token when the merged set of secrets is empty", async () => {
+      const { deploymentSettingRepository, user, createDefinition, readDefinition, otherSealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA", sealedSecrets: otherSealedToken });
+
+      await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: null,
+        expectedManifestVersion: "AAAA"
+      });
+
+      expect(await readDefinition(dseq)).toMatchObject({ sealedSecrets: null });
+    });
+
+    it("refuses a row that records no sdl, which a patch has nothing to build on", async () => {
+      const { deploymentSettingRepository, user, createSetting, readSettingDseq, sealedToken } = await setup();
+      const settingId = await createSetting();
+      const dseq = await readSettingDseq(settingId);
+
+      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken
+      });
+
+      expect(id).toBeUndefined();
+    });
+
+    it("refuses a deployment belonging to another user", async () => {
+      const { deploymentSettingRepository, trialUser, createDefinition, readDefinition, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA" });
+
+      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: trialUser.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken
+      });
+
+      expect(id).toBeUndefined();
+      expect(await readDefinition(dseq)).toMatchObject({ manifestVersion: "AAAA" });
+    });
+
+    it("refuses a deployment the caller's ability excludes", async () => {
+      const { deploymentSettingRepository, user, trialUser, createDefinition, readDefinition, abilityFor, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA" });
+
+      const id = await deploymentSettingRepository.accessibleBy(abilityFor(trialUser), "update").replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken
+      });
+
+      expect(id).toBeUndefined();
+      expect(await readDefinition(dseq)).toMatchObject({ manifestVersion: "AAAA" });
+    });
+  });
+
   async function setup() {
     const userRepository = container.resolve(UserRepository);
     const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
@@ -841,6 +1019,32 @@ describe(DeploymentSettingRepository.name, () => {
 
     function abilityFor(owner: UserOutput) {
       return abilityService.getAbilityFor("REGULAR_USER", owner);
+    }
+
+    async function createDefinition({ manifestVersion, sealedSecrets = null }: { manifestVersion: string; sealedSecrets?: string | null }) {
+      const dseq = faker.number.int({ min: 100000, max: 999999 }).toString();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion, sealedSecrets });
+
+      return dseq;
+    }
+
+    async function readDefinition(dseq: string) {
+      const [row] = await db
+        .select({
+          sdl: deploymentSettingsTable.sdl,
+          manifestVersion: deploymentSettingsTable.manifestVersion,
+          sealedSecrets: deploymentSettingsTable.sealedSecrets
+        })
+        .from(deploymentSettingsTable)
+        .where(and(eq(deploymentSettingsTable.userId, user.id), eq(deploymentSettingsTable.dseq, dseq)));
+
+      return row;
+    }
+
+    async function readSettingDseq(id: string) {
+      const [row] = await db.select({ dseq: deploymentSettingsTable.dseq }).from(deploymentSettingsTable).where(eq(deploymentSettingsTable.id, id));
+
+      return row.dseq;
     }
 
     async function createSetting(userId: string = user.id) {
@@ -934,6 +1138,9 @@ describe(DeploymentSettingRepository.name, () => {
       sealedToken: newSealedToken(),
       otherSealedToken: newSealedToken(),
       abilityFor,
+      createDefinition,
+      readDefinition,
+      readSettingDseq,
       createSetting,
       createLimitedSetting,
       createAnchoredSetting,

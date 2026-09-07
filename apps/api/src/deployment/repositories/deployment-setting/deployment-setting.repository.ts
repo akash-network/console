@@ -371,6 +371,56 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return row.id;
   }
 
+  /**
+   * Replaces the definition of a deployment the console already recorded, refusing when the manifest
+   * version the caller read it at is no longer the current one. Returns the row id it wrote, or
+   * undefined when nothing matched.
+   *
+   * The version is compared inside this statement's own WHERE rather than by a read the caller makes
+   * first, because a patch is a read-modify-write over the stored SDL: two of them racing would
+   * otherwise both open the same document, both apply their own half, and the later write would drop
+   * the earlier one with nothing to show that it had. Comparing here means the loser writes nothing.
+   *
+   * `expectedManifestVersion` is optional because the common update states no expectation at all and
+   * takes last-writer-wins; naming one is what buys the guard.
+   *
+   * `sealedSecrets` is stated rather than optional, the same rule a create follows: a patch re-seals
+   * the whole merged set, so leaving it unnamed would strand the previous token beside an SDL whose
+   * references no longer match it.
+   */
+  async replaceDefinitionIfVersionMatches({
+    userId,
+    dseq,
+    sdl,
+    manifestVersion,
+    sealedSecrets,
+    expectedManifestVersion
+  }: {
+    userId: string;
+    dseq: string;
+    sdl: string;
+    manifestVersion: string;
+    sealedSecrets: string | null;
+    expectedManifestVersion?: string;
+  }): Promise<string | undefined> {
+    const [row] = await this.cursor
+      .update(this.table)
+      .set({ sdl, manifestVersion, sealedSecrets, updatedAt: sql`now()` })
+      .where(
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.userId, userId),
+            eq(this.table.dseq, dseq),
+            isNotNull(this.table.sdl),
+            ...(expectedManifestVersion === undefined ? [] : [eq(this.table.manifestVersion, expectedManifestVersion)])
+          )
+        )
+      )
+      .returning({ id: this.table.id });
+
+    return row?.id;
+  }
+
   /** Conflicts are ignored rather than merged, so a row another path already wrote keeps every choice its writer made. */
   async createDefaultIfMissing({ userId, dseq }: { userId: string; dseq: string }): Promise<boolean> {
     const rows = await this.cursor
