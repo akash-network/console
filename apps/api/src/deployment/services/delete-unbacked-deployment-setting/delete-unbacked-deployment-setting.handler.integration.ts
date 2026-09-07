@@ -1,17 +1,22 @@
-import { faker } from "@faker-js/faker";
 import { addMinutes } from "date-fns";
 import { eq } from "drizzle-orm";
 import nock from "nock";
 import { container } from "tsyringe";
-import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { ApiPgDatabase } from "@src/core";
-import { JobQueueService, POSTGRES_DB, resolveTable } from "@src/core";
+import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { UserRepository } from "@src/user/repositories";
-import { DeleteUnbackedDeploymentSetting, DeleteUnbackedDeploymentSettingHandler } from "./delete-unbacked-deployment-setting.handler";
+import {
+  DeleteUnbackedDeploymentSetting,
+  DeleteUnbackedDeploymentSettingHandler,
+  unbackedDeploymentSettingKeyFor
+} from "./delete-unbacked-deployment-setting.handler";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
+import { expectJobCompleted, useJobWorkers } from "@test/services/job-queue-harness";
 
 const DEPLOYMENT_INFO_PATH = "/akash/deployment/v1beta4/deployments/info";
 const LATEST_BLOCK_PATH = "/cosmos/base/tendermint/v1beta1/blocks/latest";
@@ -45,20 +50,7 @@ function presentOnChain(owner: string, dseq: string) {
   };
 }
 
-let jobQueueReady: Promise<JobQueueService> | undefined;
-
-/** pg-boss owns its own schema and creates it on start, so the queue this suite uses is bootstrapped once per file. */
-function bootstrapJobQueue() {
-  jobQueueReady ??= (async () => {
-    const jobQueue = container.resolve(JobQueueService);
-    await jobQueue.setup();
-    await jobQueue.registerHandlers([container.resolve(DeleteUnbackedDeploymentSettingHandler)]);
-
-    return jobQueue;
-  })();
-
-  return jobQueueReady;
-}
+const jobWorkers = useJobWorkers(() => [container.resolve(DeleteUnbackedDeploymentSettingHandler)]);
 
 /**
  * Covers the compensation against a real database and a real chain response, because both halves of its decision
@@ -70,23 +62,15 @@ describe(DeleteUnbackedDeploymentSettingHandler.name, () => {
     nock.cleanAll();
   });
 
-  /**
-   * A worker left running outlives the interceptors: the compensation it retried becomes due a minute later
-   * with nock torn down, and issues a real request to `REST_API_NODE_URL` — egress from CI to a third-party
-   * mainnet endpoint, and a flake that only shows up on a slow run.
-   */
-  afterAll(async () => {
-    if (jobQueueReady) await (await jobQueueReady).dispose();
-  });
-
   it("deletes a setting no deployment backs, run the way a worker runs it", async () => {
-    const { settingId, answerChainWith, enqueueCompensation, startWorkers, findSetting } = await setup();
+    const { settingId, answerChainWith, enqueueCompensation, startWorkers, findSetting, compensationKey } = await setup();
     answerChainWith(ABSENT_FROM_CHAIN);
 
     await enqueueCompensation();
     await startWorkers();
 
-    await vi.waitFor(async () => expect(await findSetting(settingId)).toBeUndefined(), { timeout: 20_000, interval: 250 });
+    await expectJobCompleted(DeleteUnbackedDeploymentSetting[JOB_NAME], { singletonKey: compensationKey });
+    expect(await findSetting(settingId)).toBeUndefined();
   });
 
   it("keeps a setting the chain does have a deployment for", async () => {
@@ -176,15 +160,13 @@ describe(DeleteUnbackedDeploymentSettingHandler.name, () => {
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const deploymentSettingsTable = resolveTable("DeploymentSettings");
     const restApiNodeUrl = container.resolve(CoreConfigService).get("REST_API_NODE_URL");
-    const jobQueue = await bootstrapJobQueue();
+    const { enqueue, startWorkers } = await jobWorkers();
 
     const owner = createAkashAddress();
-    const dseq = faker.number.int({ min: 100000, max: 999999 }).toString();
     const user = await container.resolve(UserRepository).create({});
-    const [setting] = await db
-      .insert(deploymentSettingsTable)
-      .values({ userId: user.id, dseq, autoTopUpEnabled: true, sdl: 'version: "2.0"', manifestVersion: "BAUG" })
-      .returning();
+    const setting = await seedDeploymentSetting({ userId: user.id, sdl: 'version: "2.0"', manifestVersion: "BAUG" });
+    const dseq = setting.dseq;
+    const compensationKey = unbackedDeploymentSettingKeyFor({ userId: user.id, dseq });
 
     answerLatestBlockWith(addMinutes(new Date(setting.createdAt ?? new Date()), input.chainMinutesAhead ?? CHAIN_MINUTES_AHEAD));
 
@@ -250,8 +232,10 @@ describe(DeleteUnbackedDeploymentSettingHandler.name, () => {
       failLatestBlock,
       pinnedHeights,
       findSetting,
-      enqueueCompensation: () => jobQueue.enqueue(new DeleteUnbackedDeploymentSetting({ deploymentSettingId: setting.id, owner, dseq })),
-      startWorkers: () => jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 })
+      compensationKey,
+      enqueueCompensation: () =>
+        enqueue(new DeleteUnbackedDeploymentSetting({ deploymentSettingId: setting.id, owner, dseq }), { singletonKey: compensationKey }),
+      startWorkers
     };
   }
 });

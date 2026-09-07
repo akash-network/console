@@ -2,22 +2,20 @@ import { minutesToMilliseconds, secondsToMilliseconds } from "date-fns";
 import { eq, sql } from "drizzle-orm";
 import nock from "nock";
 import { container } from "tsyringe";
-import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { ApiPgDatabase } from "@src/core";
-import { JOB_NAME, JobQueueService, POSTGRES_DB, resolveTable, TxService } from "@src/core";
+import { JOB_NAME, POSTGRES_DB, resolveTable, TxService } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
-import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import {
   DeleteUnbackedDeploymentSetting,
   DeleteUnbackedDeploymentSettingHandler
 } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
-import { UserRepository } from "@src/user/repositories";
 import { DeploymentWriterService } from "./deployment-writer.service";
 
-import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { findJobRows, type JobRow, makeJobDue, runAsUser, useJobWorkers } from "@test/services/job-queue-harness";
 
 const SDL = `version: "2.0"
 services:
@@ -55,39 +53,16 @@ const RETRY_LIMIT = 47;
 const RETRY_DELAY_IN_SECONDS = 30;
 const RETRY_DELAY_MAX_IN_SECONDS = 30 * 60;
 
-let jobQueueReady: Promise<JobQueueService> | undefined;
+const jobWorkers = useJobWorkers(() => [container.resolve(DeleteUnbackedDeploymentSettingHandler)]);
 
-function bootstrapJobQueue() {
-  jobQueueReady ??= (async () => {
-    const jobQueue = container.resolve(JobQueueService);
-    await jobQueue.setup();
-    await jobQueue.registerHandlers([container.resolve(DeleteUnbackedDeploymentSettingHandler)]);
+type CompensationPayload = { deploymentSettingId: string; owner: string; dseq: string; version: number };
 
-    return jobQueue;
-  })();
-
-  return jobQueueReady;
-}
-
-type CompensationRow = {
-  state: string;
-  singleton_key: string;
-  data: { deploymentSettingId: string; owner: string; dseq: string; version: number };
-  retry_limit: number;
-  retry_backoff: boolean;
-  retry_delay: number;
-  retry_delay_max: number | null;
-  start_after: string;
-};
+type CompensationRow = JobRow<CompensationPayload> & { singleton_key: string };
 
 describe(DeploymentWriterService.name, () => {
   afterEach(() => {
     vi.restoreAllMocks();
     nock.cleanAll();
-  });
-
-  afterAll(async () => {
-    if (jobQueueReady) await (await jobQueueReady).dispose();
   });
 
   it("enqueues a compensation for the setting it records", async () => {
@@ -209,34 +184,23 @@ describe(DeploymentWriterService.name, () => {
   }
 
   async function findCompensations(userId: string): Promise<CompensationRow[]> {
-    const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
-    const rows = await db.execute<CompensationRow>(
-      sql`select state, singleton_key, data, retry_limit, retry_backoff, retry_delay, retry_delay_max, start_after
-          from ${jobTable()}
-          where name = ${DeleteUnbackedDeploymentSetting[JOB_NAME]} and singleton_key like ${`%.${userId}.%`}`
-    );
+    const rows = await findJobRows<CompensationPayload>(DeleteUnbackedDeploymentSetting[JOB_NAME], { singletonKeyLike: `%.${userId}.%` });
 
-    return rows as unknown as CompensationRow[];
+    return rows as CompensationRow[];
   }
 
   async function setup() {
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const txService = container.resolve(TxService);
-    const userRepository = container.resolve(UserRepository);
     const deploymentSettingsTable = resolveTable("DeploymentSettings");
-    const userWalletsTable = resolveTable("UserWallets");
 
-    const jobQueue = await bootstrapJobQueue();
+    const { startWorkers } = await jobWorkers();
 
     const broadcast = vi
       .spyOn(container.resolve(ManagedSignerService), "executeDerivedDecodedTxByUserId")
       .mockResolvedValue({ code: 0, transactionHash: "tx-hash", hash: "tx-hash", rawLog: "" });
 
-    const user = await userRepository.create({});
-    await db
-      .insert(userWalletsTable)
-      .values({ userId: user.id, address: createAkashAddress(), deploymentAllowance: "10000000", feeAllowance: "5000000", isTrialing: false })
-      .returning();
+    const { user } = await seedUserWithWallet();
 
     async function findCompensation(userId: string, dseq: string) {
       const rows = await findCompensations(userId);
@@ -280,7 +244,7 @@ describe(DeploymentWriterService.name, () => {
 
     async function makeCompensationDue(userId: string) {
       const [compensation] = await findCompensations(userId);
-      await db.execute(sql`update ${jobTable()} set start_after = now() where singleton_key = ${compensation.singleton_key}`);
+      await makeJobDue(DeleteUnbackedDeploymentSetting[JOB_NAME], { singletonKey: compensation.singleton_key });
 
       return { dseq: compensation.data.dseq };
     }
@@ -294,16 +258,9 @@ describe(DeploymentWriterService.name, () => {
     }
 
     const writer = container.resolve(DeploymentWriterService);
-    const executionContextService = container.resolve(ExecutionContextService);
-    const ability = container.resolve(AbilityService).getAbilityFor("REGULAR_USER", user);
 
     async function createDeployment() {
-      return await executionContextService.runWithContext(async () => {
-        executionContextService.set("CURRENT_USER", user);
-        executionContextService.set("ABILITY", ability);
-
-        return await writer.create({ userId: user.id, sdl: SDL, deposit: 5 });
-      });
+      return await runAsUser(user, () => writer.create({ userId: user.id, sdl: SDL, deposit: 5 }));
     }
 
     return {
@@ -318,7 +275,7 @@ describe(DeploymentWriterService.name, () => {
       findCompensationTransactionId,
       makeCompensationDue,
       failEveryChainQuery,
-      startWorkers: () => jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 }),
+      startWorkers,
       countSettings,
       countCompensations
     };
