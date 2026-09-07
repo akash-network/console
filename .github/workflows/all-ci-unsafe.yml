@@ -33,7 +33,7 @@ env:
 
 jobs:
   create-check-run:
-    runs-on: [self-hosted, akash]
+    runs-on: ubuntu-latest
     outputs:
       run_scan: ${{ steps.decide.outputs.run_scan }}
       event: ${{ env.PARENT_WORKFLOW_EVENT }}
@@ -107,64 +107,37 @@ jobs:
       - name: Resolve commit to report on
         id: report_target
         if: ${{ steps.decide.outputs.report_check == 'true' }}
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.associated_pr.outputs.number }}
-        with:
-          script: | # js
-            const scannedSha = process.env.PARENT_WORKFLOW_HEAD_SHA;
+          PR_HEAD: ${{ github.event.workflow_run.head_repository.owner.login }}:${{ github.event.workflow_run.head_branch }}
+        run: | # shell
+          report_on() {
+            echo "sha=$1" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
 
-            const findPullRequest = async () => {
-              const number = Number(process.env.PR_NUMBER);
-              if (number) {
-                const { data } = await github.rest.pulls.get({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  pull_number: number
-                });
-                return data;
-              }
+          tree_of() {
+            gh api "repos/$GITHUB_REPOSITORY/commits/$1" --jq .commit.tree.sha
+          }
 
-              const parentRun = context.payload.workflow_run;
-              if (!parentRun || !parentRun.head_branch) return null;
+          [[ "$PARENT_WORKFLOW_EVENT" == "pull_request" ]] || report_on "$PARENT_WORKFLOW_HEAD_SHA"
 
-              const { data } = await github.rest.pulls.list({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                state: "open",
-                head: `${parentRun.head_repository?.owner?.login || context.repo.owner}:${parentRun.head_branch}`
-              });
-              return data[0] || null;
-            };
+          pr="$PR_NUMBER"
+          if [[ -z "$pr" ]]; then
+            pr=$(gh api "repos/$GITHUB_REPOSITORY/pulls" -f state=open -f head="$PR_HEAD" --jq '.[0].number // ""') || pr=""
+          fi
+          [[ -n "$pr" ]] || report_on "$PARENT_WORKFLOW_HEAD_SHA"
 
-            const holdsScannedContent = async sha => {
-              const { data } = await github.rest.repos.compareCommitsWithBasehead({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                basehead: `${scannedSha}...${sha}`
-              });
-              return !data.files || data.files.length === 0;
-            };
+          head_sha=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr" --jq .head.sha) || report_on "$PARENT_WORKFLOW_HEAD_SHA"
+          [[ "$head_sha" != "$PARENT_WORKFLOW_HEAD_SHA" ]] || report_on "$PARENT_WORKFLOW_HEAD_SHA"
 
-            const resolveShaToReportOn = async () => {
-              if (process.env.PARENT_WORKFLOW_EVENT !== "pull_request") return scannedSha;
+          scanned_tree=$(tree_of "$PARENT_WORKFLOW_HEAD_SHA") || report_on "$PARENT_WORKFLOW_HEAD_SHA"
+          head_tree=$(tree_of "$head_sha") || report_on "$PARENT_WORKFLOW_HEAD_SHA"
+          [[ "$scanned_tree" == "$head_tree" ]] || report_on "$PARENT_WORKFLOW_HEAD_SHA"
 
-              const pull = await findPullRequest();
-              if (!pull || pull.head.sha === scannedSha) return scannedSha;
-
-              if (!(await holdsScannedContent(pull.head.sha))) {
-                core.info(`#${pull.number} moved to ${pull.head.sha}, which changes content and gets its own scan`);
-                return scannedSha;
-              }
-
-              core.info(`Reporting on ${pull.head.sha}: #${pull.number} moved off ${scannedSha} without changing content`);
-              return pull.head.sha;
-            };
-
-            core.setOutput("sha", await resolveShaToReportOn().catch(error => {
-              core.warning(`Reporting on ${scannedSha}: resolving the pull request head failed with ${error.message}`);
-              return scannedSha;
-            }));
+          echo "Reporting on $head_sha: #$pr moved off $PARENT_WORKFLOW_HEAD_SHA without changing content"
+          report_on "$head_sha"
 
       - name: Create check run
         id: create_check
