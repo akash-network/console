@@ -11,12 +11,14 @@ if (!reportPath) {
 
 const MAX_SURVIVOR_ROWS = 50;
 const KILLED = ["Killed", "Timeout"];
-const UNREACHED = ["NoCoverage", "Ignored", "CompileError", "RuntimeError"];
+const UNREACHED = ["NoCoverage", "CompileError", "RuntimeError"];
+const UNSCORED = ["Ignored", ...UNREACHED];
 
 const mutants = readMutants(reportPath);
 const killed = mutants.filter(({ status }) => KILLED.includes(status));
-const survived = mutants.filter(({ status }) => !KILLED.includes(status) && !UNREACHED.includes(status));
+const survived = mutants.filter(({ status }) => !KILLED.includes(status) && !UNSCORED.includes(status));
 const unreached = mutants.filter(({ status }) => UNREACHED.includes(status));
+const ignored = mutants.filter(({ status }) => status === "Ignored");
 const reached = killed.length + survived.length;
 /** Scored over reached mutants only: an untested file has nothing to say about test quality, and coverage is measured elsewhere. */
 const score = reached === 0 ? null : (killed.length / reached) * 100;
@@ -59,11 +61,19 @@ function summary() {
     lines.push("", `${unreached.length} mutant(s) were never reached by a unit test and do not count towards the score: ${fileList(unreached)}.`);
   }
 
+  if (ignored.length > 0) {
+    lines.push("", `${ignored.length} mutant(s) were ignored and do not count towards the score: ${reasonList(ignored)}.`);
+  }
+
   if (survived.length > 0 && reproduceCommand) {
     lines.push("", "Reproduce with:", "", "```", reproduceCommand, "```");
   }
 
   return `${lines.join("\n")}\n`;
+}
+
+function reasonList(mutants) {
+  return [...new Set(mutants.map(({ statusReason }) => statusReason ?? "no reason given"))].join("; ");
 }
 
 function fileList(mutants) {
