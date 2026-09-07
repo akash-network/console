@@ -102,3 +102,5 @@ profile-results.json
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 .github/workflows/test*.yml
+
+.stryker-tmp/
