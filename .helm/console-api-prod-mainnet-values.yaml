@@ -62,6 +62,15 @@ jobs:
       - ./dist/instrumentation.js
       - ./dist/console.js
       - close-unreachable-deployments
+  # Offset from the sweeps above so no two of them hit deployment_settings on the same minute.
+  - name: probe-trial-deployments
+    schedule: "13,43 * * * *" # every 30 minutes
+    command:
+      - node
+      - --require
+      - ./dist/instrumentation.js
+      - ./dist/console.js
+      - probe-trial-deployments
   - name: mint-act
     schedule: "*/10 * * * *" # every 10 minutes
     concurrencyPolicy: Forbid

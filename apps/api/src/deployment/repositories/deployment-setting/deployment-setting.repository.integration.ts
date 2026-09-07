@@ -797,6 +797,25 @@ describe(DeploymentSettingRepository.name, () => {
     return faker.number.int({ min: 100000, max: 999999 }).toString();
   }
 
+  describe("findLiveTrialDeployments", () => {
+    it("returns open trial deployments created inside the window with their wallet id", async () => {
+      const { deploymentSettingRepository, trialUser, trialWallet, createSetting, db, deploymentSettingsTable } = await setup();
+      const liveDseq = faker.number.int({ min: 100000, max: 999999 }).toString();
+      await db.insert(deploymentSettingsTable).values({ userId: trialUser.id, dseq: liveDseq, autoTopUpEnabled: true });
+      await db.insert(deploymentSettingsTable).values({ userId: trialUser.id, dseq: `1`, autoTopUpEnabled: true, closed: true });
+      await db
+        .insert(deploymentSettingsTable)
+        .values({ userId: trialUser.id, dseq: `2`, autoTopUpEnabled: true, createdAt: new Date(Date.now() - hoursToMilliseconds(48)) });
+      await createSetting();
+
+      const deployments = await deploymentSettingRepository.findLiveTrialDeployments({ maxAgeHours: 26 });
+
+      const ofTrialUser = deployments.filter(deployment => deployment.userId === trialUser.id);
+      expect(ofTrialUser).toEqual([{ userId: trialUser.id, dseq: liveDseq, walletId: trialWallet.walletId, createdAt: expect.any(Date) }]);
+      expect(deployments.some(deployment => deployment.userId !== trialUser.id && deployment.walletId === undefined)).toBe(false);
+    });
+  });
+
   async function setup() {
     const userRepository = container.resolve(UserRepository);
     const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);

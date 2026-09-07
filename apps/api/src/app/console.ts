@@ -14,6 +14,7 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/top-up-deployments.controller";
 import { GpuBotController } from "@src/deployment/controllers/gpu-bot/gpu-bot.controller";
 import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
+import { WorkloadAbuseController } from "@src/workload-abuse/controllers/workload-abuse.controller";
 import { APP_INITIALIZER, ON_APP_START } from "../core/providers/app-initializer";
 
 const program = new Command();
@@ -87,6 +88,16 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       return container.resolve(TopUpDeploymentsController).closeUnreachableProviderDeployments(options);
+    });
+  });
+
+program
+  .command("probe-trial-deployments")
+  .description("Schedule a workload probe for every live trial deployment that has none pending")
+  .option("-d, --dry-run", "Log which deployments would be probed without enqueuing", false)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(WorkloadAbuseController).probeTrialDeployments(options);
     });
   });
 

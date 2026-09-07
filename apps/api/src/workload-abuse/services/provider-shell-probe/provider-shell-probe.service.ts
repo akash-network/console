@@ -1,0 +1,65 @@
+import { singleton } from "tsyringe";
+
+import { ProviderStreamService, type ProviderStreamStatus } from "@src/workload-abuse/services/provider-stream/provider-stream.service";
+import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
+
+/** Collect-only: nothing here names what the scanner looks for, because argv is visible to the workload through /proc. */
+const SHELL_PROBE_COLLECTORS = [
+  "echo '--loadavg'; cat /proc/loadavg 2>/dev/null",
+  "echo '--nproc'; nproc 2>/dev/null || grep -c ^processor /proc/cpuinfo 2>/dev/null",
+  'echo \'--procs\'; for p in /proc/[0-9]*; do c=$(tr \'\\0\' \' \' < "$p/cmdline" 2>/dev/null); [ -n "$c" ] || continue; echo "${p#/proc/} comm=$(cat "$p/comm" 2>/dev/null) exe=$(readlink "$p/exe" 2>/dev/null) cwd=$(readlink "$p/cwd" 2>/dev/null) cmd=$c"; done | head -150',
+  "echo '--net'; cat /proc/net/tcp /proc/net/tcp6 2>/dev/null | head -80",
+  "echo '--tmp'; ls -la /tmp /dev/shm 2>/dev/null | head -80",
+  'echo \'--files\'; for f in /tmp/*.json /tmp/*.conf /tmp/*.txt /tmp/*/*.json /tmp/*/*.conf; do [ -f "$f" ] && [ "$(wc -c < "$f")" -lt 16384 ] && echo "== $f" && cat "$f"; done 2>/dev/null | head -400',
+  "echo '--authorized-keys'; cat /root/.ssh/authorized_keys /home/*/.ssh/authorized_keys 2>/dev/null | sort -u | head -10"
+];
+
+export const SHELL_PROBE_SCRIPT = SHELL_PROBE_COLLECTORS.join("; ");
+
+export type ShellProbeStatus = ProviderStreamStatus | "shell_unavailable";
+
+export type ShellProbeResult = { status: ShellProbeStatus; output: string; exitCode?: number };
+
+export type ShellProbeTarget = {
+  hostUri: string;
+  providerAddress: string;
+  token: string;
+  dseq: string;
+  gseq: number;
+  oseq: number;
+  service: string;
+};
+
+export function buildShellProbeUrl(target: ShellProbeTarget): string {
+  const command = ["sh", "-c", SHELL_PROBE_SCRIPT].map((part, index) => `cmd${index}=${encodeURIComponent(part)}`).join("&");
+
+  return `${target.hostUri}/lease/${target.dseq}/${target.gseq}/${target.oseq}/shell?stdin=0&tty=0&podIndex=0&${command}&service=${encodeURIComponent(target.service)}`;
+}
+
+@singleton()
+export class ProviderShellProbeService {
+  constructor(
+    private readonly providerStreamService: ProviderStreamService,
+    private readonly config: WorkloadAbuseConfigService
+  ) {}
+
+  async run(target: ShellProbeTarget): Promise<ShellProbeResult> {
+    const result = await this.providerStreamService.collect({
+      url: buildShellProbeUrl(target),
+      providerAddress: target.providerAddress,
+      token: target.token,
+      idleTimeoutMs: this.config.get("WORKLOAD_ABUSE_PROBE_IDLE_TIMEOUT_MS"),
+      hardTimeoutMs: this.config.get("WORKLOAD_ABUSE_PROBE_HARD_TIMEOUT_MS"),
+      maxBytes: this.config.get("WORKLOAD_ABUSE_PROBE_MAX_OUTPUT_BYTES")
+    });
+
+    const output = result.frames
+      .filter(frame => frame.kind === "shell" && (frame.stream === "stdout" || frame.stream === "stderr"))
+      .map(frame => frame.payload)
+      .join("");
+    const failed = result.frames.some(frame => frame.kind === "shell" && frame.stream === "failure");
+    const status: ShellProbeStatus = failed || (result.status === "completed" && output.length === 0) ? "shell_unavailable" : result.status;
+
+    return { status, output, exitCode: result.exitCode };
+  }
+}
