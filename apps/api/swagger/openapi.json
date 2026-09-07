@@ -4382,7 +4382,7 @@
       },
       "put": {
         "summary": "Update a deployment (deprecated)",
-        "description": "Deprecated. Resubmits the whole SDL, so rotating one secret means re-supplying every other value the document carries, and the console cannot return a stored value for you to resupply. This endpoint will be removed in a future release.",
+        "description": "Deprecated. Resubmits the whole SDL, so rotating one secret means re-supplying every other value the document carries, and the console cannot return a stored value for you to resupply. Use PATCH /v1/deployments/{dseq} instead. This endpoint will be removed in a future release.",
         "operationId": "updateDeployment",
         "deprecated": true,
         "tags": [
@@ -4802,6 +4802,639 @@
                   },
                   "required": [
                     "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Patch a deployment",
+        "description": "Patches the SDL the console stored for this deployment; the SDL is never accepted from the request. Only the services named are touched. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw.",
+        "operationId": "patchDeployment",
+        "tags": [
+          "Deployments"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^d+$",
+              "description": "Deployment sequence number"
+            },
+            "required": true,
+            "description": "Deployment sequence number",
+            "name": "dseq",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "services": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "object",
+                          "properties": {
+                            "image": {
+                              "type": "string"
+                            },
+                            "command": {
+                              "type": "array",
+                              "nullable": true,
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "args": {
+                              "type": "array",
+                              "nullable": true,
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "env": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "description": "Merged into the service's env. A null value removes the variable."
+                            },
+                            "credentials": {
+                              "type": "object",
+                              "nullable": true,
+                              "properties": {
+                                "host": {
+                                  "type": "string"
+                                },
+                                "username": {
+                                  "type": "string"
+                                },
+                                "password": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "host",
+                                "username",
+                                "password"
+                              ],
+                              "description": "Private registry pull credentials. Null clears them."
+                            },
+                            "expose": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "object",
+                                "properties": {
+                                  "accept": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "description": "Custom domains. Replaces the existing list."
+                                  },
+                                  "httpOptions": {
+                                    "type": "object",
+                                    "properties": {
+                                      "maxBodySize": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "exclusiveMinimum": true
+                                      },
+                                      "readTimeout": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "exclusiveMinimum": true
+                                      },
+                                      "sendTimeout": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "exclusiveMinimum": true
+                                      },
+                                      "nextTries": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "exclusiveMinimum": true
+                                      },
+                                      "nextTimeout": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "exclusiveMinimum": true
+                                      },
+                                      "nextCases": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "description": "Keyed by container port. Only hosts and http options are patchable; endpoint kind and count are fixed at create."
+                            },
+                            "storage": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "object",
+                                "properties": {
+                                  "mount": {
+                                    "type": "string"
+                                  },
+                                  "readOnly": {
+                                    "type": "boolean"
+                                  }
+                                }
+                              },
+                              "description": "Keyed by volume name. Mount point only — sizes are fixed at create."
+                            }
+                          }
+                        },
+                        "description": "Keyed by service name. Only the named services are touched; omitted services keep their current definition."
+                      },
+                      "ifManifestVersion": {
+                        "type": "string",
+                        "maxLength": 64,
+                        "description": "Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on."
+                      }
+                    },
+                    "required": [
+                      "services"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Deployment patched successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "deployment": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "object",
+                              "properties": {
+                                "owner": {
+                                  "type": "string"
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^d+$"
+                                }
+                              },
+                              "required": [
+                                "owner",
+                                "dseq"
+                              ]
+                            },
+                            "state": {
+                              "type": "string"
+                            },
+                            "hash": {
+                              "type": "string"
+                            },
+                            "created_at": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "state",
+                            "hash",
+                            "created_at"
+                          ]
+                        },
+                        "leases": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "object",
+                                "properties": {
+                                  "owner": {
+                                    "type": "string"
+                                  },
+                                  "dseq": {
+                                    "type": "string",
+                                    "pattern": "^d+$"
+                                  },
+                                  "gseq": {
+                                    "type": "number"
+                                  },
+                                  "oseq": {
+                                    "type": "number"
+                                  },
+                                  "provider": {
+                                    "type": "string"
+                                  },
+                                  "bseq": {
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "owner",
+                                  "dseq",
+                                  "gseq",
+                                  "oseq",
+                                  "provider",
+                                  "bseq"
+                                ]
+                              },
+                              "state": {
+                                "type": "string"
+                              },
+                              "price": {
+                                "type": "object",
+                                "properties": {
+                                  "denom": {
+                                    "type": "string"
+                                  },
+                                  "amount": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "denom",
+                                  "amount"
+                                ]
+                              },
+                              "created_at": {
+                                "type": "string"
+                              },
+                              "closed_on": {
+                                "type": "string"
+                              },
+                              "reason": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "object",
+                                "nullable": true,
+                                "properties": {
+                                  "forwarded_ports": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "port": {
+                                            "type": "number"
+                                          },
+                                          "externalPort": {
+                                            "type": "number"
+                                          },
+                                          "host": {
+                                            "type": "string"
+                                          },
+                                          "available": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "port",
+                                          "externalPort"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "ips": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "IP": {
+                                            "type": "string"
+                                          },
+                                          "Port": {
+                                            "type": "number"
+                                          },
+                                          "ExternalPort": {
+                                            "type": "number"
+                                          },
+                                          "Protocol": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "IP",
+                                          "Port",
+                                          "ExternalPort",
+                                          "Protocol"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "services": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "type": "object",
+                                      "properties": {
+                                        "name": {
+                                          "type": "string"
+                                        },
+                                        "available": {
+                                          "type": "number"
+                                        },
+                                        "total": {
+                                          "type": "number"
+                                        },
+                                        "uris": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "observed_generation": {
+                                          "type": "number"
+                                        },
+                                        "replicas": {
+                                          "type": "number"
+                                        },
+                                        "updated_replicas": {
+                                          "type": "number"
+                                        },
+                                        "ready_replicas": {
+                                          "type": "number"
+                                        },
+                                        "available_replicas": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "name",
+                                        "available",
+                                        "total",
+                                        "uris",
+                                        "observed_generation",
+                                        "replicas",
+                                        "updated_replicas",
+                                        "ready_replicas",
+                                        "available_replicas"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "forwarded_ports",
+                                  "ips",
+                                  "services"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "state",
+                              "price",
+                              "created_at",
+                              "closed_on",
+                              "status"
+                            ]
+                          }
+                        },
+                        "escrow_account": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "object",
+                              "properties": {
+                                "scope": {
+                                  "type": "string"
+                                },
+                                "xid": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "scope",
+                                "xid"
+                              ]
+                            },
+                            "state": {
+                              "type": "object",
+                              "properties": {
+                                "owner": {
+                                  "type": "string"
+                                },
+                                "state": {
+                                  "type": "string"
+                                },
+                                "transferred": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "denom": {
+                                        "type": "string"
+                                      },
+                                      "amount": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount"
+                                    ]
+                                  }
+                                },
+                                "settled_at": {
+                                  "type": "string"
+                                },
+                                "funds": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "denom": {
+                                        "type": "string"
+                                      },
+                                      "amount": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount"
+                                    ]
+                                  }
+                                },
+                                "deposits": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "owner": {
+                                        "type": "string"
+                                      },
+                                      "height": {
+                                        "type": "string"
+                                      },
+                                      "source": {
+                                        "type": "string"
+                                      },
+                                      "balance": {
+                                        "type": "object",
+                                        "properties": {
+                                          "denom": {
+                                            "type": "string"
+                                          },
+                                          "amount": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "denom",
+                                          "amount"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "owner",
+                                      "height",
+                                      "source",
+                                      "balance"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "owner",
+                                "state",
+                                "transferred",
+                                "settled_at",
+                                "funds",
+                                "deposits"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "state"
+                          ]
+                        },
+                        "manifestVersion": {
+                          "type": "string",
+                          "description": "Base64 manifest version this patch recorded and committed on chain."
+                        }
+                      },
+                      "required": [
+                        "deployment",
+                        "leases",
+                        "escrow_account",
+                        "manifestVersion"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, or leaves a reference with no value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No SDL is recorded for this deployment, so there is nothing to patch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The deployment definition changed since the manifest version this patch expected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The stored secrets could not be read. Permanent rather than transient: `code` is `stored_secrets_unreadable` and the stored token is left untouched, so a retry cannot help",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "code"
                   ]
                 }
               }

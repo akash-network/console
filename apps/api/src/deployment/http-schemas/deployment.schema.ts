@@ -221,6 +221,10 @@ export const UpdateDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema
 });
 
+export const PatchDeploymentParamsSchema = z.object({
+  dseq: DseqSchema.describe("Deployment sequence number")
+});
+
 /** `.refine` rather than a length rule on the record itself, which this zod version does not offer. */
 export const PatchDeploymentRequestSchema = z.object({
   data: z.object({

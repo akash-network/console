@@ -2100,7 +2100,7 @@ export interface paths {
     /**
      * Update a deployment (deprecated)
      * @deprecated
-     * @description Deprecated. Resubmits the whole SDL, so rotating one secret means re-supplying every other value the document carries, and the console cannot return a stored value for you to resupply. This endpoint will be removed in a future release.
+     * @description Deprecated. Resubmits the whole SDL, so rotating one secret means re-supplying every other value the document carries, and the console cannot return a stored value for you to resupply. Use PATCH /v1/deployments/{dseq} instead. This endpoint will be removed in a future release.
      */
     put: operations["updateDeployment"];
     post?: never;
@@ -2108,7 +2108,11 @@ export interface paths {
     delete: operations["closeDeployment"];
     options?: never;
     head?: never;
-    patch?: never;
+    /**
+     * Patch a deployment
+     * @description Patches the SDL the console stored for this deployment; the SDL is never accepted from the request. Only the services named are touched. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw.
+     */
+    patch: operations["patchDeployment"];
     trace?: never;
   };
   "/v1/deployments": {
@@ -8228,6 +8232,214 @@ export interface operations {
             data: {
               success: boolean;
             };
+          };
+        };
+      };
+    };
+  };
+  patchDeployment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Deployment sequence number */
+        dseq: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": {
+          data: {
+            /** @description Keyed by service name. Only the named services are touched; omitted services keep their current definition. */
+            services: {
+              [key: string]: {
+                image?: string;
+                command?: string[] | null;
+                args?: string[] | null;
+                /** @description Merged into the service's env. A null value removes the variable. */
+                env?: {
+                  [key: string]: string | null;
+                };
+                /** @description Private registry pull credentials. Null clears them. */
+                credentials?: {
+                  host: string;
+                  username: string;
+                  password: string;
+                } | null;
+                /** @description Keyed by container port. Only hosts and http options are patchable; endpoint kind and count are fixed at create. */
+                expose?: {
+                  [key: string]: {
+                    /** @description Custom domains. Replaces the existing list. */
+                    accept?: string[];
+                    httpOptions?: {
+                      maxBodySize?: number;
+                      readTimeout?: number;
+                      sendTimeout?: number;
+                      nextTries?: number;
+                      nextTimeout?: number;
+                      nextCases?: string[];
+                    };
+                  };
+                };
+                /** @description Keyed by volume name. Mount point only — sizes are fixed at create. */
+                storage?: {
+                  [key: string]: {
+                    mount?: string;
+                    readOnly?: boolean;
+                  };
+                };
+              };
+            };
+            /** @description Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on. */
+            ifManifestVersion?: string;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description Deployment patched successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              deployment: {
+                id: {
+                  owner: string;
+                  dseq: string;
+                };
+                state: string;
+                hash: string;
+                created_at: string;
+              };
+              leases: {
+                id: {
+                  owner: string;
+                  dseq: string;
+                  gseq: number;
+                  oseq: number;
+                  provider: string;
+                  bseq: number;
+                };
+                state: string;
+                price: {
+                  denom: string;
+                  amount: string;
+                };
+                created_at: string;
+                closed_on: string;
+                reason?: string;
+                status: {
+                  forwarded_ports: {
+                    [key: string]: {
+                      port: number;
+                      externalPort: number;
+                      host?: string;
+                      available?: number;
+                    }[];
+                  };
+                  ips: {
+                    [key: string]: {
+                      IP: string;
+                      Port: number;
+                      ExternalPort: number;
+                      Protocol: string;
+                    }[];
+                  };
+                  services: {
+                    [key: string]: {
+                      name: string;
+                      available: number;
+                      total: number;
+                      uris: string[];
+                      observed_generation: number;
+                      replicas: number;
+                      updated_replicas: number;
+                      ready_replicas: number;
+                      available_replicas: number;
+                    };
+                  };
+                } | null;
+              }[];
+              escrow_account: {
+                id: {
+                  scope: string;
+                  xid: string;
+                };
+                state: {
+                  owner: string;
+                  state: string;
+                  transferred: {
+                    denom: string;
+                    amount: string;
+                  }[];
+                  settled_at: string;
+                  funds: {
+                    denom: string;
+                    amount: string;
+                  }[];
+                  deposits: {
+                    owner: string;
+                    height: string;
+                    source: string;
+                    balance: {
+                      denom: string;
+                      amount: string;
+                    };
+                  }[];
+                };
+              };
+              /** @description Base64 manifest version this patch recorded and committed on chain. */
+              manifestVersion: string;
+            };
+          };
+        };
+      };
+      /** @description The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, or leaves a reference with no value */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            message: string;
+          };
+        };
+      };
+      /** @description No SDL is recorded for this deployment, so there is nothing to patch */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            message: string;
+          };
+        };
+      };
+      /** @description The deployment definition changed since the manifest version this patch expected */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            message: string;
+          };
+        };
+      };
+      /** @description The stored secrets could not be read. Permanent rather than transient: `code` is `stored_secrets_unreadable` and the stored token is left untouched, so a retry cannot help */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            message: string;
+            code: string;
           };
         };
       };

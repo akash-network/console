@@ -16,9 +16,12 @@ import {
   ListWithResourcesParams,
   ListWithResourcesQuery,
   ListWithResourcesResponse,
+  PatchDeploymentRequest,
+  PatchDeploymentResponse,
   UpdateDeploymentRequest,
   UpdateDeploymentResponse
 } from "@src/deployment/http-schemas/deployment.schema";
+import { DeploymentPatchService } from "@src/deployment/services/deployment-patch/deployment-patch.service";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
@@ -28,6 +31,7 @@ export class DeploymentController {
   constructor(
     private readonly deploymentReaderService: DeploymentReaderService,
     private readonly deploymentWriterService: DeploymentWriterService,
+    private readonly deploymentPatchService: DeploymentPatchService,
     private readonly authService: AuthService,
     private readonly drainingDeploymentService: DrainingDeploymentService
   ) {}
@@ -63,6 +67,12 @@ export class DeploymentController {
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async update(dseq: string, input: UpdateDeploymentRequest["data"]): Promise<UpdateDeploymentResponse> {
     const result = await this.deploymentWriterService.updateByUserIdAndDseq(this.authService.currentUser.id, dseq, input);
+    return { data: result };
+  }
+
+  @Protected([{ action: "sign", subject: "UserWallet" }])
+  async patch(dseq: string, input: PatchDeploymentRequest["data"]): Promise<PatchDeploymentResponse> {
+    const result = await this.deploymentPatchService.patchByUserIdAndDseq(this.authService.currentUser.id, dseq, input);
     return { data: result };
   }
 
