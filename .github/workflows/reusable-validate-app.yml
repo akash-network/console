@@ -28,6 +28,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TEST_SCRIPT_NAME: ${{ github.event_name == 'merge_group' && 'test' || 'test:cov' }}
+      # The mutation step fails when the score over the reached mutants of the changed lines drops below this.
+      MUTATION_MIN_SCORE: 80
+      # A diff this wide is a PR to split, not a mutation run to sit through.
+      MAX_MUTATION_RANGES: 200
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -81,6 +85,74 @@ jobs:
       - name: Run tests
         if: ${{ steps.tests_details.outputs.has_tests == 'true' }}
         run: npm run "$TEST_SCRIPT_NAME" --workspace=apps/${{ inputs.app }}
+
+      - name: Find mutation testing targets
+        id: mutation_targets
+        if: ${{ github.event_name == 'pull_request' && steps.tests_details.outputs.has_tests == 'true' && !contains(github.event.pull_request.labels.*.name, 'ignore-mutations-testing') }}
+        env:
+          APP_PATH: apps/${{ inputs.app }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          MERGE_REF: refs/pull/${{ github.event.pull_request.number }}/merge
+        run: | # shell
+          # The checkout is the merge commit, so its first parent is the base tip: diffing against it
+          # leaves out whatever landed on the base branch after the PR was opened.
+          git fetch --no-tags --depth=2 origin "+$MERGE_REF:$MERGE_REF" || true
+
+          if git cat-file -e "HEAD^1^{commit}" 2> /dev/null; then
+            base=HEAD^1
+          else
+            git fetch --no-tags --depth=1 origin "$BASE_SHA"
+            base="$BASE_SHA"
+          fi
+
+          node script/mutation-targets.mjs "$APP_PATH" "$base" --out mutation-targets.json
+
+          jq -r '"mutate=\(.mutate)", "ranges=\(.ranges)", "test_files=\(.testFiles)", "test_env=\(.testEnv)"' mutation-targets.json >> "$GITHUB_OUTPUT"
+
+          skip=$(jq -r '.skip // empty' mutation-targets.json)
+          if [[ -n "$skip" ]]; then
+            echo "Mutation testing skipped: $skip." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Run mutation testing
+        if: ${{ steps.mutation_targets.outputs.mutate != '' }}
+        working-directory: apps/${{ inputs.app }}
+        env:
+          APP: ${{ inputs.app }}
+          MUTATE: ${{ steps.mutation_targets.outputs.mutate }}
+          TEST_FILES: ${{ steps.mutation_targets.outputs.test_files }}
+          TEST_ENV: ${{ steps.mutation_targets.outputs.test_env }}
+          RANGES: ${{ steps.mutation_targets.outputs.ranges }}
+          STRYKER_JSON_REPORT: ${{ github.workspace }}/mutation-report.json
+        run: | # shell
+          status=0
+          # $TEST_ENV is an unquoted list of KEY=value tokens on purpose: `env` applies them, and nothing else gets re-parsed.
+          # shellcheck disable=SC2086
+          env $TEST_ENV npx stryker run "$GITHUB_WORKSPACE/stryker.config.mjs" --mutate "$MUTATE" --testFiles "$TEST_FILES" || status=$?
+
+          score_status=0
+          summary=$(node "$GITHUB_WORKSPACE/script/mutation-report.mjs" "$STRYKER_JSON_REPORT" \
+            --min "$MUTATION_MIN_SCORE" \
+            --reproduce "cd apps/$APP && npx stryker run ../../stryker.config.mjs --mutate '$MUTATE' --testFiles '$TEST_FILES'") || score_status=$?
+
+          {
+            echo "### Mutation testing: $APP"
+            echo
+            # A fenced block, not an inline code span: the spec paths come from PR-controlled file names,
+            # and a backtick in one would otherwise close the span and let raw markdown into the summary.
+            echo "Mutated $RANGES changed line range(s), scoped to the files the app measures coverage on, against their own specs:"
+            echo
+            echo '```'
+            echo "$TEST_FILES"
+            echo '```'
+            echo
+            echo "$summary"
+            echo
+            echo "Add the \`ignore-mutations-testing\` label to skip this check."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if (( status != 0 )); then exit $status; fi
+          exit $score_status
 
       - name: Teardown tests environment
         if: ${{ always() && steps.tests_details.outputs.requires_env_setup == 'true' }}

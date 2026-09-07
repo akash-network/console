@@ -22,7 +22,7 @@
   ],
   "workspaces": {
     ".": {
-      "entry": [".eslintrc.js", ".prettierrc.js"],
+      "entry": [".eslintrc.js", ".prettierrc.js", "script/*.mjs"],
       "ignoreDependencies": [
         "@interchain-ui/react",
         "drizzle-orm",
@@ -41,7 +41,7 @@
       "drizzle": false
     },
     "apps/deploy-web": {
-      "entry": ["next.config.js", "postcss.config.js", "src/pages/**/*.tsx", "src/pages/**/*.ts", "src/stubs/empty.ts"],
+      "entry": ["next.config.js", "postcss.config.js", "vitest.mutation.config.ts", "src/pages/**/*.tsx", "src/pages/**/*.ts", "src/stubs/empty.ts"],
       "ignoreDependencies": [
         "sharp",
         "@nivo/core",
@@ -95,7 +95,9 @@
         ".eslintrc.ts.js",
         ".eslintrc.next.js",
         "tsup-plugins.ts",
-        "eslint-plugin-akash/index.js"
+        "eslint-plugin-akash/index.js",
+        "vitest/mutation.mjs",
+        "vitest/mutation.d.mts"
       ],
       "ignoreDependencies": ["eslint-plugin-akash", "next"]
     },
