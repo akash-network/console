@@ -871,6 +871,55 @@ describe(DeploymentSettingRepository.name, () => {
       expect(await readDefinition(dseq)).toEqual(before);
     });
 
+    it("accepts a retry whose row already carries the version it computes, so a repeat is not a conflict", async () => {
+      const { deploymentSettingRepository, user, createDefinition, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "BBBB" });
+
+      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken,
+        expectedManifestVersion: "AAAA"
+      });
+
+      expect(id).toEqual(expect.any(String));
+    });
+
+    it("leaves the row at the version the retry recomputed", async () => {
+      const { deploymentSettingRepository, user, createDefinition, readDefinition, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "BBBB" });
+
+      await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken,
+        expectedManifestVersion: "AAAA"
+      });
+
+      expect(await readDefinition(dseq)).toMatchObject({ sdl: "version: '2.0' # patched", manifestVersion: "BBBB", sealedSecrets: sealedToken });
+    });
+
+    it("refuses a version that is neither the one the caller read nor the one it computes", async () => {
+      const { deploymentSettingRepository, user, createDefinition, readDefinition, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "CCCC" });
+
+      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken,
+        expectedManifestVersion: "AAAA"
+      });
+
+      expect(id).toBeUndefined();
+      expect(await readDefinition(dseq)).toMatchObject({ manifestVersion: "CCCC" });
+    });
+
     it("awards the write to exactly one of several patches that read the same version", async () => {
       const { deploymentSettingRepository, user, createDefinition, sealedToken } = await setup();
       const dseq = await createDefinition({ manifestVersion: "AAAA" });

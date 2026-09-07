@@ -396,13 +396,20 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
             eq(this.table.userId, userId),
             eq(this.table.dseq, dseq),
             isNotNull(this.table.sdl),
-            ...(expectedManifestVersion === undefined ? [] : [eq(this.table.manifestVersion, expectedManifestVersion)])
+            ...this.#versionGuard(expectedManifestVersion, manifestVersion)
           )
         )
       )
       .returning({ id: this.table.id });
 
     return row?.id;
+  }
+
+  /** A row already carrying the version this write computes is that write's own output, so a guarded retry succeeds rather than conflicting: `manifestVersion` hashes the resolved manifest, and equal versions mean equal effective state down to the secret values. */
+  #versionGuard(expectedManifestVersion: string | undefined, manifestVersion: string) {
+    if (expectedManifestVersion === undefined) return [];
+
+    return [or(eq(this.table.manifestVersion, expectedManifestVersion), eq(this.table.manifestVersion, manifestVersion))];
   }
 
   /** Conflicts are ignored rather than merged, so a row another path already wrote keeps every choice its writer made. */
