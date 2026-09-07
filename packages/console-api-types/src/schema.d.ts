@@ -8782,7 +8782,11 @@ export interface operations {
     requestBody?: {
       content: {
         "application/json": {
-          manifest: string;
+          /**
+           * @deprecated
+           * @description The manifest to send to the provider, in YAML format (deprecated)
+           */
+          manifest?: string;
           leases: {
             dseq: string;
             gseq: number;

@@ -3052,7 +3052,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^\\d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "description": "Deployment sequence number"
             },
             "required": true,
@@ -3080,7 +3080,7 @@
                         },
                         "dseq": {
                           "type": "string",
-                          "pattern": "^\\d+$"
+                          "pattern": "^0*[1-9]\\d*$"
                         },
                         "autoTopUpEnabled": {
                           "type": "boolean"
@@ -3178,7 +3178,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^\\d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "description": "Deployment sequence number"
             },
             "required": true,
@@ -3232,7 +3232,7 @@
                         },
                         "dseq": {
                           "type": "string",
-                          "pattern": "^\\d+$"
+                          "pattern": "^0*[1-9]\\d*$"
                         },
                         "autoTopUpEnabled": {
                           "type": "boolean"
@@ -3370,7 +3370,7 @@
                       },
                       "dseq": {
                         "type": "string",
-                        "pattern": "^\\d+$",
+                        "pattern": "^0*[1-9]\\d*$",
                         "description": "Deployment sequence number"
                       }
                     },
@@ -3407,7 +3407,7 @@
                         },
                         "dseq": {
                           "type": "string",
-                          "pattern": "^\\d+$"
+                          "pattern": "^0*[1-9]\\d*$"
                         },
                         "autoTopUpEnabled": {
                           "type": "boolean"
@@ -3480,7 +3480,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^\\d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "description": "Deployment sequence number"
             },
             "required": true,
@@ -3518,7 +3518,7 @@
                         },
                         "dseq": {
                           "type": "string",
-                          "pattern": "^\\d+$"
+                          "pattern": "^0*[1-9]\\d*$"
                         },
                         "autoTopUpEnabled": {
                           "type": "boolean"
@@ -3607,7 +3607,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^\\d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "description": "Deployment sequence number"
             },
             "required": true,
@@ -3671,7 +3671,7 @@
                         },
                         "dseq": {
                           "type": "string",
-                          "pattern": "^\\d+$"
+                          "pattern": "^0*[1-9]\\d*$"
                         },
                         "autoTopUpEnabled": {
                           "type": "boolean"
@@ -3805,7 +3805,7 @@
                     "properties": {
                       "dseq": {
                         "type": "string",
-                        "pattern": "^\\d+$",
+                        "pattern": "^0*[1-9]\\d*$",
                         "description": "Deployment sequence number"
                       },
                       "userId": {
@@ -3846,7 +3846,7 @@
                         },
                         "dseq": {
                           "type": "string",
-                          "pattern": "^\\d+$"
+                          "pattern": "^0*[1-9]\\d*$"
                         },
                         "autoTopUpEnabled": {
                           "type": "boolean"
@@ -3920,7 +3920,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^\\d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "description": "Deployment sequence number"
             },
             "required": true,
@@ -3951,7 +3951,7 @@
                                 },
                                 "dseq": {
                                   "type": "string",
-                                  "pattern": "^\\d+$"
+                                  "pattern": "^0*[1-9]\\d*$"
                                 }
                               },
                               "required": [
@@ -3989,7 +3989,7 @@
                                   },
                                   "dseq": {
                                     "type": "string",
-                                    "pattern": "^\\d+$"
+                                    "pattern": "^0*[1-9]\\d*$"
                                   },
                                   "gseq": {
                                     "type": "number"
@@ -4342,7 +4342,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^\\d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "description": "Deployment sequence number"
             },
             "required": true,
@@ -4400,7 +4400,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^\\d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "description": "Deployment sequence number"
             },
             "required": true,
@@ -4456,7 +4456,7 @@
                                 },
                                 "dseq": {
                                   "type": "string",
-                                  "pattern": "^\\d+$"
+                                  "pattern": "^0*[1-9]\\d*$"
                                 }
                               },
                               "required": [
@@ -4494,7 +4494,7 @@
                                   },
                                   "dseq": {
                                     "type": "string",
-                                    "pattern": "^\\d+$"
+                                    "pattern": "^0*[1-9]\\d*$"
                                   },
                                   "gseq": {
                                     "type": "number"
@@ -4828,7 +4828,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^\\d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "description": "Deployment sequence number"
             },
             "required": true,
@@ -5003,7 +5003,7 @@
                                 },
                                 "dseq": {
                                   "type": "string",
-                                  "pattern": "^\\d+$"
+                                  "pattern": "^0*[1-9]\\d*$"
                                 }
                               },
                               "required": [
@@ -5041,7 +5041,7 @@
                                   },
                                   "dseq": {
                                     "type": "string",
-                                    "pattern": "^\\d+$"
+                                    "pattern": "^0*[1-9]\\d*$"
                                   },
                                   "gseq": {
                                     "type": "number"
@@ -5577,7 +5577,7 @@
                       "properties": {
                         "dseq": {
                           "type": "string",
-                          "pattern": "^\\d+$"
+                          "pattern": "^0*[1-9]\\d*$"
                         },
                         "manifest": {
                           "type": "string"
@@ -5681,7 +5681,7 @@
                                       },
                                       "dseq": {
                                         "type": "string",
-                                        "pattern": "^\\d+$"
+                                        "pattern": "^0*[1-9]\\d*$"
                                       }
                                     },
                                     "required": [
@@ -5719,7 +5719,7 @@
                                         },
                                         "dseq": {
                                           "type": "string",
-                                          "pattern": "^\\d+$"
+                                          "pattern": "^0*[1-9]\\d*$"
                                         },
                                         "gseq": {
                                           "type": "number"
@@ -5976,7 +5976,7 @@
                     "properties": {
                       "dseq": {
                         "type": "string",
-                        "pattern": "^\\d+$",
+                        "pattern": "^0*[1-9]\\d*$",
                         "description": "Deployment sequence number"
                       },
                       "deposit": {
@@ -6019,7 +6019,7 @@
                                 },
                                 "dseq": {
                                   "type": "string",
-                                  "pattern": "^\\d+$"
+                                  "pattern": "^0*[1-9]\\d*$"
                                 }
                               },
                               "required": [
@@ -6057,7 +6057,7 @@
                                   },
                                   "dseq": {
                                     "type": "string",
-                                    "pattern": "^\\d+$"
+                                    "pattern": "^0*[1-9]\\d*$"
                                   },
                                   "gseq": {
                                     "type": "number"
@@ -6462,7 +6462,7 @@
                           },
                           "dseq": {
                             "type": "string",
-                            "pattern": "^\\d+$"
+                            "pattern": "^0*[1-9]\\d*$"
                           },
                           "status": {
                             "type": "string"
@@ -6510,7 +6510,7 @@
                                 },
                                 "dseq": {
                                   "type": "string",
-                                  "pattern": "^\\d+$"
+                                  "pattern": "^0*[1-9]\\d*$"
                                 },
                                 "gseq": {
                                   "type": "number"
@@ -6598,7 +6598,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^\\d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "description": "Deployment sequence number"
             },
             "required": true,
@@ -6619,7 +6619,7 @@
                     },
                     "dseq": {
                       "type": "string",
-                      "pattern": "^\\d+$"
+                      "pattern": "^0*[1-9]\\d*$"
                     },
                     "balance": {
                       "type": "number"
@@ -7349,7 +7349,7 @@
                                   },
                                   "dseq": {
                                     "type": "string",
-                                    "pattern": "^\\d+$"
+                                    "pattern": "^0*[1-9]\\d*$"
                                   }
                                 },
                                 "required": [
@@ -7387,7 +7387,7 @@
                                     },
                                     "dseq": {
                                       "type": "string",
-                                      "pattern": "^\\d+$"
+                                      "pattern": "^0*[1-9]\\d*$"
                                     },
                                     "gseq": {
                                       "type": "number"
@@ -7923,7 +7923,7 @@
                                 },
                                 "dseq": {
                                   "type": "string",
-                                  "pattern": "^\\d+$"
+                                  "pattern": "^0*[1-9]\\d*$"
                                 }
                               },
                               "required": [
@@ -7961,7 +7961,7 @@
                                   },
                                   "dseq": {
                                     "type": "string",
-                                    "pattern": "^\\d+$"
+                                    "pattern": "^0*[1-9]\\d*$"
                                   },
                                   "gseq": {
                                     "type": "number"
@@ -8600,7 +8600,7 @@
                       "properties": {
                         "dseq": {
                           "type": "string",
-                          "pattern": "^\\d+$"
+                          "pattern": "^0*[1-9]\\d*$"
                         },
                         "gseq": {
                           "type": "number"
@@ -8650,7 +8650,7 @@
                                 },
                                 "dseq": {
                                   "type": "string",
-                                  "pattern": "^\\d+$"
+                                  "pattern": "^0*[1-9]\\d*$"
                                 }
                               },
                               "required": [
@@ -8688,7 +8688,7 @@
                                   },
                                   "dseq": {
                                     "type": "string",
-                                    "pattern": "^\\d+$"
+                                    "pattern": "^0*[1-9]\\d*$"
                                   },
                                   "gseq": {
                                     "type": "number"
@@ -9130,7 +9130,7 @@
                                   },
                                   "dseq": {
                                     "type": "string",
-                                    "pattern": "^\\d+$"
+                                    "pattern": "^0*[1-9]\\d*$"
                                   },
                                   "gseq": {
                                     "type": "number"
@@ -9820,7 +9820,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^\\d+$"
+              "pattern": "^0*[1-9]\\d*$"
             },
             "required": true,
             "name": "dseq",
@@ -9851,7 +9851,7 @@
                                   },
                                   "dseq": {
                                     "type": "string",
-                                    "pattern": "^\\d+$"
+                                    "pattern": "^0*[1-9]\\d*$"
                                   },
                                   "gseq": {
                                     "type": "number"
@@ -10268,7 +10268,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^\\d+$"
+              "pattern": "^0*[1-9]\\d*$"
             },
             "required": true,
             "name": "dseq",
@@ -10299,7 +10299,7 @@
                                   },
                                   "dseq": {
                                     "type": "string",
-                                    "pattern": "^\\d+$"
+                                    "pattern": "^0*[1-9]\\d*$"
                                   },
                                   "gseq": {
                                     "type": "number"
@@ -13820,7 +13820,7 @@
                           },
                           "dseq": {
                             "type": "string",
-                            "pattern": "^\\d+$"
+                            "pattern": "^0*[1-9]\\d*$"
                           },
                           "denom": {
                             "type": "string"
@@ -16886,7 +16886,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^\\d+$"
+              "pattern": "^0*[1-9]\\d*$"
             },
             "required": false,
             "name": "dseq",
@@ -16937,7 +16937,7 @@
                         "properties": {
                           "dseq": {
                             "type": "string",
-                            "pattern": "^\\d+$"
+                            "pattern": "^0*[1-9]\\d*$"
                           },
                           "oseq": {
                             "type": "number"
