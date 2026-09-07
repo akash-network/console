@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker";
 import nock from "nock";
 import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.service";
@@ -47,10 +48,12 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
     );
     vi.spyOn(apiKeyAuthService, "getAndValidateApiKeyFromHeader").mockImplementation(async key => knownApiKeys[key!]);
     vi.spyOn(blockHttpService, "getCurrentHeight").mockResolvedValue(faker.number.int({ min: 1000000, max: 10000000 }));
-    vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue({
-      findByUserId: async (id: string) => knownWallets[id],
-      findOneByUserId: async (id: string) => knownWallets[id][0]
-    } as unknown as UserWalletRepository);
+    vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(
+      mock<UserWalletRepository>({
+        findByUserId: async (id: string) => knownWallets[id],
+        findOneByUserId: async (id: string) => knownWallets[id][0]
+      })
+    );
   });
 
   afterEach(() => {
