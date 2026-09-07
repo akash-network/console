@@ -4914,28 +4914,23 @@
                                     "properties": {
                                       "maxBodySize": {
                                         "type": "integer",
-                                        "minimum": 0,
-                                        "exclusiveMinimum": true
+                                        "minimum": 0
                                       },
                                       "readTimeout": {
                                         "type": "integer",
-                                        "minimum": 0,
-                                        "exclusiveMinimum": true
+                                        "minimum": 0
                                       },
                                       "sendTimeout": {
                                         "type": "integer",
-                                        "minimum": 0,
-                                        "exclusiveMinimum": true
+                                        "minimum": 0
                                       },
                                       "nextTries": {
                                         "type": "integer",
-                                        "minimum": 0,
-                                        "exclusiveMinimum": true
+                                        "minimum": 0
                                       },
                                       "nextTimeout": {
                                         "type": "integer",
-                                        "minimum": 0,
-                                        "exclusiveMinimum": true
+                                        "minimum": 0
                                       },
                                       "nextCases": {
                                         "type": "array",

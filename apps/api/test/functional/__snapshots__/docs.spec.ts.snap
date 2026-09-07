@@ -7608,7 +7608,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   "httpOptions": {
                                     "properties": {
                                       "maxBodySize": {
-                                        "exclusiveMinimum": true,
                                         "minimum": 0,
                                         "type": "integer",
                                       },
@@ -7619,22 +7618,18 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                         "type": "array",
                                       },
                                       "nextTimeout": {
-                                        "exclusiveMinimum": true,
                                         "minimum": 0,
                                         "type": "integer",
                                       },
                                       "nextTries": {
-                                        "exclusiveMinimum": true,
                                         "minimum": 0,
                                         "type": "integer",
                                       },
                                       "readTimeout": {
-                                        "exclusiveMinimum": true,
                                         "minimum": 0,
                                         "type": "integer",
                                       },
                                       "sendTimeout": {
-                                        "exclusiveMinimum": true,
                                         "minimum": 0,
                                         "type": "integer",
                                       },
