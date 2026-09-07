@@ -33,6 +33,7 @@ reviews:
         Check that request-scoped DI is used correctly (no singleton
         holding request state). Verify async error handling in route
         handlers.
+        Ensure double writes are consistent and state in db represents the state in external systems (e.g. blockchain, provider).
     - path: "apps/notifications/**/*.ts"
       instructions: >
         Focus on security, concurrency, and NestJS DI lifecycle issues.
