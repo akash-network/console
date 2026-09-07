@@ -1,5 +1,5 @@
 import type { EncodeObject } from "@cosmjs/proto-signing";
-import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
+import type { IndexedTx } from "@cosmjs/stargate";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 

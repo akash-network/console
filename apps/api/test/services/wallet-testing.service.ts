@@ -6,7 +6,6 @@ import { vi } from "vitest";
 
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { AuthService } from "@src/auth/services/auth.service";
-import type { UserWalletOutput } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { WalletInitializerService } from "@src/billing/services";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
@@ -36,9 +35,7 @@ export class WalletTestingService<T extends Hono<any>> {
       container.resolve(AuthService).currentUser = user;
       const role = "REGULAR_USER";
       container.resolve(AuthService).ability = container.resolve(AbilityService).getAbilityFor(role, user);
-      return (await container.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)) as {
-        [K in keyof UserWalletOutput]: NonNullable<UserWalletOutput[K]>;
-      };
+      return await container.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
     });
   }
 

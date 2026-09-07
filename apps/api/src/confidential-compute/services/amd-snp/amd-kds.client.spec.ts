@@ -134,7 +134,10 @@ describe(AmdKdsClient.name, () => {
 
 /** A minimal parsed report sufficient to build the VCEK request path (chipId `abcd`, TCB 1/2/3/4). */
 function report(): Parameters<AmdKdsClient["getVcek"]>[1] {
-  return { chipId: Buffer.from("abcd", "hex"), reportedTcb: { bootloader: 1, tee: 2, snp: 3, microcode: 4 } };
+  return {
+    chipId: Buffer.from("abcd", "hex"),
+    reportedTcb: { bootloader: 1, tee: 2, snp: 3, microcode: 4, raw: Buffer.from([1, 2, 0, 0, 0, 0, 3, 4]) }
+  };
 }
 
 function httpError(status: number): AxiosError {
