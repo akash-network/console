@@ -110,10 +110,12 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     );
     vi.spyOn(apiKeyAuthService, "getAndValidateApiKeyFromHeader").mockImplementation(async key => knownApiKeys[key!]);
     vi.spyOn(blockHttpService, "getCurrentHeight").mockResolvedValue(faker.number.int({ min: 1000000, max: 10000000 }));
-    vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue({
-      findByUserId: async (id: string) => knownWallets[id],
-      findOneByUserId: async (id: string) => knownWallets[id][0]
-    } as unknown as UserWalletRepository);
+    vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(
+      mock<UserWalletRepository>({
+        findByUserId: async (id: string) => knownWallets[id],
+        findOneByUserId: async (id: string) => knownWallets[id][0]
+      })
+    );
     vi.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValue({
       code: 200,
       transactionHash: "fake-transaction-hash",
