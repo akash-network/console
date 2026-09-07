@@ -14,6 +14,10 @@ function envKeyOf(entry: string): string {
   return readEnvDeclaration(entry)?.key ?? entry;
 }
 
+function declaresPatchedVariable(entry: unknown, patchedKeys: Set<string>): boolean {
+  return typeof entry === "string" && patchedKeys.has(envKeyOf(entry));
+}
+
 function isNode(value: unknown): value is object {
   return !!value && typeof value === "object";
 }
@@ -97,9 +101,8 @@ export class SdlPatchService {
    */
   #applyEnv(service: SdlServiceNode, patch: NonNullable<PatchService["env"]>, target: PatchTarget): void {
     const source: string[] = Array.isArray(service.env) ? service.env : [];
-    const patched = new Set(Object.keys(patch));
-    /** A non-string entry is not ours to remove, whatever the user put there. */
-    const env = source.filter(entry => typeof entry !== "string" || !patched.has(envKeyOf(entry)));
+    const patchedKeys = new Set(Object.keys(patch));
+    const env = source.filter(entry => !declaresPatchedVariable(entry, patchedKeys));
 
     for (const [key, value] of Object.entries(patch)) {
       if (value === null) continue;
