@@ -63,11 +63,11 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
   });
 
   it("says nothing about a lease that is not the first", async () => {
-    const { leaseCreated, sentNotifications } = await setup({ isFirstLease: false });
+    const { leaseCreated, findCongratulationJobs } = await setup({ isFirstLease: false });
 
     await leaseCreated();
 
-    expect(sentNotifications()).toHaveLength(0);
+    expect(await findCongratulationJobs()).toHaveLength(0);
   });
 
   it("schedules nothing for a wallet that has left the trial", async () => {
@@ -126,6 +126,7 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
       findCloseJob: () => findJobBySingletonKey(CloseTrialDeployment[JOB_NAME], `closeTrialDeployment.${dseq}.${wallet.id}`),
       findWarningJob: () => findJobBySingletonKey(NotificationJob[JOB_NAME], `notification.beforeCloseTrialDeployment.${dseq}.${wallet.id}`),
       awaitCongratulations: () => expectJobCompleted(NotificationJob[JOB_NAME], { singletonKey: `notification.trialFirstDeploymentLeaseCreated.${wallet.id}` }),
+      findCongratulationJobs: () => findJobRows(NotificationJob[JOB_NAME], { singletonKey: `notification.trialFirstDeploymentLeaseCreated.${wallet.id}` }),
       leaseCreated: async () => {
         await enqueue(
           new TrialDeploymentLeaseCreated({
