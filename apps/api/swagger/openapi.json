@@ -4938,36 +4938,55 @@
                                     "items": {
                                       "type": "string"
                                     },
-                                    "description": "Custom domains. Replaces the existing list."
+                                    "description": "Custom domains. Replaces the existing list. Emptying it is rejected by providers that do not generate a hostname of their own, which leaves the patch recorded but undeployed."
                                   },
                                   "httpOptions": {
                                     "type": "object",
                                     "properties": {
                                       "maxBodySize": {
                                         "type": "integer",
-                                        "minimum": 0
+                                        "minimum": 1,
+                                        "maximum": 104857600
                                       },
                                       "readTimeout": {
                                         "type": "integer",
-                                        "minimum": 0
+                                        "minimum": 1,
+                                        "maximum": 4294967295
                                       },
                                       "sendTimeout": {
                                         "type": "integer",
-                                        "minimum": 0
+                                        "minimum": 1,
+                                        "maximum": 4294967295
                                       },
                                       "nextTries": {
                                         "type": "integer",
-                                        "minimum": 0
+                                        "minimum": 0,
+                                        "maximum": 4294967295
                                       },
                                       "nextTimeout": {
                                         "type": "integer",
-                                        "minimum": 0
+                                        "minimum": 0,
+                                        "maximum": 4294967295
                                       },
                                       "nextCases": {
                                         "type": "array",
                                         "items": {
-                                          "type": "string"
-                                        }
+                                          "type": "string",
+                                          "enum": [
+                                            "error",
+                                            "timeout",
+                                            "500",
+                                            "502",
+                                            "503",
+                                            "504",
+                                            "403",
+                                            "404",
+                                            "429",
+                                            "off"
+                                          ]
+                                        },
+                                        "minItems": 1,
+                                        "description": "Conditions the proxy retries on. Replaces the existing list; \"off\" disables retrying and stands alone."
                                       }
                                     }
                                   }
@@ -4994,8 +5013,14 @@
                         },
                         "description": "Keyed by service name. Only the named services are touched; omitted services keep their current definition."
                       },
+                      "sealedSecrets": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Compact JWE sealing a flat name-to-value map, as on create, but holding only the names this patch replaces. Omitted names keep the values the deployment already stores."
+                      },
                       "ifManifestVersion": {
                         "type": "string",
+                        "minLength": 1,
                         "maxLength": 64,
                         "description": "Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very patch produces, which makes a retry of it succeed. Omitting this does not turn the guard off: the patch is then guarded on the version it read for itself, so a concurrent patch still answers 409 rather than overwriting it."
                       }
@@ -5571,6 +5596,16 @@
                         "type": "string",
                         "maxLength": 524288
                       },
+                      "sealedSecrets": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Compact JWE sealing a flat name-to-value map of the secrets this SDL references, encrypted to the console's public sealing key. Fetch that key and the claims to sign from GET /v1/sdl-secrets-context. Values are never returned by any endpoint once sealed."
+                      },
+                      "inheritSecretsFrom": {
+                        "type": "string",
+                        "pattern": "^0*[1-9]\\d*$",
+                        "description": "Dseq of one of your own deployments whose stored secrets this deployment starts from, for redeploying an SDL without re-entering its values. The source may be closed. A name also present in `sealedSecrets` takes precedence over the inherited one."
+                      },
                       "deposit": {
                         "type": "number",
                         "description": "Deprecated and ignored. The platform funds every deployment automatically from your account credits.",
@@ -5642,6 +5677,126 @@
                   },
                   "required": [
                     "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, or would carry more secrets than one deployment may hold",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No deployment of yours matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The secrets recorded for the deployment named by `inheritSecretsFrom` can no longer be decrypted, with `code` `inherited_secrets_unreadable`. Permanent rather than transient, so a retry cannot help; supply the values in `sealedSecrets` instead",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The key management service is temporarily unreachable. Transient and worth retrying, unlike the 409 above",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
                   ]
                 }
               }
