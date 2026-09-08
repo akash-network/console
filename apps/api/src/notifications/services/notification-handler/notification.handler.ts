@@ -2,7 +2,7 @@ import { guard, MongoQuery } from "@ucast/mongo2js";
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
-import { Job, JOB_NAME, JobHandler, JobPayload } from "@src/core/services/job-queue/job-queue.service";
+import { Job, JOB_NAME, JobHandler, JobPayload, type JobPermissions } from "@src/core/services/job-queue/job-queue.service";
 import {
   IsResolved,
   NotificationDataResolverService,
@@ -62,6 +62,10 @@ export class NotificationHandler implements JobHandler<NotificationJob> {
     private readonly notificationDataResolver: NotificationDataResolverService
   ) {
     this.logger = createLogger({ context: NotificationHandler.name });
+  }
+
+  requiresPermission(): JobPermissions {
+    return [];
   }
 
   async handle<T extends keyof NotificationTemplates>(payload: JobPayload<NotificationJob<T>>): Promise<void> {

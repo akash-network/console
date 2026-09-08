@@ -131,6 +131,12 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     );
   });
 
+  it("declares no permissions for its execution", () => {
+    const { handler } = setup({});
+
+    expect(handler.requiresPermission()).toEqual([]);
+  });
+
   function setup(input: {
     enabled?: boolean;
     wallet?: ReturnType<typeof createUserWallet> | null;

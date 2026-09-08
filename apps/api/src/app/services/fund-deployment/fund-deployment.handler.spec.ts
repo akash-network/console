@@ -49,6 +49,12 @@ describe(FundDeploymentHandler.name, () => {
     expect(instrumentation.recordJobSucceeded).not.toHaveBeenCalled();
   });
 
+  it("declares no permissions for its execution", () => {
+    const { handler } = setup();
+
+    expect(handler.requiresPermission()).toEqual([]);
+  });
+
   function setup(params?: { initialDeploymentFundingService?: Partial<InitialDeploymentFundingService> }) {
     const initialDeploymentFundingService = mock<InitialDeploymentFundingService>({
       fundOnLeaseStarted: vi.fn().mockResolvedValue(undefined),

@@ -1,6 +1,6 @@
 import { inject, singleton } from "tsyringe";
 
-import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentPresenceService } from "@src/deployment/services/deployment-presence/deployment-presence.service";
 
@@ -43,6 +43,10 @@ export class DeleteUnbackedDeploymentSettingHandler implements JobHandler<Delete
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: DeleteUnbackedDeploymentSettingHandler.name });
+  }
+
+  requiresPermission(): JobPermissions {
+    return [];
   }
 
   /**

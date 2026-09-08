@@ -4,7 +4,7 @@ import { AutoRechargeSucceeded } from "@src/billing/events/auto-recharge-succeed
 import { UserWalletRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { type CreateLogger, EventPayload, JobHandler, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, EventPayload, JobHandler, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { autoRechargeSucceededNotification } from "@src/notifications/services/notification-templates/auto-recharge-succeeded-notification";
 import { UserRepository } from "@src/user/repositories";
@@ -26,6 +26,10 @@ export class AutoRechargeSucceededHandler implements JobHandler<AutoRechargeSucc
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: AutoRechargeSucceededHandler.name });
+  }
+
+  requiresPermission(): JobPermissions {
+    return [];
   }
 
   async handle(payload: EventPayload<AutoRechargeSucceeded>): Promise<void> {

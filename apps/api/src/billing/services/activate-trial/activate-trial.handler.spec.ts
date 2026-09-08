@@ -38,6 +38,12 @@ describe(ActivateTrialHandler.name, () => {
     });
   });
 
+  it("declares no permissions for its execution", () => {
+    const { handler } = setup();
+
+    expect(handler.requiresPermission()).toEqual([]);
+  });
+
   function setup(input?: { activationError?: Error }) {
     const walletInitializer = mock<WalletInitializerService>();
     if (input?.activationError) {

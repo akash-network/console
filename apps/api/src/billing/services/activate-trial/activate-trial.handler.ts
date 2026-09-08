@@ -3,7 +3,7 @@ import { singleton } from "tsyringe";
 import { ActivateTrial } from "@src/billing/events/activate-trial";
 import { TrialActivationInstrumentationService } from "@src/billing/services/activate-trial/trial-activation-instrumentation.service";
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
-import { JobHandler, JobPayload } from "@src/core";
+import { JobHandler, JobPayload, type JobPermissions } from "@src/core";
 
 @singleton()
 export class ActivateTrialHandler implements JobHandler<ActivateTrial> {
@@ -17,6 +17,10 @@ export class ActivateTrialHandler implements JobHandler<ActivateTrial> {
     private readonly walletInitializer: WalletInitializerService,
     private readonly instrumentation: TrialActivationInstrumentationService
   ) {}
+
+  requiresPermission(): JobPermissions {
+    return [];
+  }
 
   async handle(payload: JobPayload<ActivateTrial>): Promise<void> {
     const startTime = Date.now();

@@ -48,6 +48,12 @@ describe(ReconcileManagedTxHandler.name, () => {
     expect(deploymentSettingRepository.releaseFundingClaim).not.toHaveBeenCalled();
   });
 
+  it("declares no permissions for its execution", () => {
+    const { handler } = setup();
+
+    expect(handler.requiresPermission()).toEqual([]);
+  });
+
   function claims(): FundingClaim[] {
     return [{ id: "setting-1", claimedAt: "2026-09-04 12:00:00.123456" }];
   }

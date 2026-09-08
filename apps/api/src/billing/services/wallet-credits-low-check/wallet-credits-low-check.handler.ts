@@ -5,7 +5,7 @@ import { isAutoReloadActive } from "@src/billing/lib/auto-reload/auto-reload";
 import { isWalletInitialized, type UserWalletOutput, UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { type CreateLogger, type JobHandler, type JobPayload, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { creditsRunningLowNotification } from "@src/notifications/services/notification-templates/credits-running-low-notification";
@@ -43,6 +43,10 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: WalletCreditsLowCheckHandler.name });
+  }
+
+  requiresPermission(): JobPermissions {
+    return [];
   }
 
   async handle(payload: JobPayload<WalletCreditsLowCheck>): Promise<void> {

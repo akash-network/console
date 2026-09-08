@@ -291,6 +291,12 @@ describe(CloseTrialDeploymentHandler.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: CloseTrialDeploymentHandler.name });
   });
 
+  it("declares no permissions for its execution", () => {
+    const { handler } = setup();
+
+    expect(handler.requiresPermission()).toEqual([]);
+  });
+
   function setup(input?: {
     findWalletById?: UserWalletRepository["findById"];
     enqueueJob?: JobQueueService["enqueue"];
