@@ -37,12 +37,12 @@ describe(CloseTrialDeploymentHandler.name, () => {
   });
 
   it("leaves a wallet that has left the trial alone", async () => {
-    const { closeTrialDeployment, close, sentNotifications } = await setup({ isTrialing: false });
+    const { closeTrialDeployment, close, findClosedNotice } = await setup({ isTrialing: false });
 
     await closeTrialDeployment();
 
     expect(close).not.toHaveBeenCalled();
-    expect(sentNotifications()).toHaveLength(0);
+    expect(await findClosedNotice()).toBeUndefined();
   });
 
   it("leaves a wallet with no address alone", async () => {
