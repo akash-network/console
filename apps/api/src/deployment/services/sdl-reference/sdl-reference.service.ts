@@ -37,7 +37,8 @@ function readSdlReference(value: string): SdlReferenceRead {
   return { type: "reference", kind: reference[1], name: reference[2] };
 }
 
-function readEnvDeclaration(entry: string): { key: string; value: string } | null {
+/** Shared with the patcher, so one place decides where an `env` entry's name ends and its value begins. */
+export function readEnvDeclaration(entry: string): { key: string; value: string } | null {
   const valueStart = entry.indexOf("=");
 
   return valueStart === -1 ? null : { key: entry.slice(0, valueStart), value: entry.slice(valueStart + 1) };

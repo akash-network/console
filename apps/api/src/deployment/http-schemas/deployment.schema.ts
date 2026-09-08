@@ -161,6 +161,26 @@ export const UpdateDeploymentRequestSchema = z.object({
   })
 });
 
+/** A key carrying `=` would be written as `NAME=REST=value` and read back as a different variable, silently overwriting it and leaving the supplied value unsealed. */
+const ENV_VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+const PatchEnvSchema = z.record(z.string().regex(ENV_VARIABLE_NAME), z.string().nullable()).openapi({
+  description: "Merged into the service's env, keyed by environment variable name. A null value removes the variable."
+});
+
+export const PatchServiceSchema = z
+  .object({
+    image: z.string(),
+    command: z.array(z.string()).nullable(),
+    args: z.array(z.string()).nullable(),
+    env: PatchEnvSchema,
+    credentials: z
+      .object({ host: z.string(), username: z.string(), password: z.string() })
+      .nullable()
+      .openapi({ description: "Private registry pull credentials. Null clears them." })
+  })
+  .partial();
+
 export const UpdateDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema
 });
@@ -313,6 +333,7 @@ export type CloseDeploymentResponse = z.infer<typeof CloseDeploymentResponseSche
 export type DepositDeploymentRequest = z.infer<typeof DepositDeploymentRequestSchema>;
 export type DepositDeploymentResponse = z.infer<typeof DepositDeploymentResponseSchema>;
 export type UpdateDeploymentRequest = z.infer<typeof UpdateDeploymentRequestSchema>;
+export type PatchService = z.infer<typeof PatchServiceSchema>;
 export type UpdateDeploymentResponse = z.infer<typeof UpdateDeploymentResponseSchema>;
 export type ListWithResourcesParams = z.infer<typeof ListWithResourcesParamsSchema>;
 export type ListWithResourcesQuery = z.infer<typeof ListWithResourcesQuerySchema>;
