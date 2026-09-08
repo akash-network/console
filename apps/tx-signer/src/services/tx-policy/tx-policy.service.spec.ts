@@ -1,6 +1,6 @@
 import { DepositAuthorization, MsgAccountDeposit, MsgCreateCertificate, MsgMintACT, Scope } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
-import { BasicAllowance, type Coin, MsgGrant, MsgGrantAllowance, MsgRevokeAllowance } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
+import { BasicAllowance, type Coin, MsgGrant, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -60,6 +60,20 @@ describe(TxPolicyService.name, () => {
     it("rejects a grant issued by another granter", () => {
       const { service } = setup();
       const message = encodeObject(`/${MsgGrantAllowance.$type}`, MsgGrantAllowance.fromPartial({ granter: OTHER_ADDRESS, grantee: SIGNER_ADDRESS }));
+
+      expect(() => service.assertActingOnBehalfOf([message], SIGNER_ADDRESS)).toThrow(/may not be signed by this wallet/);
+    });
+
+    it("accepts an authz revoke issued by the signing wallet", () => {
+      const { service } = setup();
+      const message = encodeObject(`/${MsgRevoke.$type}`, MsgRevoke.fromPartial({ granter: SIGNER_ADDRESS, grantee: OTHER_ADDRESS }));
+
+      expect(() => service.assertActingOnBehalfOf([message], SIGNER_ADDRESS)).not.toThrow();
+    });
+
+    it("rejects an authz revoke issued by another granter", () => {
+      const { service } = setup();
+      const message = encodeObject(`/${MsgRevoke.$type}`, MsgRevoke.fromPartial({ granter: OTHER_ADDRESS, grantee: SIGNER_ADDRESS }));
 
       expect(() => service.assertActingOnBehalfOf([message], SIGNER_ADDRESS)).toThrow(/may not be signed by this wallet/);
     });

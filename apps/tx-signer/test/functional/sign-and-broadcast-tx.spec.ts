@@ -1,9 +1,10 @@
-import { MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { MsgAccountDeposit, MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import {
   BaseAccount,
   BasicAllowance,
   type Coin,
   MsgGrantAllowance,
+  MsgRevoke,
   QueryAccountResponse,
   SimulateResponse,
   TxBody,
@@ -69,6 +70,29 @@ describe(TxController.name, () => {
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ data: { code: 0, hash: txHash, rawLog: "" } });
+  });
+
+  it("signs a funding tx revoking a deposit grant the funding wallet issued", async () => {
+    const { txHash } = mockRpcNode();
+
+    const res = await app.request("/v1/tx/funding", {
+      method: "POST",
+      body: JSON.stringify({ data: { messages: await buildRevokeDepositGrantMessages() } }),
+      headers: authorizedHeaders()
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ data: { code: 0, hash: txHash, rawLog: "" } });
+  });
+
+  it("rejects a funding tx revoking a deposit grant another granter issued", async () => {
+    const res = await app.request("/v1/tx/funding", {
+      method: "POST",
+      body: JSON.stringify({ data: { messages: await buildRevokeDepositGrantMessages(createAkashAddress()) } }),
+      headers: authorizedHeaders()
+    });
+
+    expect(res.status).toBe(403);
   });
 
   it("retries a gas simulation that failed at the transport with a transaction window opened for the retry", async () => {
@@ -227,6 +251,19 @@ describe(TxController.name, () => {
           typeUrl: `/${BasicAllowance.$type}`,
           value: Uint8Array.from(BasicAllowance.encode(BasicAllowance.fromPartial({ spendLimit })).finish())
         }
+      })
+    });
+  }
+
+  async function buildRevokeDepositGrantMessages(granter?: string) {
+    const txManagerService = container.resolve(TxManagerService);
+
+    return encodeMessages({
+      typeUrl: `/${MsgRevoke.$type}`,
+      value: MsgRevoke.fromPartial({
+        granter: granter ?? (await txManagerService.getFundingWalletAddress()),
+        grantee: await txManagerService.getDerivedWalletAddress(DERIVATION_INDEX),
+        msgTypeUrl: `/${MsgAccountDeposit.$type}`
       })
     });
   }

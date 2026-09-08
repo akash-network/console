@@ -1,7 +1,7 @@
 import { DepositAuthorization, MsgAccountDeposit, MsgCreateCertificate, MsgMintACT } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
-import { BasicAllowance, type Coin, MsgGrant, MsgGrantAllowance, MsgRevokeAllowance } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
+import { BasicAllowance, type Coin, MsgGrant, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { Forbidden } from "http-errors";
 import { inject, singleton } from "tsyringe";
@@ -35,6 +35,7 @@ const ACTOR_ADDRESS_READERS = {
   [`/${MsgGrantAllowance.$type}` as const]: readActorAddresses((m: MsgGrantAllowance) => [m.granter]),
   [`/${MsgRevokeAllowance.$type}` as const]: readActorAddresses((m: MsgRevokeAllowance) => [m.granter]),
   [`/${MsgGrant.$type}` as const]: readActorAddresses((m: MsgGrant) => [m.granter]),
+  [`/${MsgRevoke.$type}` as const]: readActorAddresses((m: MsgRevoke) => [m.granter]),
   [`/${MsgMintACT.$type}` as const]: readActorAddresses((m: MsgMintACT) => [m.owner, m.to])
 } satisfies Record<SignableMessageTypeUrl, ActorAddressReader>;
 
