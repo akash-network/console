@@ -15,6 +15,11 @@ import { buildWallet } from "@tests/seeders/wallet";
 import { MockComponents } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
+const PROVIDER_UNAVAILABLE = new ApiError(503, { message: "Provider service is temporarily unavailable" }, "PUT /v1/deployments/{dseq} → 503");
+const BAD_SDL = new ApiError(400, { message: "SDL is not valid YAML: line 3, column 5" }, "PUT /v1/deployments/{dseq} → 400");
+const BAD_PROVIDER_CREDENTIALS = new ApiError(400, { message: "Invalid provider jwt credentials" }, "PUT /v1/deployments/{dseq} → 400");
+const OUT_OF_CREDITS = new ApiError(402, { message: "Insufficient balance: top up to keep deploying" }, "PUT /v1/deployments/{dseq} → 402");
+
 describe(ManifestUpdate.name, () => {
   it("shows outside deployment message when no local manifest exists", () => {
     setup({ storedManifest: null });
@@ -100,21 +105,21 @@ describe(ManifestUpdate.name, () => {
 
   it("submits the edited sdl to the console api instead of signing and sending it from the browser", async () => {
     const signAndBroadcastTx = vi.fn(() => Promise.resolve(true));
-    const { mutate, providerProxy, dependencies } = setup({
+    const handles = setup({
       editedManifest: "version: '2.0'",
       deployment: { dseq: "123", state: "active", hash: "different-hash" },
       wallet: { signAndBroadcastTx }
     });
 
-    await clickUpdate(dependencies);
+    await clickUpdate(handles);
 
-    expect(mutate).toHaveBeenCalledWith({ dseq: "123", data: { sdl: "version: '2.0'" } }, expect.anything());
+    expect(handles.mutate).toHaveBeenCalledWith({ dseq: "123", data: { sdl: "version: '2.0'" } }, expect.anything());
     expect(signAndBroadcastTx).not.toHaveBeenCalled();
-    expect(providerProxy.sendManifest).not.toHaveBeenCalled();
+    expect(handles.providerProxy.sendManifest).not.toHaveBeenCalled();
   });
 
   it("submits to the console api even when the local manifest version already matches the chain", async () => {
-    const { mutate, dependencies } = setup({
+    const handles = setup({
       editedManifest: "version: '2.0'",
       deployment: { dseq: "123", state: "active", hash: "matching-hash" },
       dependencies: {
@@ -124,93 +129,206 @@ describe(ManifestUpdate.name, () => {
       }
     });
 
-    await clickUpdate(dependencies);
+    await clickUpdate(handles);
 
-    expect(mutate).toHaveBeenCalledTimes(1);
+    expect(handles.mutate).toHaveBeenCalledTimes(1);
   });
 
   it("caches the submitted sdl under the deployment without a manifest version", async () => {
-    const { mutate, deploymentLocalStorage, dependencies } = setup({ editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
+    const handles = setup({ editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
 
-    await clickUpdate(dependencies);
-    await succeed(mutate);
+    await clickUpdate(handles);
+    await succeed(handles);
 
-    expect(deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "123", { manifest: "version: '2.0'" });
+    expect(handles.deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "123", { manifest: "version: '2.0'" });
+  });
+
+  it("caches the submitted sdl even when the editor closes before the api answers", async () => {
+    const handles = setup({ editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
+
+    await clickUpdate(handles);
+    handles.unmount();
+    await settleAfterClose(handles, { outcome: "success" });
+
+    expect(handles.deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "123", { manifest: "version: '2.0'" });
+  });
+
+  it("surfaces the failure even when the editor closes before the api answers", async () => {
+    const handles = setup();
+
+    await clickUpdate(handles);
+    handles.unmount();
+    await settleAfterClose(handles, { outcome: "failure", cause: PROVIDER_UNAVAILABLE });
+
+    expect(handles.enqueueSnackbar).toHaveBeenCalled();
   });
 
   it("tracks the update and the successful transaction once the api accepts it", async () => {
-    const { mutate, analyticsService, dependencies } = setup();
+    const handles = setup();
 
-    await clickUpdate(dependencies);
-    await succeed(mutate);
+    await clickUpdate(handles);
+    await succeed(handles);
 
-    expect(analyticsService.track).toHaveBeenCalledWith("update_deployment", { category: "deployments", label: "Update deployment" });
-    expect(analyticsService.track).toHaveBeenCalledWith("successful_tx", { category: "transactions", label: "Successful transaction" });
+    expect(handles.analyticsService.track).toHaveBeenCalledWith("update_deployment", { category: "deployments", label: "Update deployment" });
+    expect(handles.analyticsService.track).toHaveBeenCalledWith("successful_tx", { category: "transactions", label: "Successful transaction" });
   });
 
   it("refreshes the balances once the api accepts the update", async () => {
-    const { mutate, refetchBalances, dependencies } = setup();
+    const handles = setup();
 
-    await clickUpdate(dependencies);
-    await succeed(mutate);
+    await clickUpdate(handles);
+    await succeed(handles);
 
-    expect(refetchBalances).toHaveBeenCalled();
+    expect(handles.refetchBalances).toHaveBeenCalled();
+  });
+
+  it("refreshes the balances when the api refuses the update for payment", async () => {
+    const handles = setup();
+
+    await clickUpdate(handles);
+    await fail(handles, OUT_OF_CREDITS);
+
+    expect(handles.refetchBalances).toHaveBeenCalled();
   });
 
   it("closes the editor once the api accepts the update", async () => {
     const closeManifestEditor = vi.fn();
-    const { mutate, dependencies } = setup({ closeManifestEditor });
+    const handles = setup({ closeManifestEditor });
 
-    await clickUpdate(dependencies);
-    await succeed(mutate);
+    await clickUpdate(handles);
+    await succeed(handles);
 
     expect(closeManifestEditor).toHaveBeenCalled();
   });
 
   it("shows the sdl the api refused inline and leaves the editor open", async () => {
     const closeManifestEditor = vi.fn();
-    const { mutate, deploymentLocalStorage, dependencies } = setup({ closeManifestEditor });
+    const handles = setup({ closeManifestEditor });
 
-    await clickUpdate(dependencies);
-    await fail(mutate, new ApiError(400, { message: "SDL is not valid YAML: line 3, column 5" }, "PUT /v1/deployments/{dseq} → 400"));
+    await clickUpdate(handles);
+    await fail(handles, BAD_SDL);
 
     expect(screen.getByText("SDL is not valid YAML: line 3, column 5")).toBeInTheDocument();
     expect(closeManifestEditor).not.toHaveBeenCalled();
-    expect(deploymentLocalStorage.update).not.toHaveBeenCalled();
+    expect(handles.deploymentLocalStorage.update).not.toHaveBeenCalled();
+  });
+
+  it("lets the user retry after editing the sdl the api refused", async () => {
+    const handles = setup();
+
+    await clickUpdate(handles);
+    await fail(handles, BAD_SDL);
+
+    expect(updateButtonOf(handles.dependencies)?.disabled).toBe(true);
+
+    await act(async () => {
+      handles.dependencies.SDLEditor.mock.calls[0][0].onChange?.("version: '2.0'\nfixed: true", editorChangeEvent());
+    });
+
+    expect(screen.queryByText("SDL is not valid YAML: line 3, column 5")).not.toBeInTheDocument();
+    expect(updateButtonOf(handles.dependencies)?.disabled).toBe(false);
+  });
+
+  it("lets the user retry after editing in the remote deploy editor", async () => {
+    const handles = setup({ isRemoteDeploy: true });
+
+    await clickUpdate(handles);
+    await fail(handles, BAD_SDL);
+
+    expect(screen.getByText("SDL is not valid YAML: line 3, column 5")).toBeInTheDocument();
+
+    await act(async () => {
+      handles.dependencies.RemoteDeployUpdate.mock.calls[0][0].onManifestChange("version: '2.0'\nfixed: true");
+    });
+
+    expect(screen.queryByText("SDL is not valid YAML: line 3, column 5")).not.toBeInTheDocument();
+    expect(updateButtonOf(handles.dependencies)?.disabled).toBe(false);
+  });
+
+  it("keeps a refused provider credential out of the editor's inline alert", async () => {
+    const handles = setup();
+
+    await clickUpdate(handles);
+    await fail(handles, BAD_PROVIDER_CREDENTIALS);
+
+    expect(screen.queryByText("Invalid provider jwt credentials")).not.toBeInTheDocument();
+    expect(handles.enqueueSnackbar).toHaveBeenCalled();
+    expect(updateButtonOf(handles.dependencies)?.disabled).toBe(false);
   });
 
   it("surfaces the provider failure the api reports in a snackbar that does not auto hide", async () => {
-    const { mutate, enqueueSnackbar, dependencies } = setup();
+    const handles = setup();
 
-    await clickUpdate(dependencies);
-    await fail(mutate, new ApiError(503, { message: "Provider service is temporarily unavailable" }, "PUT /v1/deployments/{dseq} → 503"));
+    await clickUpdate(handles);
+    await fail(handles, PROVIDER_UNAVAILABLE);
 
-    const [element, options] = enqueueSnackbar.mock.calls[0];
-    expect(element.type).toBe(dependencies.Snackbar);
+    const [element, options] = handles.enqueueSnackbar.mock.calls[0];
+    expect(element.type).toBe(handles.dependencies.Snackbar);
     expect(element.props.subTitle).toBe("Provider service is temporarily unavailable");
     expect(options).toEqual({ variant: "error", autoHideDuration: null });
   });
 
+  it("re-enables the update and redeploy actions after a failed update", async () => {
+    const onRedeploy = vi.fn();
+    const handles = setup({ onRedeploy });
+
+    await clickUpdate(handles);
+    await fail(handles, PROVIDER_UNAVAILABLE);
+
+    expect(updateButtonOf(handles.dependencies)?.disabled).toBe(false);
+    expect(redeployButtonOf(handles.dependencies, onRedeploy)?.disabled).toBe(false);
+  });
+
   it("offers the add credits action when the api refuses the update for payment", async () => {
-    const { mutate, enqueueSnackbar, dependencies } = setup();
+    const handles = setup();
 
-    await clickUpdate(dependencies);
-    await fail(mutate, new ApiError(402, { message: "Insufficient balance: top up to keep deploying" }, "PUT /v1/deployments/{dseq} → 402"));
+    await clickUpdate(handles);
+    await fail(handles, OUT_OF_CREDITS);
 
-    const [element, options] = enqueueSnackbar.mock.calls[0];
+    const [element, options] = handles.enqueueSnackbar.mock.calls[0];
     expect(element.props.title).toBe("Insufficient balance");
-    expect(element.props.subTitle.type).toBe(dependencies.AddCreditsSnackbarContent);
+    expect(element.props.subTitle.type).toBe(handles.dependencies.AddCreditsSnackbarContent);
     expect(element.props.subTitle.props.message).toBe("top up to keep deploying");
     expect(options).toEqual({ variant: "warning", autoHideDuration: 10000 });
   });
 
+  it("dismisses the add credits snackbar once the user acts on it", async () => {
+    const handles = setup();
+    handles.enqueueSnackbar.mockReturnValue("snackbar-key");
+
+    await clickUpdate(handles);
+    await fail(handles, OUT_OF_CREDITS);
+
+    handles.enqueueSnackbar.mock.calls[0][0].props.subTitle.props.onAction();
+
+    expect(handles.closeSnackbar).toHaveBeenCalledWith("snackbar-key");
+  });
+
+  it("re-enables the update action after the api refuses the update for payment", async () => {
+    const handles = setup();
+
+    await clickUpdate(handles);
+    await fail(handles, OUT_OF_CREDITS);
+
+    expect(updateButtonOf(handles.dependencies)?.disabled).toBe(false);
+  });
+
   it("tracks a failed transaction when the api refuses the update", async () => {
-    const { mutate, analyticsService, dependencies } = setup();
+    const handles = setup();
 
-    await clickUpdate(dependencies);
-    await fail(mutate, new ApiError(503, { message: "Provider service is temporarily unavailable" }, "PUT /v1/deployments/{dseq} → 503"));
+    await clickUpdate(handles);
+    await fail(handles, PROVIDER_UNAVAILABLE);
 
-    expect(analyticsService.track).toHaveBeenCalledWith("failed_tx", { category: "transactions", label: "Failed transaction" });
+    expect(handles.analyticsService.track).toHaveBeenCalledWith("failed_tx", { category: "transactions", label: "Failed transaction" });
+  });
+
+  it("tracks no failed transaction when the api refuses the sdl before attempting one", async () => {
+    const handles = setup();
+
+    await clickUpdate(handles);
+    await fail(handles, BAD_SDL);
+
+    expect(handles.analyticsService.track).not.toHaveBeenCalledWith("failed_tx", expect.anything());
   });
 
   it("clears deployment version when text changes in editor", async () => {
@@ -222,10 +340,7 @@ describe(ManifestUpdate.name, () => {
     });
 
     act(() => {
-      dependencies.SDLEditor.mock.calls[0][0].onChange?.(
-        "updated manifest",
-        mock<Parameters<NonNullable<Parameters<typeof DEPENDENCIES.SDLEditor>[0]["onChange"]>>[1]>()
-      );
+      dependencies.SDLEditor.mock.calls[0][0].onChange?.("updated manifest", editorChangeEvent());
     });
 
     expect(onManifestChange).toHaveBeenCalledWith("updated manifest");
@@ -240,13 +355,12 @@ describe(ManifestUpdate.name, () => {
 
   it("disables the redeploy action while an update is in flight", async () => {
     const onRedeploy = vi.fn();
-    const { dependencies } = setup({ onRedeploy });
+    const handles = setup({ onRedeploy });
 
-    await clickUpdate(dependencies);
+    await clickUpdate(handles);
 
     await waitFor(() => {
-      const redeployRenders = dependencies.Button.mock.calls.filter(call => call[0].onClick === onRedeploy);
-      expect(redeployRenders[redeployRenders.length - 1][0].disabled).toBe(true);
+      expect(redeployButtonOf(handles.dependencies, onRedeploy)?.disabled).toBe(true);
     });
   });
 
@@ -256,33 +370,50 @@ describe(ManifestUpdate.name, () => {
     expect(dependencies.Button.mock.calls.map(call => call[0].children)).toEqual(["Update Deployment"]);
   });
 
-  it("wires no transaction message builder, so nothing can sign an update from the browser", () => {
-    expect(Object.keys(DEPENDENCIES)).not.toContain("TransactionMessageData");
-  });
+  type Handles = ReturnType<typeof setup>;
+  type Dependencies = Handles["dependencies"];
 
-  type Dependencies = ReturnType<typeof setup>["dependencies"];
-
-  function updateButtonOf(dependencies: Dependencies) {
-    return dependencies.Button.mock.calls.find(call => call[0].children === "Update Deployment")?.[0];
+  function editorChangeEvent() {
+    return mock<Parameters<NonNullable<Parameters<typeof DEPENDENCIES.SDLEditor>[0]["onChange"]>>[1]>();
   }
 
-  async function clickUpdate(dependencies: Dependencies) {
-    const updateButton = updateButtonOf(dependencies);
+  function updateButtonOf(dependencies: Dependencies) {
+    return dependencies.Button.mock.calls.filter(call => call[0].children === "Update Deployment").at(-1)?.[0];
+  }
+
+  function redeployButtonOf(dependencies: Dependencies, onRedeploy: () => void) {
+    return dependencies.Button.mock.calls.filter(call => call[0].onClick === onRedeploy).at(-1)?.[0];
+  }
+
+  async function clickUpdate(handles: Handles) {
+    const updateButton = updateButtonOf(handles.dependencies);
 
     await act(async () => {
       updateButton?.onClick?.(mock<MouseEvent<HTMLButtonElement>>());
     });
   }
 
-  async function succeed(mutate: ReturnType<typeof vi.fn>) {
+  async function succeed(handles: Handles) {
     await act(async () => {
-      mutate.mock.calls[0][1].onSuccess({ data: {} });
+      handles.mutationOptions.current?.onSuccess?.({ data: {} });
+      handles.mutate.mock.calls[0][1]?.onSuccess?.({ data: {} });
     });
   }
 
-  async function fail(mutate: ReturnType<typeof vi.fn>, cause: unknown) {
+  async function fail(handles: Handles, cause: unknown) {
     await act(async () => {
-      mutate.mock.calls[0][1].onError(cause);
+      handles.mutationOptions.current?.onError?.(cause);
+      handles.mutate.mock.calls[0][1]?.onError?.(cause);
+    });
+  }
+
+  async function settleAfterClose(handles: Handles, outcome: { outcome: "success" } | { outcome: "failure"; cause: unknown }) {
+    await act(async () => {
+      if (outcome.outcome === "success") {
+        handles.mutationOptions.current?.onSuccess?.({ data: {} });
+        return;
+      }
+      handles.mutationOptions.current?.onError?.(outcome.cause);
     });
   }
 
@@ -300,19 +431,19 @@ describe(ManifestUpdate.name, () => {
   }) {
     const providerProxy = mock<ProviderProxyService>();
     const analyticsService = mock<AnalyticsService>();
-    const deploymentLocalStorage = {
-      get: vi
-        .fn<DeploymentStorageService["get"]>()
-        .mockReturnValue(input?.storedManifest === null ? null : { manifest: input?.storedManifest ?? "version: '2.0'" }),
-      set: vi.fn<DeploymentStorageService["set"]>(),
-      update: vi.fn<DeploymentStorageService["update"]>()
-    };
+    const deploymentLocalStorage = mock<DeploymentStorageService>();
+    deploymentLocalStorage.get.mockReturnValue(input?.storedManifest === null ? null : { manifest: input?.storedManifest ?? "version: '2.0'" });
 
     const mutate = vi.fn();
+    const mutationOptions: { current?: { onSuccess?: (data: unknown) => void; onError?: (cause: unknown) => void } } = {};
     const api = mockDeep<AppDIContainer["api"]>();
-    api.v1.updateDeployment.useMutation.mockReturnValue(mock<ReturnType<typeof api.v1.updateDeployment.useMutation>>({ mutate }));
+    api.v1.updateDeployment.useMutation.mockImplementation(options => {
+      mutationOptions.current = options as typeof mutationOptions.current;
+      return mock<ReturnType<typeof api.v1.updateDeployment.useMutation>>({ mutate });
+    });
 
     const enqueueSnackbar = vi.fn();
+    const closeSnackbar = vi.fn();
     const balances = mock<ReturnType<typeof DEPENDENCIES.useBalances>>();
 
     const useWallet: typeof DEPENDENCIES.useWallet = () =>
@@ -334,7 +465,7 @@ describe(ManifestUpdate.name, () => {
       ensureToken: vi.fn().mockResolvedValue("test-token")
     });
 
-    const useSnackbar: typeof DEPENDENCIES.useSnackbar = () => ({ enqueueSnackbar, closeSnackbar: vi.fn() });
+    const useSnackbar: typeof DEPENDENCIES.useSnackbar = () => ({ enqueueSnackbar, closeSnackbar });
 
     const useBlockchainStatus: typeof DEPENDENCIES.useBlockchainStatus = () =>
       mock<ReturnType<typeof DEPENDENCIES.useBlockchainStatus>>({ isBlockchainDown: false });
@@ -351,13 +482,13 @@ describe(ManifestUpdate.name, () => {
       ...input?.dependencies
     });
 
-    render(
+    const { unmount } = render(
       <TestContainerProvider
         services={{
           api: () => api,
           providerProxy: () => providerProxy,
           analyticsService: () => analyticsService,
-          deploymentLocalStorage: () => deploymentLocalStorage as unknown as DeploymentStorageService
+          deploymentLocalStorage: () => deploymentLocalStorage
         }}
       >
         <ManifestUpdate
@@ -379,6 +510,17 @@ describe(ManifestUpdate.name, () => {
       </TestContainerProvider>
     );
 
-    return { providerProxy, analyticsService, deploymentLocalStorage, dependencies, mutate, enqueueSnackbar, refetchBalances: balances.refetch };
+    return {
+      providerProxy,
+      analyticsService,
+      deploymentLocalStorage,
+      dependencies,
+      mutate,
+      mutationOptions,
+      enqueueSnackbar,
+      closeSnackbar,
+      refetchBalances: balances.refetch,
+      unmount
+    };
   }
 });

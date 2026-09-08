@@ -43,9 +43,22 @@ export const DEPENDENCIES = {
   deploymentData: deploymentDataOriginal
 };
 
-const REFUSED_SDL_MESSAGE = "The console could not accept this SDL.";
+/** The api answers 400 for provider-credential and schema failures too, and only a refusal of the document itself belongs in the editor's inline alert. */
+const SDL_REFUSAL_PREFIXES = ["Invalid SDL:", "SDL is not valid YAML", "SDL is too large"];
 const UPDATE_FAILURE_MESSAGE = "Something went wrong while updating the deployment. Please try again.";
 const ADD_CREDITS_TITLE = "Add credits to continue";
+
+function isBadRequest(cause: unknown): boolean {
+  return isApiError(cause) && cause.status === 400;
+}
+
+function sdlRefusalOf(cause: unknown): string | null {
+  if (!isBadRequest(cause)) return null;
+
+  const message = extractApiErrorMessage(cause);
+
+  return message && SDL_REFUSAL_PREFIXES.some(prefix => message.startsWith(prefix)) ? message : null;
+}
 
 type Props = {
   deployment: DeploymentDto;
@@ -75,9 +88,9 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const { address } = d.useWallet();
   const { refetch: refetchBalances } = d.useBalances(address);
   const providerCredentials = d.useProviderCredentials();
-  const { enqueueSnackbar } = d.useSnackbar();
+  const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const { isBlockchainDown } = d.useBlockchainStatus();
-  const updateDeployment = api.v1.updateDeployment.useMutation();
+  const updateDeployment = api.v1.updateDeployment.useMutation({ onSuccess: recordUpdate, onError: reportUpdateFailure });
 
   useEffect(() => {
     const init = async () => {
@@ -102,8 +115,13 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     init();
   }, [deployment, address, deploymentLocalStorage]);
 
+  function handleManifestChange(value: string) {
+    setParsingError(null);
+    onManifestChange(value);
+  }
+
   function handleTextChange(value: string | undefined) {
-    onManifestChange(value || "");
+    handleManifestChange(value || "");
 
     if (deploymentVersion) {
       setDeploymentVersion(null);
@@ -119,26 +137,29 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   function handleUpdateClick() {
     setParsingError(null);
     setIsUpdating(true);
-    updateDeployment.mutate({ dseq: deployment.dseq, data: { sdl: editedManifest } }, { onSuccess: finishUpdate, onError: reportUpdateFailure });
+    updateDeployment.mutate({ dseq: deployment.dseq, data: { sdl: editedManifest } }, { onSuccess: closeAfterUpdate, onError: releaseAfterFailure });
   }
 
-  function finishUpdate() {
+  function recordUpdate() {
     deploymentLocalStorage.update(address, deployment.dseq, { manifest: editedManifest });
     analyticsService.track("update_deployment", { category: "deployments", label: "Update deployment" });
     analyticsService.track("successful_tx", { category: "transactions", label: "Successful transaction" });
     refetchBalances();
+  }
+
+  function closeAfterUpdate() {
     setIsUpdating(false);
     closeManifestEditor();
   }
 
   function reportUpdateFailure(cause: unknown) {
-    setIsUpdating(false);
-    analyticsService.track("failed_tx", { category: "transactions", label: "Failed transaction" });
+    refetchBalances();
 
-    if (isApiError(cause) && cause.status === 400) {
-      setParsingError(extractApiErrorMessage(cause) ?? REFUSED_SDL_MESSAGE);
-      return;
+    if (!isBadRequest(cause)) {
+      analyticsService.track("failed_tx", { category: "transactions", label: "Failed transaction" });
     }
+
+    if (sdlRefusalOf(cause)) return;
 
     if (isApiError(cause) && cause.status === 402) {
       offerCredits(cause);
@@ -151,11 +172,20 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     });
   }
 
+  function releaseAfterFailure(cause: unknown) {
+    setIsUpdating(false);
+    setParsingError(sdlRefusalOf(cause));
+  }
+
   function offerCredits(cause: unknown) {
     const [title, message] = (extractApiErrorMessage(cause) ?? "").split(": ");
 
-    enqueueSnackbar(
-      <d.Snackbar title={title || message || ADD_CREDITS_TITLE} subTitle={<d.AddCreditsSnackbarContent message={message} />} iconVariant="warning" />,
+    const key = enqueueSnackbar(
+      <d.Snackbar
+        title={title || message || ADD_CREDITS_TITLE}
+        subTitle={<d.AddCreditsSnackbarContent message={message} onAction={() => closeSnackbar(key)} />}
+        iconVariant="warning"
+      />,
       {
         variant: "warning",
         autoHideDuration: 10000
@@ -239,7 +269,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
             <d.ViewPanel stickToBottom style={{ overflow: isRemoteDeploy ? "unset" : "hidden" }}>
               {isRemoteDeploy ? (
-                <d.RemoteDeployUpdate sdlString={editedManifest} onManifestChange={onManifestChange} />
+                <d.RemoteDeployUpdate sdlString={editedManifest} onManifestChange={handleManifestChange} />
               ) : (
                 <d.SDLEditor value={editedManifest} onChange={handleTextChange} onValidate={() => setParsingError(null)} />
               )}
