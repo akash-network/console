@@ -3,87 +3,48 @@ import nock from "nock";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { container } from "tsyringe";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { mock } from "vitest-mock-extended";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { startJobQueues } from "@src/app/providers/jobs.provider";
-import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.service";
-import type { UserWalletOutput } from "@src/billing/repositories";
-import { UserWalletRepository } from "@src/billing/repositories";
-import { ManagedSignerService } from "@src/billing/services";
-import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
+import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
+import { BILLING_CONFIG } from "@src/billing/providers";
 import { CORE_CONFIG } from "@src/core";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import { ProviderService } from "@src/provider/services/provider/provider.service";
+import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { app } from "@src/rest-app";
-import type { UserOutput } from "@src/user/repositories";
-import { UserRepository } from "@src/user/repositories";
 import { deploymentVersion, marketVersion } from "@src/utils/constants";
 
 import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
-import { createApiKey } from "@test/seeders/api-key.seeder";
+import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
-import { createManyLeaseApiResponses } from "@test/seeders/lease-api-response.seeder";
-import { createUser } from "@test/seeders/user.seeder";
-import { createUserWallet } from "@test/seeders/user-wallet.seeder";
+import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
+import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
+import { createLeaseStatus } from "@test/seeders/lease-status.seeder";
+import { createProvider } from "@test/seeders/provider.seeder";
 
 registerFakeSdlSecretsKms();
 
 const DSEQ = "1234";
 const REPLACED_MANIFEST_VERSION = "AAAA";
+const STORED_SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
 describe("PATCH /v1/deployments/{dseq} route wiring", () => {
-  const userRepository = container.resolve(UserRepository);
-  const apiKeyAuthService = container.resolve(ApiKeyAuthService);
-  const userWalletRepository = container.resolve(UserWalletRepository);
-  const blockHttpService = container.resolve(BlockHttpService);
-  const signerService = container.resolve(ManagedSignerService);
-  const providerService = container.resolve(ProviderService);
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
-
-  let knownUsers: Record<string, UserOutput>;
-  let knownApiKeys: Record<string, ReturnType<typeof createApiKey>>;
-  let knownWallets: Record<string, UserWalletOutput[]>;
 
   beforeAll(async () => {
     await startJobQueues();
     await warmSealingKeyAsBootWould();
   }, 20_000);
 
-  beforeEach(() => {
-    knownUsers = {};
-    knownApiKeys = {};
-    knownWallets = {};
-
-    vi.spyOn(userRepository, "findById").mockImplementation(async id =>
-      knownUsers[id] ? { ...knownUsers[id], trial: false, userWallets: { isTrialing: false } } : undefined
-    );
-    vi.spyOn(apiKeyAuthService, "getAndValidateApiKeyFromHeader").mockImplementation(async key => knownApiKeys[key!]);
-    vi.spyOn(blockHttpService, "getCurrentHeight").mockResolvedValue(faker.number.int({ min: 1000000, max: 10000000 }));
-    vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(
-      mock<UserWalletRepository>({
-        findByUserId: async (id: string) => knownWallets[id],
-        findOneByUserId: async (id: string) => knownWallets[id][0]
-      })
-    );
-    vi.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValue({
-      code: 0,
-      transactionHash: "fake-transaction-hash",
-      hash: "fake-transaction-hash",
-      rawLog: "fake-raw-log"
-    });
-    vi.spyOn(providerService, "sendManifest").mockResolvedValue(true);
-  });
-
   afterEach(() => {
-    vi.restoreAllMocks();
     nock.cleanAll();
   });
 
   afterAll(async () => {
     await container.dispose();
-    vi.restoreAllMocks();
     nock.cleanAll();
   });
 
@@ -94,7 +55,7 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
   });
 
   it("reaches the controller and answers 404 for a deployment the console recorded nothing for", async () => {
-    const { apiKey } = await persistedUser();
+    const { apiKey } = await setup();
 
     const response = await patch(apiKey, { services: { web: { image: "nginx" } } });
 
@@ -102,7 +63,7 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
   });
 
   it("refuses a body naming no services before it reaches the controller", async () => {
-    const { apiKey } = await persistedUser();
+    const { apiKey } = await setup();
 
     const response = await patch(apiKey, { services: {} });
 
@@ -110,7 +71,7 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
   });
 
   it("refuses a service patch naming no field before it reaches the controller", async () => {
-    const { apiKey } = await persistedUser();
+    const { apiKey } = await setup();
 
     const response = await patch(apiKey, { services: { web: {} } });
 
@@ -118,7 +79,7 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
   });
 
   it("refuses an empty seal offered as the only thing the patch would write", async () => {
-    const { apiKey } = await persistedUser();
+    const { apiKey } = await setup();
 
     const response = await patch(apiKey, { services: { web: {} }, sealedSecrets: "" });
 
@@ -126,7 +87,7 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
   });
 
   it("refuses an env key that is not an environment variable name", async () => {
-    const { apiKey } = await persistedUser();
+    const { apiKey } = await setup();
 
     const response = await patch(apiKey, { services: { web: { env: { "A=B": "c" } } } });
 
@@ -134,7 +95,7 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
   });
 
   it("answers 200 with the patched deployment under data", async () => {
-    const { apiKey } = await patchableDeployment();
+    const { apiKey } = await setup({ recordsDefinition: true });
 
     const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
 
@@ -150,7 +111,7 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
   });
 
   it("hands back the manifest version it recorded rather than the one the patch replaced", async () => {
-    const { apiKey, user } = await patchableDeployment();
+    const { apiKey, user } = await setup({ recordsDefinition: true });
 
     const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
 
@@ -160,6 +121,24 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
     expect(data.manifestVersion).not.toBe(REPLACED_MANIFEST_VERSION);
   });
 
+  it("pushes the patched manifest to the provider holding the lease", async () => {
+    const { apiKey, sentManifests } = await setup({ recordsDefinition: true });
+
+    const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
+
+    expect(response.status).toBe(200);
+    expect(sentManifests()).toEqual([expect.stringContaining("nginx:1.27")]);
+  });
+
+  it("broadcasts an update of the deployment the patch rewrote", async () => {
+    const { apiKey, broadcastMessages } = await setup({ recordsDefinition: true });
+
+    const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
+
+    expect(response.status).toBe(200);
+    expect(broadcastMessages()).toEqual([{ typeUrl: `/akash.deployment.${deploymentVersion}.MsgUpdateDeployment`, value: expect.any(String) }]);
+  });
+
   function patch(apiKey: string | undefined, data: Record<string, unknown>) {
     const headers = new Headers({ "Content-Type": "application/json" });
     if (apiKey) headers.set("x-api-key", apiKey);
@@ -167,44 +146,87 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
     return app.request(`/v1/deployments/${DSEQ}`, { method: "PATCH", body: JSON.stringify({ data }), headers });
   }
 
-  async function persistedUser() {
-    const dbUser = await userRepository.create({ userId: faker.string.uuid() });
-    const apiKey = faker.string.alphanumeric(24);
-    const user = createUser({ id: dbUser.id, userId: dbUser.userId ?? undefined });
+  async function persistApiKeyFor(userId: string) {
+    const apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
+    const apiKey = apiKeyGenerator.generateApiKey();
 
-    knownUsers[dbUser.id] = user;
-    knownApiKeys[apiKey] = createApiKey({ userId: dbUser.id });
-    knownWallets[dbUser.id] = [createUserWallet({ userId: dbUser.id, address: createAkashAddress() })];
-
-    return { user, apiKey, address: knownWallets[dbUser.id][0].address! };
-  }
-
-  async function patchableDeployment() {
-    const { user, apiKey, address } = await persistedUser();
-
-    await deploymentSettingRepository.upsertDefinition({
-      userId: user.id,
-      dseq: DSEQ,
-      sdl: fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8"),
-      manifestVersion: REPLACED_MANIFEST_VERSION
+    await container.resolve(ApiKeyRepository).create({
+      userId,
+      name: faker.company.name(),
+      hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
+      keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
     });
-    mockChainOf(address);
 
-    return { user, apiKey, address };
+    return apiKey;
   }
 
-  function mockChainOf(address: string) {
+  function nockChain({ address, provider }: { address: string; provider: string }) {
     const restUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
-    const leases = createManyLeaseApiResponses(1, { owner: address, dseq: DSEQ, state: "active" });
+    const leases = [createLeaseApiResponse({ owner: address, dseq: DSEQ, provider, state: "active" })];
 
     nock(restUrl)
       .persist()
-      .get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${DSEQ}`)
-      .reply(200, createDeploymentInfoSeed({ owner: address, dseq: DSEQ }));
-    nock(restUrl).persist().get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${DSEQ}`).reply(200, { leases });
-    nock(restUrl)
+      .get(`/akash/deployment/${deploymentVersion}/deployments/info`)
+      .query({ "id.owner": address, "id.dseq": DSEQ })
+      .reply(200, createDeploymentInfoSeed({ owner: address, dseq: DSEQ }))
+      .get(`/akash/market/${marketVersion}/leases/list`)
+      .query(query => query["filters.owner"] === address && query["filters.dseq"] === DSEQ)
+      .reply(200, { leases })
+      .get(/\/cosmos\/feegrant\/v1beta1\/allowances?\/.*/)
+      .reply(200, createFeeAllowanceResponse({ grantee: address, amount: "5000000" }))
+      .get(/\/cosmos\/authz\/v1beta1\/grants\?.*/)
+      .reply(200, createDeploymentGrantResponseSeed({ grantee: address, amount: "20000000", grantType: "/akash.escrow.v1.DepositAuthorization" }));
+  }
+
+  function nockTxSigner() {
+    const broadcastMessages: { typeUrl: string }[] = [];
+
+    nock(container.resolve(BILLING_CONFIG).TX_SIGNER_BASE_URL)
       .persist()
-      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${DSEQ}&pagination.limit=1000`)
-      .reply(200, { leases });
+      .post("/v1/tx/derived")
+      .reply(200, (_uri, body) => {
+        broadcastMessages.push(...(body as { data: { messages: { typeUrl: string }[] } }).data.messages);
+        return { data: { code: 0, hash: "SOME_HASH", rawLog: "[]" } };
+      });
+
+    return () => broadcastMessages;
+  }
+
+  function nockProviderProxy() {
+    const sentManifests: string[] = [];
+
+    nock(container.resolve(DeploymentConfigService).get("PROVIDER_PROXY_URL"))
+      .persist()
+      .post("/", body => (body as { url: string }).url.endsWith("/manifest"))
+      .reply(200, (_uri, body) => {
+        sentManifests.push((body as { body: string }).body);
+        return { ok: true };
+      })
+      .post("/", body => (body as { url: string }).url.includes("/status"))
+      .reply(200, createLeaseStatus());
+
+    return () => sentManifests;
+  }
+
+  async function setup(input: { recordsDefinition?: boolean } = {}) {
+    const { user, address } = await seedUserWithWallet({ isTrialing: false, activatedAt: new Date() });
+    const apiKey = await persistApiKeyFor(user.id);
+    const provider = createAkashAddress();
+
+    await createProvider({ owner: provider, deletedHeight: null });
+    nockChain({ address, provider });
+    const broadcastMessages = nockTxSigner();
+    const sentManifests = nockProviderProxy();
+
+    if (input.recordsDefinition) {
+      await deploymentSettingRepository.upsertDefinition({
+        userId: user.id,
+        dseq: DSEQ,
+        sdl: STORED_SDL,
+        manifestVersion: REPLACED_MANIFEST_VERSION
+      });
+    }
+
+    return { user, apiKey, sentManifests, broadcastMessages };
   }
 });

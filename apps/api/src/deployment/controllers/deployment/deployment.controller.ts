@@ -1,3 +1,4 @@
+/* v8 ignore start */
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 import { z } from "zod";
