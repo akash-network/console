@@ -171,7 +171,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
       {showsPageSkeleton && <DeploymentDetailSkeleton />}
 
-      {deployment && isLeasesLoaded && (
+      {!showsPageSkeleton && deployment && isLeasesLoaded && (
         <>
           <div className={PAGE_BAND}>
             <d.DeploymentDetailHeader deployment={deployment} leases={leases} providers={providers || []} />
