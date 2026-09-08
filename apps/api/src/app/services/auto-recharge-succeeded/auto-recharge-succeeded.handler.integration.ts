@@ -31,6 +31,8 @@ describe("recharge and bonus notices", () => {
 
       await rechargeSucceeded({ amountCents: 2500 });
 
+      expect(sentNotifications()).toHaveLength(1);
+
       const [sent] = sentNotifications();
       expect(sent.userId).toBe(userId);
       expect(sent.body).toMatchObject({
@@ -64,6 +66,8 @@ describe("recharge and bonus notices", () => {
       const { userId, bonusGranted, sentNotifications } = await setup();
 
       await bonusGranted({ bonusAmountCents: 1000, paidAmountCents: 5000 });
+
+      expect(sentNotifications()).toHaveLength(1);
 
       const [sent] = sentNotifications();
       expect(sent.userId).toBe(userId);
