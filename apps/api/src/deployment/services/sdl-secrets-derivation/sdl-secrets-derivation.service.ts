@@ -29,7 +29,6 @@ export class SdlSecretsDerivationService {
 
       const name = mintName(`s${slot.serviceIndex}_${slot.position}`, takenNames);
       takenInNode.add(slot.position);
-      takenNames.add(name);
       secrets[name] = slot.value;
       slot.replace(`ac-${DERIVED_REFERENCE_KIND}://${name}`);
     }
@@ -49,7 +48,7 @@ export class SdlSecretsDerivationService {
   }
 }
 
-/** A minted name need only be unique: it must not be one any reference in the document already stands on, or that one value would resolve into two places. */
+/** Only names the document already stands on are avoided: no two slots prefer the same name, because a position spells `e0` or `c_password`, never `e0_2`. */
 function mintName(preferred: string, taken: Set<string>): string {
   let candidate = preferred;
   let suffix = 2;
