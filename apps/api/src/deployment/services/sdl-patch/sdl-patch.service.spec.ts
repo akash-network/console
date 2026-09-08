@@ -232,6 +232,18 @@ describe(SdlPatchService.name, () => {
       expect(() => service.apply(document, { web: { image: "nginx:1.27" } })).toThrow(/share its definition with another part of the document/);
     });
 
+    it("refuses an env patch through the alias, naming the definition it would rewrite", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx" } }, aliasWebAs: "worker" });
+
+      expect(() => service.apply(document, { web: { env: { A: "two" } } })).toThrow(/share its definition with another part of the document/);
+    });
+
+    it("allows a patch whose only field is an empty env record, which assigns nothing", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx" } }, aliasWebAs: "worker" });
+
+      expect(() => service.apply(document, { web: { env: {} } })).not.toThrow();
+    });
+
     it("leaves the aliased service untouched", () => {
       const { service, document } = setup({ services: { web: { image: "nginx" } }, aliasWebAs: "worker" });
 

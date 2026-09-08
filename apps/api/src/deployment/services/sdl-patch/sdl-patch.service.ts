@@ -56,10 +56,11 @@ function assignsStorage(patch: PatchStorage): boolean {
 
 /** Naming a field a patch leaves untouched is not a write, so an anchored service is only refused once the patch would actually change it. */
 function assignsService(patch: PatchService): boolean {
-  const { expose, storage, ...fields } = patch;
+  const { expose, storage, env, ...fields } = patch;
 
   return (
     Object.values(fields).some(value => value !== undefined) ||
+    assignsEnv(env) ||
     Object.values(expose ?? {}).some(assignsExpose) ||
     Object.values(storage ?? {}).some(assignsStorage)
   );
