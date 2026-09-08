@@ -21,13 +21,35 @@ describe(WorkloadAbuseDetectionRepository.name, () => {
     });
   });
 
+  describe("markWalletEnforced", () => {
+    it("settles every confirmed detection of the wallet and leaves the rest alone", async () => {
+      const { repository, walletId, createDetection } = await setup();
+      const { walletId: otherWalletId, createDetection: createOtherDetection } = await setup();
+      const detected = await createDetection({ dseq: "1", verdict: "hard" });
+      const failed = await createDetection({ dseq: "2", verdict: "hard", action: "enforcement_failed" });
+      const soft = await createDetection({ dseq: "3", verdict: "soft" });
+      const other = await createOtherDetection({ dseq: "4", verdict: "hard" });
+
+      await repository.markWalletEnforced(walletId);
+
+      const actions = await Promise.all([detected, failed, soft, other].map(async detection => (await repository.findById(detection.id))?.action));
+      expect(actions).toEqual(["enforced", "enforced", "detected", "detected"]);
+      expect(otherWalletId).not.toBe(walletId);
+    });
+  });
+
   async function setup() {
     const userRepository = container.resolve(UserRepository);
     const repository = container.resolve(WorkloadAbuseDetectionRepository);
     const user = await userRepository.create({ userId: faker.string.uuid() });
     const walletId = faker.number.int({ min: 1, max: 1_000_000_000 });
 
-    async function createDetection(input: { dseq: string; verdict: "hard" | "soft" | "proxy"; createdAt?: Date }) {
+    async function createDetection(input: {
+      dseq: string;
+      verdict: "hard" | "soft" | "proxy";
+      action?: "detected" | "enforcing" | "enforced" | "enforcement_failed";
+      createdAt?: Date;
+    }) {
       return repository.create({
         userId: user.id,
         walletId,
@@ -37,6 +59,7 @@ describe(WorkloadAbuseDetectionRepository.name, () => {
         probeStatus: "probed",
         signals: [],
         evidenceExcerpt: "",
+        action: input.action,
         createdAt: input.createdAt
       });
     }

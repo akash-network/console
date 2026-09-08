@@ -87,6 +87,19 @@ describe(TrialWorkloadProbeJobService.name, () => {
     });
   });
 
+  describe("cancelForWallet", () => {
+    it("cancels every pending probe of the wallet and none of another wallet", async () => {
+      const { service, jobQueueService } = setup({ pendingKeys: ["probeTrialDeployment.7.1", "probeTrialDeployment.7.2", "probeTrialDeployment.70.3"] });
+
+      const cancelled = await service.cancelForWallet(7);
+
+      expect(cancelled).toBe(2);
+      expect(jobQueueService.cancelCreatedBy).toHaveBeenCalledTimes(2);
+      expect(jobQueueService.cancelCreatedBy).toHaveBeenCalledWith({ name: "ProbeTrialDeployment", singletonKey: "probeTrialDeployment.7.1" });
+      expect(jobQueueService.cancelCreatedBy).toHaveBeenCalledWith({ name: "ProbeTrialDeployment", singletonKey: "probeTrialDeployment.7.2" });
+    });
+  });
+
   describe("reconcile", () => {
     const live: LiveTrialDeployment[] = [
       { userId: "u1", dseq: "1", walletId: 1, createdAt: LEASE_CREATED_AT },

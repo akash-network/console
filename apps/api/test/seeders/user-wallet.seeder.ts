@@ -15,7 +15,9 @@ export function createUserWallet({
   activatedAt = createdAt,
   creditsLowNotifiedAt = null,
   creditsSufficientSince = null,
-  creditsLowSince = null
+  creditsLowSince = null,
+  abuseLockedAt = null,
+  abuseLockedReason = null
 }: Partial<UserWalletOutput> = {}): UserWalletOutput {
   return {
     id,
@@ -30,7 +32,9 @@ export function createUserWallet({
     activatedAt,
     creditsLowNotifiedAt,
     creditsSufficientSince,
-    creditsLowSince
+    creditsLowSince,
+    abuseLockedAt,
+    abuseLockedReason
   };
 }
 

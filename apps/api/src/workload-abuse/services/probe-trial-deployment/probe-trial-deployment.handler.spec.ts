@@ -2,11 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
-import type { CreateLogger } from "@src/core";
+import type { CreateLogger, JobQueueService } from "@src/core";
 import type {
   WorkloadAbuseDetectionOutput,
   WorkloadAbuseDetectionRepository
 } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
+import { EnforceTrialAbuse } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
 import type { ProbeReport, TrialWorkloadProbeService } from "@src/workload-abuse/services/trial-workload-probe/trial-workload-probe.service";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import type { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
@@ -90,6 +91,33 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     expect(probeJobService.scheduleNext).not.toHaveBeenCalled();
   });
 
+  it("skips a wallet that has already been locked for abuse", async () => {
+    const { handler, probeService } = setup({ wallet: createUserWallet({ isTrialing: true, abuseLockedAt: new Date() }) });
+
+    await handler.handle(PAYLOAD);
+
+    expect(probeService.probe).not.toHaveBeenCalled();
+  });
+
+  it("only records confirmed mining while enforcement is in detect mode", async () => {
+    const { handler, jobQueueService, logger } = setup({ report: createReport({ verdict: "hard" }), enforcementMode: "detect" });
+
+    await handler.handle(PAYLOAD);
+
+    expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_WORKLOAD_ABUSE_ENFORCEMENT_DEFERRED", detectionId: "detection-1" }));
+  });
+
+  it("queues the wallet wipe for confirmed mining in enforce mode", async () => {
+    const { handler, wallet, jobQueueService } = setup({ report: createReport({ verdict: "hard" }), enforcementMode: "enforce" });
+
+    await handler.handle(PAYLOAD);
+
+    expect(jobQueueService.enqueue).toHaveBeenCalledWith(new EnforceTrialAbuse({ walletId: wallet.id, detectionId: "detection-1" }), {
+      singletonKey: `enforceTrialAbuse.${wallet.id}`
+    });
+  });
+
   it("stops after the last allowed attempt", async () => {
     const { handler, probeJobService } = setup({ report: createReport({ verdict: "clean" }), maxAttempts: 2 });
 
@@ -137,12 +165,24 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     expect(handler.requiresPermission()).toEqual([]);
   });
 
+  it("re-queues the wipe for an already confirmed deployment instead of probing it again", async () => {
+    const { handler, wallet, probeService, jobQueueService } = setup({ existingDetection: true, enforcementMode: "enforce" });
+
+    await handler.handle(PAYLOAD);
+
+    expect(probeService.probe).not.toHaveBeenCalled();
+    expect(jobQueueService.enqueue).toHaveBeenCalledWith(new EnforceTrialAbuse({ walletId: wallet.id, detectionId: "detection-0" }), {
+      singletonKey: `enforceTrialAbuse.${wallet.id}`
+    });
+  });
+
   function setup(input: {
     enabled?: boolean;
     wallet?: ReturnType<typeof createUserWallet> | null;
     report?: ProbeReport;
     maxAttempts?: number;
     existingDetection?: boolean;
+    enforcementMode?: "detect" | "enforce";
   }) {
     const wallet = input.wallet === undefined ? createUserWallet({ isTrialing: true }) : input.wallet;
     const userWalletRepository = mock<UserWalletRepository>();
@@ -156,8 +196,10 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     const instrumentation = mock<WorkloadAbuseInstrumentationService>();
     const config = mockConfigService<WorkloadAbuseConfigService>({
       WORKLOAD_ABUSE_PROBE_ENABLED: input.enabled ?? true,
-      WORKLOAD_ABUSE_PROBE_MAX_PER_DEPLOYMENT: input.maxAttempts ?? 30
+      WORKLOAD_ABUSE_PROBE_MAX_PER_DEPLOYMENT: input.maxAttempts ?? 30,
+      WORKLOAD_ABUSE_ENFORCEMENT_MODE: input.enforcementMode ?? "detect"
     });
+    const jobQueueService = mock<JobQueueService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
@@ -168,9 +210,10 @@ describe(ProbeTrialDeploymentHandler.name, () => {
       detectionRepository,
       instrumentation,
       config,
+      jobQueueService,
       createLogger
     );
 
-    return { handler, wallet: wallet!, userWalletRepository, probeService, probeJobService, detectionRepository, instrumentation, logger };
+    return { handler, wallet: wallet!, userWalletRepository, probeService, probeJobService, detectionRepository, instrumentation, jobQueueService, logger };
   }
 });

@@ -1,6 +1,5 @@
-import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { PromisePool } from "@supercharge/promise-pool";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { type StripeTransactionType, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
@@ -8,6 +7,7 @@ import { BalancesService } from "@src/billing/services/balances/balances.service
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 
 export interface PaymentAnalyticsContext {
@@ -28,7 +28,7 @@ export interface ToppedUpWallet {
 
 @singleton()
 export class RefillService {
-  private readonly logger = createOtelLogger({ context: RefillService.name });
+  private readonly logger: ReturnType<CreateLogger>;
 
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
@@ -37,8 +37,11 @@ export class RefillService {
     private readonly managedSignerService: ManagedSignerService,
     private readonly balancesService: BalancesService,
     private readonly walletInitializerService: WalletInitializerService,
-    private readonly analyticsService: AnalyticsService
-  ) {}
+    private readonly analyticsService: AnalyticsService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.logger = createLogger({ context: RefillService.name });
+  }
 
   async refillAllFees() {
     const wallets = await this.userWalletRepository.findDrainingWallets({
@@ -85,6 +88,7 @@ export class RefillService {
     });
 
     await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: options.endTrial ?? true });
+    await this.clearAbuseLockOnPayment(userWallet);
 
     this.analyticsService.track(userId, "balance_top_up", {
       amount_cents: amountUsd,
@@ -135,6 +139,17 @@ export class RefillService {
       transaction_id: payment?.transactionId
     });
     this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit: currentLimit, nextLimit });
+  }
+
+  /** A failed clear is logged instead of thrown: authorizeSpending has already raised the on-chain allowance, so rolling the settlement back would let a webhook retry credit the same charge twice. */
+  private async clearAbuseLockOnPayment(userWallet: UserWalletOutput) {
+    try {
+      if (!(await this.userWalletRepository.clearAbuseLock(userWallet.id))) return;
+
+      this.logger.info({ event: "WALLET_ABUSE_LOCK_CLEARED", walletId: userWallet.id, userId: userWallet.userId });
+    } catch (error) {
+      this.logger.error({ event: "WALLET_ABUSE_LOCK_CLEAR_FAILED", walletId: userWallet.id, userId: userWallet.userId, error });
+    }
   }
 
   /**

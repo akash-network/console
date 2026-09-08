@@ -162,6 +162,58 @@ describe(UserWalletRepository.name, () => {
     });
   });
 
+  describe("lockForAbuse", () => {
+    it("zeroes both allowances, ends the trial and stamps the lock in one write", async () => {
+      const { userWalletRepository, wallet } = await setup();
+      await userWalletRepository.updateById(wallet.id, { deploymentAllowance: 1_000_000, feeAllowance: 500_000, isTrialing: true });
+
+      await userWalletRepository.lockForAbuse(wallet.id, "workload_abuse");
+
+      const locked = await userWalletRepository.findById(wallet.id);
+      expect(locked).toMatchObject({ deploymentAllowance: 0, feeAllowance: 0, isTrialing: false, abuseLockedReason: "workload_abuse" });
+      expect(locked?.abuseLockedAt).toBeInstanceOf(Date);
+    });
+  });
+
+  describe("clearAbuseLock", () => {
+    it("removes the lock and its reason without touching the allowances", async () => {
+      const { userWalletRepository, wallet } = await setup();
+      await userWalletRepository.lockForAbuse(wallet.id, "workload_abuse");
+
+      await expect(userWalletRepository.clearAbuseLock(wallet.id)).resolves.toBe(true);
+
+      expect(await userWalletRepository.findById(wallet.id)).toMatchObject({
+        abuseLockedAt: null,
+        abuseLockedReason: null,
+        deploymentAllowance: 0,
+        feeAllowance: 0,
+        isTrialing: false
+      });
+    });
+
+    it("reports no clear for a wallet that holds no lock", async () => {
+      const { userWalletRepository, wallet } = await setup();
+
+      await expect(userWalletRepository.clearAbuseLock(wallet.id)).resolves.toBe(false);
+    });
+  });
+
+  describe("findDrainingWallets", () => {
+    it("leaves a wallet locked for abuse out of the fee refill", async () => {
+      const { userWalletRepository, wallet } = await setup();
+      const { wallet: lockedWallet } = await setup();
+      await userWalletRepository.updateById(wallet.id, { activatedAt: new Date(), feeAllowance: 0, isTrialing: false });
+      await userWalletRepository.updateById(lockedWallet.id, { activatedAt: new Date(), feeAllowance: 0, isTrialing: false });
+      await userWalletRepository.lockForAbuse(lockedWallet.id, "workload_abuse");
+
+      const draining = await userWalletRepository.findDrainingWallets({ fee: 1_000, trialExpirationDays: 30 });
+
+      const ids = draining.map(candidate => candidate.id);
+      expect(ids).toContain(wallet.id);
+      expect(ids).not.toContain(lockedWallet.id);
+    });
+  });
+
   async function setup(input: { creditsLowNotifiedAt?: Date; creditsSufficientSince?: Date; creditsLowSince?: Date } = {}) {
     const userRepository = container.resolve(UserRepository);
     const userWalletRepository = container.resolve(UserWalletRepository);

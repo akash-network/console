@@ -60,6 +60,17 @@ export class TrialWorkloadProbeJobService {
     await this.jobQueueService.cancelCreatedBy({ name: ProbeTrialDeployment[JOB_NAME], singletonKey: probeTrialDeploymentKeyFor(target) });
   }
 
+  async cancelForWallet(walletId: number): Promise<number> {
+    const prefix = `probeTrialDeployment.${walletId}.`;
+    const pendingKeys = [...(await this.jobQueueService.findPendingSingletonKeys(ProbeTrialDeployment[JOB_NAME]))].filter(key => key.startsWith(prefix));
+
+    for (const singletonKey of pendingKeys) {
+      await this.jobQueueService.cancelCreatedBy({ name: ProbeTrialDeployment[JOB_NAME], singletonKey });
+    }
+
+    return pendingKeys.length;
+  }
+
   /** Backstops the lease-created hook: a live trial deployment with no pending probe gets one, whatever the reason it has none. */
   async reconcile({ dryRun }: DryRunOptions): Promise<void> {
     if (!this.config.get("WORKLOAD_ABUSE_PROBE_ENABLED")) {

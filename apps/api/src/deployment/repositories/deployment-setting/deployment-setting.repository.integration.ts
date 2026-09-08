@@ -814,6 +814,18 @@ describe(DeploymentSettingRepository.name, () => {
       expect(ofTrialUser).toEqual([{ userId: trialUser.id, dseq: liveDseq, walletId: trialWallet.walletId, createdAt: expect.any(Date) }]);
       expect(deployments.some(deployment => deployment.userId !== trialUser.id && deployment.walletId === undefined)).toBe(false);
     });
+
+    it("leaves the deployments of a wallet locked for abuse out of the sweep", async () => {
+      const { deploymentSettingRepository, trialUser, trialWallet, db, deploymentSettingsTable, userWalletsTable } = await setup();
+      await db
+        .insert(deploymentSettingsTable)
+        .values({ userId: trialUser.id, dseq: faker.number.int({ min: 100000, max: 999999 }).toString(), autoTopUpEnabled: true });
+      await db.update(userWalletsTable).set({ abuseLockedAt: new Date() }).where(eq(userWalletsTable.id, trialWallet.walletId));
+
+      const deployments = await deploymentSettingRepository.findLiveTrialDeployments({ maxAgeHours: 26 });
+
+      expect(deployments.some(deployment => deployment.userId === trialUser.id)).toBe(false);
+    });
   });
 
   describe("replaceDefinitionIfVersionMatches", () => {
