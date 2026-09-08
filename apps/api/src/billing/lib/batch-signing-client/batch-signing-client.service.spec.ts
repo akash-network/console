@@ -230,7 +230,9 @@ describe(BatchSigningClientService.name, () => {
       RPC_NODE_ENDPOINT: "http://localhost:26657",
       WALLET_BATCHING_INTERVAL_MS: "0",
       GAS_SAFETY_MULTIPLIER: "1.2",
-      AVERAGE_GAS_PRICE: 0.025
+      AVERAGE_GAS_PRICE: 0.025,
+      SIGN_AND_BROADCAST_RETRY_INITIAL_DELAY_MS: 0,
+      TX_RECOVERY_RETRY_INITIAL_DELAY_MS: 0
     });
 
     const registry = new Registry();

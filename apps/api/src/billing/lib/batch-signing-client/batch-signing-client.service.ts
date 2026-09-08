@@ -90,10 +90,7 @@ export class BatchSigningClientService {
    * Retries up to 5 times with exponential backoff when account sequence mismatch errors occur.
    * The retry strategy detects errors containing "account sequence mismatch" in the message.
    */
-  private readonly signAndBroadcastExecutor = retry(
-    handleWhenResult(res => res instanceof Err && "message" in res.val && res.val.message?.includes("account sequence mismatch")),
-    { maxAttempts: 5, backoff: new ExponentialBackoff({ maxDelay: 5_000, initialDelay: 500 }) }
-  );
+  private readonly signAndBroadcastExecutor: ReturnType<typeof retry>;
 
   /**
    * Retry executor for transaction recovery.
@@ -105,13 +102,7 @@ export class BatchSigningClientService {
    * This handles cases where the transaction may have been included in a block
    * but is not yet indexed, or when the RPC connection fails.
    */
-  private readonly txRecoveryExecutor = retry(
-    handleWhenResult(res => !res).orWhen(err => this.isRetriableNetworkError(err)),
-    {
-      maxAttempts: 5,
-      backoff: new ExponentialBackoff({ maxDelay: 10_000, initialDelay: 1_000 })
-    }
-  );
+  private readonly txRecoveryExecutor: ReturnType<typeof retry>;
 
   /**
    * Memoized async function that retrieves and caches the chain ID.
@@ -166,6 +157,22 @@ export class BatchSigningClientService {
     this.client = createClientWithSigner(this.config.get("RPC_NODE_ENDPOINT"), this.wallet, {
       registry: this.registry
     });
+
+    this.signAndBroadcastExecutor = retry(
+      handleWhenResult(res => res instanceof Err && "message" in res.val && res.val.message?.includes("account sequence mismatch")),
+      {
+        maxAttempts: 5,
+        backoff: new ExponentialBackoff({ maxDelay: 5_000, initialDelay: this.config.get("SIGN_AND_BROADCAST_RETRY_INITIAL_DELAY_MS") })
+      }
+    );
+
+    this.txRecoveryExecutor = retry(
+      handleWhenResult(res => !res).orWhen(err => this.isRetriableNetworkError(err)),
+      {
+        maxAttempts: 5,
+        backoff: new ExponentialBackoff({ maxDelay: 10_000, initialDelay: this.config.get("TX_RECOVERY_RETRY_INITIAL_DELAY_MS") })
+      }
+    );
   }
 
   /**
