@@ -11,6 +11,7 @@ import { NextSeo } from "next-seo";
 import { createConfigureDraft } from "@src/components/deployments/ConfigureDeployment/useConfigureDraft/useConfigureDraft";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
@@ -33,6 +34,7 @@ export const DEPENDENCIES = {
   useRouter,
   useSearchParams,
   useRedeploy,
+  useDeploymentDefinition,
   useDeploymentDetail,
   useDeploymentLeaseList,
   useProviderList,
@@ -69,7 +71,7 @@ export interface DeploymentDetailProps {
 }
 
 export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies: d = DEPENDENCIES }) => {
-  const { deploymentLocalStorage, sdlAnalyzer, analyticsService } = d.useServices();
+  const { sdlAnalyzer, analyticsService } = d.useServices();
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
   const { address } = d.useWallet();
@@ -92,11 +94,13 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   });
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = d.useProviderList();
 
-  const storedDeployment = deployment ? deploymentLocalStorage.get(address, dseq) : null;
-  const deploymentManifest = storedDeployment?.manifest || "";
+  const definition = d.useDeploymentDefinition(dseq);
+  const deploymentManifest = definition.sdl || "";
   const isActive = deployment?.state === "active" && !!leases?.some(isLeaseLive);
   const isDeploymentNotFound = !!deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found") && !isLoadingDeployment;
-  const showsPageSkeleton = !isDeploymentNotFound && !deploymentError && !isLeasesError && (!deployment || !isLeasesLoaded);
+  /** The definition feeds the service counts and the placement cards, so showing the page before it lands renders "0 services" and then corrects itself. */
+  const showsPageSkeleton =
+    !isDeploymentNotFound && !deploymentError && !isLeasesError && (!deployment || !isLeasesLoaded || definition.source === "resolving");
 
   useEffect(() => {
     if (deployment) {
@@ -107,13 +111,14 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
   useEffect(
     function redirectWhenInProgressWithoutLease() {
+      if (definition.source === "resolving") return;
+
       if (leases && deployment?.state === "active" && leases.length === 0 && !deployment.groups?.some(g => g.state === "paused")) {
-        const localData = deploymentLocalStorage.get(address, dseq);
-        const draftId = localData?.manifest ? createConfigureDraft(localData.manifest, localData.name) : undefined;
+        const draftId = definition.sdl ? createConfigureDraft(definition.sdl, definition.name) : undefined;
         router.replace(UrlService.configureDeployment({ dseq, draftId }));
       }
     },
-    [address, deployment?.state, deployment?.groups, deploymentLocalStorage, dseq, leases, router]
+    [deployment?.state, deployment?.groups, definition.source, definition.sdl, definition.name, dseq, leases, router]
   );
 
   const tabQuery = searchParams?.get("tab");
@@ -130,8 +135,8 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
     }
   }
 
-  function redeployFromStoredManifest() {
-    redeploy({ sdl: storedDeployment?.manifest, name: storedDeployment?.name });
+  function redeployFromResolvedDefinition() {
+    redeploy({ sdl: definition.sdl, name: definition.name });
     analyticsService.track("redeploy_btn_clk", "Amplitude");
   }
 
@@ -211,7 +216,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                     onManifestChange={setEditedManifest}
                     isRemoteDeploy={isRemoteDeploy}
                     deployment={deployment}
-                    onRedeploy={storedDeployment?.manifest ? redeployFromStoredManifest : undefined}
+                    onRedeploy={definition.sdl ? redeployFromResolvedDefinition : undefined}
                     closeManifestEditor={() => {
                       changeTab("DETAILS");
                       loadDeploymentDetail();

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { DEPENDENCIES, DeploymentDetail } from "./DeploymentDetail";
@@ -102,16 +103,22 @@ describe("DeploymentDetail", () => {
     expect(screen.queryByTestId("deployment-detail-skeleton")).not.toBeInTheDocument();
   });
 
+  it("holds the page skeleton until the definition resolves, so placements never render with no services", () => {
+    setup({ definition: { sdl: undefined, source: "resolving" } });
+
+    expect(screen.getByTestId("deployment-detail-skeleton")).toBeInTheDocument();
+  });
+
   it("redirects an in-progress deployment with no lease to the configure flow", () => {
     const { router } = setup({ leases: [] });
 
     expect(router.replace).toHaveBeenCalledWith(expect.stringContaining("configure"));
   });
 
-  it("offers redeploy on the Update tab when a manifest is stored locally", () => {
+  it("offers redeploy on the Update tab when a definition resolves", () => {
     const { redeploy, analyticsService, ManifestUpdate } = setup({
       tab: "UPDATE",
-      storedDeployment: { manifest: "version: '2.0'", name: "My Storefront" }
+      definition: { sdl: "version: '2.0'", name: "My Storefront", source: "api" }
     });
 
     ManifestUpdate.mock.calls[0][0].onRedeploy?.();
@@ -120,10 +127,22 @@ describe("DeploymentDetail", () => {
     expect(analyticsService.track).toHaveBeenCalledWith("redeploy_btn_clk", "Amplitude");
   });
 
-  it("withholds redeploy from the Update tab when no manifest is stored locally", () => {
-    const { ManifestUpdate } = setup({ tab: "UPDATE", storedDeployment: null });
+  it("withholds redeploy from the Update tab when neither source holds a definition", () => {
+    const { ManifestUpdate } = setup({ tab: "UPDATE", definition: { sdl: undefined, source: "absent" } });
 
     expect(ManifestUpdate.mock.calls[0][0].onRedeploy).toBeUndefined();
+  });
+
+  it("seeds the configure draft from the api definition when redirecting a lease-less deployment", () => {
+    const { router } = setup({ leases: [], definition: { sdl: "version: '2.0' # from-the-api", source: "api" } });
+
+    expect(router.replace).toHaveBeenCalledWith(expect.stringContaining("draftId"));
+  });
+
+  it("does not redirect a lease-less deployment until the definition resolves", () => {
+    const { router } = setup({ leases: [], definition: { sdl: undefined, source: "resolving" } });
+
+    expect(router.replace).not.toHaveBeenCalled();
   });
 
   function isRenderedBefore(earlier: Element, later: Element) {
@@ -138,7 +157,7 @@ describe("DeploymentDetail", () => {
     error?: Error | null;
     tab?: string;
     leaseState?: string;
-    storedDeployment?: { manifest?: string; name?: string } | null;
+    definition?: Partial<DeploymentDefinition>;
   }) {
     const deployment = input && "deployment" in input ? input.deployment : mock<DeploymentDto>({ dseq: "1786440078202", state: "active", groups: [] });
     const leases = input && "leases" in input ? input.leases : [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: input?.leaseState ?? "active" })];
@@ -149,9 +168,6 @@ describe("DeploymentDetail", () => {
 
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({
-        deploymentLocalStorage: mock<ReturnType<typeof DEPENDENCIES.useServices>["deploymentLocalStorage"]>({
-          get: () => input?.storedDeployment ?? null
-        }),
         sdlAnalyzer: mock<ReturnType<typeof DEPENDENCIES.useServices>["sdlAnalyzer"]>({ hasCiCdImage: () => false }),
         analyticsService
       });
@@ -172,6 +188,8 @@ describe("DeploymentDetail", () => {
       mock<ReturnType<typeof DEPENDENCIES.useProviderList>>({ data: providers, isFetching: false });
     const redeploy = vi.fn();
     const useRedeploy: typeof DEPENDENCIES.useRedeploy = () => redeploy;
+    const definition: DeploymentDefinition = { sdl: "version: '2.0'", name: undefined, source: "local", ...input?.definition };
+    const useDeploymentDefinition: typeof DEPENDENCIES.useDeploymentDefinition = () => definition;
 
     const DeploymentDetailHeader = vi.fn(() => <div>detail-header</div>);
     const ReclamationBanner = vi.fn(() => <div>reclamation-banner</div>);
@@ -195,6 +213,7 @@ describe("DeploymentDetail", () => {
           useRouter,
           useSearchParams,
           useRedeploy,
+          useDeploymentDefinition,
           useDeploymentDetail,
           useDeploymentLeaseList,
           useProviderList,
