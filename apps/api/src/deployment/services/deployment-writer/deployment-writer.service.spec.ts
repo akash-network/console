@@ -25,6 +25,7 @@ import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.se
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import type { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
+import type { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
@@ -137,6 +138,8 @@ ${Array.from({ length: 24 }, (_, level) => `        a${level + 1}: &a${level + 1
 
 const CLIENT_SEAL = "client.seal.aaa.bbb.ccc";
 
+const SOURCE_DSEQ = "1420000000001";
+
 /** Answers one reference from the request while leaving credentials in the clear, so a create stores both what was supplied and what the console took out. */
 const SDL_REFERENCING_A_SUPPLIED_VALUE = sdlAround(`    credentials:
       host: registry.example.test
@@ -144,6 +147,18 @@ const SDL_REFERENCING_A_SUPPLIED_VALUE = sdlAround(`    credentials:
       password: ${REGISTRY_PASSWORD}
     env:
       - TOKEN=ac-secret://TOKEN
+`);
+
+/** A redeploy submits the sdl a previous deployment stored, so every value it needs already stands as a reference. */
+const SDL_OF_A_REDEPLOY = sdlAround(`    env:
+      - API_TOKEN=ac-secret://API_TOKEN
+      - DATABASE_URL=ac-secret://DATABASE_URL
+`);
+
+/** The same document with one value still in the clear, so the console derives a name of its own beside the inherited ones. */
+const SDL_OF_A_REDEPLOY_WITH_PLAINTEXT = sdlAround(`    env:
+      - API_TOKEN=ac-secret://API_TOKEN
+      - LOG_LEVEL=${ENV_VALUE}
 `);
 
 describe(DeploymentWriterService.name, () => {
@@ -335,7 +350,7 @@ describe(DeploymentWriterService.name, () => {
 
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
 
-      expect(sdlSecretsService.receive).toHaveBeenCalledWith({ sdl: parsedSdlValue, rawSdl: SDL_WITH_SECRETS, sealedSecrets: SEAL });
+      expect(sdlSecretsService.receive).toHaveBeenCalledWith({ sdl: parsedSdlValue, rawSdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, inherited: {} });
     });
 
     it("resolves the manifest from the values the intake handed back", async () => {
@@ -908,6 +923,143 @@ describe(DeploymentWriterService.name, () => {
 
       await expect(service.create({ userId: "user-1", sdl: SDL_ALIASING_ONE_SCALAR, deposit: 5 })).rejects.toMatchObject({ status: 400 });
       expect(staleDeploymentsCleaner.cleanUpForWallet).not.toHaveBeenCalled();
+    });
+
+    describe("values inherited from another deployment", () => {
+      it("seals what the source deployment held, against the dseq it just minted", async () => {
+        const carried = { API_TOKEN: faker.string.alphanumeric(24), DATABASE_URL: faker.internet.url() };
+        const { service, sdlSecretsService } = setup({ inherited: carried });
+        vi.spyOn(Date, "now").mockReturnValue(1748400000000);
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith({ userId: wallet.userId, dseq: "1748400000000", secrets: carried });
+      });
+
+      it("looks the source up as the caller's own deployment", async () => {
+        const { service, sdlSecretsInheritanceService } = setup({ inherited: { API_TOKEN: "a", DATABASE_URL: "b" } });
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(sdlSecretsInheritanceService.open).toHaveBeenCalledWith({ userId: "user-1", dseq: SOURCE_DSEQ });
+      });
+
+      it("consults no source when the request names none", async () => {
+        const { service, sdlSecretsInheritanceService } = setup();
+
+        await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+        expect(sdlSecretsInheritanceService.open).not.toHaveBeenCalled();
+      });
+
+      it("stores none of the source's values the new sdl does not reference", async () => {
+        const spare = faker.string.alphanumeric(24);
+        const { service, storedSecrets } = setup({ inherited: { API_TOKEN: "a", DATABASE_URL: "b", SPARE: spare } });
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(storedSecrets()).toEqual({ API_TOKEN: "a", DATABASE_URL: "b" });
+      });
+
+      it("prefers an explicitly supplied value to the inherited one of the same name", async () => {
+        const replaced = faker.internet.url();
+        const { service, storedSecrets } = setup({ inherited: { API_TOKEN: "a", DATABASE_URL: "stale" }, received: { DATABASE_URL: replaced } });
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, sealedSecrets: CLIENT_SEAL, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(storedSecrets()).toEqual({ API_TOKEN: "a", DATABASE_URL: replaced });
+      });
+
+      it("prefers a value the document itself gave up to an inherited name that collides with it", async () => {
+        const { service, storedSecrets } = setup({ inherited: { API_TOKEN: "a", s0_e1: "stale" } });
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY_WITH_PLAINTEXT, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(storedSecrets()).toEqual({ API_TOKEN: "a", s0_e1: ENV_VALUE });
+      });
+
+      it("resolves the submitted document against what it inherited as well as what was supplied", async () => {
+        const replaced = faker.internet.url();
+        const { service, sdlService } = setup({ inherited: { API_TOKEN: "a", DATABASE_URL: "stale" }, received: { DATABASE_URL: replaced } });
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, sealedSecrets: CLIENT_SEAL, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.objectContaining({ secrets: { API_TOKEN: "a", DATABASE_URL: replaced } }));
+      });
+
+      it("hands the inherited set to the intake, so a reference it answers needs no supplied value", async () => {
+        const carried = { API_TOKEN: "a", DATABASE_URL: "b" };
+        const { service, sdlSecretsService } = setup({ inherited: carried });
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(sdlSecretsService.receive).toHaveBeenCalledWith(expect.objectContaining({ inherited: carried }));
+      });
+
+      it("holds everything it did not derive from this request's own document to the seal limits", async () => {
+        const replaced = faker.internet.url();
+        const { service, sdlSecretsService } = setup({ inherited: { API_TOKEN: "a", DATABASE_URL: "stale" }, received: { DATABASE_URL: replaced } });
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, sealedSecrets: CLIENT_SEAL, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({ API_TOKEN: "a", DATABASE_URL: replaced });
+      });
+
+      it("leaves what it derived out of that bound, the sdl's own size ceiling already holding it", async () => {
+        const { service, sdlSecretsService } = setup({ inherited: { API_TOKEN: "a" } });
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY_WITH_PLAINTEXT, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({ API_TOKEN: "a" });
+      });
+
+      it("refuses a chain that would carry more than a deployment may hold, before minting a dseq", async () => {
+        const { service, deploymentSettingRepository, signerService } = setup({
+          inherited: { API_TOKEN: "a", DATABASE_URL: "b" },
+          maxCount: 1
+        });
+        const now = vi.spyOn(Date, "now");
+
+        await expect(service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ })).rejects.toMatchObject({
+          status: 400,
+          message: "At most 1 secrets may be carried by one deployment, counting those inherited from another"
+        });
+
+        expect(now).not.toHaveBeenCalled();
+        expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+        expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      });
+
+      describe("a source it cannot read", () => {
+        it("answers the not found the lookup raised", async () => {
+          const { service } = setup({ inheritanceError: createError(404, "No deployment was found to inherit secrets from") });
+
+          await expect(service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ })).rejects.toMatchObject({ status: 404 });
+        });
+
+        it("answers the conflict the lookup raised for a token beyond this data key", async () => {
+          const { service } = setup({
+            inheritanceError: createError(409, "The secrets recorded for the deployment being inherited from can no longer be decrypted")
+          });
+
+          await expect(service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ })).rejects.toMatchObject({ status: 409 });
+        });
+
+        it("mints no dseq, seals nothing, records nothing and broadcasts nothing", async () => {
+          const { service, sdlSecretsService, deploymentSettingRepository, signerService, txService } = setup({
+            inheritanceError: createError(409, "unreadable")
+          });
+          const now = vi.spyOn(Date, "now");
+
+          await expect(service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ })).rejects.toThrow();
+
+          expect(now).not.toHaveBeenCalled();
+          expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+          expect(txService.transaction).not.toHaveBeenCalled();
+          expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+          expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+        });
+      });
     });
   });
 
@@ -1834,7 +1986,7 @@ describe(DeploymentWriterService.name, () => {
       const maxCount = input?.maxCount;
       sdlSecretsService.assertStorable.mockImplementation(secrets => {
         if (maxCount !== undefined && Object.keys(secrets).length > maxCount) {
-          throw createError(400, `At most ${maxCount} secrets may be supplied for one deployment`);
+          throw createError(400, `At most ${maxCount} secrets may be carried by one deployment, counting those inherited from another`);
         }
       });
 
@@ -1862,7 +2014,8 @@ describe(DeploymentWriterService.name, () => {
         sdlSecretsService,
         new SdlSecretsDerivationService(new SdlReferenceService()),
         new SdlPatchService(),
-        sdlReferenceService
+        sdlReferenceService,
+        mock<SdlSecretsInheritanceService>()
       );
 
       function sealedFor() {
@@ -1892,6 +2045,9 @@ describe(DeploymentWriterService.name, () => {
     compensationAlreadyWaiting?: boolean;
     manifestVersion?: Uint8Array;
     received?: SdlSecrets;
+    inherited?: SdlSecrets;
+    inheritanceError?: Error;
+    maxCount?: number;
     sealedSecrets?: string | null;
   }) {
     const signerService = mock<ManagedSignerService>();
@@ -1928,6 +2084,17 @@ describe(DeploymentWriterService.name, () => {
     sdlSecretsService.receive.mockResolvedValue({ ok: true, value: input?.received ?? {} });
     sdlSecretsService.sealForStorage.mockResolvedValue(input?.sealedSecrets ?? null);
 
+    const maxCount = input?.maxCount;
+    sdlSecretsService.assertStorable.mockImplementation(secrets => {
+      if (maxCount !== undefined && Object.keys(secrets).length > maxCount) {
+        throw createError(400, `At most ${maxCount} secrets may be carried by one deployment, counting those inherited from another`);
+      }
+    });
+
+    const sdlSecretsInheritanceService = mock<SdlSecretsInheritanceService>();
+    if (input?.inheritanceError) sdlSecretsInheritanceService.open.mockRejectedValue(input.inheritanceError);
+    else sdlSecretsInheritanceService.open.mockResolvedValue(input?.inherited ?? {});
+
     walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
     sdlService.parse.mockReturnValue({ ok: true, value: parsedSdlValue } as any);
     sdlService.generateManifest.mockResolvedValue({ ok: true, value: manifestValue } as any);
@@ -1955,8 +2122,13 @@ describe(DeploymentWriterService.name, () => {
       sdlSecretsService,
       sdlSecretsDerivationService,
       new SdlPatchService(),
-      new SdlReferenceService()
+      new SdlReferenceService(),
+      sdlSecretsInheritanceService
     );
+
+    function storedSecrets() {
+      return vi.mocked(sdlSecretsService.sealForStorage).mock.calls[0][0].secrets;
+    }
 
     return {
       service,
@@ -1974,7 +2146,9 @@ describe(DeploymentWriterService.name, () => {
       deploymentSettingRepository,
       txService,
       jobQueueService,
-      sdlSecretsService
+      sdlSecretsService,
+      sdlSecretsInheritanceService,
+      storedSecrets
     };
   }
 });

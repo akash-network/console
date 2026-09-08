@@ -32,6 +32,7 @@ import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.se
 import { MAX_ECHOED_REFERENCE_LENGTH, SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlSecretsService, unreferencedNameError } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
+import { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import type { StorableSdl, StoredSdlPosition, StoredSdlRefusal } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { parseSdlForStorage, sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
@@ -57,7 +58,7 @@ type StoredSdlValues =
   | "only-credentials-sealed";
 
 /** Lowest precedence first: what the deployment carried in, then what the request supplied, then what the document gave up. */
-function prunedOverlayOf(sets: { carried?: SdlSecrets; supplied: SdlSecrets; derived: SdlSecrets }, referenced: ReadonlySet<string>): SdlSecrets {
+function prunedOverlayOf(sets: { carried: SdlSecrets; supplied: SdlSecrets; derived: SdlSecrets }, referenced: ReadonlySet<string>): SdlSecrets {
   const overlaid: SdlSecrets = { ...sets.carried, ...sets.supplied, ...sets.derived };
 
   return Object.fromEntries(Object.entries(overlaid).filter(([name]) => referenced.has(name)));
@@ -84,7 +85,8 @@ export class DeploymentWriterService {
     private readonly sdlSecretsService: SdlSecretsService,
     private readonly sdlSecretsDerivationService: SdlSecretsDerivationService,
     private readonly sdlPatchService: SdlPatchService,
-    private readonly sdlReferenceService: SdlReferenceService
+    private readonly sdlReferenceService: SdlReferenceService,
+    private readonly sdlSecretsInheritanceService: SdlSecretsInheritanceService
   ) {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
@@ -96,11 +98,12 @@ export class DeploymentWriterService {
 
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
     const depositInDollars = this.deploymentConfig.get("DEPLOYMENT_DEFAULT_DEPOSIT");
-    const supplied = await this.#receiveSecrets(input);
-    const stored = this.#storedSecretsOf({ supplied, derived }, storedDocument);
+    const inherited = await this.#inheritedSecretsOf(input);
+    const supplied = await this.#receiveSecrets(input, inherited);
+    const stored = this.#storedSecretsOf({ inherited, supplied, derived }, storedDocument);
 
     const dseq = Date.now().toString();
-    const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { secrets: supplied, isTrialing: !!wallet.isTrialing });
+    const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { secrets: { ...inherited, ...supplied }, isTrialing: !!wallet.isTrialing });
     const unresolvedManifest = await this.#unresolvedManifestOf(input.sdl);
     const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq, secrets: stored });
 
@@ -240,11 +243,13 @@ export class DeploymentWriterService {
   }
 
   /**
-   * The one set of values the deployment's token carries: what the client sealed, plus what the console
-   * took out of the document itself. A name in both is refused rather than merged, because the two would
-   * be different values under one name and the stored SDL would then reference whichever won.
+   * The one set of values the deployment's token carries: what the client sealed, what the deployment it
+   * inherits from held, and what the console took out of the document itself. A supplied name the console
+   * also derived is refused rather than merged, because the two would be different values under one name
+   * and the stored SDL would then reference whichever won. An inherited name loses to either silently: the
+   * client did not choose it for this request, and a derived name owns the slot the derivation just wrote.
    */
-  #storedSecretsOf(sets: { supplied: SdlSecrets; derived: SdlSecrets }, document: SDLInput): SdlSecrets {
+  #storedSecretsOf(sets: { inherited: SdlSecrets; supplied: SdlSecrets; derived: SdlSecrets }, storedDocument: SDLInput): SdlSecrets {
     const collisions = Object.keys(sets.derived).filter(name => Object.hasOwn(sets.supplied, name));
 
     if (collisions.length > 0) {
@@ -254,7 +259,22 @@ export class DeploymentWriterService {
       throw createError(400, `"${echoed}" is a name the console derives for this deployment and cannot also be supplied for it`);
     }
 
-    return prunedOverlayOf(sets, this.#referencedNamesOf(document));
+    const referenced = this.#referencedNamesOf(storedDocument);
+    this.#assertCarriedSetIsStorable(sets, referenced);
+
+    return prunedOverlayOf({ carried: sets.inherited, supplied: sets.supplied, derived: sets.derived }, referenced);
+  }
+
+  /** Bounds what this deployment will actually keep from elsewhere rather than everything the source held, so a large source cannot refuse a redeploy that references one of its names. */
+  #assertCarriedSetIsStorable(sets: { inherited: SdlSecrets; supplied: SdlSecrets }, referenced: ReadonlySet<string>): void {
+    this.sdlSecretsService.assertStorable(prunedOverlayOf({ carried: sets.inherited, supplied: sets.supplied, derived: {} }, referenced));
+  }
+
+  /** Refused before the dseq is minted, so a source that cannot be found or whose token will not open spends no dseq and leaves nothing recorded. */
+  async #inheritedSecretsOf(input: { userId: string; inheritSecretsFrom?: string }): Promise<SdlSecrets> {
+    if (!input.inheritSecretsFrom) return {};
+
+    return await this.sdlSecretsInheritanceService.open({ userId: input.userId, dseq: input.inheritSecretsFrom });
   }
 
   /** Carries none of the document and attaches no parse error as a cause, because a `js-yaml` message quotes the line it failed on and the error handler logs the whole chain. */
@@ -505,7 +525,7 @@ export class DeploymentWriterService {
     return manifestToSortedJSON(result.value.groups);
   }
 
-  /** Only the manifest version is taken from the resolved SDL: the resolved manifest itself must not leave this call. Runs before any lookup so a bad reference always answers 400 rather than racing a 404. */
+  /** Only the manifest version is taken from the resolved SDL: the resolved manifest itself must not leave this call, and a bad reference answers 400 before any deployment is looked up. */
   async #resolveSdl(sdl: string, options: { secrets?: SdlSecrets; isTrialing?: boolean }) {
     const result = await this.sdlService.generateResolvedManifest({ sdl, ...options, secrets: options.secrets ?? {} });
 
@@ -517,14 +537,14 @@ export class DeploymentWriterService {
   }
 
   /** Reports through the same channel every other reference mistake uses, so a missing value reads identically whether the intake or substitution found it. */
-  async #receiveSecrets(input: CreateDeploymentRequest["data"]): Promise<SdlSecrets> {
+  async #receiveSecrets(input: CreateDeploymentRequest["data"], inherited: SdlSecrets): Promise<SdlSecrets> {
     const parsed = this.sdlService.parse(input.sdl);
 
     if (!parsed.ok) {
       throw this.#rejectInvalidSdl(parsed.value);
     }
 
-    const received = await this.sdlSecretsService.receive({ sdl: parsed.value, rawSdl: input.sdl, sealedSecrets: input.sealedSecrets });
+    const received = await this.sdlSecretsService.receive({ sdl: parsed.value, rawSdl: input.sdl, sealedSecrets: input.sealedSecrets, inherited });
 
     if (!received.ok) {
       throw this.#rejectInvalidSdl(received.value);
