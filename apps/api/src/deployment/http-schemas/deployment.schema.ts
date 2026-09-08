@@ -188,7 +188,7 @@ const PatchExposeSchema = z
   })
   .partial();
 
-/** Naming a field is not patching one: `{ expose: {} }` reaches the writer with nothing to write, so an empty record has to be refused as firmly as an empty patch. */
+/** Naming a field is not patching one: `{ expose: {} }` reaches the writer with nothing to write, so an empty record has to count for as little as an empty patch. */
 function assignsAField(patch: Record<string, unknown>): boolean {
   return Object.values(patch).some(value => !isEmptyRecord(value));
 }
@@ -215,8 +215,7 @@ export const PatchServiceSchema = z
       description: "Keyed by volume name. Mount point and read-only flag only — sizes are fixed at create."
     })
   })
-  .partial()
-  .refine(assignsAField, { message: "At least one field must be patched" });
+  .partial();
 
 export const UpdateDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema
@@ -226,21 +225,28 @@ export const PatchDeploymentParamsSchema = z.object({
   dseq: DseqSchema.describe("Deployment sequence number")
 });
 
+/** A seal is a write no service patch can describe, so naming a service and changing none of its fields is how a caller asks for a rotation and nothing else. */
+function patchesSomething(data: { services: Record<string, Record<string, unknown>>; sealedSecrets?: string }): boolean {
+  return data.sealedSecrets !== undefined || Object.values(data.services).some(assignsAField);
+}
+
 /** `.refine` rather than a length rule on the record itself, which this zod version does not offer. */
 export const PatchDeploymentRequestSchema = z.object({
-  data: z.object({
-    services: z
-      .record(z.string(), PatchServiceSchema)
-      .refine(services => Object.keys(services).length > 0, { message: "At least one service must be patched" })
-      .openapi({
-        description: "Keyed by service name. Only the named services are touched; omitted services keep their current definition."
-      }),
-    sealedSecrets: z.string().optional(),
-    ifManifestVersion: z.string().max(MAX_MANIFEST_VERSION_LENGTH).optional().openapi({
-      description:
-        "Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very patch produces, which makes a retry of it succeed. Omitting this does not turn the guard off: the patch is then guarded on the version it read for itself, so a concurrent patch still answers 409 rather than overwriting it."
+  data: z
+    .object({
+      services: z
+        .record(z.string(), PatchServiceSchema)
+        .refine(services => Object.keys(services).length > 0, { message: "At least one service must be patched" })
+        .openapi({
+          description: "Keyed by service name. Only the named services are touched; omitted services keep their current definition."
+        }),
+      sealedSecrets: z.string().optional(),
+      ifManifestVersion: z.string().max(MAX_MANIFEST_VERSION_LENGTH).optional().openapi({
+        description:
+          "Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very patch produces, which makes a retry of it succeed. Omitting this does not turn the guard off: the patch is then guarded on the version it read for itself, so a concurrent patch still answers 409 rather than overwriting it."
+      })
     })
-  })
+    .refine(patchesSomething, { message: "At least one field must be patched, or sealed secrets supplied" })
 });
 
 export const PatchDeploymentResponseSchema = z.object({
