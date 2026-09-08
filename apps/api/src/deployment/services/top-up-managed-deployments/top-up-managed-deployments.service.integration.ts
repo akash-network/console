@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import nock from "nock";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -46,9 +46,10 @@ function depositedAmounts(executeDerivedTx: { mock: { calls: unknown[][] } }): n
  * when the business rules themselves change.
  */
 describe(TopUpManagedDeploymentsService.name, () => {
-  afterEach(() => {
+  afterEach(async () => {
     vi.restoreAllMocks();
     nock.cleanAll();
+    await removeOwners();
   });
 
   describe("topUpDeployments", () => {
@@ -576,6 +577,12 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(executeDerivedTx).toHaveBeenCalledTimes(2);
     });
   });
+
+  /** The sweep reads every owner in the database, so an owner one test leaves behind becomes a later test's input. */
+  async function removeOwners() {
+    const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+    await db.execute(sql`TRUNCATE TABLE ${resolveTable("Users")} CASCADE`);
+  }
 
   function createActiveLease(owner: string, dseq: string) {
     return createLeaseApiResponse({
