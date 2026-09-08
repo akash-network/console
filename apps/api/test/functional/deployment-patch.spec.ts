@@ -42,6 +42,7 @@ import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 const { client: kmsClient, publicKey } = registerFakeSdlSecretsKms();
 
 const DSEQ = "1234";
+const SEAL_BARRIER_TIMEOUT_MS = 10_000;
 
 function storedSdl(env: string[], image = "nginx") {
   return [
@@ -611,7 +612,14 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     const seal = sdlSecretsService.sealForStorage.bind(sdlSecretsService);
     let reached!: () => void;
     let release!: () => void;
-    const atBarrier = new Promise<void>(resolve => (reached = resolve));
+    const atBarrier = new Promise<void>((resolve, reject) => {
+      const abandonBarrier = setTimeout(() => reject(new Error("the first patch never reached the seal it was meant to be held at")), SEAL_BARRIER_TIMEOUT_MS);
+
+      reached = () => {
+        clearTimeout(abandonBarrier);
+        resolve();
+      };
+    });
     const held = new Promise<void>(resolve => (release = resolve));
     let isFirst = true;
 
