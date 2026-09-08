@@ -5,12 +5,12 @@ import type { TemplateOutput } from "@akashnetwork/http-sdk";
 import { useAtomValue } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { Editor } from "@src/components/shared/Editor/Editor";
 import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider";
 import { useServices } from "@src/context/ServicesProvider";
+import { useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useWhen } from "@src/hooks/useWhen";
 import { useTemplates } from "@src/queries/useTemplateQuery";
 import sdlStore from "@src/store/sdlStore";
@@ -40,7 +40,7 @@ export const DEPENDENCIES = {
   useRouter,
   useSearchParams,
   useSdlBuilder,
-  useLocalNotes,
+  useDeploymentDefinition,
   useTemplates,
   useServices
 };
@@ -54,9 +54,10 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
   const [editedManifest, setEditedManifest] = useState("");
   const loadedTemplateIdRef = useRef<string | null>(null);
   const deploySdl = useAtomValue(sdlStore.deploySdl);
-  const { getDeploymentData } = d.useLocalNotes();
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
+  const redeployDseq = searchParams?.get("redeploy") ?? null;
+  const redeployDefinition = d.useDeploymentDefinition(redeployDseq);
   const { toggleCmp, hasComponent } = d.useSdlBuilder();
   const { isLoading: isLoadingTemplates, templates } = d.useTemplates();
   const activeStep = useMemo(() => getStepIndexByParam(searchParams?.get("step") as RouteStep), [searchParams]);
@@ -93,6 +94,7 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
 
     const isSameTemplateAlreadyLoaded = !!templateId && loadedTemplateIdRef.current === templateId;
     if (!templates || (isCreating && !!editedManifest && isSameTemplateAlreadyLoaded)) return;
+    if (redeployDefinition.source === "resolving") return;
 
     const template = getRedeployTemplate() || getGalleryTemplate() || deploySdl;
     const isUserTemplate = template?.code === USER_TEMPLATE_CODE;
@@ -119,26 +121,18 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
       router.replace(urlService.newDeployment(newParams));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templates, !!editedManifest, searchParams, router, toggleCmp, hasComponent, activeStep]);
+  }, [templates, !!editedManifest, searchParams, router, toggleCmp, hasComponent, activeStep, redeployDefinition.source, redeployDefinition.sdl]);
 
   useWhen(activeStepName === RouteStep.chooseTemplate, () => d.Editor.preload());
 
   const getRedeployTemplate = () => {
-    let template: Partial<TemplateCreation> | null = null;
-    const queryRedeploy = searchParams?.get("redeploy");
-    if (queryRedeploy) {
-      const deploymentData = getDeploymentData(queryRedeploy as string);
+    if (!redeployDseq || !redeployDefinition.sdl) return null;
 
-      if (deploymentData && deploymentData.manifest) {
-        template = {
-          name: deploymentData.name,
-          code: "empty",
-          content: deploymentData.manifest
-        };
-      }
-    }
-
-    return template;
+    return {
+      name: redeployDefinition.name,
+      code: "empty",
+      content: redeployDefinition.sdl
+    } satisfies Partial<TemplateCreation>;
   };
 
   const getGalleryTemplate = useCallback(():

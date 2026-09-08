@@ -1,14 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { LeaseDto } from "@src/types/deployment";
 import { DEPENDENCIES, ReclamationCard } from "./ReclamationCard";
 
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
-
-type DeploymentData = NonNullable<ReturnType<ReturnType<typeof DEPENDENCIES.useLocalNotes>["getDeploymentData"]>>;
 
 describe("ReclamationCard", () => {
   it("shows the provider close reason as the title", () => {
@@ -17,7 +16,7 @@ describe("ReclamationCard", () => {
   });
 
   it("offers Close + Redeploy and no restart control", () => {
-    setup({ hasLocalManifest: true });
+    setup({ definition: { sdl: "version: 2.0" } });
 
     expect(screen.getByRole("button", { name: "Close & refund" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Redeploy" })).toBeInTheDocument();
@@ -25,19 +24,34 @@ describe("ReclamationCard", () => {
     expect(screen.queryByRole("button", { name: /resume/i })).not.toBeInTheDocument();
   });
 
-  it("redeploys with the stored sdl and name when Redeploy is clicked", async () => {
-    const { redeploy } = setup({ hasLocalManifest: true, manifest: "version: 2.0", name: "my-app" });
+  it("redeploys with the resolved sdl and name when Redeploy is clicked", async () => {
+    const { redeploy } = setup({ definition: { sdl: "version: 2.0", name: "my-app" } });
 
     await userEvent.click(screen.getByRole("button", { name: "Redeploy" }));
 
     expect(redeploy).toHaveBeenCalledWith({ sdl: "version: 2.0", name: "my-app" });
   });
 
-  it("falls back to a 'new SDL' link when there is no local manifest", () => {
-    setup({ hasLocalManifest: false });
+  it("redeploys from the api definition on a device holding no local copy", async () => {
+    const { redeploy } = setup({ definition: { sdl: "version: 2.0 # from-the-api", name: undefined, source: "api" } });
+
+    await userEvent.click(screen.getByRole("button", { name: "Redeploy" }));
+
+    expect(redeploy).toHaveBeenCalledWith({ sdl: "version: 2.0 # from-the-api", name: undefined });
+  });
+
+  it("falls back to a 'new SDL' link when neither source holds a definition", () => {
+    setup({ definition: { sdl: undefined, source: "absent" } });
 
     expect(screen.getByRole("link", { name: "Start a new deployment" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Redeploy" })).not.toBeInTheDocument();
+  });
+
+  it("offers Redeploy disabled rather than the link while the definition is resolving", () => {
+    setup({ definition: { sdl: undefined, source: "resolving" } });
+
+    expect(screen.getByRole("button", { name: "Redeploy" })).toBeDisabled();
+    expect(screen.queryByRole("link", { name: "Start a new deployment" })).not.toBeInTheDocument();
   });
 
   it("closes the deployment when confirmed", async () => {
@@ -60,23 +74,19 @@ describe("ReclamationCard", () => {
     expect(wallet.signAndBroadcastTx).not.toHaveBeenCalled();
   });
 
-  function setup(input: { reason?: string; hasLocalManifest?: boolean; manifest?: string; name?: string; isConfirmed?: boolean; onClosed?: () => void } = {}) {
+  function setup(input: { reason?: string; definition?: Partial<DeploymentDefinition>; isConfirmed?: boolean; onClosed?: () => void } = {}) {
     const wallet = mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: "akash1owner" });
     wallet.signAndBroadcastTx.mockResolvedValue(true);
 
     const confirm = mock<ReturnType<typeof DEPENDENCIES.useManagedDeploymentConfirm>>();
     confirm.closeDeploymentConfirm.mockResolvedValue(input.isConfirmed ?? true);
 
-    const localNotes = mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>();
-    localNotes.getDeploymentData.mockReturnValue(
-      input.hasLocalManifest ? mock<DeploymentData>({ manifest: input.manifest ?? "version: 2.0", name: input.name }) : null
-    );
-
+    const definition: DeploymentDefinition = { sdl: "version: 2.0", name: undefined, source: "local", ...input.definition };
     const redeploy = vi.fn();
 
     const useWallet: typeof DEPENDENCIES.useWallet = () => wallet;
     const useManagedDeploymentConfirm: typeof DEPENDENCIES.useManagedDeploymentConfirm = () => confirm;
-    const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () => localNotes;
+    const useDeploymentDefinition: typeof DEPENDENCIES.useDeploymentDefinition = () => definition;
     const useRedeploy: typeof DEPENDENCIES.useRedeploy = () => redeploy;
     const useNewDeploymentUrl: typeof DEPENDENCIES.useNewDeploymentUrl = () => () => "/new-deployment";
 
@@ -97,7 +107,7 @@ describe("ReclamationCard", () => {
         lease={lease}
         dseq="123"
         onClosed={input.onClosed}
-        dependencies={MockComponents(DEPENDENCIES, { useWallet, useManagedDeploymentConfirm, useLocalNotes, useRedeploy, useNewDeploymentUrl })}
+        dependencies={MockComponents(DEPENDENCIES, { useWallet, useManagedDeploymentConfirm, useDeploymentDefinition, useRedeploy, useNewDeploymentUrl })}
       />
     );
 

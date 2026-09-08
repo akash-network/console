@@ -5,10 +5,10 @@ import type { ReadonlyURLSearchParams } from "next/navigation";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { LocalNotesContextType as LocalNotesContext } from "@src/components/LocalNoteManager";
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import type { SdlContextProps } from "@src/context/SdlBuilderProvider";
 import type { AppDIContainer } from "@src/context/ServicesProvider";
+import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
@@ -205,15 +205,10 @@ describe(NewDeploymentContainer.name, () => {
   });
 
   it("redirects to edit-deployment step when redeploy param is present", async () => {
-    const redeployData = {
-      name: "Redeployed App",
-      manifest: "redeploy manifest content"
-    };
-
     const { mockRouter } = setup({
       step: RouteStep.chooseTemplate,
       redeploy: "123",
-      redeployData
+      redeployDefinition: { sdl: "redeploy manifest content", name: "Redeployed App", source: "api" }
     });
 
     await vi.waitFor(() => {
@@ -350,7 +345,7 @@ describe(NewDeploymentContainer.name, () => {
       code?: string;
       state?: string;
       redeploy?: string;
-      redeployData?: { name: string; manifest: string };
+      redeployDefinition?: Partial<DeploymentDefinition>;
       requestedTemplate?: TemplateOutput;
       deploySdl?: TemplateCreation | null;
       isLoadingTemplates?: boolean;
@@ -389,9 +384,7 @@ describe(NewDeploymentContainer.name, () => {
 
     // Create stable references for hook return values to prevent infinite re-renders
     const sdlBuilder = mock<SdlContextProps>();
-    const localNotes = mock<LocalNotesContext>({
-      getDeploymentData: vi.fn().mockReturnValue(input.redeployData ?? null)
-    });
+    const redeployDefinition: DeploymentDefinition = { sdl: undefined, name: undefined, source: "absent", ...input.redeployDefinition };
     const templatesValue = {
       isLoading: input.isLoadingTemplates ?? false,
       templates: [] as never[],
@@ -413,7 +406,7 @@ describe(NewDeploymentContainer.name, () => {
       useRouter: () => mockRouter,
       useSearchParams: () => mockSearchParams,
       useSdlBuilder: () => sdlBuilder,
-      useLocalNotes: () => localNotes,
+      useDeploymentDefinition: () => redeployDefinition,
       useTemplates: () => templatesValue
     } as unknown as typeof DEPENDENCIES;
     const store = createStore();
@@ -446,7 +439,6 @@ describe(NewDeploymentContainer.name, () => {
 
     return {
       mockRouter,
-      localNotes,
       sdlBuilder,
       Layout,
       CreateLease,
