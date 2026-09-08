@@ -364,8 +364,8 @@ export class DeploymentWriterService {
     const patchedSdl = this.#serialize(parsed, { userId, dseq });
 
     const [supplied, held] = await Promise.all([
-      input.sealedSecrets ? await this.sdlSecretsService.receiveForMerge({ rawSdl: stored.sdl, sealedSecrets: input.sealedSecrets }) : {},
-      stored.sealedSecrets ? await this.sdlSecretsService.openStored({ userId, dseq, sealedSecrets: stored.sealedSecrets }) : {}
+      input.sealedSecrets ? this.sdlSecretsService.receiveForMerge({ rawSdl: stored.sdl, sealedSecrets: input.sealedSecrets }) : {},
+      stored.sealedSecrets ? this.sdlSecretsService.openStored({ userId, dseq, sealedSecrets: stored.sealedSecrets }) : {}
     ]);
     const merged = this.#mergeAndPrune({ held, supplied, derived }, document);
 
