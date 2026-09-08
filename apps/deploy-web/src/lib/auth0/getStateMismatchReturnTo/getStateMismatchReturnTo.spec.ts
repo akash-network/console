@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { UrlReturnToStack } from "@src/hooks/useReturnTo/UrlReturnToStack";
 import { CallbackHandlerError, MissingStateCookieError } from "@src/lib/auth0";
 import { getStateMismatchReturnTo } from "./getStateMismatchReturnTo";
 
@@ -23,9 +24,23 @@ describe(getStateMismatchReturnTo.name, () => {
   });
 
   it("returns the root path when the callback state cannot be decoded", () => {
-    const error = new CallbackHandlerError(stateMismatchCause({ checks: { state: encodeState({ returnTo: "https://console.akash.network/" }) }, params: { state: "not-base64-json" } }));
+    const error = new CallbackHandlerError(
+      stateMismatchCause({ checks: { state: encodeState({ returnTo: "https://console.akash.network/" }) }, params: { state: "not-base64-json" } })
+    );
 
     expect(getStateMismatchReturnTo(error)).toBe("/");
+  });
+
+  it("keeps a nested return stack recoverable once pushed onto the login url", () => {
+    const error = setup({
+      cookieReturnTo: "https://console.akash.network/terms-of-service",
+      callbackReturnTo: "https://console.akash.network/deployments?returnTo=%2Fonboarding"
+    });
+    const recovered = getStateMismatchReturnTo(error) as string;
+
+    const loginUrl = UrlReturnToStack.createReturnable(recovered, "/login?error=provider_login_failed");
+
+    expect(UrlReturnToStack.getReturnTo(loginUrl)).toBe(recovered);
   });
 
   it("returns undefined when both states match", () => {

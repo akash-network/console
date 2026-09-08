@@ -66,8 +66,8 @@ const authHandler = once((services: AppServices) =>
 
         const stateMismatchReturnTo = getStateMismatchReturnTo(error);
         if (stateMismatchReturnTo) {
-          services.logger.warn({ event: "AUTH_CALLBACK_STATE_MISMATCH", returnTo: stateMismatchReturnTo });
-          res.writeHead(302, { Location: `/login?error=provider_login_failed&returnTo=${encodeURIComponent(stateMismatchReturnTo)}` });
+          services.logger.warn({ event: "AUTH_CALLBACK_STATE_MISMATCH", returnToPath: getPathWithoutQuery(stateMismatchReturnTo) });
+          res.writeHead(302, { Location: services.urlReturnToStack.createReturnable(stateMismatchReturnTo, "/login?error=provider_login_failed") });
           res.end();
           return;
         }
@@ -145,6 +145,10 @@ const authHandler = once((services: AppServices) =>
 
 function isGeneralAxiosError(error: unknown): error is AxiosError {
   return isAxiosError(error) && !!error?.status && error.status >= 400 && error.status < 500;
+}
+
+function getPathWithoutQuery(url: string): string {
+  return url.split("?")[0];
 }
 
 function isMissingStateCookieError(error: unknown): boolean {
