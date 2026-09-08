@@ -1,5 +1,6 @@
 import type { SDLInput, ValidationError } from "@akashnetwork/chain-sdk";
-import createError from "http-errors";
+import createError, { isHttpError } from "http-errors";
+import { decodeProtectedHeader } from "jose";
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
@@ -26,7 +27,21 @@ export type ReceiveSdlSecretsResult = { ok: true; value: SdlSecrets } | { ok: fa
 
 const NOTHING_SUPPLIED: SdlSecrets = {};
 
-function unreferencedNameError(name: string): ValidationError {
+/** An unreachable key service answers 503 and will succeed on retry, so it is not evidence that anything moved the stored data. */
+function isRetryable(error: unknown): boolean {
+  return isHttpError(error) && error.status === 503;
+}
+
+/** Reads the protected header without a key, so a token that cannot be decrypted can still say which data key and deployment it claims to belong to. */
+function claimsOf(sealedSecrets: string): Record<string, unknown> | undefined {
+  try {
+    return decodeProtectedHeader(sealedSecrets) as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+}
+
+export function unreferencedNameError(name: string): ValidationError {
   const echoed = name.slice(0, MAX_ECHOED_REFERENCE_LENGTH);
 
   return {
@@ -78,6 +93,11 @@ export class SdlSecretsService {
     return { ok: true, value: supplied };
   }
 
+  /** Bounds the whole set a deployment would carry, because measuring one request alone would let a merge grow the stored token past the ceiling one request at a time. */
+  assertStorable(secrets: SdlSecrets): void {
+    this.#assertWithinLimits(secrets);
+  }
+
   /** Returns null when nothing was supplied, so a create always has a value to write and a retry cannot inherit an abandoned attempt's token. */
   async sealForStorage(input: { userId: string; dseq: string; secrets: SdlSecrets }): Promise<string | null> {
     const names = Object.keys(input.secrets);
@@ -91,9 +111,19 @@ export class SdlSecretsService {
     return sealed;
   }
 
+  /** Opens a client's seal without holding it to what the SDL declares, because a patch supplies only what changed and the rest resolves from what is stored. */
+  async receiveForMerge(input: { rawSdl: string; sealedSecrets: string }): Promise<SdlSecrets> {
+    const supplied = await this.unsealerService.open({ seal: input.sealedSecrets, sdl: input.rawSdl });
+    this.#assertWithinLimits(supplied);
+
+    this.#loggerService.info({ event: "SDL_SECRETS_RECEIVED_FOR_MERGE", suppliedCount: Object.keys(supplied).length });
+
+    return supplied;
+  }
+
   /** Opens what `sealForStorage` wrote under the same binding, so a token moved to another deployment's row or another user's fails to open rather than resolving into it. */
   async openStored(input: { userId: string; dseq: string; sealedSecrets: string }): Promise<SdlSecrets> {
-    const opened = await this.secretCipherService.decrypt(input.userId, input.sealedSecrets, { sub: input.userId, dseq: input.dseq });
+    const opened = await this.#decryptStored(input);
     const secrets = parseSdlSecrets(opened);
 
     if (!secrets) {
@@ -105,6 +135,24 @@ export class SdlSecretsService {
     this.#loggerService.info({ event: "SDL_SECRETS_STORED_OPENED", userId: input.userId, dseq: input.dseq, secretCount: Object.keys(secrets).length });
 
     return secrets;
+  }
+
+  /** Records only a permanent failure, and only the header's claims, which name the data key, the user and the deployment and carry none of the ciphertext. */
+  async #decryptStored(input: { userId: string; dseq: string; sealedSecrets: string }): Promise<string> {
+    try {
+      return await this.secretCipherService.decrypt(input.userId, input.sealedSecrets, { sub: input.userId, dseq: input.dseq });
+    } catch (error) {
+      if (!isRetryable(error)) {
+        this.#loggerService.error({
+          event: "SECRET_DECRYPT_FAILED",
+          userId: input.userId,
+          dseq: input.dseq,
+          claims: claimsOf(input.sealedSecrets)
+        });
+      }
+
+      throw error;
+    }
   }
 
   /** Both directions are reported from one pass, so a request that gets each side wrong hears about both at once. */

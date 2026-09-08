@@ -3,7 +3,12 @@ import { compactDecrypt, CompactEncrypt, decodeProtectedHeader } from "jose";
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
-import { SECRET_AT_REST_CONTENT_ENCRYPTION, SECRET_AT_REST_KEY_MANAGEMENT, SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
+import {
+  SECRET_AT_REST_CONTENT_ENCRYPTION,
+  SECRET_AT_REST_KEY_MANAGEMENT,
+  SECRET_UNREADABLE_ERROR_CODE,
+  SECRET_UNREADABLE_ERROR_MESSAGE
+} from "@src/secret/config/secret-at-rest.config";
 import { DataKeyUnwrapperService } from "@src/secret/services/data-key-unwrapper/data-key-unwrapper.service";
 
 const textEncoder = new TextEncoder();
@@ -97,6 +102,6 @@ export class SecretCipherService {
   #rejectUnreadable(event: string, details: Record<string, unknown>) {
     this.#loggerService.error({ event, ...details });
 
-    return createError(500, SECRET_UNREADABLE_ERROR_MESSAGE);
+    return createError(500, SECRET_UNREADABLE_ERROR_MESSAGE, { errorCode: SECRET_UNREADABLE_ERROR_CODE });
   }
 }

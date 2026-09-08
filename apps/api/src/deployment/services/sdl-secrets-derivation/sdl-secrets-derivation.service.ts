@@ -13,13 +13,15 @@ const DERIVED_REFERENCE_KIND = "secret";
 export class SdlSecretsDerivationService {
   constructor(private readonly sdlReferenceService: SdlReferenceService) {}
 
-  /** Mutates the document it is given, which must therefore be a copy the caller keeps to itself: the manifest is generated from the submitted SDL and has to see the real values. */
-  derive(document: SDLInput, options: { includeEnvValues: boolean }): SdlSecrets {
+  /** Mutates the document it is given, and `onlyAt` bounds the walk to positions the caller wrote, or a stored document's untouched plaintext would be sealed away from its owner. */
+  derive(document: SDLInput, options: { includeEnvValues: boolean; onlyAt?: ReadonlySet<string> }): SdlSecrets {
     const secrets: SdlSecrets = {};
     const takenByNode = new Map<object, Set<string>>();
     const takenNames = this.#namesAlreadyReferencedIn(document);
 
     for (const slot of this.sdlReferenceService.slotsOf(document)) {
+      if (options.onlyAt && !options.onlyAt.has(slot.instancePath)) continue;
+
       if (!this.#isDerivable(slot, options)) continue;
 
       const takenInNode = takenByNode.get(slot.node) ?? new Set<string>();

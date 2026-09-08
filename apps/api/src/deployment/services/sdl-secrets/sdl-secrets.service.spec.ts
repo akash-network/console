@@ -1,5 +1,6 @@
 import type { SDLInput } from "@akashnetwork/chain-sdk";
 import { faker } from "@faker-js/faker";
+import createError from "http-errors";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -432,7 +433,139 @@ describe(SdlSecretsService.name, () => {
 
       await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: SEAL })).rejects.toBe(refusal);
     });
+
+    describe("a token that will not decrypt", () => {
+      it("records the failure against the deployment, with the claims its header carries", async () => {
+        const { service, secretCipherService, logger } = setup();
+        secretCipherService.decrypt.mockRejectedValue(createError(500, "Unable to read stored secrets"));
+
+        await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toThrow();
+
+        expect(logger.error).toHaveBeenCalledWith({
+          event: "SECRET_DECRYPT_FAILED",
+          userId: "user-1",
+          dseq: "1420000",
+          claims: { alg: "dir", enc: "A256GCM", kid: "data-key-1", sub: "user-1", dseq: "1420000" }
+        });
+      });
+
+      it("records none of the token's own bytes", async () => {
+        const { service, secretCipherService, logger } = setup();
+        const sealedSecrets = tokenWithHeader();
+        secretCipherService.decrypt.mockRejectedValue(createError(500, "Unable to read stored secrets"));
+
+        await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets })).rejects.toThrow();
+
+        const [[recorded]] = vi.mocked(logger.error).mock.calls;
+        expect(JSON.stringify(recorded)).not.toContain(sealedSecrets.split(".")[3]);
+      });
+
+      it("says so even when the header itself cannot be read", async () => {
+        const { service, secretCipherService, logger } = setup();
+        secretCipherService.decrypt.mockRejectedValue(createError(500, "Unable to read stored secrets"));
+
+        await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: SEAL })).rejects.toThrow();
+
+        expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SECRET_DECRYPT_FAILED", claims: undefined }));
+      });
+
+      it("keeps the retryable status of a key service that is merely unreachable", async () => {
+        const { service, secretCipherService } = setup();
+        secretCipherService.decrypt.mockRejectedValue(createError(503, "Service temporarily unavailable"));
+
+        await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toMatchObject({ status: 503 });
+      });
+
+      it("records nothing for a key service that is merely unreachable, which is no evidence of tampering", async () => {
+        const { service, secretCipherService, logger } = setup();
+        secretCipherService.decrypt.mockRejectedValue(createError(503, "Service temporarily unavailable"));
+
+        await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toThrow();
+
+        expect(logger.error).not.toHaveBeenCalledWith(expect.objectContaining({ event: "SECRET_DECRYPT_FAILED" }));
+      });
+
+      it("still records a permanent failure that carries no status at all", async () => {
+        const { service, secretCipherService, logger } = setup();
+        secretCipherService.decrypt.mockRejectedValue(new Error("boom"));
+
+        await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toThrow();
+
+        expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SECRET_DECRYPT_FAILED" }));
+      });
+    });
   });
+
+  describe("receiveForMerge", () => {
+    it("opens a seal without holding it to what the sdl declares", async () => {
+      const supplied = { s0_e0: "rotated" };
+      const { service } = setup({ supplied });
+
+      await expect(service.receiveForMerge({ rawSdl: "version: '2.0'", sealedSecrets: SEAL })).resolves.toEqual(supplied);
+    });
+
+    it("binds the seal to the sdl it was given", async () => {
+      const { service, unsealerService } = setup({ supplied: {} });
+
+      await service.receiveForMerge({ rawSdl: "version: '2.0'", sealedSecrets: SEAL });
+
+      expect(unsealerService.open).toHaveBeenCalledWith({ seal: SEAL, sdl: "version: '2.0'" });
+    });
+
+    it("holds what one request supplies to the count a deployment may carry", async () => {
+      const supplied = Object.fromEntries(Array.from({ length: 3 }, (_, index) => [`s0_e${index}`, "value"]));
+      const { service } = setup({ supplied, maxCount: 2 });
+
+      await expect(service.receiveForMerge({ rawSdl: "version: '2.0'", sealedSecrets: SEAL })).rejects.toMatchObject({ status: 400 });
+    });
+
+    it("holds what one request supplies to the size a secret may be", async () => {
+      const { service } = setup({ supplied: { s0_e0: "x".repeat(50) }, maxValueBytes: 10 });
+
+      await expect(service.receiveForMerge({ rawSdl: "version: '2.0'", sealedSecrets: SEAL })).rejects.toMatchObject({ status: 400 });
+    });
+
+    it("bounds only the request, leaving the merged set to be measured by its own caller", async () => {
+      const supplied = Object.fromEntries(Array.from({ length: 2 }, (_, index) => [`s0_e${index}`, "value"]));
+      const { service } = setup({ supplied, maxCount: 2 });
+
+      await expect(service.receiveForMerge({ rawSdl: "version: '2.0'", sealedSecrets: SEAL })).resolves.toEqual(supplied);
+    });
+  });
+
+  describe("assertStorable", () => {
+    it("refuses a set larger than the count a deployment may carry, however it was assembled", () => {
+      const { service } = setup({ maxCount: 2 });
+      const merged = Object.fromEntries(Array.from({ length: 3 }, (_, index) => [`s0_e${index}`, "value"]));
+
+      expect(() => service.assertStorable(merged)).toThrow(expect.objectContaining({ status: 400 }));
+    });
+
+    it("refuses a value larger than a secret may be", () => {
+      const { service } = setup({ maxValueBytes: 10 });
+
+      expect(() => service.assertStorable({ s0_e0: "x".repeat(50) })).toThrow(expect.objectContaining({ status: 400 }));
+    });
+
+    it("accepts a set exactly at the count a deployment may carry", () => {
+      const { service } = setup({ maxCount: 2 });
+
+      expect(() => service.assertStorable({ s0_e0: "a", s0_e1: "b" })).not.toThrow();
+    });
+
+    it("names the count it enforces rather than the request that reached it", () => {
+      const { service } = setup({ maxCount: 2 });
+      const merged = Object.fromEntries(Array.from({ length: 3 }, (_, index) => [`s0_e${index}`, "value"]));
+
+      expect(() => service.assertStorable(merged)).toThrow(/At most 2 secrets/);
+    });
+  });
+
+  function tokenWithHeader() {
+    const header = Buffer.from(JSON.stringify({ alg: "dir", enc: "A256GCM", kid: "data-key-1", sub: "user-1", dseq: "1420000" })).toString("base64url");
+
+    return [header, "", "aXY", "Y2lwaGVydGV4dA", "dGFn"].join(".");
+  }
 
   function receivedOf(result: Awaited<ReturnType<SdlSecretsService["receive"]>>) {
     return (result as Extract<typeof result, { ok: true }>).value;
