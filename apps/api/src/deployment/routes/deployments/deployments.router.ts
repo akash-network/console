@@ -76,7 +76,7 @@ const postRoute = createRoute({
   /** The only route that can carry a seal, sized so the stated secret limits are reachable rather than shadowed by the default allowance. */
   bodyLimit: { maxSize: CREATE_DEPLOYMENT_BODY_LIMIT_BYTES },
   /** Accepted and validated in full; unpublished because sealed secrets are not announced yet, and reverting this line is what announces them. */
-  undocumentedRequestFields: ["sealedSecrets"],
+  undocumentedRequestFields: ["sealedSecrets", "inheritSecretsFrom"],
   request: {
     body: {
       content: {

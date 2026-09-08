@@ -114,6 +114,8 @@ export const CreateDeploymentRequestSchema = z.object({
     sdl: z.string().max(MAX_SUBMITTED_SDL_LENGTH),
     /** Accepted and validated but withheld from every generated document by the route's `undocumentedRequestFields`, so the capability works before it is announced. */
     sealedSecrets: SealedSecretsSchema.optional(),
+    /** Withheld alongside `sealedSecrets`, whose values it carries forward, so both halves of the capability are announced together. */
+    inheritSecretsFrom: DseqSchema.optional(),
     deposit: z.number().optional().openapi({
       deprecated: true,
       description: "Deprecated and ignored. The platform funds every deployment automatically from your account credits."
