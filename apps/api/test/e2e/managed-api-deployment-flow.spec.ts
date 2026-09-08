@@ -352,6 +352,29 @@ describe("Managed Wallet API Deployment Flow", () => {
         dseq: deploymentResponse.data.dseq,
         sdl: expect.stringMatching(/TEST_ENV=ac-secret:\/\/NEW_TEST_SECRET|NEW_REGULAR_VAR=new-value|NEW_DATABASE_URL=ac-secret:\/\/WEB_DATABASE_URL/)
       });
+
+      const patchResponse2 = await api.v1.patchDeployment({
+        dseq: deploymentResponse.data.dseq,
+        data: {
+          services: {
+            web: {
+              image: "ghcr.io/akash-network/hello-akash-world:sha-2140a1d"
+            }
+          }
+        }
+      });
+      expect(patchResponse2.data).toMatchObject({
+        deployment: expect.objectContaining({
+          id: expect.objectContaining({
+            dseq: deploymentResponse.data.dseq
+          })
+        })
+      });
+      const updatedDeployment2 = await api.v2.getDeploymentSetting({ dseq: deploymentResponse.data.dseq });
+      expect(updatedDeployment2.data).toMatchObject({
+        dseq: deploymentResponse.data.dseq,
+        sdl: expect.stringMatching(/image:\s*ghcr.io\/akash-network\/hello-akash-world:sha-2140a1d/)
+      });
     } finally {
       await api.v1.closeDeployment({
         dseq: deploymentResponse.data.dseq
