@@ -53,6 +53,7 @@ describe("Deployment Settings", () => {
           userId: user.id,
           dseq,
           autoTopUpEnabled: true,
+          sdl: null,
           createdAt: expect.any(String),
           updatedAt: expect.any(String),
           estimatedTopUpAmount: expect.any(Number),
@@ -79,7 +80,7 @@ describe("Deployment Settings", () => {
       expect(response.status).toBe(200);
       const body = await response.text();
       const { data } = JSON.parse(body) as { data: Record<string, unknown> };
-      expect(data).not.toHaveProperty("sdl");
+      expect(data).toHaveProperty("sdl");
       expect(data).not.toHaveProperty("manifestVersion");
       expect(data).not.toHaveProperty("sealedSecrets");
       expect(body).not.toContain(sealedSecrets);
@@ -147,6 +148,7 @@ describe("Deployment Settings", () => {
           id: settings.id,
           userId: user.id,
           dseq,
+          sdl: null,
           autoTopUpEnabled: true,
           createdAt: expect.any(String),
           updatedAt: expect.any(String),

@@ -1,3 +1,4 @@
+import type { SDLInput } from "@akashnetwork/chain-sdk";
 import { DeploymentInfoSchema } from "@akashnetwork/http-sdk";
 import { z } from "zod";
 
@@ -164,6 +165,9 @@ export const UpdateDeploymentRequestSchema = z.object({
   })
 });
 
+type SdlExposeNode = NonNullable<SDLInput["services"][string]["expose"]>[number];
+type SdlNextCase = NonNullable<NonNullable<SdlExposeNode["http_options"]>["next_cases"]>[number];
+
 /** A key carrying `=` would be written as `NAME=REST=value` and read back as a different variable, silently overwriting it and leaving the supplied value unsealed. */
 const ENV_VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -172,21 +176,46 @@ const PatchEnvSchema = z.record(z.string().regex(ENV_VARIABLE_NAME), z.string().
     "Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change."
 });
 
-/** `nonnegative` rather than `positive`: the grammar gives every one of these `minimum: 0`, and 0 is how a timeout is cleared. */
+/** Every one of these is a uint32 by the time it reaches the provider. */
+const UINT32_MAX = 4294967295;
+
+/** The SDL grammar's own ceiling, refused here so the message names the field rather than the whole document. */
+const MAX_BODY_SIZE_BYTES = 104857600;
+
+/** A zero body size is the sentinel the provider's hostname operator reads as "this workload predates http options", on which it drops the rest of the block for its own defaults. */
+const MIN_BODY_SIZE_BYTES = 1;
+
+/** Providers disagree on what a zero timeout means, nginx's own default under the Gateway API against none at all under ingress, so the ambiguous spelling is refused rather than resolved. */
+const MIN_TIMEOUT_MS = 1;
+
+const HTTP_NEXT_CASES = ["error", "timeout", "500", "502", "503", "504", "403", "404", "429", "off"] as const satisfies readonly SdlNextCase[];
+
+/** `off` turns retrying off outright, so naming a case to retry on beside it is a contradiction. */
+function retriesOffAlone(cases: readonly SdlNextCase[]): boolean {
+  return cases.length === 1 || !cases.includes("off");
+}
+
 const PatchHttpOptionsSchema = z
   .object({
-    maxBodySize: z.number().int().nonnegative(),
-    readTimeout: z.number().int().nonnegative(),
-    sendTimeout: z.number().int().nonnegative(),
-    nextTries: z.number().int().nonnegative(),
-    nextTimeout: z.number().int().nonnegative(),
-    nextCases: z.array(z.string())
+    maxBodySize: z.number().int().min(MIN_BODY_SIZE_BYTES).max(MAX_BODY_SIZE_BYTES),
+    readTimeout: z.number().int().min(MIN_TIMEOUT_MS).max(UINT32_MAX),
+    sendTimeout: z.number().int().min(MIN_TIMEOUT_MS).max(UINT32_MAX),
+    nextTries: z.number().int().nonnegative().max(UINT32_MAX),
+    nextTimeout: z.number().int().nonnegative().max(UINT32_MAX),
+    nextCases: z
+      .array(z.enum(HTTP_NEXT_CASES))
+      .nonempty()
+      .refine(retriesOffAlone, { message: '"off" cannot be combined with other cases' })
+      .openapi({ description: 'Conditions the proxy retries on. Replaces the existing list; "off" disables retrying and stands alone.' })
   })
   .partial();
 
 const PatchExposeSchema = z
   .object({
-    accept: z.array(z.string()).openapi({ description: "Custom domains. Replaces the existing list." }),
+    accept: z.array(z.string()).openapi({
+      description:
+        "Custom domains. Replaces the existing list. Emptying it is rejected by providers that do not generate a hostname of their own, which leaves the patch recorded but undeployed."
+    }),
     httpOptions: PatchHttpOptionsSchema
   })
   .partial();

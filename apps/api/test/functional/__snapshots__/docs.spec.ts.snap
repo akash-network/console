@@ -5566,6 +5566,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "integer",
                         },
+                        "sdl": {
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "topUpFrequencyMs": {
                           "type": "number",
                         },
@@ -5581,6 +5585,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -5676,6 +5681,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "integer",
                         },
+                        "sdl": {
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "topUpFrequencyMs": {
                           "type": "number",
                         },
@@ -5691,6 +5700,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -5828,6 +5838,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "integer",
                         },
+                        "sdl": {
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "topUpFrequencyMs": {
                           "type": "number",
                         },
@@ -5843,6 +5857,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -7599,7 +7614,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "additionalProperties": {
                                 "properties": {
                                   "accept": {
-                                    "description": "Custom domains. Replaces the existing list.",
+                                    "description": "Custom domains. Replaces the existing list. Emptying it is rejected by providers that do not generate a hostname of their own, which leaves the patch recorded but undeployed.",
                                     "items": {
                                       "type": "string",
                                     },
@@ -7608,29 +7623,48 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   "httpOptions": {
                                     "properties": {
                                       "maxBodySize": {
-                                        "minimum": 0,
+                                        "maximum": 104857600,
+                                        "minimum": 1,
                                         "type": "integer",
                                       },
                                       "nextCases": {
+                                        "description": "Conditions the proxy retries on. Replaces the existing list; "off" disables retrying and stands alone.",
                                         "items": {
+                                          "enum": [
+                                            "error",
+                                            "timeout",
+                                            "500",
+                                            "502",
+                                            "503",
+                                            "504",
+                                            "403",
+                                            "404",
+                                            "429",
+                                            "off",
+                                          ],
                                           "type": "string",
                                         },
+                                        "minItems": 1,
                                         "type": "array",
                                       },
                                       "nextTimeout": {
+                                        "maximum": 4294967295,
                                         "minimum": 0,
                                         "type": "integer",
                                       },
                                       "nextTries": {
+                                        "maximum": 4294967295,
                                         "minimum": 0,
                                         "type": "integer",
                                       },
                                       "readTimeout": {
-                                        "minimum": 0,
+                                        "maximum": 4294967295,
+                                        "minimum": 1,
                                         "type": "integer",
                                       },
                                       "sendTimeout": {
-                                        "minimum": 0,
+                                        "maximum": 4294967295,
+                                        "minimum": 1,
                                         "type": "integer",
                                       },
                                     },
@@ -16576,6 +16610,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "integer",
                         },
+                        "sdl": {
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "topUpFrequencyMs": {
                           "type": "number",
                         },
@@ -16591,6 +16629,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -16628,6 +16667,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v2/deployment-settings/{dseq}": {
       "get": {
+        "operationId": "getDeploymentSetting",
         "parameters": [
           {
             "in": "path",
@@ -16687,6 +16727,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "integer",
                         },
+                        "sdl": {
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "topUpFrequencyMs": {
                           "type": "number",
                         },
@@ -16702,6 +16746,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -16840,6 +16885,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "integer",
                         },
+                        "sdl": {
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "topUpFrequencyMs": {
                           "type": "number",
                         },
@@ -16855,6 +16904,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
