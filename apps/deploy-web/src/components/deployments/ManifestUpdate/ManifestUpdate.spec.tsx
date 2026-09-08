@@ -1,4 +1,5 @@
 import type { MouseEvent } from "react";
+import type { LoggerService } from "@akashnetwork/logging";
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
@@ -39,6 +40,7 @@ const TRIAL_GATED_SDL = new ApiError(
 const UNTITLED_OUT_OF_CREDITS = new ApiError(402, { message: "Not enough funds to cover the transaction fee" }, "PUT /v1/deployments/{dseq} → 402");
 
 const WITHHELD_VALUES_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=ac-secret://s0_e0"\n';
+const BLANK_ENV_VALUES_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN="\n';
 
 describe(ManifestUpdate.name, () => {
   it("shows outside deployment message when neither source holds a definition", () => {
@@ -72,8 +74,8 @@ describe(ManifestUpdate.name, () => {
     });
   });
 
-  it("shows parsing error when manifest version retrieval fails", async () => {
-    setup({
+  it("shows parsing error and logs the cause when manifest version retrieval fails", async () => {
+    const { logger } = setup({
       definition: { sdl: "version: '2.0'", source: "local" },
       dependencies: {
         deploymentData: mock<typeof DEPENDENCIES.deploymentData>({
@@ -85,6 +87,7 @@ describe(ManifestUpdate.name, () => {
     await waitFor(() => {
       expect(screen.getByText("Error getting manifest version.")).toBeInTheDocument();
     });
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "MANIFEST_VERSION_READ_FAILED" }));
   });
 
   it("seeds the editor from the api definition, never from this browser's copy", async () => {
@@ -107,6 +110,28 @@ describe(ManifestUpdate.name, () => {
     expect(screen.queryByText(/secret values withheld/i)).not.toBeInTheDocument();
     expect(dependencies.SDLEditor).not.toHaveBeenCalled();
     expect(onManifestChange).not.toHaveBeenCalled();
+  });
+
+  it("keeps the user's unsaved edits when a refetch changes the resolved definition", async () => {
+    const onManifestChange = vi.fn();
+    const { rerenderDefinition } = setup({ definition: { sdl: "version: '2.0'", source: "local" }, onManifestChange });
+
+    await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '2.0'"));
+
+    rerenderDefinition({ sdl: "version: '3.0' # refetched", name: undefined, source: "api" }, { editedManifest: "version: '2.0' # user edit" });
+
+    expect(onManifestChange).not.toHaveBeenCalledWith("version: '3.0' # refetched");
+  });
+
+  it("reseeds an untouched editor when a refetch changes the resolved definition", async () => {
+    const onManifestChange = vi.fn();
+    const { rerenderDefinition } = setup({ definition: { sdl: "version: '2.0'", source: "local" }, onManifestChange });
+
+    await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '2.0'"));
+
+    rerenderDefinition({ sdl: "version: '3.0' # refetched", name: undefined, source: "api" }, { editedManifest: "version: '2.0'" });
+
+    await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '3.0' # refetched"));
   });
 
   describe("the local-versus-chain warning", () => {
@@ -200,6 +225,24 @@ describe(ManifestUpdate.name, () => {
     it("submits nothing when the update action fires anyway", async () => {
       const handles = setup({
         editedManifest: WITHHELD_VALUES_SDL,
+        deployment: { dseq: "123", state: "active", hash: "different-hash" }
+      });
+
+      await clickUpdate(handles);
+
+      expect(handles.mutate).not.toHaveBeenCalled();
+      expect(screen.getByText(/withheld secret values/i)).toBeInTheDocument();
+    });
+
+    it("disables the update action when the values were withheld by blanking them", () => {
+      const { dependencies } = setup({ editedManifest: BLANK_ENV_VALUES_SDL });
+
+      expect(updateButtonOf(dependencies)?.disabled).toBe(true);
+    });
+
+    it("submits nothing when the update action fires with blanked values", async () => {
+      const handles = setup({
+        editedManifest: BLANK_ENV_VALUES_SDL,
         deployment: { dseq: "123", state: "active", hash: "different-hash" }
       });
 
@@ -708,6 +751,7 @@ describe(ManifestUpdate.name, () => {
   }) {
     const providerProxy = mock<ProviderProxyService>();
     const analyticsService = mock<AnalyticsService>();
+    const logger = mock<LoggerService>();
     const deploymentLocalStorage = mock<DeploymentStorageService>();
     deploymentLocalStorage.get.mockReturnValue(input?.storedManifest === null ? null : { manifest: input?.storedManifest ?? "version: '2.0'" });
 
@@ -768,7 +812,8 @@ describe(ManifestUpdate.name, () => {
           api: () => api,
           providerProxy: () => providerProxy,
           analyticsService: () => analyticsService,
-          deploymentLocalStorage: () => deploymentLocalStorage
+          deploymentLocalStorage: () => deploymentLocalStorage,
+          logger: () => logger
         }}
       >
         <ManifestUpdate
@@ -794,13 +839,14 @@ describe(ManifestUpdate.name, () => {
 
     return {
       rerenderWith: (overrides: { editedManifest: string }) => rerender(componentWith(overrides)),
-      rerenderDefinition: (next: DeploymentDefinition) => {
+      rerenderDefinition: (next: DeploymentDefinition, overrides?: { editedManifest: string }) => {
         definition = next;
-        rerender(componentWith());
+        rerender(componentWith(overrides));
       },
       providerProxy,
       analyticsService,
       deploymentLocalStorage,
+      logger,
       dependencies,
       mutate,
       mutationOptions,
