@@ -231,8 +231,8 @@ export class JobQueueService implements Disposable {
     return new Set(result.rows.map(row => row.singleton_key));
   }
 
-  /** Whether the queue already holds an unfinished job under this key: queued, waiting on a retry, or running. */
-  async hasPendingSingleton(query: { name: string; singletonKey: string }): Promise<boolean> {
+  /** Whether a job under this key is still waiting, so `cancelCreatedBy` can call it off, and will not come due before `notDueBefore`. */
+  async hasWaitingSingleton(query: { name: string; singletonKey: string; notDueBefore: Date }): Promise<boolean> {
     const connection = this.txService.getConnection();
     const db = connection ? this.#toTransactionDb(connection) : await this.pgBoss.getDb();
     const schema = this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_SCHEMA");
@@ -242,10 +242,11 @@ export class JobQueueService implements Disposable {
         FROM ${schema}.job
         WHERE name = $1
           AND singleton_key = $2
-          AND state IN ('created', 'retry', 'active')
+          AND state IN ('created', 'retry')
+          AND start_after > $3::timestamptz
         LIMIT 1
       `,
-      [query.name, query.singletonKey]
+      [query.name, query.singletonKey, query.notDueBefore.toISOString()]
     )) as { rows: unknown[] };
 
     return result.rows.length > 0;

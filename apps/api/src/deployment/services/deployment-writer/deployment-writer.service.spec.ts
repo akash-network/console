@@ -41,6 +41,7 @@ const REGISTRY_USERNAME = faker.string.alphanumeric(10);
 const REGISTRY_PASSWORD = faker.internet.password();
 const DEPLOYMENT_SETTING_ID = faker.string.uuid();
 const GRACE_IN_MIN = 60;
+const SIGNER_REQUEST_TIMEOUT_MS = 180_000;
 const RETRY_LIMIT = 47;
 const RETRY_DELAY_MAX_IN_MIN = 30;
 const RETRY_DELAY_IN_SEC = 30;
@@ -692,19 +693,20 @@ describe(DeploymentWriterService.name, () => {
       );
     });
 
-    it("asks about the waiting compensation under the key the create would have enqueued", async () => {
+    it("asks for a compensation still waiting under the key the create would have enqueued, and not due before the signer could have given up", async () => {
       const { service, jobQueueService } = setup({ compensationEnqueued: false, compensationAlreadyWaiting: true });
       vi.spyOn(Date, "now").mockReturnValue(1748400000000);
 
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
 
-      expect(jobQueueService.hasPendingSingleton).toHaveBeenCalledWith({
+      expect(jobQueueService.hasWaitingSingleton).toHaveBeenCalledWith({
         name: DeleteUnbackedDeploymentSetting[JOB_NAME],
-        singletonKey: "deleteUnbackedDeploymentSetting.user-1.1748400000000"
+        singletonKey: "deleteUnbackedDeploymentSetting.user-1.1748400000000",
+        notDueBefore: new Date(1748400000000 + SIGNER_REQUEST_TIMEOUT_MS)
       });
     });
 
-    it("refuses the create when the queue accepted no compensation", async () => {
+    it("refuses the create when the queue accepted no compensation and none is still waiting for the row", async () => {
       const { service } = setup({ compensationEnqueued: false });
 
       await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 })).rejects.toThrow(/without a compensation/);
@@ -1887,7 +1889,8 @@ describe(DeploymentWriterService.name, () => {
     const rpcMessageService = mock<RpcMessageService>();
     const sdlService = mock<SdlService>();
     const billingConfig: MockProxy<BillingConfigService> = mockConfigService<BillingConfigService>({
-      DEPLOYMENT_GRANT_DENOM: "uakt"
+      DEPLOYMENT_GRANT_DENOM: "uakt",
+      TX_SIGNER_REQUEST_TIMEOUT_MS: SIGNER_REQUEST_TIMEOUT_MS
     });
     const providerService = mock<ProviderService>();
     const deploymentReaderService = mock<DeploymentReaderService>();
@@ -1908,7 +1911,7 @@ describe(DeploymentWriterService.name, () => {
     txService.transaction.mockImplementation(async cb => (input?.transactionRuns === false ? (undefined as never) : await cb()));
     const jobQueueService = mock<JobQueueService>();
     jobQueueService.enqueue.mockResolvedValue(input?.compensationEnqueued === false ? null : COMPENSATION_JOB_ID);
-    jobQueueService.hasPendingSingleton.mockResolvedValue(input?.compensationAlreadyWaiting ?? false);
+    jobQueueService.hasWaitingSingleton.mockResolvedValue(input?.compensationAlreadyWaiting ?? false);
 
     const sdlSecretsService = mock<SdlSecretsService>();
     /** Real rather than doubled, because what every stored-sdl assertion below measures is the document this produces. */

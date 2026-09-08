@@ -326,24 +326,29 @@ describe(JobQueueService.name, () => {
     });
   });
 
-  describe("hasPendingSingleton", () => {
-    it("reports a job the queue still holds under the key", async () => {
+  describe("hasWaitingSingleton", () => {
+    it("asks for a job under the key that no worker holds yet and that is not due before the instant given", async () => {
       const { service, pgBoss, txService } = setup();
       txService.getConnection.mockReturnValue(undefined);
       const executeSql = vi.fn().mockResolvedValue({ rows: [{ "?column?": 1 }] });
       vi.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql });
 
-      await expect(service.hasPendingSingleton({ name: "test-job", singletonKey: "singleton-1" })).resolves.toBe(true);
+      await expect(
+        service.hasWaitingSingleton({ name: "test-job", singletonKey: "singleton-1", notDueBefore: new Date("2026-01-01T00:03:00.000Z") })
+      ).resolves.toBe(true);
 
-      expect(executeSql).toHaveBeenCalledWith(expect.stringContaining("state IN ('created', 'retry', 'active')"), ["test-job", "singleton-1"]);
+      expect(executeSql).toHaveBeenCalledWith(expect.stringContaining("state IN ('created', 'retry')"), ["test-job", "singleton-1", "2026-01-01T00:03:00.000Z"]);
+      expect(executeSql).toHaveBeenCalledWith(expect.stringContaining("start_after > $3"), expect.anything());
     });
 
-    it("reports no job when the key holds none the queue has yet to finish", async () => {
+    it("reports no job when nothing under the key is still waiting", async () => {
       const { service, pgBoss, txService } = setup();
       txService.getConnection.mockReturnValue(undefined);
       vi.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql: vi.fn().mockResolvedValue({ rows: [] }) });
 
-      await expect(service.hasPendingSingleton({ name: "test-job", singletonKey: "singleton-1" })).resolves.toBe(false);
+      await expect(
+        service.hasWaitingSingleton({ name: "test-job", singletonKey: "singleton-1", notDueBefore: new Date("2026-01-01T00:03:00.000Z") })
+      ).resolves.toBe(false);
     });
 
     it("reads on the ambient transaction connection when one is active", async () => {
@@ -352,9 +357,11 @@ describe(JobQueueService.name, () => {
       txService.getConnection.mockReturnValue({ unsafe } as unknown as Sql);
       const getDb = vi.spyOn(pgBoss, "getDb");
 
-      await expect(service.hasPendingSingleton({ name: "test-job", singletonKey: "singleton-1" })).resolves.toBe(true);
+      await expect(
+        service.hasWaitingSingleton({ name: "test-job", singletonKey: "singleton-1", notDueBefore: new Date("2026-01-01T00:03:00.000Z") })
+      ).resolves.toBe(true);
 
-      expect(unsafe).toHaveBeenCalledWith(expect.stringContaining("singleton_key = $2"), ["test-job", "singleton-1"]);
+      expect(unsafe).toHaveBeenCalledWith(expect.stringContaining("singleton_key = $2"), ["test-job", "singleton-1", "2026-01-01T00:03:00.000Z"]);
       expect(getDb).not.toHaveBeenCalled();
     });
   });

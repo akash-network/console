@@ -1,4 +1,4 @@
-import { secondsToMilliseconds } from "date-fns";
+import { addMinutes, addSeconds, secondsToMilliseconds } from "date-fns";
 import { sql } from "drizzle-orm";
 import { PgBoss, type Queue as PgBossQueue } from "pg-boss";
 import { container } from "tsyringe";
@@ -149,6 +149,60 @@ describe(JobQueueService.name, () => {
     await jobQueue.cancelCreatedBy({ name: "cancel-retrying", singletonKey });
 
     expect((await findJob()).state).toBe("cancelled");
+  });
+
+  it("reports a job waiting under the key when it is not due before the instant asked about", async () => {
+    const singletonKey = "row-1";
+    const { jobQueue, handler, enqueue } = await setup({ queueName: "waiting-far" });
+    await jobQueue.registerHandlers([handler]);
+    await enqueue({ singletonKey, startAfter: addMinutes(new Date(), 1).toISOString() });
+
+    const waiting = await jobQueue.hasWaitingSingleton({ name: "waiting-far", singletonKey, notDueBefore: addSeconds(new Date(), 30) });
+
+    expect(waiting).toBe(true);
+  });
+
+  it("leaves out a job under the key that comes due before the instant asked about", async () => {
+    const singletonKey = "row-1";
+    const { jobQueue, handler, enqueue } = await setup({ queueName: "waiting-soon" });
+    await jobQueue.registerHandlers([handler]);
+    await enqueue({ singletonKey, startAfter: addMinutes(new Date(), 1).toISOString() });
+
+    const waiting = await jobQueue.hasWaitingSingleton({ name: "waiting-soon", singletonKey, notDueBefore: addMinutes(new Date(), 5) });
+
+    expect(waiting).toBe(false);
+  });
+
+  it("leaves out a job under the key once a worker holds it", async () => {
+    const singletonKey = "row-1";
+    let release!: () => void;
+    const held = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const { jobQueue, handler, enqueue, findJob } = await setup({ queueName: "waiting-active", handle: () => held });
+    await jobQueue.registerHandlers([handler]);
+    await enqueue({ singletonKey });
+    await jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 });
+    await waitForJobState(findJob, "active");
+
+    const waiting = await jobQueue.hasWaitingSingleton({ name: "waiting-active", singletonKey, notDueBefore: new Date(0) });
+
+    expect(waiting).toBe(false);
+    release();
+    await waitForJobState(findJob, "completed");
+  });
+
+  it("reports a job under the key that is waiting on a retry", async () => {
+    const singletonKey = "row-1";
+    const { jobQueue, handler, enqueue, findJob } = await setup({ queueName: "waiting-retry", handle: vi.fn().mockRejectedValue(new Error("boom")) });
+    await jobQueue.registerHandlers([handler]);
+    await enqueue({ singletonKey });
+    await jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 });
+    await waitForJobState(findJob, "retry");
+
+    const waiting = await jobQueue.hasWaitingSingleton({ name: "waiting-retry", singletonKey, notDueBefore: new Date(0) });
+
+    expect(waiting).toBe(true);
   });
 
   function waitForJobState(findJob: () => Promise<JobRow>, state: string) {
