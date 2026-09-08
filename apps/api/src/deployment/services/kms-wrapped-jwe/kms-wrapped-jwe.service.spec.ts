@@ -27,6 +27,8 @@ function parseFailure(service: KmsWrappedJweService, serialized: string) {
   return undefined;
 }
 
+const WRAPPING_KEY_PAIR = generateKeyPairSync("rsa", { modulusLength: 3072 });
+
 describe(KmsWrappedJweService.name, () => {
   it("returns the exact bytes the wrapped content encryption key protects", async () => {
     const { service, wrap } = setup();
@@ -213,7 +215,7 @@ describe(KmsWrappedJweService.name, () => {
   });
 
   function setup() {
-    const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 3072 });
+    const { publicKey, privateKey } = WRAPPING_KEY_PAIR;
 
     const wrap = (payload: Buffer, claims?: Record<string, unknown>) =>
       new CompactEncrypt(payload).setProtectedHeader({ alg: "RSA-OAEP-256", enc: "A256GCM", kid: KID, ...claims }).encrypt(publicKey);

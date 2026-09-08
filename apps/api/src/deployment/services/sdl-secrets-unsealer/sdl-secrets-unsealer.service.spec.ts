@@ -27,6 +27,8 @@ function sealClaims(claims?: Record<string, unknown>) {
   return { alg: "RSA-OAEP-256", enc: "A256GCM", kid: KID, sub: SUBJECT, exp: Math.floor(Date.now() / 1000) + 300, ...claims };
 }
 
+const SEALING_KEY_PAIR = generateKeyPairSync("rsa", { modulusLength: 3072 });
+
 describe(SdlSecretsUnsealerService.name, () => {
   it("returns the secrets a client sealed with a standard JOSE library", async () => {
     const { open, seal, clientSecrets } = setup();
@@ -368,7 +370,7 @@ describe(SdlSecretsUnsealerService.name, () => {
   });
 
   function setup() {
-    const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 3072 });
+    const { publicKey, privateKey } = SEALING_KEY_PAIR;
     const jwk = { ...publicKey.export({ format: "jwk" }), use: "enc", alg: "RSA-OAEP-256" };
     const clientSecrets = { DB_URL: `postgres://app:${randomUUID()}@db.internal/app`, API_TOKEN: randomBytes(20).toString("hex") };
 
