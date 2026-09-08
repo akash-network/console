@@ -1708,6 +1708,24 @@ describe(DeploymentWriterService.name, () => {
       });
     });
 
+    describe("the trial limits a wallet is still under", () => {
+      it("resolves a trialing wallet's patch under them", async () => {
+        const { service, sdlService, ability } = setup({ isTrialing: true });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+        expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.objectContaining({ isTrialing: true }));
+      });
+
+      it("resolves an established wallet's patch without them", async () => {
+        const { service, sdlService, ability } = setup({ isTrialing: false });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+        expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.objectContaining({ isTrialing: false }));
+      });
+    });
+
     function setup(input?: {
       sdl?: string;
       setting?: DeploymentSettingsOutput | undefined;
@@ -1721,13 +1739,16 @@ describe(DeploymentWriterService.name, () => {
       chainHash?: string;
       providers?: string[];
       openStoredError?: Error;
+      isTrialing?: boolean;
     }) {
       const manifestVersion = new Uint8Array([1, 2, 3]);
       const storedToken = input?.storedToken === undefined ? "stored.token.aaa.bbb.ccc" : input.storedToken;
       const hasSetting = !("setting" in (input ?? {})) || input?.setting !== undefined;
 
       const walletReaderService = mock<WalletReaderService>();
-      walletReaderService.getWalletByUserId.mockResolvedValue(mock<WalletInitialized>({ id: 7, userId: "user-1", address: "akash1owner", isTrialing: false }));
+      walletReaderService.getWalletByUserId.mockResolvedValue(
+        mock<WalletInitialized>({ id: 7, userId: "user-1", address: "akash1owner", isTrialing: input?.isTrialing ?? false })
+      );
 
       const deploymentSettingRepository = mock<DeploymentSettingRepository>();
       const scoped = mock<DeploymentSettingRepository>();
