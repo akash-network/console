@@ -24,6 +24,9 @@ export class ProbeTrialDeployment implements Job {
 
 export type ProbeTrialDeploymentTarget = { walletId: number; dseq: string };
 
+/** A jittered reschedule must land strictly after now whatever the jitter and interval settings are, or pg-boss can archive it before a worker sees it. */
+const MIN_RESCHEDULE_DELAY_MIN = 1;
+
 export function probeTrialDeploymentKeyFor({ walletId, dseq }: ProbeTrialDeploymentTarget): string {
   return `probeTrialDeployment.${walletId}.${dseq}`;
 }
@@ -133,7 +136,7 @@ export class TrialWorkloadProbeJobService {
     const jitter = this.config.get("WORKLOAD_ABUSE_PROBE_JITTER_MIN");
     const offset = (Math.random() * 2 - 1) * jitter;
 
-    return addMinutes(now, this.config.get("WORKLOAD_ABUSE_PROBE_INTERVAL_MIN") + offset);
+    return addMinutes(now, Math.max(this.config.get("WORKLOAD_ABUSE_PROBE_INTERVAL_MIN") + offset, MIN_RESCHEDULE_DELAY_MIN));
   }
 
   async #schedule(data: ProbeTrialDeployment["data"], startAfter = this.startAfterFor(data)): Promise<string | null> {

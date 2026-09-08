@@ -1,5 +1,5 @@
 import { addMinutes, subHours } from "date-fns";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { CreateLogger, JobQueueService } from "@src/core";
@@ -14,6 +14,10 @@ const LEASE_CREATED_AT = new Date("2026-01-01T12:00:00.000Z");
 const TARGET = { walletId: 42, dseq: "1000001" };
 
 describe(TrialWorkloadProbeJobService.name, () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe("scheduleInitial", () => {
     it("enqueues nothing while probing is disabled", async () => {
       const { service, jobQueueService } = setup({ enabled: false });
@@ -74,6 +78,16 @@ describe(TrialWorkloadProbeJobService.name, () => {
 
       expect(startAfter.getTime()).toBeGreaterThanOrEqual(addMinutes(now, 50).getTime());
       expect(startAfter.getTime()).toBeLessThanOrEqual(addMinutes(now, 70).getTime());
+    });
+
+    it("never reschedules at or before now when the jitter reaches the interval", () => {
+      const { service } = setup({ intervalMin: 10, jitterMin: 60 });
+      const now = new Date("2026-09-06T15:00:00.000Z");
+      vi.spyOn(Math, "random").mockReturnValue(0);
+
+      const startAfter = service.startAfterFor({ attempt: 4, leaseCreatedAt: LEASE_CREATED_AT.toISOString() }, now);
+
+      expect(startAfter).toEqual(addMinutes(now, 1));
     });
   });
 
@@ -166,6 +180,8 @@ describe(TrialWorkloadProbeJobService.name, () => {
     pendingKeys?: string[];
     detected?: Array<{ walletId: number; dseq: string }>;
     now?: Date;
+    intervalMin?: number;
+    jitterMin?: number;
   }) {
     if (input.now) vi.useFakeTimers({ now: input.now, toFake: ["Date"] });
     else vi.useRealTimers();
@@ -180,8 +196,8 @@ describe(TrialWorkloadProbeJobService.name, () => {
     const config = mockConfigService<WorkloadAbuseConfigService>({
       WORKLOAD_ABUSE_PROBE_ENABLED: input.enabled ?? true,
       WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: [5, 20, 60],
-      WORKLOAD_ABUSE_PROBE_INTERVAL_MIN: 60,
-      WORKLOAD_ABUSE_PROBE_JITTER_MIN: 10,
+      WORKLOAD_ABUSE_PROBE_INTERVAL_MIN: input.intervalMin ?? 60,
+      WORKLOAD_ABUSE_PROBE_JITTER_MIN: input.jitterMin ?? 10,
       WORKLOAD_ABUSE_RECONCILE_MAX_AGE_HOURS: 26
     });
     const logger = mock<ReturnType<CreateLogger>>();

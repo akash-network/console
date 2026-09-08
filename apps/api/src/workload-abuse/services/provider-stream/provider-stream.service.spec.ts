@@ -149,7 +149,30 @@ describe(ProviderStreamService.name, () => {
     socket.emitShellBytes([100, ...Buffer.from("ignored")]);
     const result = await pending;
 
-    expect(result).toMatchObject({ status: "output_capped", frames: [{ payload: "123456" }] });
+    expect(result).toMatchObject({ status: "output_capped", frames: [{ payload: "12345" }] });
+  });
+
+  it("counts the cap in UTF-8 bytes and never keeps more than it", async () => {
+    const { service, socket } = setup();
+
+    const pending = service.collect({ ...INPUT, maxBytes: 5 });
+    socket.emit("open");
+    socket.emitShellBytes([100, ...Buffer.from("ééé")]);
+    const result = await pending;
+
+    expect(result).toMatchObject({ status: "output_capped", frames: [{ payload: "éé" }] });
+  });
+
+  it("reports a connection error when the socket closes without the proxy announcing completion", async () => {
+    const { service, socket } = setup();
+
+    const pending = service.collect(INPUT);
+    socket.emit("open");
+    socket.emitShellBytes([100, ...Buffer.from("partial")]);
+    socket.emit("close", { code: 1006 });
+    const result = await pending;
+
+    expect(result).toMatchObject({ status: "connection_error", closeCode: 1006, frames: [{ stream: "stdout", payload: "partial" }] });
   });
 
   it("reports a connection error when the socket never opens", async () => {

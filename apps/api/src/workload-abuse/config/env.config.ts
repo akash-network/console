@@ -52,15 +52,21 @@ function parseJson(raw: string): unknown {
   }
 }
 
-function parseMinutesList(raw: string, ctx: z.RefinementCtx): number[] {
-  const values = raw.split(",").map(value => Number(value.trim()));
+const DEFAULT_PROBE_INITIAL_DELAYS_MIN = "5,20,60";
 
-  if (values.length === 0 || values.some(value => !Number.isInteger(value) || value < 0)) {
+function parseMinutesList(raw: string, ctx: z.RefinementCtx): number[] {
+  const entries = raw.split(",").map(entry => entry.trim());
+
+  if (entries.some(entry => !/^\d+$/.test(entry))) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "must be a comma-separated list of non-negative integers" });
     return z.NEVER;
   }
 
-  return values;
+  return entries.map(Number);
+}
+
+function blankToUndefined(value: unknown): unknown {
+  return typeof value === "string" && value.trim() === "" ? undefined : value;
 }
 
 export const envSchema = z.object({
@@ -71,7 +77,7 @@ export const envSchema = z.object({
   WORKLOAD_ABUSE_SIGNATURES: z.string().default("{}").transform(compileSignatures),
   /** `detect` records hard verdicts without acting on them, so a rollout can be compared against manual review first. */
   WORKLOAD_ABUSE_ENFORCEMENT_MODE: z.enum(["detect", "enforce"]).default("detect"),
-  WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: z.string().default("5,20,60").transform(parseMinutesList),
+  WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: z.preprocess(blankToUndefined, z.string().default(DEFAULT_PROBE_INITIAL_DELAYS_MIN).transform(parseMinutesList)),
   WORKLOAD_ABUSE_PROBE_INTERVAL_MIN: z.number({ coerce: true }).int().positive().default(60),
   WORKLOAD_ABUSE_PROBE_JITTER_MIN: z.number({ coerce: true }).int().nonnegative().default(10),
   /** Trial deployments close after a day on their own, so this only bounds a deployment that close missed. */

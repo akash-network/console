@@ -97,7 +97,7 @@ export class TrialDeploymentLeaseCreatedHandler implements JobHandler<TrialDeplo
         startAfter: addHours(deploymentCreatedAt, trialDeploymentLifetime).toISOString()
       }
     );
-    await this.probeJobService.scheduleInitial({ walletId: wallet.id, dseq: payload.dseq, leaseCreatedAt: deploymentCreatedAt });
+    await this.#scheduleWorkloadProbe({ walletId: wallet.id, dseq: payload.dseq, leaseCreatedAt: deploymentCreatedAt });
 
     if (payload.isFirstLease) {
       await this.jobQueueService.enqueue(
@@ -114,6 +114,21 @@ export class TrialDeploymentLeaseCreatedHandler implements JobHandler<TrialDeplo
           singletonKey: `notification.trialFirstDeploymentLeaseCreated.${wallet.id}`
         }
       );
+    }
+  }
+
+  /** The probe is a backstopped extra, so failing to schedule it must not fail or retry the close and notification work queued above. */
+  async #scheduleWorkloadProbe(target: { walletId: number; dseq: string; leaseCreatedAt: Date }): Promise<void> {
+    try {
+      await this.probeJobService.scheduleInitial(target);
+    } catch (error) {
+      this.logger.error({
+        event: "TRIAL_WORKLOAD_PROBE_SCHEDULE_FAILED",
+        domainEvent: TrialDeploymentLeaseCreated[DOMAIN_EVENT_NAME],
+        walletId: target.walletId,
+        dseq: target.dseq,
+        error
+      });
     }
   }
 }

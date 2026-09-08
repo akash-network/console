@@ -1,3 +1,4 @@
+import { StringDecoder } from "node:string_decoder";
 import { inject, singleton } from "tsyringe";
 
 import { decodeProviderFrame, parseShellExit, type ProviderFrame } from "@src/workload-abuse/lib/provider-frame/provider-frame";
@@ -51,7 +52,6 @@ export class ProviderStreamService {
       const frames: CollectedFrame[] = [];
       let collectedBytes = 0;
       let exitCode: number | undefined;
-      let opened = false;
       let settled = false;
       let idleTimer: NodeJS.Timeout | undefined;
 
@@ -75,7 +75,6 @@ export class ProviderStreamService {
       };
 
       socket.addEventListener("open", () => {
-        opened = true;
         socket.send(
           JSON.stringify({
             type: "websocket",
@@ -105,8 +104,16 @@ export class ProviderStreamService {
           return finish(status, { closeCode: frame.code, closeReason: frame.reason });
         }
 
+        const payloadBytes = Buffer.byteLength(frame.payload, "utf8");
+        const remainingBytes = input.maxBytes - collectedBytes;
+
+        if (payloadBytes > remainingBytes) {
+          frames.push({ ...frame, payload: truncateToUtf8Bytes(frame.payload, remainingBytes) });
+          return finish("output_capped");
+        }
+
         frames.push(frame);
-        collectedBytes += frame.payload.length;
+        collectedBytes += payloadBytes;
 
         if (frame.kind === "shell" && frame.stream === "result") {
           exitCode = parseShellExit(frame.payload)?.exitCode;
@@ -116,10 +123,15 @@ export class ProviderStreamService {
         if (collectedBytes >= input.maxBytes) finish("output_capped");
       });
 
-      socket.addEventListener("close", () => finish(opened ? "completed" : "connection_error"));
+      socket.addEventListener("close", event => finish("connection_error", { closeCode: event.code, closeReason: event.reason }));
       socket.addEventListener("error", () => finish("connection_error"));
     });
   }
+}
+
+/** `write` without `end` never emits a partial character, so the kept text stays within the byte budget. */
+function truncateToUtf8Bytes(text: string, maxBytes: number): string {
+  return new StringDecoder("utf8").write(Buffer.from(text, "utf8").subarray(0, maxBytes));
 }
 
 function toText(data: unknown): string | undefined {
