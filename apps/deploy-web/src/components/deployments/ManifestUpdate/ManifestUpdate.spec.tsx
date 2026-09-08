@@ -30,6 +30,12 @@ const OVERSIZE_SDL = new ApiError(
   "PUT /v1/deployments/{dseq} → 400"
 );
 const SDL_SHAPED_SERVER_FAILURE = new ApiError(500, { message: "Invalid SDL: the console could not read it" }, "PUT /v1/deployments/{dseq} → 500");
+const TRIAL_GATED_SDL = new ApiError(
+  400,
+  { message: "Invalid SDL: rtx4090 not available on free trial: Add funds to unlock GPU access" },
+  "PUT /v1/deployments/{dseq} → 400"
+);
+const UNTITLED_OUT_OF_CREDITS = new ApiError(402, { message: "Not enough funds to cover the transaction fee" }, "PUT /v1/deployments/{dseq} → 402");
 
 describe(ManifestUpdate.name, () => {
   it("shows outside deployment message when no local manifest exists", () => {
@@ -109,16 +115,6 @@ describe(ManifestUpdate.name, () => {
     expect(updateButtonOf(dependencies)?.disabled).toBe(true);
   });
 
-  it("disables update button when credentials are not usable", () => {
-    const { dependencies } = setup({
-      providerCredentials: {
-        details: { usable: false, isExpired: true, type: "jwt" as const, value: null, error: null }
-      }
-    });
-
-    expect(updateButtonOf(dependencies)?.disabled).toBe(true);
-  });
-
   it("renders SDLEditor when not remote deploy", () => {
     const { dependencies } = setup({ isRemoteDeploy: false, editedManifest: "some-manifest" });
 
@@ -171,6 +167,31 @@ describe(ManifestUpdate.name, () => {
     await succeed(handles);
 
     expect(handles.deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "123", { manifest: "version: '2.0'" });
+  });
+
+  it("caches the sdl it submitted, not the one edited while the update was in flight", async () => {
+    const handles = setup({ editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
+
+    await clickUpdate(handles);
+    handles.rerenderWith({ editedManifest: "version: '3.0'" });
+    await succeed(handles);
+
+    expect(handles.deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "123", { manifest: "version: '2.0'" });
+  });
+
+  it("finishes the accepted update even when caching the manifest locally fails", async () => {
+    const closeManifestEditor = vi.fn();
+    const handles = setup({ closeManifestEditor });
+    handles.deploymentLocalStorage.update.mockImplementation(() => {
+      throw new Error("quota exceeded");
+    });
+
+    await clickUpdate(handles);
+    await succeed(handles);
+
+    expect(handles.analyticsService.track).toHaveBeenCalledWith("successful_tx", { category: "transactions", label: "Successful transaction" });
+    expect(closeManifestEditor).toHaveBeenCalled();
+    expect(handles.enqueueSnackbar).not.toHaveBeenCalled();
   });
 
   it("caches the submitted sdl even when the editor closes before the api answers", async () => {
@@ -356,6 +377,40 @@ describe(ManifestUpdate.name, () => {
     expect(options).toEqual({ variant: "warning", autoHideDuration: 10000 });
   });
 
+  it("offers the add credits action when the trial refuses the gpu the sdl requests", async () => {
+    const handles = setup();
+
+    await clickUpdate(handles);
+    await fail(handles, TRIAL_GATED_SDL);
+
+    const [element, options] = handles.enqueueSnackbar.mock.calls[0];
+    expect(element.props.title).toBe("rtx4090 not available on free trial");
+    expect(element.props.subTitle.type).toBe(handles.dependencies.AddCreditsSnackbarContent);
+    expect(element.props.subTitle.props.message).toBe("Add funds to unlock GPU access");
+    expect(options).toEqual({ variant: "warning", autoHideDuration: 10000 });
+  });
+
+  it("keeps the trial gating refusal out of the editor's inline alert", async () => {
+    const handles = setup();
+
+    await clickUpdate(handles);
+    await fail(handles, TRIAL_GATED_SDL);
+
+    expect(screen.queryByText(/not available on free trial/)).not.toBeInTheDocument();
+    expect(updateButtonOf(handles.dependencies)?.disabled).toBe(false);
+  });
+
+  it("shows the whole refusal in the add credits snackbar body when it carries no title of its own", async () => {
+    const handles = setup();
+
+    await clickUpdate(handles);
+    await fail(handles, UNTITLED_OUT_OF_CREDITS);
+
+    const [element] = handles.enqueueSnackbar.mock.calls[0];
+    expect(element.props.title).toBe("Add credits to continue");
+    expect(element.props.subTitle.props.message).toBe("Not enough funds to cover the transaction fee");
+  });
+
   it("dismisses the add credits snackbar once the user acts on it", async () => {
     const handles = setup();
     handles.enqueueSnackbar.mockReturnValue("snackbar-key");
@@ -400,6 +455,15 @@ describe(ManifestUpdate.name, () => {
 
     await clickUpdate(handles);
     await fail(handles, BAD_SDL);
+
+    expect(handles.analyticsService.track).not.toHaveBeenCalledWith("failed_tx", expect.anything());
+  });
+
+  it("tracks no failed transaction when the api refuses the update for payment", async () => {
+    const handles = setup();
+
+    await clickUpdate(handles);
+    await fail(handles, OUT_OF_CREDITS);
 
     expect(handles.analyticsService.track).not.toHaveBeenCalledWith("failed_tx", expect.anything());
   });
@@ -466,9 +530,13 @@ describe(ManifestUpdate.name, () => {
     });
   }
 
+  function submittedVariablesOf(handles: Handles) {
+    return handles.mutate.mock.calls[0][0];
+  }
+
   async function succeed(handles: Handles) {
     await act(async () => {
-      handles.mutationOptions.current?.onSuccess?.({ data: {} });
+      handles.mutationOptions.current?.onSuccess?.({ data: {} }, submittedVariablesOf(handles));
       handles.mutate.mock.calls[0][1]?.onSuccess?.({ data: {} });
     });
   }
@@ -483,7 +551,7 @@ describe(ManifestUpdate.name, () => {
   async function settleAfterClose(handles: Handles, outcome: { outcome: "success" } | { outcome: "failure"; cause: unknown }) {
     await act(async () => {
       if (outcome.outcome === "success") {
-        handles.mutationOptions.current?.onSuccess?.({ data: {} });
+        handles.mutationOptions.current?.onSuccess?.({ data: {} }, submittedVariablesOf(handles));
         return;
       }
       handles.mutationOptions.current?.onError?.(outcome.cause);
@@ -499,7 +567,6 @@ describe(ManifestUpdate.name, () => {
     onManifestChange?: (value: string) => void;
     onRedeploy?: () => void;
     wallet?: Partial<{ address: string; signAndBroadcastTx: ContextType["signAndBroadcastTx"] }>;
-    providerCredentials?: Partial<{ details: { usable: boolean; isExpired: boolean; type: "jwt"; value: string | null; error: Error | null } }>;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const providerProxy = mock<ProviderProxyService>();
@@ -508,7 +575,9 @@ describe(ManifestUpdate.name, () => {
     deploymentLocalStorage.get.mockReturnValue(input?.storedManifest === null ? null : { manifest: input?.storedManifest ?? "version: '2.0'" });
 
     const mutate = vi.fn();
-    const mutationOptions: { current?: { onSuccess?: (data: unknown) => void; onError?: (cause: unknown) => void } } = {};
+    const mutationOptions: {
+      current?: { onSuccess?: (data: unknown, variables: { dseq: string; data: { sdl: string } }) => void; onError?: (cause: unknown) => void };
+    } = {};
     const api = mockDeep<AppDIContainer["api"]>();
     api.v1.updateDeployment.useMutation.mockImplementation(options => {
       mutationOptions.current = options as typeof mutationOptions.current;
@@ -527,17 +596,6 @@ describe(ManifestUpdate.name, () => {
 
     const useBalances: typeof DEPENDENCIES.useBalances = () => balances;
 
-    const useProviderCredentials: typeof DEPENDENCIES.useProviderCredentials = () => ({
-      details: input?.providerCredentials?.details || {
-        usable: true,
-        isExpired: false,
-        type: "jwt" as const,
-        value: "test-token",
-        error: null
-      },
-      ensureToken: vi.fn().mockResolvedValue("test-token")
-    });
-
     const useSnackbar: typeof DEPENDENCIES.useSnackbar = () => ({ enqueueSnackbar, closeSnackbar });
 
     const useBlockchainStatus: typeof DEPENDENCIES.useBlockchainStatus = () =>
@@ -546,7 +604,6 @@ describe(ManifestUpdate.name, () => {
     const dependencies = MockComponents(DEPENDENCIES, {
       useWallet,
       useBalances,
-      useProviderCredentials,
       useSnackbar,
       useBlockchainStatus,
       deploymentData: mock<typeof DEPENDENCIES.deploymentData>({
@@ -555,7 +612,10 @@ describe(ManifestUpdate.name, () => {
       ...input?.dependencies
     });
 
-    const { unmount } = render(
+    const closeManifestEditor = input?.closeManifestEditor || vi.fn();
+    const onManifestChange = input?.onManifestChange || vi.fn();
+
+    const componentWith = (overrides?: { editedManifest: string }) => (
       <TestContainerProvider
         services={{
           api: () => api,
@@ -573,17 +633,20 @@ describe(ManifestUpdate.name, () => {
               ...input?.deployment
             } as Parameters<typeof ManifestUpdate>[0]["deployment"]
           }
-          closeManifestEditor={input?.closeManifestEditor || vi.fn()}
+          closeManifestEditor={closeManifestEditor}
           isRemoteDeploy={input?.isRemoteDeploy ?? false}
-          editedManifest={input?.editedManifest ?? "version: '2.0'"}
-          onManifestChange={input?.onManifestChange || vi.fn()}
+          editedManifest={overrides?.editedManifest ?? input?.editedManifest ?? "version: '2.0'"}
+          onManifestChange={onManifestChange}
           onRedeploy={input?.onRedeploy}
           dependencies={dependencies}
         />
       </TestContainerProvider>
     );
 
+    const { unmount, rerender } = render(componentWith());
+
     return {
+      rerenderWith: (overrides: { editedManifest: string }) => rerender(componentWith(overrides)),
       providerProxy,
       analyticsService,
       deploymentLocalStorage,

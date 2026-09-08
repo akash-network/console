@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { LoggerService } from "@akashnetwork/logging";
 import { extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
 import { Alert, Button, CustomTooltip, Snackbar } from "@akashnetwork/ui/components";
 import { InfoCircle, Upload, WarningCircle } from "iconoir-react";
@@ -13,7 +14,6 @@ import { useBlockchainStatus as useBlockchainStatusOriginal } from "@src/context
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet as useWalletOriginal } from "@src/context/WalletProvider";
 import { AddCreditsSnackbarContent } from "@src/context/WalletProvider/useSignAndBroadcast";
-import { useProviderCredentials as useProviderCredentialsOriginal } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useBalances as useBalancesOriginal } from "@src/queries/useBalancesQuery";
 import type { DeploymentDto } from "@src/types/deployment";
 import { deploymentData as deploymentDataOriginal } from "@src/utils/deploymentData";
@@ -36,15 +36,18 @@ export const DEPENDENCIES = {
   WarningCircle,
   useWallet: useWalletOriginal,
   useBalances: useBalancesOriginal,
-  useProviderCredentials: useProviderCredentialsOriginal,
   useSnackbar: useSnackbarOriginal,
   useBlockchainStatus: useBlockchainStatusOriginal,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   deploymentData: deploymentDataOriginal
 };
 
+const logger = new LoggerService({ name: "ManifestUpdate" });
+
 /** The api answers 400 for provider-credential and schema failures too, and only a refusal of the document itself belongs in the editor's inline alert. */
 const SDL_REFUSAL_PREFIXES = ["Invalid SDL:", "SDL is not valid YAML", "SDL is too large"];
+/** The api wraps trial fair-use gating in the same "Invalid SDL:" 400 as document refusals, yet only adding credits resolves it. */
+const TRIAL_GATE_MARK = "not available on free trial";
 const UPDATE_FAILURE_MESSAGE = "Something went wrong while updating the deployment. Please try again.";
 const ADD_CREDITS_TITLE = "Add credits to continue";
 
@@ -52,12 +55,41 @@ function isBadRequest(cause: unknown): boolean {
   return isApiError(cause) && cause.status === 400;
 }
 
+function isPaymentRequired(cause: unknown): boolean {
+  return isApiError(cause) && cause.status === 402;
+}
+
+/** Mirrors signAndBroadcast, which keeps client-side refusals out of the failed_tx metric. */
+function isClientRefusal(cause: unknown): boolean {
+  return isBadRequest(cause) || isPaymentRequired(cause);
+}
+
 function sdlRefusalOf(cause: unknown): string | null {
-  if (!isBadRequest(cause)) return null;
+  if (!isBadRequest(cause) || trialGateRefusalOf(cause) !== null) return null;
 
   const message = extractApiErrorMessage(cause);
 
   return message && SDL_REFUSAL_PREFIXES.some(prefix => message.startsWith(prefix)) ? message : null;
+}
+
+function trialGateRefusalOf(cause: unknown): string | null {
+  if (!isBadRequest(cause)) return null;
+
+  const message = extractApiErrorMessage(cause);
+
+  return message?.includes(TRIAL_GATE_MARK) ? message.replace(/^Invalid SDL: /, "") : null;
+}
+
+function creditsRefusalOf(cause: unknown): string | null {
+  return isPaymentRequired(cause) ? extractApiErrorMessage(cause) ?? "" : trialGateRefusalOf(cause);
+}
+
+function addCreditsContentOf(refusal: string): { title: string; message?: string } {
+  const separatorAt = refusal.indexOf(": ");
+
+  if (separatorAt === -1) return { title: ADD_CREDITS_TITLE, message: refusal || undefined };
+
+  return { title: refusal.slice(0, separatorAt), message: refusal.slice(separatorAt + 2) };
 }
 
 type Props = {
@@ -87,10 +119,12 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const [isUpdating, setIsUpdating] = useState(false);
   const { address } = d.useWallet();
   const { refetch: refetchBalances } = d.useBalances(address);
-  const providerCredentials = d.useProviderCredentials();
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const { isBlockchainDown } = d.useBlockchainStatus();
-  const updateDeployment = api.v1.updateDeployment.useMutation({ onSuccess: recordUpdate, onError: reportUpdateFailure });
+  const updateDeployment = api.v1.updateDeployment.useMutation({
+    onSuccess: (_data, variables) => recordUpdate(variables.data.sdl),
+    onError: reportUpdateFailure
+  });
 
   useEffect(() => {
     const init = async () => {
@@ -139,11 +173,20 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     updateDeployment.mutate({ dseq: deployment.dseq, data: { sdl: editedManifest } }, { onSuccess: closeAfterUpdate, onError: releaseAfterFailure });
   }
 
-  function recordUpdate() {
-    deploymentLocalStorage.update(address, deployment.dseq, { manifest: editedManifest });
+  function recordUpdate(submittedSdl: string) {
+    cacheSubmittedManifest(submittedSdl);
     analyticsService.track("update_deployment", { category: "deployments", label: "Update deployment" });
     analyticsService.track("successful_tx", { category: "transactions", label: "Successful transaction" });
     refetchBalances();
+  }
+
+  /** A full or corrupted browser storage must not turn an update the api already accepted into a reported failure. */
+  function cacheSubmittedManifest(manifest: string) {
+    try {
+      deploymentLocalStorage.update(address, deployment.dseq, { manifest });
+    } catch (error) {
+      logger.error({ event: "DEPLOYMENT_MANIFEST_CACHE_FAILED", error });
+    }
   }
 
   function closeAfterUpdate() {
@@ -154,14 +197,15 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   function reportUpdateFailure(cause: unknown) {
     refetchBalances();
 
-    if (!isBadRequest(cause)) {
+    if (!isClientRefusal(cause)) {
       analyticsService.track("failed_tx", { category: "transactions", label: "Failed transaction" });
     }
 
     if (sdlRefusalOf(cause)) return;
 
-    if (isApiError(cause) && cause.status === 402) {
-      offerCredits(cause);
+    const creditsRefusal = creditsRefusalOf(cause);
+    if (creditsRefusal !== null) {
+      offerCredits(creditsRefusal);
       return;
     }
 
@@ -176,15 +220,11 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     setParsingError(sdlRefusalOf(cause));
   }
 
-  function offerCredits(cause: unknown) {
-    const [title, message] = (extractApiErrorMessage(cause) ?? "").split(": ");
+  function offerCredits(refusal: string) {
+    const { title, message } = addCreditsContentOf(refusal);
 
     const key = enqueueSnackbar(
-      <d.Snackbar
-        title={title || message || ADD_CREDITS_TITLE}
-        subTitle={<d.AddCreditsSnackbarContent message={message} onAction={() => closeSnackbar(key)} />}
-        iconVariant="warning"
-      />,
+      <d.Snackbar title={title} subTitle={<d.AddCreditsSnackbarContent message={message} onAction={() => closeSnackbar(key)} />} iconVariant="warning" />,
       {
         variant: "warning",
         autoHideDuration: 10000
@@ -220,14 +260,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
                     </d.Button>
                   )}
                   <d.Button
-                    disabled={
-                      !providerCredentials.details.usable ||
-                      !!parsingError ||
-                      !editedManifest ||
-                      isUpdating ||
-                      deployment.state !== "active" ||
-                      isBlockchainDown
-                    }
+                    disabled={!!parsingError || !editedManifest || isUpdating || deployment.state !== "active" || isBlockchainDown}
                     onClick={() => handleUpdateClick()}
                     size="md"
                     type="button"
