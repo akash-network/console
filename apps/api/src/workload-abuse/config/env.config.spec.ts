@@ -37,8 +37,13 @@ describe("workload abuse env config", () => {
     expect(() => envSchema.parse({ WORKLOAD_ABUSE_SIGNATURES: document })).toThrow(/invalid pattern for hard\/broken/);
   });
 
-  it("parses the initial delay list and rejects negative entries", () => {
+  it("parses the initial delay list and rejects negative or blank entries", () => {
     expect(envSchema.parse({ WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: "2, 10" }).WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN).toEqual([2, 10]);
     expect(() => envSchema.parse({ WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: "2,-1" })).toThrow(/non-negative integers/);
+    expect(() => envSchema.parse({ WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: "1,,2" })).toThrow(/non-negative integers/);
+  });
+
+  it("falls back to the default schedule when the initial delay setting is blank", () => {
+    expect(envSchema.parse({ WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: " " }).WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN).toEqual([5, 20, 60]);
   });
 });

@@ -225,6 +225,23 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
     expect(probeJobService.scheduleInitial).toHaveBeenCalledWith({ walletId: wallet.id, dseq: "test-dseq", leaseCreatedAt: deploymentCreatedAt });
   });
 
+  it("keeps the rest of the lease-created work when the probe cannot be scheduled", async () => {
+    const wallet = createUserWallet({ isTrialing: true });
+    const { handler, probeJobService, jobQueueService, logger } = setup({ findWalletById: vi.fn().mockResolvedValue(wallet) });
+    probeJobService.scheduleInitial.mockRejectedValue(new Error("queue unavailable"));
+
+    await handler.handle({ walletId: wallet.id, dseq: "test-dseq", createdAt: new Date().toISOString(), version: 1, isFirstLease: true });
+
+    expect(jobQueueService.enqueue).toHaveBeenCalledTimes(3);
+    expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ template: "trialFirstDeploymentLeaseCreated" }) }),
+      expect.anything()
+    );
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "TRIAL_WORKLOAD_PROBE_SCHEDULE_FAILED", walletId: wallet.id, dseq: "test-dseq", error: expect.any(Error) })
+    );
+  });
+
   it("declares no permissions for its execution", () => {
     const { handler } = setup();
 

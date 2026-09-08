@@ -192,7 +192,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
   /** `closed` is Console bookkeeping that drifts from the chain, so these are candidates the probe job re-checks on chain. */
   async findLiveTrialDeployments({ maxAgeHours }: { maxAgeHours: number }): Promise<LiveTrialDeployment[]> {
     const hours = Math.max(1, Math.trunc(maxAgeHours));
-    const deployments = await this.pg
+    const deployments = await this.cursor
       .select({
         userId: this.table.userId,
         dseq: this.table.dseq,
@@ -207,7 +207,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
           eq(UserWallets.isTrialing, true),
           isNotNull(UserWallets.address),
           isNull(UserWallets.abuseLockedAt),
-          gt(this.table.createdAt, sql`(now() at time zone 'utc') - make_interval(hours => ${sql.raw(String(hours))})`)
+          gt(this.table.createdAt, sql`now() - make_interval(hours => ${sql.raw(String(hours))})`)
         )
       )
       .orderBy(desc(this.table.createdAt));

@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
+import { TxService } from "@src/core/services/tx/tx.service";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/deployment/http-schemas/runtime-limit";
 import type { UserOutput } from "@src/user/repositories";
@@ -799,7 +800,7 @@ describe(DeploymentSettingRepository.name, () => {
 
   describe("findLiveTrialDeployments", () => {
     it("returns open trial deployments created inside the window with their wallet id", async () => {
-      const { deploymentSettingRepository, trialUser, trialWallet, createSetting, db, deploymentSettingsTable } = await setup();
+      const { deploymentSettingRepository, user, trialUser, trialWallet, createSetting, db, deploymentSettingsTable } = await setup();
       const liveDseq = faker.number.int({ min: 100000, max: 999999 }).toString();
       await db.insert(deploymentSettingsTable).values({ userId: trialUser.id, dseq: liveDseq, autoTopUpEnabled: true });
       await db.insert(deploymentSettingsTable).values({ userId: trialUser.id, dseq: `1`, autoTopUpEnabled: true, closed: true });
@@ -812,7 +813,28 @@ describe(DeploymentSettingRepository.name, () => {
 
       const ofTrialUser = deployments.filter(deployment => deployment.userId === trialUser.id);
       expect(ofTrialUser).toEqual([{ userId: trialUser.id, dseq: liveDseq, walletId: trialWallet.walletId, createdAt: expect.any(Date) }]);
-      expect(deployments.some(deployment => deployment.userId !== trialUser.id && deployment.walletId === undefined)).toBe(false);
+      expect(deployments.map(deployment => deployment.userId)).not.toContain(user.id);
+    });
+
+    it("selects the same deployments whatever the session time zone", async () => {
+      const { deploymentSettingRepository, trialUser, deploymentSettingsTable } = await setup();
+      const txService = container.resolve(TxService);
+      const insideWindowDseq = faker.number.int({ min: 100000, max: 999999 }).toString();
+      const outsideWindowDseq = faker.number.int({ min: 100000, max: 999999 }).toString();
+
+      const dseqs = await txService.transaction(async () => {
+        const tx = txService.getPgTx()!;
+        await tx.execute(sql`set local time zone 'Asia/Tokyo'`);
+        await tx.insert(deploymentSettingsTable).values([
+          { userId: trialUser.id, dseq: insideWindowDseq, autoTopUpEnabled: true, createdAt: sql`now() - interval '25 hours'` },
+          { userId: trialUser.id, dseq: outsideWindowDseq, autoTopUpEnabled: true, createdAt: sql`now() - interval '27 hours'` }
+        ]);
+
+        return (await deploymentSettingRepository.findLiveTrialDeployments({ maxAgeHours: 26 })).map(deployment => deployment.dseq);
+      });
+
+      expect(dseqs).toContain(insideWindowDseq);
+      expect(dseqs).not.toContain(outsideWindowDseq);
     });
 
     it("leaves the deployments of a wallet locked for abuse out of the sweep", async () => {
