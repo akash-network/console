@@ -1,3 +1,4 @@
+import { z } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
@@ -22,6 +23,9 @@ import {
   ListWithResourcesParamsSchema,
   ListWithResourcesQuerySchema,
   ListWithResourcesResponseSchema,
+  PatchDeploymentParamsSchema,
+  PatchDeploymentRequestSchema,
+  PatchDeploymentResponseSchema,
   UpdateDeploymentRequestSchema,
   UpdateDeploymentResponseSchema
 } from "@src/deployment/http-schemas/deployment.schema";
@@ -166,7 +170,7 @@ const updateRoute = createRoute({
   path: "/v1/deployments/{dseq}",
   summary: "Update a deployment (deprecated)",
   description:
-    "Deprecated. Resubmits the whole SDL, so rotating one secret means re-supplying every other value the document carries, and the console cannot return a stored value for you to resupply. This endpoint will be removed in a future release.",
+    "Deprecated. Resubmits the whole SDL, so rotating one secret means re-supplying every other value the document carries, and the console cannot return a stored value for you to resupply. Use PATCH /v1/deployments/{dseq} instead. This endpoint will be removed in a future release.",
   operationId: "updateDeployment",
   deprecated: true,
   tags: ["Deployments"],
@@ -196,6 +200,98 @@ deploymentsRouter.openapi(updateRoute, async function routeUpdateDeployment(c) {
   const { dseq } = c.req.valid("param");
   const { data } = c.req.valid("json");
   const result = await container.resolve(DeploymentController).update(dseq, data);
+  return c.json(result, 200);
+});
+
+/** What `HonoErrorHandlerService` actually returns for a refused request, rather than the `message` alone the first draft of this route declared. */
+const ErrorResponseSchema = z.object({
+  error: z.string(),
+  message: z.string(),
+  code: z.string(),
+  type: z.string()
+});
+
+const patchRoute = createRoute({
+  method: "patch",
+  path: "/v1/deployments/{dseq}",
+  summary: "Patch a deployment",
+  description:
+    "Patches the SDL the console stored for this deployment; the SDL is never accepted from the request. Only the services named are touched. A patched environment variable is re-appended to its service's env list, so the order shown by GET may differ afterwards. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw. Re-sending the identical request repairs that: it recomputes the same manifest version, is accepted rather than refused, and goes on to broadcast and push the manifest.",
+  operationId: "patchDeployment",
+  tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  /** Sized like the create route, because a patch may carry a seal and the default allowance would shadow the stated secret limits. */
+  bodyLimit: { maxSize: CREATE_DEPLOYMENT_BODY_LIMIT_BYTES },
+  /** Accepted and validated in full; unpublished because sealed secrets are not announced yet, matching the create route. */
+  undocumentedRequestFields: ["sealedSecrets"],
+  request: {
+    params: PatchDeploymentParamsSchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: PatchDeploymentRequestSchema
+        }
+      }
+    }
+  },
+  responses: {
+    200: {
+      description: "Deployment patched successfully",
+      content: {
+        "application/json": {
+          schema: PatchDeploymentResponseSchema
+        }
+      }
+    },
+    400: {
+      description:
+        "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, or leaves a reference with no value",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    404: {
+      description: "No SDL is recorded for this deployment, so there is nothing to patch",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    409: {
+      description:
+        "The deployment definition changed between this patch reading it and writing it. A patch naming no `ifManifestVersion` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    500: {
+      description:
+        "The deployment's stored state could not be read: `code` is `stored_secrets_unreadable` when the sealed secrets would not open and `stored_sdl_unreadable` when the recorded SDL would not parse. Both are permanent rather than transient, so a retry cannot help, and both leave the stored token untouched. A 500 carrying any other `code` is an unexpected failure and promises neither of those things",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    503: {
+      description: "The key management service is temporarily unreachable. Transient and worth retrying, unlike the 500 above",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    }
+  }
+});
+deploymentsRouter.openapi(patchRoute, async function routePatchDeployment(c) {
+  const { dseq } = c.req.valid("param");
+  const { data } = c.req.valid("json");
+  const result = await container.resolve(DeploymentController).patch(dseq, data);
   return c.json(result, 200);
 });
 

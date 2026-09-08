@@ -118,6 +118,7 @@ export interface components {
               dseq: string;
               type: string;
               suppressedBySystem?: boolean;
+              reclaimNotifiedAt?: string;
             };
             conditions:
               | {
@@ -158,6 +159,7 @@ export interface components {
               dseq: string;
               type: string;
               suppressedBySystem?: boolean;
+              reclaimNotifiedAt?: string;
             };
             conditions:
               | {
@@ -294,6 +296,7 @@ export interface components {
               dseq: string;
               type: string;
               suppressedBySystem?: boolean;
+              reclaimNotifiedAt?: string;
             };
             conditions:
               | {
@@ -341,6 +344,7 @@ export interface components {
               dseq: string;
               type: string;
               suppressedBySystem?: boolean;
+              reclaimNotifiedAt?: string;
             };
             conditions:
               | {
@@ -510,6 +514,7 @@ export interface components {
               dseq: string;
               type: string;
               suppressedBySystem?: boolean;
+              reclaimNotifiedAt?: string;
             };
             conditions:
               | {
@@ -557,6 +562,7 @@ export interface components {
               dseq: string;
               type: string;
               suppressedBySystem?: boolean;
+              reclaimNotifiedAt?: string;
             };
             conditions:
               | {

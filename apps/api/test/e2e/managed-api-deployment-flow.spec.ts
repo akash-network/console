@@ -3,8 +3,10 @@ import { operations } from "@akashnetwork/console-api-types";
 import { createApi } from "@akashnetwork/openapi-sdk";
 import { ConstantBackoff, handleWhenResult, retry } from "cockatiel";
 import { CompactEncrypt } from "jose";
+import { load as parseYaml } from "js-yaml";
 import fs from "node:fs";
 import path from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
@@ -183,31 +185,13 @@ describe("Managed Wallet API Deployment Flow", () => {
             count: 1
     `;
 
-    const { data: sdlSecretsContext } = await api.v1.getSDLSecretsContext();
-    const pubKey = await crypto.subtle.importKey("jwk", sdlSecretsContext.jwk, { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]);
-    const sealedSecrets = await new CompactEncrypt(
-      new TextEncoder().encode(
-        JSON.stringify({
-          TEST_SECRET: "secret-value",
-          TEST_ANOTHER_SECRET: "another secret value"
-        })
-      )
-    )
-      .setProtectedHeader({
-        alg: "RSA-OAEP-256",
-        enc: "A256GCM",
-        kid: sdlSecretsContext.kid,
-        sub: sdlSecretsContext.sub,
-        exp: Math.floor(Date.now() / 1000) + 5 * 60
-      })
-      .encrypt(pubKey);
-
     console.log("Creating deployment...");
-    const deploymentResponse = await api.v1.createDeployment({
-      data: {
-        sdl,
-        sealedSecrets
-      } as any // sealedSecrets currently is a hidden field in the API spec
+    const deploymentResponse = await createDeployment(api, {
+      sdl,
+      secrets: {
+        TEST_SECRET: "secret-value",
+        TEST_ANOTHER_SECRET: "another secret value"
+      }
     });
 
     expect(deploymentResponse.data).toMatchObject({
@@ -266,17 +250,329 @@ describe("Managed Wallet API Deployment Flow", () => {
           })
         })
       });
-
-      const closedDeploymentResponse = await api.v1.closeDeployment({
-        dseq: deploymentResponse.data.dseq
-      });
-      expect(closedDeploymentResponse.data.success).toBe(true);
-    } catch (e) {
-      // Final step: Close deployment in case of error to release escrow funds and cleanup
+    } finally {
       await api.v1.closeDeployment({
         dseq: deploymentResponse.data.dseq
       });
-      throw e;
+    }
+  });
+
+  it("can patch deployment's env variables", { timeout: 2 * 60 * 1000 }, async () => {
+    const { api } = await setup();
+    const sdl = `
+      version: "2.0"
+      services:
+        web:
+          image: ghcr.io/akash-network/hello-akash-world:2.1.0
+          env:
+            - TEST_ENV=ac-secret://TEST_SECRET
+            - TEST_ANOTHER_ENV=ac-secret://TEST_ANOTHER_SECRET
+            - TEST_VAR=test me
+          expose:
+            - port: 3000
+              as: 80
+              to:
+                - global: true
+      profiles:
+        compute:
+          web:
+            resources:
+              cpu:
+                units: 0.5
+              memory:
+                size: 512Mi
+              storage:
+                - size: 512Mi
+        placement:
+          dcloud:
+            pricing:
+              web:
+                denom: uact
+                amount: 1000
+      deployment:
+        web:
+          dcloud:
+            profile: web
+            count: 1
+    `;
+
+    console.log("Creating deployment...");
+    const deploymentResponse = await createDeployment(api, {
+      sdl,
+      secrets: {
+        TEST_SECRET: "secret-value",
+        TEST_ANOTHER_SECRET: "another secret value"
+      }
+    });
+
+    try {
+      const bid = await waitForBids(api, deploymentResponse.data.dseq);
+      await api.v1.createLease({
+        leases: [
+          {
+            dseq: bid.bid.id.dseq,
+            gseq: bid.bid.id.gseq,
+            oseq: bid.bid.id.oseq,
+            provider: bid.bid.id.provider
+          }
+        ],
+        manifest: deploymentResponse.data.manifest
+      });
+
+      await delay(5000); // Wait for the lease to be active
+
+      const patchResponse = await api.v1.patchDeployment({
+        dseq: deploymentResponse.data.dseq,
+        data: {
+          services: {
+            web: {
+              env: {
+                TEST_ENV: "ac-secret://NEW_TEST_SECRET",
+                NEW_REGULAR_VAR: "new-value",
+                NEW_DATABASE_URL: "ac-secret://WEB_DATABASE_URL"
+              }
+            }
+          },
+          sealedSecrets: await encryptSecrets(api, {
+            NEW_TEST_SECRET: "new-secret-value",
+            WEB_DATABASE_URL: "postgres://user:password@host:5432/db"
+          }) // this field is hidden in the API spec
+        } as any
+      });
+
+      expect(patchResponse.data).toMatchObject({
+        deployment: expect.objectContaining({
+          id: expect.objectContaining({
+            dseq: deploymentResponse.data.dseq
+          })
+        })
+      });
+
+      const updatedDeployment = await api.v2.getDeploymentSetting({ dseq: deploymentResponse.data.dseq });
+      expect(updatedDeployment.data).toMatchObject({
+        dseq: deploymentResponse.data.dseq,
+        sdl: expect.stringMatching(/TEST_ENV=ac-secret:\/\/NEW_TEST_SECRET|NEW_REGULAR_VAR=new-value|NEW_DATABASE_URL=ac-secret:\/\/WEB_DATABASE_URL/)
+      });
+
+      const patchResponse2 = await api.v1.patchDeployment({
+        dseq: deploymentResponse.data.dseq,
+        data: {
+          services: {
+            web: {
+              image: "ghcr.io/akash-network/hello-akash-world:sha-2140a1d"
+            }
+          }
+        }
+      });
+      expect(patchResponse2.data).toMatchObject({
+        deployment: expect.objectContaining({
+          id: expect.objectContaining({
+            dseq: deploymentResponse.data.dseq
+          })
+        })
+      });
+      const updatedDeployment2 = await api.v2.getDeploymentSetting({ dseq: deploymentResponse.data.dseq });
+      expect(updatedDeployment2.data).toMatchObject({
+        dseq: deploymentResponse.data.dseq,
+        sdl: expect.stringMatching(/image:\s*ghcr.io\/akash-network\/hello-akash-world:sha-2140a1d/)
+      });
+    } finally {
+      await api.v1.closeDeployment({
+        dseq: deploymentResponse.data.dseq
+      });
+    }
+  });
+
+  it("can patch every patchable deployment value", { timeout: 5 * 60 * 1000 }, async () => {
+    const { api } = await setup();
+    const sdl = `
+      version: "2.0"
+      services:
+        web:
+          image: ghcr.io/akash-network/hello-akash-world:2.1.0
+          env:
+            - INITIAL_ENV=ac-secret://INITIAL_SECRET
+            - REMOVABLE_ENV=remove me
+          expose:
+            - port: 3000
+              as: 80
+              http_options:
+                max_body_size: 1048576
+                next_cases:
+                  - error
+              to:
+                - global: true
+          params:
+            storage:
+              data:
+                mount: /mnt/initial
+                readOnly: false
+      profiles:
+        compute:
+          web:
+            resources:
+              cpu:
+                units: 0.5
+              memory:
+                size: 512Mi
+              storage:
+                - size: 512Mi
+                - name: data
+                  size: 512Mi
+        placement:
+          dcloud:
+            pricing:
+              web:
+                denom: uact
+                amount: 1000
+      deployment:
+        web:
+          dcloud:
+            profile: web
+            count: 1
+    `;
+
+    const deploymentResponse = await createDeployment(api, { sdl, secrets: { INITIAL_SECRET: "initial-secret-value" } });
+    const dseq = deploymentResponse.data.dseq;
+
+    try {
+      const bid = await waitForBids(api, dseq);
+      await api.v1.createLease({
+        leases: [
+          {
+            dseq: bid.bid.id.dseq,
+            gseq: bid.bid.id.gseq,
+            oseq: bid.bid.id.oseq,
+            provider: bid.bid.id.provider
+          }
+        ],
+        manifest: deploymentResponse.data.manifest
+      });
+
+      await delay(5000);
+
+      await applyPatch(api, dseq, {
+        services: {
+          web: {
+            image: "ghcr.io/akash-network/hello-akash-world:sha-2140a1d",
+            command: ["/bin/sh"],
+            args: ["-c", "npm start"]
+          }
+        }
+      });
+      expect(await readPatchedService(api, dseq, "web")).toMatchObject({
+        image: "ghcr.io/akash-network/hello-akash-world:sha-2140a1d",
+        command: ["/bin/sh"],
+        args: ["-c", "npm start"]
+      });
+
+      await applyPatch(api, dseq, {
+        services: {
+          web: {
+            env: {
+              PATCHED_PLAIN: "patched-value",
+              PATCHED_REFERENCE: "ac-secret://PATCHED_SECRET",
+              REMOVABLE_ENV: null
+            }
+          }
+        },
+        sealedSecrets: await encryptSecrets(api, { PATCHED_SECRET: "patched-secret-value" })
+      });
+      const withPatchedEnv = await readPatchedService(api, dseq, "web");
+      expect(withPatchedEnv.env).toEqual(
+        expect.arrayContaining([
+          "INITIAL_ENV=ac-secret://INITIAL_SECRET",
+          "PATCHED_REFERENCE=ac-secret://PATCHED_SECRET",
+          expect.stringMatching(/^PATCHED_PLAIN=ac-secret:\/\//)
+        ])
+      );
+      expect(withPatchedEnv.env).not.toContainEqual(expect.stringMatching(/^REMOVABLE_ENV=/));
+
+      await applyPatch(api, dseq, {
+        services: {
+          web: {
+            expose: {
+              "3000": {
+                httpOptions: {
+                  maxBodySize: 2097152,
+                  readTimeout: 45000,
+                  sendTimeout: 45000,
+                  nextTries: 2,
+                  nextTimeout: 30000,
+                  nextCases: ["error", "timeout"]
+                }
+              }
+            },
+            storage: {
+              data: {
+                mount: "/mnt/patched",
+                readOnly: true
+              }
+            }
+          }
+        }
+      });
+      const withPatchedRouting = await readPatchedService(api, dseq, "web");
+      expect(withPatchedRouting.expose[0].http_options).toMatchObject({
+        max_body_size: 2097152,
+        read_timeout: 45000,
+        send_timeout: 45000,
+        next_tries: 2,
+        next_timeout: 30000,
+        next_cases: ["error", "timeout"]
+      });
+      expect(withPatchedRouting.params?.storage?.data).toEqual({ mount: "/mnt/patched", readOnly: true });
+
+      await applyPatch(api, dseq, {
+        services: {
+          web: {
+            credentials: { host: "ghcr.io", username: "patched-user", password: "patched-password" }
+          }
+        }
+      });
+      expect((await readPatchedService(api, dseq, "web")).credentials).toMatchObject({
+        host: "ghcr.io",
+        username: expect.stringMatching(/^ac-secret:\/\//),
+        password: expect.stringMatching(/^ac-secret:\/\//)
+      });
+
+      await applyPatch(api, dseq, {
+        services: {
+          web: { credentials: null, command: null, args: null }
+        }
+      });
+      const withClearedFields = await readPatchedService(api, dseq, "web");
+      expect(withClearedFields.credentials).toBeUndefined();
+      expect(withClearedFields.command).toBeUndefined();
+      expect(withClearedFields.args).toBeUndefined();
+
+      const customDomain = `patch-e2e-${dseq}.example.com`;
+      const acceptPatch = await applyPatch(api, dseq, {
+        services: {
+          web: { expose: { "3000": { accept: [customDomain] } } }
+        }
+      });
+      expect((await readPatchedService(api, dseq, "web")).expose[0].accept).toEqual([customDomain]);
+
+      const guardedPatch = await applyPatch(api, dseq, {
+        services: {
+          web: { env: { GUARDED_ENV: "ac-secret://INITIAL_SECRET" } }
+        },
+        ifManifestVersion: acceptPatch.manifestVersion
+      });
+      expect(guardedPatch.manifestVersion).not.toBe(acceptPatch.manifestVersion);
+      expect((await readPatchedService(api, dseq, "web")).env).toContain("GUARDED_ENV=ac-secret://INITIAL_SECRET");
+
+      await expect(
+        applyPatch(api, dseq, {
+          services: {
+            web: { env: { STALE_ENV: "ac-secret://INITIAL_SECRET" } }
+          },
+          ifManifestVersion: acceptPatch.manifestVersion
+        })
+      ).rejects.toMatchObject({ status: 409 });
+    } finally {
+      await api.v1.closeDeployment({ dseq });
     }
   });
 
@@ -306,5 +602,79 @@ describe("Managed Wallet API Deployment Flow", () => {
 
       return data[0];
     });
+  }
+
+  async function createDeployment(api: Awaited<ReturnType<typeof setup>>["api"], input: { sdl: string; secrets?: Record<string, string> }) {
+    let sealedSecrets: string | undefined = undefined;
+
+    if (input.secrets) {
+      const { data: sdlSecretsContext } = await api.v1.getSDLSecretsContext();
+      const pubKey = await crypto.subtle.importKey("jwk", sdlSecretsContext.jwk, { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]);
+      sealedSecrets = await new CompactEncrypt(new TextEncoder().encode(JSON.stringify(input.secrets)))
+        .setProtectedHeader({
+          alg: "RSA-OAEP-256",
+          enc: "A256GCM",
+          kid: sdlSecretsContext.kid,
+          sub: sdlSecretsContext.sub,
+          exp: Math.floor(Date.now() / 1000) + 5 * 60
+        })
+        .encrypt(pubKey);
+    }
+
+    const deploymentResponse = await api.v1.createDeployment({
+      data: {
+        sdl: input.sdl,
+        sealedSecrets
+      } as any // sealedSecrets currently is a hidden field in the API spec
+    });
+    return deploymentResponse;
+  }
+
+  type PatchDeploymentData = NonNullable<paths["/v1/deployments/{dseq}"]["patch"]["requestBody"]>["content"]["application/json"]["data"];
+
+  type StoredService = {
+    image: string;
+    command?: string[];
+    args?: string[];
+    env?: string[];
+    credentials?: { host: string; username: string; password: string };
+    expose: Array<{ port: number; accept?: string[]; http_options?: Record<string, unknown> }>;
+    params?: { storage?: Record<string, { mount?: string; readOnly?: boolean }> };
+  };
+
+  async function applyPatch(api: Awaited<ReturnType<typeof setup>>["api"], dseq: string, data: PatchDeploymentData & { sealedSecrets?: string }) {
+    const patchResponse = await api.v1.patchDeployment({ dseq, data } as any); // sealedSecrets currently is a hidden field in the API spec
+
+    expect(patchResponse.data).toMatchObject({
+      deployment: expect.objectContaining({
+        id: expect.objectContaining({ dseq })
+      }),
+      manifestVersion: expect.any(String)
+    });
+
+    return patchResponse.data;
+  }
+
+  async function readPatchedService(api: Awaited<ReturnType<typeof setup>>["api"], dseq: string, serviceName: string) {
+    const { data } = await api.v2.getDeploymentSetting({ dseq });
+    const document = parseYaml(z.string().parse(data.sdl)) as { services: Record<string, StoredService> };
+
+    return document.services[serviceName];
+  }
+
+  async function encryptSecrets(api: Awaited<ReturnType<typeof setup>>["api"], secrets: Record<string, string>) {
+    const { data: sdlSecretsContext } = await api.v1.getSDLSecretsContext();
+    const pubKey = await crypto.subtle.importKey("jwk", sdlSecretsContext.jwk, { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]);
+    const sealedSecrets = await new CompactEncrypt(new TextEncoder().encode(JSON.stringify(secrets)))
+      .setProtectedHeader({
+        alg: "RSA-OAEP-256",
+        enc: "A256GCM",
+        kid: sdlSecretsContext.kid,
+        sub: sdlSecretsContext.sub,
+        exp: Math.floor(Date.now() / 1000) + 5 * 60
+      })
+      .encrypt(pubKey);
+
+    return sealedSecrets;
   }
 });

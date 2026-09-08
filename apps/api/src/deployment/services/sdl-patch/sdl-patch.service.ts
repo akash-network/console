@@ -229,14 +229,14 @@ export class SdlPatchService {
     this.#applyHttpOptions(entry.http_options, patch.httpOptions!);
   }
 
-  /** Spelled out one key at a time so the compiler checks the SDL key each camelCase field lands on; `nextCases` is cast because the request accepts any string where the SDL names a closed set. */
+  /** Spelled out one key at a time so the compiler checks the SDL key each camelCase field lands on. */
   #applyHttpOptions(target: SdlHttpOptionsNode, patch: NonNullable<PatchExpose["httpOptions"]>): void {
     if (patch.maxBodySize !== undefined) target.max_body_size = patch.maxBodySize;
     if (patch.readTimeout !== undefined) target.read_timeout = patch.readTimeout;
     if (patch.sendTimeout !== undefined) target.send_timeout = patch.sendTimeout;
     if (patch.nextTries !== undefined) target.next_tries = patch.nextTries;
     if (patch.nextTimeout !== undefined) target.next_timeout = patch.nextTimeout;
-    if (patch.nextCases !== undefined) target.next_cases = patch.nextCases as SdlHttpOptionsNode["next_cases"];
+    if (patch.nextCases !== undefined) target.next_cases = patch.nextCases;
   }
 
   /** Volume sizes are fixed at create, so only the mount point moves and a volume the profile does not declare is refused rather than added. */

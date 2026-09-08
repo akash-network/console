@@ -87,7 +87,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "id": {
                               "properties": {
                                 "dseq": {
-                                  "pattern": "^d+$",
+                                  "pattern": "^0*[1-9]\\d*$",
                                   "type": "string",
                                 },
                                 "owner": {
@@ -526,7 +526,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "id": {
                                 "properties": {
                                   "dseq": {
-                                    "pattern": "^d+$",
+                                    "pattern": "^0*[1-9]\\d*$",
                                     "type": "string",
                                   },
                                   "gseq": {
@@ -671,7 +671,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "id": {
                                 "properties": {
                                   "dseq": {
-                                    "pattern": "^d+$",
+                                    "pattern": "^0*[1-9]\\d*$",
                                     "type": "string",
                                   },
                                   "owner": {
@@ -1110,7 +1110,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "id": {
                                   "properties": {
                                     "dseq": {
-                                      "pattern": "^d+$",
+                                      "pattern": "^0*[1-9]\\d*$",
                                       "type": "string",
                                     },
                                     "gseq": {
@@ -1421,7 +1421,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     "type": "number",
                                   },
                                   "dseq": {
-                                    "pattern": "^d+$",
+                                    "pattern": "^0*[1-9]\\d*$",
                                     "type": "string",
                                   },
                                   "gseq": {
@@ -1867,7 +1867,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "type": "number",
                           },
                           "dseq": {
-                            "pattern": "^d+$",
+                            "pattern": "^0*[1-9]\\d*$",
                             "type": "string",
                           },
                           "gpuUnits": {
@@ -1877,7 +1877,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "items": {
                               "properties": {
                                 "dseq": {
-                                  "pattern": "^d+$",
+                                  "pattern": "^0*[1-9]\\d*$",
                                   "type": "string",
                                 },
                                 "gseq": {
@@ -3198,7 +3198,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "dseq",
             "required": true,
             "schema": {
-              "pattern": "^d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "type": "string",
             },
           },
@@ -3223,7 +3223,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     "type": "number",
                                   },
                                   "dseq": {
-                                    "pattern": "^d+$",
+                                    "pattern": "^0*[1-9]\\d*$",
                                     "type": "string",
                                   },
                                   "gseq": {
@@ -3646,7 +3646,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "dseq",
             "required": true,
             "schema": {
-              "pattern": "^d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "type": "string",
             },
           },
@@ -3671,7 +3671,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     "type": "number",
                                   },
                                   "dseq": {
-                                    "pattern": "^d+$",
+                                    "pattern": "^0*[1-9]\\d*$",
                                     "type": "string",
                                   },
                                   "gseq": {
@@ -5506,7 +5506,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "properties": {
                       "dseq": {
                         "description": "Deployment sequence number",
-                        "pattern": "^d+$",
+                        "pattern": "^0*[1-9]\\d*$",
                         "type": "string",
                       },
                       "userId": {
@@ -5545,7 +5545,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "dseq": {
-                          "pattern": "^d+$",
+                          "pattern": "^0*[1-9]\\d*$",
                           "type": "string",
                         },
                         "estimatedTopUpAmount": {
@@ -5566,6 +5566,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "integer",
                         },
+                        "sdl": {
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "topUpFrequencyMs": {
                           "type": "number",
                         },
@@ -5581,6 +5585,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -5634,7 +5639,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "required": true,
             "schema": {
               "description": "Deployment sequence number",
-              "pattern": "^d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "type": "string",
             },
           },
@@ -5655,7 +5660,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "dseq": {
-                          "pattern": "^d+$",
+                          "pattern": "^0*[1-9]\\d*$",
                           "type": "string",
                         },
                         "estimatedTopUpAmount": {
@@ -5676,6 +5681,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "integer",
                         },
+                        "sdl": {
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "topUpFrequencyMs": {
                           "type": "number",
                         },
@@ -5691,6 +5700,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -5760,7 +5770,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "required": true,
             "schema": {
               "description": "Deployment sequence number",
-              "pattern": "^d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "type": "string",
             },
           },
@@ -5807,7 +5817,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "dseq": {
-                          "pattern": "^d+$",
+                          "pattern": "^0*[1-9]\\d*$",
                           "type": "string",
                         },
                         "estimatedTopUpAmount": {
@@ -5828,6 +5838,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "integer",
                         },
+                        "sdl": {
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "topUpFrequencyMs": {
                           "type": "number",
                         },
@@ -5843,6 +5857,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -5951,7 +5966,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "required": true,
             "schema": {
               "description": "Deployment sequence number",
-              "pattern": "^d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "type": "string",
             },
           },
@@ -5969,7 +5984,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "type": "string",
                     },
                     "dseq": {
-                      "pattern": "^d+$",
+                      "pattern": "^0*[1-9]\\d*$",
                       "type": "string",
                     },
                     "events": {
@@ -6653,7 +6668,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   "id": {
                                     "properties": {
                                       "dseq": {
-                                        "pattern": "^d+$",
+                                        "pattern": "^0*[1-9]\\d*$",
                                         "type": "string",
                                       },
                                       "owner": {
@@ -6813,7 +6828,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                           "type": "number",
                                         },
                                         "dseq": {
-                                          "pattern": "^d+$",
+                                          "pattern": "^0*[1-9]\\d*$",
                                           "type": "string",
                                         },
                                         "gseq": {
@@ -6984,7 +6999,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "data": {
                       "properties": {
                         "dseq": {
-                          "pattern": "^d+$",
+                          "pattern": "^0*[1-9]\\d*$",
                           "type": "string",
                         },
                         "manifest": {
@@ -7053,7 +7068,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "required": true,
             "schema": {
               "description": "Deployment sequence number",
-              "pattern": "^d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "type": "string",
             },
           },
@@ -7109,7 +7124,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "required": true,
             "schema": {
               "description": "Deployment sequence number",
-              "pattern": "^d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "type": "string",
             },
           },
@@ -7152,7 +7167,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "id": {
                               "properties": {
                                 "dseq": {
-                                  "pattern": "^d+$",
+                                  "pattern": "^0*[1-9]\\d*$",
                                   "type": "string",
                                 },
                                 "owner": {
@@ -7312,7 +7327,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     "type": "number",
                                   },
                                   "dseq": {
-                                    "pattern": "^d+$",
+                                    "pattern": "^0*[1-9]\\d*$",
                                     "type": "string",
                                   },
                                   "gseq": {
@@ -7521,10 +7536,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           "Deployments",
         ],
       },
-      "put": {
-        "deprecated": true,
-        "description": "Deprecated. Resubmits the whole SDL, so rotating one secret means re-supplying every other value the document carries, and the console cannot return a stored value for you to resupply. This endpoint will be removed in a future release.",
-        "operationId": "updateDeployment",
+      "patch": {
+        "description": "Patches the SDL the console stored for this deployment; the SDL is never accepted from the request. Only the services named are touched. A patched environment variable is re-appended to its service's env list, so the order shown by GET may differ afterwards. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw. Re-sending the identical request repairs that: it recomputes the same manifest version, is accepted rather than refused, and goes on to broadcast and push the manifest.",
+        "operationId": "patchDeployment",
         "parameters": [
           {
             "description": "Deployment sequence number",
@@ -7533,7 +7547,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "required": true,
             "schema": {
               "description": "Deployment sequence number",
-              "pattern": "^d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "type": "string",
             },
           },
@@ -7545,12 +7559,151 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "properties": {
                   "data": {
                     "properties": {
-                      "sdl": {
+                      "ifManifestVersion": {
+                        "description": "Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very patch produces, which makes a retry of it succeed. Omitting this does not turn the guard off: the patch is then guarded on the version it read for itself, so a concurrent patch still answers 409 rather than overwriting it.",
+                        "maxLength": 64,
+                        "minLength": 1,
                         "type": "string",
+                      },
+                      "services": {
+                        "additionalProperties": {
+                          "properties": {
+                            "args": {
+                              "items": {
+                                "type": "string",
+                              },
+                              "nullable": true,
+                              "type": "array",
+                            },
+                            "command": {
+                              "items": {
+                                "type": "string",
+                              },
+                              "nullable": true,
+                              "type": "array",
+                            },
+                            "credentials": {
+                              "description": "Private registry pull credentials. Null clears them.",
+                              "nullable": true,
+                              "properties": {
+                                "host": {
+                                  "type": "string",
+                                },
+                                "password": {
+                                  "type": "string",
+                                },
+                                "username": {
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "host",
+                                "username",
+                                "password",
+                              ],
+                              "type": "object",
+                            },
+                            "env": {
+                              "additionalProperties": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "description": "Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change.",
+                              "type": "object",
+                            },
+                            "expose": {
+                              "additionalProperties": {
+                                "properties": {
+                                  "accept": {
+                                    "description": "Custom domains. Replaces the existing list. Emptying it is rejected by providers that do not generate a hostname of their own, which leaves the patch recorded but undeployed.",
+                                    "items": {
+                                      "type": "string",
+                                    },
+                                    "type": "array",
+                                  },
+                                  "httpOptions": {
+                                    "properties": {
+                                      "maxBodySize": {
+                                        "maximum": 104857600,
+                                        "minimum": 1,
+                                        "type": "integer",
+                                      },
+                                      "nextCases": {
+                                        "description": "Conditions the proxy retries on. Replaces the existing list; "off" disables retrying and stands alone.",
+                                        "items": {
+                                          "enum": [
+                                            "error",
+                                            "timeout",
+                                            "500",
+                                            "502",
+                                            "503",
+                                            "504",
+                                            "403",
+                                            "404",
+                                            "429",
+                                            "off",
+                                          ],
+                                          "type": "string",
+                                        },
+                                        "minItems": 1,
+                                        "type": "array",
+                                      },
+                                      "nextTimeout": {
+                                        "maximum": 4294967295,
+                                        "minimum": 0,
+                                        "type": "integer",
+                                      },
+                                      "nextTries": {
+                                        "maximum": 4294967295,
+                                        "minimum": 0,
+                                        "type": "integer",
+                                      },
+                                      "readTimeout": {
+                                        "maximum": 4294967295,
+                                        "minimum": 1,
+                                        "type": "integer",
+                                      },
+                                      "sendTimeout": {
+                                        "maximum": 4294967295,
+                                        "minimum": 1,
+                                        "type": "integer",
+                                      },
+                                    },
+                                    "type": "object",
+                                  },
+                                },
+                                "type": "object",
+                              },
+                              "description": "Keyed by container port. Only hosts and http options are patchable; endpoint kind and count are fixed at create.",
+                              "type": "object",
+                            },
+                            "image": {
+                              "type": "string",
+                            },
+                            "storage": {
+                              "additionalProperties": {
+                                "properties": {
+                                  "mount": {
+                                    "type": "string",
+                                  },
+                                  "readOnly": {
+                                    "type": "boolean",
+                                  },
+                                },
+                                "type": "object",
+                              },
+                              "description": "Keyed by volume name. Mount point and read-only flag only — sizes are fixed at create.",
+                              "type": "object",
+                            },
+                          },
+                          "type": "object",
+                        },
+                        "description": "Keyed by service name. Only the named services are touched; omitted services keep their current definition.",
+                        "type": "object",
                       },
                     },
                     "required": [
-                      "sdl",
+                      "services",
                     ],
                     "type": "object",
                   },
@@ -7582,7 +7735,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "id": {
                               "properties": {
                                 "dseq": {
-                                  "pattern": "^d+$",
+                                  "pattern": "^0*[1-9]\\d*$",
                                   "type": "string",
                                 },
                                 "owner": {
@@ -7742,7 +7895,591 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     "type": "number",
                                   },
                                   "dseq": {
-                                    "pattern": "^d+$",
+                                    "pattern": "^0*[1-9]\\d*$",
+                                    "type": "string",
+                                  },
+                                  "gseq": {
+                                    "type": "number",
+                                  },
+                                  "oseq": {
+                                    "type": "number",
+                                  },
+                                  "owner": {
+                                    "type": "string",
+                                  },
+                                  "provider": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "owner",
+                                  "dseq",
+                                  "gseq",
+                                  "oseq",
+                                  "provider",
+                                  "bseq",
+                                ],
+                                "type": "object",
+                              },
+                              "price": {
+                                "properties": {
+                                  "amount": {
+                                    "type": "string",
+                                  },
+                                  "denom": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "denom",
+                                  "amount",
+                                ],
+                                "type": "object",
+                              },
+                              "reason": {
+                                "type": "string",
+                              },
+                              "state": {
+                                "type": "string",
+                              },
+                              "status": {
+                                "nullable": true,
+                                "properties": {
+                                  "forwarded_ports": {
+                                    "additionalProperties": {
+                                      "items": {
+                                        "properties": {
+                                          "available": {
+                                            "type": "number",
+                                          },
+                                          "externalPort": {
+                                            "type": "number",
+                                          },
+                                          "host": {
+                                            "type": "string",
+                                          },
+                                          "port": {
+                                            "type": "number",
+                                          },
+                                        },
+                                        "required": [
+                                          "port",
+                                          "externalPort",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      "type": "array",
+                                    },
+                                    "type": "object",
+                                  },
+                                  "ips": {
+                                    "additionalProperties": {
+                                      "items": {
+                                        "properties": {
+                                          "ExternalPort": {
+                                            "type": "number",
+                                          },
+                                          "IP": {
+                                            "type": "string",
+                                          },
+                                          "Port": {
+                                            "type": "number",
+                                          },
+                                          "Protocol": {
+                                            "type": "string",
+                                          },
+                                        },
+                                        "required": [
+                                          "IP",
+                                          "Port",
+                                          "ExternalPort",
+                                          "Protocol",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      "type": "array",
+                                    },
+                                    "type": "object",
+                                  },
+                                  "services": {
+                                    "additionalProperties": {
+                                      "properties": {
+                                        "available": {
+                                          "type": "number",
+                                        },
+                                        "available_replicas": {
+                                          "type": "number",
+                                        },
+                                        "name": {
+                                          "type": "string",
+                                        },
+                                        "observed_generation": {
+                                          "type": "number",
+                                        },
+                                        "ready_replicas": {
+                                          "type": "number",
+                                        },
+                                        "replicas": {
+                                          "type": "number",
+                                        },
+                                        "total": {
+                                          "type": "number",
+                                        },
+                                        "updated_replicas": {
+                                          "type": "number",
+                                        },
+                                        "uris": {
+                                          "items": {
+                                            "type": "string",
+                                          },
+                                          "type": "array",
+                                        },
+                                      },
+                                      "required": [
+                                        "name",
+                                        "available",
+                                        "total",
+                                        "uris",
+                                        "observed_generation",
+                                        "replicas",
+                                        "updated_replicas",
+                                        "ready_replicas",
+                                        "available_replicas",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "object",
+                                  },
+                                },
+                                "required": [
+                                  "forwarded_ports",
+                                  "ips",
+                                  "services",
+                                ],
+                                "type": "object",
+                              },
+                            },
+                            "required": [
+                              "id",
+                              "state",
+                              "price",
+                              "created_at",
+                              "closed_on",
+                              "status",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "manifestVersion": {
+                          "description": "Base64 manifest version this patch recorded and committed on chain.",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "deployment",
+                        "leases",
+                        "escrow_account",
+                        "manifestVersion",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Deployment patched successfully",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, or leaves a reference with no value",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "No SDL is recorded for this deployment, so there is nothing to patch",
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The deployment definition changed between this patch reading it and writing it. A patch naming no \`ifManifestVersion\` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds",
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The deployment's stored state could not be read: \`code\` is \`stored_secrets_unreadable\` when the sealed secrets would not open and \`stored_sdl_unreadable\` when the recorded SDL would not parse. Both are permanent rather than transient, so a retry cannot help, and both leave the stored token untouched. A 500 carrying any other \`code\` is an unexpected failure and promises neither of those things",
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The key management service is temporarily unreachable. Transient and worth retrying, unlike the 500 above",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Patch a deployment",
+        "tags": [
+          "Deployments",
+        ],
+      },
+      "put": {
+        "deprecated": true,
+        "description": "Deprecated. Resubmits the whole SDL, so rotating one secret means re-supplying every other value the document carries, and the console cannot return a stored value for you to resupply. Use PATCH /v1/deployments/{dseq} instead. This endpoint will be removed in a future release.",
+        "operationId": "updateDeployment",
+        "parameters": [
+          {
+            "description": "Deployment sequence number",
+            "in": "path",
+            "name": "dseq",
+            "required": true,
+            "schema": {
+              "description": "Deployment sequence number",
+              "pattern": "^0*[1-9]\\d*$",
+              "type": "string",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "sdl": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "sdl",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "deployment": {
+                          "properties": {
+                            "created_at": {
+                              "type": "string",
+                            },
+                            "hash": {
+                              "type": "string",
+                            },
+                            "id": {
+                              "properties": {
+                                "dseq": {
+                                  "pattern": "^0*[1-9]\\d*$",
+                                  "type": "string",
+                                },
+                                "owner": {
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "owner",
+                                "dseq",
+                              ],
+                              "type": "object",
+                            },
+                            "state": {
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "id",
+                            "state",
+                            "hash",
+                            "created_at",
+                          ],
+                          "type": "object",
+                        },
+                        "escrow_account": {
+                          "properties": {
+                            "id": {
+                              "properties": {
+                                "scope": {
+                                  "type": "string",
+                                },
+                                "xid": {
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "scope",
+                                "xid",
+                              ],
+                              "type": "object",
+                            },
+                            "state": {
+                              "properties": {
+                                "deposits": {
+                                  "items": {
+                                    "properties": {
+                                      "balance": {
+                                        "properties": {
+                                          "amount": {
+                                            "type": "string",
+                                          },
+                                          "denom": {
+                                            "type": "string",
+                                          },
+                                        },
+                                        "required": [
+                                          "denom",
+                                          "amount",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      "height": {
+                                        "type": "string",
+                                      },
+                                      "owner": {
+                                        "type": "string",
+                                      },
+                                      "source": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "owner",
+                                      "height",
+                                      "source",
+                                      "balance",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "funds": {
+                                  "items": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "owner": {
+                                  "type": "string",
+                                },
+                                "settled_at": {
+                                  "type": "string",
+                                },
+                                "state": {
+                                  "type": "string",
+                                },
+                                "transferred": {
+                                  "items": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                              },
+                              "required": [
+                                "owner",
+                                "state",
+                                "transferred",
+                                "settled_at",
+                                "funds",
+                                "deposits",
+                              ],
+                              "type": "object",
+                            },
+                          },
+                          "required": [
+                            "id",
+                            "state",
+                          ],
+                          "type": "object",
+                        },
+                        "leases": {
+                          "items": {
+                            "properties": {
+                              "closed_on": {
+                                "type": "string",
+                              },
+                              "created_at": {
+                                "type": "string",
+                              },
+                              "id": {
+                                "properties": {
+                                  "bseq": {
+                                    "type": "number",
+                                  },
+                                  "dseq": {
+                                    "pattern": "^0*[1-9]\\d*$",
                                     "type": "string",
                                   },
                                   "gseq": {
@@ -7969,7 +8706,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       },
                       "dseq": {
                         "description": "Deployment sequence number",
-                        "pattern": "^d+$",
+                        "pattern": "^0*[1-9]\\d*$",
                         "type": "string",
                       },
                     },
@@ -8007,7 +8744,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "id": {
                               "properties": {
                                 "dseq": {
-                                  "pattern": "^d+$",
+                                  "pattern": "^0*[1-9]\\d*$",
                                   "type": "string",
                                 },
                                 "owner": {
@@ -8167,7 +8904,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     "type": "number",
                                   },
                                   "dseq": {
-                                    "pattern": "^d+$",
+                                    "pattern": "^0*[1-9]\\d*$",
                                     "type": "string",
                                   },
                                   "gseq": {
@@ -8915,7 +9652,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "items": {
                       "properties": {
                         "dseq": {
-                          "pattern": "^d+$",
+                          "pattern": "^0*[1-9]\\d*$",
                           "type": "string",
                         },
                         "gseq": {
@@ -8971,7 +9708,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "id": {
                               "properties": {
                                 "dseq": {
-                                  "pattern": "^d+$",
+                                  "pattern": "^0*[1-9]\\d*$",
                                   "type": "string",
                                 },
                                 "owner": {
@@ -9131,7 +9868,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     "type": "number",
                                   },
                                   "dseq": {
-                                    "pattern": "^d+$",
+                                    "pattern": "^0*[1-9]\\d*$",
                                     "type": "string",
                                   },
                                   "gseq": {
@@ -9357,7 +10094,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "dseq",
             "required": false,
             "schema": {
-              "pattern": "^d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "type": "string",
             },
           },
@@ -9401,7 +10138,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "type": "number",
                           },
                           "dseq": {
-                            "pattern": "^d+$",
+                            "pattern": "^0*[1-9]\\d*$",
                             "type": "string",
                           },
                           "durationInBlocks": {
@@ -13224,7 +13961,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "type": "string",
                           },
                           "dseq": {
-                            "pattern": "^d+$",
+                            "pattern": "^0*[1-9]\\d*$",
                             "type": "string",
                           },
                           "leases": {
@@ -15814,7 +16551,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "properties": {
                       "dseq": {
                         "description": "Deployment sequence number",
-                        "pattern": "^d+$",
+                        "pattern": "^0*[1-9]\\d*$",
                         "type": "string",
                       },
                       "userId": {
@@ -15853,7 +16590,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "dseq": {
-                          "pattern": "^d+$",
+                          "pattern": "^0*[1-9]\\d*$",
                           "type": "string",
                         },
                         "estimatedTopUpAmount": {
@@ -15874,6 +16611,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "integer",
                         },
+                        "sdl": {
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "topUpFrequencyMs": {
                           "type": "number",
                         },
@@ -15889,6 +16630,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -15926,6 +16668,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v2/deployment-settings/{dseq}": {
       "get": {
+        "operationId": "getDeploymentSetting",
         "parameters": [
           {
             "in": "path",
@@ -15933,7 +16676,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "required": true,
             "schema": {
               "description": "Deployment sequence number",
-              "pattern": "^d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "type": "string",
             },
           },
@@ -15964,7 +16707,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "dseq": {
-                          "pattern": "^d+$",
+                          "pattern": "^0*[1-9]\\d*$",
                           "type": "string",
                         },
                         "estimatedTopUpAmount": {
@@ -15985,6 +16728,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "integer",
                         },
+                        "sdl": {
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "topUpFrequencyMs": {
                           "type": "number",
                         },
@@ -16000,6 +16747,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -16060,7 +16808,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "required": true,
             "schema": {
               "description": "Deployment sequence number",
-              "pattern": "^d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "type": "string",
             },
           },
@@ -16117,7 +16865,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "dseq": {
-                          "pattern": "^d+$",
+                          "pattern": "^0*[1-9]\\d*$",
                           "type": "string",
                         },
                         "estimatedTopUpAmount": {
@@ -16138,6 +16886,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "integer",
                         },
+                        "sdl": {
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "topUpFrequencyMs": {
                           "type": "number",
                         },
@@ -16153,6 +16905,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",

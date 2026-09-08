@@ -1207,6 +1207,7 @@ describe(DeploymentWriterService.name, () => {
 
   describe("patchByUserIdAndDseq", () => {
     const STORED_VERSION = "U1RPUkVEVkVSU0lPTg==";
+    const STORED_TOKEN = "stored.token.aaa.bbb.ccc";
     const STORED_SDL = [
       'version: "2.0"',
       "services:",
@@ -1468,6 +1469,22 @@ describe(DeploymentWriterService.name, () => {
       await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { env: { DATABASE_URL: null } } } }, ability);
 
       expect(sealedFor()).toEqual({ s0_e0: "token" });
+    });
+
+    it("opens the stored token under the very deployment and user the row belongs to", async () => {
+      const { service, ability, sdlSecretsService } = setup({ held: { s0_e0: "token" } });
+
+      await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+      expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ userId: "user-1", dseq: "1234", sealedSecrets: STORED_TOKEN });
+    });
+
+    it("opens the client's seal against the sdl the console stored, which is what it was sealed to", async () => {
+      const { service, ability, sdlSecretsService } = setup({ supplied: { s0_e0: "rotated" } });
+
+      await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: {} }, sealedSecrets: CLIENT_SEAL }, ability);
+
+      expect(sdlSecretsService.receiveForMerge).toHaveBeenCalledWith({ rawSdl: STORED_SDL, sealedSecrets: CLIENT_SEAL });
     });
 
     it("opens the stored token exactly once however many secrets change", async () => {
@@ -1742,7 +1759,7 @@ describe(DeploymentWriterService.name, () => {
       isTrialing?: boolean;
     }) {
       const manifestVersion = new Uint8Array([1, 2, 3]);
-      const storedToken = input?.storedToken === undefined ? "stored.token.aaa.bbb.ccc" : input.storedToken;
+      const storedToken = input?.storedToken === undefined ? STORED_TOKEN : input.storedToken;
       const hasSetting = !("setting" in (input ?? {})) || input?.setting !== undefined;
 
       const walletReaderService = mock<WalletReaderService>();

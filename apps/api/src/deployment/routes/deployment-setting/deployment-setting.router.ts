@@ -155,6 +155,7 @@ const getRouteV2 = createRoute({
   path: "/v2/deployment-settings/{dseq}",
   summary: "Get deployment settings by dseq",
   tags: ["Deployment Settings"],
+  operationId: "getDeploymentSetting",
   security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: FindDeploymentSettingV2ParamsSchema,
