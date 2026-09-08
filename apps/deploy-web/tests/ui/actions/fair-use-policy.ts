@@ -2,7 +2,7 @@ import type { Locator, Page } from "@playwright/test";
 
 const PROMPT_TIMEOUT_MS = 30_000;
 
-/** A freshly registered user is asked to accept the Fair Use Policy before any page renders, so registration is only complete once that prompt is answered; the onboarding heading is what renders instead when the gate is off. */
+/** Races the prompt against the onboarding heading, because the heading is what a new user sees instead when the gate is off. */
 export async function acceptFairUsePolicyIfPrompted(page: Page): Promise<void> {
   const prompt = page.getByRole("dialog", { name: /fair use policy/i });
   const onboardingHeading = page.getByRole("heading", { name: /deploy your first app/i });

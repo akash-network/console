@@ -42,21 +42,23 @@ export const test = baseTest.extend<Fixtures>({
     await routeTestingClientToken(page);
 
     let createdUserId: string | undefined;
-    if (userType === "existing") {
-      await loginExistingUser(page);
-    } else if (userType === "new") {
-      createdUserId = (await registerNewUser(page, { auth0, emailVerification })).userId;
-      await acceptFairUsePolicyIfPrompted(page);
-    }
+    try {
+      if (userType === "existing") {
+        await loginExistingUser(page);
+      } else if (userType === "new") {
+        createdUserId = (await registerNewUser(page, { auth0, emailVerification })).userId;
+        await acceptFairUsePolicyIfPrompted(page);
+      }
 
-    await use(page);
+      await use(page);
 
-    if (userType) {
-      await closeDeploymentsLeftBehind(page);
-    }
-
-    if (createdUserId) {
-      await auth0.deleteUser(createdUserId).catch(() => undefined);
+      if (userType) {
+        await closeDeploymentsLeftBehind(page);
+      }
+    } finally {
+      if (createdUserId) {
+        await auth0.deleteUser(createdUserId).catch(() => undefined);
+      }
     }
   }
 });

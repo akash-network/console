@@ -22,7 +22,7 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-/** Holds the page back until acceptance, so an auto-started deployment cannot fire behind the modal; a user whose trial wallet is still provisioning is asked too, since that wallet will be a trial one. */
+/** Holds the page back until acceptance, so an auto-started deployment cannot fire behind the modal. */
 export function RequireFairUsePolicy({ children, isPublic, dependencies: d = DEPENDENCIES }: Props) {
   const { user } = d.useUser();
   const { isTrialing, hasWallet, isWalletLookupFailed } = d.useWallet();
