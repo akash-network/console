@@ -10,6 +10,8 @@ import type { SdlSecretsKmsClient } from "@src/deployment/providers/kms.provider
 import type { SdlSecretsPublicJwk } from "./sdl-secrets-sealing-key.service";
 import { SdlSecretsSealingKeyService } from "./sdl-secrets-sealing-key.service";
 
+const SEALING_KEY_PEM = generateKeyPairSync("rsa", { modulusLength: 3072 }).publicKey.export({ type: "spki", format: "pem" }).toString();
+
 describe(SdlSecretsSealingKeyService.name, () => {
   it("returns the KMS public key as an RSA-OAEP-256 encryption JWK", async () => {
     const { service, pem } = setup();
@@ -174,7 +176,7 @@ describe(SdlSecretsSealingKeyService.name, () => {
   }
 
   function setup(input?: { pem?: string; kid?: string; versionName?: string }) {
-    const pem = input?.pem ?? generateKeyPairSync("rsa", { modulusLength: 3072 }).publicKey.export({ type: "spki", format: "pem" }).toString();
+    const pem = input?.pem ?? SEALING_KEY_PEM;
     const versionName = input?.versionName ?? "projects/console-test/locations/global/keyRings/console-api/cryptoKeys/sdl-secrets/cryptoKeyVersions/1";
     const publicKeyResponse: protos.google.cloud.kms.v1.IPublicKey = {
       pem,
