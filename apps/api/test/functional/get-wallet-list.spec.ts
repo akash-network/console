@@ -4,6 +4,7 @@ import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
+import type { WalletListOutputResponse } from "@src/billing/http-schemas/wallet.schema";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { app } from "@src/rest-app";
@@ -29,7 +30,7 @@ describe("Get Wallet List", () => {
       const response = await app.request(`/v1/wallets?userId=${user.id}`, {
         headers: { authorization: `Bearer ${token}` }
       });
-      const body = await response.json();
+      const body = (await response.json()) as WalletListOutputResponse;
 
       expect(response.status).toBe(200);
       expect(body.data[0].isTrialing).toBe(true);
@@ -42,7 +43,7 @@ describe("Get Wallet List", () => {
       const response = await app.request(`/v1/wallets?userId=${user.id}`, {
         headers: { authorization: `Bearer ${token}` }
       });
-      const body = await response.json();
+      const body = (await response.json()) as WalletListOutputResponse;
 
       expect(response.status).toBe(200);
       expect(body.data[0].trialDurationDays).toBe(billingConfig.get("TRIAL_ALLOWANCE_EXPIRATION_DAYS"));
@@ -54,7 +55,7 @@ describe("Get Wallet List", () => {
       const response = await app.request(`/v1/wallets?userId=${user.id}`, {
         headers: { authorization: `Bearer ${token}` }
       });
-      const body = await response.json();
+      const body = (await response.json()) as WalletListOutputResponse;
 
       expect(response.status).toBe(200);
       expect(body.data[0].isTrialing).toBe(false);

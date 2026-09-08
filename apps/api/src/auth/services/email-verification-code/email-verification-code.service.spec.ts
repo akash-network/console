@@ -211,22 +211,13 @@ describe(EmailVerificationCodeService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: EmailVerificationCodeService.name });
   });
 
-  function setup(
-    input: {
-      emailVerificationCodeRepository?: EmailVerificationCodeRepository;
-      auth0Service?: Auth0Service;
-      notificationService?: NotificationService;
-      userRepository?: UserRepository;
-      trialActivationJobService?: TrialActivationJobService;
-      logger?: ReturnType<CreateLogger>;
-    } = {}
-  ) {
-    const emailVerificationCodeRepository = input.emailVerificationCodeRepository ?? mock<EmailVerificationCodeRepository>();
-    const auth0Service = input.auth0Service ?? mock<Auth0Service>();
-    const notificationService = input.notificationService ?? mock<NotificationService>();
-    const userRepository = input.userRepository ?? mock<UserRepository>();
-    const trialActivationJobService = input.trialActivationJobService ?? mock<TrialActivationJobService>({ schedule: vi.fn().mockResolvedValue(undefined) });
-    const logger = input.logger ?? mock<ReturnType<CreateLogger>>();
+  function setup() {
+    const emailVerificationCodeRepository = mock<EmailVerificationCodeRepository>();
+    const auth0Service = mock<Auth0Service>();
+    const notificationService = mock<NotificationService>();
+    const userRepository = mock<UserRepository>();
+    const trialActivationJobService = mock<TrialActivationJobService>({ schedule: vi.fn().mockResolvedValue(undefined) });
+    const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
     const service = new EmailVerificationCodeService(

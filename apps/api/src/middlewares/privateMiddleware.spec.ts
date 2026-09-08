@@ -17,12 +17,12 @@ describe("privateMiddleware", () => {
   });
 
   it("rejects a mismatched token", async () => {
-    const { c, next } = setup({ secretToken: "secret", queryToken: "wrong" });
+    const { c, next, text } = setup({ secretToken: "secret", queryToken: "wrong" });
 
     await privateMiddleware(c, next);
 
     expect(next).not.toHaveBeenCalled();
-    expect(c.text).toHaveBeenCalledWith("Unauthorized", 401);
+    expect(text).toHaveBeenCalledWith("Unauthorized", 401);
   });
 
   it("lets the request through when no secret is configured", async () => {
@@ -44,29 +44,30 @@ describe("requirePrivateToken", () => {
   });
 
   it("rejects a mismatched token", async () => {
-    const { c, next } = setup({ secretToken: "secret", queryToken: "wrong" });
+    const { c, next, text } = setup({ secretToken: "secret", queryToken: "wrong" });
 
     await requirePrivateToken(c, next);
 
     expect(next).not.toHaveBeenCalled();
-    expect(c.text).toHaveBeenCalledWith("Unauthorized", 401);
+    expect(text).toHaveBeenCalledWith("Unauthorized", 401);
   });
 
   it("rejects the request when no secret is configured", async () => {
-    const { c, next } = setup({ secretToken: undefined, queryToken: undefined });
+    const { c, next, text } = setup({ secretToken: undefined, queryToken: undefined });
 
     await requirePrivateToken(c, next);
 
     expect(next).not.toHaveBeenCalled();
-    expect(c.text).toHaveBeenCalledWith("Unauthorized", 401);
+    expect(text).toHaveBeenCalledWith("Unauthorized", 401);
   });
 });
 
 function setup(input: { secretToken?: string; queryToken?: string }) {
   container.registerInstance(CORE_CONFIG, mock<CoreConfig>({ SECRET_TOKEN: input.secretToken }));
 
-  const c = mock<Context>({ req: mock<Context["req"]>({ query: vi.fn().mockReturnValue(input.queryToken) }) });
+  const text = vi.fn();
+  const c = { req: { query: vi.fn().mockReturnValue(input.queryToken) }, text } as unknown as Context;
   const next = vi.fn<Next>();
 
-  return { c, next };
+  return { c, next, text };
 }

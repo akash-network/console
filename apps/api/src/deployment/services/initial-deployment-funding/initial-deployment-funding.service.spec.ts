@@ -172,7 +172,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const { service, drainingDeploymentService, cachedBalanceService, walletReloadJobService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-    cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(0, 0));
+    cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(0, { headroom: 0, minDeposit: MIN_DEPOSIT }));
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 

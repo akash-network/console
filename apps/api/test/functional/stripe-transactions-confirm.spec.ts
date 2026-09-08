@@ -4,6 +4,7 @@ import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
+import type { ConfirmPaymentResponse } from "@src/billing/http-schemas/stripe.schema";
 import { StripeTransactionRepository, UserWalletRepository } from "@src/billing/repositories";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -39,7 +40,7 @@ describe("Stripe transactions confirm", () => {
       const response = await confirmPayment(token, { userId: user.userId!, paymentMethodId, amount: 20, idempotencyKey: clientKey });
 
       expect(response.status).toBe(200);
-      const body = await response.json();
+      const body = (await response.json()) as ConfirmPaymentResponse;
       expect(body.data).toEqual(expect.objectContaining({ success: true }));
       expect(await stripeTransactionRepository.findById(body.data.transactionId)).toMatchObject({
         userId: user.id,
@@ -73,7 +74,7 @@ describe("Stripe transactions confirm", () => {
       const response = await confirmPayment(token, { userId: user.userId!, paymentMethodId, amount: 20, idempotencyKey: clientKey });
 
       expect(response.status).toBe(200);
-      expect((await response.json()).data).toEqual(
+      expect(((await response.json()) as ConfirmPaymentResponse).data).toEqual(
         expect.objectContaining({
           success: true,
           transactionId: creditedTransaction.id,
