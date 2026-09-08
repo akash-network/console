@@ -97,6 +97,14 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
     expect(response.status).toBe(400);
   });
 
+  it("refuses an empty seal offered as the only thing the patch would write", async () => {
+    const { apiKey } = await persistedUser();
+
+    const response = await patch(apiKey, { services: { web: {} }, sealedSecrets: "" });
+
+    expect(response.status).toBe(400);
+  });
+
   it("refuses an env key that is not an environment variable name", async () => {
     const { apiKey } = await persistedUser();
 

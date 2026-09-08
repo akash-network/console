@@ -105,11 +105,14 @@ export const GetDeploymentParamsSchema = z.object({
   dseq: DseqSchema.describe("Deployment sequence number")
 });
 
+/** Every reader treats an empty seal as no seal, so accepting one would take a request the caller meant as a secret write and silently do nothing. */
+const SealedSecretsSchema = z.string().min(1);
+
 export const CreateDeploymentRequestSchema = z.object({
   data: z.object({
     sdl: z.string().max(MAX_SUBMITTED_SDL_LENGTH),
     /** Accepted and validated but withheld from every generated document by the route's `undocumentedRequestFields`, so the capability works before it is announced. */
-    sealedSecrets: z.string().optional(),
+    sealedSecrets: SealedSecretsSchema.optional(),
     deposit: z.number().optional().openapi({
       deprecated: true,
       description: "Deprecated and ignored. The platform funds every deployment automatically from your account credits."
@@ -227,7 +230,7 @@ export const PatchDeploymentParamsSchema = z.object({
 
 /** A seal is a write no service patch can describe, so naming a service and changing none of its fields is how a caller asks for a rotation and nothing else. */
 function patchesSomething(data: { services: Record<string, Record<string, unknown>>; sealedSecrets?: string }): boolean {
-  return data.sealedSecrets !== undefined || Object.values(data.services).some(assignsAField);
+  return !!data.sealedSecrets || Object.values(data.services).some(assignsAField);
 }
 
 /** `.refine` rather than a length rule on the record itself, which this zod version does not offer. */
@@ -240,7 +243,7 @@ export const PatchDeploymentRequestSchema = z.object({
         .openapi({
           description: "Keyed by service name. Only the named services are touched; omitted services keep their current definition."
         }),
-      sealedSecrets: z.string().optional(),
+      sealedSecrets: SealedSecretsSchema.optional(),
       ifManifestVersion: z.string().max(MAX_MANIFEST_VERSION_LENGTH).optional().openapi({
         description:
           "Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very patch produces, which makes a retry of it succeed. Omitting this does not turn the guard off: the patch is then guarded on the version it read for itself, so a concurrent patch still answers 409 rather than overwriting it."

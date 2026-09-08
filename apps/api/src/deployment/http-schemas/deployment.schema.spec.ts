@@ -69,6 +69,16 @@ describe("PatchDeploymentRequestSchema", () => {
     });
   });
 
+  describe("when the seal is an empty string", () => {
+    it("refuses it in place of a service patch, which every reader would read as no seal at all", () => {
+      expect(parse({ web: {} }, { sealedSecrets: "" }).success).toBe(false);
+    });
+
+    it("refuses it beside a service patch that would write something", () => {
+      expect(parse({ web: { image: "nginx:1.27" } }, { sealedSecrets: "" }).success).toBe(false);
+    });
+  });
+
   const SEAL = "eyJhbGciOiJSU0EtT0FFUC0yNTYifQ.sealed.payload";
 
   function parse(services: Record<string, unknown>, rest: Record<string, unknown> = {}) {

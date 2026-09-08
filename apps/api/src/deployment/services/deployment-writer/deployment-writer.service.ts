@@ -355,8 +355,7 @@ export class DeploymentWriterService {
     input: PatchDeploymentRequest["data"],
     ability: AnyAbility
   ): Promise<PatchDeploymentResponse["data"]> {
-    const wallet = await this.walletReaderService.getWalletByUserId(userId);
-    const stored = await this.#findStoredDefinition({ userId, dseq }, ability);
+    const [wallet, stored] = await Promise.all([this.walletReaderService.getWalletByUserId(userId), this.#findStoredDefinition({ userId, dseq }, ability)]);
     const parsed = this.#parseStored(stored.sdl, { userId, dseq });
     const document = parsed.document;
 
@@ -364,8 +363,10 @@ export class DeploymentWriterService {
     const derived = this.sdlSecretsDerivationService.derive(document, { includeEnvValues: true, onlyAt: written });
     const patchedSdl = this.#serialize(parsed, { userId, dseq });
 
-    const supplied = input.sealedSecrets ? await this.sdlSecretsService.receiveForMerge({ rawSdl: stored.sdl, sealedSecrets: input.sealedSecrets }) : {};
-    const held = stored.sealedSecrets ? await this.sdlSecretsService.openStored({ userId, dseq, sealedSecrets: stored.sealedSecrets }) : {};
+    const [supplied, held] = await Promise.all([
+      input.sealedSecrets ? await this.sdlSecretsService.receiveForMerge({ rawSdl: stored.sdl, sealedSecrets: input.sealedSecrets }) : {},
+      stored.sealedSecrets ? await this.sdlSecretsService.openStored({ userId, dseq, sealedSecrets: stored.sealedSecrets }) : {}
+    ]);
     const merged = this.#mergeAndPrune({ held, supplied, derived }, document);
 
     const { manifestVersion, manifest } = await this.#resolveSdl(patchedSdl, { secrets: merged, isTrialing: !!wallet.isTrialing });
