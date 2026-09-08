@@ -34,7 +34,7 @@ import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 interface OpenApiPaths {
   paths: Record<
     string,
-    Record<string, { requestBody: { content: Record<string, { schema: { properties: { data: { properties: Record<string, unknown> } } } }> } }>
+    Record<string, { requestBody: { content: Record<string, { schema: { properties: { data: { properties: Record<string, { description?: string }> } } } }> } }>
   >;
 }
 
@@ -537,15 +537,24 @@ describe("Deployment sealed secrets", () => {
     expect(broadcastHash()).toEqual(await manifestVersionOf(sdlWith({ web: [`API_TOKEN=${token}`] })));
   });
 
-  it("publishes no mention of the field in the document callers read", async () => {
+  it("publishes both halves of the capability in the document callers read", async () => {
     const response = await app.request("/v1/doc?scope=console");
     const document = await response.text();
 
     expect(response.status).toBe(200);
-    expect(document).not.toContain("sealedSecrets");
     const createBody = (JSON.parse(document) as OpenApiPaths).paths["/v1/deployments"].post.requestBody.content["application/json"].schema.properties.data
       .properties;
-    expect(Object.keys(createBody)).toEqual(["sdl", "deposit", "runtimeLimitHours"]);
+    expect(Object.keys(createBody)).toEqual(["sdl", "sealedSecrets", "inheritSecretsFrom", "deposit", "runtimeLimitHours"]);
+  });
+
+  it("describes the seal on both routes that accept one, so neither reads as create-only", async () => {
+    const response = await app.request("/v1/doc?scope=console");
+    const paths = (JSON.parse(await response.text()) as OpenApiPaths).paths;
+
+    const createSeal = paths["/v1/deployments"].post.requestBody.content["application/json"].schema.properties.data.properties.sealedSecrets;
+    const patchSeal = paths["/v1/deployments/{dseq}"].patch.requestBody.content["application/json"].schema.properties.data.properties.sealedSecrets;
+    expect(createSeal).toMatchObject({ description: expect.stringContaining("Compact JWE") });
+    expect(patchSeal).toMatchObject({ description: expect.stringContaining("Compact JWE") });
   });
 
   it("refuses a submitted sdl above the allowance a request has always had for one", async () => {
@@ -873,11 +882,12 @@ describe("Deployment sealed secrets", () => {
       expect(unchanged!.sealedSecrets).toBe(source.sealedSecrets);
     });
 
-    it("accepts the field even though no document announces it", async () => {
+    it("describes what the field does for a client reading the document", async () => {
       const response = await app.request("/v1/doc?scope=console");
-      const document = await response.text();
+      const createBody = (JSON.parse(await response.text()) as OpenApiPaths).paths["/v1/deployments"].post.requestBody.content["application/json"].schema
+        .properties.data.properties;
 
-      expect(document).not.toContain("inheritSecretsFrom");
+      expect(createBody.inheritSecretsFrom).toMatchObject({ description: expect.stringContaining("may be closed") });
     });
   });
 
