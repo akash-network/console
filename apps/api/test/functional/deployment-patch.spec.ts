@@ -6,13 +6,12 @@ import { CompactEncrypt } from "jose";
 import nock from "nock";
 import { randomUUID } from "node:crypto";
 import { container } from "tsyringe";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.service";
 import { AuthService } from "@src/auth/services/auth.service";
-import type { UserWalletOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
@@ -91,42 +90,10 @@ describe("PATCH /v1/deployments/{dseq}", () => {
   const providerService = container.resolve(ProviderService);
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
 
-  let knownUsers: Record<string, UserOutput>;
-  let knownApiKeys: Record<string, ReturnType<typeof createApiKey>>;
-  let knownWallets: Record<string, UserWalletOutput[]>;
-
   beforeAll(async () => {
     await startJobQueues();
     await warmSealingKeyAsBootWould();
   }, 20_000);
-
-  beforeEach(() => {
-    knownUsers = {};
-    knownApiKeys = {};
-    knownWallets = {};
-
-    vi.spyOn(userRepository, "findById").mockImplementation(async id =>
-      knownUsers[id] ? { ...knownUsers[id], trial: false, userWallets: { isTrialing: false } } : undefined
-    );
-    vi.spyOn(apiKeyAuthService, "getAndValidateApiKeyFromHeader").mockImplementation(async key => knownApiKeys[key!]);
-    vi.spyOn(blockHttpService, "getCurrentHeight").mockResolvedValue(faker.number.int({ min: 1000000, max: 10000000 }));
-    vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(
-      mock<UserWalletRepository>({
-        findByUserId: async (id: string) => knownWallets[id],
-        findOneByUserId: async (id: string) => knownWallets[id][0]
-      })
-    );
-    vi.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValue({
-      code: 200,
-      transactionHash: "fake-transaction-hash",
-      hash: "fake-transaction-hash",
-      rawLog: "fake-raw-log"
-    });
-    vi.spyOn(providerService, "sendManifest").mockResolvedValue(true);
-    vi.spyOn(providerService, "getLeaseStatus").mockResolvedValue(createLeaseStatus());
-    vi.spyOn(providerService, "toProviderAuth").mockResolvedValue(mock());
-    kmsClient.asymmetricDecrypt.mockClear();
-  });
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -141,10 +108,10 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
   it("leaves every other name opening to its original plaintext when one value is replaced", async () => {
     const secrets = { s0_e0: randomUUID(), s0_e1: `postgres://app:${randomUUID()}@db.internal/app` };
-    const { apiKey, user } = await patchable({ secrets });
+    const { apiKey, user } = await setup({ secrets });
     const rotated = randomUUID();
 
-    const response = await patch(apiKey, { services: { web: {} } }, { s0_e0: rotated });
+    const response = await patch(apiKey, { services: { web: {} } }, await sealFor(user, { s0_e0: rotated }));
 
     expect(response.status).toBe(200);
     await expect(openStored(user)).resolves.toEqual({ s0_e0: rotated, s0_e1: secrets.s0_e1 });
@@ -152,7 +119,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
   it("leaves every other name resolvable when a patched variable moves and is renamed", async () => {
     const secrets = { s0_e0: randomUUID(), s0_e1: randomUUID() };
-    const { apiKey, user } = await patchable({ secrets });
+    const { apiKey, user } = await setup({ secrets });
     const rotated = randomUUID();
 
     const response = await patch(apiKey, { services: { web: { env: { API_TOKEN: rotated } } } });
@@ -165,7 +132,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
   });
 
   it("drops the name a moved variable used to be stored under", async () => {
-    const { apiKey, user } = await patchable({ secrets: { s0_e0: randomUUID(), s0_e1: randomUUID() } });
+    const { apiKey, user } = await setup({ secrets: { s0_e0: randomUUID(), s0_e1: randomUUID() } });
 
     await patch(apiKey, { services: { web: { env: { API_TOKEN: randomUUID() } } } });
 
@@ -174,7 +141,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
   it("keeps every stored value resolvable when the sdl changes and no secrets are supplied", async () => {
     const secrets = { s0_e0: randomUUID(), s0_e1: randomUUID() };
-    const { apiKey, user } = await patchable({ secrets });
+    const { apiKey, user } = await setup({ secrets });
 
     const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
 
@@ -187,7 +154,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
   it("drops a name from the re-sealed token once the sdl stops referencing it", async () => {
     const secrets = { s0_e0: randomUUID(), s0_e1: randomUUID() };
-    const { apiKey, user } = await patchable({ secrets });
+    const { apiKey, user } = await setup({ secrets });
 
     const response = await patch(apiKey, { services: { web: { env: { DATABASE_URL: null } } } });
 
@@ -197,7 +164,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
   describe("a reference with no value anywhere", () => {
     it("fails with a 4xx naming it", async () => {
-      const { apiKey } = await patchable({ secrets: { s0_e0: randomUUID() }, env: ["API_TOKEN=ac-secret://s0_e0", "ORPHAN=ac-secret://s0_e9"] });
+      const { apiKey } = await setup({ secrets: { s0_e0: randomUUID() }, env: ["API_TOKEN=ac-secret://s0_e0", "ORPHAN=ac-secret://s0_e9"] });
 
       const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
 
@@ -206,7 +173,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     });
 
     it("persists nothing", async () => {
-      const { apiKey, user } = await patchable({
+      const { apiKey, user } = await setup({
         secrets: { s0_e0: randomUUID() },
         env: ["API_TOKEN=ac-secret://s0_e0", "ORPHAN=ac-secret://s0_e9"]
       });
@@ -224,7 +191,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
   describe("a stored token something has tampered with", () => {
     it("fails with the permanent error rather than a retryable one", async () => {
-      const { apiKey, user } = await patchable();
+      const { apiKey, user } = await setup();
       await flipFirstCiphertextCharacterOfToken(user);
 
       const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
@@ -234,17 +201,17 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     });
 
     it("still refuses when every value is supplied fresh, the case where overwriting could have succeeded", async () => {
-      const { apiKey, user } = await patchable();
+      const { apiKey, user } = await setup();
       const tampered = await flipFirstCiphertextCharacterOfToken(user);
 
-      const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, { s0_e0: randomUUID(), s0_e1: randomUUID() });
+      const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, await sealFor(user, { s0_e0: randomUUID(), s0_e1: randomUUID() }));
 
       expect(response.status).toBe(500);
       expect((await settingOf(user))?.sealedSecrets).toBe(tampered);
     });
 
     it("leaves the row intact, tampered token and all", async () => {
-      const { apiKey, user } = await patchable();
+      const { apiKey, user } = await setup();
       const tampered = await flipFirstCiphertextCharacterOfToken(user);
       const before = await settingOf(user);
 
@@ -259,13 +226,13 @@ describe("PATCH /v1/deployments/{dseq}", () => {
   });
 
   it("sends a lease provider a manifest reflecting both the new sdl and the new value", async () => {
-    const { apiKey } = await patchable({ secrets: { s0_e0: randomUUID(), s0_e1: randomUUID() } });
+    const { apiKey, user } = await setup({ secrets: { s0_e0: randomUUID(), s0_e1: randomUUID() } });
     const rotated = randomUUID();
     const kept = randomUUID();
     await patch(apiKey, { services: { web: { env: { DATABASE_URL: kept } } } });
     vi.mocked(providerService.sendManifest).mockClear();
 
-    await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, { s0_e0: rotated });
+    await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, await sealFor(user, { s0_e0: rotated }));
 
     const expected = await manifestOf(storedSdl([`API_TOKEN=${rotated}`, `DATABASE_URL=${kept}`], "nginx:1.27"));
     expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ manifest: expected }));
@@ -275,7 +242,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     it("unwraps once for a patch that changes twelve secrets and supplies none", async () => {
       const env = Array.from({ length: 12 }, (_, index) => `VAR_${index}=ac-secret://s0_e${index}`);
       const secrets = Object.fromEntries(env.map((_, index) => [`s0_e${index}`, randomUUID()]));
-      const { apiKey } = await patchable({ secrets, env });
+      const { apiKey } = await setup({ secrets, env });
 
       await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
 
@@ -285,10 +252,10 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     it("unwraps the seal and the data key once each when a patch supplies values", async () => {
       const env = Array.from({ length: 12 }, (_, index) => `VAR_${index}=ac-secret://s0_e${index}`);
       const secrets = Object.fromEntries(env.map((_, index) => [`s0_e${index}`, randomUUID()]));
-      const { apiKey } = await patchable({ secrets, env });
+      const { apiKey, user } = await setup({ secrets, env });
       const supplied = Object.fromEntries(env.map((_, index) => [`s0_e${index}`, randomUUID()]));
 
-      await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, supplied);
+      await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, await sealFor(user, supplied));
 
       expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(2);
     });
@@ -296,9 +263,9 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
   describe("where the sdl comes from", () => {
     it("ignores an sdl the request tries to carry", async () => {
-      const { apiKey, user } = await patchable();
+      const { apiKey, user } = await setup();
 
-      const response = await request(apiKey, {
+      const response = await patch(apiKey, {
         services: { web: { image: "nginx:1.27" } },
         sdl: storedSdl(["INJECTED=ac-secret://s0_e0"], "attacker/image")
       });
@@ -312,7 +279,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     });
 
     it("answers 404 for a deployment the console recorded no sdl for", async () => {
-      const { apiKey } = await patchable({ record: false });
+      const { apiKey } = await setup({ record: false });
 
       const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
 
@@ -322,7 +289,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
   describe("the version a patch expects", () => {
     it("applies the patch when the expected version is still current", async () => {
-      const { apiKey, user } = await patchable();
+      const { apiKey, user } = await setup();
       const current = (await settingOf(user))!.manifestVersion!;
 
       const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } }, ifManifestVersion: current });
@@ -331,7 +298,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     });
 
     it("answers 409 and persists nothing when the deployment has moved on", async () => {
-      const { apiKey, user } = await patchable();
+      const { apiKey, user } = await setup();
       const before = await settingOf(user);
 
       const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } }, ifManifestVersion: "AAAAmovedon" });
@@ -345,7 +312,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     });
 
     it("refuses the slower of two concurrent patches that both read the same version", async () => {
-      const { apiKey } = await patchable();
+      const { apiKey } = await setup();
       const { atBarrier, release } = holdTheFirstSeal();
 
       const slower = patch(apiKey, { services: { web: { image: "nginx:slower" } } });
@@ -358,7 +325,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     });
 
     it("keeps what the faster of two concurrent patches wrote", async () => {
-      const { apiKey, user } = await patchable();
+      const { apiKey, user } = await setup();
       const { atBarrier, release } = holdTheFirstSeal();
 
       const slower = patch(apiKey, { services: { web: { image: "nginx:slower" } } });
@@ -373,7 +340,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
   describe("a patch re-sent after a broadcast the client never saw succeed", () => {
     it("answers 200 rather than 409, the row already carrying the version this patch computes", async () => {
-      const { apiKey, user } = await patchable();
+      const { apiKey, user } = await setup();
       const original = (await settingOf(user))!.manifestVersion!;
       await patch(apiKey, { services: { web: { image: "nginx:1.27" } }, ifManifestVersion: original });
 
@@ -383,7 +350,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     });
 
     it("recomputes the version the first attempt recorded, rather than a new one", async () => {
-      const { apiKey, user } = await patchable();
+      const { apiKey, user } = await setup();
       const original = (await settingOf(user))!.manifestVersion!;
       await patch(apiKey, { services: { web: { image: "nginx:1.27" } }, ifManifestVersion: original });
       const applied = (await settingOf(user))!.manifestVersion;
@@ -394,7 +361,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     });
 
     it("answers 200 for a re-sent env patch, whose stored name and position churn on the first attempt", async () => {
-      const { apiKey, user } = await patchable({ secrets: { s0_e0: randomUUID(), s0_e1: randomUUID() } });
+      const { apiKey, user } = await setup({ secrets: { s0_e0: randomUUID(), s0_e1: randomUUID() } });
       const original = (await settingOf(user))!.manifestVersion!;
       const rotated = randomUUID();
       await patch(apiKey, { services: { web: { env: { API_TOKEN: rotated } } }, ifManifestVersion: original });
@@ -405,7 +372,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     });
 
     it("recomputes the same version for a re-sent env patch", async () => {
-      const { apiKey, user } = await patchable({ secrets: { s0_e0: randomUUID(), s0_e1: randomUUID() } });
+      const { apiKey, user } = await setup({ secrets: { s0_e0: randomUUID(), s0_e1: randomUUID() } });
       const original = (await settingOf(user))!.manifestVersion!;
       const rotated = randomUUID();
       await patch(apiKey, { services: { web: { env: { API_TOKEN: rotated } } }, ifManifestVersion: original });
@@ -419,7 +386,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
   describe("a key the deployment does not have", () => {
     it("answers 400 naming a service the sdl does not declare", async () => {
-      const { apiKey } = await patchable();
+      const { apiKey } = await setup();
 
       const response = await patch(apiKey, { services: { api: { image: "nginx" } } });
 
@@ -428,7 +395,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     });
 
     it("answers 400 naming a port the service does not expose", async () => {
-      const { apiKey } = await patchable();
+      const { apiKey } = await setup();
 
       const response = await patch(apiKey, { services: { web: { expose: { "8080": { accept: ["x.test"] } } } } });
 
@@ -437,7 +404,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     });
 
     it("refuses a patch naming no services at all", async () => {
-      const { apiKey } = await patchable();
+      const { apiKey } = await setup();
 
       const response = await patch(apiKey, { services: {} });
 
@@ -447,7 +414,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
   describe("a plaintext value in a service the patch never named", () => {
     it("stays in the clear, readable to its owner", async () => {
-      const { apiKey, user } = await patchable({ env: ["API_TOKEN=ac-secret://s0_e0", "LOG_LEVEL=debug"], secrets: { s0_e0: randomUUID() } });
+      const { apiKey, user } = await setup({ env: ["API_TOKEN=ac-secret://s0_e0", "LOG_LEVEL=debug"], secrets: { s0_e0: randomUUID() } });
 
       const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
 
@@ -457,7 +424,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
     it("is not pulled into the sealed token", async () => {
       const token = randomUUID();
-      const { apiKey, user } = await patchable({ env: ["API_TOKEN=ac-secret://s0_e0", "LOG_LEVEL=debug"], secrets: { s0_e0: token } });
+      const { apiKey, user } = await setup({ env: ["API_TOKEN=ac-secret://s0_e0", "LOG_LEVEL=debug"], secrets: { s0_e0: token } });
 
       await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
 
@@ -465,7 +432,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     });
 
     it("is sealed once the patch does name it", async () => {
-      const { apiKey, user } = await patchable({ env: ["API_TOKEN=ac-secret://s0_e0", "LOG_LEVEL=debug"], secrets: { s0_e0: randomUUID() } });
+      const { apiKey, user } = await setup({ env: ["API_TOKEN=ac-secret://s0_e0", "LOG_LEVEL=debug"], secrets: { s0_e0: randomUUID() } });
 
       const response = await patch(apiKey, { services: { web: { env: { LOG_LEVEL: "trace" } } } });
 
@@ -478,19 +445,19 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
   describe("a supplied secret name the sdl does not reference", () => {
     it("answers 400 naming it rather than silently dropping it", async () => {
-      const { apiKey } = await patchable();
+      const { apiKey, user } = await setup();
 
-      const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, { s0_eTYPO: randomUUID() });
+      const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, await sealFor(user, { s0_eTYPO: randomUUID() }));
 
       expect(response.status).toBe(400);
       expect(((await response.json()) as { message: string }).message).toContain("s0_eTYPO");
     });
 
     it("persists nothing", async () => {
-      const { apiKey, user } = await patchable();
+      const { apiKey, user } = await setup();
       const before = await settingOf(user);
 
-      await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, { s0_eTYPO: randomUUID() });
+      await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, await sealFor(user, { s0_eTYPO: randomUUID() }));
 
       expect(await settingOf(user)).toMatchObject({
         sdl: before!.sdl,
@@ -502,7 +469,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
   describe("http options over the wire", () => {
     it("accepts zero as a way to clear a timeout", async () => {
-      const { apiKey, user } = await patchable();
+      const { apiKey, user } = await setup();
 
       const response = await patch(apiKey, { services: { web: { expose: { "80": { httpOptions: { readTimeout: 0 } } } } } });
 
@@ -511,7 +478,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     });
 
     it("refuses a negative timeout", async () => {
-      const { apiKey } = await patchable();
+      const { apiKey } = await setup();
 
       const response = await patch(apiKey, { services: { web: { expose: { "80": { httpOptions: { readTimeout: -1 } } } } } });
 
@@ -519,7 +486,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     });
 
     it("adds no options node for a patch that assigns none", async () => {
-      const { apiKey, user } = await patchable();
+      const { apiKey, user } = await setup();
 
       const response = await patch(apiKey, { services: { web: { expose: { "80": { httpOptions: {} } } } } });
 
@@ -530,7 +497,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
   describe("the size of the set it would store", () => {
     it("refuses a merged set past the count a deployment may carry", async () => {
-      const { apiKey } = await patchable();
+      const { apiKey } = await setup();
       capSecretCountAt(1);
 
       const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
@@ -539,7 +506,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     });
 
     it("persists nothing when the merged set is refused", async () => {
-      const { apiKey, user } = await patchable();
+      const { apiKey, user } = await setup();
       const before = await settingOf(user);
       capSecretCountAt(1);
 
@@ -553,7 +520,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     });
 
     it("accepts a merged set exactly at the count", async () => {
-      const { apiKey } = await patchable();
+      const { apiKey } = await setup();
       capSecretCountAt(2);
 
       const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
@@ -563,7 +530,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
   });
 
   it("refuses an expected manifest version longer than the column can hold", async () => {
-    const { apiKey } = await patchable();
+    const { apiKey } = await setup();
 
     const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } }, ifManifestVersion: "A".repeat(65) });
 
@@ -571,7 +538,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
   });
 
   it("accepts an expected manifest version exactly at the column's bound", async () => {
-    const { apiKey } = await patchable();
+    const { apiKey } = await setup();
 
     const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } }, ifManifestVersion: "A".repeat(64) });
 
@@ -579,7 +546,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
   });
 
   it("returns the manifest version it recorded", async () => {
-    const { apiKey, user } = await patchable();
+    const { apiKey, user } = await setup();
 
     const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
 
@@ -684,15 +651,8 @@ describe("PATCH /v1/deployments/{dseq}", () => {
       .encrypt(publicKey);
   }
 
-  function patch(apiKey: string, data: Record<string, unknown>, secrets?: Record<string, string>) {
-    return request(apiKey, data, secrets);
-  }
-
-  async function request(apiKey: string, data: Record<string, unknown>, secrets?: Record<string, string>) {
-    const user = knownUsers[knownApiKeys[apiKey].userId];
-    const sealedSecrets = secrets ? await sealFor(user, secrets) : undefined;
-
-    return await app.request(`/v1/deployments/${DSEQ}`, {
+  function patch(apiKey: string, data: Record<string, unknown>, sealedSecrets?: string) {
+    return app.request(`/v1/deployments/${DSEQ}`, {
       method: "PATCH",
       body: JSON.stringify({ data: { ...data, sealedSecrets } }),
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey })
@@ -703,15 +663,34 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     return env.flatMap(entry => entry.match(/ac-secret:\/\/([A-Za-z_][A-Za-z0-9_]*)/)?.slice(1) ?? []);
   }
 
-  async function patchable(input: { secrets?: Record<string, string>; env?: string[]; record?: boolean } = {}) {
+  async function setup(input: { secrets?: Record<string, string>; env?: string[]; record?: boolean } = {}) {
     const dbUser = await userRepository.create({ userId: faker.string.uuid() });
     const apiKey = faker.string.alphanumeric(24);
     const user = createUser({ id: dbUser.id, userId: dbUser.userId ?? undefined });
     const address = createAkashAddress();
+    const wallets = [createUserWallet({ userId: dbUser.id, address })];
+    const apiKeys: Record<string, ReturnType<typeof createApiKey>> = { [apiKey]: createApiKey({ userId: dbUser.id }) };
 
-    knownUsers[dbUser.id] = user;
-    knownApiKeys[apiKey] = createApiKey({ userId: dbUser.id });
-    knownWallets[dbUser.id] = [createUserWallet({ userId: dbUser.id, address })];
+    vi.spyOn(userRepository, "findById").mockImplementation(async id =>
+      id === dbUser.id ? { ...user, trial: false, userWallets: { isTrialing: false } } : undefined
+    );
+    vi.spyOn(apiKeyAuthService, "getAndValidateApiKeyFromHeader").mockImplementation(async key => apiKeys[key!]);
+    vi.spyOn(blockHttpService, "getCurrentHeight").mockResolvedValue(faker.number.int({ min: 1000000, max: 10000000 }));
+    vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(
+      mock<UserWalletRepository>({
+        findByUserId: async () => wallets,
+        findOneByUserId: async () => wallets[0]
+      })
+    );
+    vi.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValue({
+      code: 200,
+      transactionHash: "fake-transaction-hash",
+      hash: "fake-transaction-hash",
+      rawLog: "fake-raw-log"
+    });
+    vi.spyOn(providerService, "sendManifest").mockResolvedValue(true);
+    vi.spyOn(providerService, "getLeaseStatus").mockResolvedValue(createLeaseStatus());
+    vi.spyOn(providerService, "toProviderAuth").mockResolvedValue(mock());
 
     const env = input.env ?? ["API_TOKEN=ac-secret://s0_e0", "DATABASE_URL=ac-secret://s0_e1"];
     const sdl = storedSdl(env);
