@@ -28,12 +28,16 @@ export type ReceiveSdlSecretsResult = { ok: true; value: SdlSecrets } | { ok: fa
 const NOTHING_SUPPLIED: SdlSecrets = {};
 
 /** Which set broke a limit, because a redeploy that inherits its values supplied none of them and must not be told to supply fewer. */
-type SdlSecretsOrigin = "supplied" | "carried";
+type SdlSecretsOrigin = "supplied" | "carried" | "stored";
 
 function countExceededMessage(origin: SdlSecretsOrigin, maxCount: number): string {
-  return origin === "supplied"
-    ? `At most ${maxCount} secrets may be supplied for one deployment`
-    : `At most ${maxCount} secrets may be carried by one deployment, counting those inherited from another`;
+  const messages: Record<SdlSecretsOrigin, string> = {
+    supplied: `At most ${maxCount} secrets may be supplied for one deployment`,
+    carried: `At most ${maxCount} secrets may be carried by one deployment, counting those inherited from another`,
+    stored: `At most ${maxCount} secrets may be stored for one deployment`
+  };
+
+  return messages[origin];
 }
 
 /** The two ways a reference can already be answered when a create is received: by this request, or by the deployment it inherits from. */
@@ -117,8 +121,8 @@ export class SdlSecretsService {
   }
 
   /** Bounds the whole set a deployment would carry, because measuring one request alone would let a merge grow the stored token past the ceiling one request at a time. */
-  assertStorable(secrets: SdlSecrets): void {
-    this.#assertWithinLimits(secrets, "carried");
+  assertStorable(secrets: SdlSecrets, origin: Exclude<SdlSecretsOrigin, "supplied">): void {
+    this.#assertWithinLimits(secrets, origin);
   }
 
   /** Returns null when nothing was supplied, so a create always has a value to write and a retry cannot inherit an abandoned attempt's token. */

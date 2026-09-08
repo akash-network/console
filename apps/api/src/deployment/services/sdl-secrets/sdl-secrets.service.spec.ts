@@ -646,26 +646,40 @@ describe(SdlSecretsService.name, () => {
       const { service } = setup({ maxCount: 2 });
       const merged = Object.fromEntries(Array.from({ length: 3 }, (_, index) => [`s0_e${index}`, "value"]));
 
-      expect(() => service.assertStorable(merged)).toThrow(expect.objectContaining({ status: 400 }));
+      expect(() => service.assertStorable(merged, "carried")).toThrow(expect.objectContaining({ status: 400 }));
     });
 
     it("refuses a value larger than a secret may be", () => {
       const { service } = setup({ maxValueBytes: 10 });
 
-      expect(() => service.assertStorable({ s0_e0: "x".repeat(50) })).toThrow(expect.objectContaining({ status: 400 }));
+      expect(() => service.assertStorable({ s0_e0: "x".repeat(50) }, "carried")).toThrow(expect.objectContaining({ status: 400 }));
     });
 
     it("accepts a set exactly at the count a deployment may carry", () => {
       const { service } = setup({ maxCount: 2 });
 
-      expect(() => service.assertStorable({ s0_e0: "a", s0_e1: "b" })).not.toThrow();
+      expect(() => service.assertStorable({ s0_e0: "a", s0_e1: "b" }, "carried")).not.toThrow();
     });
 
     it("names the count it enforces rather than the request that reached it", () => {
       const { service } = setup({ maxCount: 2 });
       const merged = Object.fromEntries(Array.from({ length: 3 }, (_, index) => [`s0_e${index}`, "value"]));
 
-      expect(() => service.assertStorable(merged)).toThrow(/At most 2 secrets/);
+      expect(() => service.assertStorable(merged, "carried")).toThrow(/At most 2 secrets/);
+    });
+
+    it("blames inheritance only for a carried set", () => {
+      const { service } = setup({ maxCount: 2 });
+      const merged = Object.fromEntries(Array.from({ length: 3 }, (_, index) => [`s0_e${index}`, "value"]));
+
+      expect(() => service.assertStorable(merged, "carried")).toThrow(/carried by one deployment, counting those inherited from another/);
+    });
+
+    it("says nothing of inheritance for a merged stored set", () => {
+      const { service } = setup({ maxCount: 2 });
+      const merged = Object.fromEntries(Array.from({ length: 3 }, (_, index) => [`s0_e${index}`, "value"]));
+
+      expect(() => service.assertStorable(merged, "stored")).toThrow(/stored for one deployment/);
     });
   });
 

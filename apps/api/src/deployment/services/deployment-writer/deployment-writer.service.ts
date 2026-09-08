@@ -242,13 +242,7 @@ export class DeploymentWriterService {
     return this.sdlSecretsDerivationService.derive(document, { includeEnvValues: values === "every-value-sealed" });
   }
 
-  /**
-   * The one set of values the deployment's token carries: what the client sealed, what the deployment it
-   * inherits from held, and what the console took out of the document itself. A supplied name the console
-   * also derived is refused rather than merged, because the two would be different values under one name
-   * and the stored SDL would then reference whichever won. An inherited name loses to either silently: the
-   * client did not choose it for this request, and a derived name owns the slot the derivation just wrote.
-   */
+  /** The one set of values the deployment's token carries, overlaid as inherited, then supplied, then derived, refusing only a supplied name the console also derived because both were chosen for this request. */
   #storedSecretsOf(sets: { inherited: SdlSecrets; supplied: SdlSecrets; derived: SdlSecrets }, storedDocument: SDLInput): SdlSecrets {
     const collisions = Object.keys(sets.derived).filter(name => Object.hasOwn(sets.supplied, name));
 
@@ -265,9 +259,12 @@ export class DeploymentWriterService {
     return prunedOverlayOf({ carried: sets.inherited, supplied: sets.supplied, derived: sets.derived }, referenced);
   }
 
-  /** Bounds what this deployment will actually keep from elsewhere rather than everything the source held, so a large source cannot refuse a redeploy that references one of its names. */
-  #assertCarriedSetIsStorable(sets: { inherited: SdlSecrets; supplied: SdlSecrets }, referenced: ReadonlySet<string>): void {
-    this.sdlSecretsService.assertStorable(prunedOverlayOf({ carried: sets.inherited, supplied: sets.supplied, derived: {} }, referenced));
+  /** Bounds only what this deployment will actually keep from elsewhere, so neither a large source nor a stale inherited value a derived name displaces can refuse the redeploy. */
+  #assertCarriedSetIsStorable(sets: { inherited: SdlSecrets; supplied: SdlSecrets; derived: SdlSecrets }, referenced: ReadonlySet<string>): void {
+    const carried = prunedOverlayOf({ carried: sets.inherited, supplied: sets.supplied, derived: {} }, referenced);
+    const kept = Object.fromEntries(Object.entries(carried).filter(([name]) => !Object.hasOwn(sets.derived, name)));
+
+    this.sdlSecretsService.assertStorable(kept, "carried");
   }
 
   /** Refused before the dseq is minted, so a source that cannot be found or whose token will not open spends no dseq and leaves nothing recorded. */
@@ -496,7 +493,7 @@ export class DeploymentWriterService {
 
     const merged = prunedOverlayOf({ carried: sets.held, supplied: sets.supplied, derived: sets.derived }, referenced);
 
-    this.sdlSecretsService.assertStorable(merged);
+    this.sdlSecretsService.assertStorable(merged, "stored");
 
     return merged;
   }
