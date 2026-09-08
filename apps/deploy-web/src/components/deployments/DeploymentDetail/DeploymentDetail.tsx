@@ -211,7 +211,6 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                     onManifestChange={setEditedManifest}
                     isRemoteDeploy={isRemoteDeploy}
                     deployment={deployment}
-                    leases={leases}
                     onRedeploy={storedDeployment?.manifest ? redeployFromStoredManifest : undefined}
                     closeManifestEditor={() => {
                       changeTab("DETAILS");
