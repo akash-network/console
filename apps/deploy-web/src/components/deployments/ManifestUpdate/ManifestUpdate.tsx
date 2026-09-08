@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { LoggerService } from "@akashnetwork/logging";
 import { extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
 import { Alert, Button, CustomTooltip, Snackbar } from "@akashnetwork/ui/components";
 import { InfoCircle, Upload, WarningCircle } from "iconoir-react";
@@ -18,7 +17,7 @@ import { useDeploymentDefinition as useDeploymentDefinitionOriginal } from "@src
 import { useBalances as useBalancesOriginal } from "@src/queries/useBalancesQuery";
 import type { DeploymentDto } from "@src/types/deployment";
 import { deploymentData as deploymentDataOriginal } from "@src/utils/deploymentData";
-import { hasSdlReference } from "@src/utils/sdl/storedDefinition";
+import { hasOnlyBlankEnvValues, hasSdlReference } from "@src/utils/sdl/storedDefinition";
 import RemoteDeployUpdate from "../../remote-deploy/update/RemoteDeployUpdate";
 import { SDLEditor } from "../../sdl/SDLEditor/SDLEditor";
 import { DeploymentTabHeader } from "../DeploymentDetail/DeploymentTabHeader";
@@ -45,8 +44,6 @@ export const DEPENDENCIES = {
   // eslint-disable-next-line akash/dependencies-component-or-hook
   deploymentData: deploymentDataOriginal
 };
-
-const logger = new LoggerService({ name: "ManifestUpdate" });
 
 /** The api answers 400 for provider-credential and schema failures too, and only a refusal of the document itself belongs in the editor's inline alert. */
 const SDL_REFUSAL_PREFIXES = ["Invalid SDL:", "SDL is not valid YAML", "SDL is too large"];
@@ -118,7 +115,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   onRedeploy,
   dependencies: d = DEPENDENCIES
 }) => {
-  const { api, analyticsService, deploymentLocalStorage } = useServices();
+  const { api, analyticsService, deploymentLocalStorage, logger } = useServices();
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
   const [hasDismissedWithheldValuesNotice, setHasDismissedWithheldValuesNotice] = useState(false);
@@ -128,6 +125,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const { isBlockchainDown } = d.useBlockchainStatus();
   const definition = d.useDeploymentDefinition(deployment.dseq);
+  const lastSeededSdl = useRef<string | undefined>(undefined);
   const updateDeployment = api.v1.updateDeployment.useMutation({
     onSuccess: (_data, variables) => recordUpdate(variables.data.sdl),
     onError: reportUpdateFailure
@@ -146,7 +144,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
   const isResolvingDefinition = definition.source === "resolving";
   const showsWithheldValuesNotice = definition.source === "absent" && !hasDismissedWithheldValuesNotice;
-  const hasWithheldValues = useMemo(() => !!editedManifest && hasSdlReference(editedManifest), [editedManifest]);
+  const hasWithheldValues = useMemo(() => !!editedManifest && (hasSdlReference(editedManifest) || hasOnlyBlankEnvValues(editedManifest)), [editedManifest]);
 
   useEffect(
     function seedEditorOnceTheDefinitionResolves() {
@@ -154,7 +152,13 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
       const { sdl, source } = definition;
 
-      if (sdl) onManifestChange(sdl);
+      const editorHoldsUnseededEdits = lastSeededSdl.current !== undefined && editedManifest !== lastSeededSdl.current;
+      if (editorHoldsUnseededEdits) return;
+
+      if (sdl) {
+        lastSeededSdl.current = sdl;
+        onManifestChange(sdl);
+      }
 
       /** Both copies that can disagree with the chain: this browser's own, and one the API held but could not stand behind. */
       if ((source !== "local" && source !== "absent") || !sdl) {
@@ -165,7 +169,8 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
       const readVersionOfLocalCopy = async () => {
         try {
           setDeploymentVersion(await d.deploymentData.getManifestVersion(yaml.load(sdl)));
-        } catch {
+        } catch (error) {
+          logger.error({ event: "MANIFEST_VERSION_READ_FAILED", error });
           setParsingError("Error getting manifest version.");
         }
       };
