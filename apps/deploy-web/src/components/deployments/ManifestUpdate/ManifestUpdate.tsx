@@ -135,7 +135,6 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   }
 
   function handleUpdateClick() {
-    setParsingError(null);
     setIsUpdating(true);
     updateDeployment.mutate({ dseq: deployment.dseq, data: { sdl: editedManifest } }, { onSuccess: closeAfterUpdate, onError: releaseAfterFailure });
   }

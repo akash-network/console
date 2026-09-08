@@ -67,6 +67,25 @@ describe(ManifestUpdate.name, () => {
     });
   });
 
+  it("enables the update button for an active deployment the user can still change", async () => {
+    const { dependencies } = setup();
+
+    await waitFor(() => {
+      expect(updateButtonOf(dependencies)?.disabled).toBe(false);
+    });
+  });
+
+  it("treats a cleared editor as an empty manifest", () => {
+    const onManifestChange = vi.fn();
+    const { dependencies } = setup({ onManifestChange });
+
+    act(() => {
+      dependencies.SDLEditor.mock.calls[0][0].onChange?.(undefined, editorChangeEvent());
+    });
+
+    expect(onManifestChange).toHaveBeenCalledWith("");
+  });
+
   it("disables update button when manifest is empty", () => {
     const { dependencies } = setup({ editedManifest: "" });
 
@@ -211,6 +230,7 @@ describe(ManifestUpdate.name, () => {
     expect(screen.getByText("SDL is not valid YAML: line 3, column 5")).toBeInTheDocument();
     expect(closeManifestEditor).not.toHaveBeenCalled();
     expect(handles.deploymentLocalStorage.update).not.toHaveBeenCalled();
+    expect(handles.enqueueSnackbar).not.toHaveBeenCalled();
   });
 
   it("lets the user retry after editing the sdl the api refused", async () => {
@@ -302,6 +322,15 @@ describe(ManifestUpdate.name, () => {
     handles.enqueueSnackbar.mock.calls[0][0].props.subTitle.props.onAction();
 
     expect(handles.closeSnackbar).toHaveBeenCalledWith("snackbar-key");
+  });
+
+  it("names the add credits snackbar itself when the api sends no message with the refusal", async () => {
+    const handles = setup();
+
+    await clickUpdate(handles);
+    await fail(handles, new ApiError(402, {}, "PUT /v1/deployments/{dseq} → 402"));
+
+    expect(handles.enqueueSnackbar.mock.calls[0][0].props.title).toBe("Add credits to continue");
   });
 
   it("re-enables the update action after the api refuses the update for payment", async () => {
