@@ -168,6 +168,35 @@ const PatchEnvSchema = z.record(z.string().regex(ENV_VARIABLE_NAME), z.string().
   description: "Merged into the service's env, keyed by environment variable name. A null value removes the variable."
 });
 
+/** `nonnegative` rather than `positive`: the grammar gives every one of these `minimum: 0`, and 0 is how a timeout is cleared. */
+const PatchHttpOptionsSchema = z
+  .object({
+    maxBodySize: z.number().int().nonnegative(),
+    readTimeout: z.number().int().nonnegative(),
+    sendTimeout: z.number().int().nonnegative(),
+    nextTries: z.number().int().nonnegative(),
+    nextTimeout: z.number().int().nonnegative(),
+    nextCases: z.array(z.string())
+  })
+  .partial();
+
+const PatchExposeSchema = z
+  .object({
+    accept: z.array(z.string()).openapi({ description: "Custom domains. Replaces the existing list." }),
+    httpOptions: PatchHttpOptionsSchema
+  })
+  .partial();
+
+/** Naming a field is not patching one: `{ expose: {} }` reaches the writer with nothing to write, so an empty record has to be refused as firmly as an empty patch. */
+function assignsAField(patch: Record<string, unknown>): boolean {
+  return Object.values(patch).some(value => !isEmptyRecord(value));
+}
+
+/** An array is a value even when empty, because `command: []` clears the list the service declared. */
+function isEmptyRecord(value: unknown): boolean {
+  return !!value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 0;
+}
+
 export const PatchServiceSchema = z
   .object({
     image: z.string(),
@@ -177,9 +206,16 @@ export const PatchServiceSchema = z
     credentials: z
       .object({ host: z.string(), username: z.string(), password: z.string() })
       .nullable()
-      .openapi({ description: "Private registry pull credentials. Null clears them." })
+      .openapi({ description: "Private registry pull credentials. Null clears them." }),
+    expose: z.record(z.string(), PatchExposeSchema).openapi({
+      description: "Keyed by container port. Only hosts and http options are patchable; endpoint kind and count are fixed at create."
+    }),
+    storage: z.record(z.string(), z.object({ mount: z.string(), readOnly: z.boolean() }).partial()).openapi({
+      description: "Keyed by volume name. Mount point and read-only flag only — sizes are fixed at create."
+    })
   })
-  .partial();
+  .partial()
+  .refine(assignsAField, { message: "At least one field must be patched" });
 
 export const UpdateDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema

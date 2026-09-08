@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import { MAX_ECHOED_REFERENCE_LENGTH, SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlPatchService } from "./sdl-patch.service";
 
+type SdlExposeEntry = NonNullable<SDLInput["services"][string]["expose"]>[number];
+
 describe(SdlPatchService.name, () => {
   it("replaces the image of the named service", () => {
     const { service, document } = setup({ services: { web: { image: "nginx" } } });
@@ -230,11 +232,47 @@ describe(SdlPatchService.name, () => {
       expect(() => service.apply(document, { web: { image: "nginx:1.27" } })).toThrow(/share its definition with another part of the document/);
     });
 
+    it("refuses an env patch through the alias, naming the definition it would rewrite", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx" } }, aliasWebAs: "worker" });
+
+      expect(() => service.apply(document, { web: { env: { A: "two" } } })).toThrow(/share its definition with another part of the document/);
+    });
+
+    it("allows a patch whose only field is an empty env record, which assigns nothing", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx" } }, aliasWebAs: "worker" });
+
+      expect(() => service.apply(document, { web: { env: {} } })).not.toThrow();
+    });
+
     it("leaves the aliased service untouched", () => {
       const { service, document } = setup({ services: { web: { image: "nginx" } }, aliasWebAs: "worker" });
 
       expect(() => service.apply(document, { web: { image: "nginx:1.27" } })).toThrow();
       expect(document.services.worker.image).toBe("nginx");
+    });
+
+    it("accepts a patch naming no field, rather than refusing a write it would never make", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx" } }, aliasWebAs: "worker" });
+
+      service.apply(document, { web: {} });
+
+      expect(document.services.worker.image).toBe("nginx");
+    });
+
+    it("accepts a patch whose only sub-patch assigns nothing", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 80, accept: ["a.test"] }] } }, aliasWebAs: "worker" });
+
+      service.apply(document, { web: { expose: { "80": {} } } });
+
+      expect(document.services.worker.expose?.[0].accept).toEqual(["a.test"]);
+    });
+
+    it("still refuses a sub-patch that does assign through the alias", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 80, accept: ["a.test"] }] } }, aliasWebAs: "worker" });
+
+      expect(() => service.apply(document, { web: { expose: { "80": { accept: ["b.test"] } } } })).toThrow(
+        /share its definition with another part of the document/
+      );
     });
   });
 
@@ -370,6 +408,172 @@ describe(SdlPatchService.name, () => {
     });
   });
 
+  describe("expose", () => {
+    it("replaces the accepted hosts of the named port", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 80, accept: ["old.test"] }] } } });
+
+      service.apply(document, { web: { expose: { "80": { accept: ["new.test", "www.new.test"] } } } });
+
+      expect(document.services.web.expose?.[0].accept).toEqual(["new.test", "www.new.test"]);
+    });
+
+    it("matches the port the endpoint declares rather than its position", () => {
+      const { service, document } = setup({
+        services: {
+          web: {
+            image: "nginx",
+            expose: [
+              { port: 80, accept: ["a.test"] },
+              { port: 8080, accept: ["b.test"] }
+            ]
+          }
+        }
+      });
+
+      service.apply(document, { web: { expose: { "8080": { accept: ["patched.test"] } } } });
+
+      expect(document.services.web.expose?.[0].accept).toEqual(["a.test"]);
+      expect(document.services.web.expose?.[1].accept).toEqual(["patched.test"]);
+    });
+
+    it("translates every camelCase http option onto the snake_case key the sdl names", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 80 }] } } });
+
+      service.apply(document, {
+        web: {
+          expose: {
+            "80": {
+              httpOptions: { maxBodySize: 2048, readTimeout: 1000, sendTimeout: 2000, nextTries: 3, nextTimeout: 4000, nextCases: ["500", "timeout"] }
+            }
+          }
+        }
+      });
+
+      expect(document.services.web.expose?.[0].http_options).toEqual({
+        max_body_size: 2048,
+        read_timeout: 1000,
+        send_timeout: 2000,
+        next_tries: 3,
+        next_timeout: 4000,
+        next_cases: ["500", "timeout"]
+      });
+    });
+
+    it("merges http options over the ones already declared", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx", expose: [{ port: 80, http_options: { max_body_size: 1024, read_timeout: 5000 } }] } }
+      });
+
+      service.apply(document, { web: { expose: { "80": { httpOptions: { readTimeout: 9000 } } } } });
+
+      expect(document.services.web.expose?.[0].http_options).toEqual({ max_body_size: 1024, read_timeout: 9000 });
+    });
+
+    it("leaves the endpoint kind and count alone while patching its hosts", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx", expose: [{ port: 80, as: 80, proto: "TCP", to: [{ global: true }], accept: ["old.test"] }] } }
+      });
+
+      service.apply(document, { web: { expose: { "80": { accept: ["new.test"] } } } });
+
+      expect(document.services.web.expose?.[0]).toMatchObject({ port: 80, as: 80, proto: "TCP", to: [{ global: true }] });
+    });
+
+    it("refuses a port the service does not expose, naming it", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 80 }] } } });
+
+      expect(() => service.apply(document, { web: { expose: { "8080": { accept: ["x.test"] } } } })).toThrow(/service "web" exposes no port "8080"/);
+    });
+
+    it("refuses a port on a service exposing nothing at all", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx" } } });
+
+      expect(() => service.apply(document, { web: { expose: { "80": { accept: ["x.test"] } } } })).toThrow(/exposes no port "80"/);
+    });
+
+    it("changes nothing when a later port in the same patch is unknown", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 80, accept: ["old.test"] }] } } });
+
+      expect(() => service.apply(document, { web: { expose: { "8080": { accept: ["x.test"] } } } })).toThrow();
+      expect(document.services.web.expose?.[0].accept).toEqual(["old.test"]);
+    });
+
+    it('refuses a port spelled "undefined" rather than matching an endpoint that declares none', () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ accept: ["old.test"] } as SdlExposeEntry] } } });
+
+      expect(() => service.apply(document, { web: { expose: { undefined: { accept: ["x.test"] } } } })).toThrow(/exposes no port "undefined"/);
+      expect(document.services.web.expose?.[0].accept).toEqual(["old.test"]);
+    });
+
+    it("still refuses an unknown port carrying a sub-patch that assigns nothing", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 80 }] } } });
+
+      expect(() => service.apply(document, { web: { expose: { "8080": {} } } })).toThrow(/exposes no port "8080"/);
+    });
+
+    it("writes no http options node for a sub-patch that assigns nothing", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 80 }] } } });
+
+      service.apply(document, { web: { expose: { "80": {} } } });
+
+      expect(document.services.web.expose?.[0]).toEqual({ port: 80 });
+    });
+  });
+
+  describe("storage", () => {
+    it("moves the mount point of the named volume", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx", params: { storage: { data: { mount: "/old", readOnly: false } } } } }
+      });
+
+      service.apply(document, { web: { storage: { data: { mount: "/srv/data" } } } });
+
+      expect(document.services.web.params?.storage?.data).toEqual({ mount: "/srv/data", readOnly: false });
+    });
+
+    it("sets the read-only flag of the named volume", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx", params: { storage: { data: { mount: "/srv/data", readOnly: false } } } } }
+      });
+
+      service.apply(document, { web: { storage: { data: { readOnly: true } } } });
+
+      expect(document.services.web.params?.storage?.data.readOnly).toBe(true);
+    });
+
+    it("leaves a volume the patch does not name", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx", params: { storage: { data: { mount: "/data" }, cache: { mount: "/cache" } } } } }
+      });
+
+      service.apply(document, { web: { storage: { data: { mount: "/srv/data" } } } });
+
+      expect(document.services.web.params?.storage?.cache).toEqual({ mount: "/cache" });
+    });
+
+    it("refuses a volume the service does not declare, naming it", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx", params: { storage: { data: { mount: "/data" } } } } }
+      });
+
+      expect(() => service.apply(document, { web: { storage: { nope: { mount: "/nope" } } } })).toThrow(/service "web" declares no storage volume "nope"/);
+    });
+
+    it("refuses a volume on a service declaring no storage at all", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx" } } });
+
+      expect(() => service.apply(document, { web: { storage: { data: { mount: "/data" } } } })).toThrow(/declares no storage volume "data"/);
+    });
+
+    it("refuses a volume name spelling an object prototype member rather than resolving one", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx", params: { storage: { data: { mount: "/data" } } } } }
+      });
+
+      expect(() => service.apply(document, { web: { storage: { constructor: { mount: "/x" } } } })).toThrow(/declares no storage volume/);
+    });
+  });
+
   describe("a node two services share through a yaml anchor", () => {
     it("refuses to patch env through a shared list", () => {
       const { service, document } = setup({ services: { web: { image: "nginx" }, worker: { image: "busybox" } }, shareEnv: ["A=one"] });
@@ -419,12 +623,85 @@ describe(SdlPatchService.name, () => {
       expect(document.services.web.env).toEqual(["A=two"]);
       expect(document.services.worker.env).toEqual(["A=one"]);
     });
+
+    it("refuses to patch expose through a shared endpoint", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx" }, worker: { image: "busybox" } },
+        shareExpose: [{ port: 80, accept: ["a.test"] }]
+      });
+
+      expect(() => service.apply(document, { web: { expose: { "80": { accept: ["b.test"] } } } })).toThrow(/share its expose on port 80/);
+    });
+
+    it("refuses to patch http options through a shared options block", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx" }, worker: { image: "busybox" } },
+        shareHttpOptions: { max_body_size: 1024 }
+      });
+
+      expect(() => service.apply(document, { web: { expose: { "80": { httpOptions: { readTimeout: 9000 } } } } })).toThrow(/share its http options on port 80/);
+    });
+
+    it("leaves the shared options block untouched when it refuses", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx" }, worker: { image: "busybox" } },
+        shareHttpOptions: { max_body_size: 1024 }
+      });
+
+      expect(() => service.apply(document, { web: { expose: { "80": { httpOptions: { readTimeout: 9000 } } } } })).toThrow();
+      expect(document.services.worker.expose?.[0].http_options).toEqual({ max_body_size: 1024 });
+    });
+
+    it("refuses to patch storage through a shared volume", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx" }, worker: { image: "busybox" } },
+        shareStorage: { data: { mount: "/data" } }
+      });
+
+      expect(() => service.apply(document, { web: { storage: { data: { mount: "/srv" } } } })).toThrow(/share its storage volume data/);
+    });
+
+    it("accepts an expose sub-patch that assigns nothing, rather than refusing a write it would never make", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx" }, worker: { image: "busybox" } },
+        shareExpose: [{ port: 80, accept: ["a.test"] }]
+      });
+
+      service.apply(document, { web: { expose: { "80": {} } } });
+
+      expect(document.services.worker.expose?.[0].accept).toEqual(["a.test"]);
+    });
+
+    it("accepts an http options sub-patch that assigns nothing on a shared options block", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx" }, worker: { image: "busybox" } },
+        shareHttpOptions: { max_body_size: 1024 }
+      });
+
+      service.apply(document, { web: { expose: { "80": { httpOptions: {} } } } });
+
+      expect(document.services.worker.expose?.[0].http_options).toEqual({ max_body_size: 1024 });
+    });
+
+    it("accepts a storage sub-patch that assigns nothing, rather than refusing a write it would never make", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx" }, worker: { image: "busybox" } },
+        shareStorage: { data: { mount: "/data" } }
+      });
+
+      service.apply(document, { web: { storage: { data: {} } } });
+
+      expect(document.services.worker.params?.storage?.data).toEqual({ mount: "/data" });
+    });
   });
 
   function setup(input: {
     services: Record<string, SDLInput["services"][string]>;
     shareEnv?: string[];
     shareCredentials?: NonNullable<SDLInput["services"][string]["credentials"]>;
+    shareExpose?: NonNullable<SDLInput["services"][string]["expose"]>;
+    shareStorage?: NonNullable<NonNullable<SDLInput["services"][string]["params"]>["storage"]>;
+    shareHttpOptions?: NonNullable<NonNullable<SDLInput["services"][string]["expose"]>[number]["http_options"]>;
     aliasWebAs?: string;
   }) {
     const services = { ...input.services };
@@ -432,6 +709,9 @@ describe(SdlPatchService.name, () => {
     for (const name of Object.keys(services)) {
       if (input.shareEnv) services[name] = { ...services[name], env: input.shareEnv };
       if (input.shareCredentials) services[name] = { ...services[name], credentials: input.shareCredentials };
+      if (input.shareExpose) services[name] = { ...services[name], expose: input.shareExpose };
+      if (input.shareStorage) services[name] = { ...services[name], params: { storage: input.shareStorage } };
+      if (input.shareHttpOptions) services[name] = { ...services[name], expose: [{ port: 80, http_options: input.shareHttpOptions }] };
     }
 
     if (input.aliasWebAs) services[input.aliasWebAs] = services.web;
