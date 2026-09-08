@@ -22,21 +22,16 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-/**
- * Keeps the page mounted behind a non-dismissible modal until a trialing user has accepted the Fair Use Policy once.
- * Mirrors the server gate, which only refuses deployments from trial wallets and only while the same flag is on.
- */
+/** Holds the page back until acceptance, so an auto-started deployment cannot fire behind the modal; a user whose trial wallet is still provisioning is asked too, since that wallet will be a trial one. */
 export function RequireFairUsePolicy({ children, isPublic, dependencies: d = DEPENDENCIES }: Props) {
   const { user } = d.useUser();
-  const { isTrialing } = d.useWallet();
+  const { isTrialing, hasWallet } = d.useWallet();
   const isGateEnabled = d.useFlag("fair_use_policy_gate");
   const { accept, isAccepting, hasAccepted } = d.useAcceptFairUsePolicy();
-  const mustAccept = !isPublic && isGateEnabled && isTrialing && !!user?.userId && !user.fairUsePolicyAcceptedAt && !hasAccepted;
+  const isTrialingOrAwaitingWallet = isTrialing || !hasWallet;
+  const mustAccept = !isPublic && isGateEnabled && isTrialingOrAwaitingWallet && !!user?.userId && !user.fairUsePolicyAcceptedAt && !hasAccepted;
 
-  return (
-    <>
-      {children}
-      {mustAccept && <d.FairUsePolicyModal onAccept={accept} isAccepting={isAccepting} />}
-    </>
-  );
+  if (mustAccept) return <d.FairUsePolicyModal onAccept={accept} isAccepting={isAccepting} />;
+
+  return <>{children}</>;
 }

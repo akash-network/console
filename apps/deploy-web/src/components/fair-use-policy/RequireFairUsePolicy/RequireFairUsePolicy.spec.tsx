@@ -10,10 +10,17 @@ import { fireEvent, render, screen } from "@testing-library/react";
 const ACCEPTED_AT = "2026-09-06T00:00:00.000Z";
 
 describe(RequireFairUsePolicy.name, () => {
-  it("shows the modal over the page for a trialing user who has not accepted", () => {
+  it("shows the modal instead of the page for a trialing user who has not accepted", () => {
     setup({ userId: "u1", fairUsePolicyAcceptedAt: null });
 
-    expect(screen.getByText("child")).toBeInTheDocument();
+    expect(screen.queryByText("child")).not.toBeInTheDocument();
+    expect(screen.getByTestId("fair-use-policy-modal")).toBeInTheDocument();
+  });
+
+  it("demands acceptance before the trial wallet exists", () => {
+    setup({ userId: "u1", fairUsePolicyAcceptedAt: null, isTrialing: false, hasWallet: false });
+
+    expect(screen.queryByText("child")).not.toBeInTheDocument();
     expect(screen.getByTestId("fair-use-policy-modal")).toBeInTheDocument();
   });
 
@@ -68,6 +75,7 @@ describe(RequireFairUsePolicy.name, () => {
     isPublic?: boolean;
     loggedOut?: boolean;
     isTrialing?: boolean;
+    hasWallet?: boolean;
     isGateEnabled?: boolean;
     hasAccepted?: boolean;
   }) {
@@ -80,7 +88,7 @@ describe(RequireFairUsePolicy.name, () => {
             : mock<CustomUserProfile>({ userId: input.userId ?? "u1", fairUsePolicyAcceptedAt: input.fairUsePolicyAcceptedAt ?? null }),
           isLoading: false
         })) as typeof DEPENDENCIES.useUser,
-      useWallet: () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? true }),
+      useWallet: () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? true, hasWallet: input.hasWallet ?? true }),
       useFlag: flag => flag === "fair_use_policy_gate" && (input.isGateEnabled ?? true),
       useAcceptFairUsePolicy: () => ({ accept, isAccepting: false, hasAccepted: input.hasAccepted ?? false }),
       FairUsePolicyModal: ({ onAccept }) => (
