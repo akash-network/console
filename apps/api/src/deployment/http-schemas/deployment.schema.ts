@@ -2,7 +2,7 @@ import { DeploymentInfoSchema } from "@akashnetwork/http-sdk";
 import { z } from "zod";
 
 import { SignTxResponseOutputSchema } from "@src/billing/http-schemas/tx.schema";
-import { MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
+import { MAX_MANIFEST_VERSION_LENGTH, MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
 import { openApiExampleAddress } from "@src/utils/constants";
 import { AkashAddressSchema, DseqSchema } from "@src/utils/schema";
 import { LeaseStatusResponseSchema } from "./lease.schema";
@@ -221,6 +221,30 @@ export const UpdateDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema
 });
 
+/** `.refine` rather than a length rule on the record itself, which this zod version does not offer. */
+export const PatchDeploymentRequestSchema = z.object({
+  data: z.object({
+    services: z
+      .record(z.string(), PatchServiceSchema)
+      .refine(services => Object.keys(services).length > 0, { message: "At least one service must be patched" })
+      .openapi({
+        description: "Keyed by service name. Only the named services are touched; omitted services keep their current definition."
+      }),
+    sealedSecrets: z.string().optional(),
+    ifManifestVersion: z.string().max(MAX_MANIFEST_VERSION_LENGTH).optional().openapi({
+      description: "Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on."
+    })
+  })
+});
+
+export const PatchDeploymentResponseSchema = z.object({
+  data: DeploymentResponseSchema.extend({
+    manifestVersion: z.string().openapi({
+      description: "Base64 manifest version this patch recorded and committed on chain."
+    })
+  })
+});
+
 export const ListDeploymentsQuerySchema = z.object({
   skip: z.coerce.number().min(0).optional(),
   limit: z.coerce.number().min(1).default(1000).optional()
@@ -370,6 +394,8 @@ export type DepositDeploymentRequest = z.infer<typeof DepositDeploymentRequestSc
 export type DepositDeploymentResponse = z.infer<typeof DepositDeploymentResponseSchema>;
 export type UpdateDeploymentRequest = z.infer<typeof UpdateDeploymentRequestSchema>;
 export type PatchService = z.infer<typeof PatchServiceSchema>;
+export type PatchDeploymentRequest = z.infer<typeof PatchDeploymentRequestSchema>;
+export type PatchDeploymentResponse = z.infer<typeof PatchDeploymentResponseSchema>;
 export type UpdateDeploymentResponse = z.infer<typeof UpdateDeploymentResponseSchema>;
 export type ListWithResourcesParams = z.infer<typeof ListWithResourcesParamsSchema>;
 export type ListWithResourcesQuery = z.infer<typeof ListWithResourcesQuerySchema>;

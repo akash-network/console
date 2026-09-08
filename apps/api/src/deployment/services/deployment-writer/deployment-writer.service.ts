@@ -1,5 +1,6 @@
 import type { SDLInput, ValidationError } from "@akashnetwork/chain-sdk";
 import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
+import type { AnyAbility } from "@casl/ability";
 import { addMinutes } from "date-fns";
 import { HTTPException } from "hono/http-exception";
 import createError from "http-errors";
@@ -12,24 +13,40 @@ import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY, TxService } from "@src/core";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
-import { CreateDeploymentRequest, CreateDeploymentResponse, DeploymentResponse, UpdateDeploymentRequest } from "@src/deployment/http-schemas/deployment.schema";
+import {
+  CreateDeploymentRequest,
+  CreateDeploymentResponse,
+  DeploymentResponse,
+  PatchDeploymentRequest,
+  PatchDeploymentResponse,
+  UpdateDeploymentRequest
+} from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import {
   DeleteUnbackedDeploymentSetting,
   unbackedDeploymentSettingKeyFor
 } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
-import { MAX_ECHOED_REFERENCE_LENGTH } from "@src/deployment/services/sdl-reference/sdl-reference.service";
-import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
+import { MAX_ECHOED_REFERENCE_LENGTH, SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
+import { SdlSecretsService, unreferencedNameError } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
-import type { StoredSdlPosition, StoredSdlRefusal } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
+import type { StorableSdl, StoredSdlPosition, StoredSdlRefusal } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { parseSdlForStorage, sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { denomToUdenom } from "@src/utils/math";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 import { StaleManagedDeploymentsCleanerService } from "../stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
+
+const SECRET_REFERENCE_KIND = "secret";
+
+/** Distinct from the sealed-secret failure so a client can tell which half of the stored state it cannot read, both being permanent. */
+const STORED_SDL_UNREADABLE_ERROR_CODE = "stored_sdl_unreadable";
+
+/** A deployment the console never recorded an SDL for has nothing to patch, and the SDL is deliberately not accepted from the request. */
+const NOT_PATCHABLE_MESSAGE = "This deployment has no SDL recorded by the console, so there is nothing to patch";
 
 /** What becomes of the values a submitted document carries in the clear. There is no longer a way to say "dropped": every writer can seal, so a value is never lost to be safe. */
 type StoredSdlValues =
@@ -57,7 +74,9 @@ export class DeploymentWriterService {
     private readonly txService: TxService,
     private readonly jobQueueService: JobQueueService,
     private readonly sdlSecretsService: SdlSecretsService,
-    private readonly sdlSecretsDerivationService: SdlSecretsDerivationService
+    private readonly sdlSecretsDerivationService: SdlSecretsDerivationService,
+    private readonly sdlPatchService: SdlPatchService,
+    private readonly sdlReferenceService: SdlReferenceService
   ) {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
@@ -319,6 +338,136 @@ export class DeploymentWriterService {
     await this.sendManifestToProviders({ auth, dseq, manifest: manifestToSortedJSON(manifest.groups), leases: deployment.leases });
 
     return await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+  }
+
+  /**
+   * Patches the SDL the console stored rather than one a client resubmits, refusing everything it can
+   * before the single write so a refusal leaves the row untouched. The ability is passed in rather than
+   * read from request state, because this service is a singleton.
+   *
+   * A patch is read-modify-write, so a caller naming no version is still guarded on the version this call
+   * read: without that, two concurrent unguarded patches would each build on the same document and the
+   * later one would silently discard the earlier. A row recording no version yet cannot be guarded on one.
+   */
+  public async patchByUserIdAndDseq(
+    userId: string,
+    dseq: string,
+    input: PatchDeploymentRequest["data"],
+    ability: AnyAbility
+  ): Promise<PatchDeploymentResponse["data"]> {
+    const wallet = await this.walletReaderService.getWalletByUserId(userId);
+    const stored = await this.#findStoredDefinition({ userId, dseq }, ability);
+    const parsed = this.#parseStored(stored.sdl, { userId, dseq });
+    const document = parsed.document;
+
+    const written = this.sdlPatchService.apply(document, input.services);
+    const derived = this.sdlSecretsDerivationService.derive(document, { includeEnvValues: true, onlyAt: written });
+    const patchedSdl = this.#serialize(parsed, { userId, dseq });
+
+    const supplied = input.sealedSecrets ? await this.sdlSecretsService.receiveForMerge({ rawSdl: stored.sdl, sealedSecrets: input.sealedSecrets }) : {};
+    const held = stored.sealedSecrets ? await this.sdlSecretsService.openStored({ userId, dseq, sealedSecrets: stored.sealedSecrets }) : {};
+    const merged = this.#mergeAndPrune({ held, supplied, derived }, document);
+
+    const { manifestVersion, manifest } = await this.#resolveSdl(patchedSdl, { secrets: merged, isTrialing: !!wallet.isTrialing });
+    const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+
+    const recordedVersion = Buffer.from(manifestVersion).toString("base64");
+    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId, dseq, secrets: merged });
+
+    const recordedId = await this.deploymentSettingRepository.accessibleBy(ability, "update").replaceDefinitionIfVersionMatches({
+      userId,
+      dseq,
+      sdl: patchedSdl,
+      manifestVersion: recordedVersion,
+      sealedSecrets,
+      expectedManifestVersion: input.ifManifestVersion ?? stored.manifestVersion
+    });
+
+    if (!recordedId) {
+      throw createError(409, "Deployment definition changed concurrently, please retry");
+    }
+
+    this.logger.info({
+      event: "DEPLOYMENT_PATCH_APPLIED",
+      userId,
+      dseq,
+      patchedServiceCount: Object.keys(input.services).length,
+      secretCount: Object.keys(merged).length,
+      guarded: input.ifManifestVersion !== undefined
+    });
+
+    await this.ensureDeploymentIsUpToDate(wallet, dseq, manifestVersion, deployment);
+    await this.sendManifestToProviders({
+      auth: { walletId: wallet.id },
+      dseq,
+      manifest: manifestToSortedJSON(manifest.groups),
+      leases: deployment.leases
+    });
+
+    return { ...(await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq)), manifestVersion: recordedVersion };
+  }
+
+  /** Read through the caller's own ability as well as their id, so a definition is unreachable by anyone the ability excludes even before the write re-checks it. */
+  async #findStoredDefinition(
+    key: { userId: string; dseq: string },
+    ability: AnyAbility
+  ): Promise<{ sdl: string; sealedSecrets: string | null; manifestVersion?: string }> {
+    const setting = await this.deploymentSettingRepository.accessibleBy(ability, "read").findOneBy(key);
+
+    if (!setting?.sdl) {
+      throw createError(404, NOT_PATCHABLE_MESSAGE);
+    }
+
+    return { sdl: setting.sdl, sealedSecrets: setting.sealedSecrets, manifestVersion: setting.manifestVersion ?? undefined };
+  }
+
+  /** The caller did not supply this document, so an unparseable one is the console's fault and never a 400. */
+  #parseStored(sdl: string, key: { userId: string; dseq: string }): StorableSdl {
+    const parsed = parseSdlForStorage(sdl);
+
+    if (parsed.document === null) {
+      this.logger.error({ event: "DEPLOYMENT_STORED_SDL_UNPARSEABLE", ...key });
+
+      throw createError(500, "The SDL recorded for this deployment cannot be read", { errorCode: STORED_SDL_UNREADABLE_ERROR_CODE });
+    }
+
+    return parsed;
+  }
+
+  /** Carries the parsed document's own `mayShareNodes` rather than assuming it, so the alias-safe size estimate runs only for a document that actually anchors something. */
+  #serialize(parsed: StorableSdl, key: { userId: string; dseq: string }): string {
+    const { sdl, length } = sdlForStorage(parsed, SDL_MAX_LENGTH);
+
+    if (sdl === null) {
+      this.logger.warn({ event: "DEPLOYMENT_PATCHED_SDL_TOO_LARGE", ...key, length, maxLength: SDL_MAX_LENGTH });
+
+      throw createError(400, `The patched SDL is too large: it exceeds the maximum of ${SDL_MAX_LENGTH} characters once stored`);
+    }
+
+    return sdl;
+  }
+
+  /** What the deployment held, overlaid by what the request supplied and then by what the patched document gave up, pruned to the names the document still references. */
+  #mergeAndPrune(sets: { held: SdlSecrets; supplied: SdlSecrets; derived: SdlSecrets }, document: SDLInput): SdlSecrets {
+    const overlaid: SdlSecrets = { ...sets.held, ...sets.supplied, ...sets.derived };
+    const referenced = new Set(this.sdlReferenceService.declarationsOf(document, SECRET_REFERENCE_KIND).map(declaration => declaration.name));
+
+    this.#assertEverySuppliedNameIsReferenced(sets.supplied, referenced);
+
+    const merged = Object.fromEntries(Object.entries(overlaid).filter(([name]) => referenced.has(name)));
+
+    this.sdlSecretsService.assertStorable(merged);
+
+    return merged;
+  }
+
+  /** A misspelt name is refused rather than dropped, so a caller cannot receive a 200 believing a credential rotated when nothing changed. */
+  #assertEverySuppliedNameIsReferenced(supplied: SdlSecrets, referenced: ReadonlySet<string>): void {
+    const unreferenced = Object.keys(supplied).filter(name => !referenced.has(name));
+
+    if (unreferenced.length > 0) {
+      throw this.#rejectInvalidSdl(unreferenced.map(unreferencedNameError));
+    }
   }
 
   /** Must reach only the response field: the hash, the group specs and the recorded definition all still come from the resolved build above. */
