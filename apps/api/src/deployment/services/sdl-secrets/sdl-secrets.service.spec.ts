@@ -333,7 +333,115 @@ describe(SdlSecretsService.name, () => {
 
       await service.receive({ sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN"] }), rawSdl: RAW_SDL, sealedSecrets: SEAL });
 
-      expect(logger.info).toHaveBeenCalledWith({ event: "SDL_SECRETS_RECEIVED", suppliedCount: 1, referencedNames: ["TOKEN"], serviceCount: 1 });
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "SDL_SECRETS_RECEIVED",
+        suppliedCount: 1,
+        inheritedCount: 0,
+        referencedNames: ["TOKEN"],
+        serviceCount: 1
+      });
+    });
+
+    describe("values inherited from another deployment", () => {
+      it("accepts a reference answered by the inherited set alone, without opening a seal", async () => {
+        const { service, unsealerService } = setup();
+
+        const result = await service.receive({
+          sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN", "DATABASE_URL=ac-secret://DATABASE_URL"] }),
+          rawSdl: RAW_SDL,
+          inherited: { TOKEN: "carried", DATABASE_URL: "carried-too" }
+        });
+
+        expect(result.ok).toBe(true);
+        expect(receivedOf(result)).toEqual({});
+        expect(unsealerService.open).not.toHaveBeenCalled();
+      });
+
+      it("names only the references neither set answers", async () => {
+        const { service } = setup({ supplied: { TOKEN: "supplied" } });
+
+        const result = await service.receive({
+          sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN", "DATABASE_URL=ac-secret://DATABASE_URL", "API_KEY=ac-secret://API_KEY"] }),
+          rawSdl: RAW_SDL,
+          sealedSecrets: SEAL,
+          inherited: { DATABASE_URL: "carried" }
+        });
+
+        expect(errorsOf(result)).toEqual([expect.objectContaining({ params: expect.objectContaining({ name: "API_KEY" }) })]);
+      });
+
+      it("keeps naming an unanswered reference when nothing was supplied and nothing inherited covers it", async () => {
+        const { service } = setup();
+
+        const result = await service.receive({
+          sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN"] }),
+          rawSdl: RAW_SDL,
+          inherited: { UNRELATED: "carried" }
+        });
+
+        expect(errorsOf(result)).toEqual([expect.objectContaining({ params: expect.objectContaining({ name: "TOKEN" }) })]);
+      });
+
+      it("says nothing about an inherited name no service references, because a source carries more than one deployment needs", async () => {
+        const { service } = setup();
+
+        const result = await service.receive({
+          sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN"] }),
+          rawSdl: RAW_SDL,
+          inherited: { TOKEN: "carried", SPARE: "carried-too" }
+        });
+
+        expect(result.ok).toBe(true);
+      });
+
+      it("still refuses a supplied name no service references, which the caller did choose for this request", async () => {
+        const { service } = setup({ supplied: { SPARE: "supplied" } });
+
+        const result = await service.receive({
+          sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN"] }),
+          rawSdl: RAW_SDL,
+          sealedSecrets: SEAL,
+          inherited: { TOKEN: "carried" }
+        });
+
+        expect(errorsOf(result)).toEqual([expect.objectContaining({ params: { name: "SPARE" } })]);
+      });
+
+      it("says nothing at all for a create that references no secret and supplies none, the hottest write path", async () => {
+        const { service, logger } = setup();
+
+        await service.receive({ sdl: sdlWith({ web: ["LOG_LEVEL=debug"] }), rawSdl: RAW_SDL });
+
+        expect(logger.info).not.toHaveBeenCalled();
+      });
+
+      it("prefers a usable inherited value to a supplied name holding no string", async () => {
+        const { service } = setup({ supplied: { TOKEN: 0 as unknown as string } });
+
+        const result = await service.receive({
+          sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN"] }),
+          rawSdl: RAW_SDL,
+          sealedSecrets: SEAL,
+          inherited: { TOKEN: "carried" }
+        });
+
+        expect(result.ok).toBe(true);
+      });
+
+      it("logs how many values it inherited and none of them", async () => {
+        const value = faker.string.alphanumeric(32);
+        const { service, logger } = setup();
+
+        await service.receive({ sdl: sdlWith({ web: ["TOKEN=ac-secret://TOKEN"] }), rawSdl: RAW_SDL, inherited: { TOKEN: value } });
+
+        expect(logger.info).toHaveBeenCalledWith({
+          event: "SDL_SECRETS_RECEIVED",
+          suppliedCount: 0,
+          inheritedCount: 1,
+          referencedNames: ["TOKEN"],
+          serviceCount: 1
+        });
+      });
     });
   });
 
