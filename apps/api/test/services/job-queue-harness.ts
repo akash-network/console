@@ -31,6 +31,7 @@ interface JobSelector {
   singletonKey?: string;
   singletonKeyLike?: string;
   data?: Record<string, string>;
+  state?: string;
 }
 
 function db() {
@@ -70,8 +71,10 @@ export function useJobWorkers(resolveHandlers: () => JobHandler<Job>[]) {
 }
 
 /** A payload selector, because a domain event published without a singleton key has no other way to name one job among many. */
-function selectorFilter({ singletonKey, singletonKeyLike, data }: JobSelector) {
+function selectorFilter({ singletonKey, singletonKeyLike, data, state }: JobSelector) {
   let filter = sql``;
+
+  if (state) filter = sql`${filter} and state = ${state}`;
 
   if (singletonKey) filter = sql`${filter} and singleton_key = ${singletonKey}`;
   else if (singletonKeyLike) filter = sql`${filter} and singleton_key like ${singletonKeyLike}`;
