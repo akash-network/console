@@ -1002,7 +1002,7 @@ describe(DeploymentWriterService.name, () => {
 
         await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, sealedSecrets: CLIENT_SEAL, inheritSecretsFrom: SOURCE_DSEQ });
 
-        expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({ API_TOKEN: "a", DATABASE_URL: replaced });
+        expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({ API_TOKEN: "a", DATABASE_URL: replaced }, "carried");
       });
 
       it("leaves what it derived out of that bound, the sdl's own size ceiling already holding it", async () => {
@@ -1010,7 +1010,15 @@ describe(DeploymentWriterService.name, () => {
 
         await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY_WITH_PLAINTEXT, inheritSecretsFrom: SOURCE_DSEQ });
 
-        expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({ API_TOKEN: "a" });
+        expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({ API_TOKEN: "a" }, "carried");
+      });
+
+      it("leaves an inherited value a derived name displaces out of that bound, it never being stored", async () => {
+        const { service, sdlSecretsService } = setup({ inherited: { API_TOKEN: "a", s0_e1: "stale" } });
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY_WITH_PLAINTEXT, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({ API_TOKEN: "a" }, "carried");
       });
 
       it("refuses a chain that would carry more than a deployment may hold, before minting a dseq", async () => {
@@ -1568,7 +1576,7 @@ describe(DeploymentWriterService.name, () => {
 
         await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
 
-        expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({ s0_e0: "a", s0_e1: "b" });
+        expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({ s0_e0: "a", s0_e1: "b" }, "stored");
       });
 
       it("writes nothing when the merged set is refused", async () => {
@@ -1986,7 +1994,7 @@ describe(DeploymentWriterService.name, () => {
       const maxCount = input?.maxCount;
       sdlSecretsService.assertStorable.mockImplementation(secrets => {
         if (maxCount !== undefined && Object.keys(secrets).length > maxCount) {
-          throw createError(400, `At most ${maxCount} secrets may be carried by one deployment, counting those inherited from another`);
+          throw createError(400, `At most ${maxCount} secrets may be stored for one deployment`);
         }
       });
 
