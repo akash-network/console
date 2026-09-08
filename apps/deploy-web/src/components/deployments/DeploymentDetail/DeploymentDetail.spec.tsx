@@ -107,6 +107,8 @@ describe("DeploymentDetail", () => {
     setup({ definition: { sdl: undefined, source: "resolving" } });
 
     expect(screen.getByTestId("deployment-detail-skeleton")).toBeInTheDocument();
+    expect(screen.queryByText("detail-header")).not.toBeInTheDocument();
+    expect(screen.queryByText("placements")).not.toBeInTheDocument();
   });
 
   it("redirects an in-progress deployment with no lease to the configure flow", () => {
