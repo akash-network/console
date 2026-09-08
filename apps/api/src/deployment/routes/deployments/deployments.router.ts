@@ -103,7 +103,15 @@ const postRoute = createRoute({
     },
     400: {
       description:
-        "The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, or would carry more secrets than one deployment may hold",
+        "The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    403: {
+      description: "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -120,7 +128,7 @@ const postRoute = createRoute({
     },
     409: {
       description:
-        "The secrets recorded for the deployment named by `inheritSecretsFrom` can no longer be decrypted, with `code` `inherited_secrets_unreadable`. Permanent rather than transient, so a retry cannot help; supply the values in `sealedSecrets` instead",
+        "Either the `sealedSecrets` value was sealed to a key the console no longer holds — refetch `GET /v1/sdl-secrets-context` and seal again — or, with `code` `inherited_secrets_unreadable`, the secrets recorded for the deployment named by `inheritSecretsFrom` can no longer be decrypted. The second is permanent rather than transient, so a retry cannot help; supply the values in `sealedSecrets` instead",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
