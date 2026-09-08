@@ -3,7 +3,6 @@ import { useCallback } from "react";
 import { useAtom } from "jotai";
 
 import { useServices } from "@src/context/ServicesProvider";
-import type { LocalDeploymentData } from "@src/services/deployment-storage/deployment-storage.service";
 import { settingsIdAtom } from "@src/store/settingsStore";
 import { getProviderLocalData, updateProviderLocalData } from "@src/utils/providerUtils";
 import { localNoteStore } from "./localNoteStore";
@@ -11,7 +10,6 @@ import { localNoteStore } from "./localNoteStore";
 export type LocalNotesContextType = {
   getDeploymentName: (dseq: string | number | null) => string | null;
   changeDeploymentName: (dseq: string | number) => void;
-  getDeploymentData: (dseq: string | number) => Partial<LocalDeploymentData> | null;
   favoriteProviders: string[];
   updateFavoriteProviders: (newFavorites: string[]) => void;
   selectedDeploymentDseq: string | number | null;
@@ -32,14 +30,6 @@ export function useLocalNotes(): LocalNotesContextType {
     [deploymentLocalStorage, settingsId]
   );
 
-  const getDeploymentData = useCallback(
-    (dseq: string | number) => {
-      const localData = deploymentLocalStorage.get(settingsId, dseq);
-      return localData ?? null;
-    },
-    [deploymentLocalStorage, settingsId]
-  );
-
   const changeDeploymentName = useCallback(
     (dseq: string | number) => {
       selectDeployment(dseq);
@@ -55,7 +45,7 @@ export function useLocalNotes(): LocalNotesContextType {
     [setFavoriteProviders]
   );
 
-  return { getDeploymentName, changeDeploymentName, getDeploymentData, favoriteProviders, updateFavoriteProviders, selectedDeploymentDseq, selectDeployment };
+  return { getDeploymentName, changeDeploymentName, favoriteProviders, updateFavoriteProviders, selectedDeploymentDseq, selectDeployment };
 }
 
 export function useInitFavoriteProviders() {
