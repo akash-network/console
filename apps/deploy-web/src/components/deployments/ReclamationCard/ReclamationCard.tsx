@@ -6,7 +6,7 @@ import { WarningTriangle } from "iconoir-react";
 import Link from "next/link";
 
 import { useWallet } from "@src/context/WalletProvider";
-import { useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { isUsableDeploymentDefinition, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
@@ -38,7 +38,7 @@ export const ReclamationCard: React.FunctionComponent<Props> = ({ lease, dseq, o
 
   const reasonLabel = getLeaseCloseReasonLabel(lease.reclamation?.reason ?? lease.reason);
   const definition = useDeploymentDefinition(dseq);
-  const canRedeploy = definition.source === "resolving" || !!definition.sdl;
+  const canRedeploy = definition.source === "resolving" || isUsableDeploymentDefinition(definition);
 
   const confirmAndClose = async () => {
     const isConfirmed = await closeDeploymentConfirm([dseq]);

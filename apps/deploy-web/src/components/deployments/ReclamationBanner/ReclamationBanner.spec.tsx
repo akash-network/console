@@ -84,15 +84,34 @@ describe("ReclamationBanner", () => {
     expect(screen.getByRole("button", { name: "Redeploy" })).toBeDisabled();
   });
 
+  it("falls back to a 'new SDL' link when neither source holds a definition", () => {
+    setup({ leases: [createLease({ state: "reclaiming" })], definition: { sdl: undefined, source: "absent" } });
+
+    expect(screen.getByRole("link", { name: "Start a new deployment" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Redeploy" })).not.toBeInTheDocument();
+  });
+
+  it("falls back to a 'new SDL' link when the definition is absent despite an inspection-only api sdl", () => {
+    setup({ leases: [createLease({ state: "reclaiming" })], definition: { sdl: "version: 2.0 # not-self-contained", source: "absent" } });
+
+    expect(screen.getByRole("link", { name: "Start a new deployment" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Redeploy" })).not.toBeInTheDocument();
+  });
+
   function setup(input: { leases: LeaseDto[] | null; definition?: Partial<DeploymentDefinition> }) {
     const definition: DeploymentDefinition = { sdl: "version: 2.0", name: "my-app", source: "local", ...input.definition };
     const redeploy = vi.fn();
 
     const useDeploymentDefinition: typeof DEPENDENCIES.useDeploymentDefinition = () => definition;
+    const useNewDeploymentUrl: typeof DEPENDENCIES.useNewDeploymentUrl = () => () => "/new-deployment";
     const useRedeploy: typeof DEPENDENCIES.useRedeploy = () => redeploy;
 
     const utils = render(
-      <ReclamationBanner leases={input.leases} dseq="123" dependencies={MockComponents(DEPENDENCIES, { useDeploymentDefinition, useRedeploy })} />
+      <ReclamationBanner
+        leases={input.leases}
+        dseq="123"
+        dependencies={MockComponents(DEPENDENCIES, { useDeploymentDefinition, useNewDeploymentUrl, useRedeploy })}
+      />
     );
 
     return { ...utils, redeploy };

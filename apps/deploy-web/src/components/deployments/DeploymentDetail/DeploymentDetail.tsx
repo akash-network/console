@@ -11,7 +11,7 @@ import { NextSeo } from "next-seo";
 import { createConfigureDraft } from "@src/components/deployments/ConfigureDeployment/useConfigureDraft/useConfigureDraft";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { isUsableDeploymentDefinition, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
@@ -114,7 +114,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
       if (definition.source === "resolving") return;
 
       if (leases && deployment?.state === "active" && leases.length === 0 && !deployment.groups?.some(g => g.state === "paused")) {
-        const draftId = definition.sdl ? createConfigureDraft(definition.sdl, definition.name) : undefined;
+        const draftId = isUsableDeploymentDefinition(definition) ? createConfigureDraft(definition.sdl, definition.name) : undefined;
         router.replace(UrlService.configureDeployment({ dseq, draftId }));
       }
     },
@@ -216,7 +216,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                     onManifestChange={setEditedManifest}
                     isRemoteDeploy={isRemoteDeploy}
                     deployment={deployment}
-                    onRedeploy={definition.sdl ? redeployFromResolvedDefinition : undefined}
+                    onRedeploy={isUsableDeploymentDefinition(definition) ? redeployFromResolvedDefinition : undefined}
                     closeManifestEditor={() => {
                       changeTab("DETAILS");
                       loadDeploymentDetail();

@@ -216,6 +216,19 @@ describe(NewDeploymentContainer.name, () => {
     });
   });
 
+  it("ignores the redeploy definition when it is absent despite an inspection-only api sdl", async () => {
+    const { mockRouter } = setup({
+      step: RouteStep.chooseTemplate,
+      redeploy: "123",
+      redeployDefinition: { sdl: "redeploy manifest content # not-self-contained", name: "Redeployed App", source: "absent" }
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByTestId("template-list")).toBeInTheDocument();
+    });
+    expect(mockRouter.replace).not.toHaveBeenCalled();
+  });
+
   it("toggles ssh component when template has ssh config", async () => {
     const { sdlBuilder } = setup({
       step: RouteStep.chooseTemplate,
