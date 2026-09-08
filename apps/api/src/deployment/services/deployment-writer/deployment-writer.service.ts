@@ -165,12 +165,7 @@ export class DeploymentWriterService {
     });
   }
 
-  /**
-   * A retry of a create on the same dseq upserts the same row, and the queue's exclusive policy refuses a second job
-   * for its key, so the compensation the abandoned attempt left behind is the one this row needs, provided it cannot
-   * run before the signer has given up: one that judges the row before this broadcast lands finds no deployment and
-   * deletes it, and `cancelCreatedBy` cannot call off a job a worker already holds.
-   */
+  /** A retry inherits the compensation its failed predecessor left only while that job cannot run before the signer gives up: one that judges the row first finds no deployment and deletes it, and `cancelCreatedBy` cannot call off a job a worker holds. */
   private async compensationIsStillWaiting(singletonKey: string): Promise<boolean> {
     return await this.jobQueueService.hasWaitingSingleton({
       name: DeleteUnbackedDeploymentSetting[JOB_NAME],

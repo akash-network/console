@@ -168,11 +168,7 @@ export class ClosedDeploymentsReconcilerService {
     }
   }
 
-  /**
-   * Skips a row whose compensation is already waiting, so the hourly run cannot stack jobs behind one the create
-   * path or an earlier run enqueued, and gives up on the rest of the batch rather than raising, since the closes
-   * beside them are already committed and an unreachable queue would otherwise log a line per row.
-   */
+  /** A failed enqueue ends the batch rather than raising: its closes are already committed, and an unreachable queue would otherwise log a line per row. */
   async #compensate(unbacked: OpenDeployment[], pendingCompensationKeys: Set<string>): Promise<number> {
     let compensated = 0;
 
