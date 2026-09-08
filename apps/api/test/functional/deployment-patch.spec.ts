@@ -243,24 +243,30 @@ describe("PATCH /v1/deployments/{dseq}", () => {
   });
 
   describe("what it spends on the key service", () => {
-    it("unwraps once for a patch that changes twelve secrets and supplies none", async () => {
+    it("opens the stored token once for a patch that changes twelve secrets and supplies none", async () => {
       const env = Array.from({ length: 12 }, (_, index) => `VAR_${index}=ac-secret://s0_e${index}`);
       const secrets = Object.fromEntries(env.map((_, index) => [`s0_e${index}`, randomUUID()]));
       const { apiKey } = await setup({ secrets, env });
+      const storedTokenOpens = countStoredTokenOpens();
 
       await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
 
+      expect(storedTokenOpens()).toBe(1);
       expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(1);
     });
 
-    it("unwraps the seal and the data key once each when a patch supplies values", async () => {
+    it("opens the stored token once and the supplied seal once when a patch supplies values", async () => {
       const env = Array.from({ length: 12 }, (_, index) => `VAR_${index}=ac-secret://s0_e${index}`);
       const secrets = Object.fromEntries(env.map((_, index) => [`s0_e${index}`, randomUUID()]));
       const { apiKey, user } = await setup({ secrets, env });
       const supplied = Object.fromEntries(env.map((_, index) => [`s0_e${index}`, randomUUID()]));
+      const storedTokenOpens = countStoredTokenOpens();
+      const suppliedSealOpens = countSuppliedSealOpens();
 
       await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, await sealFor(user, supplied));
 
+      expect(storedTokenOpens()).toBe(1);
+      expect(suppliedSealOpens()).toBe(1);
       expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(2);
     });
   });
@@ -586,6 +592,18 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     const resolved = await container.resolve(SdlService).generateResolvedManifest({ sdl, secrets });
 
     return resolved.ok ? Buffer.from(resolved.value.manifestVersion).toString("base64") : Buffer.from("unresolvable-fixture").toString("base64");
+  }
+
+  function countStoredTokenOpens() {
+    const opens = vi.spyOn(container.resolve(SdlSecretsService), "openStored");
+
+    return () => opens.mock.calls.length;
+  }
+
+  function countSuppliedSealOpens() {
+    const opens = vi.spyOn(container.resolve(SdlSecretsService), "receiveForMerge");
+
+    return () => opens.mock.calls.length;
   }
 
   function holdTheFirstSeal() {
