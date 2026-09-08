@@ -29,6 +29,8 @@ export type ContextType = {
   address: string;
   /** True once the server-side wallet record exists. The address may still be empty while provisioning. */
   hasWallet: boolean;
+  /** True once the wallet lookup has failed for good, which `hasWallet` alone cannot tell apart from a wallet still being provisioned. */
+  isWalletLookupFailed: boolean;
   signAndBroadcastTx: (msgs: EncodeObject[]) => Promise<boolean>;
   denom: string;
   isTrialing: boolean;
@@ -52,7 +54,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode; dependencies?
 
   const [, setSettingsId] = useAtom(settingsIdAtom);
   const { user } = d.useUser();
-  const { wallet: managedWallet, isInitializing: isManagedWalletInitializing } = d.useManagedWallet();
+  const { wallet: managedWallet, isInitializing: isManagedWalletInitializing, isLookupFailed: isManagedWalletLookupFailed } = d.useManagedWallet();
   const walletAddress = managedWallet?.address;
   const hasWallet = !!managedWallet;
   const { refetch: refetchBalances } = d.useBalances(walletAddress);
@@ -97,6 +99,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode; dependencies?
       value={{
         address: walletAddress as string,
         hasWallet,
+        isWalletLookupFailed: isManagedWalletLookupFailed,
         signAndBroadcastTx,
         denom: managedWallet?.denom ?? "",
         isTrialing: !!managedWallet?.isTrialing,
