@@ -132,11 +132,15 @@ describe("PATCH /v1/deployments/{dseq}", () => {
   });
 
   it("drops the name a moved variable used to be stored under", async () => {
-    const { apiKey, user } = await setup({ secrets: { s0_e0: randomUUID(), s0_e1: randomUUID() } });
+    const secrets = { s0_e0: randomUUID(), s0_e1: randomUUID() };
+    const { apiKey, user } = await setup({ secrets });
+    const rotated = randomUUID();
 
-    await patch(apiKey, { services: { web: { env: { API_TOKEN: randomUUID() } } } });
+    await patch(apiKey, { services: { web: { env: { API_TOKEN: rotated } } } });
 
-    expect(Object.keys(await openStored(user))).not.toContain("s0_e0");
+    const stored = await openStored(user);
+    expect(Object.keys(stored)).not.toContain("s0_e0");
+    expect(Object.values(stored).sort()).toEqual([rotated, secrets.s0_e1].sort());
   });
 
   it("keeps every stored value resolvable when the sdl changes and no secrets are supplied", async () => {
