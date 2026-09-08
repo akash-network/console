@@ -19,6 +19,17 @@ const PROVIDER_UNAVAILABLE = new ApiError(503, { message: "Provider service is t
 const BAD_SDL = new ApiError(400, { message: "SDL is not valid YAML: line 3, column 5" }, "PUT /v1/deployments/{dseq} → 400");
 const BAD_PROVIDER_CREDENTIALS = new ApiError(400, { message: "Invalid provider jwt credentials" }, "PUT /v1/deployments/{dseq} → 400");
 const OUT_OF_CREDITS = new ApiError(402, { message: "Insufficient balance: top up to keep deploying" }, "PUT /v1/deployments/{dseq} → 402");
+const UNRESOLVED_REFERENCE = new ApiError(
+  400,
+  { message: 'Invalid SDL: no value supplied for SDL Reference "ac-secret://TOKEN"' },
+  "PUT /v1/deployments/{dseq} → 400"
+);
+const OVERSIZE_SDL = new ApiError(
+  400,
+  { message: "SDL is too large: it exceeds the maximum of 60000 characters once stored" },
+  "PUT /v1/deployments/{dseq} → 400"
+);
+const SDL_SHAPED_SERVER_FAILURE = new ApiError(500, { message: "Invalid SDL: the console could not read it" }, "PUT /v1/deployments/{dseq} → 500");
 
 describe(ManifestUpdate.name, () => {
   it("shows outside deployment message when no local manifest exists", () => {
@@ -163,13 +174,15 @@ describe(ManifestUpdate.name, () => {
   });
 
   it("caches the submitted sdl even when the editor closes before the api answers", async () => {
-    const handles = setup({ editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
+    const closeManifestEditor = vi.fn();
+    const handles = setup({ editedManifest: "version: '2.0'", wallet: { address: "akash1abc" }, closeManifestEditor });
 
     await clickUpdate(handles);
     handles.unmount();
     await settleAfterClose(handles, { outcome: "success" });
 
     expect(handles.deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "123", { manifest: "version: '2.0'" });
+    expect(closeManifestEditor).not.toHaveBeenCalled();
   });
 
   it("surfaces the failure even when the editor closes before the api answers", async () => {
@@ -218,6 +231,7 @@ describe(ManifestUpdate.name, () => {
     await succeed(handles);
 
     expect(closeManifestEditor).toHaveBeenCalled();
+    expect(updateButtonOf(handles.dependencies)?.disabled).toBe(false);
   });
 
   it("shows the sdl the api refused inline and leaves the editor open", async () => {
@@ -263,6 +277,36 @@ describe(ManifestUpdate.name, () => {
 
     expect(screen.queryByText("SDL is not valid YAML: line 3, column 5")).not.toBeInTheDocument();
     expect(updateButtonOf(handles.dependencies)?.disabled).toBe(false);
+  });
+
+  it("shows a refused sdl reference inline", async () => {
+    const handles = setup();
+
+    await clickUpdate(handles);
+    await fail(handles, UNRESOLVED_REFERENCE);
+
+    expect(screen.getByText('Invalid SDL: no value supplied for SDL Reference "ac-secret://TOKEN"')).toBeInTheDocument();
+    expect(handles.enqueueSnackbar).not.toHaveBeenCalled();
+  });
+
+  it("shows an oversize sdl inline", async () => {
+    const handles = setup();
+
+    await clickUpdate(handles);
+    await fail(handles, OVERSIZE_SDL);
+
+    expect(screen.getByText("SDL is too large: it exceeds the maximum of 60000 characters once stored")).toBeInTheDocument();
+    expect(handles.enqueueSnackbar).not.toHaveBeenCalled();
+  });
+
+  it("keeps a server failure out of the inline alert even when it reads like an sdl refusal", async () => {
+    const handles = setup();
+
+    await clickUpdate(handles);
+    await fail(handles, SDL_SHAPED_SERVER_FAILURE);
+
+    expect(screen.queryByText("Invalid SDL: the console could not read it")).not.toBeInTheDocument();
+    expect(handles.enqueueSnackbar).toHaveBeenCalled();
   });
 
   it("keeps a refused provider credential out of the editor's inline alert", async () => {
