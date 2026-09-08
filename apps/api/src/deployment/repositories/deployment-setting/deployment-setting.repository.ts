@@ -371,6 +371,47 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return row.id;
   }
 
+  /** The expected version is compared inside this statement's own WHERE, not by a prior read, so two patches racing over one document cannot both write. */
+  async replaceDefinitionIfVersionMatches({
+    userId,
+    dseq,
+    sdl,
+    manifestVersion,
+    sealedSecrets,
+    expectedManifestVersion
+  }: {
+    userId: string;
+    dseq: string;
+    sdl: string;
+    manifestVersion: string;
+    sealedSecrets: string | null;
+    expectedManifestVersion?: string;
+  }): Promise<string | undefined> {
+    const [row] = await this.cursor
+      .update(this.table)
+      .set({ sdl, manifestVersion, sealedSecrets, updatedAt: sql`now()` })
+      .where(
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.userId, userId),
+            eq(this.table.dseq, dseq),
+            isNotNull(this.table.sdl),
+            ...this.#versionGuard(expectedManifestVersion, manifestVersion)
+          )
+        )
+      )
+      .returning({ id: this.table.id });
+
+    return row?.id;
+  }
+
+  /** A row already carrying the version this write computes is that write's own output, so a guarded retry succeeds rather than conflicting: `manifestVersion` hashes the resolved manifest, and equal versions mean equal effective state down to the secret values. */
+  #versionGuard(expectedManifestVersion: string | undefined, manifestVersion: string) {
+    if (expectedManifestVersion === undefined) return [];
+
+    return [or(eq(this.table.manifestVersion, expectedManifestVersion), eq(this.table.manifestVersion, manifestVersion))];
+  }
+
   /** Conflicts are ignored rather than merged, so a row another path already wrote keeps every choice its writer made. */
   async createDefaultIfMissing({ userId, dseq }: { userId: string; dseq: string }): Promise<boolean> {
     const rows = await this.cursor
