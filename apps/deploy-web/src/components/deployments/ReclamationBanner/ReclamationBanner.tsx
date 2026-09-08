@@ -1,15 +1,18 @@
 "use client";
 import { useMemo } from "react";
-import { Alert, AlertDescription, AlertTitle, Button } from "@akashnetwork/ui/components";
+import { Alert, AlertDescription, AlertTitle, Button, buttonVariants } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { WarningTriangle } from "iconoir-react";
+import Link from "next/link";
 
-import { useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { isUsableDeploymentDefinition, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import type { LeaseDto } from "@src/types/deployment";
 import { getLeaseCloseReasonLabel, getReclamationDeadline, isReclaiming } from "@src/utils/reclamationUtils";
 import { useCountdown } from "./useCountdown";
 
-export const DEPENDENCIES = { useDeploymentDefinition, useRedeploy };
+export const DEPENDENCIES = { useDeploymentDefinition, useNewDeploymentUrl, useRedeploy };
 
 type Props = {
   leases: LeaseDto[] | undefined | null;
@@ -25,7 +28,9 @@ type Props = {
  */
 export const ReclamationBanner: React.FunctionComponent<Props> = ({ leases, dseq, className, dependencies = DEPENDENCIES }) => {
   const definition = dependencies.useDeploymentDefinition(dseq);
+  const newDeploymentUrl = dependencies.useNewDeploymentUrl();
   const redeploy = dependencies.useRedeploy();
+  const canRedeploy = definition.source === "resolving" || isUsableDeploymentDefinition(definition);
   const reclaimingLeases = useMemo(() => (leases ?? []).filter(isReclaiming), [leases]);
 
   const nearestDeadline = useMemo(() => {
@@ -52,15 +57,21 @@ export const ReclamationBanner: React.FunctionComponent<Props> = ({ leases, dseq
         </p>
         <p className="mt-1 text-xs text-muted-foreground">Reason: {reasonLabel}</p>
         <p className="mt-2">Reclamation can&apos;t be cancelled. Redeploy to another provider before the deadline to avoid downtime.</p>
-        <Button
-          variant="default"
-          size="sm"
-          className="mt-3"
-          disabled={definition.source === "resolving"}
-          onClick={() => redeploy({ sdl: definition.sdl, name: definition.name })}
-        >
-          Redeploy
-        </Button>
+        {canRedeploy ? (
+          <Button
+            variant="default"
+            size="sm"
+            className="mt-3"
+            disabled={definition.source === "resolving"}
+            onClick={() => redeploy({ sdl: definition.sdl, name: definition.name })}
+          >
+            Redeploy
+          </Button>
+        ) : (
+          <Link href={newDeploymentUrl()} className={cn(buttonVariants({ variant: "default", size: "sm" }), "mt-3")}>
+            Start a new deployment
+          </Link>
+        )}
       </AlertDescription>
     </Alert>
   );

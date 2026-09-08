@@ -6,7 +6,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { DeploymentStorageService } from "@src/services/deployment-storage/deployment-storage.service";
 import type { DEPENDENCIES } from "./useDeploymentDefinition";
-import { useDeploymentDefinition } from "./useDeploymentDefinition";
+import { isUsableDeploymentDefinition, useDeploymentDefinition } from "./useDeploymentDefinition";
 
 import { buildWallet } from "@tests/seeders/wallet";
 import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
@@ -164,4 +164,18 @@ describe(useDeploymentDefinition.name, () => {
 
     return { result, getDeployment, deploymentLocalStorage, onQueryError };
   }
+});
+
+describe(isUsableDeploymentDefinition.name, () => {
+  it.each(["api", "local", "superseded"] as const)("accepts a definition resolved from the %s source", source => {
+    expect(isUsableDeploymentDefinition({ sdl: API_SDL, name: undefined, source })).toBe(true);
+  });
+
+  it.each(["resolving", "absent"] as const)("rejects a %s definition even when it carries an inspection-only sdl", source => {
+    expect(isUsableDeploymentDefinition({ sdl: WITHHELD_VALUES_SDL, name: undefined, source })).toBe(false);
+  });
+
+  it("rejects a usable source that carries no sdl", () => {
+    expect(isUsableDeploymentDefinition({ sdl: undefined, name: undefined, source: "local" })).toBe(false);
+  });
 });

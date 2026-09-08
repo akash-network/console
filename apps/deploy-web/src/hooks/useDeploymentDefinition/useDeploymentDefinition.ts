@@ -14,6 +14,13 @@ export interface DeploymentDefinition {
   source: DeploymentDefinitionSource;
 }
 
+const USABLE_SOURCES: readonly DeploymentDefinitionSource[] = ["api", "local", "superseded"];
+
+/** An absent definition can still carry the API's rejected SDL for inspection, so views must gate on the source, not on SDL presence. */
+export function isUsableDeploymentDefinition(definition: DeploymentDefinition): definition is DeploymentDefinition & { sdl: string } {
+  return !!definition.sdl && USABLE_SOURCES.includes(definition.source);
+}
+
 export const DEPENDENCIES = { useServices, useWallet };
 
 /** A deployment's SDL, from the console API when that copy is the one the chain is running, and from this browser otherwise. */

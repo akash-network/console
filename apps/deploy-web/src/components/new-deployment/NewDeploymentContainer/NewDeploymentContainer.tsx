@@ -10,7 +10,7 @@ import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider";
 import { useServices } from "@src/context/ServicesProvider";
-import { useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { isUsableDeploymentDefinition, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useWhen } from "@src/hooks/useWhen";
 import { useTemplates } from "@src/queries/useTemplateQuery";
 import sdlStore from "@src/store/sdlStore";
@@ -126,7 +126,7 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
   useWhen(activeStepName === RouteStep.chooseTemplate, () => d.Editor.preload());
 
   const getRedeployTemplate = () => {
-    if (!redeployDseq || !redeployDefinition.sdl) return null;
+    if (!redeployDseq || !isUsableDeploymentDefinition(redeployDefinition)) return null;
 
     return {
       name: redeployDefinition.name,

@@ -12,7 +12,7 @@ import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
-import { useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { isUsableDeploymentDefinition, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
@@ -215,7 +215,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                       <CustomDropdownLinkItem onClick={() => changeDeploymentName(deployment.dseq)} icon={<Edit fontSize="small" />}>
                         Edit name
                       </CustomDropdownLinkItem>
-                      {(definition.source === "resolving" || definition.sdl) && (
+                      {(definition.source === "resolving" || isUsableDeploymentDefinition(definition)) && (
                         <CustomDropdownLinkItem
                           disabled={definition.source === "resolving"}
                           onClick={() => redeploy({ sdl: definition.sdl, name: definition.name })}
