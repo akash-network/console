@@ -24,6 +24,13 @@ describe(RequireFairUsePolicy.name, () => {
     expect(screen.getByTestId("fair-use-policy-modal")).toBeInTheDocument();
   });
 
+  it("keeps the page and skips the prompt when the wallet lookup has failed", () => {
+    setup({ userId: "u1", fairUsePolicyAcceptedAt: null, isTrialing: false, hasWallet: false, isWalletLookupFailed: true });
+
+    expect(screen.getByText("child")).toBeInTheDocument();
+    expect(screen.queryByTestId("fair-use-policy-modal")).not.toBeInTheDocument();
+  });
+
   it("renders only the page once the user has accepted", () => {
     setup({ userId: "u1", fairUsePolicyAcceptedAt: ACCEPTED_AT });
 
@@ -76,6 +83,7 @@ describe(RequireFairUsePolicy.name, () => {
     loggedOut?: boolean;
     isTrialing?: boolean;
     hasWallet?: boolean;
+    isWalletLookupFailed?: boolean;
     isGateEnabled?: boolean;
     hasAccepted?: boolean;
   }) {
@@ -88,7 +96,12 @@ describe(RequireFairUsePolicy.name, () => {
             : mock<CustomUserProfile>({ userId: input.userId ?? "u1", fairUsePolicyAcceptedAt: input.fairUsePolicyAcceptedAt ?? null }),
           isLoading: false
         })) as typeof DEPENDENCIES.useUser,
-      useWallet: () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? true, hasWallet: input.hasWallet ?? true }),
+      useWallet: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useWallet>>({
+          isTrialing: input.isTrialing ?? true,
+          hasWallet: input.hasWallet ?? true,
+          isWalletLookupFailed: input.isWalletLookupFailed ?? false
+        }),
       useFlag: flag => flag === "fair_use_policy_gate" && (input.isGateEnabled ?? true),
       useAcceptFairUsePolicy: () => ({ accept, isAccepting: false, hasAccepted: input.hasAccepted ?? false }),
       FairUsePolicyModal: ({ onAccept }) => (

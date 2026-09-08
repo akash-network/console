@@ -25,11 +25,11 @@ type Props = {
 /** Holds the page back until acceptance, so an auto-started deployment cannot fire behind the modal; a user whose trial wallet is still provisioning is asked too, since that wallet will be a trial one. */
 export function RequireFairUsePolicy({ children, isPublic, dependencies: d = DEPENDENCIES }: Props) {
   const { user } = d.useUser();
-  const { isTrialing, hasWallet } = d.useWallet();
+  const { isTrialing, hasWallet, isWalletLookupFailed } = d.useWallet();
   const isGateEnabled = d.useFlag("fair_use_policy_gate");
   const { accept, isAccepting, hasAccepted } = d.useAcceptFairUsePolicy();
-  const isTrialingOrAwaitingWallet = isTrialing || !hasWallet;
-  const mustAccept = !isPublic && isGateEnabled && isTrialingOrAwaitingWallet && !!user?.userId && !user.fairUsePolicyAcceptedAt && !hasAccepted;
+  const isAwaitingTrialWallet = !hasWallet && !isWalletLookupFailed;
+  const mustAccept = !isPublic && isGateEnabled && (isTrialing || isAwaitingTrialWallet) && !!user?.userId && !user.fairUsePolicyAcceptedAt && !hasAccepted;
 
   if (mustAccept) return <d.FairUsePolicyModal onAccept={accept} isAccepting={isAccepting} />;
 

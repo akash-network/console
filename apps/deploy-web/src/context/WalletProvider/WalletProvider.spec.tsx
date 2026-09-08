@@ -75,6 +75,12 @@ describe(WalletProvider.name, () => {
     });
   });
 
+  it("reports a failed wallet lookup through useWallet", () => {
+    const { probed } = setup({ user: registeredUser(), managedWallet: { isInitializing: false, wallet: undefined, isLookupFailed: true } });
+
+    expect(probed.current).toMatchObject({ hasWallet: false, isWalletLookupFailed: true });
+  });
+
   function registeredUser() {
     return mock<CustomUserProfile>({ id: "internal-id", userId: "auth-user-id" });
   }
@@ -89,6 +95,7 @@ describe(WalletProvider.name, () => {
       isLoading: false,
       isInitializing: false,
       isFetching: false,
+      isLookupFailed: false,
       ...overrides
     });
   }

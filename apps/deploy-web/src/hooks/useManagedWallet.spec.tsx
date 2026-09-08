@@ -26,6 +26,14 @@ describe(useManagedWallet.name, () => {
     });
   });
 
+  it("reports a failed wallet lookup", async () => {
+    const { result } = setup({ userId: "user-failed", lookupError: new Error("wallet service down") });
+
+    await vi.waitFor(() => {
+      expect(result.current.managed.isLookupFailed).toBe(true);
+    });
+  });
+
   function buildApiWallet(overrides: { userId: string; address: string; creditAmount?: number }) {
     return {
       ...mock<ApiManagedWalletOutput>(),
@@ -36,9 +44,9 @@ describe(useManagedWallet.name, () => {
     };
   }
 
-  function setup(input?: { userId?: string; apiWallet?: ApiManagedWalletOutput }) {
+  function setup(input?: { userId?: string; apiWallet?: ApiManagedWalletOutput; lookupError?: Error }) {
     const managedWalletService = mock<ManagedWalletHttpService>({
-      getWallet: vi.fn().mockResolvedValue(input?.apiWallet ?? null)
+      getWallet: input?.lookupError ? vi.fn().mockRejectedValue(input.lookupError) : vi.fn().mockResolvedValue(input?.apiWallet ?? null)
     });
 
     const user = { email: "test@akash.network", id: input?.userId, userId: input?.userId } as UserProfile;
