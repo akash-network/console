@@ -187,6 +187,16 @@ const PatchExposeSchema = z
   })
   .partial();
 
+/** Naming a field is not patching one: `{ expose: {} }` reaches the writer with nothing to write, so an empty record has to be refused as firmly as an empty patch. */
+function assignsAField(patch: Record<string, unknown>): boolean {
+  return Object.values(patch).some(value => !isEmptyRecord(value));
+}
+
+/** An array is a value even when empty, because `command: []` clears the list the service declared. */
+function isEmptyRecord(value: unknown): boolean {
+  return !!value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 0;
+}
+
 export const PatchServiceSchema = z
   .object({
     image: z.string(),
@@ -205,7 +215,7 @@ export const PatchServiceSchema = z
     })
   })
   .partial()
-  .refine(patch => Object.keys(patch).length > 0, { message: "At least one field must be patched" });
+  .refine(assignsAField, { message: "At least one field must be patched" });
 
 export const UpdateDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema
