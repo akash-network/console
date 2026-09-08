@@ -152,6 +152,38 @@ describe(ProviderStreamService.name, () => {
     expect(result).toMatchObject({ status: "output_capped", frames: [{ payload: "12345" }] });
   });
 
+  it("counts the cap across frames and truncates the one that crosses it", async () => {
+    const { service, socket } = setup();
+
+    const pending = service.collect({ ...INPUT, maxBytes: 5 });
+    socket.emit("open");
+    socket.emitShellBytes([100, ...Buffer.from("12")]);
+    socket.emitShellBytes([100, ...Buffer.from("3456")]);
+    socket.emitShellBytes([102, ...Buffer.from('{"exit_code":0}')]);
+    const result = await pending;
+
+    expect(result).toEqual({
+      status: "output_capped",
+      exitCode: undefined,
+      frames: [
+        { kind: "shell", stream: "stdout", payload: "12" },
+        { kind: "shell", stream: "stdout", payload: "345" }
+      ]
+    });
+  });
+
+  it("keeps a result frame that exactly fills the cap and still reports its exit code", async () => {
+    const { service, socket } = setup();
+    const payload = '{"exit_code":7}';
+
+    const pending = service.collect({ ...INPUT, maxBytes: Buffer.byteLength(payload) });
+    socket.emit("open");
+    socket.emitShellBytes([102, ...Buffer.from(payload)]);
+    const result = await pending;
+
+    expect(result).toEqual({ status: "completed", exitCode: 7, frames: [{ kind: "shell", stream: "result", payload }] });
+  });
+
   it("counts the cap in UTF-8 bytes and never keeps more than it", async () => {
     const { service, socket } = setup();
 
