@@ -80,6 +80,15 @@ describe(SdlPatchService.name, () => {
       expect(document.services.web.env).toEqual(["A=ac-secret://s0_e0", "C=ac-secret://s0_e2", "B=replaced"]);
     });
 
+    it("leaves the stored list standing given an empty record", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", env: ["A=one", "B=two"] } } });
+      const stored = document.services.web.env;
+
+      service.apply(document, { web: { env: {} } });
+
+      expect(document.services.web.env).toBe(stored);
+    });
+
     it("appends a variable the service did not declare", () => {
       const { service, document } = setup({ services: { web: { image: "nginx", env: ["A=one"] } } });
 
@@ -373,6 +382,14 @@ describe(SdlPatchService.name, () => {
 
       expect(() => service.apply(document, { web: { env: { A: "two" } } })).toThrow();
       expect(document.services.worker.env).toEqual(["A=one"]);
+    });
+
+    it("allows a patch carrying an empty env record, which would not write to the shared list at all", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx" }, worker: { image: "busybox" } }, shareEnv: ["A=one"] });
+
+      service.apply(document, { web: { image: "nginx:1.27", env: {} } });
+
+      expect(document.services.web.image).toBe("nginx:1.27");
     });
 
     it("refuses to patch credentials through a shared block", () => {

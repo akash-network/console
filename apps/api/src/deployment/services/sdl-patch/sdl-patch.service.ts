@@ -22,6 +22,11 @@ function isNode(value: unknown): value is object {
   return !!value && typeof value === "object";
 }
 
+/** An empty record names no variable, so it neither writes nor deserves the refusal an anchored env node would otherwise earn it. */
+function assignsEnv(patch: PatchService["env"]): patch is NonNullable<PatchService["env"]> {
+  return patch !== undefined && Object.keys(patch).length > 0;
+}
+
 /** A node reachable twice is one a write would change in a place the request did not name, whether the second reacher is another service or another part of the same one. */
 function sharedNodesOf(services: SDLInput["services"]): Set<object> {
   const seen = new Set<object>();
@@ -74,7 +79,7 @@ export class SdlPatchService {
     this.#applyClearableList(service, "command", patch.command);
     this.#applyClearableList(service, "args", patch.args);
 
-    if (patch.env !== undefined) {
+    if (assignsEnv(patch.env)) {
       this.#assertNotShared(service.env, { ...at, field: "env" });
       this.#applyEnv(service, patch.env, at);
     }
