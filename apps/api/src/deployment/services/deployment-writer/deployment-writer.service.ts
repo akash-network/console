@@ -24,7 +24,8 @@ import {
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import {
   DeleteUnbackedDeploymentSetting,
-  unbackedDeploymentSettingKeyFor
+  unbackedDeploymentSettingKeyFor,
+  unbackedDeploymentSettingRetryOptions
 } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
@@ -143,21 +144,33 @@ export class DeploymentWriterService {
   }): Promise<void> {
     const { owner, ...definition } = input;
 
+    const singletonKey = unbackedDeploymentSettingKeyFor(input);
+
     await this.txService.transaction(async () => {
       const deploymentSettingId = await this.recordDefinition(definition);
 
       const compensationId = await this.jobQueueService.enqueue(new DeleteUnbackedDeploymentSetting({ deploymentSettingId, owner, dseq: input.dseq }), {
-        singletonKey: unbackedDeploymentSettingKeyFor(input),
+        singletonKey,
         startAfter: addMinutes(new Date(), this.deploymentConfig.get("UNBACKED_DEPLOYMENT_SETTING_GRACE_IN_MIN")).toISOString(),
-        retryLimit: this.deploymentConfig.get("UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT"),
-        retryBackoff: true,
-        retryDelay: this.deploymentConfig.get("UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC"),
-        retryDelayMax: this.deploymentConfig.get("UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN") * 60
+        ...unbackedDeploymentSettingRetryOptions(this.deploymentConfig)
       });
 
-      if (!compensationId) {
+      if (compensationId) return;
+
+      if (!(await this.compensationIsStillWaiting(singletonKey))) {
         throw new Error(`Refusing to record deployment setting ${deploymentSettingId} without a compensation: the queue accepted no job`);
       }
+
+      this.logger.info({ event: "UNBACKED_DEPLOYMENT_SETTING_COMPENSATION_ALREADY_WAITING", deploymentSettingId, owner, dseq: input.dseq });
+    });
+  }
+
+  /** A retry inherits the compensation its failed predecessor left only while that job cannot run before the signer gives up: one that judges the row first finds no deployment and deletes it, and `cancelCreatedBy` cannot call off a job a worker holds. */
+  private async compensationIsStillWaiting(singletonKey: string): Promise<boolean> {
+    return await this.jobQueueService.hasWaitingSingleton({
+      name: DeleteUnbackedDeploymentSetting[JOB_NAME],
+      singletonKey,
+      notDueBefore: new Date(Date.now() + this.billingConfig.get("TX_SIGNER_REQUEST_TIMEOUT_MS"))
     });
   }
 

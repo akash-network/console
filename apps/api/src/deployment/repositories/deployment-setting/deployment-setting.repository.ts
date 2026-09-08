@@ -42,8 +42,10 @@ export type ExpiringRuntimeDeployment = {
 
 export type OpenDeployment = {
   id: string;
+  userId: string;
   dseq: string;
   address: string;
+  createdAt: Date;
 };
 
 export type LiveTrialDeployment = {
@@ -128,8 +130,10 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       const batch = await this.pg
         .select({
           id: this.table.id,
+          userId: this.table.userId,
           dseq: this.table.dseq,
-          address: UserWallets.address
+          address: UserWallets.address,
+          createdAt: this.table.createdAt
         })
         .from(this.table)
         .innerJoin(Users, eq(this.table.userId, Users.id))

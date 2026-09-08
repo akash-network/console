@@ -111,17 +111,54 @@ describe(JobQueueService.name, () => {
       expect(pgBoss.getQueues).toHaveBeenCalledWith(["test", "another"]);
     });
 
-    it("warns when a handler declares a policy the live queue does not carry", async () => {
-      const { service, logger } = setup({ queues: [liveQueue({ policy: "standard" })] });
+    it("rewrites the policy of an unpartitioned live queue onto the one its handler declares", async () => {
+      const { service, pgBoss, logger } = setup({ queues: [liveQueue({ policy: "standard", partition: false })] });
 
       await service.registerHandlers([new SingletonTestHandler(vi.fn())]);
 
+      expect(pgBoss.getDb().executeSql).toHaveBeenCalledWith(expect.stringMatching(/UPDATE \S+\.queue SET policy = \$2/), ["test", "singleton"]);
+      expect(logger.info).toHaveBeenCalledWith({ event: "JOB_QUEUE_POLICY_CONVERGED", queue: "test", from: "standard", to: "singleton" });
+    });
+
+    it("rewrites the policy back to standard for a handler that stopped declaring one", async () => {
+      const { service, pgBoss } = setup({ queues: [liveQueue({ policy: "singleton", partition: false })] });
+
+      await service.registerHandlers([new TestHandler(vi.fn())]);
+
+      expect(pgBoss.getDb().executeSql).toHaveBeenCalledWith(expect.stringContaining("SET policy = $2"), ["test", "standard"]);
+    });
+
+    it("leaves the policy of a live queue that already matches its handler untouched", async () => {
+      const { service, pgBoss } = setup({ queues: [liveQueue({ policy: "singleton", partition: false })] });
+
+      await service.registerHandlers([new SingletonTestHandler(vi.fn())]);
+
+      expect(pgBoss.getDb().executeSql).not.toHaveBeenCalled();
+    });
+
+    it("warns instead of rewriting the policy of a partitioned queue, whose table lacks the other policies' indexes", async () => {
+      const { service, pgBoss, logger } = setup({ queues: [liveQueue({ policy: "standard", partition: true })] });
+
+      await service.registerHandlers([new SingletonTestHandler(vi.fn())]);
+
+      expect(pgBoss.getDb().executeSql).not.toHaveBeenCalled();
       expect(logger.warn).toHaveBeenCalledWith({
         event: "JOB_QUEUE_POLICY_UNCHANGEABLE",
         queue: "test",
         declared: "singleton",
         live: "standard"
       });
+    });
+
+    it("still converges the retry settings when the policy rewrite fails", async () => {
+      const error = new Error("update failed");
+      const { service, pgBoss, logger } = setup({ queues: [liveQueue({ policy: "standard", partition: false, retryDelay: 0 })] });
+      vi.mocked(pgBoss.getDb().executeSql).mockRejectedValue(error);
+
+      await service.registerHandlers([new SingletonTestHandler(vi.fn())]);
+
+      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_QUEUE_POLICY_CONVERGE_FAILED", queue: "test", error });
+      expect(pgBoss.updateQueue).toHaveBeenCalledWith("test", expect.objectContaining({ retryDelay: 30 }));
     });
 
     it("starts workers even when it cannot converge the queue settings", async () => {
@@ -285,6 +322,46 @@ describe(JobQueueService.name, () => {
       await expect(service.findPendingSingletonKeys("test-job")).resolves.toEqual(new Set(["singleton-1"]));
 
       expect(unsafe).toHaveBeenCalledWith(expect.stringContaining("SELECT DISTINCT singleton_key"), ["test-job"]);
+      expect(getDb).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("hasWaitingSingleton", () => {
+    it("asks for a job under the key that no worker holds yet and that is not due before the instant given", async () => {
+      const { service, pgBoss, txService } = setup();
+      txService.getConnection.mockReturnValue(undefined);
+      const executeSql = vi.fn().mockResolvedValue({ rows: [{ "?column?": 1 }] });
+      vi.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql });
+
+      await expect(
+        service.hasWaitingSingleton({ name: "test-job", singletonKey: "singleton-1", notDueBefore: new Date("2026-01-01T00:03:00.000Z") })
+      ).resolves.toBe(true);
+
+      expect(executeSql).toHaveBeenCalledWith(expect.stringContaining("state IN ('created', 'retry')"), ["test-job", "singleton-1", "2026-01-01T00:03:00.000Z"]);
+      expect(executeSql).toHaveBeenCalledWith(expect.stringContaining("start_after > $3"), expect.anything());
+    });
+
+    it("reports no job when nothing under the key is still waiting", async () => {
+      const { service, pgBoss, txService } = setup();
+      txService.getConnection.mockReturnValue(undefined);
+      vi.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql: vi.fn().mockResolvedValue({ rows: [] }) });
+
+      await expect(
+        service.hasWaitingSingleton({ name: "test-job", singletonKey: "singleton-1", notDueBefore: new Date("2026-01-01T00:03:00.000Z") })
+      ).resolves.toBe(false);
+    });
+
+    it("reads on the ambient transaction connection when one is active", async () => {
+      const { service, pgBoss, txService } = setup();
+      const unsafe = vi.fn().mockResolvedValue([{ "?column?": 1 }]);
+      txService.getConnection.mockReturnValue({ unsafe } as unknown as Sql);
+      const getDb = vi.spyOn(pgBoss, "getDb");
+
+      await expect(
+        service.hasWaitingSingleton({ name: "test-job", singletonKey: "singleton-1", notDueBefore: new Date("2026-01-01T00:03:00.000Z") })
+      ).resolves.toBe(true);
+
+      expect(unsafe).toHaveBeenCalledWith(expect.stringContaining("singleton_key = $2"), ["test-job", "singleton-1", "2026-01-01T00:03:00.000Z"]);
       expect(getDb).not.toHaveBeenCalled();
     });
   });
@@ -745,6 +822,7 @@ describe(JobQueueService.name, () => {
     return mock<QueueResult>({
       name: TestJob[JOB_NAME],
       policy: "standard",
+      partition: false,
       retryLimit: 5,
       retryBackoff: true,
       retryDelay: 30,

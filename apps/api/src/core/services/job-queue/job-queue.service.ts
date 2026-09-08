@@ -28,7 +28,7 @@ const QUEUE_RETRY_OPTIONS: QueueRetryOptions = {
   retryDelayMax: 5 * 60
 };
 
-const DEFAULT_QUEUE_POLICY: PgBossQueue["policy"] = "standard";
+const DEFAULT_QUEUE_POLICY: NonNullable<PgBossQueue["policy"]> = "standard";
 
 const RETRY_OPTION_KEYS = Object.keys(QUEUE_RETRY_OPTIONS) as (keyof QueueRetryOptions)[];
 
@@ -85,15 +85,7 @@ export class JobQueueService implements Disposable {
       const queue = liveQueues.get(handler.accepts[JOB_NAME]);
       if (!queue) continue;
 
-      const declaredPolicy = handler.policy ?? DEFAULT_QUEUE_POLICY;
-      if (queue.policy !== declaredPolicy) {
-        this.logger.warn({
-          event: "JOB_QUEUE_POLICY_UNCHANGEABLE",
-          queue: queue.name,
-          declared: declaredPolicy,
-          live: queue.policy
-        });
-      }
+      await this.#convergePolicy(queue, handler.policy ?? DEFAULT_QUEUE_POLICY);
 
       if (retryOptionsOf(queue).every(([key, value]) => value === QUEUE_RETRY_OPTIONS[key])) continue;
 
@@ -108,6 +100,25 @@ export class JobQueueService implements Disposable {
       } catch (error) {
         this.logger.error({ event: "JOB_QUEUE_RETRY_OPTIONS_CONVERGE_FAILED", queue: queue.name, error });
       }
+    }
+  }
+
+  /** pg-boss refuses this through `updateQueue` because a partitioned queue's own table only carries the index of the policy it was created with; the shared table of every unpartitioned queue carries all of them. */
+  async #convergePolicy(queue: PgBossQueueResult, declaredPolicy: NonNullable<PgBossQueue["policy"]>): Promise<void> {
+    if (queue.policy === declaredPolicy) return;
+
+    if (queue.partition) {
+      this.logger.warn({ event: "JOB_QUEUE_POLICY_UNCHANGEABLE", queue: queue.name, declared: declaredPolicy, live: queue.policy });
+      return;
+    }
+
+    const schema = this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_SCHEMA");
+
+    try {
+      await this.pgBoss.getDb().executeSql(`UPDATE ${schema}.queue SET policy = $2, updated_on = now() WHERE name = $1`, [queue.name, declaredPolicy]);
+      this.logger.info({ event: "JOB_QUEUE_POLICY_CONVERGED", queue: queue.name, from: queue.policy, to: declaredPolicy });
+    } catch (error) {
+      this.logger.error({ event: "JOB_QUEUE_POLICY_CONVERGE_FAILED", queue: queue.name, error });
     }
   }
 
@@ -218,6 +229,27 @@ export class JobQueueService implements Disposable {
     )) as { rows: { singleton_key: string }[] };
 
     return new Set(result.rows.map(row => row.singleton_key));
+  }
+
+  /** Whether a job under this key is still waiting, so `cancelCreatedBy` can call it off, and will not come due before `notDueBefore`. */
+  async hasWaitingSingleton(query: { name: string; singletonKey: string; notDueBefore: Date }): Promise<boolean> {
+    const connection = this.txService.getConnection();
+    const db = connection ? this.#toTransactionDb(connection) : await this.pgBoss.getDb();
+    const schema = this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_SCHEMA");
+    const result = (await db.executeSql(
+      `
+        SELECT 1
+        FROM ${schema}.job
+        WHERE name = $1
+          AND singleton_key = $2
+          AND state IN ('created', 'retry')
+          AND start_after > $3::timestamptz
+        LIMIT 1
+      `,
+      [query.name, query.singletonKey, query.notDueBefore.toISOString()]
+    )) as { rows: unknown[] };
+
+    return result.rows.length > 0;
   }
 
   async cancelCreatedBy(query: { name: string; singletonKey: string }): Promise<void> {
