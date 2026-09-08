@@ -25,10 +25,11 @@ describe(EnableDeploymentAlertHandler.name, () => {
   });
 
   it("enables the closed alert on the owner's existing channel", async () => {
-    const { userId, walletAddress, dseq, enableAlert, upsertedAlerts } = await setup();
+    const { userId, walletAddress, dseq, enableAlert, createdChannels, upsertedAlerts } = await setup();
 
     await enableAlert();
 
+    expect(createdChannels()).toHaveLength(0);
     expect(upsertedAlerts()).toEqual([
       {
         dseq,
