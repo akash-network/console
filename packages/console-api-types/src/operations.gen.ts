@@ -223,6 +223,16 @@ export const operations = {
       queryParams: [],
       hasBody: false
     }
+  },
+  v2: {
+    getDeploymentSetting: {
+      path: "/v2/deployment-settings/{dseq}",
+      method: "get",
+      operationId: "getDeploymentSetting",
+      pathParams: ["dseq"],
+      queryParams: ["userId"],
+      hasBody: false
+    }
   }
 } as const;
 

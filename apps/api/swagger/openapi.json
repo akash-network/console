@@ -3082,6 +3082,10 @@
                           "type": "string",
                           "pattern": "^0*[1-9]\\d*$"
                         },
+                        "sdl": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "autoTopUpEnabled": {
                           "type": "boolean"
                         },
@@ -3115,6 +3119,7 @@
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -3234,6 +3239,10 @@
                           "type": "string",
                           "pattern": "^0*[1-9]\\d*$"
                         },
+                        "sdl": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "autoTopUpEnabled": {
                           "type": "boolean"
                         },
@@ -3267,6 +3276,7 @@
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -3409,6 +3419,10 @@
                           "type": "string",
                           "pattern": "^0*[1-9]\\d*$"
                         },
+                        "sdl": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "autoTopUpEnabled": {
                           "type": "boolean"
                         },
@@ -3442,6 +3456,7 @@
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -3468,6 +3483,7 @@
         "tags": [
           "Deployment Settings"
         ],
+        "operationId": "getDeploymentSetting",
         "security": [
           {
             "BearerAuth": []
@@ -3520,6 +3536,10 @@
                           "type": "string",
                           "pattern": "^0*[1-9]\\d*$"
                         },
+                        "sdl": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "autoTopUpEnabled": {
                           "type": "boolean"
                         },
@@ -3553,6 +3573,7 @@
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -3673,6 +3694,10 @@
                           "type": "string",
                           "pattern": "^0*[1-9]\\d*$"
                         },
+                        "sdl": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "autoTopUpEnabled": {
                           "type": "boolean"
                         },
@@ -3706,6 +3731,7 @@
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -3848,6 +3874,10 @@
                           "type": "string",
                           "pattern": "^0*[1-9]\\d*$"
                         },
+                        "sdl": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "autoTopUpEnabled": {
                           "type": "boolean"
                         },
@@ -3881,6 +3911,7 @@
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",

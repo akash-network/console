@@ -7,6 +7,7 @@ const DeploymentSettingSchema = z.object({
   id: z.string().uuid(),
   userId: z.string(),
   dseq: DseqSchema,
+  sdl: z.string().nullable(),
   autoTopUpEnabled: z.boolean(),
   estimatedTopUpAmount: z.number(),
   topUpFrequencyMs: z.number(),

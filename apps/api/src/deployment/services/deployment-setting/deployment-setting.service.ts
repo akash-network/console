@@ -26,7 +26,7 @@ type DeploymentSettingChange = Pick<DeploymentSettingsInput, "runtimeLimitHours"
 
 type DeploymentSettingWithEstimatedTopUpAmount = Omit<
   DeploymentSettingsOutput,
-  "lastFundedAt" | "runtimeEndingNotifiedFor" | "providerUnreachableNotifiedFor" | "sdl" | "sealedSecrets" | "manifestVersion" | "runtimeEndsAt"
+  "lastFundedAt" | "runtimeEndingNotifiedFor" | "providerUnreachableNotifiedFor" | "sealedSecrets" | "manifestVersion" | "runtimeEndsAt"
 > & {
   estimatedTopUpAmount: number;
   topUpFrequencyMs: number;
@@ -347,7 +347,7 @@ export class DeploymentSettingService {
     const setting = { ...rest, runtimeEndsAt: runtimeEndsAt?.toISOString() ?? null };
 
     if (!setting.autoTopUpEnabled) {
-      return { ...setting, estimatedTopUpAmount: 0, topUpFrequencyMs: this.topUpFrequencyMs };
+      return { ...setting, estimatedTopUpAmount: 0, topUpFrequencyMs: this.topUpFrequencyMs, sdl };
     }
 
     const estimatedTopUpAmount = await this.drainingDeploymentService.calculateTopUpAmountForDseqAndUserId(setting.dseq, setting.userId);
@@ -360,6 +360,6 @@ export class DeploymentSettingService {
       });
     }
 
-    return { ...setting, estimatedTopUpAmount, topUpFrequencyMs: this.topUpFrequencyMs };
+    return { ...setting, sdl, estimatedTopUpAmount, topUpFrequencyMs: this.topUpFrequencyMs };
   }
 }

@@ -1665,6 +1665,7 @@ export interface paths {
                 id: string;
                 userId: string;
                 dseq: string;
+                sdl: string | null;
                 autoTopUpEnabled: boolean;
                 estimatedTopUpAmount: number;
                 topUpFrequencyMs: number;
@@ -1735,6 +1736,7 @@ export interface paths {
                 id: string;
                 userId: string;
                 dseq: string;
+                sdl: string | null;
                 autoTopUpEnabled: boolean;
                 estimatedTopUpAmount: number;
                 topUpFrequencyMs: number;
@@ -1832,6 +1834,7 @@ export interface paths {
                 id: string;
                 userId: string;
                 dseq: string;
+                sdl: string | null;
                 autoTopUpEnabled: boolean;
                 estimatedTopUpAmount: number;
                 topUpFrequencyMs: number;
@@ -1866,62 +1869,7 @@ export interface paths {
       cookie?: never;
     };
     /** Get deployment settings by dseq */
-    get: {
-      parameters: {
-        query?: {
-          userId?: string;
-        };
-        header?: never;
-        path: {
-          dseq: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Returns deployment settings */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              data: {
-                /** Format: uuid */
-                id: string;
-                userId: string;
-                dseq: string;
-                autoTopUpEnabled: boolean;
-                estimatedTopUpAmount: number;
-                topUpFrequencyMs: number;
-                /** @description Runtime limit in hours chosen at deployment creation, or null for always-on funding */
-                runtimeLimitHours: number | null;
-                /**
-                 * Format: date-time
-                 * @description When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set
-                 */
-                runtimeEndsAt: string | null;
-                /** Format: date-time */
-                createdAt: string;
-                /** Format: date-time */
-                updatedAt: string;
-              };
-            };
-          };
-        };
-        /** @description Deployment settings not found */
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              message: string;
-            };
-          };
-        };
-      };
-    };
+    get: operations["getDeploymentSetting"];
     put?: never;
     post?: never;
     delete?: never;
@@ -1962,6 +1910,7 @@ export interface paths {
                 id: string;
                 userId: string;
                 dseq: string;
+                sdl: string | null;
                 autoTopUpEnabled: boolean;
                 estimatedTopUpAmount: number;
                 topUpFrequencyMs: number;
@@ -2062,6 +2011,7 @@ export interface paths {
                 id: string;
                 userId: string;
                 dseq: string;
+                sdl: string | null;
                 autoTopUpEnabled: boolean;
                 estimatedTopUpAmount: number;
                 topUpFrequencyMs: number;
@@ -7966,6 +7916,63 @@ export interface operations {
               /** @description USD amount every deployment is bootstrapped with at creation, before funding tops it up toward the target runway */
               defaultDepositUsd: number;
             };
+          };
+        };
+      };
+    };
+  };
+  getDeploymentSetting: {
+    parameters: {
+      query?: {
+        userId?: string;
+      };
+      header?: never;
+      path: {
+        dseq: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns deployment settings */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              userId: string;
+              dseq: string;
+              sdl: string | null;
+              autoTopUpEnabled: boolean;
+              estimatedTopUpAmount: number;
+              topUpFrequencyMs: number;
+              /** @description Runtime limit in hours chosen at deployment creation, or null for always-on funding */
+              runtimeLimitHours: number | null;
+              /**
+               * Format: date-time
+               * @description When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set
+               */
+              runtimeEndsAt: string | null;
+              /** Format: date-time */
+              createdAt: string;
+              /** Format: date-time */
+              updatedAt: string;
+            };
+          };
+        };
+      };
+      /** @description Deployment settings not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            message: string;
           };
         };
       };
