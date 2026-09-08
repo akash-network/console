@@ -1142,6 +1142,16 @@ describe("Deployments API", () => {
   });
 
   describe("PUT /v1/deployments/{dseq}", () => {
+    it("announces itself as deprecated in the document callers read", async () => {
+      const response = await app.request("/v1/doc?scope=console");
+      const document = (await response.json()) as { paths: Record<string, Record<string, { deprecated?: boolean; description?: string }>> };
+
+      expect(response.status).toBe(200);
+      const put = document.paths["/v1/deployments/{dseq}"].put;
+      expect(put.deprecated).toBe(true);
+      expect(put.description).toContain("re-supplying every other value");
+    });
+
     it("should update a deployment successfully", async () => {
       const { userApiKeySecret, wallets } = await mockPersistedUser();
       const dseq = "1234";

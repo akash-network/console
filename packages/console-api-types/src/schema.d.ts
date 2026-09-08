@@ -2097,7 +2097,11 @@ export interface paths {
     };
     /** Get a deployment */
     get: operations["getDeployment"];
-    /** Update a deployment */
+    /**
+     * Update a deployment (deprecated)
+     * @deprecated
+     * @description Deprecated. Resubmits the whole SDL, so rotating one secret means re-supplying every other value the document carries, and the console cannot return a stored value for you to resupply. This endpoint will be removed in a future release.
+     */
     put: operations["updateDeployment"];
     post?: never;
     /** Close a deployment */

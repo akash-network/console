@@ -303,6 +303,8 @@ export class DeploymentWriterService {
    * reference with no value spends no key-service call.
    */
   public async updateByUserIdAndDseq(userId: string, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<DeploymentResponse> {
+    this.logger.warn({ event: "DEPRECATED_UPDATE_DEPLOYMENT_ENDPOINT_USED", userId, dseq });
+
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const { sdl, derived } = this.#storedSdlOf(input.sdl, "every-value-sealed", dseq);
 
