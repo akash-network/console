@@ -701,6 +701,21 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     return env.flatMap(entry => entry.match(/ac-secret:\/\/([A-Za-z_][A-Za-z0-9_]*)/)?.slice(1) ?? []);
   }
 
+  async function mockChain(address: string) {
+    const restUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
+    const info = createDeploymentInfoSeed({ owner: address, dseq: DSEQ });
+    const leases = createManyLeaseApiResponses(1, { owner: address, dseq: DSEQ, state: "active" });
+
+    nock(restUrl).persist().get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${DSEQ}`).reply(200, info);
+    nock(restUrl).persist().get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${DSEQ}`).reply(200, { leases });
+    nock(restUrl)
+      .persist()
+      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${DSEQ}&pagination.limit=1000`)
+      .reply(200, { leases });
+
+    await createDeployment({ owner: address, dseq: DSEQ });
+  }
+
   async function setup(input: { secrets?: Record<string, string>; env?: string[]; record?: boolean } = {}) {
     const dbUser = await userRepository.create({ userId: faker.string.uuid() });
     const apiKey = faker.string.alphanumeric(24);
@@ -757,20 +772,5 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     kmsClient.asymmetricDecrypt.mockClear();
 
     return { user, apiKey, address, sdl, secrets };
-  }
-
-  async function mockChain(address: string) {
-    const restUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
-    const info = createDeploymentInfoSeed({ owner: address, dseq: DSEQ });
-    const leases = createManyLeaseApiResponses(1, { owner: address, dseq: DSEQ, state: "active" });
-
-    nock(restUrl).persist().get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${DSEQ}`).reply(200, info);
-    nock(restUrl).persist().get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${DSEQ}`).reply(200, { leases });
-    nock(restUrl)
-      .persist()
-      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${DSEQ}&pagination.limit=1000`)
-      .reply(200, { leases });
-
-    await createDeployment({ owner: address, dseq: DSEQ });
   }
 });
