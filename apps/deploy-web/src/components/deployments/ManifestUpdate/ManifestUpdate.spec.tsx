@@ -5,6 +5,7 @@ import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
 import type { ContextType } from "@src/context/WalletProvider";
+import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { DeploymentStorageService } from "@src/services/deployment-storage/deployment-storage.service";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
@@ -37,15 +38,17 @@ const TRIAL_GATED_SDL = new ApiError(
 );
 const UNTITLED_OUT_OF_CREDITS = new ApiError(402, { message: "Not enough funds to cover the transaction fee" }, "PUT /v1/deployments/{dseq} → 402");
 
+const WITHHELD_VALUES_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=ac-secret://s0_e0"\n';
+
 describe(ManifestUpdate.name, () => {
-  it("shows outside deployment message when no local manifest exists", () => {
-    setup({ storedManifest: null });
+  it("shows outside deployment message when neither source holds a definition", () => {
+    setup({ definition: { sdl: undefined, source: "absent" } });
 
     expect(screen.getByText(/it looks like this deployment was created using another deploy tool/i)).toBeInTheDocument();
   });
 
   it("hides outside deployment message and shows editor after clicking Continue", async () => {
-    const { dependencies } = setup({ storedManifest: null });
+    const { dependencies } = setup({ definition: { sdl: undefined, source: "absent" } });
 
     expect(screen.getByText(/it looks like this deployment was created using another deploy tool/i)).toBeInTheDocument();
 
@@ -60,9 +63,9 @@ describe(ManifestUpdate.name, () => {
     });
   });
 
-  it("loads manifest from local storage and calls onManifestChange", async () => {
+  it("seeds the editor from the resolved definition", async () => {
     const onManifestChange = vi.fn();
-    setup({ onManifestChange, storedManifest: "version: '2.0'" });
+    setup({ onManifestChange, definition: { sdl: "version: '2.0'", source: "local" } });
 
     await waitFor(() => {
       expect(onManifestChange).toHaveBeenCalledWith("version: '2.0'");
@@ -71,7 +74,7 @@ describe(ManifestUpdate.name, () => {
 
   it("shows parsing error when manifest version retrieval fails", async () => {
     setup({
-      storedManifest: "version: '2.0'",
+      definition: { sdl: "version: '2.0'", source: "local" },
       dependencies: {
         deploymentData: mock<typeof DEPENDENCIES.deploymentData>({
           getManifestVersion: vi.fn().mockRejectedValue(new Error("parse error"))
@@ -81,6 +84,129 @@ describe(ManifestUpdate.name, () => {
 
     await waitFor(() => {
       expect(screen.getByText("Error getting manifest version.")).toBeInTheDocument();
+    });
+  });
+
+  it("seeds the editor from the api definition, never from this browser's copy", async () => {
+    const onManifestChange = vi.fn();
+    setup({
+      onManifestChange,
+      definition: { sdl: "version: '2.0' # from-the-api", source: "api" },
+      storedManifest: "version: '2.0' # from-this-browser"
+    });
+
+    await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '2.0' # from-the-api"));
+    expect(onManifestChange.mock.calls.flat()).not.toContain("version: '2.0' # from-this-browser");
+  });
+
+  it("shows neither the editor nor a notice while the definition is still resolving", () => {
+    const onManifestChange = vi.fn();
+    const { dependencies } = setup({ definition: { sdl: undefined, source: "resolving" }, onManifestChange });
+
+    expect(screen.queryByText(/it looks like this deployment was created using another deploy tool/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/secret values withheld/i)).not.toBeInTheDocument();
+    expect(dependencies.SDLEditor).not.toHaveBeenCalled();
+    expect(onManifestChange).not.toHaveBeenCalled();
+  });
+
+  describe("the local-versus-chain warning", () => {
+    it("renders for a definition served from this browser whose version differs from the chain", async () => {
+      const { dependencies } = setup({
+        definition: { sdl: "version: '2.0'", source: "local" },
+        deployment: { dseq: "123", state: "active", hash: "on-chain-hash" },
+        dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("a-different-hash") }) }
+      });
+
+      await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
+    });
+
+    it("renders for an api copy the chain has moved past once its notice is dismissed", async () => {
+      const { dependencies } = setup({
+        definition: { sdl: "version: '2.0' # recorded-v1", source: "absent" },
+        deployment: { dseq: "123", state: "active", hash: "on-chain-hash" },
+        dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("recorded-v1-hash") }) }
+      });
+
+      const continueButton = dependencies.Button.mock.calls.find(call => call[0].children === "Continue");
+
+      await act(() => {
+        continueButton?.[0].onClick?.(mock<MouseEvent<HTMLButtonElement>>());
+      });
+
+      await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
+    });
+
+    it("seeds the editor with the api copy the chain has moved past so the user can see what the console recorded", async () => {
+      const onManifestChange = vi.fn();
+      setup({ definition: { sdl: "version: '2.0' # recorded-v1", source: "absent" }, onManifestChange });
+
+      await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '2.0' # recorded-v1"));
+    });
+
+    it("does not render for a definition served by the api", async () => {
+      const { dependencies } = setup({
+        definition: { sdl: "version: '2.0'", source: "api" },
+        deployment: { dseq: "123", state: "active", hash: "on-chain-hash" },
+        dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("a-different-hash") }) }
+      });
+
+      await waitFor(() => expect(dependencies.SDLEditor).toHaveBeenCalled());
+      expect(dependencies.WarningCircle).not.toHaveBeenCalled();
+    });
+
+    it("stops rendering when a refetch moves the definition from this browser to the api", async () => {
+      const { dependencies, rerenderDefinition } = setup({
+        definition: { sdl: "version: '2.0'", source: "local" },
+        deployment: { dseq: "123", state: "active", hash: "on-chain-hash" },
+        dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("a-different-hash") }) }
+      });
+
+      await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
+
+      rerenderDefinition({ sdl: "version: '2.0'", name: undefined, source: "api" });
+      dependencies.WarningCircle.mockClear();
+      rerenderDefinition({ sdl: "version: '2.0'", name: undefined, source: "api" });
+
+      expect(dependencies.WarningCircle).not.toHaveBeenCalled();
+    });
+
+    it("does not render for a browser copy that agrees with the chain", async () => {
+      const { dependencies } = setup({
+        definition: { sdl: "version: '2.0'", source: "local" },
+        deployment: { dseq: "123", state: "active", hash: "same-hash" },
+        dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("same-hash") }) }
+      });
+
+      await waitFor(() => expect(dependencies.SDLEditor).toHaveBeenCalled());
+      expect(dependencies.WarningCircle).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("a definition whose secret values the api withheld", () => {
+    it("displays it unchanged and says the values are withheld", async () => {
+      const onManifestChange = vi.fn();
+      setup({ definition: { sdl: WITHHELD_VALUES_SDL, source: "absent" }, onManifestChange });
+
+      expect(screen.getByText(/secret values withheld/i)).toBeInTheDocument();
+      await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith(WITHHELD_VALUES_SDL));
+    });
+
+    it("disables the update action", () => {
+      const { dependencies } = setup({ editedManifest: WITHHELD_VALUES_SDL });
+
+      expect(updateButtonOf(dependencies)?.disabled).toBe(true);
+    });
+
+    it("submits nothing when the update action fires anyway", async () => {
+      const handles = setup({
+        editedManifest: WITHHELD_VALUES_SDL,
+        deployment: { dseq: "123", state: "active", hash: "different-hash" }
+      });
+
+      await clickUpdate(handles);
+
+      expect(handles.mutate).not.toHaveBeenCalled();
+      expect(screen.getByText(/withheld secret values/i)).toBeInTheDocument();
     });
   });
 
@@ -480,7 +606,7 @@ describe(ManifestUpdate.name, () => {
 
   it("clears deployment version when text changes in editor", async () => {
     const onManifestChange = vi.fn();
-    const { dependencies } = setup({ onManifestChange, storedManifest: "version: '2.0'" });
+    const { dependencies } = setup({ onManifestChange, definition: { sdl: "version: '2.0'", source: "local" } });
 
     await waitFor(() => {
       expect(onManifestChange).toHaveBeenCalledWith("version: '2.0'");
@@ -577,6 +703,7 @@ describe(ManifestUpdate.name, () => {
     onManifestChange?: (value: string) => void;
     onRedeploy?: () => void;
     wallet?: Partial<{ address: string; signAndBroadcastTx: ContextType["signAndBroadcastTx"] }>;
+    definition?: Partial<DeploymentDefinition>;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const providerProxy = mock<ProviderProxyService>();
@@ -611,6 +738,9 @@ describe(ManifestUpdate.name, () => {
     const useBlockchainStatus: typeof DEPENDENCIES.useBlockchainStatus = () =>
       mock<ReturnType<typeof DEPENDENCIES.useBlockchainStatus>>({ isBlockchainDown: false });
 
+    let definition: DeploymentDefinition = { sdl: "version: '2.0'", name: undefined, source: "local", ...input?.definition };
+    const useDeploymentDefinition: typeof DEPENDENCIES.useDeploymentDefinition = () => definition;
+
     const dependencies = MockComponents(DEPENDENCIES, {
       DeploymentTabHeader: vi.fn(({ actions, children }) => (
         <>
@@ -622,6 +752,7 @@ describe(ManifestUpdate.name, () => {
       useBalances,
       useSnackbar,
       useBlockchainStatus,
+      useDeploymentDefinition,
       deploymentData: mock<typeof DEPENDENCIES.deploymentData>({
         getManifestVersion: vi.fn().mockResolvedValue("test-version")
       }),
@@ -663,6 +794,10 @@ describe(ManifestUpdate.name, () => {
 
     return {
       rerenderWith: (overrides: { editedManifest: string }) => rerender(componentWith(overrides)),
+      rerenderDefinition: (next: DeploymentDefinition) => {
+        definition = next;
+        rerender(componentWith());
+      },
       providerProxy,
       analyticsService,
       deploymentLocalStorage,
