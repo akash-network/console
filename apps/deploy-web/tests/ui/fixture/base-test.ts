@@ -3,6 +3,7 @@ import { test as baseTest } from "@playwright/test";
 
 import { loginExistingUser, registerNewUser } from "../actions/auth";
 import { closeAllActiveDeployments } from "../actions/deployment-janitor";
+import { acceptFairUsePolicyIfPrompted } from "../actions/fair-use-policy";
 import { Auth0ManagementService } from "../services/auth0-management.service";
 import { createEmailVerificationStrategy, type EmailVerificationStrategy } from "../services/email-verification";
 import { testEnvConfig } from "./test-env.config";
@@ -45,6 +46,7 @@ export const test = baseTest.extend<Fixtures>({
       await loginExistingUser(page);
     } else if (userType === "new") {
       createdUserId = (await registerNewUser(page, { auth0, emailVerification })).userId;
+      await acceptFairUsePolicyIfPrompted(page);
     }
 
     await use(page);
