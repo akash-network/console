@@ -3,13 +3,13 @@ import { useMemo } from "react";
 import { Alert, AlertDescription, AlertTitle, Button } from "@akashnetwork/ui/components";
 import { WarningTriangle } from "iconoir-react";
 
-import { useLocalNotes } from "@src/components/LocalNoteManager";
+import { useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import type { LeaseDto } from "@src/types/deployment";
 import { getLeaseCloseReasonLabel, getReclamationDeadline, isReclaiming } from "@src/utils/reclamationUtils";
 import { useCountdown } from "./useCountdown";
 
-export const DEPENDENCIES = { useLocalNotes, useRedeploy };
+export const DEPENDENCIES = { useDeploymentDefinition, useRedeploy };
 
 type Props = {
   leases: LeaseDto[] | undefined | null;
@@ -24,9 +24,8 @@ type Props = {
  * before the grace-period deadline. The terminal (already-closed) case is handled by ReclamationCard.
  */
 export const ReclamationBanner: React.FunctionComponent<Props> = ({ leases, dseq, className, dependencies = DEPENDENCIES }) => {
-  const { getDeploymentData } = dependencies.useLocalNotes();
+  const definition = dependencies.useDeploymentDefinition(dseq);
   const redeploy = dependencies.useRedeploy();
-  const deploymentData = getDeploymentData(dseq);
   const reclaimingLeases = useMemo(() => (leases ?? []).filter(isReclaiming), [leases]);
 
   const nearestDeadline = useMemo(() => {
@@ -53,7 +52,13 @@ export const ReclamationBanner: React.FunctionComponent<Props> = ({ leases, dseq
         </p>
         <p className="mt-1 text-xs text-muted-foreground">Reason: {reasonLabel}</p>
         <p className="mt-2">Reclamation can&apos;t be cancelled. Redeploy to another provider before the deadline to avoid downtime.</p>
-        <Button variant="default" size="sm" className="mt-3" onClick={() => redeploy({ sdl: deploymentData?.manifest, name: deploymentData?.name })}>
+        <Button
+          variant="default"
+          size="sm"
+          className="mt-3"
+          disabled={definition.source === "resolving"}
+          onClick={() => redeploy({ sdl: definition.sdl, name: definition.name })}
+        >
           Redeploy
         </Button>
       </AlertDescription>
