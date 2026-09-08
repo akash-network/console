@@ -16,7 +16,7 @@ const dbService = new TestDatabaseService(testPath!);
 beforeAll(async () => {
   MemoryCacheEngine.clearAllCaches();
   await dbService.setup();
-}, 20_000);
+});
 
 afterAll(async () => {
   try {
@@ -26,7 +26,7 @@ afterAll(async () => {
   }
   await dbService.teardown();
   MemoryCacheEngine.clearAllCaches();
-}, 20_000);
+});
 
 beforeEach(() => {
   MemoryCacheEngine.clearAllCaches();
