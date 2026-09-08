@@ -101,7 +101,6 @@ describe(LocalNoteManager.name, () => {
     const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () => ({
       getDeploymentName,
       changeDeploymentName: vi.fn(),
-      getDeploymentData: vi.fn().mockReturnValue(null),
       favoriteProviders: [],
       updateFavoriteProviders: vi.fn(),
       selectedDeploymentDseq: dseq,

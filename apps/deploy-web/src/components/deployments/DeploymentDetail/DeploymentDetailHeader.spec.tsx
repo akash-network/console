@@ -3,6 +3,7 @@ import yaml from "js-yaml";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { DeploymentDto, DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { DEPENDENCIES, DeploymentDetailHeader } from "./DeploymentDetailHeader";
@@ -14,7 +15,7 @@ import { MockComponents } from "@tests/unit/mocks";
 describe(DeploymentDetailHeader.name, () => {
   it("counts the services of every placement, not just the one whose status is loaded", () => {
     setup({
-      storedManifest: yaml.dump({
+      definitionSdl: yaml.dump({
         services: { web: {}, api: {}, worker: {} },
         deployment: { web: { "dcloud-us": {} }, api: { "dcloud-us": {} }, worker: { "dcloud-eu": {} } }
       }),
@@ -26,7 +27,7 @@ describe(DeploymentDetailHeader.name, () => {
 
   it("falls back to the placement count when no manifest is stored locally", () => {
     setup({
-      storedManifest: null,
+      definitionSdl: null,
       leases: [buildLeaseInPlacement("1", "dcloud-us"), buildLeaseInPlacement("2", "dcloud-eu"), buildLeaseInPlacement("3", "dcloud-ap")]
     });
 
@@ -223,7 +224,7 @@ describe(DeploymentDetailHeader.name, () => {
   });
 
   it("keeps redeploy off the header now that it lives on the update tab", () => {
-    setup({ storedManifest: "version: '2.0'" });
+    setup({ definitionSdl: "version: '2.0'" });
 
     expect(screen.queryByRole("button", { name: "Redeploy" })).not.toBeInTheDocument();
   });
@@ -267,12 +268,19 @@ describe(DeploymentDetailHeader.name, () => {
     });
   }
 
+  it("holds a skeleton for the service count until the definition resolves", () => {
+    setup({ definitionSource: "resolving" });
+
+    expect(screen.getByTestId("services-count-skeleton")).toBeInTheDocument();
+  });
+
   function setup(input: {
     runtimeLimitHours?: number | null;
     runtimeEndsAt?: string | null;
     name?: string | null;
     isTrialing?: boolean;
-    storedManifest?: string | null;
+    definitionSdl?: string | null;
+    definitionSource?: DeploymentDefinition["source"];
     state?: string;
     leases?: LeaseDto[] | null;
     providers?: ApiProviderList[];
@@ -284,8 +292,13 @@ describe(DeploymentDetailHeader.name, () => {
     const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () =>
       mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>({
         getDeploymentName: () => input.name ?? null,
-        changeDeploymentName,
-        getDeploymentData: () => (input.storedManifest ? { manifest: input.storedManifest, name: input.name ?? undefined } : null)
+        changeDeploymentName
+      });
+    const useDeploymentDefinition: typeof DEPENDENCIES.useDeploymentDefinition = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useDeploymentDefinition>>({
+        sdl: input.definitionSdl ?? undefined,
+        name: input.name ?? undefined,
+        source: input.definitionSource ?? (input.definitionSdl ? "api" : "absent")
       });
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false });
     const useDeclaredTeeTypes: typeof DEPENDENCIES.useDeclaredTeeTypes = () => [];
@@ -326,6 +339,7 @@ describe(DeploymentDetailHeader.name, () => {
         providers={input.providers ?? [mock<ApiProviderList>({ owner: "akash1provider" })]}
         dependencies={MockComponents(DEPENDENCIES, {
           useLocalNotes,
+          useDeploymentDefinition,
           useWallet,
           useDeploymentEscrowBalance,
           useDeploymentSettingQuery,
