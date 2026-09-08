@@ -8,9 +8,18 @@ const MEMBER_NODES = new Set(["MemberExpression", "OptionalMemberExpression"]);
 
 export const strykerPlugins = [{ kind: "Ignore", name: "observability", value: { shouldIgnore } }];
 
-/** Stryker enters every node and ignoring one ignores its whole subtree, so judging the call itself covers its arguments. */
+/** Stryker enters every node and ignoring one ignores its whole subtree, so judging a node covers everything under it. */
 function shouldIgnore(path) {
-  return isObservabilityCall(path.node) ? IGNORE_REASON : undefined;
+  return isObservabilityStatement(path.node) || isObservabilityCall(path.node) ? IGNORE_REASON : undefined;
+}
+
+/** Deleting a whole log call is a mutant on the statement wrapping it, an ancestor the call's own ignore is entered too late to reach. */
+function isObservabilityStatement(node) {
+  return node.type === "ExpressionStatement" && isObservabilityCall(withoutAwait(node.expression));
+}
+
+function withoutAwait(expression) {
+  return expression.type === "AwaitExpression" ? expression.argument : expression;
 }
 
 function isObservabilityCall(node) {
