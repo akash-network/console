@@ -56,6 +56,13 @@ type StoredSdlValues =
   /** Only a registry credential is, a seal having already said which of the rest are secret. */
   | "only-credentials-sealed";
 
+/** Lowest precedence first: what the deployment carried in, then what the request supplied, then what the document gave up. */
+function prunedOverlayOf(sets: { carried?: SdlSecrets; supplied: SdlSecrets; derived: SdlSecrets }, referenced: ReadonlySet<string>): SdlSecrets {
+  const overlaid: SdlSecrets = { ...sets.carried, ...sets.supplied, ...sets.derived };
+
+  return Object.fromEntries(Object.entries(overlaid).filter(([name]) => referenced.has(name)));
+}
+
 @singleton()
 export class DeploymentWriterService {
   private readonly logger: ReturnType<CreateLogger>;
@@ -85,12 +92,12 @@ export class DeploymentWriterService {
   /** The dseq is minted once everything that can refuse the submitted document has run, because the token written below names it and a client sealing beforehand cannot; a refusal that needs the resolved document — a sealed registry password below the schema's minimum, say — can only come after it, and spends a dseq nothing is written under. */
   public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
     /** SDL for storage ONLY, and the values taken out of it. Never stands in for the submitted document anywhere a hash is taken. */
-    const { sdl, derived } = this.#storedSdlOf(input.sdl, input.sealedSecrets ? "only-credentials-sealed" : "every-value-sealed");
+    const { sdl, storedDocument, derived } = this.#storedSdlOf(input.sdl, input.sealedSecrets ? "only-credentials-sealed" : "every-value-sealed");
 
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
     const depositInDollars = this.deploymentConfig.get("DEPLOYMENT_DEFAULT_DEPOSIT");
     const supplied = await this.#receiveSecrets(input);
-    const stored = this.#storedSecretsOf(supplied, derived);
+    const stored = this.#storedSecretsOf({ supplied, derived }, storedDocument);
 
     const dseq = Date.now().toString();
     const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { secrets: supplied, isTrialing: !!wallet.isTrialing });
@@ -210,7 +217,7 @@ export class DeploymentWriterService {
   }
 
   /** `dseq` is a log field only, so a create can run this before minting one and still say which request it refused. */
-  #storedSdlOf(submittedSdl: string, values: StoredSdlValues, dseq?: string): { sdl: string; derived: SdlSecrets } {
+  #storedSdlOf(submittedSdl: string, values: StoredSdlValues, dseq?: string): { sdl: string; storedDocument: SDLInput; derived: SdlSecrets } {
     const parsed = parseSdlForStorage(submittedSdl);
 
     if (parsed.document === null) {
@@ -224,7 +231,7 @@ export class DeploymentWriterService {
       throw this.#rejectUnstorableSdl("too-large", { dseq, length });
     }
 
-    return { sdl, derived };
+    return { sdl, storedDocument: parsed.document, derived };
   }
 
   /** Runs before the document is measured, so that what the size guard bounds is exactly what gets stored. */
@@ -237,8 +244,8 @@ export class DeploymentWriterService {
    * took out of the document itself. A name in both is refused rather than merged, because the two would
    * be different values under one name and the stored SDL would then reference whichever won.
    */
-  #storedSecretsOf(supplied: SdlSecrets, derived: SdlSecrets): SdlSecrets {
-    const collisions = Object.keys(derived).filter(name => Object.hasOwn(supplied, name));
+  #storedSecretsOf(sets: { supplied: SdlSecrets; derived: SdlSecrets }, document: SDLInput): SdlSecrets {
+    const collisions = Object.keys(sets.derived).filter(name => Object.hasOwn(sets.supplied, name));
 
     if (collisions.length > 0) {
       const echoed = collisions[0].slice(0, MAX_ECHOED_REFERENCE_LENGTH);
@@ -247,7 +254,7 @@ export class DeploymentWriterService {
       throw createError(400, `"${echoed}" is a name the console derives for this deployment and cannot also be supplied for it`);
     }
 
-    return { ...supplied, ...derived };
+    return prunedOverlayOf(sets, this.#referencedNamesOf(document));
   }
 
   /** Carries none of the document and attaches no parse error as a cause, because a `js-yaml` message quotes the line it failed on and the error handler logs the whole chain. */
@@ -463,16 +470,19 @@ export class DeploymentWriterService {
 
   /** What the deployment held, overlaid by what the request supplied and then by what the patched document gave up, pruned to the names the document still references. */
   #mergeAndPrune(sets: { held: SdlSecrets; supplied: SdlSecrets; derived: SdlSecrets }, document: SDLInput): SdlSecrets {
-    const overlaid: SdlSecrets = { ...sets.held, ...sets.supplied, ...sets.derived };
-    const referenced = new Set(this.sdlReferenceService.declarationsOf(document, SECRET_REFERENCE_KIND).map(declaration => declaration.name));
+    const referenced = this.#referencedNamesOf(document);
 
     this.#assertEverySuppliedNameIsReferenced(sets.supplied, referenced);
 
-    const merged = Object.fromEntries(Object.entries(overlaid).filter(([name]) => referenced.has(name)));
+    const merged = prunedOverlayOf({ carried: sets.held, supplied: sets.supplied, derived: sets.derived }, referenced);
 
     this.sdlSecretsService.assertStorable(merged);
 
     return merged;
+  }
+
+  #referencedNamesOf(document: SDLInput): ReadonlySet<string> {
+    return new Set(this.sdlReferenceService.declarationsOf(document, SECRET_REFERENCE_KIND).map(declaration => declaration.name));
   }
 
   /** A misspelt name is refused rather than dropped, so a caller cannot receive a 200 believing a credential rotated when nothing changed. */

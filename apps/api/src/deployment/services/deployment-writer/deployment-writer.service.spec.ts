@@ -137,6 +137,15 @@ ${Array.from({ length: 24 }, (_, level) => `        a${level + 1}: &a${level + 1
 
 const CLIENT_SEAL = "client.seal.aaa.bbb.ccc";
 
+/** Answers one reference from the request while leaving credentials in the clear, so a create stores both what was supplied and what the console took out. */
+const SDL_REFERENCING_A_SUPPLIED_VALUE = sdlAround(`    credentials:
+      host: registry.example.test
+      username: ${REGISTRY_USERNAME}
+      password: ${REGISTRY_PASSWORD}
+    env:
+      - TOKEN=ac-secret://TOKEN
+`);
+
 describe(DeploymentWriterService.name, () => {
   const wallet: WalletInitialized = {
     id: 1,
@@ -342,7 +351,7 @@ describe(DeploymentWriterService.name, () => {
       const { service, sdlSecretsService } = setup({ received: { TOKEN: "resolved" } });
       vi.spyOn(Date, "now").mockReturnValue(1748400000000);
 
-      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
+      await service.create({ userId: "user-1", sdl: SDL_REFERENCING_A_SUPPLIED_VALUE, sealedSecrets: SEAL, deposit: 5 });
 
       expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith({
         userId: wallet.userId,
