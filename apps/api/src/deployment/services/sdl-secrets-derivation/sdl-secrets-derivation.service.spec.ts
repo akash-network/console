@@ -262,6 +262,16 @@ describe(SdlSecretsDerivationService.name, () => {
       expect(secrets).toEqual({ s0_e0_2: "plain" });
     });
 
+    it("walks the suffix upward when the spelling it falls back to is taken as well", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["A=plain", "B=ac-secret://s0_e0", "C=ac-secret://s0_e0_2"] } });
+
+      const secrets = service.derive(document, { includeEnvValues: true });
+
+      expect(secrets).toEqual({ s0_e0_3: "plain" });
+      expect(document.services.web.env).toEqual(["A=ac-secret://s0_e0_3", "B=ac-secret://s0_e0", "C=ac-secret://s0_e0_2"]);
+    });
+
     it("keeps one name per slot when positions have shifted under the references", () => {
       const { service } = setup();
       const document = documentWith({ web: { env: ["B=ac-secret://s0_e1", "C=plain"] } });
