@@ -135,10 +135,22 @@ describe("DeploymentDetail", () => {
     expect(ManifestUpdate.mock.calls[0][0].onRedeploy).toBeUndefined();
   });
 
+  it("withholds redeploy from the Update tab when the definition is absent despite an inspection-only api sdl", () => {
+    const { ManifestUpdate } = setup({ tab: "UPDATE", definition: { sdl: "version: '2.0' # not-self-contained", source: "absent" } });
+
+    expect(ManifestUpdate.mock.calls[0][0].onRedeploy).toBeUndefined();
+  });
+
   it("seeds the configure draft from the api definition when redirecting a lease-less deployment", () => {
     const { router } = setup({ leases: [], definition: { sdl: "version: '2.0' # from-the-api", source: "api" } });
 
     expect(router.replace).toHaveBeenCalledWith(expect.stringContaining("draftId"));
+  });
+
+  it("redirects a lease-less deployment without a draft when the definition is absent despite an inspection-only api sdl", () => {
+    const { router } = setup({ leases: [], definition: { sdl: "version: '2.0' # not-self-contained", source: "absent" } });
+
+    expect(router.replace).toHaveBeenCalledWith(expect.not.stringContaining("draftId"));
   });
 
   it("does not redirect a lease-less deployment until the definition resolves", () => {

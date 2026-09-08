@@ -47,6 +47,13 @@ describe("ReclamationCard", () => {
     expect(screen.queryByRole("button", { name: "Redeploy" })).not.toBeInTheDocument();
   });
 
+  it("falls back to a 'new SDL' link when the definition is absent despite an inspection-only api sdl", () => {
+    setup({ definition: { sdl: "version: 2.0 # not-self-contained", source: "absent" } });
+
+    expect(screen.getByRole("link", { name: "Start a new deployment" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Redeploy" })).not.toBeInTheDocument();
+  });
+
   it("offers Redeploy disabled rather than the link while the definition is resolving", () => {
     setup({ definition: { sdl: undefined, source: "resolving" } });
 
