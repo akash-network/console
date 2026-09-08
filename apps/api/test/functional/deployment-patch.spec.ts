@@ -479,13 +479,21 @@ describe("PATCH /v1/deployments/{dseq}", () => {
   });
 
   describe("http options over the wire", () => {
-    it("accepts zero as a way to clear a timeout", async () => {
-      const { apiKey, user } = await setup();
+    it("refuses a zero timeout, which one provider reads as its proxy's own default and another as none at all", async () => {
+      const { apiKey } = await setup();
 
       const response = await patch(apiKey, { services: { web: { expose: { "80": { httpOptions: { readTimeout: 0 } } } } } });
 
+      expect(response.status).toBe(400);
+    });
+
+    it("records the smallest timeout every provider reads the same way", async () => {
+      const { apiKey, user } = await setup();
+
+      const response = await patch(apiKey, { services: { web: { expose: { "80": { httpOptions: { readTimeout: 1 } } } } } });
+
       expect(response.status).toBe(200);
-      expect((await settingOf(user))?.sdl).toContain("read_timeout: 0");
+      expect((await settingOf(user))?.sdl).toContain("read_timeout: 1");
     });
 
     it("refuses a negative timeout", async () => {
