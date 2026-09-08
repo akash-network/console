@@ -5,37 +5,29 @@ import { CallbackHandlerError, MissingStateCookieError } from "@src/lib/auth0";
 import { getStateMismatchReturnTo } from "./getStateMismatchReturnTo";
 
 describe(getStateMismatchReturnTo.name, () => {
-  it("returns the relative return path encoded in the callback state when the transaction cookie holds another state", () => {
+  it("returns the return path encoded in the callback state when the transaction cookie holds another state", () => {
     const error = setup({
-      cookieReturnTo: "https://console.akash.network/terms-of-service",
-      callbackReturnTo: "https://console.akash.network/?_gl=1*abc"
+      cookieState: encodeState("https://console.akash.network/terms-of-service"),
+      callbackState: encodeState("https://console.akash.network/?_gl=1*18a3tmt")
     });
 
-    expect(getStateMismatchReturnTo(error)).toBe("/?_gl=1*abc");
+    expect(getStateMismatchReturnTo(error)).toBe("/?_gl=1*18a3tmt");
   });
 
   it("drops a foreign origin from the callback return path", () => {
-    const error = setup({
-      cookieReturnTo: "https://console.akash.network/",
-      callbackReturnTo: "https://evil.example/steal?x=1"
-    });
+    const error = setup({ cookieState: encodeState("https://console.akash.network/"), callbackState: encodeState("https://evil.example/steal?x=1") });
 
     expect(getStateMismatchReturnTo(error)).toBe("/steal?x=1");
   });
 
-  it("returns the root path when the callback state cannot be decoded", () => {
-    const error = new CallbackHandlerError(
-      stateMismatchCause({ checks: { state: encodeState({ returnTo: "https://console.akash.network/" }) }, params: { state: "not-base64-json" } })
-    );
+  it("keeps a callback return path that is already relative", () => {
+    const error = setup({ cookieState: encodeState("/terms-of-service"), callbackState: encodeState("/deployments?tab=EVENTS") });
 
-    expect(getStateMismatchReturnTo(error)).toBe("/");
+    expect(getStateMismatchReturnTo(error)).toBe("/deployments?tab=EVENTS");
   });
 
   it("keeps a nested return stack recoverable once pushed onto the login url", () => {
-    const error = setup({
-      cookieReturnTo: "https://console.akash.network/terms-of-service",
-      callbackReturnTo: "https://console.akash.network/deployments?returnTo=%2Fonboarding"
-    });
+    const error = setup({ cookieState: encodeState("/terms-of-service"), callbackState: encodeState("/deployments?returnTo=%2Fonboarding") });
     const recovered = getStateMismatchReturnTo(error) as string;
 
     const loginUrl = UrlReturnToStack.createReturnable(recovered, "/login?error=provider_login_failed");
@@ -43,10 +35,30 @@ describe(getStateMismatchReturnTo.name, () => {
     expect(UrlReturnToStack.getReturnTo(loginUrl)).toBe(recovered);
   });
 
-  it("returns undefined when both states match", () => {
-    const state = encodeState({ returnTo: "https://console.akash.network/" });
+  it("returns the root path when the callback state cannot be decoded", () => {
+    const error = setup({ cookieState: encodeState("/terms-of-service"), callbackState: "not-base64-json" });
 
-    expect(getStateMismatchReturnTo(new CallbackHandlerError(stateMismatchCause({ checks: { state }, params: { state } })))).toBeUndefined();
+    expect(getStateMismatchReturnTo(error)).toBe("/");
+  });
+
+  it("returns the root path when the callback state carries no return url", () => {
+    const error = setup({ cookieState: encodeState("/terms-of-service"), callbackState: Buffer.from("{}").toString("base64url") });
+
+    expect(getStateMismatchReturnTo(error)).toBe("/");
+  });
+
+  it("returns undefined when both states match", () => {
+    const state = encodeState("https://console.akash.network/");
+
+    expect(getStateMismatchReturnTo(setup({ cookieState: state, callbackState: state }))).toBeUndefined();
+  });
+
+  it("returns undefined when only the transaction cookie carries a state", () => {
+    expect(getStateMismatchReturnTo(setup({ cookieState: encodeState("/terms-of-service") }))).toBeUndefined();
+  });
+
+  it("returns undefined when only the callback carries a state", () => {
+    expect(getStateMismatchReturnTo(setup({ callbackState: encodeState("/terms-of-service") }))).toBeUndefined();
   });
 
   it("returns undefined for a callback handler error with another cause", () => {
@@ -58,20 +70,16 @@ describe(getStateMismatchReturnTo.name, () => {
     expect(getStateMismatchReturnTo(undefined)).toBeUndefined();
   });
 
-  function setup(input: { cookieReturnTo: string; callbackReturnTo: string }) {
+  function setup(input: { cookieState?: string; callbackState?: string }) {
     return new CallbackHandlerError(
-      stateMismatchCause({
-        checks: { state: encodeState({ returnTo: input.cookieReturnTo }) },
-        params: { state: encodeState({ returnTo: input.callbackReturnTo }) }
+      Object.assign(new Error("state mismatch"), {
+        ...(input.cookieState ? { checks: { state: input.cookieState } } : {}),
+        ...(input.callbackState ? { params: { state: input.callbackState } } : {})
       })
     );
   }
 
-  function stateMismatchCause(input: { checks: { state: string }; params: { state: string } }) {
-    return Object.assign(new Error(`state mismatch, expected ${input.checks.state}, got: ${input.params.state}`), input);
-  }
-
-  function encodeState(state: { returnTo: string }) {
-    return Buffer.from(JSON.stringify(state)).toString("base64url");
+  function encodeState(returnTo: string) {
+    return Buffer.from(JSON.stringify({ returnTo })).toString("base64url");
   }
 });
