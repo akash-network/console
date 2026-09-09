@@ -175,7 +175,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
               options={{ execution: "execute", size: "normal", ...RECOVERY_OPTIONS }}
               onError={error => {
                 setStatus("error");
-                reportChallengeFailure(error, "TURNSTILE_CHALLENGE_FAILED");
+                reportChallengeFailure(new Error(`Turnstile challenge failed with code ${error}`), "TURNSTILE_CHALLENGE_FAILED");
                 eventBus.current.dispatchEvent(new CustomEvent("error", { detail: { error, reason: "error" } }));
               }}
               onExpire={() => setStatus("expired")}

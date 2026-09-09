@@ -37,6 +37,53 @@ describe("middleware", () => {
     expect(response.headers.get("Content-Security-Policy-Report-Only")).toBeNull();
   });
 
+  it.each(["/sw.js", "/workbox-4754cb34.js", "/manifest.json"])("serves %s during maintenance instead of redirecting it", path => {
+    vi.stubEnv("MAINTENANCE_MODE", "true");
+
+    const { response } = setup({ path });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("still applies the CSP header to the service worker script", () => {
+    const { response } = setup({ path: "/sw.js" });
+
+    expect(response.headers.get("Content-Security-Policy-Report-Only")).toContain("script-src 'self'");
+  });
+
+  it("carries the original path and query into the maintenance return param", () => {
+    vi.stubEnv("MAINTENANCE_MODE", "true");
+
+    const { response } = setup({ path: "/deployments?network=sandbox" });
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(`http://localhost/maintenance?return=${encodeURIComponent("/deployments?network=sandbox")}`);
+  });
+
+  it("leaves an ordinary page alone while maintenance mode is off", () => {
+    const { response } = setup({ path: "/deployments" });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it.each(["/maintenance", "/maintenance/details"])("serves %s itself while maintenance mode is on", path => {
+    vi.stubEnv("MAINTENANCE_MODE", "true");
+
+    const { response } = setup({ path });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it.each(["/maintenance", "/maintenance/details"])("redirects away from %s once maintenance mode is off", path => {
+    const { response } = setup({ path: `${path}?return=%2Fdeployments` });
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("http://localhost/deployments");
+  });
+
   function setup(input: { path: string }) {
     const request = new NextRequest(new URL(`http://localhost${input.path}`));
     const response = middleware(request);

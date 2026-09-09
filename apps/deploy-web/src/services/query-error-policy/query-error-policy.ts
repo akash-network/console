@@ -19,12 +19,15 @@ export function isProviderUnavailableError(error: unknown): boolean {
 }
 
 /**
- * Queries opt out of error reporting by putting a predicate on React Query's `meta`, which is the documented
- * way to hand per-query policy to the global cache handler.
+ * Queries and mutations opt out of error reporting by putting a predicate on React Query's `meta`, which is the
+ * documented way to hand per-call policy to the global cache handlers.
  */
-export function shouldReportQueryError(error: unknown, meta: Record<string, unknown> | undefined): boolean {
+export function shouldReportError(error: unknown, meta: Record<string, unknown> | undefined): boolean {
   const skipErrorReporting = meta?.skipErrorReporting;
   return typeof skipErrorReporting === "function" ? !skipErrorReporting(error) : true;
 }
 
 export const SKIP_REPORTING_PROVIDER_UNAVAILABLE = { skipErrorReporting: isProviderUnavailableError };
+
+/** Opt out for call sites whose own onError reports the failure with tags the cache handler has no way to know. */
+export const SKIP_REPORTING_HANDLED_BY_CALLER = { skipErrorReporting: () => true };

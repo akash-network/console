@@ -50,7 +50,12 @@ describe(Turnstile.name, () => {
       await wait(0);
     });
 
-    expect(errorHandler.reportError).toHaveBeenCalledWith(expect.objectContaining({ error: "network-error", tags: { event: "TURNSTILE_CHALLENGE_FAILED" } }));
+    expect(errorHandler.reportError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: expect.objectContaining({ message: "Turnstile challenge failed with code network-error" }),
+        tags: { event: "TURNSTILE_CHALLENGE_FAILED" }
+      })
+    );
   });
 
   it("reports only the first failure of a run so Cloudflare's retries cannot storm Sentry", async () => {
