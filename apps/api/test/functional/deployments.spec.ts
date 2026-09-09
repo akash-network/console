@@ -1,6 +1,6 @@
 import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
 import { faker } from "@faker-js/faker";
-import { NotFound } from "http-errors";
+import createError, { NotFound } from "http-errors";
 import nock from "nock";
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
@@ -116,6 +116,8 @@ describe("Deployments API", () => {
       hash: "fake-transaction-hash",
       rawLog: "fake-raw-log"
     });
+
+    vi.spyOn(signerService, "assertCanBroadcast").mockResolvedValue(undefined);
 
     vi.spyOn(providerService, "sendManifest").mockResolvedValue(true);
     vi.spyOn(providerService, "getLeaseStatus").mockResolvedValue(createLeaseStatus());
@@ -624,6 +626,24 @@ describe("Deployments API", () => {
       });
     });
 
+    it("records nothing for a create the signer refuses", async () => {
+      const { user, userApiKeySecret } = await mockPersistedUser();
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+      vi.mocked(signerService.assertCanBroadcast).mockRejectedValue(
+        createError(402, "Not enough balance to cover the deployment deposit.", { headers: { "Retry-After": "300" } })
+      );
+
+      const response = await app.request("/v1/deployments", {
+        method: "POST",
+        body: JSON.stringify({ data: { sdl: yml, deposit: 5.5 } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(402);
+      expect(await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id })).toBeUndefined();
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
     it("returns 401 for an unauthenticated request", async () => {
       const response = await app.request("/v1/deployments", {
         method: "POST",
@@ -831,6 +851,7 @@ describe("Deployments API", () => {
       const response = await postOversizedDeployment(userApiKeySecret);
 
       expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: "Error", code: "bad_request", type: "client_error" });
     });
 
     it("says nothing about the sdl in the 400 it returns", async () => {

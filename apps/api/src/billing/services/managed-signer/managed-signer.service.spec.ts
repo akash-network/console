@@ -962,6 +962,58 @@ describe(ManagedSignerService.name, () => {
     });
   });
 
+  describe("assertCanBroadcast", () => {
+    it("refuses a create the deployment allowance cannot cover, without broadcasting", async () => {
+      const { service, txManagerService, logger } = setupForCreate({ deploymentLimit: 400000 });
+
+      await expect(service.assertCanBroadcast("user-123", [createDeploymentMessage(500000)])).rejects.toMatchObject({ status: 402 });
+
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CREATE_REFUSED_INSUFFICIENT_ALLOWANCE", requiredDeposit: 500000 }));
+    });
+
+    it("remembers the refusal, so the broadcast that would have followed is refused from the cache", async () => {
+      const { service, balancesService } = setupForCreate({ deploymentLimit: 400000 });
+      await expect(service.assertCanBroadcast("user-123", [createDeploymentMessage(500000)])).rejects.toMatchObject({ status: 402 });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toMatchObject({ status: 402 });
+
+      expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses a spend the wallet is not yet activated for", async () => {
+      const { service, trialActivationJobService, txManagerService } = setupForCreate({ deploymentLimit: 500000 });
+      trialActivationJobService.assertActivated.mockRejectedValue(createError(409, "provisioning", { errorCode: "wallet_provisioning" }));
+
+      await expect(service.assertCanBroadcast("user-123", [createDeploymentMessage(500000)])).rejects.toMatchObject({ status: 409 });
+
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+    });
+
+    it("lets a create the allowance covers through and broadcasts nothing", async () => {
+      const { service, txManagerService, balancesService } = setupForCreate({ deploymentLimit: 500000 });
+
+      await service.assertCanBroadcast("user-123", [createDeploymentMessage(500000)]);
+
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+      expect(balancesService.refreshUserWalletLimits).not.toHaveBeenCalled();
+    });
+
+    it("reads the wallet with the sign ability, as the broadcast does", async () => {
+      const { service, userWalletRepository, authService } = setupForCreate({ deploymentLimit: 500000 });
+
+      await service.assertCanBroadcast("user-123", [createDeploymentMessage(500000)]);
+
+      expect(userWalletRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "sign");
+    });
+
+    it("throws 404 when the wallet is missing", async () => {
+      const { service } = setup({ findOneByUserId: vi.fn().mockResolvedValue(null) });
+
+      await expect(service.assertCanBroadcast("user-123", [])).rejects.toMatchObject({ status: 404, message: "UserWallet Not Found" });
+    });
+  });
+
   describe("executeDerivedEncodedTxByUserId", () => {
     it("executes transaction and calls scheduleImmediate when transaction contains MsgCreateDeployment", async () => {
       const wallet = createUserWallet({

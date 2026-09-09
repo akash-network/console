@@ -112,8 +112,14 @@ const SealedSecretsSchema = z.string().min(1);
 export const CreateDeploymentRequestSchema = z.object({
   data: z.object({
     sdl: z.string().max(MAX_SUBMITTED_SDL_LENGTH),
-    /** Accepted and validated but withheld from every generated document by the route's `undocumentedRequestFields`, so the capability works before it is announced. */
-    sealedSecrets: SealedSecretsSchema.optional(),
+    sealedSecrets: SealedSecretsSchema.optional().openapi({
+      description:
+        "Compact JWE sealing a flat name-to-value map of the secrets this SDL references, encrypted to the console's public sealing key. Fetch that key and the claims to sign from GET /v1/sdl-secrets-context. Values are never returned by any endpoint once sealed."
+    }),
+    inheritSecretsFrom: DseqSchema.optional().openapi({
+      description:
+        "Dseq of one of your own deployments whose stored secrets this deployment starts from, for redeploying an SDL without re-entering its values. The source may be closed. A name also present in `sealedSecrets` takes precedence over the inherited one."
+    }),
     deposit: z.number().optional().openapi({
       deprecated: true,
       description: "Deprecated and ignored. The platform funds every deployment automatically from your account credits."
@@ -272,7 +278,10 @@ export const PatchDeploymentRequestSchema = z.object({
         .openapi({
           description: "Keyed by service name. Only the named services are touched; omitted services keep their current definition."
         }),
-      sealedSecrets: SealedSecretsSchema.optional(),
+      sealedSecrets: SealedSecretsSchema.optional().openapi({
+        description:
+          "Compact JWE sealing a flat name-to-value map, as on create, but holding only the names this patch replaces. Omitted names keep the values the deployment already stores."
+      }),
       ifManifestVersion: z.string().min(1).max(MAX_MANIFEST_VERSION_LENGTH).optional().openapi({
         description:
           "Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very patch produces, which makes a retry of it succeed. Omitting this does not turn the guard off: the patch is then guarded on the version it read for itself, so a concurrent patch still answers 409 rather than overwriting it."

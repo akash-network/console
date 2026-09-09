@@ -39,6 +39,14 @@ import { FallbackDeploymentReaderService } from "@src/deployment/services/fallba
 
 export const deploymentsRouter = new OpenApiHonoHandler();
 
+/** What `HonoErrorHandlerService` actually returns for a refused request, rather than the `message` alone the first draft of this route declared. */
+const ErrorResponseSchema = z.object({
+  error: z.string(),
+  message: z.string(),
+  code: z.string(),
+  type: z.string()
+});
+
 const getRoute = createRoute({
   method: "get",
   path: "/v1/deployments/{dseq}",
@@ -75,8 +83,6 @@ const postRoute = createRoute({
   security: SECURITY_BEARER_OR_API_KEY,
   /** The only route that can carry a seal, sized so the stated secret limits are reachable rather than shadowed by the default allowance. */
   bodyLimit: { maxSize: CREATE_DEPLOYMENT_BODY_LIMIT_BYTES },
-  /** Accepted and validated in full; unpublished because sealed secrets are not announced yet, and reverting this line is what announces them. */
-  undocumentedRequestFields: ["sealedSecrets"],
   request: {
     body: {
       content: {
@@ -92,6 +98,48 @@ const postRoute = createRoute({
       content: {
         "application/json": {
           schema: CreateDeploymentResponseSchema
+        }
+      }
+    },
+    400: {
+      description:
+        "The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    403: {
+      description: "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    404: {
+      description: "No deployment of yours matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    409: {
+      description:
+        "Either the `sealedSecrets` value was sealed to a key the console no longer holds — refetch `GET /v1/sdl-secrets-context` and seal again — or, with `code` `inherited_secrets_unreadable`, the secrets recorded for the deployment named by `inheritSecretsFrom` can no longer be decrypted. The second is permanent rather than transient, so a retry cannot help; supply the values in `sealedSecrets` instead",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    503: {
+      description: "The key management service is temporarily unreachable. Transient and worth retrying, unlike the 409 above",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
         }
       }
     }
@@ -203,14 +251,6 @@ deploymentsRouter.openapi(updateRoute, async function routeUpdateDeployment(c) {
   return c.json(result, 200);
 });
 
-/** What `HonoErrorHandlerService` actually returns for a refused request, rather than the `message` alone the first draft of this route declared. */
-const ErrorResponseSchema = z.object({
-  error: z.string(),
-  message: z.string(),
-  code: z.string(),
-  type: z.string()
-});
-
 const patchRoute = createRoute({
   method: "patch",
   path: "/v1/deployments/{dseq}",
@@ -222,8 +262,6 @@ const patchRoute = createRoute({
   security: SECURITY_BEARER_OR_API_KEY,
   /** Sized like the create route, because a patch may carry a seal and the default allowance would shadow the stated secret limits. */
   bodyLimit: { maxSize: CREATE_DEPLOYMENT_BODY_LIMIT_BYTES },
-  /** Accepted and validated in full; unpublished because sealed secrets are not announced yet, matching the create route. */
-  undocumentedRequestFields: ["sealedSecrets"],
   request: {
     params: PatchDeploymentParamsSchema,
     body: {

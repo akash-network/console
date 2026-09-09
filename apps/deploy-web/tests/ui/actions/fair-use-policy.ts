@@ -2,9 +2,14 @@ import type { Locator, Page } from "@playwright/test";
 
 const PROMPT_TIMEOUT_MS = 30_000;
 
+/** Matches both presentations: an onboarding user gets the prompt as a page section, everyone else gets it as a modal. */
+function locatePrompt(page: Page): Locator {
+  return page.getByRole("region", { name: /fair use policy/i }).or(page.getByRole("dialog", { name: /fair use policy/i }));
+}
+
 /** Races the prompt against the onboarding heading, because the heading is what a new user sees instead when the gate is off. */
 export async function acceptFairUsePolicyIfPrompted(page: Page): Promise<void> {
-  const prompt = page.getByRole("dialog", { name: /fair use policy/i });
+  const prompt = locatePrompt(page);
   const onboardingHeading = page.getByRole("heading", { name: /deploy your first app/i });
 
   await Promise.race([waitForVisible(prompt), waitForVisible(onboardingHeading)]);

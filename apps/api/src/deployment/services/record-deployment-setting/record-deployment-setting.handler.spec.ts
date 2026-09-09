@@ -49,6 +49,12 @@ describe(RecordDeploymentSettingHandler.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: RecordDeploymentSettingHandler.name });
   });
 
+  it("declares the exclusive policy, so a retried broadcast of the same create enqueues one job across queued, retrying and running", () => {
+    const { handler } = setup({});
+
+    expect(handler.policy).toBe("exclusive");
+  });
+
   it("declares no permissions for its execution", () => {
     const { handler } = setup({});
 

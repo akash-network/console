@@ -27,6 +27,27 @@ export type ReceiveSdlSecretsResult = { ok: true; value: SdlSecrets } | { ok: fa
 
 const NOTHING_SUPPLIED: SdlSecrets = {};
 
+/** Which set broke a limit, because a redeploy that inherits its values supplied none of them and must not be told to supply fewer. */
+type SdlSecretsOrigin = "supplied" | "carried" | "stored";
+
+function countExceededMessage(origin: SdlSecretsOrigin, maxCount: number): string {
+  const messages: Record<SdlSecretsOrigin, string> = {
+    supplied: `At most ${maxCount} secrets may be supplied for one deployment`,
+    carried: `At most ${maxCount} secrets may be carried by one deployment, counting those inherited from another`,
+    stored: `At most ${maxCount} secrets may be stored for one deployment`
+  };
+
+  return messages[origin];
+}
+
+/** The two ways a reference can already be answered when a create is received: by this request, or by the deployment it inherits from. */
+type ReceivedSdlSecretSets = { supplied: SdlSecrets; inherited: SdlSecrets };
+
+/** Each set is asked separately, so a non-string sitting under a name in one of them cannot shadow a usable value in the other. */
+function isCovered(sets: ReceivedSdlSecretSets, name: string): boolean {
+  return typeof ownValue(sets.supplied, name) === "string" || typeof ownValue(sets.inherited, name) === "string";
+}
+
 /** An unreachable key service answers 503 and will succeed on retry, so it is not evidence that anything moved the stored data. */
 function isRetryable(error: unknown): boolean {
   return isHttpError(error) && error.status === 503;
@@ -69,33 +90,39 @@ export class SdlSecretsService {
   }
 
   /** Takes the parsed document, because an SDL that does not parse has already been refused by the manifest generator and this must not report it twice. */
-  async receive(input: { sdl: SDLInput; rawSdl: string; sealedSecrets?: string }): Promise<ReceiveSdlSecretsResult> {
+  async receive(input: { sdl: SDLInput; rawSdl: string; sealedSecrets?: string; inherited?: SdlSecrets }): Promise<ReceiveSdlSecretsResult> {
     const declarations = this.sdlReferenceService.declarationsOf(input.sdl, SECRET_REFERENCE_KIND);
+    const inherited = input.inherited ?? NOTHING_SUPPLIED;
+    const supplied = input.sealedSecrets ? await this.#openSupplied(input.sealedSecrets, input.rawSdl) : NOTHING_SUPPLIED;
 
-    if (!input.sealedSecrets) {
-      return declarations.length === 0 ? { ok: true, value: NOTHING_SUPPLIED } : { ok: false, value: declarations.map(missingSdlReferenceValueError) };
-    }
-
-    const supplied = await this.unsealerService.open({ seal: input.sealedSecrets, sdl: input.rawSdl });
-    this.#assertWithinLimits(supplied);
-
-    const errors = this.#mismatchesBetween(declarations, supplied);
+    const errors = this.#mismatchesBetween(declarations, { supplied, inherited });
 
     if (errors.length > 0) return { ok: false, value: errors };
 
-    this.#loggerService.info({
-      event: "SDL_SECRETS_RECEIVED",
-      suppliedCount: Object.keys(supplied).length,
-      referencedNames: [...new Set(declarations.map(declaration => declaration.name))],
-      serviceCount: new Set(declarations.map(declaration => declaration.serviceName)).size
-    });
+    if (declarations.length > 0 || Object.keys(supplied).length > 0) {
+      this.#loggerService.info({
+        event: "SDL_SECRETS_RECEIVED",
+        suppliedCount: Object.keys(supplied).length,
+        inheritedCount: Object.keys(inherited).length,
+        referencedNames: [...new Set(declarations.map(declaration => declaration.name))],
+        serviceCount: new Set(declarations.map(declaration => declaration.serviceName)).size
+      });
+    }
 
     return { ok: true, value: supplied };
   }
 
+  /** Opening is what costs a key-service call, so it stays behind the check for a seal rather than inside the one pass that reads both sets. */
+  async #openSupplied(seal: string, rawSdl: string): Promise<SdlSecrets> {
+    const supplied = await this.unsealerService.open({ seal, sdl: rawSdl });
+    this.#assertWithinLimits(supplied, "supplied");
+
+    return supplied;
+  }
+
   /** Bounds the whole set a deployment would carry, because measuring one request alone would let a merge grow the stored token past the ceiling one request at a time. */
-  assertStorable(secrets: SdlSecrets): void {
-    this.#assertWithinLimits(secrets);
+  assertStorable(secrets: SdlSecrets, origin: Exclude<SdlSecretsOrigin, "supplied">): void {
+    this.#assertWithinLimits(secrets, origin);
   }
 
   /** Returns null when nothing was supplied, so a create always has a value to write and a retry cannot inherit an abandoned attempt's token. */
@@ -114,7 +141,7 @@ export class SdlSecretsService {
   /** Opens a client's seal without holding it to what the SDL declares, because a patch supplies only what changed and the rest resolves from what is stored. */
   async receiveForMerge(input: { rawSdl: string; sealedSecrets: string }): Promise<SdlSecrets> {
     const supplied = await this.unsealerService.open({ seal: input.sealedSecrets, sdl: input.rawSdl });
-    this.#assertWithinLimits(supplied);
+    this.#assertWithinLimits(supplied, "supplied");
 
     this.#loggerService.info({ event: "SDL_SECRETS_RECEIVED_FOR_MERGE", suppliedCount: Object.keys(supplied).length });
 
@@ -156,12 +183,12 @@ export class SdlSecretsService {
   }
 
   /** Both directions are reported from one pass, so a request that gets each side wrong hears about both at once. */
-  #mismatchesBetween(declarations: SdlReferenceDeclaration[], supplied: SdlSecrets): ValidationError[] {
+  #mismatchesBetween(declarations: SdlReferenceDeclaration[], sets: ReceivedSdlSecretSets): ValidationError[] {
     const errors: ValidationError[] = [];
     const referenced = new Set<string>();
 
     for (const declaration of declarations) {
-      if (typeof ownValue(supplied, declaration.name) === "string") {
+      if (isCovered(sets, declaration.name)) {
         referenced.add(declaration.name);
         continue;
       }
@@ -169,7 +196,7 @@ export class SdlSecretsService {
       errors.push(missingSdlReferenceValueError(declaration));
     }
 
-    for (const name of Object.keys(supplied)) {
+    for (const name of Object.keys(sets.supplied)) {
       if (!referenced.has(name)) errors.push(unreferencedNameError(name));
     }
 
@@ -177,12 +204,12 @@ export class SdlSecretsService {
   }
 
   /** Every bound is measured as `jsonEncodedBytes`, matching the seal budget, because a raw-length check would let a payload pass here and die on the body limit. */
-  #assertWithinLimits(supplied: SdlSecrets): void {
+  #assertWithinLimits(supplied: SdlSecrets, origin: SdlSecretsOrigin): void {
     const maxCount = this.config.get("SDL_SECRETS_MAX_COUNT");
     const names = Object.keys(supplied);
 
     if (names.length > maxCount) {
-      throw this.#reject("SDL_SECRETS_COUNT_EXCEEDED", `At most ${maxCount} secrets may be supplied for one deployment`, { suppliedCount: names.length });
+      throw this.#reject("SDL_SECRETS_COUNT_EXCEEDED", countExceededMessage(origin, maxCount), { suppliedCount: names.length, origin });
     }
 
     const maxValueBytes = this.config.get("SDL_SECRETS_MAX_VALUE_BYTES");
