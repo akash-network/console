@@ -103,12 +103,22 @@ export class ManagedSignerService {
     transactionHash: string;
     rawLog: string;
   }> {
+    return this.executeDecodedTxByUserWallet(await this.#findSigningWallet(userId), messages);
+  }
+
+  /** Every refusal the broadcast would raise before signing, for a caller that must not record anything a refusal would strand. */
+  @Trace()
+  async assertCanBroadcast(userId: UserWalletOutput["userId"], messages: EncodeObject[]): Promise<void> {
+    await this.#assertBroadcastable(await this.#findSigningWallet(userId), messages);
+  }
+
+  async #findSigningWallet(userId: UserWalletOutput["userId"]): Promise<UserWalletOutput> {
     assert(userId, 404, "User Not Found");
 
     const userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "sign").findOneByUserId(userId);
     assert(userWallet, 404, "UserWallet Not Found");
 
-    return this.executeDecodedTxByUserWallet(userWallet, messages);
+    return userWallet;
   }
 
   @Trace()
@@ -121,16 +131,7 @@ export class ManagedSignerService {
     transactionHash: string;
     rawLog: string;
   }> {
-    await this.#assertActivatedForSpending(userWallet, messages);
-    await this.#validateBalances(userWallet, messages);
-    await Promise.all([
-      this.anonymousValidateService.validateLeaseProvidersAuditors(messages, userWallet),
-      this.anonymousValidateService.validateDeploymentGpuModels(messages, userWallet),
-      this.anonymousValidateService.validateDeploymentGpuInterconnect(messages, userWallet),
-      this.anonymousValidateService.validateDeploymentResources(messages, userWallet),
-      this.anonymousValidateService.validateLeaseGpuModels(messages, userWallet),
-      this.anonymousValidateService.validateFairUsePolicyAccepted(messages, userWallet)
-    ]);
+    await this.#assertBroadcastable(userWallet, messages);
 
     const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
     const hasCreateTrialLeaseMessage = userWallet.isTrialing && !!createLeaseMessage;
@@ -251,6 +252,19 @@ export class ManagedSignerService {
 
   #hasSpendingTx(messages: EncodeObject[]): boolean {
     return messages.some(message => SPENDING_TXS.some(msg => message.typeUrl.endsWith(msg.$type)));
+  }
+
+  async #assertBroadcastable(userWallet: UserWalletOutput, messages: EncodeObject[]): Promise<void> {
+    await this.#assertActivatedForSpending(userWallet, messages);
+    await this.#validateBalances(userWallet, messages);
+    await Promise.all([
+      this.anonymousValidateService.validateLeaseProvidersAuditors(messages, userWallet),
+      this.anonymousValidateService.validateDeploymentGpuModels(messages, userWallet),
+      this.anonymousValidateService.validateDeploymentGpuInterconnect(messages, userWallet),
+      this.anonymousValidateService.validateDeploymentResources(messages, userWallet),
+      this.anonymousValidateService.validateLeaseGpuModels(messages, userWallet),
+      this.anonymousValidateService.validateFairUsePolicyAccepted(messages, userWallet)
+    ]);
   }
 
   /**

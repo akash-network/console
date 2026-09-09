@@ -244,6 +244,32 @@ describe(DeploymentWriterService.name, () => {
       expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledWith("user-1", [createMsg]);
     });
 
+    it("asks the signer whether the create can be broadcast before sealing or recording anything", async () => {
+      const { service, signerService, rpcMessageService, sdlSecretsService, deploymentSettingRepository } = setup();
+      const createMsg = { typeUrl: "/create", value: MsgCreateDeployment.fromPartial({}) };
+      rpcMessageService.getCreateDeploymentMsg.mockReturnValue(createMsg);
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(signerService.assertCanBroadcast).toHaveBeenCalledWith("user-1", [createMsg]);
+      expect(signerService.assertCanBroadcast.mock.invocationCallOrder[0]).toBeLessThan(sdlSecretsService.sealForStorage.mock.invocationCallOrder[0]);
+      expect(signerService.assertCanBroadcast.mock.invocationCallOrder[0]).toBeLessThan(
+        deploymentSettingRepository.upsertDefinition.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("records nothing and seals nothing when the signer refuses the create", async () => {
+      const { service, signerService, sdlSecretsService, deploymentSettingRepository, jobQueueService } = setup();
+      signerService.assertCanBroadcast.mockRejectedValue(createError(402, "Not enough balance to cover the deployment deposit."));
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 })).rejects.toMatchObject({ status: 402 });
+
+      expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
     it("throws 400 when SDL is invalid", async () => {
       const { service, sdlService } = setup();
       sdlService.generateResolvedManifest.mockReturnValue({
@@ -868,6 +894,15 @@ describe(DeploymentWriterService.name, () => {
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
 
       expect(loggedTextOf(logger)).not.toContain("API_TOKEN");
+    });
+
+    it("reclaims a trial wallet's orphans before asking whether the create can be broadcast, so the freed allowance counts", async () => {
+      const { service, staleDeploymentsCleaner, signerService, walletReaderService } = setup();
+      walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, isTrialing: true });
+
+      await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
+
+      expect(staleDeploymentsCleaner.cleanUpForWallet.mock.invocationCallOrder[0]).toBeLessThan(signerService.assertCanBroadcast.mock.invocationCallOrder[0]);
     });
 
     it("reclaims trial orphans with age 0 before signing the create when the wallet is trialing", async () => {
