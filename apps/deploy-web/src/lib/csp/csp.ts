@@ -35,6 +35,34 @@ const FIXED_VENDOR_CONNECT_ORIGINS = [
 /** Template logos are community-supplied and point at arbitrary origins, so img-src cannot be a host allowlist. */
 const FIXED_IMG_SRC = ["data:", "blob:", "https:"];
 
+const STACKADAPT_ORIGIN = "https://tags.srv.stackadapt.com";
+const IQM_ORIGIN = "https://pxl.iqm.com";
+
+/** CSP cannot wildcard a TLD, so Google Ads' per-country audience endpoints have to be listed one by one. */
+const GOOGLE_ADS_COUNTRY_ORIGINS = [
+  "https://www.google.com",
+  "https://www.google.be",
+  "https://www.google.co.in",
+  "https://www.google.com.br",
+  "https://www.google.com.pe",
+  "https://www.google.com.ph",
+  "https://www.google.com.pk",
+  "https://www.google.com.ua",
+  "https://www.google.com.vn",
+  "https://www.google.de",
+  "https://www.google.fi",
+  "https://www.google.fr",
+  "https://www.google.kz",
+  "https://www.google.pl",
+  "https://www.google.pt"
+];
+
+/**
+ * Retargeting tags the GTM container fires (StackAdapt, IQM, Google Ads); their image pixels already fall under the
+ * blanket https: in img-src, so only the script, style, and connect directives need to name them.
+ */
+const MARKETING_TAG_CONNECT_ORIGINS = [STACKADAPT_ORIGIN, "https://*.g.doubleclick.net", ...GOOGLE_ADS_COUNTRY_ORIGINS];
+
 export interface ContentSecurityPolicyInput {
   mainnetApiUrl?: string;
   testnetApiUrl?: string;
@@ -91,7 +119,9 @@ export function buildContentSecurityPolicy(input: ContentSecurityPolicyInput) {
     "https://*.google-analytics.com",
     "https://pxl.growth-channel.net",
     "https://challenges.cloudflare.com",
-    "https://js.stripe.com"
+    "https://js.stripe.com",
+    STACKADAPT_ORIGIN,
+    IQM_ORIGIN
   ];
 
   const providerProxyOrigin = toOrigin(input.providerProxyUrl);
@@ -110,7 +140,7 @@ export function buildContentSecurityPolicy(input: ContentSecurityPolicyInput) {
     ...(input.networkRpcAndApiUrls ?? []).map(toOrigin)
   ];
 
-  const connectSrc = dedupeOrigins(["'self'", ...envConnectOrigins, ...FIXED_VENDOR_CONNECT_ORIGINS]);
+  const connectSrc = dedupeOrigins(["'self'", ...envConnectOrigins, ...FIXED_VENDOR_CONNECT_ORIGINS, ...MARKETING_TAG_CONNECT_ORIGINS]);
   const imgSrc = dedupeOrigins(["'self'", ...FIXED_IMG_SRC]);
   const sentrySecurityReportUri = toSentrySecurityReportUri(input.sentryDsn);
 
@@ -126,7 +156,7 @@ export function buildContentSecurityPolicy(input: ContentSecurityPolicyInput) {
     "frame-ancestors 'none'",
     "form-action 'self'",
     `script-src ${scriptSrc.join(" ")}`,
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${STACKADAPT_ORIGIN}`,
     "style-src-attr 'unsafe-inline'",
     `img-src ${imgSrc.join(" ")}`,
     "font-src 'self' data: https://fonts.gstatic.com",

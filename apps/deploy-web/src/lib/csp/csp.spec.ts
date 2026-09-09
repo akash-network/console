@@ -135,6 +135,24 @@ describe("csp", () => {
       expect(connectSrc).toContain("https://cdn.jsdelivr.net");
     });
 
+    it("allows the marketing tags the GTM container fires", () => {
+      const { scriptSrc, styleSrc, connectSrc } = setup({});
+
+      expect(scriptSrc).toContain("https://tags.srv.stackadapt.com");
+      expect(scriptSrc).toContain("https://pxl.iqm.com");
+      expect(styleSrc).toContain("https://tags.srv.stackadapt.com");
+      expect(connectSrc).toContain("https://tags.srv.stackadapt.com");
+      expect(connectSrc).toContain("https://*.g.doubleclick.net");
+    });
+
+    it("names Google Ads country endpoints individually because CSP cannot wildcard a TLD", () => {
+      const { connectSrc } = setup({});
+
+      expect(connectSrc).toContain("https://www.google.com");
+      expect(connectSrc).toContain("https://www.google.de");
+      expect(connectSrc).toContain("https://www.google.co.in");
+    });
+
     it("always allows Amplitude endpoints since Session Replay is not routed through the proxy", () => {
       const { connectSrc } = setup({});
 
@@ -200,6 +218,7 @@ describe("csp", () => {
     return {
       policy,
       scriptSrc: directives["script-src"],
+      styleSrc: directives["style-src"],
       connectSrc: directives["connect-src"],
       imgSrc: directives["img-src"],
       reportUri: directives["report-uri"],
