@@ -18,7 +18,7 @@ describe(ProviderBuildDisabledBanner.name, () => {
   it("tells users that provider builds are disabled and where to build instead", () => {
     setup();
 
-    expect(screen.getByRole("alert")).toHaveTextContent(
+    expect(screen.getByRole("note")).toHaveTextContent(
       "Provider builds are disabled in Provider Console. Use the Provider Playbook to build providers. Provider Console remains available for dashboards and management."
     );
   });

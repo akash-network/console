@@ -28,8 +28,8 @@ export function ProviderBuildDisabledBanner() {
   }, []);
 
   return (
-    <div ref={bannerRef} className="fixed top-0 z-[1100] w-full">
-      <div role="alert" className="bg-primary text-primary-foreground flex items-center justify-center gap-2 px-4 py-2 text-center text-xs">
+    <div ref={bannerRef} className="fixed top-0 z-[60] w-full">
+      <div role="note" className="bg-primary text-primary-foreground flex items-center justify-center gap-2 px-4 py-2 text-center text-xs">
         <WarningTriangle className="h-4 w-4 flex-shrink-0" />
         <span>
           Provider builds are disabled in Provider Console. Use the{" "}
