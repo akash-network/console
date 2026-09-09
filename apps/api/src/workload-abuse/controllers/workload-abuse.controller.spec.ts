@@ -25,6 +25,16 @@ describe(WorkloadAbuseController.name, () => {
     expect(enforcementJobService.reconcile).toHaveBeenCalledWith({ dryRun: false });
   });
 
+  it("reports both failures when both sweeps fail", async () => {
+    const { controller, probeJobService, enforcementJobService } = setup();
+    const probeError = new Error("probe db down");
+    const enforcementError = new Error("queue down");
+    probeJobService.reconcile.mockRejectedValue(probeError);
+    enforcementJobService.reconcile.mockRejectedValue(enforcementError);
+
+    await expect(controller.probeTrialDeployments({ dryRun: false })).rejects.toMatchObject({ errors: [probeError, enforcementError] });
+  });
+
   function setup() {
     const probeJobService = mock<TrialWorkloadProbeJobService>();
     probeJobService.reconcile.mockResolvedValue();
