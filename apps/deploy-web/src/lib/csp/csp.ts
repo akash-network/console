@@ -13,8 +13,11 @@ const isDevelopment = process.env.NODE_ENV !== "production";
  */
 export const THEME_SCRIPT_HASH = "'sha256-eMuh8xiwcX72rRYNAGENurQBAcH7kLlAUQcoOri3BIo='";
 
+/** GA4 also calls the bare host, which `*.analytics.google.com` cannot match: a CSP wildcard requires at least one subdomain label. */
+const GOOGLE_ANALYTICS_ORIGINS = ["https://*.google-analytics.com", "https://*.analytics.google.com", "https://analytics.google.com"];
+
 /**
- * Third-party endpoints the app connects to directly (Stripe, Cloudflare, Google, Growth Channel, Amplitude); these never vary by environment.
+ * Third-party endpoints the app connects to directly (Stripe, Cloudflare, Google, Growth Channel, Amplitude, jsDelivr); these never vary by environment.
  * Amplitude core events are proxied via NEXT_PUBLIC_AMPLITUDE_PROXY_URL, but Session Replay (config + ingest) and the no-proxy fallback hit
  * `*.amplitude.com` subdomains directly, so the wildcard is required regardless of the proxy setting.
  */
@@ -23,21 +26,14 @@ const FIXED_VENDOR_CONNECT_ORIGINS = [
   "https://m.stripe.network",
   "https://challenges.cloudflare.com",
   "https://www.googletagmanager.com",
-  "https://*.google-analytics.com",
-  "https://*.analytics.google.com",
+  ...GOOGLE_ANALYTICS_ORIGINS,
   "https://pxl.growth-channel.net",
-  "https://*.amplitude.com"
+  "https://*.amplitude.com",
+  "https://cdn.jsdelivr.net"
 ];
 
-/** Image hosts that never vary by environment (inline data/blob URIs, GitHub avatars/raw content, Google). */
-const FIXED_IMG_SRC = [
-  "data:",
-  "blob:",
-  "https://raw.githubusercontent.com",
-  "https://avatars.githubusercontent.com",
-  "https://www.googletagmanager.com",
-  "https://*.google-analytics.com"
-];
+/** Template logos are community-supplied and point at arbitrary origins, so img-src cannot be a host allowlist. */
+const FIXED_IMG_SRC = ["data:", "blob:", "https:"];
 
 export interface ContentSecurityPolicyInput {
   mainnetApiUrl?: string;
@@ -110,11 +106,12 @@ export function buildContentSecurityPolicy(input: ContentSecurityPolicyInput) {
     toOrigin(input.amplitudeProxyUrl),
     toOrigin(input.unleashFrontendApiUrl),
     toOrigin(input.sentryDsn),
+    toOrigin(input.templatesUrl),
     ...(input.networkRpcAndApiUrls ?? []).map(toOrigin)
   ];
 
   const connectSrc = dedupeOrigins(["'self'", ...envConnectOrigins, ...FIXED_VENDOR_CONNECT_ORIGINS]);
-  const imgSrc = dedupeOrigins(["'self'", ...FIXED_IMG_SRC, toOrigin(input.templatesUrl)]);
+  const imgSrc = dedupeOrigins(["'self'", ...FIXED_IMG_SRC]);
   const sentrySecurityReportUri = toSentrySecurityReportUri(input.sentryDsn);
 
   if (isDevelopment) {
