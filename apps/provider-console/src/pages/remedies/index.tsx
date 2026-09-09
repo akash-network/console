@@ -2,8 +2,7 @@
 
 import React, { useState } from "react";
 import { Button, Card, Separator, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
-import { ArrowRight, Globe, RefreshCircle, Server, ShieldAlert } from "iconoir-react";
-import { useAtom } from "jotai";
+import { Globe, RefreshCircle, Server, ShieldAlert } from "iconoir-react";
 import { useRouter } from "next/router";
 
 import { ProviderHealthCheck } from "@src/components/dashboard/ProviderHealthCheck";
@@ -14,13 +13,11 @@ import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useProvider } from "@src/context/ProviderContext";
 import { useProviderDetails } from "@src/queries/useProviderQuery";
-import providerProcessStore from "@src/store/providerProcessStore";
 
 const Remedies: React.FC = () => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("general");
   const [isChecking, setIsChecking] = useState(false);
-  const [, resetProviderProcess] = useAtom(providerProcessStore.resetProviderProcess);
   const { address } = useSelectedChain();
   const { isOnline } = useProvider();
   const { activeControlMachine } = useControlMachine();
@@ -35,11 +32,6 @@ const Remedies: React.FC = () => {
     const hostMatch = providerDetails.hostUri.match(/provider\.([^:/]+)/);
     return hostMatch?.[1] || "";
   })();
-
-  const handleBecomeProvider = () => {
-    resetProviderProcess();
-    router.push("/become-provider");
-  };
 
   const checkProviderStatus = async () => {
     setIsChecking(true);
@@ -105,12 +97,6 @@ const Remedies: React.FC = () => {
                   <li>Provider services may take up to 1 hour to fully initialize</li>
                 </ul>
               </div>
-            </div>
-
-            <div className="mt-6">
-              <Button onClick={handleBecomeProvider} className="flex items-center gap-2">
-                Restart Provider Build <ArrowRight className="h-4 w-4" />
-              </Button>
             </div>
           </Card>
         </TabsContent>
