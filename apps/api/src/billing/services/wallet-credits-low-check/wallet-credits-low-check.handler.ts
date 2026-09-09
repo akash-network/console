@@ -196,10 +196,10 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
       return;
     }
 
-    const isCleared = await this.userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(
-      wallet.id,
-      this.billingConfig.get("CREDITS_LOW_RECOVERY_CONFIRM_WINDOW_MIN")
-    );
+    const isCleared = await this.userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(wallet.id, {
+      confirmWindowMinutes: this.billingConfig.get("CREDITS_LOW_RECOVERY_CONFIRM_WINDOW_MIN"),
+      resendCooldownHours: this.billingConfig.get("CREDITS_LOW_RESEND_COOLDOWN_H")
+    });
 
     if (isCleared) {
       this.logger.info({ event: "CREDITS_LOW_NOTIFIED_CLEARED", userId, reason, creditsSufficientSince: wallet.creditsSufficientSince });
