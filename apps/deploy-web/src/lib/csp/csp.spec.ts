@@ -62,7 +62,7 @@ describe("csp", () => {
       expect(scriptSrc).toContain("https://challenges.cloudflare.com");
       expect(scriptSrc).toContain("https://js.stripe.com");
       expect(scriptSrc).not.toContain("'strict-dynamic'");
-      expect(scriptSrc).not.toContain("'nonce-");
+      expect(scriptSrc.some(source => source.startsWith("'nonce-"))).toBe(false);
       expect(scriptSrc).not.toContain("'unsafe-inline'");
     });
 
@@ -135,6 +135,40 @@ describe("csp", () => {
       expect(connectSrc).toContain("https://cdn.jsdelivr.net");
     });
 
+    it("allows the marketing tags the GTM container fires", () => {
+      const { scriptSrc, styleSrc, connectSrc } = setup({});
+
+      expect(scriptSrc).toContain("https://tags.srv.stackadapt.com");
+      expect(scriptSrc).toContain("https://pxl.iqm.com");
+      expect(styleSrc).toContain("https://tags.srv.stackadapt.com");
+      expect(connectSrc).toContain("https://tags.srv.stackadapt.com");
+      expect(connectSrc).toContain("https://*.g.doubleclick.net");
+    });
+
+    it("names Google Ads country endpoints individually because CSP cannot wildcard a TLD", () => {
+      const { connectSrc } = setup({});
+
+      expect(connectSrc).toEqual(
+        expect.arrayContaining([
+          "https://www.google.com",
+          "https://www.google.be",
+          "https://www.google.co.in",
+          "https://www.google.com.br",
+          "https://www.google.com.pe",
+          "https://www.google.com.ph",
+          "https://www.google.com.pk",
+          "https://www.google.com.ua",
+          "https://www.google.com.vn",
+          "https://www.google.de",
+          "https://www.google.fi",
+          "https://www.google.fr",
+          "https://www.google.kz",
+          "https://www.google.pl",
+          "https://www.google.pt"
+        ])
+      );
+    });
+
     it("always allows Amplitude endpoints since Session Replay is not routed through the proxy", () => {
       const { connectSrc } = setup({});
 
@@ -144,8 +178,8 @@ describe("csp", () => {
     it("adds Sentry CSP reporting directives when a Sentry DSN is configured", () => {
       const { reportUri, reportTo } = setup({ sentryDsn: "https://publicKey@o877251.ingest.sentry.io/4504" });
 
-      expect(reportUri).toBe("report-uri https://o877251.ingest.sentry.io/api/4504/security/?sentry_key=publicKey");
-      expect(reportTo).toBe("report-to csp-endpoint");
+      expect(reportUri).toEqual(["https://o877251.ingest.sentry.io/api/4504/security/?sentry_key=publicKey"]);
+      expect(reportTo).toEqual(["csp-endpoint"]);
     });
 
     it("omits Sentry CSP reporting directives when no Sentry DSN is configured", () => {
@@ -196,10 +230,16 @@ describe("csp", () => {
 
   function setup(input: ContentSecurityPolicyInput) {
     const policy = buildContentSecurityPolicy(input);
-    const directives = Object.fromEntries(policy.split("; ").map(directive => [directive.split(" ")[0], directive]));
+    const directives = Object.fromEntries(
+      policy.split("; ").map(directive => {
+        const [name, ...sources] = directive.split(" ");
+        return [name, sources];
+      })
+    );
     return {
       policy,
       scriptSrc: directives["script-src"],
+      styleSrc: directives["style-src"],
       connectSrc: directives["connect-src"],
       imgSrc: directives["img-src"],
       reportUri: directives["report-uri"],
