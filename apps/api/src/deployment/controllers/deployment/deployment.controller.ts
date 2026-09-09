@@ -19,6 +19,7 @@ import {
   ListWithResourcesResponse,
   PatchDeploymentRequest,
   PatchDeploymentResponse,
+  RedeployDeploymentRequest,
   UpdateDeploymentRequest,
   UpdateDeploymentResponse
 } from "@src/deployment/http-schemas/deployment.schema";
@@ -72,6 +73,12 @@ export class DeploymentController {
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async patch(dseq: string, input: PatchDeploymentRequest["data"]): Promise<PatchDeploymentResponse> {
     const result = await this.deploymentWriterService.patchByUserIdAndDseq(this.authService.currentUser.id, dseq, input, this.authService.ability);
+    return { data: result };
+  }
+
+  @Protected([{ action: "sign", subject: "UserWallet" }])
+  async redeploy(dseq: string, input: RedeployDeploymentRequest["data"]): Promise<CreateDeploymentResponse> {
+    const result = await this.deploymentWriterService.redeployByUserIdAndDseq(this.authService.currentUser.id, dseq, input, this.authService.ability);
     return { data: result };
   }
 

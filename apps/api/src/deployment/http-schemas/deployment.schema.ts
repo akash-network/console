@@ -144,6 +144,10 @@ export const CreateDeploymentResponseSchema = z.object({
   })
 });
 
+export const RedeployDeploymentParamsSchema = z.object({
+  dseq: DseqSchema.describe("Deployment sequence number of the deployment to redeploy")
+});
+
 /** Both fields are overrides, so a body of `{}` redeploys the source exactly as the console stored it. */
 export const RedeployDeploymentRequestSchema = z.object({
   data: z

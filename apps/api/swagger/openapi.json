@@ -6589,6 +6589,269 @@
         }
       }
     },
+    "/v1/deployments/{dseq}/redeploy": {
+      "post": {
+        "summary": "Redeploy an existing deployment",
+        "description": "Creates a new deployment from what the console stored for this one: its SDL, its secrets and its runtime limit. The SDL is never accepted from the request. Secrets are carried forward in the process and never pass through the client; a name supplied in `sealedSecrets` replaces the value the source holds for it. A source whose stored SDL still carries values in the clear has them sealed for the new deployment, so the new SDL is equivalent to the source's rather than byte-identical to it. A carried runtime limit longer than one request may grant is reduced to that increment, and can be extended after the redeploy.",
+        "operationId": "redeployDeployment",
+        "tags": [
+          "Deployments"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^0*[1-9]\\d*$",
+              "description": "Deployment sequence number of the deployment to redeploy"
+            },
+            "required": true,
+            "description": "Deployment sequence number of the deployment to redeploy",
+            "name": "dseq",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "sealedSecrets": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Compact JWE sealing a flat name-to-value map, as on create. A name present here replaces the value the source deployment holds for it; every other name is carried forward untouched."
+                      },
+                      "runtimeLimitHours": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 48,
+                        "description": "Optional runtime limit in hours (1 to 48) for the new deployment. Omit to carry the source deployment's own limit forward."
+                      }
+                    },
+                    "default": {}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Redeployed successfully, answering exactly as a create does",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "dseq": {
+                          "type": "string",
+                          "pattern": "^0*[1-9]\\d*$"
+                        },
+                        "manifest": {
+                          "type": "string"
+                        },
+                        "signTx": {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "number"
+                            },
+                            "transactionHash": {
+                              "type": "string"
+                            },
+                            "rawLog": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "transactionHash",
+                            "rawLog"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "dseq",
+                        "manifest",
+                        "signTx"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The stored SDL leaves a secret reference no value answers, `sealedSecrets` supplies a name it does not reference, or the source carries more secrets than one deployment may hold",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No deployment of yours matches this dseq, or the console recorded no SDL for it. Says nothing about whether the deployment exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The secrets recorded for this deployment can no longer be decrypted, with `code` `inherited_secrets_unreadable`. Permanent rather than transient, so a retry cannot help",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The SDL recorded for this deployment cannot be redeployed: `code` is `stored_sdl_unreadable` when it would not parse and `redeployed_sdl_too_large` when re-deriving its cleartext values into references would exceed the maximum length. Both are permanent rather than transient, so a retry cannot help, and neither is anything the request can correct",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The key management service is temporarily unreachable. Transient and worth retrying, unlike the 409 and 500 above",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/addresses/{address}/deployments/{skip}/{limit}": {
       "get": {
         "summary": "Get a list of deployments by owner address.",

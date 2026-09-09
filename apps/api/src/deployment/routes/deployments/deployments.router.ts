@@ -26,6 +26,8 @@ import {
   PatchDeploymentParamsSchema,
   PatchDeploymentRequestSchema,
   PatchDeploymentResponseSchema,
+  RedeployDeploymentParamsSchema,
+  RedeployDeploymentRequestSchema,
   UpdateDeploymentRequestSchema,
   UpdateDeploymentResponseSchema
 } from "@src/deployment/http-schemas/deployment.schema";
@@ -331,6 +333,91 @@ deploymentsRouter.openapi(patchRoute, async function routePatchDeployment(c) {
   const { data } = c.req.valid("json");
   const result = await container.resolve(DeploymentController).patch(dseq, data);
   return c.json(result, 200);
+});
+
+const redeployRoute = createRoute({
+  method: "post",
+  path: "/v1/deployments/{dseq}/redeploy",
+  summary: "Redeploy an existing deployment",
+  description:
+    "Creates a new deployment from what the console stored for this one: its SDL, its secrets and its runtime limit. The SDL is never accepted from the request. Secrets are carried forward in the process and never pass through the client; a name supplied in `sealedSecrets` replaces the value the source holds for it. A source whose stored SDL still carries values in the clear has them sealed for the new deployment, so the new SDL is equivalent to the source's rather than byte-identical to it. A carried runtime limit longer than one request may grant is reduced to that increment, and can be extended after the redeploy.",
+  // eslint-disable-next-line akash/operation-id-format
+  operationId: "redeployDeployment",
+  tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  /** Sized like the create route, because the body may carry a seal and the default allowance would shadow the stated secret limits. */
+  bodyLimit: { maxSize: CREATE_DEPLOYMENT_BODY_LIMIT_BYTES },
+  request: {
+    params: RedeployDeploymentParamsSchema,
+    /** Required although every field within it is optional, because the request needs a `Content-Type` and an absent body has none. */
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: RedeployDeploymentRequestSchema
+        }
+      }
+    }
+  },
+  responses: {
+    201: {
+      description: "Redeployed successfully, answering exactly as a create does",
+      content: {
+        "application/json": {
+          schema: CreateDeploymentResponseSchema
+        }
+      }
+    },
+    400: {
+      description:
+        "The stored SDL leaves a secret reference no value answers, `sealedSecrets` supplies a name it does not reference, or the source carries more secrets than one deployment may hold",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    404: {
+      description: "No deployment of yours matches this dseq, or the console recorded no SDL for it. Says nothing about whether the deployment exists",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    409: {
+      description:
+        "The secrets recorded for this deployment can no longer be decrypted, with `code` `inherited_secrets_unreadable`. Permanent rather than transient, so a retry cannot help",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    500: {
+      description:
+        "The SDL recorded for this deployment cannot be redeployed: `code` is `stored_sdl_unreadable` when it would not parse and `redeployed_sdl_too_large` when re-deriving its cleartext values into references would exceed the maximum length. Both are permanent rather than transient, so a retry cannot help, and neither is anything the request can correct",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    503: {
+      description: "The key management service is temporarily unreachable. Transient and worth retrying, unlike the 409 and 500 above",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    }
+  }
+});
+deploymentsRouter.openapi(redeployRoute, async function routeRedeployDeployment(c) {
+  const { dseq } = c.req.valid("param");
+  const { data } = c.req.valid("json");
+  const result = await container.resolve(DeploymentController).redeploy(dseq, data);
+  return c.json(result, 201);
 });
 
 const listRoute = createRoute({
