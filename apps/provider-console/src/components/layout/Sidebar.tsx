@@ -26,7 +26,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import type { ISidebarGroupMenu } from "@src/types";
-import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
+import { closedDrawerWidth, drawerWidth, topBannerHeightCssVar } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ControlMachineStatus } from "./ControlMachineStatus";
@@ -277,7 +277,13 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
         }}
         sx={{
           display: { xs: "block", sm: "block", md: "none" },
-          "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth, overflow: "hidden" }
+          "& .MuiDrawer-paper": {
+            boxSizing: "border-box",
+            width: drawerWidth,
+            overflow: "hidden",
+            top: `var(${topBannerHeightCssVar}, 0px)`,
+            height: `calc(100% - var(${topBannerHeightCssVar}, 0px))`
+          }
         }}
         PaperProps={{
           sx: {

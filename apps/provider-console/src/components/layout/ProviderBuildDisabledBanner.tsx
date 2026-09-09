@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useLayoutEffect, useRef } from "react";
 import { WarningTriangle } from "iconoir-react";
 import Link from "next/link";
 
@@ -9,7 +9,7 @@ const PROVIDER_PLAYBOOK_URL = "https://akash.network/docs/providers/setup-and-in
 export function ProviderBuildDisabledBanner() {
   const bannerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(function publishBannerHeight() {
+  useLayoutEffect(function publishBannerHeight() {
     const banner = bannerRef.current;
     if (!banner) return;
 
