@@ -10,6 +10,7 @@ import { CallbackHandlerError, MissingStateCookieError } from "@src/lib/auth0";
 import { handleAuth, handleCallback, handleLogin, handleLogout } from "@src/lib/auth0";
 import { clearSessionCookies } from "@src/lib/auth0/clearSessionCookies/clearSessionCookies";
 import { getIdentityProviderError } from "@src/lib/auth0/getIdentityProviderError/getIdentityProviderError";
+import { getStateMismatchReturnTo } from "@src/lib/auth0/getStateMismatchReturnTo/getStateMismatchReturnTo";
 import { isAccessTokenExpired } from "@src/lib/auth0/isAccessTokenExpired/isAccessTokenExpired";
 import { isInvalidSessionError } from "@src/lib/auth0/isInvalidSessionError/isInvalidSessionError";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
@@ -59,6 +60,14 @@ const authHandler = once((services: AppServices) =>
         if (isMissingStateCookieError(error)) {
           services.logger.warn({ event: "AUTH_CALLBACK_MISSING_STATE_COOKIE", error });
           res.writeHead(302, { Location: "/login" });
+          res.end();
+          return;
+        }
+
+        const stateMismatchReturnTo = getStateMismatchReturnTo(error);
+        if (stateMismatchReturnTo) {
+          services.logger.warn({ event: "AUTH_CALLBACK_STATE_MISMATCH", returnToPath: getPathWithoutQuery(stateMismatchReturnTo) });
+          res.writeHead(302, { Location: services.urlReturnToStack.createReturnable(stateMismatchReturnTo, "/login?error=provider_login_failed") });
           res.end();
           return;
         }
@@ -136,6 +145,10 @@ const authHandler = once((services: AppServices) =>
 
 function isGeneralAxiosError(error: unknown): error is AxiosError {
   return isAxiosError(error) && !!error?.status && error.status >= 400 && error.status < 500;
+}
+
+function getPathWithoutQuery(url: string): string {
+  return url.split("?")[0];
 }
 
 function isMissingStateCookieError(error: unknown): boolean {
