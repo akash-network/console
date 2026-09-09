@@ -292,7 +292,10 @@ describe(WalletCreditsLowCheckHandler.name, () => {
 
     await handler.handle(job);
 
-    expect(userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed).toHaveBeenCalledWith(wallet.id, 30);
+    expect(userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed).toHaveBeenCalledWith(wallet.id, {
+      confirmWindowMinutes: 30,
+      resendCooldownHours: 168
+    });
     expect(logger.info).toHaveBeenCalledWith({
       event: "CREDITS_LOW_NOTIFIED_CLEARED",
       userId: user.id,
@@ -312,7 +315,7 @@ describe(WalletCreditsLowCheckHandler.name, () => {
 
     await handler.handle(job);
 
-    expect(userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed).toHaveBeenCalledWith(wallet.id, expect.any(Number));
+    expect(userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed).toHaveBeenCalledWith(wallet.id, expect.any(Object));
     expect(userWalletRepository.updateById).not.toHaveBeenCalled();
     expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_NOTIFIED_CLEARED" }));
   });
@@ -460,7 +463,8 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     const billingConfig = mockConfigService<BillingConfigService>({
       CONSOLE_WEB_PAYMENT_LINK: paymentLink,
       CREDITS_LOW_RECOVERY_CONFIRM_WINDOW_MIN: input?.confirmWindowMinutes ?? 30,
-      CREDITS_LOW_CONFIRM_WINDOW_MIN: input?.confirmWindowMinutes ?? 30
+      CREDITS_LOW_CONFIRM_WINDOW_MIN: input?.confirmWindowMinutes ?? 30,
+      CREDITS_LOW_RESEND_COOLDOWN_H: 168
     });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);

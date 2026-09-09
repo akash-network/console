@@ -51,6 +51,8 @@ export const envSchema = z.object({
   CREDITS_LOW_RECOVERY_CONFIRM_WINDOW_MIN: z.number({ coerce: true }).min(0).default(30),
   /** How long credits must keep reading low before the email goes out, so a single misread cannot send one. */
   CREDITS_LOW_CONFIRM_WINDOW_MIN: z.number({ coerce: true }).min(0).default(30),
+  /** The notified latch holds at least this long before a recovery can clear it, so closing deployments and redeploying cannot re-arm the email within hours. */
+  CREDITS_LOW_RESEND_COOLDOWN_H: z.number({ coerce: true }).min(0).default(168),
   /** Safety net only: a cached refusal is dropped as soon as any funding path rewrites the wallet row, so this bounds nothing but the residual race. */
   DEPLOYMENT_CREATE_REFUSAL_CACHE_TTL_SECONDS: z.number({ coerce: true }).int().min(1).default(300),
   MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: z

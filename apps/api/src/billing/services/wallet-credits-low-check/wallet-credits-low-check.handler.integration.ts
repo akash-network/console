@@ -1,6 +1,6 @@
 import "@src/app/providers/jobs.provider";
 
-import { subMinutes } from "date-fns";
+import { subHours, subMinutes } from "date-fns";
 import { eq } from "drizzle-orm";
 import nock from "nock";
 import { container } from "tsyringe";
@@ -23,6 +23,12 @@ const PAST_THE_CONFIRM_WINDOW_IN_MIN = 45;
 
 /** Longer than CREDITS_LOW_RECOVERY_CONFIRM_WINDOW_MIN, so a recovery stamped this long ago counts as held. */
 const PAST_THE_RECOVERY_WINDOW_IN_MIN = 24 * 60 * 3;
+
+/** Longer than CREDITS_LOW_RESEND_COOLDOWN_H, so an email sent this long ago no longer holds the latch. */
+const PAST_THE_RESEND_COOLDOWN_IN_H = 24 * 8;
+
+/** Shorter than CREDITS_LOW_RESEND_COOLDOWN_H, so an email sent this long ago still holds the latch. */
+const INSIDE_THE_RESEND_COOLDOWN_IN_H = 24;
 
 const jobWorkers = useJobWorkers(() => [container.resolve(WalletCreditsLowCheckHandler)]);
 
@@ -112,17 +118,32 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     expect(await findWallet()).toMatchObject({ creditsSufficientSince: expect.any(Date), creditsLowNotifiedAt: expect.any(Date) });
   });
 
-  it("clears the notice once the recovery has held past its window", async () => {
+  it("clears the notice once the recovery has held past its window and the resend cooldown has passed", async () => {
     const { checkCredits, findWallet } = await setup({
       balanceUsd: 50,
       weeklyCostUsd: 20,
-      creditsLowNotifiedAt: new Date(),
+      creditsLowNotifiedAt: subHours(new Date(), PAST_THE_RESEND_COOLDOWN_IN_H),
       creditsSufficientSince: subMinutes(new Date(), PAST_THE_RECOVERY_WINDOW_IN_MIN)
     });
 
     await checkCredits();
 
     expect(await findWallet()).toMatchObject({ creditsLowNotifiedAt: null });
+  });
+
+  it("keeps the notice through the resend cooldown even after the recovery has held past its window", async () => {
+    const creditsLowNotifiedAt = subHours(new Date(), INSIDE_THE_RESEND_COOLDOWN_IN_H);
+    const { checkCredits, findWallet, sentNotifications } = await setup({
+      balanceUsd: 50,
+      weeklyCostUsd: 20,
+      creditsLowNotifiedAt,
+      creditsSufficientSince: subMinutes(new Date(), PAST_THE_RECOVERY_WINDOW_IN_MIN)
+    });
+
+    await checkCredits();
+
+    expect(await findWallet()).toMatchObject({ creditsLowNotifiedAt });
+    expect(sentNotifications()).toHaveLength(0);
   });
 
   it("emails nothing for a wallet still on trial", async () => {
