@@ -176,7 +176,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
   const drawer = (
     <div
       style={{ width: _isNavOpen ? drawerWidth : closedDrawerWidth }}
-      className="border-muted-foreground/20 bg-popover dark:bg-background box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] transition-[width] duration-300 ease-in-out md:h-[calc(100%-57px)]"
+      className="border-muted-foreground/20 bg-popover dark:bg-background box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] transition-[width] duration-300 ease-in-out md:h-[calc(100%_-_57px_-_var(--top-banner-height,0px))]"
     >
       <div className={cn("flex w-full flex-col items-center justify-between", { ["p-2"]: _isNavOpen, ["pb-2 pt-2"]: !_isNavOpen })}>
         {routeGroups.map((g, i) => (
@@ -294,10 +294,13 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
         onMouseEnter={onDrawerHover}
         onMouseLeave={() => setIsHovering(false)}
         PaperProps={{
-          className: cn("border-none ease z-[1000] bg-header/95 transition-[width] duration-300 box-border overflow-hidden mt-[57px]", {
-            ["md:w-[240px]"]: _isNavOpen,
-            ["md:w-[57px]"]: !_isNavOpen
-          })
+          className: cn(
+            "border-none ease z-[1000] bg-header/95 transition-[width] duration-300 box-border overflow-hidden mt-[calc(57px_+_var(--top-banner-height,0px))]",
+            {
+              ["md:w-[240px]"]: _isNavOpen,
+              ["md:w-[57px]"]: !_isNavOpen
+            }
+          )
         }}
         open
       >
