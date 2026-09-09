@@ -26,8 +26,8 @@ export function recordDeploymentSettingKeyFor({ userId, dseq }: { userId: string
 export class RecordDeploymentSettingHandler implements JobHandler<RecordDeploymentSetting> {
   public readonly accepts = RecordDeploymentSetting;
 
-  /** Gives the command's per-deployment singletonKey its meaning: without it the key is inert and a retried broadcast queues a second job. */
-  public readonly policy = "singleton";
+  /** One record per deployment across queued, retrying and running, so a retried broadcast of the same create enqueues nothing new; pg-boss's `singleton` only caps the running ones. */
+  public readonly policy = "exclusive";
 
   private readonly logger: ReturnType<CreateLogger>;
 
