@@ -21,6 +21,8 @@ import { DeploymentSettingRepository } from "@src/deployment/repositories/deploy
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { app } from "@src/rest-app";
+import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
+import { DataKeyService } from "@src/secret/services/data-key/data-key.service";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
 
@@ -32,7 +34,7 @@ import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 interface OpenApiPaths {
   paths: Record<
     string,
-    Record<string, { requestBody: { content: Record<string, { schema: { properties: { data: { properties: Record<string, unknown> } } } }> } }>
+    Record<string, { requestBody: { content: Record<string, { schema: { properties: { data: { properties: Record<string, { description?: string }> } } } }> } }>
   >;
 }
 
@@ -80,6 +82,8 @@ describe("Deployment sealed secrets", () => {
   const blockHttpService = container.resolve(BlockHttpService);
   const signerService = container.resolve(ManagedSignerService);
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+  const dataKeyRepository = container.resolve(DataKeyRepository);
+  const dataKeyService = container.resolve(DataKeyService);
 
   let knownUsers: Record<string, UserOutput>;
   let knownApiKeys: Record<string, ReturnType<typeof createApiKey>>;
@@ -533,15 +537,24 @@ describe("Deployment sealed secrets", () => {
     expect(broadcastHash()).toEqual(await manifestVersionOf(sdlWith({ web: [`API_TOKEN=${token}`] })));
   });
 
-  it("publishes no mention of the field in the document callers read", async () => {
+  it("publishes both halves of the capability in the document callers read", async () => {
     const response = await app.request("/v1/doc?scope=console");
     const document = await response.text();
 
     expect(response.status).toBe(200);
-    expect(document).not.toContain("sealedSecrets");
     const createBody = (JSON.parse(document) as OpenApiPaths).paths["/v1/deployments"].post.requestBody.content["application/json"].schema.properties.data
       .properties;
-    expect(Object.keys(createBody)).toEqual(["sdl", "deposit", "runtimeLimitHours"]);
+    expect(Object.keys(createBody)).toEqual(["sdl", "sealedSecrets", "inheritSecretsFrom", "deposit", "runtimeLimitHours"]);
+  });
+
+  it("describes the seal on both routes that accept one, so neither reads as create-only", async () => {
+    const response = await app.request("/v1/doc?scope=console");
+    const paths = (JSON.parse(await response.text()) as OpenApiPaths).paths;
+
+    const createSeal = paths["/v1/deployments"].post.requestBody.content["application/json"].schema.properties.data.properties.sealedSecrets;
+    const patchSeal = paths["/v1/deployments/{dseq}"].patch.requestBody.content["application/json"].schema.properties.data.properties.sealedSecrets;
+    expect(createSeal).toMatchObject({ description: expect.stringContaining("Compact JWE") });
+    expect(patchSeal).toMatchObject({ description: expect.stringContaining("Compact JWE") });
   });
 
   it("refuses a submitted sdl above the allowance a request has always had for one", async () => {
@@ -661,6 +674,223 @@ describe("Deployment sealed secrets", () => {
     await expect(openStoredToken(user, dseq.toString(), replaced!.sealedSecrets!)).resolves.toEqual(retriedSecrets);
   });
 
+  describe("carrying secrets forward on redeploy", () => {
+    it("stores a token that opens to the source deployment's values, spending one data key unwrap", async () => {
+      const { apiKey, user } = await persistedUser();
+      const secrets = { API_TOKEN: randomUUID(), DATABASE_URL: `postgres://app:${randomUUID()}@db.internal/app` };
+      const source = await persistedSource(apiKey, user, secrets);
+
+      const response = await postDeployment(apiKey, source.sdl, undefined, undefined, { inheritSecretsFrom: source.setting.dseq });
+
+      expect(response.status).toBe(201);
+      expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(1);
+      const setting = await settingOf(user, response);
+      await expect(openStoredToken(user, setting!.dseq, setting!.sealedSecrets!)).resolves.toEqual(secrets);
+    });
+
+    it("carries forward only the names the new sdl references", async () => {
+      const { apiKey, user } = await persistedUser();
+      const spare = randomUUID();
+      const secrets = { API_TOKEN: randomUUID(), SPARE: spare };
+      const source = await persistedSource(apiKey, user, secrets);
+
+      const response = await postDeployment(apiKey, sdlWith({ web: ["API_TOKEN=ac-secret://API_TOKEN"] }), undefined, undefined, {
+        inheritSecretsFrom: source.setting.dseq
+      });
+
+      expect(response.status).toBe(201);
+      const setting = await settingOf(user, response);
+      await expect(openStoredToken(user, setting!.dseq, setting!.sealedSecrets!)).resolves.toEqual({ API_TOKEN: secrets.API_TOKEN });
+      expect(setting!.sealedSecrets).not.toContain(spare);
+    });
+
+    it("binds the token it writes to the new deployment, leaving the source's own token unopenable under it", async () => {
+      const { apiKey, user } = await persistedUser();
+      const secrets = { API_TOKEN: randomUUID() };
+      const source = await persistedSource(apiKey, user, secrets);
+
+      const response = await postDeployment(apiKey, source.sdl, undefined, undefined, { inheritSecretsFrom: source.setting.dseq });
+
+      const setting = await settingOf(user, response);
+      expect(setting!.dseq).not.toBe(source.setting.dseq);
+      expect(setting!.sealedSecrets).not.toBe(source.sealedSecrets);
+      expect(decodeProtectedHeader(setting!.sealedSecrets!)).toMatchObject({ sub: user.id, dseq: setting!.dseq });
+      await expect(openStoredToken(user, setting!.dseq, source.sealedSecrets)).rejects.toMatchObject({ status: 500 });
+    });
+
+    it("prefers a supplied value to the inherited one of the same name, and commits the manifest carrying it", async () => {
+      const { apiKey, user } = await persistedUser();
+      const source = await persistedSource(apiKey, user, { API_TOKEN: randomUUID(), DATABASE_URL: `postgres://app:${randomUUID()}@old/app` });
+      const replaced = `postgres://app:${randomUUID()}@new/app`;
+      const inheritedToken = await openStoredToken(user, source.setting.dseq, source.sealedSecrets);
+
+      const response = await postDeployment(apiKey, source.sdl, { DATABASE_URL: replaced }, undefined, {
+        inheritSecretsFrom: source.setting.dseq
+      });
+
+      expect(response.status).toBe(201);
+      const setting = await settingOf(user, response);
+      await expect(openStoredToken(user, setting!.dseq, setting!.sealedSecrets!)).resolves.toEqual({
+        API_TOKEN: inheritedToken.API_TOKEN,
+        DATABASE_URL: replaced
+      });
+      expect(broadcastHash(1)).toEqual(await manifestVersionOfDocument(resolvedDocumentOf(setting!.sdl!, { ...inheritedToken, DATABASE_URL: replaced })));
+    });
+
+    it("spends one key-service call on the supplied seal and one on the data key, however much it inherits", async () => {
+      const { apiKey, user } = await persistedUser();
+      const source = await persistedSource(apiKey, user, { API_TOKEN: randomUUID(), DATABASE_URL: `postgres://app:${randomUUID()}@old/app` });
+
+      const response = await postDeployment(apiKey, source.sdl, { DATABASE_URL: `postgres://app:${randomUUID()}@new/app` }, undefined, {
+        inheritSecretsFrom: source.setting.dseq
+      });
+
+      expect(response.status).toBe(201);
+      expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(2);
+    });
+
+    it("inherits from a closed deployment, closing one deliberately keeping its secrets", async () => {
+      const { apiKey, user } = await persistedUser();
+      const secrets = { API_TOKEN: randomUUID() };
+      const source = await persistedSource(apiKey, user, secrets);
+      await deploymentSettingRepository.updateById(source.setting.id, { closed: true });
+
+      const response = await postDeployment(apiKey, source.sdl, undefined, undefined, { inheritSecretsFrom: source.setting.dseq });
+
+      expect(response.status).toBe(201);
+      const setting = await settingOf(user, response);
+      await expect(openStoredToken(user, setting!.dseq, setting!.sealedSecrets!)).resolves.toEqual(secrets);
+      const closed = await deploymentSettingRepository.findById(source.setting.id);
+      expect(closed!.sealedSecrets).toBe(source.sealedSecrets);
+    });
+
+    it("answers not found for another user's deployment, recording nothing and broadcasting nothing", async () => {
+      const owner = await persistedUser();
+      const other = await persistedUser();
+      const source = await persistedSource(owner.apiKey, owner.user, { API_TOKEN: randomUUID() });
+
+      const response = await postDeployment(other.apiKey, source.sdl, undefined, undefined, { inheritSecretsFrom: source.setting.dseq });
+
+      expect(response.status).toBe(404);
+      expect(await deploymentSettingRepository.count({ userId: other.user.id })).toBe(0);
+      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+    });
+
+    it("says nothing about the source of another user in the refusal it returns", async () => {
+      const owner = await persistedUser();
+      const other = await persistedUser();
+      const secret = randomUUID();
+      const source = await persistedSource(owner.apiKey, owner.user, { API_TOKEN: secret });
+
+      const response = await postDeployment(other.apiKey, source.sdl, undefined, undefined, { inheritSecretsFrom: source.setting.dseq });
+      const body = await response.text();
+
+      expect(body).not.toContain(secret);
+      expect(body).not.toContain(source.setting.dseq);
+    });
+
+    it("refuses a reference neither the inherited nor the supplied set answers, before recording or broadcasting anything", async () => {
+      const { apiKey, user } = await persistedUser();
+      const source = await persistedSource(apiKey, user, { API_TOKEN: randomUUID() });
+
+      const response = await postDeployment(
+        apiKey,
+        sdlWith({ web: ["API_TOKEN=ac-secret://API_TOKEN", "MISSING=ac-secret://MISSING"] }),
+        undefined,
+        undefined,
+        { inheritSecretsFrom: source.setting.dseq }
+      );
+
+      expect(response.status).toBe(400);
+      expect(await response.text()).toContain("MISSING");
+      expect(await deploymentSettingRepository.count({ userId: user.id })).toBe(1);
+      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses a redeploy that would chain more values into one token than a deployment may hold", async () => {
+      const { apiKey, user } = await persistedUser();
+      const inheritedNames = Array.from({ length: MAX_COUNT }, (_, index) => `INHERITED_${index}`);
+      const source = await persistedSource(apiKey, user, Object.fromEntries(inheritedNames.map(name => [name, randomUUID()])));
+      const addedNames = Array.from({ length: MAX_COUNT }, (_, index) => `ADDED_${index}`);
+      const added = Object.fromEntries(addedNames.map(name => [name, randomUUID()]));
+
+      const response = await postDeployment(
+        apiKey,
+        sdlWith({ web: [...inheritedNames, ...addedNames].map(name => `${name}=ac-secret://${name}`) }),
+        added,
+        undefined,
+        { inheritSecretsFrom: source.setting.dseq }
+      );
+
+      expect(response.status).toBe(400);
+      expect(await response.text()).toContain(`At most ${MAX_COUNT} secrets may be carried by one deployment, counting those inherited from another`);
+      expect(await deploymentSettingRepository.count({ userId: user.id })).toBe(1);
+      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+    });
+
+    it("inherits one name from a source holding far more than a deployment may carry", async () => {
+      const { apiKey, user } = await persistedUser();
+      const values = Object.fromEntries(Array.from({ length: MAX_COUNT + 50 }, (_, index) => [`SETTING_${index}`, randomUUID()]));
+      const sourceResponse = await postDeployment(apiKey, sdlWith({ web: Object.entries(values).map(([name, value]) => `${name}=${value}`) }));
+      expect(sourceResponse.status).toBe(201);
+      const sourceSetting = await settingOf(user, sourceResponse);
+      const stored = await openStoredToken(user, sourceSetting!.dseq, sourceSetting!.sealedSecrets!);
+      expect(Object.keys(stored)).toHaveLength(MAX_COUNT + 50);
+
+      const response = await postDeployment(apiKey, sdlWith({ web: ["SETTING_0=ac-secret://s0_e0"] }), undefined, undefined, {
+        inheritSecretsFrom: sourceSetting!.dseq
+      });
+
+      expect(response.status).toBe(201);
+      const setting = await settingOf(user, response);
+      await expect(openStoredToken(user, setting!.dseq, setting!.sealedSecrets!)).resolves.toEqual({ s0_e0: stored.s0_e0 });
+    });
+
+    it("answers conflict when the source's token is beyond the data key the user now holds", async () => {
+      const { apiKey, user } = await persistedUser();
+      const source = await persistedSource(apiKey, user, { API_TOKEN: randomUUID() });
+      const held = await dataKeyRepository.findByUserId(user.id);
+      vi.spyOn(dataKeyService, "ensureDataKey").mockResolvedValue({ ...held!, id: randomUUID() });
+
+      const response = await postDeployment(apiKey, source.sdl, undefined, undefined, { inheritSecretsFrom: source.setting.dseq });
+
+      expect(response.status).toBe(409);
+      expect(await deploymentSettingRepository.count({ userId: user.id })).toBe(1);
+      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+    });
+
+    it("tells a client the conflict is about the secrets it inherits rather than its own stored state", async () => {
+      const { apiKey, user } = await persistedUser();
+      const source = await persistedSource(apiKey, user, { API_TOKEN: randomUUID() });
+      const held = await dataKeyRepository.findByUserId(user.id);
+      vi.spyOn(dataKeyService, "ensureDataKey").mockResolvedValue({ ...held!, id: randomUUID() });
+
+      const response = await postDeployment(apiKey, source.sdl, undefined, undefined, { inheritSecretsFrom: source.setting.dseq });
+
+      expect(await response.json()).toMatchObject({ code: "inherited_secrets_unreadable" });
+    });
+
+    it("leaves the source's own token untouched by a redeploy it refused", async () => {
+      const { apiKey, user } = await persistedUser();
+      const source = await persistedSource(apiKey, user, { API_TOKEN: randomUUID() });
+
+      await postDeployment(apiKey, sdlWith({ web: ["MISSING=ac-secret://MISSING"] }), undefined, undefined, {
+        inheritSecretsFrom: source.setting.dseq
+      });
+
+      const unchanged = await deploymentSettingRepository.findById(source.setting.id);
+      expect(unchanged!.sealedSecrets).toBe(source.sealedSecrets);
+    });
+
+    it("describes what the field does for a client reading the document", async () => {
+      const response = await app.request("/v1/doc?scope=console");
+      const createBody = (JSON.parse(await response.text()) as OpenApiPaths).paths["/v1/deployments"].post.requestBody.content["application/json"].schema
+        .properties.data.properties;
+
+      expect(createBody.inheritSecretsFrom).toMatchObject({ description: expect.stringContaining("may be closed") });
+    });
+  });
+
   async function openStoredToken(user: UserOutput, dseq: string, sealedSecrets: string) {
     const executionContextService = container.resolve(ExecutionContextService);
     const authService = container.resolve(AuthService);
@@ -672,8 +902,8 @@ describe("Deployment sealed secrets", () => {
     });
   }
 
-  function broadcastHash(): Uint8Array {
-    const [, messages] = vi.mocked(signerService.executeDerivedDecodedTxByUserId).mock.calls[0];
+  function broadcastHash(call = 0): Uint8Array {
+    const [, messages] = vi.mocked(signerService.executeDerivedDecodedTxByUserId).mock.calls[call];
 
     return (messages[0] as unknown as { value: { hash: Uint8Array } }).value.hash;
   }
@@ -715,14 +945,27 @@ describe("Deployment sealed secrets", () => {
       .encrypt(publicKey);
   }
 
-  async function postDeployment(apiKey: string, sdl: string, secrets?: Record<string, string>, seal?: string) {
+  async function postDeployment(apiKey: string, sdl: string, secrets?: Record<string, string>, seal?: string, options?: { inheritSecretsFrom?: string }) {
     const sealedSecrets = seal ?? (secrets ? await sealFor(knownUsers[knownApiKeys[apiKey].userId], secrets) : undefined);
 
     return await app.request("/v1/deployments", {
       method: "POST",
-      body: JSON.stringify({ data: { sdl, sealedSecrets } }),
+      body: JSON.stringify({ data: { sdl, sealedSecrets, inheritSecretsFrom: options?.inheritSecretsFrom } }),
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey })
     });
+  }
+
+  /** A deployment whose token is what a later create inherits: sealed through the route, so the token under test is one the console really wrote. */
+  async function persistedSource(apiKey: string, user: UserOutput, secrets: Record<string, string>) {
+    const sdl = sdlWith({ web: Object.keys(secrets).map(name => `${name}=ac-secret://${name}`) });
+    const response = await postDeployment(apiKey, sdl, secrets);
+
+    expect(response.status).toBe(201);
+    const setting = await settingOf(user, response);
+    expect(setting!.sealedSecrets).toEqual(expect.any(String));
+    kmsClient.asymmetricDecrypt.mockClear();
+
+    return { sdl, setting: setting!, sealedSecrets: setting!.sealedSecrets! };
   }
 
   async function persistedUser() {
