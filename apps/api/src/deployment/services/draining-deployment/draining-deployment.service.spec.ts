@@ -43,7 +43,7 @@ describe(DrainingDeploymentService.name, () => {
             owner: addresses[0],
             denom: "uakt",
             blockRate: faker.number.int({ min: 50, max: 100 }),
-            predictedClosedHeight: faker.number.int({ min: 900000, max: 1000000 })
+            predictedClosedHeight: faker.number.int({ min: currentHeight - averageBlockCountInAnHour * 24, max: currentHeight })
           }
         ],
         [
@@ -52,7 +52,7 @@ describe(DrainingDeploymentService.name, () => {
             owner: addresses[3],
             denom: "uakt",
             blockRate: faker.number.int({ min: 50, max: 100 }),
-            predictedClosedHeight: faker.number.int({ min: 900000, max: 1000000 })
+            predictedClosedHeight: faker.number.int({ min: currentHeight - averageBlockCountInAnHour * 24, max: currentHeight })
           }
         ]
       ];
@@ -144,6 +144,32 @@ describe(DrainingDeploymentService.name, () => {
         activeDeployments: [expect.objectContaining({ dseq: setting.dseq, predictedClosedHeight: farFromClosure.predictedClosedHeight })],
         drainingDeployments: []
       });
+    });
+
+    it("keeps a deployment overdue on chain among the owner's active deployments while leaving it out of the fundable subset", async () => {
+      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const setting = createAutoTopUpDeployment();
+      const overdue = createDrainingDeployment({
+        dseq: Number(setting.dseq),
+        owner: setting.address,
+        predictedClosedHeight: currentHeight - averageBlockCountInAnHour * 24 * 15
+      });
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+        (async function* () {
+          yield { address: setting.address, walletId: setting.walletId, deploymentSettings: [setting] };
+        })()
+      );
+      vi.spyOn(service, "findLeases").mockResolvedValue([overdue]);
+
+      const results: AutoTopUpOwnerDeployments[] = [];
+      for await (const result of service.findDrainingDeploymentsByOwner(currentHeight, mock<DeploymentTopUpInstrumentation>())) {
+        results.push(result);
+      }
+
+      expect(results).toHaveLength(1);
+      expect(results[0].activeDeployments).toEqual([expect.objectContaining({ dseq: setting.dseq, predictedClosedHeight: overdue.predictedClosedHeight })]);
+      expect(results[0].drainingDeployments).toEqual([]);
     });
 
     it("reports marked-closed deployments to the caller's instrumentation", async () => {
@@ -337,6 +363,48 @@ describe(DrainingDeploymentService.name, () => {
       expect(result).toEqual(
         expect.arrayContaining(settings.map(setting => expect.objectContaining({ dseq: setting.dseq, address, blockRate: 60, predictedClosedHeight: 1000500 })))
       );
+    });
+
+    it("leaves a deployment overdue on chain out of the fundable set and records it", async () => {
+      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const sink = mock<DeploymentTopUpInstrumentation>();
+      const address = createAkashAddress();
+      const overdueSetting = createAutoTopUpDeployment({ address, dseq: "4001" });
+      const drainingSetting = createAutoTopUpDeployment({ address, dseq: "4002" });
+      const overdueHeight = currentHeight - averageBlockCountInAnHour * 72 - 1;
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([overdueSetting, drainingSetting]);
+      vi.spyOn(service, "findLeases").mockResolvedValue([
+        createDrainingDeployment({ dseq: Number(overdueSetting.dseq), owner: address, predictedClosedHeight: overdueHeight }),
+        createDrainingDeployment({ dseq: Number(drainingSetting.dseq), owner: address, predictedClosedHeight: currentHeight + 500 })
+      ]);
+
+      const result = await service.findDrainingDeploymentsForOwner(address, sink, currentHeight);
+
+      expect(result.map(deployment => deployment.dseq)).toEqual([drainingSetting.dseq]);
+      expect(sink.recordDeploymentOverdueOnChain).toHaveBeenCalledWith({
+        dseq: overdueSetting.dseq,
+        address,
+        predictedClosedHeight: overdueHeight,
+        currentHeight
+      });
+    });
+
+    it("keeps funding a deployment whose escrow ran out inside the arrears limit", async () => {
+      const { service, deploymentSettingRepository, currentHeight } = setup();
+      const sink = mock<DeploymentTopUpInstrumentation>();
+      const address = createAkashAddress();
+      const setting = createAutoTopUpDeployment({ address, dseq: "4003" });
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue([setting]);
+      vi.spyOn(service, "findLeases").mockResolvedValue([
+        createDrainingDeployment({ dseq: Number(setting.dseq), owner: address, predictedClosedHeight: currentHeight - averageBlockCountInAnHour * 72 })
+      ]);
+
+      const result = await service.findDrainingDeploymentsForOwner(address, sink, currentHeight);
+
+      expect(result.map(deployment => deployment.dseq)).toEqual([setting.dseq]);
+      expect(sink.recordDeploymentOverdueOnChain).not.toHaveBeenCalled();
     });
 
     it("marks a deployment whose escrow account is no longer open even though its lease still reads open", async () => {
@@ -1560,7 +1628,8 @@ describe(DrainingDeploymentService.name, () => {
 
     const config = mockConfigService<DeploymentConfigService>({
       AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 24,
-      AUTO_TOP_UP_TARGET_RUNWAY_IN_H: 48
+      AUTO_TOP_UP_TARGET_RUNWAY_IN_H: 48,
+      AUTO_TOP_UP_MAX_ARREARS_IN_H: 72
     });
 
     const service = new DrainingDeploymentService(

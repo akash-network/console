@@ -73,6 +73,18 @@ describe("deployment envSchema", () => {
     });
   });
 
+  describe("AUTO_TOP_UP_MAX_ARREARS_IN_H", () => {
+    it("defaults to three days", () => {
+      const result = envSchema.safeParse(setup());
+
+      expect(result.success && result.data.AUTO_TOP_UP_MAX_ARREARS_IN_H).toBe(72);
+    });
+
+    it("rejects a limit that would leave no room for a provider to bill", () => {
+      expect(envSchema.safeParse(setup({ AUTO_TOP_UP_MAX_ARREARS_IN_H: 0 })).success).toBe(false);
+    });
+  });
+
   describe("AUTO_TOP_UP_TARGET_RUNWAY_IN_H", () => {
     it("accepts the default target runway and look-ahead window", () => {
       const result = envSchema.safeParse(setup());

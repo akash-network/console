@@ -122,6 +122,33 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
     });
   });
 
+  describe("recordDeploymentOverdueOnChain", () => {
+    it("counts a deployment left unfunded for running too long past its predicted close", () => {
+      const { service, countersByName } = setup();
+      service.start(100, { dryRun: false });
+
+      service.recordDeploymentOverdueOnChain({ dseq: "42", address: "akash1owner", predictedClosedHeight: 40, currentHeight: 100 });
+
+      expect(countersByName["auto_top_up_deployments_overdue_on_chain_total"].add).toHaveBeenCalledWith(1);
+    });
+
+    it("warns with the heights that put the deployment past the arrears limit", () => {
+      const { service, logger } = setup();
+      service.start(100, { dryRun: true });
+
+      service.recordDeploymentOverdueOnChain({ dseq: "42", address: "akash1owner", predictedClosedHeight: 40, currentHeight: 100 });
+
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "TOP_UP_DEPLOYMENT_OVERDUE_ON_CHAIN",
+        dseq: "42",
+        address: "akash1owner",
+        predictedClosedHeight: 40,
+        currentHeight: 100,
+        dryRun: true
+      });
+    });
+  });
+
   describe("recordDeploymentCloseMarkFailed", () => {
     it("warns without claiming the deployment was marked closed", () => {
       const { service, logger, summarizer } = setup();

@@ -53,6 +53,8 @@ export const envSchema = z
      * window is funded nothing and simply re-triggers, hence the schema check below.
      */
     AUTO_TOP_UP_TARGET_RUNWAY_IN_H: z.number({ coerce: true }).positive().finite().optional().default(48),
+    /** The chain settles an escrow only on a deposit, withdraw, or close, so a lease this long past its predicted close has gone unbilled by its provider and a deposit would only pay that back rent. */
+    AUTO_TOP_UP_MAX_ARREARS_IN_H: z.number({ coerce: true }).positive().finite().optional().default(72),
     AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN: z.number({ coerce: true }).positive().optional().default(60),
     /**
      * Dollar floor auto-funding leaves in the available deployment allowance so a user with credits left can still

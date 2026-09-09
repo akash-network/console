@@ -118,13 +118,37 @@ export class DrainingDeploymentService {
     const expectedClosureHeight = this.#getExpectedClosureHeight(currentHeight);
     const activeDeployments = await this.#resolveActiveDeployments(deploymentSettings, address, instrumentation, dryRun);
     const drainingDeployments = await this.#dropDeploymentsFundedToRuntimeLimit(
-      activeDeployments.filter(deployment => deployment.predictedClosedHeight <= expectedClosureHeight),
+      this.#dropDeploymentsOverdueOnChain(
+        activeDeployments.filter(deployment => deployment.predictedClosedHeight <= expectedClosureHeight),
+        currentHeight,
+        instrumentation
+      ),
       currentHeight,
       instrumentation,
       dryRun
     );
 
     return { activeDeployments, drainingDeployments };
+  }
+
+  /** The chain settles an escrow only on a deposit, withdraw, or close, so a lease this far past its predicted close has gone unbilled by its provider and a deposit would only pay that back rent. */
+  #dropDeploymentsOverdueOnChain(
+    deployments: DrainingDeployment[],
+    currentHeight: number,
+    instrumentation: DeploymentTopUpInstrumentation
+  ): DrainingDeployment[] {
+    const overdueHeight = currentHeight - averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_MAX_ARREARS_IN_H");
+
+    return deployments.filter(deployment => {
+      const predictedClosedHeight = Number(deployment.predictedClosedHeight);
+
+      if (predictedClosedHeight >= overdueHeight) {
+        return true;
+      }
+
+      instrumentation.recordDeploymentOverdueOnChain({ dseq: deployment.dseq, address: deployment.address, predictedClosedHeight, currentHeight });
+      return false;
+    });
   }
 
   async #resolveActiveDeployments(

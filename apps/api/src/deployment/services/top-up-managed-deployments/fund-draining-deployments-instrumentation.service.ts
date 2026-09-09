@@ -13,7 +13,7 @@ import {
 
 export type FundDrainingFailureReason = "master_wallet_insufficient_funds" | "deposit_tx_failed" | "unknown";
 
-export type FundDrainingSkipReason = "nothing_to_fund" | "non_positive_amount" | "runtime_limit_reached" | "below_useful_runway";
+export type FundDrainingSkipReason = "nothing_to_fund" | "non_positive_amount" | "runtime_limit_reached" | "below_useful_runway" | "overdue_on_chain";
 
 export function classifyFailure(error: unknown): FundDrainingFailureReason {
   if (!(error instanceof Error)) {
@@ -163,6 +163,11 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
   recordRuntimeLimitReached(details: { dseq: string; address: string; runtimeEndsAt: Date }): void {
     this.skips.add(1, { reason: "runtime_limit_reached" satisfies FundDrainingSkipReason });
     this.emitLog("info", { event: "FUND_DRAINING_RUNTIME_LIMIT_REACHED", ...details });
+  }
+
+  recordDeploymentOverdueOnChain(details: { dseq: string; address: string; predictedClosedHeight: number; currentHeight: number }): void {
+    this.skips.add(1, { reason: "overdue_on_chain" satisfies FundDrainingSkipReason });
+    this.emitLog("warn", { event: "FUND_DRAINING_DEPLOYMENT_OVERDUE_ON_CHAIN", ...details });
   }
 
   recordDepositBelowUsefulRunway({

@@ -24,6 +24,7 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
   private readonly messagePreparationErrors: Counter;
   private readonly deploymentsMarkedClosed: Counter;
   private readonly settingsWithoutChainState: Counter;
+  private readonly deploymentsOverdueOnChain: Counter;
   private readonly deploymentsScanned: Counter;
   private readonly depositAmount: Histogram;
   private readonly predictedCloseBlocks: Histogram;
@@ -74,6 +75,10 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
 
     this.settingsWithoutChainState = this.metricsService.createCounter(this.meter, "auto_top_up_settings_without_chain_state_total", {
       description: "Deployment records the sweep could not resolve to any chain state, so it neither funded nor closed them"
+    });
+
+    this.deploymentsOverdueOnChain = this.metricsService.createCounter(this.meter, "auto_top_up_deployments_overdue_on_chain_total", {
+      description: "Deployments left unfunded because their escrow ran out longer ago than the arrears limit, so no provider has been billing them"
     });
 
     this.deploymentsScanned = this.metricsService.createCounter(this.meter, "auto_top_up_deployments_scanned_total", {
@@ -404,6 +409,14 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
       event: "TOP_UP_RUNTIME_LIMIT_REACHED",
       ...details
     });
+  }
+
+  recordDeploymentOverdueOnChain(details: { dseq: string; address: string; predictedClosedHeight: number; currentHeight: number }): void {
+    this.execWhenEnabled(() => {
+      this.deploymentsOverdueOnChain.add(1);
+    });
+
+    this.logger.warn({ event: "TOP_UP_DEPLOYMENT_OVERDUE_ON_CHAIN", ...details, dryRun: this.options?.dryRun });
   }
 
   recordMasterWalletInsufficientFundsError({

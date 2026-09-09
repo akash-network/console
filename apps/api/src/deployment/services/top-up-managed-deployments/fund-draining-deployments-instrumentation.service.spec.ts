@@ -288,6 +288,16 @@ describe(FundDrainingDeploymentsInstrumentationService.name, () => {
     });
   });
 
+  describe("recordDeploymentOverdueOnChain", () => {
+    it("counts the skip under its own reason", () => {
+      const { service, skips } = setup();
+
+      service.recordDeploymentOverdueOnChain({ dseq: "42", address: "akash1owner", predictedClosedHeight: 40, currentHeight: 100 });
+
+      expect(skips.add).toHaveBeenCalledWith(1, { reason: "overdue_on_chain" });
+    });
+  });
+
   describe("recordDeploymentClosedOnChain", () => {
     it("credits the marked-closed counter and warns rather than reporting a chain tx error", () => {
       const { service, deploymentsMarkedClosed, chainTxErrors } = setup();
