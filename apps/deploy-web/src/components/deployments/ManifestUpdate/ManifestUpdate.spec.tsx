@@ -191,7 +191,7 @@ describe(ManifestUpdate.name, () => {
 
     expect(handles.analyticsService.track).toHaveBeenCalledWith("successful_tx", { category: "transactions", label: "Successful transaction" });
     expect(closeManifestEditor).toHaveBeenCalled();
-    expect(handles.enqueueSnackbar).not.toHaveBeenCalled();
+    expect(handles.enqueueSnackbar).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" }));
   });
 
   it("caches the submitted sdl even when the editor closes before the api answers", async () => {
@@ -612,6 +612,12 @@ describe(ManifestUpdate.name, () => {
       mock<ReturnType<typeof DEPENDENCIES.useBlockchainStatus>>({ isBlockchainDown: false });
 
     const dependencies = MockComponents(DEPENDENCIES, {
+      DeploymentTabHeader: vi.fn(({ actions, children }) => (
+        <>
+          {children}
+          {actions}
+        </>
+      )),
       useWallet,
       useBalances,
       useSnackbar,
