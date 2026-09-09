@@ -2,6 +2,7 @@
 import type { ReactNode } from "react";
 
 import { FairUsePolicyModal } from "@src/components/fair-use-policy/FairUsePolicyModal/FairUsePolicyModal";
+import Layout from "@src/components/layout/Layout";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAcceptFairUsePolicy } from "@src/hooks/useAcceptFairUsePolicy";
 import { useFlag } from "@src/hooks/useFlag";
@@ -12,6 +13,7 @@ export const DEPENDENCIES = {
   useWallet,
   useFlag,
   useAcceptFairUsePolicy,
+  Layout,
   FairUsePolicyModal
 };
 
@@ -22,7 +24,7 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-/** Holds the page back until acceptance, so an auto-started deployment cannot fire behind the modal. */
+/** Holds the page back until acceptance, so an auto-started deployment cannot fire behind the modal, and renders the shell the withheld page would have. */
 export function RequireFairUsePolicy({ children, isPublic, dependencies: d = DEPENDENCIES }: Props) {
   const { user } = d.useUser();
   const { isTrialing, hasWallet, isWalletLookupFailed } = d.useWallet();
@@ -31,7 +33,13 @@ export function RequireFairUsePolicy({ children, isPublic, dependencies: d = DEP
   const isAwaitingTrialWallet = !hasWallet && !isWalletLookupFailed;
   const mustAccept = !isPublic && isGateEnabled && (isTrialing || isAwaitingTrialWallet) && !!user?.userId && !user.fairUsePolicyAcceptedAt && !hasAccepted;
 
-  if (mustAccept) return <d.FairUsePolicyModal onAccept={accept} isAccepting={isAccepting} />;
+  if (mustAccept) {
+    return (
+      <d.Layout>
+        <d.FairUsePolicyModal onAccept={accept} isAccepting={isAccepting} />
+      </d.Layout>
+    );
+  }
 
   return <>{children}</>;
 }

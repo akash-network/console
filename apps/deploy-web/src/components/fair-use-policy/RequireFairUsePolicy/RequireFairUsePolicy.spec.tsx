@@ -10,11 +10,11 @@ import { fireEvent, render, screen } from "@testing-library/react";
 const ACCEPTED_AT = "2026-09-06T00:00:00.000Z";
 
 describe(RequireFairUsePolicy.name, () => {
-  it("shows the modal instead of the page for a trialing user who has not accepted", () => {
+  it("shows the modal inside the app shell instead of the page for a trialing user who has not accepted", () => {
     setup({ userId: "u1", fairUsePolicyAcceptedAt: null });
 
     expect(screen.queryByText("child")).not.toBeInTheDocument();
-    expect(screen.getByTestId("fair-use-policy-modal")).toBeInTheDocument();
+    expect(screen.getByTestId("layout")).toContainElement(screen.getByTestId("fair-use-policy-modal"));
   });
 
   it("demands acceptance before the trial wallet exists", () => {
@@ -36,6 +36,7 @@ describe(RequireFairUsePolicy.name, () => {
 
     expect(screen.getByText("child")).toBeInTheDocument();
     expect(screen.queryByTestId("fair-use-policy-modal")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("layout")).not.toBeInTheDocument();
   });
 
   it("stops demanding acceptance once it is confirmed, even while the profile still lacks the timestamp", () => {
@@ -104,6 +105,7 @@ describe(RequireFairUsePolicy.name, () => {
         }),
       useFlag: flag => flag === "fair_use_policy_gate" && (input.isGateEnabled ?? true),
       useAcceptFairUsePolicy: () => ({ accept, isAccepting: false, hasAccepted: input.hasAccepted ?? false }),
+      Layout: ({ children }) => <div data-testid="layout">{children}</div>,
       FairUsePolicyModal: ({ onAccept }) => (
         <div data-testid="fair-use-policy-modal">
           <button data-testid="fair-use-policy-accept-button" onClick={onAccept}>
