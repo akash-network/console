@@ -1010,7 +1010,7 @@ describe(ManagedSignerService.name, () => {
     it("throws 404 when the wallet is missing", async () => {
       const { service } = setup({ findOneByUserId: vi.fn().mockResolvedValue(null) });
 
-      await expect(service.assertCanBroadcast("user-123", [])).rejects.toThrow("UserWallet Not Found");
+      await expect(service.assertCanBroadcast("user-123", [])).rejects.toMatchObject({ status: 404, message: "UserWallet Not Found" });
     });
   });
 

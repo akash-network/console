@@ -894,6 +894,15 @@ describe(DeploymentWriterService.name, () => {
       expect(loggedTextOf(logger)).not.toContain("API_TOKEN");
     });
 
+    it("reclaims a trial wallet's orphans before asking whether the create can be broadcast, so the freed allowance counts", async () => {
+      const { service, staleDeploymentsCleaner, signerService, walletReaderService } = setup();
+      walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, isTrialing: true });
+
+      await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
+
+      expect(staleDeploymentsCleaner.cleanUpForWallet.mock.invocationCallOrder[0]).toBeLessThan(signerService.assertCanBroadcast.mock.invocationCallOrder[0]);
+    });
+
     it("reclaims trial orphans with age 0 before signing the create when the wallet is trialing", async () => {
       const { service, staleDeploymentsCleaner, signerService, walletReaderService } = setup();
       walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, isTrialing: true });

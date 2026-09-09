@@ -129,13 +129,13 @@ export class DeploymentWriterService {
       reclamation: manifest.reclamation
     });
 
-    await this.signerService.assertCanBroadcast(wallet.userId, [message]);
-
-    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq, secrets: stored });
-
     if (wallet.isTrialing) {
       await this.reclaimTrialOrphanedDeployments(wallet);
     }
+
+    await this.signerService.assertCanBroadcast(wallet.userId, [message]);
+
+    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq, secrets: stored });
 
     await this.recordDefinitionWithCompensation({
       userId: wallet.userId,
@@ -308,11 +308,11 @@ export class DeploymentWriterService {
   /**
    * Reclaims escrow from a trial wallet's orphaned (open, lease-less) deployments before a new create, so a stranded
    * trial user whose earlier close failed can deploy again without waiting for the periodic cleanup job. It runs
-   * before the create tx so the freed deployment allowance is available when the create's balance check runs.
+   * before the signer's pre-flight so the freed deployment allowance is available when the balance check runs.
    * Best-effort: a cleanup failure never blocks the create, which then proceeds and may 402 exactly as it would today.
    * Age 0 also closes an actively-quoting lease-less deployment of the same trial user, acceptable since a trial
-   * balance cannot fund two deployments at once — but only because every way this request can still be refused has
-   * already been tried. Nothing that can reject the caller may be added below this line.
+   * balance cannot fund two deployments at once — but only because every way the submitted document can be refused
+   * has already been tried. Nothing that can reject the document may be added below this line.
    */
   private async reclaimTrialOrphanedDeployments(wallet: WalletInitialized): Promise<void> {
     try {
