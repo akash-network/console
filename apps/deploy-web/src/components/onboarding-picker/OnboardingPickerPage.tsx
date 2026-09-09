@@ -11,8 +11,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
 import { BONUS_PERCENT, MAX_BONUS } from "@src/components/billing-usage/FirstPurchaseBonusAlert/FirstPurchaseBonusAlert";
 import { DeploymentTemplatePickerCard } from "@src/components/deployments/DeploymentTemplatePickerCard/DeploymentTemplatePickerCard";
-import { AkashConsoleLogo } from "@src/components/icons/AkashConsoleLogo";
-import { AccountMenu } from "@src/components/layout/AccountMenu";
+import { OnboardingHeader } from "@src/components/layout/OnboardingHeader/OnboardingHeader";
 import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
@@ -40,7 +39,7 @@ export const DEPENDENCIES = {
   useFlag,
   DeploymentTemplatePickerCard,
   AddCreditsSheet,
-  AccountMenu,
+  OnboardingHeader,
   SkipOnboardingButton,
   Button
 };
@@ -108,20 +107,14 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
         <meta name="description" content="Deploy your first app on Akash Network with our onboarding flow. Get a live URL in about 30 seconds." />
       </Head>
       <div className="flex min-h-screen flex-col bg-background">
-        <header className="relative flex items-center justify-between border-b border-border">
-          <div className="flex h-14 w-full items-center justify-between pl-4 pr-4">
-            <AkashConsoleLogo />
-            <div className="flex items-center gap-2">
-              {showHackathonEntry && (
-                <d.Button onClick={() => setAddCreditsSheetReason("hackathon-coupon")} variant="ghost" size="sm">
-                  Hackathon? click here
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </d.Button>
-              )}
-              <d.AccountMenu minimal />
-            </div>
-          </div>
-        </header>
+        <d.OnboardingHeader>
+          {showHackathonEntry && (
+            <d.Button onClick={() => setAddCreditsSheetReason("hackathon-coupon")} variant="ghost" size="sm">
+              Hackathon? click here
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </d.Button>
+          )}
+        </d.OnboardingHeader>
 
         <div className="mx-auto w-full max-w-5xl px-6 pt-8 [@media(max-height:520px)]:pb-12">
           <div className="flex w-full flex-col gap-10">
