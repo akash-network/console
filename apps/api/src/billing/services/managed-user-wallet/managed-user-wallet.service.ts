@@ -175,8 +175,27 @@ export class ManagedUserWalletService {
 
   private async authorizeDeploymentSpending(signer: ManagedSignerService, options: SpendingAuthorizationMsgOptions) {
     return withSpan("ManagedUserWalletService.authorizeDeploymentSpending", async () => {
+      if (options.limit <= 0) {
+        return await this.revokeDeploymentSpending(signer, options);
+      }
+
       const deploymentAllowanceMsg = this.rpcMessageService.getDepositDeploymentGrantMsg(options);
       return await signer.executeFundingTx([deploymentAllowanceMsg]);
     });
+  }
+
+  /** The chain rejects a zero spend limit as an invalid coin, so a drained deployment allowance is expressed by removing the grant. */
+  private async revokeDeploymentSpending(signer: ManagedSignerService, options: SpendingAuthorizationMsgOptions) {
+    const grant = await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(options.granter, options.grantee);
+
+    if (!grant) {
+      this.logger.info({ event: "DEPOSIT_GRANT_ALREADY_ABSENT", grantee: options.grantee });
+      return;
+    }
+
+    const result = await signer.executeFundingTx([this.rpcMessageService.getRevokeDepositDeploymentGrantMsg(options)]);
+    this.logger.info({ event: "DEPOSIT_GRANT_REVOKED_AT_ZERO_LIMIT", grantee: options.grantee });
+
+    return result;
   }
 }

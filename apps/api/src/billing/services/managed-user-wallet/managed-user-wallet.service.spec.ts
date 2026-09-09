@@ -1,4 +1,4 @@
-import type { AuthzHttpService } from "@akashnetwork/http-sdk";
+import type { AuthzHttpService, ExactDepositDeploymentGrant } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
 import addDays from "date-fns/addDays";
@@ -154,6 +154,59 @@ describe(ManagedUserWalletService.name, () => {
     });
   });
 
+  describe("deployment spending authorization", () => {
+    it("grants the deposit authorization at the requested limit", async () => {
+      const { service, signer, config, rpcMessageService, authzHttpService } = setup();
+      const address = createAkashAddress();
+      const grantMsg = { typeUrl: "/deposit-grant", value: {} } as unknown as EncodeObject;
+      rpcMessageService.getDepositDeploymentGrantMsg.mockReturnValue(grantMsg);
+
+      await service.authorizeSpending(signer, { address, limits: { deployment: 110_000_000, fees: config.FEE_ALLOWANCE_REFILL_AMOUNT } });
+
+      expect(rpcMessageService.getDepositDeploymentGrantMsg).toHaveBeenCalledWith(
+        expect.objectContaining({ grantee: address, denom: config.DEPLOYMENT_GRANT_DENOM, limit: 110_000_000 })
+      );
+      expect(signer.executeFundingTx).toHaveBeenCalledWith([grantMsg]);
+      expect(authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee).not.toHaveBeenCalled();
+    });
+
+    it("revokes the deposit authorization instead of granting a zero limit", async () => {
+      const { service, signer, config, rpcMessageService, authzHttpService, txManagerService } = setup();
+      const address = createAkashAddress();
+      const granter = await txManagerService.getFundingWalletAddress();
+      const revokeMsg = { typeUrl: "/deposit-revoke", value: {} } as unknown as EncodeObject;
+      rpcMessageService.getRevokeDepositDeploymentGrantMsg.mockReturnValue(revokeMsg);
+      authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee.mockResolvedValue(mock<ExactDepositDeploymentGrant>());
+
+      await service.authorizeSpending(signer, { address, limits: { deployment: 0, fees: config.FEE_ALLOWANCE_REFILL_AMOUNT } });
+
+      expect(rpcMessageService.getDepositDeploymentGrantMsg).not.toHaveBeenCalled();
+      expect(rpcMessageService.getRevokeDepositDeploymentGrantMsg).toHaveBeenCalledWith(expect.objectContaining({ granter, grantee: address }));
+      expect(signer.executeFundingTx).toHaveBeenCalledWith([revokeMsg]);
+    });
+
+    it("broadcasts nothing for a zero limit when the wallet holds no deposit authorization", async () => {
+      const { service, signer, config, rpcMessageService, authzHttpService, logger } = setup();
+      authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee.mockResolvedValue(undefined);
+
+      await service.authorizeSpending(signer, { address: createAkashAddress(), limits: { deployment: 0, fees: config.FEE_ALLOWANCE_REFILL_AMOUNT } });
+
+      expect(rpcMessageService.getRevokeDepositDeploymentGrantMsg).not.toHaveBeenCalled();
+      expect(signer.executeFundingTx).toHaveBeenCalledTimes(1);
+      expect(signer.executeFundingTx).not.toHaveBeenCalledWith([expect.objectContaining({ typeUrl: "/deposit-revoke" })]);
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPOSIT_GRANT_ALREADY_ABSENT" }));
+    });
+
+    it("keeps refilling the fee allowance when the deployment limit drops to zero", async () => {
+      const { service, signer, config, rpcMessageService, authzHttpService } = setup();
+      authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee.mockResolvedValue(mock<ExactDepositDeploymentGrant>());
+
+      await service.authorizeSpending(signer, { address: createAkashAddress(), limits: { deployment: 0, fees: config.FEE_ALLOWANCE_REFILL_AMOUNT } });
+
+      expect(rpcMessageService.getFeesAllowanceGrantMsg).toHaveBeenCalledWith(expect.objectContaining({ limit: config.FEE_ALLOWANCE_REFILL_AMOUNT }));
+    });
+  });
+
   it("creates the logger with the service context", () => {
     const { createLogger } = setup();
 
@@ -180,6 +233,8 @@ describe(ManagedUserWalletService.name, () => {
     authzHttpService.hasFeeAllowance.mockResolvedValue(false);
     rpcMessageService.getFeesAllowanceGrantMsg.mockReturnValue({ typeUrl: "/fee-grant", value: {} } as unknown as EncodeObject);
     rpcMessageService.getRevokeAllowanceMsg.mockReturnValue({ typeUrl: "/fee-revoke", value: {} } as unknown as EncodeObject);
+    rpcMessageService.getDepositDeploymentGrantMsg.mockReturnValue({ typeUrl: "/deposit-grant", value: {} } as unknown as EncodeObject);
+    rpcMessageService.getRevokeDepositDeploymentGrantMsg.mockReturnValue({ typeUrl: "/deposit-revoke", value: {} } as unknown as EncodeObject);
     signer.executeFundingTx.mockResolvedValue({ code: 0, hash: "hash", rawLog: "[]" } as never);
 
     const service = new ManagedUserWalletService(config, txManagerService, rpcMessageService, authzHttpService, createLogger);
