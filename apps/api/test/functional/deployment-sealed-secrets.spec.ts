@@ -114,6 +114,7 @@ describe("Deployment sealed secrets", () => {
       hash: "fake-transaction-hash",
       rawLog: "fake-raw-log"
     });
+    vi.spyOn(signerService, "assertCanBroadcast").mockResolvedValue(undefined);
     kmsClient.asymmetricDecrypt.mockClear();
   });
 

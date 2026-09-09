@@ -199,6 +199,7 @@ describe(DeploymentWriterService.name, () => {
     const broadcast = vi
       .spyOn(container.resolve(ManagedSignerService), "executeDerivedDecodedTxByUserId")
       .mockResolvedValue({ code: 0, transactionHash: "tx-hash", hash: "tx-hash", rawLog: "" });
+    vi.spyOn(container.resolve(ManagedSignerService), "assertCanBroadcast").mockResolvedValue(undefined);
 
     const { user } = await seedUserWithWallet();
 

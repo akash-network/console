@@ -119,6 +119,18 @@ export class DeploymentWriterService {
     const dseq = Date.now().toString();
     const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { secrets: { ...inherited, ...supplied }, isTrialing: !!wallet.isTrialing });
     const unresolvedManifest = await this.#unresolvedManifestOf(input.sdl);
+    const message = this.rpcMessageService.getCreateDeploymentMsg({
+      owner: wallet.address,
+      dseq,
+      groups: manifest.groupSpecs,
+      denom: this.billingConfig.get("DEPLOYMENT_GRANT_DENOM"),
+      amount: denomToUdenom(depositInDollars),
+      hash: manifestVersion,
+      reclamation: manifest.reclamation
+    });
+
+    await this.signerService.assertCanBroadcast(wallet.userId, [message]);
+
     const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq, secrets: stored });
 
     if (wallet.isTrialing) {
@@ -133,16 +145,6 @@ export class DeploymentWriterService {
       manifestVersion,
       sealedSecrets,
       runtimeLimitHours: input.runtimeLimitHours
-    });
-
-    const message = this.rpcMessageService.getCreateDeploymentMsg({
-      owner: wallet.address,
-      dseq,
-      groups: manifest.groupSpecs,
-      denom: this.billingConfig.get("DEPLOYMENT_GRANT_DENOM"),
-      amount: denomToUdenom(depositInDollars),
-      hash: manifestVersion,
-      reclamation: manifest.reclamation
     });
 
     const result = await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, [message]);
