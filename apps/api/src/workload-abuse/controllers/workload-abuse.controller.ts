@@ -11,8 +11,11 @@ export class WorkloadAbuseController {
     private readonly enforcementJobService: TrialAbuseEnforcementJobService
   ) {}
 
+  /** Each sweep runs whether or not the other fails, so a probe outage does not leave stuck wipes waiting another run. */
   async probeTrialDeployments(options: DryRunOptions): Promise<void> {
-    await this.probeJobService.reconcile(options);
-    await this.enforcementJobService.reconcile(options);
+    const sweeps = await Promise.allSettled([this.probeJobService.reconcile(options), this.enforcementJobService.reconcile(options)]);
+    const failure = sweeps.find((sweep): sweep is PromiseRejectedResult => sweep.status === "rejected");
+
+    if (failure) throw failure.reason;
   }
 }
