@@ -19,10 +19,8 @@ import {
   DeploymentResponse,
   PatchDeploymentRequest,
   PatchDeploymentResponse,
-  RedeployDeploymentRequest,
   UpdateDeploymentRequest
 } from "@src/deployment/http-schemas/deployment.schema";
-import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/deployment/http-schemas/runtime-limit";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import {
   DeleteUnbackedDeploymentSetting,
@@ -49,14 +47,8 @@ const SECRET_REFERENCE_KIND = "secret";
 /** Distinct from the sealed-secret failure so a client can tell which half of the stored state it cannot read, both being permanent. */
 const STORED_SDL_UNREADABLE_ERROR_CODE = "stored_sdl_unreadable";
 
-/** Redeploying re-derives cleartext values into references, which lengthens the document, so a source can be stored yet be too large to redeploy. */
-const REDEPLOYED_SDL_TOO_LARGE_ERROR_CODE = "redeployed_sdl_too_large";
-
 /** A deployment the console never recorded an SDL for has nothing to patch, and the SDL is deliberately not accepted from the request. */
 const NOT_PATCHABLE_MESSAGE = "This deployment has no SDL recorded by the console, so there is nothing to patch";
-
-/** Its own wording rather than the one above, because the patch endpoint's 404 message is a shipped behaviour its callers already read. */
-const NOT_REDEPLOYABLE_MESSAGE = "This deployment has no SDL recorded by the console, so there is nothing to redeploy";
 
 /** What becomes of the values a submitted document carries in the clear. There is no longer a way to say "dropped": every writer can seal, so a value is never lost to be safe. */
 type StoredSdlValues =
@@ -77,16 +69,6 @@ class UnstorableSdlError extends HTTPException {
     super(400, { message });
     this.refusal = refusal;
   }
-}
-
-/**
- * A redeploy creates a deployment that has none, so the most one request may grant it is the same first
- * increment every other entry point allows; a longer limit stays reachable by extending after the redeploy.
- */
-function carriedRuntimeLimitOf(storedRuntimeLimitHours: number | null | undefined) {
-  if (typeof storedRuntimeLimitHours !== "number") return undefined;
-
-  return Math.min(storedRuntimeLimitHours, MAX_RUNTIME_LIMIT_INCREMENT_HOURS);
 }
 
 /** Lowest precedence first: what the deployment carried in, then what the request supplied, then what the document gave up. */
@@ -322,26 +304,6 @@ export class DeploymentWriterService {
   }
 
   /**
-   * Built from the refusal kind alone and never from the error carrying it, so no line, column or fragment of
-   * the console's own document reaches a caller who could not have written it.
-   */
-  #rejectUnredeployableStoredSdl(refusal: StoredSdlRefusal, key: { userId: string; dseq: string }) {
-    if (refusal === "unparseable") {
-      this.logger.error({ event: "DEPLOYMENT_STORED_SDL_UNPARSEABLE", ...key });
-
-      return createError(500, "The SDL recorded for this deployment cannot be read", { errorCode: STORED_SDL_UNREADABLE_ERROR_CODE });
-    }
-
-    this.logger.error({ event: "DEPLOYMENT_REDEPLOYED_SDL_TOO_LARGE", ...key, maxLength: SDL_MAX_LENGTH });
-
-    return createError(
-      500,
-      `The SDL recorded for this deployment cannot be redeployed: it exceeds the maximum of ${SDL_MAX_LENGTH} characters once its values are re-derived`,
-      { errorCode: REDEPLOYED_SDL_TOO_LARGE_ERROR_CODE }
-    );
-  }
-
-  /**
    * Reclaims escrow from a trial wallet's orphaned (open, lease-less) deployments before a new create, so a stranded
    * trial user whose earlier close failed can deploy again without waiting for the periodic cleanup job. It runs
    * before the create tx so the freed deployment allowance is available when the create's balance check runs.
@@ -498,43 +460,6 @@ export class DeploymentWriterService {
     });
 
     return { ...(await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq)), manifestVersion: recordedVersion };
-  }
-
-  /**
-   * Deploys again what the console stored for a deployment — its SDL, its secrets and its runtime limit —
-   * as a new deployment of its own. The SDL is never accepted from the request, and the secrets are carried
-   * by the same inheritance a create performs, so nothing about them passes through the client.
-   *
-   * The definition is read here and its token read again inside `create`. A patch landing between the two
-   * can only pair the older SDL with a newer token, which either resolves — a value the patch changed being
-   * what a caller would want anyway — or is refused when the token no longer covers what the SDL references.
-   * The worst a race produces is a spurious refusal, never a deployment of something other than the source.
-   */
-  public async redeployByUserIdAndDseq(
-    userId: string,
-    dseq: string,
-    input: RedeployDeploymentRequest["data"],
-    ability: AnyAbility
-  ): Promise<CreateDeploymentResponse["data"]> {
-    const stored = await this.#findStoredDefinition({ userId, dseq }, ability, NOT_REDEPLOYABLE_MESSAGE);
-
-    this.logger.info({ event: "DEPLOYMENT_REDEPLOY_STARTED", userId, dseq, overridesRuntimeLimit: input.runtimeLimitHours !== undefined });
-
-    try {
-      return await this.create({
-        userId,
-        sdl: stored.sdl,
-        inheritSecretsFrom: dseq,
-        sealedSecrets: input.sealedSecrets,
-        runtimeLimitHours: input.runtimeLimitHours ?? carriedRuntimeLimitOf(stored.runtimeLimitHours)
-      });
-    } catch (error) {
-      if (error instanceof UnstorableSdlError) {
-        throw this.#rejectUnredeployableStoredSdl(error.refusal, { userId, dseq });
-      }
-
-      throw error;
-    }
   }
 
   /** Read through the caller's own ability as well as their id, so a definition is unreachable by anyone the ability excludes even before the write re-checks it. */
