@@ -57,10 +57,7 @@ const GOOGLE_ADS_COUNTRY_ORIGINS = [
   "https://www.google.pt"
 ];
 
-/**
- * Retargeting tags the GTM container fires (StackAdapt, IQM, Google Ads); their image pixels already fall under the
- * blanket https: in img-src, so only the script, style, and connect directives need to name them.
- */
+/** The matching image pixels need no img-src entry because the blanket https: already covers them. */
 const MARKETING_TAG_CONNECT_ORIGINS = [STACKADAPT_ORIGIN, "https://*.g.doubleclick.net", ...GOOGLE_ADS_COUNTRY_ORIGINS];
 
 export interface ContentSecurityPolicyInput {
