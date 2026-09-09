@@ -5,10 +5,12 @@ import { NextResponse } from "next/server";
 
 import { buildContentSecurityPolicy, getContentSecurityPolicyHeaderName, getContentSecurityPolicyReportHeaders } from "./lib/csp/csp";
 
-const { MAINTENANCE_MODE } = process.env;
 const logger = new LoggerService({ name: "middleware" });
 
 const networkRpcAndApiUrls = netConfig.getSupportedNetworks().flatMap(network => [netConfig.getBaseRpcUrl(network), netConfig.getBaseAPIUrl(network)]);
+
+/** A service worker script served as a redirect fails registration outright, so the maintenance redirect has to let the PWA assets through. */
+const PWA_ASSET_PATHNAME = /^\/(sw\.js|workbox-[^/]+\.js|manifest\.json)$/;
 
 export function middleware(request: NextRequest) {
   const contentSecurityPolicyInput = {
@@ -27,15 +29,18 @@ export function middleware(request: NextRequest) {
   const contentSecurityPolicyReportHeaders = getContentSecurityPolicyReportHeaders(contentSecurityPolicyInput);
 
   const maintenancePage = "/maintenance";
-  const isMaintenanceMode = MAINTENANCE_MODE === "true";
-  if (isMaintenanceMode && !request.nextUrl.pathname.startsWith(maintenancePage)) {
-    const fromPath = request.nextUrl.pathname + request.nextUrl.search;
+  const { pathname } = request.nextUrl;
+  const isMaintenanceMode = process.env.MAINTENANCE_MODE === "true";
+  const shouldRedirectToMaintenance = isMaintenanceMode && !pathname.startsWith(maintenancePage) && !PWA_ASSET_PATHNAME.test(pathname);
+
+  if (shouldRedirectToMaintenance) {
+    const fromPath = pathname + request.nextUrl.search;
     logger.info({ message: `Redirecting to maintenance page from ${fromPath}` });
 
     const redirectResponse = NextResponse.redirect(new URL(`${maintenancePage}?return=${encodeURIComponent(fromPath)}`, request.url), 307); // 307 - temporary redirect
     setContentSecurityPolicyHeaders(redirectResponse, contentSecurityPolicyHeaderName, contentSecurityPolicy, contentSecurityPolicyReportHeaders);
     return redirectResponse;
-  } else if (!isMaintenanceMode && request.nextUrl.pathname.startsWith(maintenancePage)) {
+  } else if (!isMaintenanceMode && pathname.startsWith(maintenancePage)) {
     const returnPath = getReturnPath(request);
     logger.info({ message: `Redirecting from maintenance page to ${returnPath}` });
 
@@ -88,7 +93,6 @@ function getReturnPath(request: NextRequest) {
   }
 }
 
-/** A service worker script served behind the maintenance redirect fails registration outright, so PWA assets skip the middleware. */
 export const config = {
-  matcher: ["/((?!_next|api/auth|sw\\.js|workbox-|manifest\\.json).*)(.+)", "/"]
+  matcher: ["/((?!_next|api/auth).*)(.+)", "/"]
 };

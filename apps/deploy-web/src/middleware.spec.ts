@@ -37,6 +37,30 @@ describe("middleware", () => {
     expect(response.headers.get("Content-Security-Policy-Report-Only")).toBeNull();
   });
 
+  it.each(["/sw.js", "/workbox-4754cb34.js", "/manifest.json"])("serves %s during maintenance instead of redirecting it", path => {
+    vi.stubEnv("MAINTENANCE_MODE", "true");
+
+    const { response } = setup({ path });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("still applies the CSP header to the service worker script", () => {
+    const { response } = setup({ path: "/sw.js" });
+
+    expect(response.headers.get("Content-Security-Policy-Report-Only")).toContain("script-src 'self'");
+  });
+
+  it("redirects an ordinary page during maintenance", () => {
+    vi.stubEnv("MAINTENANCE_MODE", "true");
+
+    const { response } = setup({ path: "/deployments" });
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toContain("/maintenance");
+  });
+
   function setup(input: { path: string }) {
     const request = new NextRequest(new URL(`http://localhost${input.path}`));
     const response = middleware(request);
