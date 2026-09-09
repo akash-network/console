@@ -216,6 +216,16 @@ describe(ManifestUpdate.name, () => {
     expect(handles.enqueueSnackbar).toHaveBeenCalled();
   });
 
+  it("falls back to a snackbar when an sdl refusal arrives after the editor closes", async () => {
+    const handles = setup();
+
+    await clickUpdate(handles);
+    handles.unmount();
+    await settleAfterClose(handles, { outcome: "failure", cause: BAD_SDL });
+
+    expect(handles.enqueueSnackbar).toHaveBeenCalled();
+  });
+
   it("tracks the update and the successful transaction once the api accepts it", async () => {
     const handles = setup();
 

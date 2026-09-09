@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LoggerService } from "@akashnetwork/logging";
 import { extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
 import { Alert, Button, CustomTooltip, Snackbar } from "@akashnetwork/ui/components";
@@ -126,6 +126,17 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     onError: reportUpdateFailure
   });
 
+  /** The inline alert only exists while the editor is mounted, so a refusal arriving after it closes has to fall back to a snackbar. */
+  const isEditorMounted = useRef(true);
+
+  useEffect(function trackEditorMount() {
+    isEditorMounted.current = true;
+
+    return function markEditorUnmounted() {
+      isEditorMounted.current = false;
+    };
+  }, []);
+
   useEffect(() => {
     const init = async () => {
       const localDeploymentData = deploymentLocalStorage.get(address, deployment.dseq);
@@ -201,7 +212,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
       analyticsService.track("failed_tx", { category: "transactions", label: "Failed transaction" });
     }
 
-    if (sdlRefusalOf(cause)) return;
+    if (sdlRefusalOf(cause) && isEditorMounted.current) return;
 
     const creditsRefusal = creditsRefusalOf(cause);
     if (creditsRefusal !== null) {
