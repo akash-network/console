@@ -17,6 +17,30 @@ describe(RequireFairUsePolicy.name, () => {
     expect(screen.getByTestId("layout")).toContainElement(screen.getByTestId("fair-use-policy-modal"));
   });
 
+  it("shows the onboarding step instead of the modal while the user is still on the onboarding route", () => {
+    setup({ userId: "u1", fairUsePolicyAcceptedAt: null, pathname: "/onboarding" });
+
+    expect(screen.queryByText("child")).not.toBeInTheDocument();
+    expect(screen.getByTestId("fair-use-policy-step")).toBeInTheDocument();
+    expect(screen.queryByTestId("fair-use-policy-modal")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("layout")).not.toBeInTheDocument();
+  });
+
+  it("accepts the policy when the onboarding step action is used", () => {
+    const { accept } = setup({ userId: "u1", fairUsePolicyAcceptedAt: null, pathname: "/onboarding" });
+
+    fireEvent.click(screen.getByTestId("fair-use-policy-accept-button"));
+
+    expect(accept).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders only the page on the onboarding route once the user has accepted", () => {
+    setup({ userId: "u1", fairUsePolicyAcceptedAt: ACCEPTED_AT, pathname: "/onboarding" });
+
+    expect(screen.getByText("child")).toBeInTheDocument();
+    expect(screen.queryByTestId("fair-use-policy-step")).not.toBeInTheDocument();
+  });
+
   it("demands acceptance before the trial wallet exists", () => {
     setup({ userId: "u1", fairUsePolicyAcceptedAt: null, isTrialing: false, hasWallet: false });
 
@@ -80,6 +104,7 @@ describe(RequireFairUsePolicy.name, () => {
   function setup(input: {
     userId?: string;
     fairUsePolicyAcceptedAt?: string | null;
+    pathname?: string;
     isPublic?: boolean;
     loggedOut?: boolean;
     isTrialing?: boolean;
@@ -105,7 +130,15 @@ describe(RequireFairUsePolicy.name, () => {
         }),
       useFlag: flag => flag === "fair_use_policy_gate" && (input.isGateEnabled ?? true),
       useAcceptFairUsePolicy: () => ({ accept, isAccepting: false, hasAccepted: input.hasAccepted ?? false }),
+      usePathname: () => input.pathname ?? "/deployments",
       Layout: ({ children }) => <div data-testid="layout">{children}</div>,
+      FairUsePolicyStep: ({ onAccept }) => (
+        <div data-testid="fair-use-policy-step">
+          <button data-testid="fair-use-policy-accept-button" onClick={onAccept}>
+            agree
+          </button>
+        </div>
+      ),
       FairUsePolicyModal: ({ onAccept }) => (
         <div data-testid="fair-use-policy-modal">
           <button data-testid="fair-use-policy-accept-button" onClick={onAccept}>
