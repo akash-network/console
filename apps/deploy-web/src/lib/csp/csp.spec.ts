@@ -106,10 +106,33 @@ describe("csp", () => {
       expect(connectSrc).toContain("'self'");
     });
 
-    it("derives the templates img-src origin from the provided value", () => {
-      const { imgSrc } = setup({ templatesUrl: "https://akash-templates.pages.dev" });
+    it("derives the templates connect-src origin from the provided value", () => {
+      const { connectSrc } = setup({ templatesUrl: "https://akash-templates.pages.dev" });
 
-      expect(imgSrc).toContain("https://akash-templates.pages.dev");
+      expect(connectSrc).toContain("https://akash-templates.pages.dev");
+    });
+
+    it("allows any https image source because template logos point at arbitrary origins", () => {
+      const { imgSrc } = setup({});
+
+      expect(imgSrc).toContain("'self'");
+      expect(imgSrc).toContain("https:");
+      expect(imgSrc).toContain("data:");
+      expect(imgSrc).toContain("blob:");
+    });
+
+    it("allows the bare analytics.google.com host the subdomain wildcard cannot match", () => {
+      const { connectSrc } = setup({});
+
+      expect(connectSrc).toContain("https://analytics.google.com");
+      expect(connectSrc).toContain("https://*.analytics.google.com");
+      expect(connectSrc).toContain("https://*.google-analytics.com");
+    });
+
+    it("allows the jsDelivr origin the provider map fetches its topology from", () => {
+      const { connectSrc } = setup({});
+
+      expect(connectSrc).toContain("https://cdn.jsdelivr.net");
     });
 
     it("always allows Amplitude endpoints since Session Replay is not routed through the proxy", () => {
