@@ -7,7 +7,7 @@ import { ChainErrorService } from "@src/billing/services/chain-error/chain-error
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
-import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY, TxService } from "@src/core";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
@@ -45,19 +45,20 @@ export class TrialAbuseEnforcementService {
     private readonly detectionRepository: WorkloadAbuseDetectionRepository,
     private readonly probeJobService: TrialWorkloadProbeJobService,
     private readonly instrumentation: WorkloadAbuseInstrumentationService,
+    private readonly txService: TxService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: TrialAbuseEnforcementService.name });
   }
 
-  async enforce(input: { wallet: WalletInitialized; detectionId: string }): Promise<EnforcementOutcome> {
+  async enforce(input: { wallet: WalletInitialized; detectionId: string }): Promise<EnforcementOutcome | null> {
     const { wallet, detectionId } = input;
     await this.detectionRepository.updateById(detectionId, { action: "enforcing", enforcementError: null, updatedAt: new Date() });
 
-    let outcome: EnforcementOutcome;
+    let outcome: EnforcementOutcome | null;
 
     try {
-      outcome = await this.#wipe(wallet);
+      outcome = await this.txService.transaction(() => this.#wipeUnlessPaid(wallet));
     } catch (error) {
       await this.detectionRepository.updateById(detectionId, { action: "enforcement_failed", enforcementError: toErrorMessage(error), updatedAt: new Date() });
       this.instrumentation.recordEnforcement("failed");
@@ -72,6 +73,20 @@ export class TrialAbuseEnforcementService {
       throw error;
     }
 
+    if (!outcome) {
+      await this.detectionRepository.updateById(detectionId, { action: "detected", enforcementError: null, updatedAt: new Date() });
+      this.instrumentation.recordEnforcement("skipped");
+      this.logger.info({
+        event: "TRIAL_WORKLOAD_ABUSE_ENFORCEMENT_SKIPPED",
+        reason: "PAID_DURING_ENFORCEMENT",
+        detectionId,
+        walletId: wallet.id,
+        userId: wallet.userId,
+        owner: wallet.address
+      });
+      return null;
+    }
+
     await this.detectionRepository.markWalletEnforced(wallet.id);
     this.instrumentation.recordEnforcement("enforced");
     this.logger.warn({ event: "TRIAL_WORKLOAD_ABUSE_ENFORCED", detectionId, walletId: wallet.id, userId: wallet.userId, owner: wallet.address, ...outcome });
@@ -79,7 +94,16 @@ export class TrialAbuseEnforcementService {
     return outcome;
   }
 
-  /** The lock commits before the probes are cancelled, so a wipe that fails partway leaves the wallet unlocked and still monitored for the retry. */
+  /** Holds the wallet row for the whole wipe, so a payment settling at the same time waits for it and then clears the lock instead of re-granting between the revokes. */
+  async #wipeUnlessPaid(wallet: WalletInitialized): Promise<EnforcementOutcome | null> {
+    const lockedWallet = await this.userWalletRepository.findOneByAndLock({ id: wallet.id });
+
+    if (!lockedWallet?.isTrialing) return null;
+
+    return await this.#wipe(wallet);
+  }
+
+  /** The lock and the probe cancellations ride the row-lock transaction, so a wipe that fails partway rolls them back and leaves the wallet unlocked and still monitored for the retry. */
   async #wipe(wallet: WalletInitialized): Promise<EnforcementOutcome> {
     const granter = await this.txManagerService.getFundingWalletAddress();
     const depositGrantRevoked = await this.#revokeDepositGrant(granter, wallet.address);
