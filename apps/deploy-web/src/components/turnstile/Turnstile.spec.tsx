@@ -161,29 +161,56 @@ describe(Turnstile.name, () => {
 
   describe("renderAndWaitResponse", () => {
     it("resolves with token when challenge is solved", async () => {
-      const turnstileInstance = mock<TurnstileInstance>();
-      let triggerSuccess: ((token: string) => void) | undefined;
-      const ReactTurnstile = forwardRef<TurnstileInstance | undefined, TurnstileProps>((props, ref) => {
-        useForwardedRef(ref, turnstileInstance);
-        triggerSuccess = (token: string) => props.onSuccess?.(token);
-        return <div>Turnstile</div>;
-      });
-
-      const { turnstileRef } = await setup({
-        enabled: true,
-        components: { ReactTurnstile }
-      });
+      const { ReactTurnstile, instance, latestProps } = createTurnstileMock();
+      const { turnstileRef } = await setup({ enabled: true, components: { ReactTurnstile } });
 
       const promise = turnstileRef.current!.renderAndWaitResponse();
       await act(async () => {
-        triggerSuccess?.("test-token");
+        latestProps.current?.onSuccess?.("test-token");
         await wait(0);
       });
 
       await expect(promise).resolves.toEqual({ token: "test-token" });
-      expect(turnstileInstance.remove).toHaveBeenCalled();
-      expect(turnstileInstance.render).toHaveBeenCalled();
-      expect(turnstileInstance.execute).toHaveBeenCalled();
+      expect(instance.remove).toHaveBeenCalled();
+      expect(instance.render).toHaveBeenCalled();
+      expect(instance.execute).toHaveBeenCalled();
+    });
+
+    it("starts a challenge requested before cloudflare's script lands instead of dropping it", async () => {
+      const { ReactTurnstile, instance, latestProps } = createTurnstileMock({ loadsWidget: false });
+      const { turnstileRef } = await setup({ enabled: true, components: { ReactTurnstile } });
+
+      const promise = turnstileRef.current!.renderAndWaitResponse();
+      expect(instance.execute).not.toHaveBeenCalled();
+
+      await act(async () => {
+        latestProps.current?.onWidgetLoad?.("mock-widget-id");
+        await wait(0);
+      });
+      await act(async () => {
+        latestProps.current?.onSuccess?.("late-token");
+        await wait(0);
+      });
+
+      await expect(promise).resolves.toEqual({ token: "late-token" });
+      expect(instance.execute).toHaveBeenCalled();
+    });
+
+    it("does not start an abandoned challenge once cloudflare's script lands", async () => {
+      const { ReactTurnstile, instance, latestProps } = createTurnstileMock({ loadsWidget: false });
+      const { turnstileRef } = await setup({ enabled: true, components: { ReactTurnstile } });
+
+      turnstileRef.current!.renderAndWaitResponse().catch(() => undefined);
+      await act(async () => {
+        turnstileRef.current!.abandonPendingChallenge();
+        await wait(0);
+      });
+      await act(async () => {
+        latestProps.current?.onWidgetLoad?.("mock-widget-id");
+        await wait(0);
+      });
+
+      expect(instance.execute).not.toHaveBeenCalled();
     });
 
     it("rejects with error when challenge fails", async () => {
@@ -416,11 +443,15 @@ describe(Turnstile.name, () => {
     </button>
   ));
 
-  function createTurnstileMock(instance: TurnstileInstance = mock<TurnstileInstance>()) {
+  function createTurnstileMock(input?: { loadsWidget?: boolean }) {
+    const instance = mock<TurnstileInstance>();
     const latestProps: { current: TurnstileProps | undefined } = { current: undefined };
     const ReactTurnstile = forwardRef<TurnstileInstance | undefined, TurnstileProps>((props, ref) => {
       useForwardedRef(ref, instance);
       latestProps.current = props;
+      useEffect(() => {
+        if (input?.loadsWidget ?? true) props.onWidgetLoad?.("mock-widget-id");
+      }, []);
       return <div>Turnstile</div>;
     });
 
