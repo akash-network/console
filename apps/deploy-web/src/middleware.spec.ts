@@ -52,13 +52,36 @@ describe("middleware", () => {
     expect(response.headers.get("Content-Security-Policy-Report-Only")).toContain("script-src 'self'");
   });
 
-  it("redirects an ordinary page during maintenance", () => {
+  it("carries the original path and query into the maintenance return param", () => {
     vi.stubEnv("MAINTENANCE_MODE", "true");
 
-    const { response } = setup({ path: "/deployments" });
+    const { response } = setup({ path: "/deployments?network=sandbox" });
 
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toContain("/maintenance");
+    expect(response.headers.get("location")).toBe(`http://localhost/maintenance?return=${encodeURIComponent("/deployments?network=sandbox")}`);
+  });
+
+  it("leaves an ordinary page alone while maintenance mode is off", () => {
+    const { response } = setup({ path: "/deployments" });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it.each(["/maintenance", "/maintenance/details"])("serves %s itself while maintenance mode is on", path => {
+    vi.stubEnv("MAINTENANCE_MODE", "true");
+
+    const { response } = setup({ path });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it.each(["/maintenance", "/maintenance/details"])("redirects away from %s once maintenance mode is off", path => {
+    const { response } = setup({ path: `${path}?return=%2Fdeployments` });
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("http://localhost/deployments");
   });
 
   function setup(input: { path: string }) {
