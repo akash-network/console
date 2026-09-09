@@ -7,7 +7,7 @@ import type { ChainErrorService } from "@src/billing/services/chain-error/chain-
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
-import type { CreateLogger } from "@src/core";
+import type { CreateLogger, TxService } from "@src/core";
 import type { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import type { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
@@ -27,7 +27,7 @@ describe(TrialAbuseEnforcementService.name, () => {
 
     const outcome = await service.enforce({ wallet, detectionId: DETECTION_ID });
 
-    expect(calls).toEqual(["revoke:deposit", "close:11", "close:22", "revoke:fee", "lock", "cancelProbes"]);
+    expect(calls).toEqual(["tx:begin", "lockRow", "revoke:deposit", "close:11", "close:22", "revoke:fee", "lock", "cancelProbes", "tx:commit"]);
     expect(userWalletRepository.lockForAbuse).toHaveBeenCalledWith(wallet.id, ABUSE_LOCK_REASON);
     expect(outcome).toEqual({ depositGrantRevoked: true, feeGrantRevoked: true, closedDseqs: ["11", "22"] });
     expect(detectionRepository.updateById).toHaveBeenNthCalledWith(1, DETECTION_ID, {
@@ -58,8 +58,26 @@ describe(TrialAbuseEnforcementService.name, () => {
 
     expect(signerService.executeFundingTx).toHaveBeenCalledTimes(1);
     expect(signerService.executeFundingTx).toHaveBeenCalledWith([REVOKE_FEE]);
-    expect(calls).toEqual(["lock", "cancelProbes"]);
+    expect(calls).toEqual(["tx:begin", "lockRow", "lock", "cancelProbes", "tx:commit"]);
     expect(outcome).toEqual({ depositGrantRevoked: false, feeGrantRevoked: true, closedDseqs: [] });
+  });
+
+  it("leaves a wallet that paid while waiting for its row alone and hands the detection back", async () => {
+    const { service, wallet, calls, signerService, deploymentWriterService, userWalletRepository, detectionRepository, instrumentation } = setup({
+      liveDseqs: ["11"],
+      paidUnderLock: true
+    });
+
+    const outcome = await service.enforce({ wallet, detectionId: DETECTION_ID });
+
+    expect(outcome).toBeNull();
+    expect(calls).toEqual(["tx:begin", "lockRow", "tx:commit"]);
+    expect(signerService.executeFundingTx).not.toHaveBeenCalled();
+    expect(deploymentWriterService.close).not.toHaveBeenCalled();
+    expect(userWalletRepository.lockForAbuse).not.toHaveBeenCalled();
+    expect(detectionRepository.markWalletEnforced).not.toHaveBeenCalled();
+    expect(detectionRepository.updateById).toHaveBeenLastCalledWith(DETECTION_ID, { action: "detected", enforcementError: null, updatedAt: expect.any(Date) });
+    expect(instrumentation.recordEnforcement).toHaveBeenCalledWith("skipped");
   });
 
   it("closes each live deployment once even when several leases share it", async () => {
@@ -104,9 +122,17 @@ describe(TrialAbuseEnforcementService.name, () => {
     expect(probeJobService.cancelForWallet).not.toHaveBeenCalled();
   });
 
-  function setup(input: { liveDseqs: string[]; hasDepositGrant?: boolean; hasFeeGrant?: boolean }) {
+  function setup(input: { liveDseqs: string[]; hasDepositGrant?: boolean; hasFeeGrant?: boolean; paidUnderLock?: boolean }) {
     const wallet = createInitializedUserWallet({ isTrialing: true });
     const calls: string[] = [];
+
+    const txService = mock<TxService>();
+    txService.transaction.mockImplementation(async cb => {
+      calls.push("tx:begin");
+      const result = await cb();
+      calls.push("tx:commit");
+      return result;
+    });
 
     const txManagerService = mock<TxManagerService>();
     txManagerService.getFundingWalletAddress.mockResolvedValue(GRANTER);
@@ -134,6 +160,10 @@ describe(TrialAbuseEnforcementService.name, () => {
     const chainErrorService = mock<ChainErrorService>();
     chainErrorService.isUnsettleableDeploymentError.mockReturnValue(false);
     const userWalletRepository = mock<UserWalletRepository>();
+    userWalletRepository.findOneByAndLock.mockImplementation(async () => {
+      calls.push("lockRow");
+      return { ...wallet, isTrialing: !input.paidUnderLock };
+    });
     userWalletRepository.lockForAbuse.mockImplementation(async () => {
       calls.push("lock");
     });
@@ -159,6 +189,7 @@ describe(TrialAbuseEnforcementService.name, () => {
       detectionRepository,
       probeJobService,
       instrumentation,
+      txService,
       createLogger
     );
 

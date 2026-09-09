@@ -1,5 +1,6 @@
 import { AuthzHttpService, LeaseHttpService, type RpcLease } from "@akashnetwork/http-sdk";
 import { addHours } from "date-fns";
+import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -7,7 +8,7 @@ import { mock } from "vitest-mock-extended";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
-import { JOB_NAME } from "@src/core";
+import { type ApiPgDatabase, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import { ProbeTrialDeploymentHandler } from "@src/workload-abuse/services/probe-trial-deployment/probe-trial-deployment.handler";
@@ -75,6 +76,23 @@ describe(EnforceTrialAbuseHandler.name, () => {
     expect(executeFundingTx).not.toHaveBeenCalled();
   });
 
+  it("waits for a payment holding the wallet row and leaves the wallet alone once that payment has ended its trial", async () => {
+    const { handler, wallet, detection, close, executeFundingTx, findWallet, findDetection, holdWalletRowUntil } = await setup({ liveDseqs: ["11"] });
+    let wipe: Promise<void> | undefined;
+
+    await holdWalletRowUntil(async ({ wipeWaitsForRow, endTrial }) => {
+      wipe = handler.handle({ walletId: wallet.id, detectionId: detection.id, version: 1 });
+      await wipeWaitsForRow;
+      await endTrial();
+    });
+    await wipe;
+
+    expect(await findDetection(detection.id)).toMatchObject({ action: "detected", enforcementError: null });
+    expect(await findWallet()).toMatchObject({ abuseLockedAt: null, isTrialing: false, deploymentAllowance: 10_000_000 });
+    expect(close).not.toHaveBeenCalled();
+    expect(executeFundingTx).not.toHaveBeenCalled();
+  });
+
   it("records the failure on the detection and keeps the wallet unlocked and monitored when a revoke fails", async () => {
     const { handler, wallet, detection, findWallet, findDetection, findProbeJob } = await setup({
       liveDseqs: ["11"],
@@ -135,7 +153,29 @@ describe(EnforceTrialAbuseHandler.name, () => {
     else executeFundingTx.mockResolvedValue(mock<Awaited<ReturnType<ManagedSignerService["executeFundingTx"]>>>());
     const close = vi.spyOn(container.resolve(DeploymentWriterService), "close").mockResolvedValue(true);
 
+    async function holdWalletRowUntil(cb: (payment: { wipeWaitsForRow: Promise<void>; endTrial: () => Promise<void> }) => Promise<void>) {
+      const userWallets = resolveTable("UserWallets");
+      const lockWalletRow = userWalletRepository.findOneByAndLock.bind(userWalletRepository);
+      const wipeWaitsForRow = new Promise<void>(resolve => {
+        vi.spyOn(userWalletRepository, "findOneByAndLock").mockImplementation(async query => {
+          resolve();
+          return await lockWalletRow(query);
+        });
+      });
+
+      await container.resolve<ApiPgDatabase>(POSTGRES_DB).transaction(async tx => {
+        await tx.select().from(userWallets).where(eq(userWallets.id, wallet.id)).for("update");
+        await cb({
+          wipeWaitsForRow,
+          endTrial: async () => {
+            await tx.update(userWallets).set({ isTrialing: false }).where(eq(userWallets.id, wallet.id));
+          }
+        });
+      });
+    }
+
     return {
+      holdWalletRowUntil,
       handler: container.resolve(EnforceTrialAbuseHandler),
       wallet,
       detection,

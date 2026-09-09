@@ -39,6 +39,22 @@ describe(RefillService.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up", expect.objectContaining({ amount_cents: amountUsd, amount_usd: 1 }));
     });
 
+    it("holds the wallet row before touching the chain, so a concurrent abuse wipe waits for the settlement", async () => {
+      const { service, userWalletRepository, managedUserWalletService, walletInitializerService, balancesService } = setup();
+      const existingWallet = createInitializedUserWallet({ userId });
+      walletInitializerService.ensureWallet.mockResolvedValue(existingWallet);
+      userWalletRepository.claimActivation.mockResolvedValue(undefined);
+      userWalletRepository.findOneByAndLock.mockResolvedValue(existingWallet);
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
+
+      await service.topUpWallet(amountUsd, userId);
+
+      expect(userWalletRepository.findOneByAndLock).toHaveBeenCalledWith({ id: existingWallet.id });
+      expect(userWalletRepository.findOneByAndLock.mock.invocationCallOrder[0]).toBeLessThan(
+        managedUserWalletService.authorizeSpending.mock.invocationCallOrder[0]
+      );
+    });
+
     it("asks to clear the abuse lock on every payment, so a lock applied after the wallet was read is still cleared", async () => {
       const { service, userWalletRepository, walletInitializerService, balancesService, logger } = setup();
       const unlockedWallet = createInitializedUserWallet({ userId, abuseLockedAt: null, abuseLockedReason: null });

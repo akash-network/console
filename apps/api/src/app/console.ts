@@ -93,7 +93,7 @@ program
 
 program
   .command("probe-trial-deployments")
-  .description("Schedule a workload probe for every live trial deployment that has none pending")
+  .description("Schedule a workload probe for every live trial deployment that has none pending and queue stuck wipes again")
   .option("-d, --dry-run", "Log which deployments would be probed without enqueuing", false)
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {

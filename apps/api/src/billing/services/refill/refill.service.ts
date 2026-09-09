@@ -77,7 +77,7 @@ export class RefillService {
     userId: UserWalletOutput["userId"],
     options: { endTrial?: boolean; payment?: PaymentAnalyticsContext } = {}
   ): Promise<ToppedUpWallet> {
-    const userWallet = await this.ensureActivatedWallet(userId);
+    const userWallet = await this.lockActivatedWallet(userId);
     const currentLimit = await this.balancesService.retrieveDeploymentLimit(userWallet);
 
     const nextLimit = currentLimit + amountUsd * 10000;
@@ -150,6 +150,13 @@ export class RefillService {
     } catch (error) {
       this.logger.error({ event: "WALLET_ABUSE_LOCK_CLEAR_FAILED", walletId: userWallet.id, userId: userWallet.userId, error });
     }
+  }
+
+  /** Holds the wallet row until the settlement commits, so an abuse wipe of the same wallet waits for it instead of revoking between this grant and its bookkeeping. */
+  private async lockActivatedWallet(userId: UserWalletOutput["userId"]) {
+    const userWallet = await this.ensureActivatedWallet(userId);
+
+    return (await this.userWalletRepository.findOneByAndLock({ id: userWallet.id })) ?? userWallet;
   }
 
   /**
