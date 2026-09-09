@@ -40,6 +40,16 @@ describe(RecordDeploymentSettingHandler.name, () => {
     expect(settings[0]).toMatchObject({ autoTopUpEnabled: false, runtimeLimitHours: 12 });
   });
 
+  it("refuses a second record for the same deployment while the first is still queued", async () => {
+    const { enqueueRecord } = await setup();
+
+    const first = await enqueueRecord();
+    const second = await enqueueRecord();
+
+    expect(first).toEqual(expect.any(String));
+    expect(second).toBeNull();
+  });
+
   async function setup() {
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const deploymentSettingsTable = resolveTable("DeploymentSettings");
