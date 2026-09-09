@@ -5,6 +5,7 @@ import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
+import { SKIP_REPORTING_HANDLED_BY_CALLER } from "@src/services/query-error-policy/query-error-policy";
 import type { DepositParams, RpcDeploymentParams } from "@src/types/deployment";
 import type { UserSettings } from "@src/types/user";
 import { ApiUrlService } from "@src/utils/apiUtils";
@@ -31,7 +32,8 @@ export function useSaveSettings() {
       }
       enqueueSnackbar(message, { variant: "error" });
       errorHandler.reportError({ error, tags: { category: "user-settings" } });
-    }
+    },
+    meta: SKIP_REPORTING_HANDLED_BY_CALLER
   });
 }
 

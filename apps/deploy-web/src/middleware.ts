@@ -88,6 +88,7 @@ function getReturnPath(request: NextRequest) {
   }
 }
 
+/** A service worker script served behind the maintenance redirect fails registration outright, so PWA assets skip the middleware. */
 export const config = {
-  matcher: ["/((?!_next|api/auth).*)(.+)", "/"]
+  matcher: ["/((?!_next|api/auth|sw\\.js|workbox-|manifest\\.json).*)(.+)", "/"]
 };

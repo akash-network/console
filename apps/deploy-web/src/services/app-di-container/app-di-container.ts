@@ -19,7 +19,7 @@ import type { Axios, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { UrlReturnToStack } from "@src/hooks/useReturnTo/UrlReturnToStack";
 import { AnalyticsService } from "@src/services/analytics/analytics.service";
-import { retryOnServerError, shouldReportQueryError } from "@src/services/query-error-policy/query-error-policy";
+import { retryOnServerError, shouldReportError } from "@src/services/query-error-policy/query-error-policy";
 import networkStore from "@src/store/networkStore";
 import { registry } from "@src/utils/customRegistry";
 import { UrlService } from "@src/utils/urlUtils";
@@ -162,12 +162,15 @@ export const createAppRootContainer = (config: ServicesConfig) => {
         },
         queryCache: new QueryCache({
           onError: (error, query) => {
-            if (!shouldReportQueryError(error, query.meta)) return;
+            if (!shouldReportError(error, query.meta)) return;
             container.errorHandler.reportError({ error });
           }
         }),
         mutationCache: new MutationCache({
-          onError: error => container.errorHandler.reportError({ error })
+          onError: (error, _variables, _context, mutation) => {
+            if (!shouldReportError(error, mutation.meta)) return;
+            container.errorHandler.reportError({ error });
+          }
         })
       }),
     errorHandler: () => new ErrorHandlerService(container.logger),

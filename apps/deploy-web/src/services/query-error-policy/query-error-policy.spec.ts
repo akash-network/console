@@ -1,7 +1,13 @@
 import { AxiosError } from "axios";
 import { describe, expect, it, vi } from "vitest";
 
-import { isProviderUnavailableError, retryOnServerError, shouldReportQueryError, SKIP_REPORTING_PROVIDER_UNAVAILABLE } from "./query-error-policy";
+import {
+  isProviderUnavailableError,
+  retryOnServerError,
+  shouldReportError,
+  SKIP_REPORTING_HANDLED_BY_CALLER,
+  SKIP_REPORTING_PROVIDER_UNAVAILABLE
+} from "./query-error-policy";
 
 describe("query-error-policy", () => {
   describe("isProviderUnavailableError", () => {
@@ -38,30 +44,37 @@ describe("query-error-policy", () => {
     });
   });
 
-  describe("shouldReportQueryError", () => {
+  describe("shouldReportError", () => {
     it("reports when the query carries no meta", () => {
-      expect(shouldReportQueryError(httpError(500), undefined)).toBe(true);
+      expect(shouldReportError(httpError(500), undefined)).toBe(true);
     });
 
     it("reports when the query opts out of a different error", () => {
-      expect(shouldReportQueryError(httpError(500), SKIP_REPORTING_PROVIDER_UNAVAILABLE)).toBe(true);
+      expect(shouldReportError(httpError(500), SKIP_REPORTING_PROVIDER_UNAVAILABLE)).toBe(true);
     });
 
     it("stays quiet for the error the query opted out of", () => {
-      expect(shouldReportQueryError(httpError(502), SKIP_REPORTING_PROVIDER_UNAVAILABLE)).toBe(false);
+      expect(shouldReportError(httpError(502), SKIP_REPORTING_PROVIDER_UNAVAILABLE)).toBe(false);
     });
 
     it("passes the error to the predicate", () => {
       const skipErrorReporting = vi.fn().mockReturnValue(false);
       const error = httpError(500);
 
-      shouldReportQueryError(error, { skipErrorReporting });
+      shouldReportError(error, { skipErrorReporting });
 
       expect(skipErrorReporting).toHaveBeenCalledWith(error);
     });
 
     it("reports when meta holds no predicate", () => {
-      expect(shouldReportQueryError(httpError(502), { somethingElse: true })).toBe(true);
+      expect(shouldReportError(httpError(502), { somethingElse: true })).toBe(true);
+    });
+  });
+
+  describe("SKIP_REPORTING_HANDLED_BY_CALLER", () => {
+    it("suppresses cache-level reporting whatever the error", () => {
+      expect(shouldReportError(httpError(500), SKIP_REPORTING_HANDLED_BY_CALLER)).toBe(false);
+      expect(shouldReportError(new Error("boom"), SKIP_REPORTING_HANDLED_BY_CALLER)).toBe(false);
     });
   });
 

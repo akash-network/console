@@ -13,6 +13,7 @@ import type { UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
+import { SKIP_REPORTING_HANDLED_BY_CALLER } from "@src/services/query-error-policy/query-error-policy";
 import { walletProvisioningRetry } from "@src/utils/walletProvisioning";
 import { QueryKeys } from "./queryKeys";
 
@@ -78,7 +79,8 @@ export const useSetupIntentMutation = () => {
     },
     onError: error => {
       errorHandler.reportError({ error, tags: { category: "billing" } });
-    }
+    },
+    meta: SKIP_REPORTING_HANDLED_BY_CALLER
   });
 };
 

@@ -21,13 +21,13 @@ export class ErrorHandlerService {
   }
 
   reportError({ severity, error, tags, ...extra }: ErrorContext): void {
-    if (error && typeof error === "object" && "name" in error && error.name === "AbortError") {
+    if (isCancellation(error)) {
       return;
     }
 
     const finalTags: Record<string, string> = { ...tags };
 
-    if (isHttpError(error) && error.response && error.response.status !== 400) {
+    if (isHttpError(error) && error.response) {
       finalTags.status = error.response.status.toString();
       finalTags.method = error.response.config.method?.toUpperCase() || "UNKNOWN";
       finalTags.url = error.response.config.url || "UNKNOWN";
@@ -59,6 +59,14 @@ export class ErrorHandlerService {
       }
     }) as T;
   }
+}
+
+/** Monaco names its cancellations `Canceled` and axios uses `CanceledError`; a cancelled request is not a fault. */
+function isCancellation(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const { name, code } = error as { name?: unknown; code?: unknown };
+  return name === "AbortError" || name === "CanceledError" || name === "Canceled" || code === "ERR_CANCELED";
 }
 
 export type SeverityLevel = SentrySeverityLevel;

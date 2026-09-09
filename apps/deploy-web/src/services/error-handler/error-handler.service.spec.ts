@@ -66,6 +66,34 @@ describe(ErrorHandlerService.name, () => {
     });
   });
 
+  it.each([
+    ["a DOM abort", { name: "AbortError" }],
+    ["an axios cancellation by name", { name: "CanceledError" }],
+    ["an axios cancellation by code", { code: "ERR_CANCELED" }],
+    ["a Monaco cancellation", { name: "Canceled" }]
+  ])("does not report %s", (_label, shape) => {
+    const captureException = vi.fn();
+    const errorHandler = setup({ captureException });
+
+    errorHandler.reportError({ error: Object.assign(new Error("cancelled"), shape) });
+
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
+  it("tags http errors that responded 400", () => {
+    const captureException = vi.fn();
+    const errorHandler = setup({ captureException });
+    const config = { method: "post", url: "https://api.example.com/deployments" } as InternalAxiosRequestConfig;
+    const httpError = new AxiosError("Request failed", "400", config, {}, { status: 400, statusText: "Bad Request", headers: {}, data: {}, config });
+
+    errorHandler.reportError({ error: httpError });
+
+    expect(captureException).toHaveBeenCalledWith(
+      httpError,
+      expect.objectContaining({ tags: { status: "400", method: "POST", url: "https://api.example.com/deployments" } })
+    );
+  });
+
   describe("wrapCallback", () => {
     it("wraps synchronous function and reports error", () => {
       const captureException = vi.fn();

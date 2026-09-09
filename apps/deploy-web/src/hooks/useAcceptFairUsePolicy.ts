@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useUser } from "@src/hooks/useUser";
+import { SKIP_REPORTING_HANDLED_BY_CALLER } from "@src/services/query-error-policy/query-error-policy";
 
 export const DEPENDENCIES = {
   useUser
@@ -22,7 +23,8 @@ export function useAcceptFairUsePolicy(dependencies: typeof DEPENDENCIES = DEPEN
       setHasAccepted(true);
       await checkSession();
     },
-    onError: error => errorHandler.reportError({ error, tags: { category: "user" } })
+    onError: error => errorHandler.reportError({ error, tags: { category: "user" } }),
+    meta: SKIP_REPORTING_HANDLED_BY_CALLER
   });
 
   const accept = useCallback(async () => {

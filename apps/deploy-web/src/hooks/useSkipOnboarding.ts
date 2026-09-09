@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useUser } from "@src/hooks/useUser";
+import { SKIP_REPORTING_HANDLED_BY_CALLER } from "@src/services/query-error-policy/query-error-policy";
 
 export type SkipOnboardingSource = "picker" | "auto_deploy";
 
@@ -35,7 +36,8 @@ export function useSkipOnboarding(dependencies: typeof DEPENDENCIES = DEPENDENCI
       await checkSession();
     },
     onSuccess: () => setIsAwaitingSkippedProfile(true),
-    onError: error => errorHandler.reportError({ error, tags: { category: "onboarding" } })
+    onError: error => errorHandler.reportError({ error, tags: { category: "onboarding" } }),
+    meta: SKIP_REPORTING_HANDLED_BY_CALLER
   });
 
   useEffect(
