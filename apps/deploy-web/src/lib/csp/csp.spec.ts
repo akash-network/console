@@ -115,6 +115,7 @@ describe("csp", () => {
     it("allows any https image source because template logos point at arbitrary origins", () => {
       const { imgSrc } = setup({});
 
+      expect(imgSrc).toContain("'self'");
       expect(imgSrc).toContain("https:");
       expect(imgSrc).toContain("data:");
       expect(imgSrc).toContain("blob:");
