@@ -34,6 +34,7 @@ export const DEPENDENCIES = {
   SDLEditor,
   InfoCircle,
   WarningCircle,
+  DeploymentTabHeader,
   useWallet: useWalletOriginal,
   useBalances: useBalancesOriginal,
   useSnackbar: useSnackbarOriginal,
@@ -189,6 +190,9 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     analyticsService.track("update_deployment", { category: "deployments", label: "Update deployment" });
     analyticsService.track("successful_tx", { category: "transactions", label: "Successful transaction" });
     refetchBalances();
+    enqueueSnackbar(<d.Snackbar title="Success" subTitle="Deployment updated successfully" iconVariant="success" />, {
+      variant: "success"
+    });
   }
 
   /** A full or corrupted browser storage must not turn an update the api already accepted into a reported failure. */
@@ -220,7 +224,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
       return;
     }
 
-    enqueueSnackbar(<d.Snackbar title="Couldn't update deployment" subTitle={extractApiErrorMessage(cause) ?? UPDATE_FAILURE_MESSAGE} iconVariant="error" />, {
+    enqueueSnackbar(<d.Snackbar title="Error" subTitle={extractApiErrorMessage(cause) ?? UPDATE_FAILURE_MESSAGE} iconVariant="error" />, {
       variant: "error",
       autoHideDuration: null
     });
@@ -260,7 +264,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
       ) : (
         <>
           <div>
-            <DeploymentTabHeader
+            <d.DeploymentTabHeader
               title="Update Deployment"
               actions={
                 <div className="flex items-center gap-2">
@@ -304,7 +308,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
                   <d.WarningCircle className="text-xs text-warning" />
                 </d.CustomTooltip>
               )}
-            </DeploymentTabHeader>
+            </d.DeploymentTabHeader>
 
             {parsingError && <d.Alert variant="warning">{parsingError}</d.Alert>}
 
