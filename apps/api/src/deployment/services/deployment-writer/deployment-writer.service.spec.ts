@@ -253,7 +253,9 @@ describe(DeploymentWriterService.name, () => {
 
       expect(signerService.assertCanBroadcast).toHaveBeenCalledWith("user-1", [createMsg]);
       expect(signerService.assertCanBroadcast.mock.invocationCallOrder[0]).toBeLessThan(sdlSecretsService.sealForStorage.mock.invocationCallOrder[0]);
-      expect(signerService.assertCanBroadcast.mock.invocationCallOrder[0]).toBeLessThan(deploymentSettingRepository.upsertDefinition.mock.invocationCallOrder[0]);
+      expect(signerService.assertCanBroadcast.mock.invocationCallOrder[0]).toBeLessThan(
+        deploymentSettingRepository.upsertDefinition.mock.invocationCallOrder[0]
+      );
     });
 
     it("records nothing and seals nothing when the signer refuses the create", async () => {
