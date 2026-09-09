@@ -1,5 +1,5 @@
 import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { MsgSend } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 
@@ -33,16 +33,6 @@ export class TransactionMessageData {
           sources: [Source.grant, Source.balance]
         },
         reclamation: deploymentData.reclamation
-      })
-    };
-  }
-
-  static getUpdateDeploymentMsg(deploymentData: NewDeploymentData) {
-    return {
-      typeUrl: `/${MsgUpdateDeployment.$type}`,
-      value: MsgUpdateDeployment.fromPartial({
-        id: deploymentData.deploymentId,
-        hash: deploymentData.hash
       })
     };
   }
