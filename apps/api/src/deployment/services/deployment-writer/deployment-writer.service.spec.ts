@@ -18,6 +18,7 @@ import type { CreateLogger, JobQueueService, TxService } from "@src/core";
 import { JOB_NAME } from "@src/core";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import { MAX_RUNTIME_LIMIT_HOURS, MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/deployment/http-schemas/runtime-limit";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeleteUnbackedDeploymentSetting } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import type { GenerateResolvedManifestResult, SdlManifest, SdlService } from "@src/deployment/services/sdl/sdl.service";
@@ -160,6 +161,9 @@ const SDL_OF_A_REDEPLOY_WITH_PLAINTEXT = sdlAround(`    env:
       - API_TOKEN=ac-secret://API_TOKEN
       - LOG_LEVEL=${ENV_VALUE}
 `);
+
+/** Short cleartext values lengthen when re-derived into references, so enough of them fit in storage yet cannot be redeployed. */
+const SDL_TOO_LARGE_ONCE_REDERIVED = sdlAround(`    env:\n${Array.from({ length: 6000 }, (_, index) => `      - E${index}=x\n`).join("")}`);
 
 describe(DeploymentWriterService.name, () => {
   const wallet: WalletInitialized = {
@@ -1067,6 +1071,166 @@ describe(DeploymentWriterService.name, () => {
           expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
           expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
         });
+      });
+    });
+  });
+
+  describe("redeployByUserIdAndDseq", () => {
+    it("deploys the sdl the console stored for the source, never one from the request", async () => {
+      const { service, deploymentSettingRepository, ability } = setup({ storedSdl: SDL_OF_A_REDEPLOY, inherited: { API_TOKEN: "a", DATABASE_URL: "b" } });
+
+      await service.redeployByUserIdAndDseq("user-1", SOURCE_DSEQ, {}, ability);
+
+      const [recorded] = vi.mocked(deploymentSettingRepository.upsertDefinition).mock.calls[0];
+      expect(recorded.sdl).toContain("API_TOKEN=ac-secret://API_TOKEN");
+    });
+
+    it("mints a dseq of its own rather than writing over the source", async () => {
+      const { service, deploymentSettingRepository, ability } = setup({ inherited: { API_TOKEN: "a", DATABASE_URL: "b" } });
+      vi.spyOn(Date, "now").mockReturnValue(1748400000000);
+
+      await service.redeployByUserIdAndDseq("user-1", SOURCE_DSEQ, {}, ability);
+
+      const [recorded] = vi.mocked(deploymentSettingRepository.upsertDefinition).mock.calls[0];
+      expect(recorded.dseq).toBe("1748400000000");
+      expect(recorded.dseq).not.toBe(SOURCE_DSEQ);
+    });
+
+    it("inherits the source's secrets by naming it, so no value passes through the request", async () => {
+      const { service, sdlSecretsInheritanceService, ability } = setup({ inherited: { API_TOKEN: "a", DATABASE_URL: "b" } });
+
+      await service.redeployByUserIdAndDseq("user-1", SOURCE_DSEQ, {}, ability);
+
+      expect(sdlSecretsInheritanceService.open).toHaveBeenCalledWith({ userId: "user-1", dseq: SOURCE_DSEQ });
+    });
+
+    it("carries the source's runtime limit forward", async () => {
+      const { service, deploymentSettingRepository, ability } = setup({ storedRuntimeLimitHours: 5, inherited: { API_TOKEN: "a", DATABASE_URL: "b" } });
+
+      await service.redeployByUserIdAndDseq("user-1", SOURCE_DSEQ, {}, ability);
+
+      expect(vi.mocked(deploymentSettingRepository.upsertDefinition).mock.calls[0][0].runtimeLimitHours).toBe(5);
+    });
+
+    it("prefers an explicitly supplied runtime limit to the carried one", async () => {
+      const { service, deploymentSettingRepository, ability } = setup({ storedRuntimeLimitHours: 5, inherited: { API_TOKEN: "a", DATABASE_URL: "b" } });
+
+      await service.redeployByUserIdAndDseq("user-1", SOURCE_DSEQ, { runtimeLimitHours: 9 }, ability);
+
+      expect(vi.mocked(deploymentSettingRepository.upsertDefinition).mock.calls[0][0].runtimeLimitHours).toBe(9);
+    });
+
+    it("carries no runtime limit when the source has none", async () => {
+      const { service, deploymentSettingRepository, ability } = setup({ storedRuntimeLimitHours: null, inherited: { API_TOKEN: "a", DATABASE_URL: "b" } });
+
+      await service.redeployByUserIdAndDseq("user-1", SOURCE_DSEQ, {}, ability);
+
+      expect(vi.mocked(deploymentSettingRepository.upsertDefinition).mock.calls[0][0].runtimeLimitHours).toBeUndefined();
+    });
+
+    it("hands a supplied seal to the intake, so its names replace what the source holds", async () => {
+      const { service, sdlSecretsService, ability } = setup({ inherited: { API_TOKEN: "a", DATABASE_URL: "b" } });
+
+      await service.redeployByUserIdAndDseq("user-1", SOURCE_DSEQ, { sealedSecrets: CLIENT_SEAL }, ability);
+
+      expect(sdlSecretsService.receive).toHaveBeenCalledWith(expect.objectContaining({ sealedSecrets: CLIENT_SEAL }));
+    });
+
+    it("reads the source through the caller's own ability", async () => {
+      const { service, deploymentSettingRepository, scopedSettingRepository, ability } = setup({ inherited: { API_TOKEN: "a", DATABASE_URL: "b" } });
+
+      await service.redeployByUserIdAndDseq("user-1", SOURCE_DSEQ, {}, ability);
+
+      expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
+      expect(scopedSettingRepository.findOneBy).toHaveBeenCalledWith({ userId: "user-1", dseq: SOURCE_DSEQ });
+    });
+
+    it("reduces a carried runtime limit longer than one request may grant to that increment", async () => {
+      const { service, deploymentSettingRepository, ability } = setup({
+        storedRuntimeLimitHours: MAX_RUNTIME_LIMIT_HOURS,
+        inherited: { API_TOKEN: "a", DATABASE_URL: "b" }
+      });
+
+      await service.redeployByUserIdAndDseq("user-1", SOURCE_DSEQ, {}, ability);
+
+      expect(vi.mocked(deploymentSettingRepository.upsertDefinition).mock.calls[0][0].runtimeLimitHours).toBe(MAX_RUNTIME_LIMIT_INCREMENT_HOURS);
+    });
+
+    describe("a stored sdl the console cannot redeploy", () => {
+      it("blames itself rather than the caller for one that will not parse", async () => {
+        const { service, ability } = setup({ storedSdl: MALFORMED_SDL_CARRYING_A_VALUE, inherited: { API_TOKEN: "a" } });
+
+        await expect(service.redeployByUserIdAndDseq("user-1", SOURCE_DSEQ, {}, ability)).rejects.toMatchObject({
+          status: 500,
+          errorCode: "stored_sdl_unreadable"
+        });
+      });
+
+      it("tells the caller nothing about a document they could not have written", async () => {
+        const { service, ability } = setup({ storedSdl: MALFORMED_SDL_CARRYING_A_VALUE, inherited: { API_TOKEN: "a" } });
+
+        const thrown = await service.redeployByUserIdAndDseq("user-1", SOURCE_DSEQ, {}, ability).catch(error => error);
+
+        expect(thrown.message).toBe("The SDL recorded for this deployment cannot be read");
+        expect(thrown.data).toBeUndefined();
+        expect(thrownTextOf(thrown)).not.toContain("LEAKED");
+        expect(thrownTextOf(thrown)).not.toContain(MALFORMED_SDL_VALUE);
+        expect(thrownTextOf(thrown)).not.toMatch(/line \d+, column \d+/);
+      });
+
+      it("blames itself rather than the caller for one too large once its values are re-derived", async () => {
+        const { service, ability } = setup({ storedSdl: SDL_TOO_LARGE_ONCE_REDERIVED, inherited: { API_TOKEN: "a" } });
+
+        const thrown = await service.redeployByUserIdAndDseq("user-1", SOURCE_DSEQ, {}, ability).catch(error => error);
+
+        expect(thrown).toMatchObject({ status: 500, errorCode: "redeployed_sdl_too_large" });
+        expect(thrown.data).toBeUndefined();
+        expect(thrownTextOf(thrown)).not.toContain("ac-secret://");
+      });
+
+      it("records nothing and broadcasts nothing for either", async () => {
+        const { service, deploymentSettingRepository, signerService, ability } = setup({
+          storedSdl: "this: is: not: yaml:",
+          inherited: { API_TOKEN: "a" }
+        });
+
+        await expect(service.redeployByUserIdAndDseq("user-1", SOURCE_DSEQ, {}, ability)).rejects.toThrow();
+
+        expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+        expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("a source the console recorded no sdl for", () => {
+      it("answers not found", async () => {
+        const { service, ability } = setup({ sourceSetting: undefined });
+
+        await expect(service.redeployByUserIdAndDseq("user-1", SOURCE_DSEQ, {}, ability)).rejects.toMatchObject({ status: 404 });
+      });
+
+      it("says there is nothing to redeploy rather than nothing to patch", async () => {
+        const { service, ability } = setup({ sourceSetting: undefined });
+
+        await expect(service.redeployByUserIdAndDseq("user-1", SOURCE_DSEQ, {}, ability)).rejects.toMatchObject({
+          message: "This deployment has no SDL recorded by the console, so there is nothing to redeploy"
+        });
+      });
+
+      it("mints no dseq, records nothing and broadcasts nothing", async () => {
+        const { service, deploymentSettingRepository, signerService, ability } = setup({ sourceSetting: undefined });
+        const now = vi.spyOn(Date, "now");
+
+        await expect(service.redeployByUserIdAndDseq("user-1", SOURCE_DSEQ, {}, ability)).rejects.toThrow();
+
+        expect(now).not.toHaveBeenCalled();
+        expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+        expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      });
+
+      it("answers not found for a row that exists but holds no sdl", async () => {
+        const { service, ability } = setup({ sourceSetting: mock<DeploymentSettingsOutput>({ sdl: null }) });
+
+        await expect(service.redeployByUserIdAndDseq("user-1", SOURCE_DSEQ, {}, ability)).rejects.toMatchObject({ status: 404 });
       });
     });
   });
@@ -2057,6 +2221,9 @@ describe(DeploymentWriterService.name, () => {
     inheritanceError?: Error;
     maxCount?: number;
     sealedSecrets?: string | null;
+    storedSdl?: string;
+    storedRuntimeLimitHours?: number | null;
+    sourceSetting?: DeploymentSettingsOutput;
   }) {
     const signerService = mock<ManagedSignerService>();
     const rpcMessageService = mock<RpcMessageService>();
@@ -2080,6 +2247,17 @@ describe(DeploymentWriterService.name, () => {
     });
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.upsertDefinition.mockResolvedValue(DEPLOYMENT_SETTING_ID);
+    const scopedSettingRepository = mock<DeploymentSettingRepository>();
+    scopedSettingRepository.findOneBy.mockResolvedValue(
+      "sourceSetting" in (input ?? {})
+        ? input!.sourceSetting
+        : mock<DeploymentSettingsOutput>({
+            sdl: input?.storedSdl ?? SDL_OF_A_REDEPLOY,
+            runtimeLimitHours: input?.storedRuntimeLimitHours ?? null,
+            sealedSecrets: "stored.token.aaa.bbb.ccc"
+          })
+    );
+    deploymentSettingRepository.accessibleBy.mockReturnValue(scopedSettingRepository);
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => (input?.transactionRuns === false ? (undefined as never) : await cb()));
     const jobQueueService = mock<JobQueueService>();
@@ -2156,6 +2334,8 @@ describe(DeploymentWriterService.name, () => {
       jobQueueService,
       sdlSecretsService,
       sdlSecretsInheritanceService,
+      scopedSettingRepository,
+      ability: mock<AnyAbility>(),
       storedSecrets
     };
   }

@@ -60,6 +60,7 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
     const response = await patch(apiKey, { services: { web: { image: "nginx" } } });
 
     expect(response.status).toBe(404);
+    expect(await response.text()).toContain("nothing to patch");
   });
 
   it("refuses a body naming no services before it reaches the controller", async () => {
