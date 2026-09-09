@@ -831,6 +831,7 @@ describe("Deployments API", () => {
       const response = await postOversizedDeployment(userApiKeySecret);
 
       expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: "Error", code: "bad_request", type: "client_error" });
     });
 
     it("says nothing about the sdl in the 400 it returns", async () => {
