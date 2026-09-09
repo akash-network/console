@@ -144,28 +144,6 @@ export const CreateDeploymentResponseSchema = z.object({
   })
 });
 
-/** Both fields are overrides, so a body of `{}` redeploys the source exactly as the console stored it. */
-export const RedeployDeploymentRequestSchema = z.object({
-  data: z
-    .object({
-      sealedSecrets: SealedSecretsSchema.optional().openapi({
-        description:
-          "Compact JWE sealing a flat name-to-value map, as on create. A name present here replaces the value the source deployment holds for it; every other name is carried forward untouched."
-      }),
-      runtimeLimitHours: z
-        .number()
-        .int()
-        .min(1)
-        .max(MAX_RUNTIME_LIMIT_INCREMENT_HOURS)
-        .optional()
-        .openapi({
-          description: `Optional runtime limit in hours (1 to ${MAX_RUNTIME_LIMIT_INCREMENT_HOURS}) for the new deployment. Omit to carry the source deployment's own limit forward.`
-        })
-    })
-    .optional()
-    .default({})
-});
-
 export const CloseDeploymentParamsSchema = z.object({
   dseq: DseqSchema.describe("Deployment sequence number")
 });
@@ -470,7 +448,6 @@ export type DepositDeploymentResponse = z.infer<typeof DepositDeploymentResponse
 export type UpdateDeploymentRequest = z.infer<typeof UpdateDeploymentRequestSchema>;
 export type PatchService = z.infer<typeof PatchServiceSchema>;
 export type PatchDeploymentRequest = z.infer<typeof PatchDeploymentRequestSchema>;
-export type RedeployDeploymentRequest = z.infer<typeof RedeployDeploymentRequestSchema>;
 export type PatchDeploymentResponse = z.infer<typeof PatchDeploymentResponseSchema>;
 export type UpdateDeploymentResponse = z.infer<typeof UpdateDeploymentResponseSchema>;
 export type ListWithResourcesParams = z.infer<typeof ListWithResourcesParamsSchema>;
