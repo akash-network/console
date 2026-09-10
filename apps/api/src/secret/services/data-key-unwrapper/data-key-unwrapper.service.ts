@@ -103,8 +103,9 @@ export class DataKeyUnwrapperService {
 
   async #unwrapDataKey(dataKey: DataKeyOutput, userId: string): Promise<Buffer> {
     const parsed = this.#parseWrappedKey(dataKey.wrappedKey, userId);
+    const versionName = this.kmsTarget.resolveVersionName(parsed.header.kid);
 
-    if (parsed.header.kid !== this.kmsTarget.kid) {
+    if (!versionName) {
       throw this.#rejectUnavailable("USER_DATA_KEY_WRAPPED_UNDER_UNKNOWN_KID", {
         userId,
         received: parsed.header.kid,
@@ -112,7 +113,7 @@ export class DataKeyUnwrapperService {
       });
     }
 
-    const key = await this.#openWrappedKey(parsed, userId);
+    const key = await this.#openWrappedKey(parsed, versionName, userId);
 
     if (key.length !== DATA_ENCRYPTION_KEY_BYTES) {
       throw this.#rejectUnreadable("USER_DATA_KEY_LENGTH_UNEXPECTED", { userId, keyBytes: key.length });
@@ -131,9 +132,9 @@ export class DataKeyUnwrapperService {
     }
   }
 
-  async #openWrappedKey(parsed: ParsedKmsWrappedJwe, userId: string): Promise<Buffer> {
+  async #openWrappedKey(parsed: ParsedKmsWrappedJwe, versionName: string, userId: string): Promise<Buffer> {
     try {
-      return await this.wrappedJweService.open(parsed);
+      return await this.wrappedJweService.open(parsed, versionName);
     } catch (error) {
       throw this.#rejectWrappedJweFailure(error, userId);
     }
@@ -144,6 +145,10 @@ export class DataKeyUnwrapperService {
     if (!(error instanceof KmsWrappedJweError)) return error;
 
     const details = { userId, failure: error.failure, ...error.details };
+
+    if (error.failure === "WRAPPING_VERSION_UNUSABLE") {
+      return this.#rejectUnavailable("USER_DATA_KEY_WRAPPED_UNDER_UNKNOWN_KID", { ...details, expected: this.kmsTarget.kid });
+    }
 
     if (KEY_SERVICE_FAILURES.has(error.failure)) {
       return this.#rejectUnavailable("USER_DATA_KEY_UNWRAP_FAILED", details);

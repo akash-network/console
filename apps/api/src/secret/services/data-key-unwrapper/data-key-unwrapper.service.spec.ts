@@ -16,10 +16,11 @@ import type { DataKeyOutput } from "@src/secret/repositories/data-key/data-key.r
 import type { DataKeyService } from "@src/secret/services/data-key/data-key.service";
 import { DataKeyUnwrapperService } from "./data-key-unwrapper.service";
 
+import { createTestSdlSecretsKmsTarget, sdlSecretsVersionPath } from "@test/mocks/sdl-secrets-kms.mock";
 import { createDataKey } from "@test/seeders/data-key.seeder";
 
 const KID = "sdl-secrets.v1";
-const VERSION_NAME = "projects/console-test/locations/global/keyRings/console-api/cryptoKeys/sdl-secrets/cryptoKeyVersions/1";
+const FOREIGN_KID = "other-key.v1";
 const USER_A = "3f2b6f7a-1c1d-4b0e-8b8a-9a0f5f5c2b11";
 const USER_B = "6d0b1f4c-2222-4444-8888-1a2b3c4d5e6f";
 
@@ -217,12 +218,43 @@ describe(DataKeyUnwrapperService.name, () => {
     expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(2);
   });
 
-  it("rejects with 503 when the row is wrapped under a key version this process does not target", async () => {
-    const { service, inRequest, kmsClient } = setup({ kid: "sdl-secrets.v9" });
+  it("rejects with 503 when the row is wrapped under a crypto key that is not the console's", async () => {
+    const { service, inRequest, kmsClient, logger } = setup({ kid: FOREIGN_KID });
 
     await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toMatchObject({ status: 503 }));
 
     expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "USER_DATA_KEY_WRAPPED_UNDER_UNKNOWN_KID", received: FOREIGN_KID, expected: KID })
+    );
+  });
+
+  it("opens a row wrapped under an older enabled version after the configured version moves on", async () => {
+    const { service, inRequest, kmsClient, keyFor } = setup({ kid: "sdl-secrets.v1", configuredVersion: "2" });
+
+    const key = await inRequest(async () => await (await service.getDataKey(USER_A)).unwrap());
+
+    expect(key.equals(keyFor(USER_A))).toBe(true);
+    expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledWith(expect.objectContaining({ name: sdlSecretsVersionPath("1") }));
+  });
+
+  it("rejects with 503 when the key service does not have the version the row names", async () => {
+    const { service, inRequest, kmsClient, logger } = setup({ kid: "sdl-secrets.v9" });
+    kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("5 NOT_FOUND"), { code: grpc.status.NOT_FOUND }));
+
+    await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toMatchObject({ status: 503 }));
+
+    expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledWith(expect.objectContaining({ name: sdlSecretsVersionPath("9") }));
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "USER_DATA_KEY_WRAPPED_UNDER_UNKNOWN_KID", expected: KID }));
+  });
+
+  it("rejects with 503 when the version the row names has been disabled", async () => {
+    const { service, inRequest, kmsClient, logger } = setup();
+    kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("9 FAILED_PRECONDITION"), { code: grpc.status.FAILED_PRECONDITION }));
+
+    await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toMatchObject({ status: 503 }));
+
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "USER_DATA_KEY_WRAPPED_UNDER_UNKNOWN_KID" }));
   });
 
   it("rejects with 503 when the key service is unreachable", async () => {
@@ -277,7 +309,7 @@ describe(DataKeyUnwrapperService.name, () => {
     await inRequest(async () => await expect(service.getDataKey(USER_A)).rejects.toThrow("no row"));
   });
 
-  function setup(input?: { kid?: string; keyBytes?: number; mutateWrappedKey?: (wrappedKey: string) => string }) {
+  function setup(input?: { kid?: string; configuredVersion?: string; keyBytes?: number; mutateWrappedKey?: (wrappedKey: string) => string }) {
     const { publicKey, privateKey } = WRAPPING_KEY_PAIR;
     const wrappedKid = input?.kid ?? KID;
     const keys = new Map<string, Buffer>();
@@ -312,7 +344,7 @@ describe(DataKeyUnwrapperService.name, () => {
       ];
     });
 
-    const kmsTarget = { client: kmsClient, versionName: VERSION_NAME, kid: KID };
+    const kmsTarget = createTestSdlSecretsKmsTarget({ client: kmsClient, version: input?.configuredVersion });
     const executionContextService = container.resolve(ExecutionContextService);
     const logger = mock<ReturnType<CreateLogger>>();
     const service = new DataKeyUnwrapperService(dataKeyService, executionContextService, new KmsWrappedJweService(kmsTarget), kmsTarget, () => logger);
