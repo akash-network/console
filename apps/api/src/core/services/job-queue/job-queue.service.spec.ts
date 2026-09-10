@@ -594,6 +594,66 @@ describe(JobQueueService.name, () => {
       expect((result as PromiseRejectedResult).reason).toBe("boom");
     });
 
+    it("rewrites the error when a NUL byte sits only in a field of its own, as a failed insert's params do", async () => {
+      const error = Object.assign(new Error("insert failed"), { params: ["cmd=tr '\u0000' ' '"] });
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      const thrown = (result as PromiseRejectedResult).reason as Error & { params?: string[] };
+      expect(thrown).not.toBe(error);
+      expect(thrown.message).toBe("insert failed");
+      expect(thrown.params).toBeUndefined();
+    });
+
+    it("rewrites the error when a NUL byte sits only in its cause", async () => {
+      const error = new Error("insert failed", { cause: new Error("params: \u0000") });
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      const thrown = (result as PromiseRejectedResult).reason as Error;
+      expect(thrown).not.toBe(error);
+      expect(thrown.message).toBe("insert failed");
+      expect(thrown.cause).toBeUndefined();
+    });
+
+    it("strips the NUL bytes out of a rejected string", async () => {
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue("cmd=tr '\u0000' ' '"))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      expect((result as PromiseRejectedResult).reason).toBe("cmd=tr ' ' ' '");
+    });
+
+    it("describes a rejected object whose field carries a NUL byte", async () => {
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue({ evidence: "x\u0000y" }))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      expect((result as PromiseRejectedResult).reason).toBe('{"evidence":"x\\u0000y"}');
+    });
+
+    it("describes a rejected object Postgres could never store as one", async () => {
+      const cyclic: Record<string, unknown> = { evidence: "x\u0000y" };
+      cyclic.self = cyclic;
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(cyclic))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      expect((result as PromiseRejectedResult).reason).toBe("unserializable rejection");
+    });
+
     it("installs the permissions the handler declares for its execution", async () => {
       const { service, pgBoss, executionContextService } = setup();
       deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
