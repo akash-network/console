@@ -24,6 +24,7 @@ import { DeploymentReaderService } from "@src/deployment/services/deployment-rea
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/deployment/utils/deployment-name/deployment-name";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
@@ -942,6 +943,66 @@ describe("Deployments API", () => {
       });
     }
 
+    it("names a deployment after the single service its sdl declares", async () => {
+      expect(await createDeploymentNamed()).toMatchObject({ name: "web" });
+    });
+
+    it("names a deployment after every service its sdl declares, joined", async () => {
+      expect(await createDeploymentNamed({ sdl: "two-service-sdl.yml" })).toMatchObject({ name: "db+web" });
+    });
+
+    it("records the name the request supplied, trimmed, rather than deriving one", async () => {
+      expect(await createDeploymentNamed({ sdl: "two-service-sdl.yml", name: "  checkout stack  " })).toMatchObject({ name: "checkout stack" });
+    });
+
+    it("records a name of the greatest length a deployment may carry", async () => {
+      const name = "n".repeat(MAX_DEPLOYMENT_NAME_LENGTH);
+
+      expect(await createDeploymentNamed({ name })).toMatchObject({ name });
+    });
+
+    it("returns 400 for a name of nothing but spaces", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await postDeployment(userApiKeySecret, { name: "   " });
+
+      expect(response.status).toBe(400);
+    });
+
+    it("returns 400 for a name longer than a deployment may carry", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await postDeployment(userApiKeySecret, { name: "n".repeat(MAX_DEPLOYMENT_NAME_LENGTH + 1) });
+
+      expect(response.status).toBe(400);
+    });
+
+    function postDeployment(userApiKeySecret: string, data: { name?: string }) {
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
+      return app.request("/v1/deployments", {
+        method: "POST",
+        body: JSON.stringify({ data: { sdl: yml, ...data } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+    }
+
+    async function createDeploymentNamed(input: { sdl?: string; name?: string } = {}) {
+      const { userApiKeySecret, user } = await mockPersistedUser();
+      const yml = fs.readFileSync(path.resolve(__dirname, `../mocks/${input.sdl ?? "hello-world-sdl.yml"}`), "utf8");
+
+      const response = await app.request("/v1/deployments", {
+        method: "POST",
+        body: JSON.stringify({ data: { sdl: yml, name: input.name } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(201);
+      const result = (await response.json()) as { data: { dseq: string } };
+
+      return await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id, dseq: result.data.dseq });
+    }
+
     async function createDeploymentWithSecrets() {
       const { userApiKeySecret, user } = await mockPersistedUser();
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl-with-secrets.yml"), "utf8");
@@ -1207,6 +1268,57 @@ describe("Deployments API", () => {
         leases: expect.arrayContaining([expect.any(Object)])
       });
     });
+
+    it("renames the deployment", async () => {
+      const { user, setting } = await update({ recordedName: "web", name: "renamed" });
+
+      expect(setting).toMatchObject({ userId: user.id, name: "renamed" });
+    });
+
+    it("names a deployment the console recorded no name for", async () => {
+      const { setting } = await update({ name: "renamed" });
+
+      expect(setting).toMatchObject({ name: "renamed" });
+    });
+
+    it("leaves the name alone for an update that supplies none", async () => {
+      const { setting } = await update({ recordedName: "web" });
+
+      expect(setting).toMatchObject({ name: "web" });
+    });
+
+    it("returns 400 for a name of nothing but spaces", async () => {
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
+      await setupDeploymentInfoMock(wallets, "1234");
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
+      const response = await app.request("/v1/deployments/1234", {
+        method: "PUT",
+        body: JSON.stringify({ data: { sdl: yml, name: "   " } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+    });
+
+    async function update(input: { recordedName?: string; name?: string }) {
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const dseq = "1234";
+      await setupDeploymentInfoMock(wallets, dseq);
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: yml, manifestVersion: "BAUG", name: input.recordedName });
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "PUT",
+        body: JSON.stringify({ data: { sdl: yml, name: input.name } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+
+      return { user, setting: await deploymentSettingRepository.findOneBy({ userId: user.id, dseq }) };
+    }
 
     it("should return 404 if deployment does not exist", async () => {
       const { userApiKeySecret } = await mockUser();
