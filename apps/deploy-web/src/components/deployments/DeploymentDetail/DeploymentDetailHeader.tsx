@@ -68,7 +68,7 @@ export interface DeploymentDetailHeaderProps {
 }
 
 export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deployment, leases, providers, dependencies: d = DEPENDENCIES }) => {
-  const { getDeploymentName, changeDeploymentName } = d.useLocalNotes();
+  const { changeDeploymentName } = d.useLocalNotes();
   const { isTrialing } = d.useWallet();
   const { denom } = d.useDeploymentEscrowBalance({ deployment, leases });
   const { data: settings } = d.useDeploymentSettingQuery({ dseq: deployment.dseq, pollUntilRuntimeAnchored: true });
@@ -93,7 +93,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
     [leases, definitionSdl]
   );
 
-  const name = getDeploymentName(deployment.dseq) || `Deployment #${deployment.dseq}`;
+  const name = definition.name || `Deployment #${deployment.dseq}`;
 
   return (
     <div className="flex flex-col gap-6 py-6 lg:flex-row lg:items-start lg:justify-between">
