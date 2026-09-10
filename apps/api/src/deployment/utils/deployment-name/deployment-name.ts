@@ -7,7 +7,7 @@ const SERVICE_NAME_SEPARATOR = "+";
 
 export function deriveDeploymentName(groups: Manifest): string | undefined {
   const serviceNames = new Set(
-    groups
+    Iterator.from(groups)
       .flatMap(group => group.services)
       .map(service => service.name.trim())
       .filter(serviceName => serviceName.length > 0)
