@@ -53,6 +53,8 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateCreation | null>(null);
   const [editedManifest, setEditedManifest] = useState("");
   const loadedTemplateIdRef = useRef<string | null>(null);
+  /** A redeploy definition arrives asynchronously, so anything the editor holds that this effect did not put there is the user's own typing. */
+  const seededRedeploySdl = useRef<string | null>(null);
   const deploySdl = useAtomValue(sdlStore.deploySdl);
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
@@ -96,6 +98,9 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
     if (!templates || (isCreating && !!editedManifest && isSameTemplateAlreadyLoaded)) return;
     if (redeployDefinition.source === "resolving") return;
 
+    const editorHoldsEditsOfItsOwn = !!redeployDseq && !!editedManifest && editedManifest !== seededRedeploySdl.current;
+    if (editorHoldsEditsOfItsOwn) return;
+
     const template = getRedeployTemplate() || getGalleryTemplate() || deploySdl;
     const isUserTemplate = template?.code === USER_TEMPLATE_CODE;
     const isUserTemplateInit = isUserTemplate && !!editedManifest;
@@ -103,6 +108,7 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
 
     setSelectedTemplate(template as TemplateCreation);
     setEditedManifest(template.content as string);
+    seededRedeploySdl.current = template.content as string;
     loadedTemplateIdRef.current = templateId ?? null;
 
     if ("config" in template && (template.config?.ssh || (!template.config?.ssh && hasComponent("ssh")))) {

@@ -349,6 +349,46 @@ describe(NewDeploymentContainer.name, () => {
     expect(ManifestEdit).toHaveBeenLastCalledWith(expect.objectContaining({ editedManifest: userEditedManifest }), {});
   });
 
+  it("seeds the editor once the redeploy definition resolves into an untouched editor", async () => {
+    const { ManifestEdit, rerender } = setup({
+      step: RouteStep.editDeployment,
+      redeploy: "123",
+      redeployDefinition: { sdl: undefined, source: "resolving" }
+    });
+
+    rerender({ redeployDefinition: { sdl: "version: 2.0\n# from the api", name: "Redeployed App", source: "api" } });
+
+    await vi.waitFor(() => {
+      expect(ManifestEdit).toHaveBeenLastCalledWith(expect.objectContaining({ editedManifest: "version: 2.0\n# from the api" }), {});
+    });
+  });
+
+  it("keeps the manifest a user typed before the redeploy definition resolved", async () => {
+    const { ManifestEdit, rerender } = setup({
+      step: RouteStep.editDeployment,
+      redeploy: "123",
+      redeployDefinition: { sdl: undefined, source: "resolving" }
+    });
+
+    await vi.waitFor(() => {
+      expect(ManifestEdit).toHaveBeenCalled();
+    });
+
+    const typedBeforeTheApiAnswered = "version: 2.0\n# typed while the api was still resolving";
+    ManifestEdit.mock.calls.at(-1)?.[0].setEditedManifest(typedBeforeTheApiAnswered);
+
+    await vi.waitFor(() => {
+      expect(ManifestEdit).toHaveBeenLastCalledWith(expect.objectContaining({ editedManifest: typedBeforeTheApiAnswered }), {});
+    });
+
+    rerender({ redeployDefinition: { sdl: "version: 2.0\n# from the api", name: "Redeployed App", source: "api" } });
+
+    await vi.waitFor(() => {
+      expect(ManifestEdit).toHaveBeenCalled();
+    });
+    expect(ManifestEdit).toHaveBeenLastCalledWith(expect.objectContaining({ editedManifest: typedBeforeTheApiAnswered }), {});
+  });
+
   function setup(
     input: {
       step?: RouteStep;
@@ -397,7 +437,13 @@ describe(NewDeploymentContainer.name, () => {
 
     // Create stable references for hook return values to prevent infinite re-renders
     const sdlBuilder = mock<SdlContextProps>();
-    const redeployDefinition: DeploymentDefinition = { sdl: undefined, name: undefined, source: "absent", ...input.redeployDefinition };
+    const resolveDefinition = (next: Partial<DeploymentDefinition> | undefined): DeploymentDefinition => ({
+      sdl: undefined,
+      name: undefined,
+      source: "absent",
+      ...next
+    });
+    let redeployDefinition = resolveDefinition(input.redeployDefinition);
     const templatesValue = {
       isLoading: input.isLoadingTemplates ?? false,
       templates: [] as never[],
@@ -447,6 +493,7 @@ describe(NewDeploymentContainer.name, () => {
       mockSearchParams = buildSearchParams(merged);
       currentRequestedTemplate = merged.requestedTemplate;
       currentTemplateId = merged.templateId;
+      redeployDefinition = resolveDefinition(merged.redeployDefinition);
       view.rerender(renderTree());
     };
 
