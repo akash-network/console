@@ -69,6 +69,20 @@ describe(TrialWorkloadProbeJobService.name, () => {
       expect(jobQueueService.cancelCreatedBy.mock.invocationCallOrder[0]).toBeLessThan(jobQueueService.enqueue.mock.invocationCallOrder[0]);
     });
 
+    it("leaves a probe that already comes due sooner alone, so updates on a timer cannot push every probe out of reach", async () => {
+      const updatedAt = addMinutes(LEASE_CREATED_AT, 90);
+      const { service, jobQueueService } = setup({ now: updatedAt, probeWaitingBeyondTheRestart: false });
+
+      expect(await service.restartForUpdatedDeployment({ ...TARGET, updatedAt })).toBeNull();
+      expect(jobQueueService.hasWaitingSingleton).toHaveBeenCalledWith({
+        name: "ProbeTrialDeployment",
+        singletonKey: probeTrialDeploymentKeyFor(TARGET),
+        notDueBefore: addMinutes(updatedAt, 5)
+      });
+      expect(jobQueueService.cancelCreatedBy).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
     it("touches the queue not at all while probing is disabled", async () => {
       const { service, jobQueueService } = setup({ enabled: false });
 
@@ -206,6 +220,7 @@ describe(TrialWorkloadProbeJobService.name, () => {
     now?: Date;
     intervalMin?: number;
     jitterMin?: number;
+    probeWaitingBeyondTheRestart?: boolean;
   }) {
     if (input.now) vi.useFakeTimers({ now: input.now, toFake: ["Date"] });
     else vi.useRealTimers();
@@ -213,6 +228,7 @@ describe(TrialWorkloadProbeJobService.name, () => {
     const jobQueueService = mock<JobQueueService>();
     jobQueueService.enqueue.mockResolvedValue("job-id");
     jobQueueService.findPendingSingletonKeys.mockResolvedValue(new Set(input.pendingKeys ?? []));
+    jobQueueService.hasWaitingSingleton.mockResolvedValue(input.probeWaitingBeyondTheRestart ?? true);
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.findLiveTrialDeployments.mockResolvedValue(input.live ?? []);
     const detectionRepository = mock<WorkloadAbuseDetectionRepository>();

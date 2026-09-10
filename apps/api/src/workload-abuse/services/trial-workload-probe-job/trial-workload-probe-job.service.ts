@@ -59,13 +59,23 @@ export class TrialWorkloadProbeJobService {
     return this.#schedule({ ...previous, attempt: previous.attempt + 1 });
   }
 
-  /** A manifest update swaps the container, so the fixed early probes start over from the update instead of waiting for the next hourly one. */
+  /** A manifest update swaps the container, so the fixed early probes start over from it, but only where that brings the next probe forward: pushing it back would let a workload dodge every probe by patching itself on a timer. */
   async restartForUpdatedDeployment(target: ProbeTrialDeploymentTarget & { updatedAt: Date }): Promise<string | null> {
     if (!this.config.get("WORKLOAD_ABUSE_PROBE_ENABLED")) return null;
 
+    const data = { walletId: target.walletId, dseq: target.dseq, attempt: 1, leaseCreatedAt: target.updatedAt.toISOString() };
+    const startAfter = this.startAfterFor(data);
+    const waitsLongerThanTheRestart = await this.jobQueueService.hasWaitingSingleton({
+      name: ProbeTrialDeployment[JOB_NAME],
+      singletonKey: probeTrialDeploymentKeyFor(target),
+      notDueBefore: startAfter
+    });
+
+    if (!waitsLongerThanTheRestart) return null;
+
     await this.cancelForDeployment(target);
 
-    return this.#schedule({ walletId: target.walletId, dseq: target.dseq, attempt: 1, leaseCreatedAt: target.updatedAt.toISOString() });
+    return this.#schedule(data, startAfter);
   }
 
   async cancelForDeployment(target: ProbeTrialDeploymentTarget): Promise<void> {
