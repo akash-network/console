@@ -36,6 +36,42 @@ function retryOptionsOf(queue: QueueRetryOptions) {
   return RETRY_OPTION_KEYS.map(key => [key, queue[key]] as const);
 }
 
+const NUL_BYTE = "\u0000";
+
+function withoutNulBytes(text: string): string {
+  return text.replaceAll(NUL_BYTE, " ");
+}
+
+function carriesNulByte(value: unknown, seen: WeakSet<object>): boolean {
+  if (typeof value === "string") return value.includes(NUL_BYTE);
+  if (value === null || typeof value !== "object" || seen.has(value)) return false;
+
+  seen.add(value);
+  const serializedFields = value instanceof Error ? [value.message, value.stack, value.cause, ...Object.values(value)] : Object.values(value);
+
+  return serializedFields.some(field => carriesNulByte(field, seen));
+}
+
+function describeRejection(value: unknown): string {
+  try {
+    return typeof value === "string" ? value : JSON.stringify(value);
+  } catch {
+    return "unserializable rejection";
+  }
+}
+
+/** pg-boss serializes the whole thrown value into the job's jsonb output, and Postgres rejects that write over a NUL anywhere in it, which leaves the job active for good. */
+function toStorableError(error: unknown): unknown {
+  if (!carriesNulByte(error, new WeakSet())) return error;
+  if (!(error instanceof Error)) return withoutNulBytes(describeRejection(error));
+
+  const storable = new Error(withoutNulBytes(error.message));
+  storable.name = error.name;
+  storable.stack = error.stack === undefined ? undefined : withoutNulBytes(error.stack);
+
+  return storable;
+}
+
 @singleton()
 export class JobQueueService implements Disposable {
   private readonly pgBoss: PgBoss;
@@ -370,7 +406,7 @@ export class JobQueueService implements Disposable {
                   jobId: job.id,
                   error
                 });
-                throw error;
+                throw toStorableError(error);
               }
             });
           });

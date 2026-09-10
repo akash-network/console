@@ -10,6 +10,7 @@ import type { ProviderAuth } from "@src/provider/services/provider/provider-prox
 import {
   type DetectionSignal,
   type EvidenceSource,
+  sanitizeEvidenceText,
   scanForSignals,
   toVerdict,
   type WorkloadVerdict
@@ -182,5 +183,5 @@ function buildExcerpt(sources: EvidenceSource[], signals: DetectionSignal[]): st
   );
   const shellOutput = sources.filter(source => source.kind === "shell").map(source => `--- shell ${source.service ?? ""}\n${source.text}`);
 
-  return [...signalLines, ...shellOutput].join("\n").slice(0, MAX_EXCERPT_LENGTH);
+  return sanitizeEvidenceText([...signalLines, ...shellOutput].join("\n")).slice(0, MAX_EXCERPT_LENGTH);
 }

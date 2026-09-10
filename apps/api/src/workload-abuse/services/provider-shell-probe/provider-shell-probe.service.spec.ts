@@ -23,6 +23,12 @@ describe(ProviderShellProbeService.name, () => {
       expect(url.searchParams.get("cmd2")).toBe(SHELL_PROBE_SCRIPT);
       expect(url.searchParams.get("service")).toBe("ssh box");
     });
+
+    it("prints expanded lines with printf so a dash echo cannot turn the script's own cmdline into NUL bytes", () => {
+      expect(SHELL_PROBE_SCRIPT).toContain("printf '%s\\n' \"${p#/proc/} comm=");
+      expect(SHELL_PROBE_SCRIPT).toContain("printf '%s\\n' \"== $f\"");
+      expect(SHELL_PROBE_SCRIPT).not.toMatch(/echo "/);
+    });
   });
 
   describe("run", () => {

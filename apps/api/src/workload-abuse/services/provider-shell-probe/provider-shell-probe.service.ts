@@ -3,14 +3,14 @@ import { singleton } from "tsyringe";
 import { ProviderStreamService, type ProviderStreamStatus } from "@src/workload-abuse/services/provider-stream/provider-stream.service";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 
-/** Collect-only: nothing here names what the scanner looks for, because argv is visible to the workload through /proc. */
+/** Collect-only and printf-only: argv is visible to the workload through /proc, and dash's echo expands the `\0` in this script's own cmdline into a NUL byte. */
 const SHELL_PROBE_COLLECTORS = [
   "echo '--loadavg'; cat /proc/loadavg 2>/dev/null",
   "echo '--nproc'; nproc 2>/dev/null || grep -c ^processor /proc/cpuinfo 2>/dev/null",
-  'echo \'--procs\'; for p in /proc/[0-9]*; do c=$(tr \'\\0\' \' \' < "$p/cmdline" 2>/dev/null); [ -n "$c" ] || continue; echo "${p#/proc/} comm=$(cat "$p/comm" 2>/dev/null) exe=$(readlink "$p/exe" 2>/dev/null) cwd=$(readlink "$p/cwd" 2>/dev/null) cmd=$c"; done | head -150',
+  'echo \'--procs\'; for p in /proc/[0-9]*; do c=$(tr \'\\0\' \' \' < "$p/cmdline" 2>/dev/null); [ -n "$c" ] || continue; printf \'%s\\n\' "${p#/proc/} comm=$(cat "$p/comm" 2>/dev/null) exe=$(readlink "$p/exe" 2>/dev/null) cwd=$(readlink "$p/cwd" 2>/dev/null) cmd=$c"; done | head -150',
   "echo '--net'; cat /proc/net/tcp /proc/net/tcp6 2>/dev/null | head -80",
   "echo '--tmp'; ls -la /tmp /dev/shm 2>/dev/null | head -80",
-  'echo \'--files\'; for f in /tmp/*.json /tmp/*.conf /tmp/*.txt /tmp/*/*.json /tmp/*/*.conf; do [ -f "$f" ] && [ "$(wc -c < "$f")" -lt 16384 ] && echo "== $f" && cat "$f"; done 2>/dev/null | head -400',
+  'echo \'--files\'; for f in /tmp/*.json /tmp/*.conf /tmp/*.txt /tmp/*/*.json /tmp/*/*.conf; do [ -f "$f" ] && [ "$(wc -c < "$f")" -lt 16384 ] && printf \'%s\\n\' "== $f" && cat "$f"; done 2>/dev/null | head -400',
   "echo '--authorized-keys'; cat /root/.ssh/authorized_keys /home/*/.ssh/authorized_keys 2>/dev/null | sort -u | head -10"
 ];
 

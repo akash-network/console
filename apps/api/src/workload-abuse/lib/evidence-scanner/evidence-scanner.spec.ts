@@ -22,6 +22,18 @@ describe("evidence scanner", () => {
       ]);
     });
 
+    it("turns NUL bytes into spaces in the snippet it stores", () => {
+      const [signal] = scanForSignals([{ kind: "shell", text: "cmd=sh -c tr '\u0000' ' ' -o stratum+tcp://pool" }], SIGNATURES);
+
+      expect(signal.snippet).toBe("cmd=sh -c tr ' ' ' ' -o stratum+tcp://pool");
+    });
+
+    it("turns NUL bytes into spaces in the service name it stores, since the provider names its own services", () => {
+      const [signal] = scanForSignals([{ kind: "shell", service: "ssh\u0000box", text: "cmd=miner -o stratum+tcp://pool" }], SIGNATURES);
+
+      expect(signal.service).toBe("ssh box");
+    });
+
     it("reports one signal per category per source however many lines match", () => {
       const signals = scanForSignals([{ kind: "logs", text: "speed 10 H/s\nspeed 12 H/s\nspeed 15 H/s" }], SIGNATURES);
 
