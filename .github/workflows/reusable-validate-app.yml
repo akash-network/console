@@ -210,7 +210,7 @@ jobs:
           # to not install node_modules inside this job
           mkdir -p node_modules/.bin
           ln -s "$PWD/packages/docker/script/dc.sh" node_modules/.bin/dc
-          npm run -w apps/$APP_TO_VALIDATE build:container
+          npm run -w "apps/$APP_TO_VALIDATE" build:container
 
   result:
     runs-on: ubuntu-latest
