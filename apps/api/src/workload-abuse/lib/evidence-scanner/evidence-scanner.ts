@@ -12,6 +12,7 @@ const MAX_SNIPPET_LENGTH = 180;
 const SNIPPET_LEAD_IN = 60;
 /** Any one soft category alone (a port number, the word nonce) shows up in honest workloads. */
 const MIN_SOFT_CATEGORIES_FOR_VERDICT = 3;
+const CONTROL_CHARACTERS_EXCEPT_TAB_AND_NEWLINE = /(?!\n|\t)\p{Cc}/gu;
 
 /** One signal per category per source, so a chatty miner log produces an auditable table rather than thousands of rows. */
 export function scanForSignals(sources: EvidenceSource[], signatures: CompiledSignature[]): DetectionSignal[] {
@@ -62,7 +63,7 @@ function toSnippet(line: string, matchIndex: number): string {
   return sanitizeEvidenceText(line.slice(start, start + MAX_SNIPPET_LENGTH)).trim();
 }
 
-/** Postgres rejects NUL in text and jsonb, and a container's output is raw bytes, so it becomes a space before it can reach a detection row. */
+/** Postgres rejects NUL in text and jsonb and a log line escapes every other control byte to six characters, so a container's raw output loses them all. */
 export function sanitizeEvidenceText(text: string): string {
-  return text.replaceAll("\u0000", " ");
+  return text.replace(CONTROL_CHARACTERS_EXCEPT_TAB_AND_NEWLINE, " ");
 }

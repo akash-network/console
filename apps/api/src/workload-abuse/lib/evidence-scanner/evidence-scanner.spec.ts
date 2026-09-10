@@ -28,6 +28,18 @@ describe("evidence scanner", () => {
       expect(signal.snippet).toBe("cmd=sh -c tr ' ' ' ' -o stratum+tcp://pool");
     });
 
+    it("turns every other control byte into a space too, since a log line escapes each of them to six characters", () => {
+      const [signal] = scanForSignals([{ kind: "shell", text: "cmd=miner \u001b[31m\u0007-o stratum+tcp://pool" }], SIGNATURES);
+
+      expect(signal.snippet).toBe("cmd=miner  [31m -o stratum+tcp://pool");
+    });
+
+    it("keeps the tabs and newlines that hold the shell output's shape", () => {
+      const [signal] = scanForSignals([{ kind: "shell", text: "cmd=miner\t-o stratum+tcp://pool" }], SIGNATURES);
+
+      expect(signal.snippet).toBe("cmd=miner\t-o stratum+tcp://pool");
+    });
+
     it("turns NUL bytes into spaces in the service name it stores, since the provider names its own services", () => {
       const [signal] = scanForSignals([{ kind: "shell", service: "ssh\u0000box", text: "cmd=miner -o stratum+tcp://pool" }], SIGNATURES);
 

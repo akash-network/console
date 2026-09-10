@@ -1,7 +1,7 @@
-import { StringDecoder } from "node:string_decoder";
 import { inject, singleton } from "tsyringe";
 
 import { decodeProviderFrame, parseShellExit, type ProviderFrame } from "@src/workload-abuse/lib/provider-frame/provider-frame";
+import { truncateToUtf8Bytes } from "@src/workload-abuse/lib/utf8-text/utf8-text";
 import {
   PROVIDER_PROXY_SOCKET_FACTORY,
   type ProviderProxySocketEvent,
@@ -127,11 +127,6 @@ export class ProviderStreamService {
       socket.addEventListener("error", () => finish("connection_error"));
     });
   }
-}
-
-/** `write` without `end` never emits a partial character, so the kept text stays within the byte budget. */
-function truncateToUtf8Bytes(text: string, maxBytes: number): string {
-  return new StringDecoder("utf8").write(Buffer.from(text, "utf8").subarray(0, maxBytes));
 }
 
 function toText(data: unknown): string | undefined {

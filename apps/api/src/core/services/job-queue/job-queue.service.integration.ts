@@ -192,6 +192,27 @@ describe(JobQueueService.name, () => {
     await waitForJobState(findJob, "completed");
   });
 
+  it("takes a replacement under a key a worker already holds, so a job enqueued to supersede the run in flight is not dropped", async () => {
+    const singletonKey = "row-1";
+    let release!: () => void;
+    const held = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const { jobQueue, handler, enqueue, findJob, findJobs } = await setup({ queueName: "stately-active", policy: "stately", handle: () => held });
+    await jobQueue.registerHandlers([handler]);
+    await enqueue({ singletonKey });
+    await jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 });
+    await waitForJobState(findJob, "active");
+
+    const replacement = await enqueue({ singletonKey });
+    const secondReplacement = await enqueue({ singletonKey });
+
+    expect(replacement).toEqual(expect.any(String));
+    expect(secondReplacement).toBeNull();
+    release();
+    await vi.waitFor(async () => expect((await findJobs()).map(job => job.state)).toEqual(["completed", "completed"]), { timeout: 20_000, interval: 250 });
+  });
+
   it("reports a job under the key that is waiting on a retry", async () => {
     const singletonKey = "row-1";
     const { jobQueue, handler, enqueue, findJob } = await setup({ queueName: "waiting-retry", handle: vi.fn().mockRejectedValue(new Error("boom")) });
@@ -233,6 +254,15 @@ describe(JobQueueService.name, () => {
       constructor(public readonly data: Record<string, unknown> = {}) {}
     }
 
+    const findJobs = async () => {
+      const rows = await db.execute<JobRow>(
+        sql`select state, retry_limit, retry_backoff, retry_delay, retry_delay_max, start_after::text
+            from ${backgroundJobsSchema()}.job where name = ${queueName} order by created_on`
+      );
+
+      return rows as unknown as JobRow[];
+    };
+
     return {
       jobQueue,
       handler: {
@@ -252,14 +282,8 @@ describe(JobQueueService.name, () => {
 
         return (rows as unknown as QueueRow[])[0];
       },
-      findJob: async () => {
-        const rows = await db.execute<JobRow>(
-          sql`select state, retry_limit, retry_backoff, retry_delay, retry_delay_max, start_after::text
-              from ${backgroundJobsSchema()}.job where name = ${queueName}`
-        );
-
-        return (rows as unknown as JobRow[])[0];
-      }
+      findJob: async () => (await findJobs())[0],
+      findJobs
     };
   }
 });

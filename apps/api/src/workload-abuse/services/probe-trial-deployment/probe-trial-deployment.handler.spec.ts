@@ -68,6 +68,15 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_WORKLOAD_PROBED", verdict: "clean", evidence: "x".repeat(4_096) }));
   });
 
+  it("cuts the logged evidence by bytes, so multibyte output a workload controls cannot outgrow the line budget", async () => {
+    const multibyte = "\u65e5";
+    const { handler, logger } = setup({ report: createReport({ verdict: "clean", excerpt: multibyte.repeat(5_000) }) });
+
+    await handler.handle(PAYLOAD);
+
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_WORKLOAD_PROBED", evidence: multibyte.repeat(1_365) }));
+  });
+
   it("records a suspicious workload for review and keeps probing it", async () => {
     const report = createReport({ verdict: "soft" });
     const { handler, wallet, probeJobService, detectionRepository, logger } = setup({ report });
