@@ -258,6 +258,17 @@ describe(DeploymentReaderService.name, () => {
       expect(scopedDeploymentSettingRepository.findNamesByDseqs).toHaveBeenCalledWith({ userId: wallet.userId, dseqs: ["100", "200"] });
     });
 
+    it("gives each listed deployment the leases fetched for that deployment alone", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, leaseHttpService } = setup({ wallet, listedDseqs: ["100", "200"] });
+
+      const { deployments } = await service.list({ query: { userId: wallet.userId } });
+
+      expect(deployments.map(item => item.leases.map(lease => lease.id.dseq))).toEqual([["100"], ["200"]]);
+      expect(leaseHttpService.list).toHaveBeenCalledWith({ owner: wallet.address, dseq: "100" });
+      expect(leaseHttpService.list).toHaveBeenCalledWith({ owner: wallet.address, dseq: "200" });
+    });
+
     it("reads no names for a page with no deployments on it", async () => {
       const wallet = createUserWallet() as WalletInitialized;
       const { service, scopedDeploymentSettingRepository } = setup({ wallet, listedDseqs: [] });
@@ -409,7 +420,12 @@ describe(DeploymentReaderService.name, () => {
         findAll: vi.fn().mockResolvedValue(input.fallbackDeploymentList ?? defaultDeploymentList)
       }),
       leaseHttpService: mock<LeaseHttpService>({
-        list: vi.fn().mockResolvedValue({ leases: input.leases ?? [], pagination: { next_key: null, total: String(input.leases?.length ?? 0) } })
+        list: input.listedDseqs
+          ? vi.fn().mockImplementation(async ({ dseq }: { dseq?: string }) => ({
+              leases: dseq ? [createLeaseApiResponse({ owner: wallet.address, dseq })] : [],
+              pagination: { next_key: null, total: dseq ? "1" : "0" }
+            }))
+          : vi.fn().mockResolvedValue({ leases: input.leases ?? [], pagination: { next_key: null, total: String(input.leases?.length ?? 0) } })
       }),
       fallbackLeaseReaderService: mock<FallbackLeaseReaderService>({
         list: vi.fn().mockResolvedValue({
