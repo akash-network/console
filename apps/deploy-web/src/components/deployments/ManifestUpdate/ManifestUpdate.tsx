@@ -13,11 +13,12 @@ import { useBlockchainStatus as useBlockchainStatusOriginal } from "@src/context
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet as useWalletOriginal } from "@src/context/WalletProvider";
 import { AddCreditsSnackbarContent } from "@src/context/WalletProvider/useSignAndBroadcast";
+import type { DeploymentDefinitionSource } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useDeploymentDefinition as useDeploymentDefinitionOriginal } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useBalances as useBalancesOriginal } from "@src/queries/useBalancesQuery";
 import type { DeploymentDto } from "@src/types/deployment";
 import { deploymentData as deploymentDataOriginal } from "@src/utils/deploymentData";
-import { hasOnlyBlankEnvValues, hasSdlReference } from "@src/utils/sdl/storedDefinition";
+import { hasOnlyBlankEnvValues, hasSdlReference, isStoredSdlSelfContained } from "@src/utils/sdl/storedDefinition";
 import RemoteDeployUpdate from "../../remote-deploy/update/RemoteDeployUpdate";
 import { SDLEditor } from "../../sdl/SDLEditor/SDLEditor";
 import { DeploymentTabHeader } from "../DeploymentDetail/DeploymentTabHeader";
@@ -53,6 +54,11 @@ const UPDATE_FAILURE_MESSAGE = "Something went wrong while updating the deployme
 const ADD_CREDITS_TITLE = "Add credits to continue";
 /** Refused rather than submitted: a document whose values are references would commit a manifest whose environment is the reference strings themselves. */
 const WITHHELD_VALUES_ERROR = "This configuration still has withheld secret values. Replace them with real values before updating.";
+
+/** The api serves its own copy only when the chain is already running it, and a copy stripped of its values hashes to a manifest the chain never committed. */
+function needsChainVersionCheck(sdl: string, source: DeploymentDefinitionSource): boolean {
+  return source !== "api" && isStoredSdlSelfContained(sdl);
+}
 
 function isBadRequest(cause: unknown): boolean {
   return isApiError(cause) && cause.status === 400;
@@ -118,14 +124,15 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const { api, analyticsService, deploymentLocalStorage, logger } = useServices();
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
-  const [hasDismissedWithheldValuesNotice, setHasDismissedWithheldValuesNotice] = useState(false);
+  const [dseqWithDismissedNotice, setDseqWithDismissedNotice] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const { address } = d.useWallet();
   const { refetch: refetchBalances } = d.useBalances(address);
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const { isBlockchainDown } = d.useBlockchainStatus();
   const definition = d.useDeploymentDefinition(deployment.dseq);
-  const lastSeededSdl = useRef<string | undefined>(undefined);
+  const seededDseq = useRef<string | undefined>(undefined);
+  const seededSdl = useRef<string | undefined>(undefined);
   const updateDeployment = api.v1.updateDeployment.useMutation({
     onSuccess: (_data, variables) => recordUpdate(variables.data.sdl),
     onError: reportUpdateFailure
@@ -143,8 +150,14 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   }, []);
 
   const isResolvingDefinition = definition.source === "resolving";
-  const showsWithheldValuesNotice = definition.source === "absent" && !hasDismissedWithheldValuesNotice;
-  const hasWithheldValues = useMemo(() => !!editedManifest && (hasSdlReference(editedManifest) || hasOnlyBlankEnvValues(editedManifest)), [editedManifest]);
+  const showsWithheldValuesNotice = definition.source === "absent" && dseqWithDismissedNotice !== deployment.dseq;
+  /** A blank env value only signals a withheld one in the api's own record; in a document of the user's own it can be deliberate. */
+  const isServingTheApiRecord = definition.source === "absent" && !!definition.sdl;
+  const hasWithheldValues = useMemo(
+    () => !!editedManifest && (hasSdlReference(editedManifest) || (isServingTheApiRecord && hasOnlyBlankEnvValues(editedManifest))),
+    [editedManifest, isServingTheApiRecord]
+  );
+  const editorAlertMessage = parsingError ?? (hasWithheldValues ? WITHHELD_VALUES_ERROR : null);
 
   useEffect(
     function seedEditorOnceTheDefinitionResolves() {
@@ -152,21 +165,21 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
       const { sdl, source } = definition;
 
-      const editorHoldsUnseededEdits = lastSeededSdl.current !== undefined && editedManifest !== lastSeededSdl.current;
+      const editorHoldsUnseededEdits = seededDseq.current === deployment.dseq && editedManifest !== seededSdl.current;
       if (editorHoldsUnseededEdits) return;
 
       if (sdl) {
-        lastSeededSdl.current = sdl;
+        seededDseq.current = deployment.dseq;
+        seededSdl.current = sdl;
         onManifestChange(sdl);
       }
 
-      /** Both copies that can disagree with the chain: this browser's own, and one the API held but could not stand behind. */
-      if ((source !== "local" && source !== "absent") || !sdl) {
+      if (!sdl || !needsChainVersionCheck(sdl, source)) {
         setDeploymentVersion(null);
         return;
       }
 
-      const readVersionOfLocalCopy = async () => {
+      const readVersionOfSeededCopy = async () => {
         try {
           setDeploymentVersion(await d.deploymentData.getManifestVersion(yaml.load(sdl)));
         } catch (error) {
@@ -175,9 +188,9 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
         }
       };
 
-      readVersionOfLocalCopy();
+      readVersionOfSeededCopy();
     },
-    [isResolvingDefinition, definition.sdl, definition.source]
+    [isResolvingDefinition, definition.sdl, definition.source, deployment.dseq]
   );
 
   function handleManifestChange(value: string) {
@@ -200,10 +213,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   }
 
   function handleUpdateClick() {
-    if (hasWithheldValues) {
-      setParsingError(WITHHELD_VALUES_ERROR);
-      return;
-    }
+    if (hasWithheldValues) return;
 
     setIsUpdating(true);
     updateDeployment.mutate({ dseq: deployment.dseq, data: { sdl: editedManifest } }, { onSuccess: closeAfterUpdate, onError: releaseAfterFailure });
@@ -288,7 +298,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
               ? "The configuration stored for this deployment has its secret values withheld, so they are not shown below. Continue and enter them before updating."
               : "It looks like this deployment was created using another deploy tool. We can't show you the configuration file that was used initially, but you can still update it. Simply continue and enter the configuration you want to use."}
             <div className="mt-1">
-              <d.Button onClick={() => setHasDismissedWithheldValuesNotice(true)} size="sm">
+              <d.Button onClick={() => setDseqWithDismissedNotice(deployment.dseq)} size="sm">
                 Continue
               </d.Button>
             </div>
@@ -343,7 +353,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
               )}
             </d.DeploymentTabHeader>
 
-            {parsingError && <d.Alert variant="warning">{parsingError}</d.Alert>}
+            {editorAlertMessage && <d.Alert variant="warning">{editorAlertMessage}</d.Alert>}
 
             <d.LinearLoadingSkeleton isLoading={isUpdating} />
 
