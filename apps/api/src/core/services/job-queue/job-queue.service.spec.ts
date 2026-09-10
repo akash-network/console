@@ -337,7 +337,11 @@ describe(JobQueueService.name, () => {
         service.hasWaitingSingleton({ name: "test-job", singletonKey: "singleton-1", notDueBefore: new Date("2026-01-01T00:03:00.000Z") })
       ).resolves.toBe(true);
 
-      expect(executeSql).toHaveBeenCalledWith(expect.stringContaining("state IN ('created', 'retry')"), ["test-job", "singleton-1", "2026-01-01T00:03:00.000Z"]);
+      expect(executeSql).toHaveBeenCalledWith(expect.stringContaining("state IN ('created', 'retry')"), [
+        "test-job",
+        "singleton-1",
+        "2026-01-01T00:03:00.000Z"
+      ]);
       expect(executeSql).toHaveBeenCalledWith(expect.stringContaining("start_after > $3"), expect.anything());
     });
 
@@ -516,6 +520,39 @@ describe(JobQueueService.name, () => {
       });
       expect(handleFn).toHaveBeenCalledTimes(1);
       expect(handleFn).toHaveBeenCalledWith({ message: "Job 1", userId: "user-1" }, { id: job.id });
+    });
+
+    it("rethrows a NUL-free copy of a failing handler's error so pg-boss can store it", async () => {
+      const error = new Error("Failed query: insert params: cmd=tr '\u0000' ' '");
+      error.name = "DrizzleQueryError";
+      error.stack = "DrizzleQueryError: \u0000\n    at insert";
+      const { service, pgBoss, logger } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      const thrown = (result as PromiseRejectedResult).reason as Error;
+      expect(thrown).not.toBe(error);
+      expect(thrown.name).toBe("DrizzleQueryError");
+      expect(thrown.message).toBe("Failed query: insert params: cmd=tr ' ' ' '");
+      expect(thrown.stack).toBe("DrizzleQueryError:  \n    at insert");
+      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_FAILED", jobId: expect.any(String), error });
+    });
+
+    it("rewrites the error when only its stack carries a NUL byte", async () => {
+      const error = new Error("insert failed");
+      error.stack = "Error: insert failed\n    at params: \u0000";
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      const thrown = (result as PromiseRejectedResult).reason as Error;
+      expect(thrown).not.toBe(error);
+      expect(thrown.message).toBe("insert failed");
+      expect(thrown.stack).toBe("Error: insert failed\n    at params:  ");
     });
 
     it("installs the permissions the handler declares for its execution", async () => {

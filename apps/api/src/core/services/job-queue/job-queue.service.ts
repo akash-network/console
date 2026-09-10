@@ -36,6 +36,20 @@ function retryOptionsOf(queue: QueueRetryOptions) {
   return RETRY_OPTION_KEYS.map(key => [key, queue[key]] as const);
 }
 
+/** pg-boss writes the thrown error into the job's jsonb output, which Postgres rejects when it carries NUL, and a rejected write leaves the job active for good. */
+function toStorableError(error: unknown): unknown {
+  if (!(error instanceof Error)) return error;
+
+  const message = error.message.replaceAll("\u0000", " ");
+  const stack = error.stack?.replaceAll("\u0000", " ");
+  if (message === error.message && stack === error.stack) return error;
+
+  const storable = new Error(message);
+  storable.name = error.name;
+  storable.stack = stack;
+  return storable;
+}
+
 @singleton()
 export class JobQueueService implements Disposable {
   private readonly pgBoss: PgBoss;
@@ -370,7 +384,7 @@ export class JobQueueService implements Disposable {
                   jobId: job.id,
                   error
                 });
-                throw error;
+                throw toStorableError(error);
               }
             });
           });

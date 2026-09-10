@@ -22,6 +22,12 @@ describe("evidence scanner", () => {
       ]);
     });
 
+    it("turns NUL bytes into spaces in the snippet it stores", () => {
+      const [signal] = scanForSignals([{ kind: "shell", text: "cmd=sh -c tr '\u0000' ' ' -o stratum+tcp://pool" }], SIGNATURES);
+
+      expect(signal.snippet).toBe("cmd=sh -c tr ' ' ' ' -o stratum+tcp://pool");
+    });
+
     it("reports one signal per category per source however many lines match", () => {
       const signals = scanForSignals([{ kind: "logs", text: "speed 10 H/s\nspeed 12 H/s\nspeed 15 H/s" }], SIGNATURES);
 

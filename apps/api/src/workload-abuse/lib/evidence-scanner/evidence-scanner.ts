@@ -57,5 +57,10 @@ export function toVerdict(signals: DetectionSignal[]): WorkloadVerdict {
 
 function toSnippet(line: string, matchIndex: number): string {
   const start = Math.max(0, matchIndex - SNIPPET_LEAD_IN);
-  return line.slice(start, start + MAX_SNIPPET_LENGTH).trim();
+  return sanitizeEvidenceText(line.slice(start, start + MAX_SNIPPET_LENGTH)).trim();
+}
+
+/** Postgres rejects NUL in text and jsonb, and a container's output is raw bytes, so it becomes a space before it can reach a detection row. */
+export function sanitizeEvidenceText(text: string): string {
+  return text.replaceAll("\u0000", " ");
 }
