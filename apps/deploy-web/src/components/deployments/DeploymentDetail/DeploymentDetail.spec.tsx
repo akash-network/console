@@ -103,12 +103,22 @@ describe("DeploymentDetail", () => {
     expect(screen.queryByTestId("deployment-detail-skeleton")).not.toBeInTheDocument();
   });
 
-  it("holds the page skeleton until the definition resolves, so placements never render with no services", () => {
+  it("holds only the placements until the definition resolves, so they never render with no services", () => {
     setup({ definition: { sdl: undefined, source: "resolving" } });
 
-    expect(screen.getByTestId("deployment-detail-skeleton")).toBeInTheDocument();
-    expect(screen.queryByText("detail-header")).not.toBeInTheDocument();
+    expect(screen.getByTestId("deployment-placements-skeleton")).toBeInTheDocument();
     expect(screen.queryByText("placements")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("deployment-detail-skeleton")).not.toBeInTheDocument();
+    expect(screen.getByText("detail-header")).toBeInTheDocument();
+    expect(screen.getByRole("tablist")).toBeInTheDocument();
+  });
+
+  it("renders a tab that does not read the definition without waiting for it", () => {
+    setup({ tab: "LOGS", definition: { sdl: undefined, source: "resolving" } });
+
+    expect(screen.getByText("logs")).toBeInTheDocument();
+    expect(screen.queryByTestId("deployment-detail-skeleton")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("deployment-placements-skeleton")).not.toBeInTheDocument();
   });
 
   it("redirects an in-progress deployment with no lease to the configure flow", () => {

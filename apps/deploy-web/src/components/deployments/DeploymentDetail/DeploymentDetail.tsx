@@ -98,9 +98,9 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const deploymentManifest = definition.sdl || "";
   const isActive = deployment?.state === "active" && !!leases?.some(isLeaseLive);
   const isDeploymentNotFound = !!deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found") && !isLoadingDeployment;
-  /** The definition feeds the service counts and the placement cards, so showing the page before it lands renders "0 services" and then corrects itself. */
-  const showsPageSkeleton =
-    !isDeploymentNotFound && !deploymentError && !isLeasesError && (!deployment || !isLeasesLoaded || definition.source === "resolving");
+  const showsPageSkeleton = !isDeploymentNotFound && !deploymentError && !isLeasesError && (!deployment || !isLeasesLoaded);
+  /** The placement cards read their services off the definition, so rendering them before it lands shows "0 services" and then corrects itself. */
+  const showsPlacementsSkeleton = definition.source === "resolving";
 
   useEffect(() => {
     if (deployment) {
@@ -196,15 +196,18 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
             <div className="flex-1 bg-muted py-6">
               <div className={PAGE_BAND}>
-                {activeTab === "DETAILS" && (
-                  <d.DeploymentPlacements
-                    leases={leases || []}
-                    providers={providers || []}
-                    deploymentManifest={deploymentManifest}
-                    dseq={dseq}
-                    onClosed={loadDeploymentDetail}
-                  />
-                )}
+                {activeTab === "DETAILS" &&
+                  (showsPlacementsSkeleton ? (
+                    <Skeleton className="h-64 w-full rounded-xl" data-testid="deployment-placements-skeleton" />
+                  ) : (
+                    <d.DeploymentPlacements
+                      leases={leases || []}
+                      providers={providers || []}
+                      deploymentManifest={deploymentManifest}
+                      dseq={dseq}
+                      onClosed={loadDeploymentDetail}
+                    />
+                  ))}
 
                 {activeTab === "LOGS" && (isActive ? <d.DeploymentLogs leases={leases} selectedLogsMode="logs" /> : <TabInactiveState />)}
                 {activeTab === "EVENTS" && (isActive ? <d.DeploymentLogs leases={leases} selectedLogsMode="events" /> : <TabInactiveState />)}
