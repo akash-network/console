@@ -41,6 +41,11 @@ const SEAL_REJECTIONS: Record<KmsWrappedJweFailure, SealRejection> = {
     event: "SDL_SECRETS_SEAL_ENCRYPTED_KEY_REJECTED",
     message: "Sealed secrets carry an encrypted key this key version cannot open"
   },
+  WRAPPING_VERSION_UNUSABLE: {
+    status: 409,
+    event: "SDL_SECRETS_SEAL_KID_UNKNOWN",
+    message: "Sealed to a key the console no longer holds; refetch the SDL secrets context"
+  },
   KEY_SERVICE_REQUEST_CORRUPTED: { status: 503, event: "SDL_SECRETS_CEK_REQUEST_CORRUPTED", message: "SDL secrets could not be unsealed" },
   KEY_SERVICE_PLAINTEXT_MISSING: { status: 503, event: "SDL_SECRETS_CEK_MISSING", message: "SDL secrets could not be unsealed" },
   KEY_SERVICE_RESPONSE_CORRUPTED: { status: 503, event: "SDL_SECRETS_CEK_RESPONSE_CORRUPTED", message: "SDL secrets could not be unsealed" },
@@ -92,14 +97,14 @@ export class SdlSecretsUnsealerService {
 
   async open({ seal, sdl }: { seal: string; sdl: string }): Promise<SdlSecrets> {
     const parsed = this.#parseSeal(seal);
-    const header = this.#validateHeader(parsed.header);
+    const { header, versionName } = this.#validateHeader(parsed.header);
     this.#assertSdlBinding(header, sdl);
 
-    const secrets = this.#parseSecrets(await this.#openSeal(parsed));
+    const secrets = this.#parseSecrets(await this.#openSeal(parsed, versionName));
 
     this.#loggerService.info({
       event: "SDL_SECRETS_SEAL_OPENED",
-      kid: this.kmsTarget.kid,
+      kid: header.kid,
       secretCount: Object.keys(secrets).length,
       sdlBound: isSdlBound(header)
     });
@@ -115,9 +120,9 @@ export class SdlSecretsUnsealerService {
     }
   }
 
-  async #openSeal(parsed: ParsedKmsWrappedJwe): Promise<Buffer> {
+  async #openSeal(parsed: ParsedKmsWrappedJwe, versionName: string): Promise<Buffer> {
     try {
-      return await this.wrappedJweService.open(parsed);
+      return await this.wrappedJweService.open(parsed, versionName);
     } catch (error) {
       throw this.#rejectWrappedJweFailure(error);
     }
@@ -146,7 +151,9 @@ export class SdlSecretsUnsealerService {
       });
     }
 
-    if (header.kid !== this.kmsTarget.kid) {
+    const versionName = this.kmsTarget.resolveVersionName(header.kid);
+
+    if (!versionName) {
       throw this.#reject(409, "SDL_SECRETS_SEAL_KID_UNKNOWN", "Sealed to a key the console no longer holds; refetch the SDL secrets context", {
         received: header.kid,
         expected: this.kmsTarget.kid
@@ -170,7 +177,7 @@ export class SdlSecretsUnsealerService {
       });
     }
 
-    return header;
+    return { header, versionName };
   }
 
   /**

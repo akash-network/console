@@ -5,12 +5,24 @@ import { container } from "tsyringe";
 import { mock } from "vitest-mock-extended";
 
 import type { SdlSecretsKmsClient, SdlSecretsKmsTarget } from "@src/deployment/providers/kms.provider";
-import { SDL_SECRETS_KMS_TARGET } from "@src/deployment/providers/kms.provider";
+import { createSdlSecretsKmsTarget, SDL_SECRETS_KMS_TARGET } from "@src/deployment/providers/kms.provider";
 import { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
 
-export const SDL_SECRETS_KID = "sdl-secrets.v1";
+const SDL_SECRETS_KEY = "sdl-secrets";
 
-const VERSION_NAME = "projects/console-test/locations/global/keyRings/console-api/cryptoKeys/sdl-secrets/cryptoKeyVersions/1";
+/** Mirrors what `client.cryptoKeyVersionPath` builds in production, so no spec can assert against a resource name the provider would never produce. */
+export function sdlSecretsVersionPath(version: string) {
+  return `projects/console-test/locations/global/keyRings/console-api/cryptoKeys/${SDL_SECRETS_KEY}/cryptoKeyVersions/${version}`;
+}
+
+/** Built by the production factory rather than by hand, so every spec resolves a header `kid` exactly as the running console does. */
+export function createTestSdlSecretsKmsTarget({ client, version = "1" }: { client: SdlSecretsKmsClient; version?: string }): SdlSecretsKmsTarget {
+  return createSdlSecretsKmsTarget({ client, versionPath: sdlSecretsVersionPath, key: SDL_SECRETS_KEY, version });
+}
+
+export const SDL_SECRETS_KID = `${SDL_SECRETS_KEY}.v1`;
+
+const VERSION_NAME = sdlSecretsVersionPath("1");
 
 /** Every create carrying an env value unwraps a data key, so any spec exercising `POST /v1/deployments` must call this or reach the real Cloud KMS: it doubles that boundary with a real RSA key, registered at module scope so nothing resolves the real target first. */
 export function registerFakeSdlSecretsKms() {
@@ -34,7 +46,7 @@ export function registerFakeSdlSecretsKms() {
     ];
   });
 
-  container.register<SdlSecretsKmsTarget>(SDL_SECRETS_KMS_TARGET, { useValue: { client, versionName: VERSION_NAME, kid: SDL_SECRETS_KID } });
+  container.register<SdlSecretsKmsTarget>(SDL_SECRETS_KMS_TARGET, { useValue: createTestSdlSecretsKmsTarget({ client }) });
 
   return { client, publicKey };
 }

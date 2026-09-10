@@ -15,6 +15,7 @@ export type KmsWrappedJweFailure =
   | "IV_INVALID"
   | "TAG_INVALID"
   | "ENCRYPTED_KEY_REJECTED"
+  | "WRAPPING_VERSION_UNUSABLE"
   | "KEY_SERVICE_UNREACHABLE"
   | "KEY_SERVICE_REQUEST_CORRUPTED"
   | "KEY_SERVICE_PLAINTEXT_MISSING"
@@ -72,7 +73,10 @@ function getGrpcStatus(error: unknown) {
   return error instanceof Error && "code" in error ? error.code : undefined;
 }
 
-/** Validates nothing in the header, because what a header must say differs by caller and a wrapped data key carries none of a transport seal's claims. */
+/** A version alias is well formed long before it names anything, so only the key service can tell a version that was never created, or was disabled or destroyed, from one that opens. */
+const UNUSABLE_VERSION_STATUSES: ReadonlySet<unknown> = new Set([grpc.status.NOT_FOUND, grpc.status.FAILED_PRECONDITION]);
+
+/** Validates nothing in the header, because what a header must say differs by caller and a wrapped data key carries none of a transport seal's claims — including which version to open under, which the caller resolves and passes in. */
 @singleton()
 export class KmsWrappedJweService {
   constructor(@inject(SDL_SECRETS_KMS_TARGET) private readonly kmsTarget: SdlSecretsKmsTarget) {}
@@ -93,8 +97,8 @@ export class KmsWrappedJweService {
     return { segments, header: this.#parseHeader(protectedHeader) } as ParsedKmsWrappedJwe;
   }
 
-  async open({ segments }: ParsedKmsWrappedJwe): Promise<Buffer> {
-    const contentEncryptionKey = await this.#unwrapContentEncryptionKey(segments.encryptedKey);
+  async open({ segments }: ParsedKmsWrappedJwe, versionName: string): Promise<Buffer> {
+    const contentEncryptionKey = await this.#unwrapContentEncryptionKey(segments.encryptedKey, versionName);
 
     return this.#openContent(segments, contentEncryptionKey);
   }
@@ -150,8 +154,8 @@ export class KmsWrappedJweService {
   }
 
   /** `jose` cannot delegate key unwrapping to a remote service, which is why the encrypted key is handed to Cloud KMS here rather than opened by a stock library. */
-  async #unwrapContentEncryptionKey(encryptedKey: string): Promise<Buffer> {
-    const response = await this.#asymmetricDecrypt(Buffer.from(encryptedKey, "base64url"));
+  async #unwrapContentEncryptionKey(encryptedKey: string, versionName: string): Promise<Buffer> {
+    const response = await this.#asymmetricDecrypt(Buffer.from(encryptedKey, "base64url"), versionName);
 
     if (!response.verifiedCiphertextCrc32c) {
       throw new KmsWrappedJweError("KEY_SERVICE_REQUEST_CORRUPTED");
@@ -170,21 +174,27 @@ export class KmsWrappedJweService {
     return contentEncryptionKey;
   }
 
-  async #asymmetricDecrypt(ciphertext: Buffer) {
+  async #asymmetricDecrypt(ciphertext: Buffer, versionName: string) {
     try {
       const [response] = await this.kmsTarget.client.asymmetricDecrypt({
-        name: this.kmsTarget.versionName,
+        name: versionName,
         ciphertext,
         ciphertextCrc32c: { value: crc32c.calculate(ciphertext) }
       });
 
       return response;
     } catch (error) {
-      if (getGrpcStatus(error) === grpc.status.INVALID_ARGUMENT) {
+      const status = getGrpcStatus(error);
+
+      if (status === grpc.status.INVALID_ARGUMENT) {
         throw new KmsWrappedJweError("ENCRYPTED_KEY_REJECTED");
       }
 
-      throw new KmsWrappedJweError("KEY_SERVICE_UNREACHABLE", { versionName: this.kmsTarget.versionName, error });
+      if (UNUSABLE_VERSION_STATUSES.has(status)) {
+        throw new KmsWrappedJweError("WRAPPING_VERSION_UNUSABLE", { versionName });
+      }
+
+      throw new KmsWrappedJweError("KEY_SERVICE_UNREACHABLE", { versionName, error });
     }
   }
 

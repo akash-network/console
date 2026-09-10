@@ -20,8 +20,9 @@ import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
 import { SecretCipherService } from "./secret-cipher.service";
 
+import { createTestSdlSecretsKmsTarget } from "@test/mocks/sdl-secrets-kms.mock";
+
 const KID = "sdl-secrets.v1";
-const VERSION_NAME = "projects/console-test/locations/global/keyRings/console-api/cryptoKeys/sdl-secrets/cryptoKeyVersions/1";
 const SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n';
 
 function bindingFor(user: UserOutput, dseq: string) {
@@ -230,7 +231,7 @@ describe(SecretCipherService.name, () => {
     });
 
     const createLogger: CreateLogger = () => mock<ReturnType<CreateLogger>>();
-    const kmsTarget = { client: kmsClient, versionName: VERSION_NAME, kid: KID };
+    const kmsTarget = createTestSdlSecretsKmsTarget({ client: kmsClient });
     const wrappedJweService = new KmsWrappedJweService(kmsTarget);
     const dataKeyRepository = container.resolve(DataKeyRepository);
     const userRepository = container.resolve(UserRepository);

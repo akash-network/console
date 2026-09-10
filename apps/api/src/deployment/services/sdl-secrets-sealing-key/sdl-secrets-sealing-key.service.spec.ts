@@ -10,6 +10,8 @@ import type { SdlSecretsKmsClient } from "@src/deployment/providers/kms.provider
 import type { SdlSecretsPublicJwk } from "./sdl-secrets-sealing-key.service";
 import { SdlSecretsSealingKeyService } from "./sdl-secrets-sealing-key.service";
 
+import { createTestSdlSecretsKmsTarget, sdlSecretsVersionPath } from "@test/mocks/sdl-secrets-kms.mock";
+
 const SEALING_KEY_PEM = generateKeyPairSync("rsa", { modulusLength: 3072 }).publicKey.export({ type: "spki", format: "pem" }).toString();
 
 describe(SdlSecretsSealingKeyService.name, () => {
@@ -37,7 +39,7 @@ describe(SdlSecretsSealingKeyService.name, () => {
   });
 
   it("returns the kid of the crypto key version the seal must name", async () => {
-    const { service } = setup({ kid: "sdl-secrets.v7" });
+    const { service } = setup({ version: "7" });
 
     const { kid } = await service.getSealingKey();
 
@@ -61,7 +63,7 @@ describe(SdlSecretsSealingKeyService.name, () => {
     });
 
     it("returns the key once it is held", async () => {
-      const { service } = setup({ kid: "sdl-secrets.v2" });
+      const { service } = setup({ version: "2" });
       await service.getSealingKey();
 
       expect(service.peekSealingKey()).toMatchObject({ kid: "sdl-secrets.v2" });
@@ -89,14 +91,12 @@ describe(SdlSecretsSealingKeyService.name, () => {
   });
 
   it("asks KMS for the configured crypto key version", async () => {
-    const { service, kmsClient } = setup({ versionName: "projects/p/locations/global/keyRings/r/cryptoKeys/k/cryptoKeyVersions/1" });
+    const { service, kmsClient, versionName } = setup({ version: "3" });
 
     await service.getSealingKey();
 
-    expect(kmsClient.getPublicKey).toHaveBeenCalledWith(
-      { name: "projects/p/locations/global/keyRings/r/cryptoKeys/k/cryptoKeyVersions/1" },
-      expect.any(Object)
-    );
+    expect(kmsClient.getPublicKey).toHaveBeenCalledWith({ name: versionName }, expect.any(Object));
+    expect(versionName).toBe(sdlSecretsVersionPath("3"));
   });
 
   it("fails with 503 when KMS is unreachable", async () => {
@@ -175,9 +175,9 @@ describe(SdlSecretsSealingKeyService.name, () => {
       .toString();
   }
 
-  function setup(input?: { pem?: string; kid?: string; versionName?: string }) {
+  function setup(input?: { pem?: string; version?: string }) {
     const pem = input?.pem ?? SEALING_KEY_PEM;
-    const versionName = input?.versionName ?? "projects/console-test/locations/global/keyRings/console-api/cryptoKeys/sdl-secrets/cryptoKeyVersions/1";
+    const versionName = sdlSecretsVersionPath(input?.version ?? "1");
     const publicKeyResponse: protos.google.cloud.kms.v1.IPublicKey = {
       pem,
       name: versionName,
@@ -190,7 +190,7 @@ describe(SdlSecretsSealingKeyService.name, () => {
 
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger: CreateLogger = () => logger;
-    const kmsTarget = { client: kmsClient, versionName, kid: input?.kid ?? "sdl-secrets.v1" };
+    const kmsTarget = createTestSdlSecretsKmsTarget({ client: kmsClient, version: input?.version });
     const service = new SdlSecretsSealingKeyService(kmsTarget, createLogger);
 
     return { service, kmsClient, logger, pem, versionName, publicKeyResponse };
