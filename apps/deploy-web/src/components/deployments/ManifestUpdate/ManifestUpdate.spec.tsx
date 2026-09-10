@@ -54,11 +54,7 @@ describe(ManifestUpdate.name, () => {
 
     expect(screen.getByText(/it looks like this deployment was created using another deploy tool/i)).toBeInTheDocument();
 
-    const continueButton = dependencies.Button.mock.calls.find(call => call[0].children === "Continue");
-
-    await act(() => {
-      continueButton?.[0].onClick?.(mock<MouseEvent<HTMLButtonElement>>());
-    });
+    await continuePastTheNotice(dependencies);
 
     await waitFor(() => {
       expect(screen.queryByText(/it looks like this deployment was created using another deploy tool/i)).not.toBeInTheDocument();
@@ -152,11 +148,7 @@ describe(ManifestUpdate.name, () => {
         dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("recorded-v1-hash") }) }
       });
 
-      const continueButton = dependencies.Button.mock.calls.find(call => call[0].children === "Continue");
-
-      await act(() => {
-        continueButton?.[0].onClick?.(mock<MouseEvent<HTMLButtonElement>>());
-      });
+      await continuePastTheNotice(dependencies);
 
       await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
     });
@@ -191,6 +183,18 @@ describe(ManifestUpdate.name, () => {
       rerenderDefinition({ sdl: "version: '2.0'", name: undefined, source: "api" });
       dependencies.WarningCircle.mockClear();
       rerenderDefinition({ sdl: "version: '2.0'", name: undefined, source: "api" });
+
+      expect(dependencies.WarningCircle).not.toHaveBeenCalled();
+    });
+
+    it("does not render for a copy whose values the api withheld", async () => {
+      const { dependencies } = setup({
+        definition: { sdl: WITHHELD_VALUES_SDL, source: "absent" },
+        deployment: { dseq: "123", state: "active", hash: "on-chain-hash" },
+        dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("a-different-hash") }) }
+      });
+
+      await continuePastTheNotice(dependencies);
 
       expect(dependencies.WarningCircle).not.toHaveBeenCalled();
     });
@@ -234,8 +238,10 @@ describe(ManifestUpdate.name, () => {
       expect(screen.getByText(/withheld secret values/i)).toBeInTheDocument();
     });
 
-    it("disables the update action when the values were withheld by blanking them", () => {
-      const { dependencies } = setup({ editedManifest: BLANK_ENV_VALUES_SDL });
+    it("disables the update action when the values were withheld by blanking them", async () => {
+      const { dependencies } = setup({ editedManifest: BLANK_ENV_VALUES_SDL, definition: { sdl: BLANK_ENV_VALUES_SDL, source: "absent" } });
+
+      await continuePastTheNotice(dependencies);
 
       expect(updateButtonOf(dependencies)?.disabled).toBe(true);
     });
@@ -243,14 +249,54 @@ describe(ManifestUpdate.name, () => {
     it("submits nothing when the update action fires with blanked values", async () => {
       const handles = setup({
         editedManifest: BLANK_ENV_VALUES_SDL,
+        definition: { sdl: BLANK_ENV_VALUES_SDL, source: "absent" },
         deployment: { dseq: "123", state: "active", hash: "different-hash" }
       });
 
+      await continuePastTheNotice(handles.dependencies);
       await clickUpdate(handles);
 
       expect(handles.mutate).not.toHaveBeenCalled();
       expect(screen.getByText(/withheld secret values/i)).toBeInTheDocument();
     });
+
+    it("says why the update action is unavailable without waiting for it to be used", () => {
+      setup({ editedManifest: WITHHELD_VALUES_SDL });
+
+      expect(screen.getByText(/withheld secret values/i)).toBeInTheDocument();
+    });
+
+    it("shows the notice again once another deployment's definition resolves", async () => {
+      const { dependencies, rerenderDefinition } = setup({ definition: { sdl: WITHHELD_VALUES_SDL, source: "absent" }, deployment: { dseq: "123" } });
+
+      await continuePastTheNotice(dependencies);
+
+      expect(screen.queryByText(/secret values withheld/i)).not.toBeInTheDocument();
+
+      rerenderDefinition({ sdl: WITHHELD_VALUES_SDL, name: undefined, source: "absent" }, { deployment: { dseq: "456" } });
+
+      expect(screen.getByText(/secret values withheld/i)).toBeInTheDocument();
+    });
+  });
+
+  it("keeps the update action available for a browser copy whose env value is deliberately blank", async () => {
+    const { dependencies } = setup({ editedManifest: BLANK_ENV_VALUES_SDL, definition: { sdl: BLANK_ENV_VALUES_SDL, source: "local" } });
+
+    await waitFor(() => expect(updateButtonOf(dependencies)?.disabled).toBe(false));
+  });
+
+  it("seeds another deployment's definition even when the previous one held unsaved edits", async () => {
+    const onManifestChange = vi.fn();
+    const { rerenderDefinition } = setup({ definition: { sdl: "version: '2.0' # first", source: "local" }, deployment: { dseq: "123" }, onManifestChange });
+
+    await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '2.0' # first"));
+
+    rerenderDefinition(
+      { sdl: "version: '2.0' # second", name: undefined, source: "local" },
+      { deployment: { dseq: "456" }, editedManifest: "version: '2.0' # unsaved edit" }
+    );
+
+    await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '2.0' # second"));
   });
 
   it("enables the update button for an active deployment the user can still change", async () => {
@@ -688,6 +734,7 @@ describe(ManifestUpdate.name, () => {
 
   type Handles = ReturnType<typeof setup>;
   type Dependencies = Handles["dependencies"];
+  type Overrides = { editedManifest?: string; deployment?: Partial<{ dseq: string; state: string; hash: string }> };
 
   function editorChangeEvent() {
     return mock<Parameters<NonNullable<Parameters<typeof DEPENDENCIES.SDLEditor>[0]["onChange"]>>[1]>();
@@ -699,6 +746,14 @@ describe(ManifestUpdate.name, () => {
 
   function redeployButtonOf(dependencies: Dependencies, onRedeploy: () => void) {
     return dependencies.Button.mock.calls.filter(call => call[0].onClick === onRedeploy).at(-1)?.[0];
+  }
+
+  async function continuePastTheNotice(dependencies: Dependencies) {
+    const continueButton = dependencies.Button.mock.calls.filter(call => call[0].children === "Continue").at(-1)?.[0];
+
+    await act(async () => {
+      continueButton?.onClick?.(mock<MouseEvent<HTMLButtonElement>>());
+    });
   }
 
   async function clickUpdate(handles: Handles) {
@@ -806,7 +861,7 @@ describe(ManifestUpdate.name, () => {
     const closeManifestEditor = input?.closeManifestEditor || vi.fn();
     const onManifestChange = input?.onManifestChange || vi.fn();
 
-    const componentWith = (overrides?: { editedManifest: string }) => (
+    const componentWith = (overrides?: Overrides) => (
       <TestContainerProvider
         services={{
           api: () => api,
@@ -822,7 +877,8 @@ describe(ManifestUpdate.name, () => {
               dseq: "123",
               state: "active",
               hash: "abc",
-              ...input?.deployment
+              ...input?.deployment,
+              ...overrides?.deployment
             } as Parameters<typeof ManifestUpdate>[0]["deployment"]
           }
           closeManifestEditor={closeManifestEditor}
@@ -838,8 +894,8 @@ describe(ManifestUpdate.name, () => {
     const { unmount, rerender } = render(componentWith());
 
     return {
-      rerenderWith: (overrides: { editedManifest: string }) => rerender(componentWith(overrides)),
-      rerenderDefinition: (next: DeploymentDefinition, overrides?: { editedManifest: string }) => {
+      rerenderWith: (overrides: Overrides) => rerender(componentWith(overrides)),
+      rerenderDefinition: (next: DeploymentDefinition, overrides?: Overrides) => {
         definition = next;
         rerender(componentWith(overrides));
       },
