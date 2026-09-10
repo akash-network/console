@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { CompiledSignature } from "@src/workload-abuse/config/env.config";
-import { sanitizeEvidenceText, scanForSignals, toVerdict } from "./evidence-scanner";
+import { sanitizeEvidenceText, scanForSignals, toVerdict, withoutFileContents } from "./evidence-scanner";
 
 const SIGNATURES: CompiledSignature[] = [
   { bucket: "hard", category: "stratum-url", pattern: /stratum\+tcp:\/\//i },
@@ -126,6 +126,46 @@ describe("evidence scanner", () => {
       const signals = scanForSignals([{ kind: "shell", text: "1 comm=xray" }], SIGNATURES);
 
       expect(toVerdict(signals)).toBe("proxy");
+    });
+  });
+
+  describe(withoutFileContents.name, () => {
+    it("keeps the file names and drops the file bodies of the sections that read files", () => {
+      const excerpt = [
+        "--- shell web",
+        "--procs",
+        "1 cpu_s=45 comm=node cmd=node server.js",
+        "--files",
+        "== /tmp/config.json",
+        '{"pool":"x:3333"}',
+        "--authorized-keys",
+        "ssh-rsa AAAA operator",
+        "--recent-conf",
+        "== /app/server/data/auth_keys.json",
+        "{",
+        '  "session_hmac_key": "secret"',
+        "}"
+      ].join("\n");
+
+      expect(withoutFileContents(excerpt)).toBe(
+        [
+          "--- shell web",
+          "--procs",
+          "1 cpu_s=45 comm=node cmd=node server.js",
+          "--files",
+          "== /tmp/config.json",
+          "--authorized-keys",
+          "ssh-rsa AAAA operator",
+          "--recent-conf",
+          "== /app/server/data/auth_keys.json"
+        ].join("\n")
+      );
+    });
+
+    it("returns an excerpt without file sections unchanged", () => {
+      const excerpt = "[hard/miner-binary] shell:web: junorig\n--- shell web\n--procs\n7 cpu_s=900 comm=junorig cmd=junorig -o pool:3333";
+
+      expect(withoutFileContents(excerpt)).toBe(excerpt);
     });
   });
 });
