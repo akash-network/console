@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { CompiledSignature } from "@src/workload-abuse/config/env.config";
-import { scanForSignals, toVerdict } from "./evidence-scanner";
+import { sanitizeEvidenceText, scanForSignals, toVerdict } from "./evidence-scanner";
 
 const SIGNATURES: CompiledSignature[] = [
   { bucket: "hard", category: "stratum-url", pattern: /stratum\+tcp:\/\//i },
@@ -32,12 +32,6 @@ describe("evidence scanner", () => {
       const [signal] = scanForSignals([{ kind: "shell", text: "cmd=miner \u001b[31m\u0007-o stratum+tcp://pool" }], SIGNATURES);
 
       expect(signal.snippet).toBe("cmd=miner  [31m -o stratum+tcp://pool");
-    });
-
-    it("keeps the tabs and newlines that hold the shell output's shape", () => {
-      const [signal] = scanForSignals([{ kind: "shell", text: "cmd=miner\t-o stratum+tcp://pool" }], SIGNATURES);
-
-      expect(signal.snippet).toBe("cmd=miner\t-o stratum+tcp://pool");
     });
 
     it("turns NUL bytes into spaces in the service name it stores, since the provider names its own services", () => {
@@ -94,6 +88,16 @@ describe("evidence scanner", () => {
     it("returns nothing for clean text or when there are no signatures", () => {
       expect(scanForSignals([{ kind: "logs", text: "nginx started\n\n" }], SIGNATURES)).toEqual([]);
       expect(scanForSignals([{ kind: "logs", text: "stratum+tcp://pool" }], [])).toEqual([]);
+    });
+  });
+
+  describe("sanitizeEvidenceText", () => {
+    it("keeps the tabs and newlines that hold the shell output's shape", () => {
+      expect(sanitizeEvidenceText("--tmp\ndrwx\t4096 /tmp\n")).toBe("--tmp\ndrwx\t4096 /tmp\n");
+    });
+
+    it("turns the control bytes around them into spaces", () => {
+      expect(sanitizeEvidenceText("--tmp\u0000\u001b[31m\u0007\ndrwx\t4096 /tmp")).toBe("--tmp  [31m \ndrwx\t4096 /tmp");
     });
   });
 
