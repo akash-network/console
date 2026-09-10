@@ -19,6 +19,8 @@ export function scanForSignals(sources: EvidenceSource[], signatures: CompiledSi
   const seen = new Set<string>();
 
   for (const source of sources) {
+    const service = source.service === undefined ? undefined : sanitizeEvidenceText(source.service);
+
     for (const line of source.text.split("\n")) {
       if (!line.trim()) continue;
 
@@ -26,7 +28,7 @@ export function scanForSignals(sources: EvidenceSource[], signatures: CompiledSi
         const match = signature.pattern.exec(line);
         if (!match) continue;
 
-        const key = `${signature.bucket}|${signature.category}|${source.kind}|${source.service ?? ""}`;
+        const key = `${signature.bucket}|${signature.category}|${source.kind}|${service ?? ""}`;
         if (seen.has(key)) continue;
 
         seen.add(key);
@@ -34,7 +36,7 @@ export function scanForSignals(sources: EvidenceSource[], signatures: CompiledSi
           bucket: signature.bucket,
           category: signature.category,
           source: source.kind,
-          service: source.service,
+          service,
           snippet: toSnippet(line, match.index)
         });
       }
