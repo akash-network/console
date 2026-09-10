@@ -9,6 +9,7 @@ import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { type CreateLogger, LOGGER_FACTORY, TxService } from "@src/core";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
+import { sanitizeEvidenceText } from "@src/workload-abuse/lib/evidence-scanner/evidence-scanner";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
@@ -60,7 +61,6 @@ export class TrialAbuseEnforcementService {
     try {
       outcome = await this.txService.transaction(() => this.#wipeUnlessPaid(wallet));
     } catch (error) {
-      await this.detectionRepository.updateById(detectionId, { action: "enforcement_failed", enforcementError: toErrorMessage(error), updatedAt: new Date() });
       this.instrumentation.recordEnforcement("failed");
       this.logger.error({
         event: "TRIAL_WORKLOAD_ABUSE_ENFORCEMENT_FAILED",
@@ -70,6 +70,7 @@ export class TrialAbuseEnforcementService {
         owner: wallet.address,
         error
       });
+      await this.#recordEnforcementFailure(detectionId, error);
       throw error;
     }
 
@@ -92,6 +93,19 @@ export class TrialAbuseEnforcementService {
     this.logger.warn({ event: "TRIAL_WORKLOAD_ABUSE_ENFORCED", detectionId, walletId: wallet.id, userId: wallet.userId, owner: wallet.address, ...outcome });
 
     return outcome;
+  }
+
+  /** findStalledEnforcements re-queues a detection left in enforcing, so a record that cannot be written is worth a log rather than the failure it was recording. */
+  async #recordEnforcementFailure(detectionId: string, error: unknown): Promise<void> {
+    try {
+      await this.detectionRepository.updateById(detectionId, {
+        action: "enforcement_failed",
+        enforcementError: toStorableErrorMessage(error),
+        updatedAt: new Date()
+      });
+    } catch (recordError) {
+      this.logger.error({ event: "TRIAL_WORKLOAD_ABUSE_ENFORCEMENT_RECORD_FAILED", detectionId, error: recordError });
+    }
   }
 
   /** Holds the wallet row for the whole wipe, so a payment settling at the same time waits for it and then clears the lock instead of re-granting between the revokes. */
@@ -180,6 +194,7 @@ function isGrantMissingError(error: unknown): boolean {
   return messages.some(message => message && GRANT_MISSING_PATTERN.test(message));
 }
 
-function toErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+/** Postgres rejects NUL in text, so an error quoting bytes it read back would fail the very update that records the failure. */
+function toStorableErrorMessage(error: unknown): string {
+  return sanitizeEvidenceText(error instanceof Error ? error.message : String(error));
 }
