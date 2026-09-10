@@ -132,7 +132,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const { isBlockchainDown } = d.useBlockchainStatus();
   const definition = d.useDeploymentDefinition(deployment.dseq);
   const seededDseq = useRef<string | undefined>(undefined);
-  const seededSdl = useRef<string | undefined>(undefined);
+  const seededSdl = useRef("");
   const updateDeployment = api.v1.updateDeployment.useMutation({
     onSuccess: (_data, variables) => recordUpdate(variables.data.sdl),
     onError: reportUpdateFailure
@@ -163,23 +163,31 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     function seedEditorOnceTheDefinitionResolves() {
       if (isResolvingDefinition) return;
 
-      const { sdl, source } = definition;
+      const { sdl } = definition;
 
-      const editorHoldsUnseededEdits = seededDseq.current === deployment.dseq && editedManifest !== seededSdl.current;
+      const editorHoldsUnseededEdits = seededDseq.current === deployment.dseq && (editedManifest || "") !== seededSdl.current;
       if (editorHoldsUnseededEdits) return;
 
-      if (sdl) {
-        seededDseq.current = deployment.dseq;
-        seededSdl.current = sdl;
-        onManifestChange(sdl);
-      }
+      seededDseq.current = deployment.dseq;
+      seededSdl.current = sdl ?? "";
+
+      if (sdl) onManifestChange(sdl);
+    },
+    [isResolvingDefinition, definition.sdl, deployment.dseq]
+  );
+
+  useEffect(
+    function compareTheResolvedCopyAgainstTheChain() {
+      if (isResolvingDefinition) return;
+
+      const { sdl, source } = definition;
 
       if (!sdl || !needsChainVersionCheck(sdl, source)) {
         setDeploymentVersion(null);
         return;
       }
 
-      const readVersionOfSeededCopy = async () => {
+      const readVersionOfResolvedCopy = async () => {
         try {
           setDeploymentVersion(await d.deploymentData.getManifestVersion(yaml.load(sdl)));
         } catch (error) {
@@ -188,9 +196,9 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
         }
       };
 
-      readVersionOfSeededCopy();
+      readVersionOfResolvedCopy();
     },
-    [isResolvingDefinition, definition.sdl, definition.source, deployment.dseq]
+    [isResolvingDefinition, definition.sdl, definition.source]
   );
 
   function handleManifestChange(value: string) {

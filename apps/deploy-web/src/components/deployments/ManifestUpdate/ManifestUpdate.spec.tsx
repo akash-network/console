@@ -130,6 +130,24 @@ describe(ManifestUpdate.name, () => {
     await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '3.0' # refetched"));
   });
 
+  it("keeps what the user typed into an editor that resolved with no definition at all", () => {
+    const onManifestChange = vi.fn();
+    const { rerenderDefinition } = setup({ definition: { sdl: undefined, source: "absent" }, editedManifest: "", onManifestChange });
+
+    rerenderDefinition({ sdl: "version: '2.0' # recorded later", name: undefined, source: "absent" }, { editedManifest: "version: '2.0' # typed by hand" });
+
+    expect(onManifestChange).not.toHaveBeenCalledWith("version: '2.0' # recorded later");
+  });
+
+  it("seeds an untouched editor once a definition the api had yet to record arrives", async () => {
+    const onManifestChange = vi.fn();
+    const { rerenderDefinition } = setup({ definition: { sdl: undefined, source: "absent" }, editedManifest: "", onManifestChange });
+
+    rerenderDefinition({ sdl: "version: '2.0' # recorded later", name: undefined, source: "absent" }, { editedManifest: "" });
+
+    await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '2.0' # recorded later"));
+  });
+
   describe("the local-versus-chain warning", () => {
     it("renders for a definition served from this browser whose version differs from the chain", async () => {
       const { dependencies } = setup({
@@ -183,6 +201,22 @@ describe(ManifestUpdate.name, () => {
       rerenderDefinition({ sdl: "version: '2.0'", name: undefined, source: "api" });
       dependencies.WarningCircle.mockClear();
       rerenderDefinition({ sdl: "version: '2.0'", name: undefined, source: "api" });
+
+      expect(dependencies.WarningCircle).not.toHaveBeenCalled();
+    });
+
+    it("stops rendering once the api's copy is confirmed current, even while the editor holds unsaved edits", async () => {
+      const { dependencies, rerenderDefinition } = setup({
+        definition: { sdl: "version: '2.0'", source: "local" },
+        deployment: { dseq: "123", state: "active", hash: "on-chain-hash" },
+        dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("a-different-hash") }) }
+      });
+
+      await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
+
+      rerenderDefinition({ sdl: "version: '2.0'", name: undefined, source: "api" }, { editedManifest: "version: '2.0' # user edit" });
+      dependencies.WarningCircle.mockClear();
+      rerenderDefinition({ sdl: "version: '2.0'", name: undefined, source: "api" }, { editedManifest: "version: '2.0' # user edit" });
 
       expect(dependencies.WarningCircle).not.toHaveBeenCalled();
     });
