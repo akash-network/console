@@ -25,6 +25,20 @@ describe(DeploymentDetailHeader.name, () => {
     expect(screen.getByText("3")).toBeInTheDocument();
   });
 
+  it("recounts the services when the definition lands after the first paint", () => {
+    const { resolveDefinitionWith } = setup({ definitionSource: "resolving", leases: [buildLeaseInPlacement("1", "dcloud-us")] });
+
+    resolveDefinitionWith(
+      yaml.dump({
+        services: { web: {}, api: {}, worker: {} },
+        deployment: { web: { "dcloud-us": {} }, api: { "dcloud-us": {} }, worker: { "dcloud-us": {} } }
+      })
+    );
+
+    expect(screen.queryByTestId("services-count-skeleton")).not.toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
+  });
+
   it("falls back to the placement count when no manifest is stored locally", () => {
     setup({
       definitionSdl: null,
@@ -294,12 +308,12 @@ describe(DeploymentDetailHeader.name, () => {
         getDeploymentName: () => input.name ?? null,
         changeDeploymentName
       });
-    const useDeploymentDefinition: typeof DEPENDENCIES.useDeploymentDefinition = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useDeploymentDefinition>>({
-        sdl: input.definitionSdl ?? undefined,
-        name: input.name ?? undefined,
-        source: input.definitionSource ?? (input.definitionSdl ? "api" : "absent")
-      });
+    let definition = mock<ReturnType<typeof DEPENDENCIES.useDeploymentDefinition>>({
+      sdl: input.definitionSdl ?? undefined,
+      name: input.name ?? undefined,
+      source: input.definitionSource ?? (input.definitionSdl ? "api" : "absent")
+    });
+    const useDeploymentDefinition: typeof DEPENDENCIES.useDeploymentDefinition = () => definition;
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false });
     const useDeclaredTeeTypes: typeof DEPENDENCIES.useDeclaredTeeTypes = () => [];
     const useDeclaredGpuInterconnect: typeof DEPENDENCIES.useDeclaredGpuInterconnect = () => ({ enabled: false, fabrics: [] });
@@ -332,30 +346,36 @@ describe(DeploymentDetailHeader.name, () => {
       escrowAccount: mock<DeploymentDto["escrowAccount"]>({ state: mock<DeploymentDto["escrowAccount"]["state"]>({ funds: [] }) })
     });
 
-    render(
-      <DeploymentDetailHeader
-        deployment={deployment}
-        leases={input.leases !== undefined ? input.leases : [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: "active" })]}
-        providers={input.providers ?? [mock<ApiProviderList>({ owner: "akash1provider" })]}
-        dependencies={MockComponents(DEPENDENCIES, {
-          useLocalNotes,
-          useDeploymentDefinition,
-          useWallet,
-          useDeploymentEscrowBalance,
-          useDeploymentSettingQuery,
-          useDeclaredTeeTypes,
-          useDeclaredGpuInterconnect,
-          TrialDeploymentBadge,
-          ConfidentialComputeBadge,
-          GpuInterconnectBadge,
-          CostRate,
-          CostBreakdownTooltip,
-          DeploymentVisitControl,
-          ...input.dependencies
-        })}
-      />
-    );
+    const leases = input.leases !== undefined ? input.leases : [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: "active" })];
+    const providers = input.providers ?? [mock<ApiProviderList>({ owner: "akash1provider" })];
+    const dependencies = MockComponents(DEPENDENCIES, {
+      useLocalNotes,
+      useDeploymentDefinition,
+      useWallet,
+      useDeploymentEscrowBalance,
+      useDeploymentSettingQuery,
+      useDeclaredTeeTypes,
+      useDeclaredGpuInterconnect,
+      TrialDeploymentBadge,
+      ConfidentialComputeBadge,
+      GpuInterconnectBadge,
+      CostRate,
+      CostBreakdownTooltip,
+      DeploymentVisitControl,
+      ...input.dependencies
+    });
+    const renderHeader = () => <DeploymentDetailHeader deployment={deployment} leases={leases} providers={providers} dependencies={dependencies} />;
 
-    return { changeDeploymentName, CostRate, CostBreakdownTooltip };
+    const { rerender } = render(renderHeader());
+
+    return {
+      changeDeploymentName,
+      CostRate,
+      CostBreakdownTooltip,
+      resolveDefinitionWith(sdl: string) {
+        definition = mock<ReturnType<typeof DEPENDENCIES.useDeploymentDefinition>>({ sdl, name: input.name ?? undefined, source: "api" });
+        rerender(renderHeader());
+      }
+    };
   }
 });
