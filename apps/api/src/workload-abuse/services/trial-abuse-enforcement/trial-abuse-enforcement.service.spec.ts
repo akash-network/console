@@ -111,6 +111,35 @@ describe(TrialAbuseEnforcementService.name, () => {
     expect(instrumentation.recordEnforcement).toHaveBeenCalledWith("failed");
   });
 
+  it("strips the NUL bytes out of the failure it records, since Postgres rejects them in text", async () => {
+    const { service, wallet, signerService, detectionRepository } = setup({ liveDseqs: [] });
+    signerService.executeFundingTx.mockRejectedValueOnce(new Error("broadcast failed: raw_log=\u0000miner"));
+
+    await expect(service.enforce({ wallet, detectionId: DETECTION_ID })).rejects.toThrow("broadcast failed");
+
+    expect(detectionRepository.updateById).toHaveBeenLastCalledWith(DETECTION_ID, {
+      action: "enforcement_failed",
+      enforcementError: "broadcast failed: raw_log= miner",
+      updatedAt: expect.any(Date)
+    });
+  });
+
+  it("logs the enforcement failure and rethrows it when the failure itself cannot be recorded", async () => {
+    const { service, wallet, signerService, detectionRepository, logger, instrumentation } = setup({ liveDseqs: [] });
+    const wipeError = new Error("account sequence mismatch");
+    const recordError = new Error("invalid byte sequence for encoding UTF8");
+    signerService.executeFundingTx.mockRejectedValueOnce(wipeError);
+    detectionRepository.updateById.mockImplementation(async (_detectionId, payload) => {
+      if (payload.action === "enforcement_failed") throw recordError;
+    });
+
+    await expect(service.enforce({ wallet, detectionId: DETECTION_ID })).rejects.toBe(wipeError);
+
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_WORKLOAD_ABUSE_ENFORCEMENT_FAILED", error: wipeError }));
+    expect(logger.error).toHaveBeenCalledWith({ event: "TRIAL_WORKLOAD_ABUSE_ENFORCEMENT_RECORD_FAILED", detectionId: DETECTION_ID, error: recordError });
+    expect(instrumentation.recordEnforcement).toHaveBeenCalledWith("failed");
+  });
+
   it("leaves the wallet untouched and keeps its probes scheduled when a revoke fails for another reason", async () => {
     const { service, wallet, signerService, userWalletRepository, deploymentWriterService, probeJobService } = setup({ liveDseqs: ["11"] });
     signerService.executeFundingTx.mockRejectedValueOnce(new Error("account sequence mismatch"));
