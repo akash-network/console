@@ -171,11 +171,12 @@ export class DeploymentReaderService {
     const deployments = deploymentReponse.deployments;
     const total = parseInt(deploymentReponse.pagination.total, 10);
 
-    const { results: leaseResults } = await PromisePool.withConcurrency(100)
-      .for(deployments)
-      .process(async deployment => this.leaseHttpService.list({ owner, dseq: deployment.deployment.id.dseq }));
-
-    const names = await this.findNamesFor(query.userId, deployments.map(deployment => deployment.deployment.id.dseq));
+    const [{ results: leaseResults }, names] = await Promise.all([
+      PromisePool.withConcurrency(100)
+        .for(deployments)
+        .process(async deployment => this.leaseHttpService.list({ owner, dseq: deployment.deployment.id.dseq })),
+      this.findNamesFor(query.userId, deployments.map(deployment => deployment.deployment.id.dseq))
+    ]);
 
     const deploymentsWithLeases = deployments.map((deployment, index) => ({
       deployment: deployment.deployment,
