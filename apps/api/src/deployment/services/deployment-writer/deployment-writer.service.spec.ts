@@ -2097,6 +2097,16 @@ describe(DeploymentWriterService.name, () => {
       });
     });
 
+    describe("a patch carrying no name at all", () => {
+      it("takes the definition path rather than the rename one, so it never names a deployment undefined", async () => {
+        const { service, ability, unscopedDeploymentSettingRepository } = setup({ setting: undefined });
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", {}, ability)).rejects.toMatchObject({ status: 404 });
+
+        expect(unscopedDeploymentSettingRepository.upsertName).not.toHaveBeenCalled();
+      });
+    });
+
     describe("a patch carrying a name beside services", () => {
       it("records the name with the definition it rewrites", async () => {
         const { service, ability, deploymentSettingRepository } = setup();
