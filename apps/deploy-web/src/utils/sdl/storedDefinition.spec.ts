@@ -50,6 +50,10 @@ describe("storedDefinition", () => {
       expect(leavesWithheldEnvValuesBlank(sdlWithEnv(["TOKEN=given", "OTHER=given"]), sdlWithEnv(["TOKEN=", "OTHER="]))).toBe(false);
     });
 
+    it("is false when the withheld name was supplied and another service leaves its own same-named value blank", () => {
+      expect(leavesWithheldEnvValuesBlank(sdlWithTwoServices(["TOKEN=given"], ["TOKEN="]), sdlWithTwoServices(["TOKEN="], ["TOKEN=given"]))).toBe(false);
+    });
+
     it("is false for a blank key of the user's own that the api's record never held", () => {
       expect(leavesWithheldEnvValuesBlank(sdlWithEnv(["OPTIONAL="]), sdlWithEnv(["TOKEN=given"]))).toBe(false);
     });
@@ -86,6 +90,14 @@ describe("storedDefinition", () => {
 
     it("rejects an sdl whose env values are all blank", () => {
       expect(isStoredSdlSelfContained(sdlWithEnv(["TOKEN="]))).toBe(false);
+    });
+
+    it("rejects an sdl whose blank value sits beside a real one", () => {
+      expect(isStoredSdlSelfContained(sdlWithEnv(["TOKEN=", "REGION=us-east-1"]))).toBe(false);
+    });
+
+    it("rejects an sdl whose blank value sits in another service", () => {
+      expect(isStoredSdlSelfContained(sdlWithTwoServices(["TOKEN=kept"], ["OTHER="]))).toBe(false);
     });
 
     it("accepts an sdl declaring only host-inherited env vars, which the api stores unredacted", () => {

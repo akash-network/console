@@ -7,22 +7,23 @@ export function hasSdlReference(sdl: string): boolean {
   return carriesReference(parseSdl(sdl));
 }
 
-/** The api withholds a value by blanking its env entry, so a key blank in its record names a value the browser has to be given back before it can sign. */
+/** The api withholds a value by blanking its env entry, so an entry blank in its record names a value the browser has to be given back before it can sign. */
 export function leavesWithheldEnvValuesBlank(sdl: string, apiRecord: string): boolean {
-  const withheld = blankEnvKeysIn(apiRecord);
-  return blankEnvKeysIn(sdl).some(key => withheld.includes(key));
+  const withheld = blankEnvValuesIn(parseSdl(apiRecord));
+  return blankEnvValuesIn(parseSdl(sdl)).some(name => withheld.includes(name));
 }
 
 /** Whether a stored SDL still carries every value the browser needs to hash it into the manifest the chain committed. */
 export function isStoredSdlSelfContained(sdl: string): boolean {
   const document = parseSdl(sdl);
-  return document !== null && !carriesReference(document) && !onlyBlankEnvValues(document);
+  return document !== null && !carriesReference(document) && blankEnvValuesIn(document).length === 0;
 }
 
-function blankEnvKeysIn(sdl: string): string[] {
-  return envEntriesIn(parseSdl(sdl))
-    .filter(isBlank)
-    .map(entry => entry.slice(0, entry.indexOf("=")));
+/** Named per service, because the same env name can be a withheld secret in one service and a value of the user's own in another. */
+function blankEnvValuesIn(document: unknown): string[] {
+  return envEntriesIn(document)
+    .filter(({ entry }) => isBlank(entry))
+    .map(({ service, entry }) => `${service}.${entry.slice(0, entry.indexOf("="))}`);
 }
 
 function parseSdl(sdl: string): unknown {
@@ -43,25 +44,21 @@ function assignedValueOf(scalar: string): string {
   return separatorAt === -1 ? scalar : scalar.slice(separatorAt + 1);
 }
 
-/** An SDL declaring no environment at all is complete, not blank. */
-function onlyBlankEnvValues(document: unknown): boolean {
-  const entries = envEntriesIn(document);
-  return entries.length > 0 && entries.every(isBlank);
-}
-
 /** A bare `KEY` inherits from the host environment, so only an empty right-hand side names a value the document lacks. */
 function isBlank(entry: string): boolean {
   const separatorAt = entry.indexOf("=");
   return separatorAt !== -1 && entry.slice(separatorAt + 1) === "";
 }
 
-function envEntriesIn(document: unknown): string[] {
+function envEntriesIn(document: unknown): { service: string; entry: string }[] {
   const services = (document as { services?: unknown } | null)?.services;
   if (!isRecord(services)) return [];
 
-  return Object.values(services).flatMap(service => {
-    const env = (service as { env?: unknown } | null)?.env;
-    return Array.isArray(env) ? env.filter((entry): entry is string => typeof entry === "string") : [];
+  return Object.entries(services).flatMap(([service, definition]) => {
+    const env = (definition as { env?: unknown } | null)?.env;
+    if (!Array.isArray(env)) return [];
+
+    return env.filter((entry): entry is string => typeof entry === "string").map(entry => ({ service, entry }));
   });
 }
 

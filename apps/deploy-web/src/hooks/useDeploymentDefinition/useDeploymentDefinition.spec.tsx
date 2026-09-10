@@ -17,6 +17,7 @@ const API_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n
 const LOCAL_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=from-this-browser"\n';
 const WITHHELD_VALUES_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=ac-secret://s0_e0"\n';
 const BLANK_ENV_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN="\n';
+const PARTLY_BLANK_ENV_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN="\n      - "REGION=us-east-1"\n';
 
 describe(useDeploymentDefinition.name, () => {
   it("prefers the sdl the api recorded over this browser's own copy", async () => {
@@ -56,7 +57,8 @@ describe(useDeploymentDefinition.name, () => {
     it.each([
       ["it recorded none", null],
       ["its values were withheld as references", WITHHELD_VALUES_SDL],
-      ["every env value it holds is blank", BLANK_ENV_SDL]
+      ["every env value it holds is blank", BLANK_ENV_SDL],
+      ["one of the env values it holds is blank", PARTLY_BLANK_ENV_SDL]
     ])("falls back to this browser's copy when %s", async (_case, apiSdl) => {
       const { result } = setup({ apiSdl, localSdl: LOCAL_SDL });
 
@@ -102,6 +104,13 @@ describe(useDeploymentDefinition.name, () => {
 
       await vi.waitFor(() => expect(result.current.source).toBe("absent"));
       expect(result.current.sdl).toBe(WITHHELD_VALUES_SDL);
+    });
+
+    it("serves a copy whose withheld value sits beside a real one, so the update view can guard it", async () => {
+      const { result } = setup({ apiSdl: PARTLY_BLANK_ENV_SDL, localSdl: undefined });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("absent"));
+      expect(result.current.sdl).toBe(PARTLY_BLANK_ENV_SDL);
     });
   });
 
