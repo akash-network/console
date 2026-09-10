@@ -86,7 +86,7 @@ jobs:
       contents: write
       issues: write
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 # zizmor: ignore[artipacked] the "Commit and push" step needs the persisted token
         with:
           ref: ${{ needs.create-branch.outputs.branch_name }}
 
