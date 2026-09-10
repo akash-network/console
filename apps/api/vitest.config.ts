@@ -72,6 +72,7 @@ export default defineConfig({
         test: {
           name: "integration",
           include: ["src/**/*.integration.ts"],
+          globalSetup: ["./test/global-setup-db.ts"],
           setupFiles: ["./test/setup-integration-env.ts", "./test/setup-integration-tests.ts"],
           testTimeout: 60_000,
           hookTimeout: 60_000
@@ -82,6 +83,7 @@ export default defineConfig({
         test: {
           name: "functional",
           include: ["test/functional/**/*.spec.ts"],
+          globalSetup: ["./test/global-setup-db.ts"],
           setupFiles: ["./test/setup-functional-env.ts", "./test/setup-functional-tests.ts"],
           testTimeout: 30_000,
           hookTimeout: 15_000,
