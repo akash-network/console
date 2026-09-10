@@ -138,7 +138,19 @@ describe(TrialWorkloadProbeService.name, () => {
 
     expect(report.verdict).toBe("hard");
     expect(report.excerpt).not.toContain("\u0000");
-    expect(report.excerpt).toContain("--- shell ssh\n--procs\n3917 comm=sh cmd=sh -c tr ' ' ' ' -o stratum+tcp://pool:3333");
+    expect(report.excerpt).toContain("\n--- shell ssh\n--procs\n3917 comm=sh cmd=sh -c tr ' ' ' ' -o stratum+tcp://pool:3333");
+  });
+
+  it("caps the excerpt it reports at 8192 characters", async () => {
+    const { service, wallet } = setup({
+      leases: [createRpcLease()],
+      services: { ssh: 1 },
+      shell: { status: "completed", output: `stratum+tcp://pool:3333\n${"x".repeat(9_000)}` }
+    });
+
+    const report = await service.probe({ wallet, dseq: DSEQ });
+
+    expect(report.excerpt).toHaveLength(8_192);
   });
 
   it("still scans what it has when the container has no shell", async () => {

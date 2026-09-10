@@ -555,6 +555,45 @@ describe(JobQueueService.name, () => {
       expect(thrown.stack).toBe("Error: insert failed\n    at params:  ");
     });
 
+    it("rewrites the error when only its message carries a NUL byte", async () => {
+      const error = new Error("insert failed: \u0000");
+      error.stack = "Error: insert failed\n    at insert";
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      const thrown = (result as PromiseRejectedResult).reason as Error;
+      expect(thrown).not.toBe(error);
+      expect(thrown.message).toBe("insert failed:  ");
+      expect(thrown.stack).toBe("Error: insert failed\n    at insert");
+    });
+
+    it("leaves the stack missing when the original error has none", async () => {
+      const error = new Error("insert failed: \u0000");
+      error.stack = undefined;
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      const thrown = (result as PromiseRejectedResult).reason as Error;
+      expect(thrown.message).toBe("insert failed:  ");
+      expect(thrown.stack).toBeUndefined();
+    });
+
+    it("rethrows a non-Error rejection as it is", async () => {
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue("boom"))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      expect((result as PromiseRejectedResult).reason).toBe("boom");
+    });
+
     it("installs the permissions the handler declares for its execution", async () => {
       const { service, pgBoss, executionContextService } = setup();
       deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
