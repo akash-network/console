@@ -79,6 +79,12 @@ describe(ProviderShellProbeService.name, () => {
       expect(reported).toEqual(["--procs", "9000001 cpu_s=150 rss_mb=200 comm=xmrig exe= cwd= cmd=xmrig -o pool.example:3333"]);
     });
 
+    it("keeps a process name that has a closing parenthesis in it, since a workload picks its own name", () => {
+      const reported = runProcsCollector([{ pid: "9000001", comm: "mine)r", utimeTicks: 100, stimeTicks: 0, rssPages: 256, cmdline: ["mine)r"] }]);
+
+      expect(reported).toEqual(["--procs", "9000001 cpu_s=1 rss_mb=1 comm=mine)r exe= cwd= cmd=mine)r"]);
+    });
+
     it("leaves out a process with no command line, so kernel threads do not crowd out the workload", () => {
       const reported = runProcsCollector([
         { pid: "9000001", comm: "kthreadd", utimeTicks: 0, stimeTicks: 0, rssPages: 0, cmdline: [] },
