@@ -1188,6 +1188,80 @@ describe(DeploymentSettingRepository.name, () => {
       expect(id).toBeUndefined();
       expect(await readDefinition(dseq)).toMatchObject({ manifestVersion: "AAAA" });
     });
+
+    it("records a name beside the definition it replaces", async () => {
+      const { deploymentSettingRepository, user, createDefinition, abilityFor, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA" });
+
+      await deploymentSettingRepository.accessibleBy(abilityFor(user), "update").replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken,
+        name: "renamed"
+      });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ name: "renamed" });
+    });
+
+    it("leaves a name already on the row alone when the replacement names none", async () => {
+      const { deploymentSettingRepository, user, abilityFor, sealedToken } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "AAAA", name: "web" });
+
+      await deploymentSettingRepository.accessibleBy(abilityFor(user), "update").replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken
+      });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ manifestVersion: "BBBB", name: "web" });
+    });
+  });
+
+  describe("upsertName", () => {
+    it("names a deployment the console holds no row for at all", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+
+      await deploymentSettingRepository.upsertName({ userId: user.id, dseq, name: "renamed" });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ name: "renamed", sdl: null });
+    });
+
+    it("replaces the name on a row that already carries one", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "AAAA", name: "web" });
+
+      await deploymentSettingRepository.upsertName({ userId: user.id, dseq, name: "renamed" });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ name: "renamed" });
+    });
+
+    it("leaves the definition it finds on the row untouched", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "AAAA" });
+
+      await deploymentSettingRepository.upsertName({ userId: user.id, dseq, name: "renamed" });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ sdl: SDL, manifestVersion: "AAAA", name: "renamed" });
+    });
+
+    it("names only the caller's own row when another user holds the same dseq", async () => {
+      const { deploymentSettingRepository, user, trialUser } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: trialUser.id, dseq, sdl: SDL, manifestVersion: "AAAA", name: "not yours" });
+
+      await deploymentSettingRepository.upsertName({ userId: user.id, dseq, name: "renamed" });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ name: "renamed" });
+      expect(await deploymentSettingRepository.findOneBy({ userId: trialUser.id, dseq })).toMatchObject({ name: "not yours" });
+    });
   });
 
   async function setup() {

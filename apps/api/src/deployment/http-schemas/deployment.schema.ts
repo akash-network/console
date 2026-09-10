@@ -282,9 +282,9 @@ export const PatchDeploymentParamsSchema = z.object({
   dseq: DseqSchema.describe("Deployment sequence number")
 });
 
-/** A seal is a write no service patch can describe, so naming a service and changing none of its fields is how a caller asks for a rotation and nothing else. */
-function patchesSomething(data: { services: Record<string, Record<string, unknown>>; sealedSecrets?: string }): boolean {
-  return !!data.sealedSecrets || Object.values(data.services).some(assignsAField);
+/** A seal and a name are each a write no service patch can describe, so naming a service and changing none of its fields is how a caller asks for a rotation and nothing else. */
+function patchesSomething(data: { services?: Record<string, Record<string, unknown>>; name?: string; sealedSecrets?: string }): boolean {
+  return !!data.sealedSecrets || !!data.name || Object.values(data.services ?? {}).some(assignsAField);
 }
 
 /** `.refine` rather than a length rule on the record itself, which this zod version does not offer. */
@@ -294,9 +294,15 @@ export const PatchDeploymentRequestSchema = z.object({
       services: z
         .record(z.string(), PatchServiceSchema)
         .refine(services => Object.keys(services).length > 0, { message: "At least one service must be patched" })
+        .optional()
         .openapi({
-          description: "Keyed by service name. Only the named services are touched; omitted services keep their current definition."
+          description:
+            "Keyed by service name. Only the named services are touched; omitted services keep their current definition. Omit it entirely to patch nothing about the definition, which is how a deployment is renamed on its own."
         }),
+      name: DeploymentNameSchema.optional().openapi({
+        description:
+          "Renames the deployment. Supplied on its own it is the only patch that touches no definition, so it works on a deployment the console holds no SDL for and neither broadcasts nor pushes a manifest."
+      }),
       sealedSecrets: SealedSecretsSchema.optional().openapi({
         description:
           "Compact JWE sealing a flat name-to-value map, as on create, but holding only the names this patch replaces. Omitted names keep the values the deployment already stores."
@@ -311,8 +317,8 @@ export const PatchDeploymentRequestSchema = z.object({
 
 export const PatchDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema.extend({
-    manifestVersion: z.string().openapi({
-      description: "Base64 manifest version this patch recorded and committed on chain."
+    manifestVersion: z.string().optional().openapi({
+      description: "Base64 manifest version this patch recorded and committed on chain. Absent for a rename, which records none."
     })
   })
 });

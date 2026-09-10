@@ -2051,6 +2051,70 @@ describe(DeploymentWriterService.name, () => {
       });
     });
 
+    describe("a patch carrying only a name", () => {
+      it("writes the name against a row that may not exist yet", async () => {
+        const { service, ability, unscopedDeploymentSettingRepository } = setup({ setting: undefined });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
+
+        expect(unscopedDeploymentSettingRepository.upsertName).toHaveBeenCalledWith({ userId: "user-1", dseq: "1234", name: "renamed" });
+      });
+
+      it("reads no stored definition, so a deployment the console holds no sdl for is renameable", async () => {
+        const { service, ability, deploymentSettingRepository } = setup({ setting: undefined });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
+
+        expect(deploymentSettingRepository.findOneBy).not.toHaveBeenCalled();
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
+      });
+
+      it("broadcasts nothing and pushes no manifest", async () => {
+        const { service, ability, signerService, providerService } = setup();
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
+
+        expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+        expect(providerService.sendManifest).not.toHaveBeenCalled();
+      });
+
+      it("answers with the deployment the chain holds and records no manifest version", async () => {
+        const { service, ability } = setup();
+
+        const result = await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
+
+        expect(result.manifestVersion).toBeUndefined();
+        expect(result.deployment).toEqual(expect.objectContaining({ id: { owner: "akash1owner", dseq: "1234" } }));
+      });
+
+      it("refuses a deployment the chain does not hold, writing no name", async () => {
+        const { service, ability, deploymentReaderService, unscopedDeploymentSettingRepository } = setup();
+        deploymentReaderService.findByWalletAndDseq.mockRejectedValue(createError(404, "Deployment not found"));
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability)).rejects.toMatchObject({ status: 404 });
+
+        expect(unscopedDeploymentSettingRepository.upsertName).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("a patch carrying a name beside services", () => {
+      it("records the name with the definition it rewrites", async () => {
+        const { service, ability, deploymentSettingRepository } = setup();
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } }, name: "renamed" }, ability);
+
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).toHaveBeenCalledWith(expect.objectContaining({ name: "renamed" }));
+      });
+
+      it("leaves the recorded name alone for a patch that names none", async () => {
+        const { service, ability, deploymentSettingRepository } = setup();
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).toHaveBeenCalledWith(expect.objectContaining({ name: undefined }));
+      });
+    });
+
     function setup(input?: {
       sdl?: string;
       setting?: DeploymentSettingsOutput | undefined;
@@ -2149,6 +2213,7 @@ describe(DeploymentWriterService.name, () => {
         service,
         ability,
         deploymentSettingRepository: scoped,
+        unscopedDeploymentSettingRepository: deploymentSettingRepository,
         deploymentReaderService,
         sdlService,
         sdlSecretsService,

@@ -415,6 +415,10 @@ export class DeploymentWriterService {
     input: PatchDeploymentRequest["data"],
     ability: AnyAbility
   ): Promise<PatchDeploymentResponse["data"]> {
+    if (input.name !== undefined && !input.services && !input.sealedSecrets) {
+      return await this.#renameByUserIdAndDseq(userId, dseq, input.name);
+    }
+
     const [wallet, stored] = await Promise.all([
       this.walletReaderService.getWalletByUserId(userId),
       this.#findStoredDefinition({ userId, dseq }, ability, NOT_PATCHABLE_MESSAGE)
@@ -422,7 +426,7 @@ export class DeploymentWriterService {
     const parsed = this.#parseStored(stored.sdl, { userId, dseq });
     const document = parsed.document;
 
-    const written = this.sdlPatchService.apply(document, input.services);
+    const written = this.sdlPatchService.apply(document, input.services ?? {});
     const derived = this.sdlSecretsDerivationService.derive(document, { includeEnvValues: true, onlyAt: written });
     const patchedSdl = this.#serialize(parsed, { userId, dseq });
 
@@ -444,6 +448,7 @@ export class DeploymentWriterService {
       sdl: patchedSdl,
       manifestVersion: recordedVersion,
       sealedSecrets,
+      name: input.name,
       expectedManifestVersion: input.ifManifestVersion ?? stored.manifestVersion
     });
 
@@ -455,7 +460,7 @@ export class DeploymentWriterService {
       event: "DEPLOYMENT_PATCH_APPLIED",
       userId,
       dseq,
-      patchedServiceCount: Object.keys(input.services).length,
+      patchedServiceCount: Object.keys(input.services ?? {}).length,
       secretCount: Object.keys(merged).length,
       guarded: input.ifManifestVersion !== undefined
     });
@@ -484,6 +489,22 @@ export class DeploymentWriterService {
   }
 
   /** Read through the caller's own ability as well as their id, so a definition is unreachable by anyone the ability excludes even before the write re-checks it. */
+  /**
+   * A rename touches no definition, so it reads no stored SDL, computes no manifest version, broadcasts nothing and
+   * pushes nothing. That is what lets it reach a deployment created before the console recorded SDLs, which the
+   * patch path refuses outright. The chain read is the ownership check that path gets from its stored row.
+   */
+  async #renameByUserIdAndDseq(userId: string, dseq: string, name: string): Promise<PatchDeploymentResponse["data"]> {
+    const wallet = await this.walletReaderService.getWalletByUserId(userId);
+    const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+
+    await this.deploymentSettingRepository.upsertName({ userId, dseq, name });
+
+    this.logger.info({ event: "DEPLOYMENT_RENAMED", userId, dseq });
+
+    return deployment;
+  }
+
   async #findStoredDefinition(
     key: { userId: string; dseq: string },
     ability: AnyAbility,

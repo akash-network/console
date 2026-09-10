@@ -406,6 +406,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     sdl,
     manifestVersion,
     sealedSecrets,
+    name,
     expectedManifestVersion
   }: {
     userId: string;
@@ -413,11 +414,12 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     sdl: string;
     manifestVersion: string;
     sealedSecrets: string | null;
+    name?: string;
     expectedManifestVersion?: string;
   }): Promise<string | undefined> {
     const [row] = await this.cursor
       .update(this.table)
-      .set({ sdl, manifestVersion, sealedSecrets, updatedAt: sql`now()` })
+      .set({ sdl, manifestVersion, sealedSecrets, name, updatedAt: sql`now()` })
       .where(
         this.whereAccessibleBy(
           and(
@@ -441,6 +443,18 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
   }
 
   /** Conflicts are ignored rather than merged, so a row another path already wrote keeps every choice its writer made. */
+  /**
+   * Names a deployment whether or not the console already holds a row for it, because a rename is the one write
+   * that reaches deployments predating the definition recording — exactly the ones whose names still live only in
+   * a browser. Keyed on (dseq, userId) with the caller's own id, so it can only ever write the caller's own row.
+   */
+  async upsertName({ userId, dseq, name }: { userId: string; dseq: string; name: string }): Promise<void> {
+    await this.cursor
+      .insert(this.table)
+      .values({ userId, dseq, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT, name })
+      .onConflictDoUpdate({ target: [this.table.dseq, this.table.userId], set: { name, updatedAt: sql`now()` } });
+  }
+
   async createDefaultIfMissing({ userId, dseq }: { userId: string; dseq: string }): Promise<boolean> {
     const rows = await this.cursor
       .insert(this.table)
