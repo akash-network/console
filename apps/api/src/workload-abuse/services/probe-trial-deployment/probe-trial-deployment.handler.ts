@@ -2,12 +2,16 @@ import { inject, singleton } from "tsyringe";
 
 import { isWalletInitialized, UserWalletRepository } from "@src/billing/repositories";
 import { type CreateLogger, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, JobQueueService, LOGGER_FACTORY } from "@src/core";
+import { truncateToUtf8Bytes } from "@src/workload-abuse/lib/utf8-text/utf8-text";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import { EnforceTrialAbuse, enforceTrialAbuseKeyFor } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
 import { type ProbeReport, TrialWorkloadProbeService } from "@src/workload-abuse/services/trial-workload-probe/trial-workload-probe.service";
 import { ProbeTrialDeployment, TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 import { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
+
+/** Loki splits a line past 16 KiB into unparseable partials, and a clean verdict has nowhere else to keep what the shell saw. */
+const MAX_LOGGED_EXCERPT_BYTES = 4_096;
 
 /** Re-reads the wallet and the chain on every run, so a probe that waited an hour decides on what is true when it runs, not when it was queued. */
 @singleton()
@@ -94,6 +98,7 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
       userId: wallet.userId,
       verdict: report.verdict,
       probeStatus: report.probeStatus,
+      evidence: truncateToUtf8Bytes(report.excerpt, MAX_LOGGED_EXCERPT_BYTES),
       leases: report.leases.map(lease => ({
         provider: lease.provider,
         services: lease.services,
