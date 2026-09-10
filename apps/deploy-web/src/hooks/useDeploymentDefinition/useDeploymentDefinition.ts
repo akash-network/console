@@ -56,7 +56,7 @@ export function useDeploymentDefinition(dseq: string | undefined | null, depende
   const name = stored?.name;
 
   return useMemo(() => {
-    if (isResolving) return { sdl: undefined, name: undefined, source: "resolving" };
+    if (isResolving) return { sdl: undefined, name, source: "resolving" };
     if (apiSdl && isApiCopyOnChain && isStoredSdlSelfContained(apiSdl)) return { sdl: apiSdl, name, source: "api" };
     if (localSdl) return { sdl: localSdl, name, source: "local" };
     return { sdl: apiSdl, name, source: "absent" };

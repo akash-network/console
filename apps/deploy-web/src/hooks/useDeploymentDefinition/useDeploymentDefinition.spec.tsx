@@ -34,6 +34,13 @@ describe(useDeploymentDefinition.name, () => {
     expect(result.current.sdl).toBeUndefined();
   });
 
+  it("carries the deployment name while the sdl is still resolving, since the name is never the api's to answer", () => {
+    const { result } = setup({ apiSdl: API_SDL, localName: "my-deployment" });
+
+    expect(result.current.source).toBe("resolving");
+    expect(result.current.name).toBe("my-deployment");
+  });
+
   it("carries the deployment name from this browser even when the sdl comes from the api", async () => {
     const { result } = setup({ apiSdl: API_SDL, localSdl: LOCAL_SDL, localName: "my-deployment" });
 

@@ -48,7 +48,7 @@ describe(DeploymentDetailHeader.name, () => {
     expect(screen.getByText("3")).toBeInTheDocument();
   });
 
-  it("shows the deployment name from local notes", () => {
+  it("shows the deployment name recorded for this deployment in this browser", () => {
     setup({ name: "My Storefront" });
 
     expect(screen.getByText("My Storefront")).toBeInTheDocument();
@@ -303,11 +303,7 @@ describe(DeploymentDetailHeader.name, () => {
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const changeDeploymentName = vi.fn();
-    const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>({
-        getDeploymentName: () => input.name ?? null,
-        changeDeploymentName
-      });
+    const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () => mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>({ changeDeploymentName });
     let definition = mock<ReturnType<typeof DEPENDENCIES.useDeploymentDefinition>>({
       sdl: input.definitionSdl ?? undefined,
       name: input.name ?? undefined,
