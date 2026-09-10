@@ -108,6 +108,17 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     expect(probeJobService.scheduleNext).toHaveBeenCalledWith(PAYLOAD);
   });
 
+  it("stores the names but not the contents of the files the shell read", async () => {
+    const excerpt = '[soft/pool-port] shell:ssh: pool:3333\n--- shell ssh\n--files\n== /tmp/app.json\n{"api_key":"secret","pool":"pool:3333"}';
+    const { handler, detectionRepository } = setup({ report: createReport({ verdict: "soft", excerpt }) });
+
+    await handler.handle(PAYLOAD);
+
+    expect(detectionRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({ evidenceExcerpt: "[soft/pool-port] shell:ssh: pool:3333\n--- shell ssh\n--files\n== /tmp/app.json" })
+    );
+  });
+
   it("records confirmed mining and stops probing the deployment", async () => {
     const { handler, probeJobService, detectionRepository, instrumentation, logger } = setup({ report: createReport({ verdict: "hard" }) });
 

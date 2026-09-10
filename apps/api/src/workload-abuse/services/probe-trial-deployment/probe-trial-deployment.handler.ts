@@ -130,7 +130,7 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
       verdict: report.verdict as "hard" | "soft" | "proxy",
       probeStatus: report.probeStatus,
       signals: report.signals,
-      evidenceExcerpt: report.excerpt
+      evidenceExcerpt: withoutFileContents(report.excerpt)
     });
     this.instrumentation.recordDetection(report.verdict);
 
