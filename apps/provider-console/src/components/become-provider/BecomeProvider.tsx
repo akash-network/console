@@ -11,13 +11,12 @@ import { ServerAccess } from "@src/components/become-provider/ServerAccess";
 import { CustomizedSteppers } from "@src/components/become-provider/Stepper";
 import { WalletImport } from "@src/components/become-provider/WalletImport";
 import { Layout } from "@src/components/layout/Layout";
-import { withAuth } from "@src/components/shared/withAuth";
 import { useWallet } from "@src/context/WalletProvider";
 import providerProcessStore from "@src/store/providerProcessStore";
 import { hasRequiredCertManagerSecrets } from "@src/types/certManager";
 import { migrateProviderStorage } from "@src/utils/migrateProviderStorage";
 
-const BecomeProvider: React.FC = () => {
+export const BecomeProvider: React.FC = () => {
   const [activeStep, setActiveStep] = useState<number>(0);
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const [certManagerSecrets] = useAtom(providerProcessStore.certManagerSecretsAtom);
@@ -104,5 +103,3 @@ const BecomeProvider: React.FC = () => {
     </Layout>
   );
 };
-
-export default withAuth({ WrappedComponent: BecomeProvider, authLevel: "wallet" });

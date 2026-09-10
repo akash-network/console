@@ -249,12 +249,9 @@ export const GetStartedStepper: React.FunctionComponent = () => {
               </ul>
             </li>
           </ol>
-          <p>Once you understand the process, you can create a provider.</p>
+          <p>Provider creation through Provider Console is temporarily unavailable.</p>
           <div className="my-4 flex items-center space-x-4">
             <div className="my-4 space-x-2">
-              <Link className={cn("space-x-2", buttonVariants({ variant: "default" }))} href={UrlService.becomeProvider()}>
-                <span>Create Provider</span>
-              </Link>
               <Button onClick={handleReset} className="space-x-2" variant="ghost">
                 <span>Reset</span>
                 <MdRestartAlt />

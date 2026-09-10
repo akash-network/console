@@ -4,10 +4,11 @@ import React, { useEffect, useState } from "react";
 import { IntlProvider } from "react-intl";
 import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
 
-import { accountBarHeight } from "@src/utils/constants";
+import { accountBarHeight, topBannerHeightCssVar } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { Nav } from "./Nav";
+import { ProviderBuildDisabledBanner } from "./ProviderBuildDisabledBanner";
 import { Sidebar } from "./Sidebar";
 
 type Props = {
@@ -73,8 +74,9 @@ const LayoutApp: React.FC<Props> = ({ children, isLoading, disableContainer, con
   return (
     <>
       <div className="bg-card min-h-full">
-        <div className="h-full w-full" style={{ marginTop: `${accountBarHeight}px` }}>
+        <div className="h-full w-full" style={{ marginTop: `calc(${accountBarHeight}px + var(${topBannerHeightCssVar}, 0px))` }}>
           <div className="h-full">
+            <ProviderBuildDisabledBanner />
             <Nav />
             <div className="block h-full w-full flex-grow rounded-none md:flex">
               <Sidebar onOpenMenuClick={onOpenMenuClick} isNavOpen={isNavOpen} handleDrawerToggle={handleDrawerToggle} isMobileOpen={isMobileOpen} />
