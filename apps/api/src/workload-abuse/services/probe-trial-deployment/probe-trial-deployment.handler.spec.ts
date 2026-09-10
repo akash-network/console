@@ -69,7 +69,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
   });
 
   it("logs the names but not the contents of the files the shell read", async () => {
-    const excerpt = '--- shell web\n--recent-conf\n== /app/auth_keys.json\n{"session_hmac_key":"secret"}';
+    const excerpt = '--- shell web\n--recent-conf\n== /app/auth_keys.json\n| {"session_hmac_key":"secret"}';
     const { handler, logger } = setup({ report: createReport({ verdict: "clean", excerpt }) });
 
     await handler.handle(PAYLOAD);
@@ -109,7 +109,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
   });
 
   it("stores the names but not the contents of the files the shell read", async () => {
-    const excerpt = '[soft/pool-port] shell:ssh: pool:3333\n--- shell ssh\n--files\n== /tmp/app.json\n{"api_key":"secret","pool":"pool:3333"}';
+    const excerpt = '[soft/pool-port] shell:ssh: pool:3333\n--- shell ssh\n--files\n== /tmp/app.json\n| {"api_key":"secret","pool":"pool:3333"}';
     const { handler, detectionRepository } = setup({ report: createReport({ verdict: "soft", excerpt }) });
 
     await handler.handle(PAYLOAD);
