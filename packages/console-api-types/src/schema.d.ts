@@ -8084,6 +8084,8 @@ export interface operations {
                   }[];
                 };
               };
+              /** @description The name this deployment carries, or null for one created before the console recorded names. */
+              name: string | null;
               /** @description What the console recorded for this deployment, or null when it recorded nothing. */
               consoleSettings: {
                 /** @description The SDL the console stored for this deployment. Re-serialized YAML, so not byte-identical to the submitted document. */
@@ -8112,6 +8114,8 @@ export interface operations {
         "application/json": {
           data: {
             sdl: string;
+            /** @description Renames the deployment. Omitting it keeps the name the deployment already carries, unlike the rest of the definition this endpoint replaces wholesale. */
+            name?: string;
           };
         };
       };
@@ -8277,7 +8281,7 @@ export interface operations {
                 /** @description Keyed by container port. Only hosts and http options are patchable; endpoint kind and count are fixed at create. */
                 expose?: {
                   [key: string]: {
-                    /** @description Custom domains. Replaces the existing list. */
+                    /** @description Custom domains. Replaces the existing list. Emptying it is rejected by providers that do not generate a hostname of their own, which leaves the patch recorded but undeployed. */
                     accept?: string[];
                     httpOptions?: {
                       maxBodySize?: number;
@@ -8285,7 +8289,8 @@ export interface operations {
                       sendTimeout?: number;
                       nextTries?: number;
                       nextTimeout?: number;
-                      nextCases?: string[];
+                      /** @description Conditions the proxy retries on. Replaces the existing list; "off" disables retrying and stands alone. */
+                      nextCases?: ("error" | "timeout" | "500" | "502" | "503" | "504" | "403" | "404" | "429" | "off")[];
                     };
                   };
                 };
@@ -8298,6 +8303,8 @@ export interface operations {
                 };
               };
             };
+            /** @description Compact JWE sealing a flat name-to-value map, as on create, but holding only the names this patch replaces. Omitted names keep the values the deployment already stores. */
+            sealedSecrets?: string;
             /** @description Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very patch produces, which makes a retry of it succeed. Omitting this does not turn the guard off: the patch is then guarded on the version it read for itself, so a concurrent patch still answers 409 rather than overwriting it. */
             ifManifestVersion?: string;
           };
@@ -8553,6 +8560,8 @@ export interface operations {
                     }[];
                   };
                 };
+                /** @description The name this deployment carries, or null for one created before the console recorded names. */
+                name: string | null;
               }[];
               pagination: {
                 total: number;
@@ -8578,6 +8587,12 @@ export interface operations {
         "application/json": {
           data: {
             sdl: string;
+            /** @description Name for this deployment, shown wherever it is listed. Omit it and the console names the deployment after the services the SDL declares, joined with `+`. */
+            name?: string;
+            /** @description Compact JWE sealing a flat name-to-value map of the secrets this SDL references, encrypted to the console's public sealing key. Fetch that key and the claims to sign from GET /v1/sdl-secrets-context. Values are never returned by any endpoint once sealed. */
+            sealedSecrets?: string;
+            /** @description Dseq of one of your own deployments whose stored secrets this deployment starts from, for redeploying an SDL without re-entering its values. The source may be closed. A name also present in `sealedSecrets` takes precedence over the inherited one. */
+            inheritSecretsFrom?: string;
             /**
              * @deprecated
              * @description Deprecated and ignored. The platform funds every deployment automatically from your account credits.
@@ -8606,6 +8621,76 @@ export interface operations {
                 rawLog: string;
               };
             };
+          };
+        };
+      };
+      /** @description The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description No deployment of yours matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description Either the `sealedSecrets` value was sealed to a key the console no longer holds — refetch `GET /v1/sdl-secrets-context` and seal again — or, with `code` `inherited_secrets_unreadable`, the secrets recorded for the deployment named by `inheritSecretsFrom` can no longer be decrypted. The second is permanent rather than transient, so a retry cannot help; supply the values in `sealedSecrets` instead */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description The key management service is temporarily unreachable. Transient and worth retrying, unlike the 409 above */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
           };
         };
       };
