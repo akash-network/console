@@ -88,11 +88,12 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
 
   const definition = d.useDeploymentDefinition(deployment.dseq);
   const definitionSdl = definition.sdl;
-  const manifestServices = useMemo(() => parseManifestServices(definitionSdl), [definitionSdl]);
-  const servicesByPlacement = useMemo(() => parseServicesByPlacement(definitionSdl), [definitionSdl]);
+  const servicesCount = useMemo(
+    () => countPlacementServices(leases ?? [], parseServicesByPlacement(definitionSdl), parseManifestServices(definitionSdl)),
+    [leases, definitionSdl]
+  );
 
   const name = getDeploymentName(deployment.dseq) || `Deployment #${deployment.dseq}`;
-  const servicesCount = countPlacementServices(leases ?? [], servicesByPlacement, manifestServices);
 
   return (
     <div className="flex flex-col gap-6 py-6 lg:flex-row lg:items-start lg:justify-between">
