@@ -1,8 +1,8 @@
-import { drizzle } from "drizzle-orm/postgres-js";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import postgres from "postgres";
+
+import { INDEXER_TEMPLATE_ENV_VAR, USER_TEMPLATE_ENV_VAR } from "./test-database-templates";
 
 export class TestDatabaseService {
   private readonly testFileName: string;
@@ -14,8 +14,8 @@ export class TestDatabaseService {
   private readonly postgresUri: string;
 
   constructor(testPath: string) {
-    this.testFileName = path.basename(testPath, ".spec.ts");
-    const dbPrefix = randomUUID().replace("-", "");
+    this.testFileName = path.basename(testPath).replace(/\.(integration|spec)\.ts$/, "");
+    const dbPrefix = randomUUID().slice(0, 8);
     this.dbName = `${dbPrefix}_test_user_${this.testFileName}`.replace(/\W+/g, "_");
     this.indexerDbName = `${dbPrefix}_test_indexer_${this.testFileName}`.replace(/\W+/g, "_");
     this.postgresUri = process.env.POSTGRES_URI || "postgres://postgres:password@localhost:5432";
@@ -25,33 +25,13 @@ export class TestDatabaseService {
   }
 
   async setup(): Promise<void> {
-    console.log(`Setting up test databases for: ${this.testFileName}: ${this.dbName}, ${this.indexerDbName}`);
-    await Promise.all([this.createDatabase(this.dbName), this.createDatabase(this.indexerDbName)]);
-
-    // Need to load it dynamically to ensure it doesn't trigger side effects too early
-    const { migratePG } = await import("../../src/core/providers/postgres.provider.ts");
-
-    await Promise.all([migratePG(), this.migrateIndexerDb()]);
-  }
-
-  private async migrateIndexerDb() {
-    if (!process.env.CHAIN_INDEXER_POSTGRES_DB_URI) {
-      throw new Error("process.env.CHAIN_INDEXER_POSTGRES_DB_URI is not set");
-    }
-
-    const migrationClient = postgres(process.env.CHAIN_INDEXER_POSTGRES_DB_URI, { max: 1 });
-    const pgMigrationDatabase = drizzle(migrationClient);
-    const migrationsFolder = path.resolve(process.cwd(), "../indexer/drizzle");
-
-    try {
-      await migrate(pgMigrationDatabase, { migrationsFolder });
-    } finally {
-      await migrationClient.end();
-    }
+    await Promise.all([
+      this.createDatabase(this.dbName, requireTemplate(USER_TEMPLATE_ENV_VAR)),
+      this.createDatabase(this.indexerDbName, requireTemplate(INDEXER_TEMPLATE_ENV_VAR))
+    ]);
   }
 
   async teardown(): Promise<void> {
-    console.log(`Dropping test databases: ${this.dbName}, ${this.indexerDbName}`);
     const sql = postgres(this.postgresUri, { max: 1 });
 
     try {
@@ -72,19 +52,11 @@ export class TestDatabaseService {
     }
   }
 
-  private async createDatabase(dbName: string): Promise<void> {
+  private async createDatabase(dbName: string, template: string): Promise<void> {
     const sql = postgres(this.postgresUri, { max: 1 });
 
     try {
-      const [exists] = await sql`
-        SELECT 1 FROM pg_database WHERE datname = ${dbName}
-      `;
-
-      if (!exists) {
-        await sql`CREATE DATABASE ${sql(dbName)}`;
-      } else {
-        console.log(`Database ${dbName} already exists`);
-      }
+      await sql`CREATE DATABASE ${sql(dbName)} TEMPLATE ${sql(template)}`;
     } catch (error) {
       console.error(`Error creating database ${dbName}:`, error);
       throw error;
@@ -92,4 +64,14 @@ export class TestDatabaseService {
       await sql.end();
     }
   }
+}
+
+function requireTemplate(envVar: string): string {
+  const template = process.env[envVar];
+
+  if (!template) {
+    throw new Error(`${envVar} is not set. The test database templates are built by test/global-setup-db.ts.`);
+  }
+
+  return template;
 }
