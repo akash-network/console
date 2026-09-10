@@ -7,14 +7,22 @@ export function hasSdlReference(sdl: string): boolean {
   return carriesReference(parseSdl(sdl));
 }
 
-export function hasOnlyBlankEnvValues(sdl: string): boolean {
-  return onlyBlankEnvValues(parseSdl(sdl));
+/** The api withholds a value by blanking its env entry, so a key blank in its record names a value the browser has to be given back before it can sign. */
+export function leavesWithheldEnvValuesBlank(sdl: string, apiRecord: string): boolean {
+  const withheld = blankEnvKeysIn(apiRecord);
+  return blankEnvKeysIn(sdl).some(key => withheld.includes(key));
 }
 
 /** Whether a stored SDL still carries every value the browser needs to hash it into the manifest the chain committed. */
 export function isStoredSdlSelfContained(sdl: string): boolean {
   const document = parseSdl(sdl);
   return document !== null && !carriesReference(document) && !onlyBlankEnvValues(document);
+}
+
+function blankEnvKeysIn(sdl: string): string[] {
+  return envEntriesIn(parseSdl(sdl))
+    .filter(isBlank)
+    .map(entry => entry.slice(0, entry.indexOf("=")));
 }
 
 function parseSdl(sdl: string): unknown {

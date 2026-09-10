@@ -41,6 +41,9 @@ const UNTITLED_OUT_OF_CREDITS = new ApiError(402, { message: "Not enough funds t
 
 const WITHHELD_VALUES_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=ac-secret://s0_e0"\n';
 const BLANK_ENV_VALUES_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN="\n';
+const TWO_BLANK_ENV_VALUES_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN="\n      - "OTHER="\n';
+const ONE_ENV_VALUE_SUPPLIED_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=given"\n      - "OTHER="\n';
+const BOTH_ENV_VALUES_SUPPLIED_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=given"\n      - "OTHER=given"\n';
 
 describe(ManifestUpdate.name, () => {
   it("shows outside deployment message when neither source holds a definition", () => {
@@ -221,6 +224,16 @@ describe(ManifestUpdate.name, () => {
       expect(dependencies.WarningCircle).not.toHaveBeenCalled();
     });
 
+    it("renders for a browser copy whose env value is blank and whose version differs from the chain", async () => {
+      const { dependencies } = setup({
+        definition: { sdl: BLANK_ENV_VALUES_SDL, source: "local" },
+        deployment: { dseq: "123", state: "active", hash: "on-chain-hash" },
+        dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("a-different-hash") }) }
+      });
+
+      await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
+    });
+
     it("does not render for a copy whose values the api withheld", async () => {
       const { dependencies } = setup({
         definition: { sdl: WITHHELD_VALUES_SDL, source: "absent" },
@@ -292,6 +305,39 @@ describe(ManifestUpdate.name, () => {
 
       expect(handles.mutate).not.toHaveBeenCalled();
       expect(screen.getByText(/withheld secret values/i)).toBeInTheDocument();
+    });
+
+    it("keeps the update action disabled while only some of the withheld values have been supplied", async () => {
+      const { dependencies } = setup({
+        editedManifest: ONE_ENV_VALUE_SUPPLIED_SDL,
+        definition: { sdl: TWO_BLANK_ENV_VALUES_SDL, source: "absent" }
+      });
+
+      await continuePastTheNotice(dependencies);
+
+      expect(updateButtonOf(dependencies)?.disabled).toBe(true);
+    });
+
+    it("releases the update action once every withheld value has been supplied", async () => {
+      const { dependencies } = setup({
+        editedManifest: BOTH_ENV_VALUES_SUPPLIED_SDL,
+        definition: { sdl: TWO_BLANK_ENV_VALUES_SDL, source: "absent" }
+      });
+
+      await continuePastTheNotice(dependencies);
+
+      expect(updateButtonOf(dependencies)?.disabled).toBe(false);
+    });
+
+    it("releases the update action for a blank env value of the user's own that the api never withheld", async () => {
+      const { dependencies } = setup({
+        editedManifest: BLANK_ENV_VALUES_SDL,
+        definition: { sdl: "version: '2.0' # recorded-v1", source: "absent" }
+      });
+
+      await continuePastTheNotice(dependencies);
+
+      expect(updateButtonOf(dependencies)?.disabled).toBe(false);
     });
 
     it("says why the update action is unavailable without waiting for it to be used", () => {
