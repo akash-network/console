@@ -38,6 +38,7 @@ import type { StorableSdl, StoredSdlPosition, StoredSdlRefusal } from "@src/depl
 import { parseSdlForStorage, sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { denomToUdenom } from "@src/utils/math";
+import { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 import { StaleManagedDeploymentsCleanerService } from "../stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
@@ -100,7 +101,8 @@ export class DeploymentWriterService {
     private readonly sdlSecretsDerivationService: SdlSecretsDerivationService,
     private readonly sdlPatchService: SdlPatchService,
     private readonly sdlReferenceService: SdlReferenceService,
-    private readonly sdlSecretsInheritanceService: SdlSecretsInheritanceService
+    private readonly sdlSecretsInheritanceService: SdlSecretsInheritanceService,
+    private readonly probeJobService: TrialWorkloadProbeJobService
   ) {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
@@ -389,6 +391,7 @@ export class DeploymentWriterService {
     await this.ensureDeploymentIsUpToDate(wallet, dseq, manifestVersion, deployment);
     const auth = { walletId: wallet.id };
     await this.sendManifestToProviders({ auth, dseq, manifest: manifestToSortedJSON(manifest.groups), leases: deployment.leases });
+    await this.restartTrialWorkloadProbe(wallet, dseq);
 
     return await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
   }
@@ -460,8 +463,20 @@ export class DeploymentWriterService {
       manifest: manifestToSortedJSON(manifest.groups),
       leases: deployment.leases
     });
+    await this.restartTrialWorkloadProbe(wallet, dseq);
 
     return { ...(await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq)), manifestVersion: recordedVersion };
+  }
+
+  /** The probe is a backstopped extra, so failing to reschedule it must not fail an update the chain and the providers have already taken. */
+  private async restartTrialWorkloadProbe(wallet: UserWalletOutput, dseq: string): Promise<void> {
+    if (!wallet.isTrialing) return;
+
+    try {
+      await this.probeJobService.restartForUpdatedDeployment({ walletId: wallet.id, dseq, updatedAt: new Date() });
+    } catch (error) {
+      this.logger.error({ event: "TRIAL_WORKLOAD_PROBE_RESTART_FAILED", userId: wallet.userId, dseq, error });
+    }
   }
 
   /** Read through the caller's own ability as well as their id, so a definition is unreachable by anyone the ability excludes even before the write re-checks it. */

@@ -25,9 +25,31 @@ describe(ProviderShellProbeService.name, () => {
     });
 
     it("prints expanded lines with printf so a dash echo cannot turn the script's own cmdline into NUL bytes", () => {
-      expect(SHELL_PROBE_SCRIPT).toContain("printf '%s\\n' \"${p#/proc/} comm=");
+      expect(SHELL_PROBE_SCRIPT).toContain("printf '%s\\n' \"${p#/proc/} cpu_s=");
       expect(SHELL_PROBE_SCRIPT).toContain("printf '%s\\n' \"== $f\"");
       expect(SHELL_PROBE_SCRIPT).not.toMatch(/echo "/);
+    });
+
+    it("leaves its own shell and that shell's children out of the process listing by pid, not by what they run", () => {
+      expect(SHELL_PROBE_SCRIPT).toContain('[ "${p#/proc/}" = "$$" ] && continue');
+      expect(SHELL_PROBE_SCRIPT).toContain('[ "${2:-}" = "$$" ] && continue');
+    });
+
+    it("records cpu time and memory per process, decoded socket peers, and files written since the container started", () => {
+      expect(SHELL_PROBE_SCRIPT).toContain("cpu_s=$(( (${12:-0} + ${13:-0}) / 100 )) rss_mb=$(( ${22:-0} * 4 / 1024 ))");
+      expect(SHELL_PROBE_SCRIPT).toContain('printf \'st=%s remote=%d.%d.%d.%d:%d\\n\' "$st" "0x$d" "0x$c" "0x$b" "0x$a" "0x$po"');
+      expect(SHELL_PROBE_SCRIPT).toContain("printf 'listen=%d\\n' \"0x${la#*:}\"");
+      expect(SHELL_PROBE_SCRIPT).toContain(
+        "echo '--recent-exec'; find / \\( -path /proc -o -path /sys -o -path /dev \\) -prune -o -type f -perm -100 -newer /proc/1 -print"
+      );
+      expect(SHELL_PROBE_SCRIPT).toContain(
+        "echo '--recent-conf'; find / \\( -path /proc -o -path /sys -o -path /dev -o -path /etc -o -path /tmp -o -name node_modules \\) -prune"
+      );
+    });
+
+    it("only reads the container and never changes, fetches or runs anything in it", () => {
+      expect(SHELL_PROBE_SCRIPT).not.toMatch(/\b(curl|wget|chmod|chown|kill|rm|mv|cp|apt|apk|pip|npm)\b/);
+      expect(SHELL_PROBE_SCRIPT).not.toMatch(/[^2<]>\s*\/(?!dev\/null)/);
     });
   });
 

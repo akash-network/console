@@ -59,6 +59,15 @@ export class TrialWorkloadProbeJobService {
     return this.#schedule({ ...previous, attempt: previous.attempt + 1 });
   }
 
+  /** A manifest update swaps the container, so the fixed early probes start over from the update instead of waiting for the next hourly one. */
+  async restartForUpdatedDeployment(target: ProbeTrialDeploymentTarget & { updatedAt: Date }): Promise<string | null> {
+    if (!this.config.get("WORKLOAD_ABUSE_PROBE_ENABLED")) return null;
+
+    await this.cancelForDeployment(target);
+
+    return this.#schedule({ walletId: target.walletId, dseq: target.dseq, attempt: 1, leaseCreatedAt: target.updatedAt.toISOString() });
+  }
+
   async cancelForDeployment(target: ProbeTrialDeploymentTarget): Promise<void> {
     await this.jobQueueService.cancelCreatedBy({ name: ProbeTrialDeployment[JOB_NAME], singletonKey: probeTrialDeploymentKeyFor(target) });
   }

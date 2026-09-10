@@ -9,6 +9,9 @@ import { ProbeTrialDeployment, TrialWorkloadProbeJobService } from "@src/workloa
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 import { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
 
+/** Loki splits a line past 16 KiB into unparseable partials, and a clean verdict has nowhere else to keep what the shell saw. */
+const MAX_LOGGED_EXCERPT_LENGTH = 4_096;
+
 /** Re-reads the wallet and the chain on every run, so a probe that waited an hour decides on what is true when it runs, not when it was queued. */
 @singleton()
 export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeployment> {
@@ -94,6 +97,7 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
       userId: wallet.userId,
       verdict: report.verdict,
       probeStatus: report.probeStatus,
+      evidence: report.excerpt.slice(0, MAX_LOGGED_EXCERPT_LENGTH),
       leases: report.leases.map(lease => ({
         provider: lease.provider,
         services: lease.services,

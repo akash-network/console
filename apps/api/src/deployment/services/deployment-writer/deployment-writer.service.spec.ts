@@ -29,6 +29,7 @@ import type { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
+import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 import type { StaleManagedDeploymentsCleanerService } from "../stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
@@ -1232,6 +1233,33 @@ describe(DeploymentWriterService.name, () => {
       expect(jobQueueService.cancelCreatedBy).not.toHaveBeenCalled();
     });
 
+    it("starts the trial workload probes over once every provider holds the new manifest", async () => {
+      const { service, probeJobService, providerService } = setup({ isTrialing: true });
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
+
+      expect(probeJobService.restartForUpdatedDeployment).toHaveBeenCalledWith({ walletId: wallet.id, dseq: "100", updatedAt: expect.any(Date) });
+      expect(providerService.sendManifest.mock.invocationCallOrder[0]).toBeLessThan(probeJobService.restartForUpdatedDeployment.mock.invocationCallOrder[0]);
+    });
+
+    it("leaves the probe schedule alone for an established wallet", async () => {
+      const { service, probeJobService } = setup();
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
+
+      expect(probeJobService.restartForUpdatedDeployment).not.toHaveBeenCalled();
+    });
+
+    it("still answers the update when the probes cannot be restarted", async () => {
+      const { service, probeJobService, logger } = setup({ isTrialing: true });
+      probeJobService.restartForUpdatedDeployment.mockRejectedValue(new Error("queue down"));
+
+      const result = await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
+
+      expect(result).toBe(deploymentData);
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_WORKLOAD_PROBE_RESTART_FAILED", userId: "user-1", dseq: "100" }));
+    });
+
     it("skips update tx when manifest hash matches", async () => {
       const { service, signerService, rpcMessageService } = setup({ manifestVersion: new Uint8Array([1, 2, 3]) });
 
@@ -1956,6 +1984,23 @@ describe(DeploymentWriterService.name, () => {
     });
 
     describe("the trial limits a wallet is still under", () => {
+      it("starts a trialing wallet's workload probes over once the patched manifest is pushed", async () => {
+        const { service, ability, probeJobService, providerService } = setup({ isTrialing: true });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+        expect(probeJobService.restartForUpdatedDeployment).toHaveBeenCalledWith({ walletId: 7, dseq: "1234", updatedAt: expect.any(Date) });
+        expect(providerService.sendManifest.mock.invocationCallOrder[0]).toBeLessThan(probeJobService.restartForUpdatedDeployment.mock.invocationCallOrder[0]);
+      });
+
+      it("leaves an established wallet's probe schedule alone", async () => {
+        const { service, ability, probeJobService } = setup({ isTrialing: false });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+        expect(probeJobService.restartForUpdatedDeployment).not.toHaveBeenCalled();
+      });
+
       it("resolves a trialing wallet's patch under them", async () => {
         const { service, sdlService, ability } = setup({ isTrialing: true });
 
@@ -2039,6 +2084,7 @@ describe(DeploymentWriterService.name, () => {
       const createLogger: CreateLogger = () => logger;
 
       const sdlReferenceService = new SdlReferenceService();
+      const probeJobService = mock<TrialWorkloadProbeJobService>();
       const ability = mock<AnyAbility>();
       const service = new DeploymentWriterService(
         signerService,
@@ -2058,7 +2104,8 @@ describe(DeploymentWriterService.name, () => {
         new SdlSecretsDerivationService(new SdlReferenceService()),
         new SdlPatchService(),
         sdlReferenceService,
-        mock<SdlSecretsInheritanceService>()
+        mock<SdlSecretsInheritanceService>(),
+        probeJobService
       );
 
       function sealedFor() {
@@ -2076,6 +2123,7 @@ describe(DeploymentWriterService.name, () => {
         signerService,
         logger,
         sdlReferenceService,
+        probeJobService,
         sealedFor
       };
     }
@@ -2095,6 +2143,7 @@ describe(DeploymentWriterService.name, () => {
     storedSdl?: string;
     storedRuntimeLimitHours?: number | null;
     sourceSetting?: DeploymentSettingsOutput;
+    isTrialing?: boolean;
   }) {
     const signerService = mock<ManagedSignerService>();
     const rpcMessageService = mock<RpcMessageService>();
@@ -2152,7 +2201,8 @@ describe(DeploymentWriterService.name, () => {
     if (input?.inheritanceError) sdlSecretsInheritanceService.open.mockRejectedValue(input.inheritanceError);
     else sdlSecretsInheritanceService.open.mockResolvedValue(input?.inherited ?? {});
 
-    walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
+    walletReaderService.getWalletByUserId.mockResolvedValue(input?.isTrialing ? { ...wallet, isTrialing: true } : wallet);
+    const probeJobService = mock<TrialWorkloadProbeJobService>();
     sdlService.parse.mockReturnValue({ ok: true, value: parsedSdlValue } as any);
     sdlService.generateManifest.mockResolvedValue({ ok: true, value: manifestValue } as any);
     sdlService.generateManifestVersion.mockResolvedValue(new Uint8Array([4, 5, 6]));
@@ -2180,7 +2230,8 @@ describe(DeploymentWriterService.name, () => {
       sdlSecretsDerivationService,
       new SdlPatchService(),
       new SdlReferenceService(),
-      sdlSecretsInheritanceService
+      sdlSecretsInheritanceService,
+      probeJobService
     );
 
     function storedSecrets() {
@@ -2206,6 +2257,7 @@ describe(DeploymentWriterService.name, () => {
       sdlSecretsService,
       sdlSecretsInheritanceService,
       scopedSettingRepository,
+      probeJobService,
       ability: mock<AnyAbility>(),
       storedSecrets
     };
