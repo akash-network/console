@@ -584,6 +584,17 @@ describe(JobQueueService.name, () => {
       expect(thrown.stack).toBeUndefined();
     });
 
+    it("rethrows an error whose cause is null as it is", async () => {
+      const error = new Error("insert failed", { cause: null });
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      expect((result as PromiseRejectedResult).reason).toBe(error);
+    });
+
     it("rethrows a non-Error rejection as it is", async () => {
       const { service, pgBoss } = setup();
       deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
@@ -643,8 +654,9 @@ describe(JobQueueService.name, () => {
     });
 
     it("describes a rejected object Postgres could never store as one", async () => {
-      const cyclic: Record<string, unknown> = { evidence: "x\u0000y" };
+      const cyclic: Record<string, unknown> = {};
       cyclic.self = cyclic;
+      cyclic.evidence = "x\u0000y";
       const { service, pgBoss } = setup();
       deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
 
