@@ -97,9 +97,10 @@
         "tsup-plugins.ts",
         "eslint-plugin-akash/index.js",
         "vitest/mutation.mjs",
-        "vitest/mutation.d.mts"
+        "vitest/mutation.d.mts",
+        "secretlint-rule-akash-no-mnemonic/index.js"
       ],
-      "ignoreDependencies": ["eslint-plugin-akash", "next"]
+      "ignoreDependencies": ["eslint-plugin-akash", "next", "secretlint-rule-akash-no-mnemonic"]
     },
     "packages/env-loader": {},
     "packages/http-sdk": {
