@@ -1344,6 +1344,7 @@ describe("Deployments API", () => {
 
       await expect(openStoredToken(user, setting!.dseq, setting!.sealedSecrets!)).resolves.toEqual({
         s0_e0: "PLACEHOLDER_API_TOKEN",
+        // secretlint-disable-next-line
         s0_e1: "postgres://placeholder:PLACEHOLDER_DB_PASSWORD@db.example.test:5432/app?ssl=true",
         s0_c_username: "PLACEHOLDER_REGISTRY_USERNAME",
         s0_c_password: "PLACEHOLDER_REGISTRY_PASSWORD"

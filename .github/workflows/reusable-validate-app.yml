@@ -52,10 +52,22 @@ jobs:
           echo "has_tests=$has_tests" >> "$GITHUB_OUTPUT"
           echo "requires_env_setup=$requires_env_setup" >> "$GITHUB_OUTPUT"
 
+      # The per-run key never pre-exists, so every run saves a fresh cache; restore-keys picks up the
+      # newest previous one. The prefix hashes the lockfile and shared eslint config sources because
+      # ESLint's cache does not invalidate itself on plugin or config-package upgrades.
+      - name: Restore ESLint cache
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group' && steps.tests_details.outputs.has_tests != 'true'
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: apps/${{ inputs.app }}/.eslintcache
+          key: eslint-${{ inputs.app }}-${{ runner.os }}-${{ hashFiles('package-lock.json', 'packages/dev-config/eslint/**', 'packages/dev-config/eslint-plugin-akash/**') }}-${{ github.sha }}
+          restore-keys: |
+            eslint-${{ inputs.app }}-${{ runner.os }}-${{ hashFiles('package-lock.json', 'packages/dev-config/eslint/**', 'packages/dev-config/eslint-plugin-akash/**') }}-
+
       - name: Run static code analysis
         if: github.event_name == 'pull_request' || github.event_name == 'merge_group' && steps.tests_details.outputs.has_tests != 'true'
         run: |
-          npm run lint -w apps/${{ inputs.app }} -- --quiet
+          npm run lint -w apps/${{ inputs.app }} -- --quiet --cache --cache-location .eslintcache --cache-strategy content
 
       - name: Ensure there are no leftovers
         if: github.event_name == 'pull_request'
