@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { SignTxResponseOutputSchema } from "@src/billing/http-schemas/tx.schema";
 import { MAX_MANIFEST_VERSION_LENGTH, MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
+import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/deployment/utils/deployment-name/deployment-name";
 import { openApiExampleAddress } from "@src/utils/constants";
 import { AkashAddressSchema, DseqSchema } from "@src/utils/schema";
 import { LeaseStatusResponseSchema } from "./lease.schema";
@@ -109,9 +110,16 @@ export const GetDeploymentParamsSchema = z.object({
 /** Every reader treats an empty seal as no seal, so accepting one would take a request the caller meant as a secret write and silently do nothing. */
 const SealedSecretsSchema = z.string().min(1);
 
+/** Trimmed before it is measured, so a name of nothing but spaces is refused rather than stored as a blank one. */
+const DeploymentNameSchema = z.string().trim().min(1).max(MAX_DEPLOYMENT_NAME_LENGTH);
+
 export const CreateDeploymentRequestSchema = z.object({
   data: z.object({
     sdl: z.string().max(MAX_SUBMITTED_SDL_LENGTH),
+    name: DeploymentNameSchema.optional().openapi({
+      description:
+        "Name for this deployment, shown wherever it is listed. Omit it and the console names the deployment after the services the SDL declares, joined with `+`."
+    }),
     sealedSecrets: SealedSecretsSchema.optional().openapi({
       description:
         "Compact JWE sealing a flat name-to-value map of the secrets this SDL references, encrypted to the console's public sealing key. Fetch that key and the claims to sign from GET /v1/sdl-secrets-context. Values are never returned by any endpoint once sealed."
@@ -167,7 +175,11 @@ export const DepositDeploymentResponseSchema = z.object({
 
 export const UpdateDeploymentRequestSchema = z.object({
   data: z.object({
-    sdl: z.string()
+    sdl: z.string(),
+    name: DeploymentNameSchema.optional().openapi({
+      description:
+        "Renames the deployment. Omitting it keeps the name the deployment already carries, unlike the rest of the definition this endpoint replaces wholesale."
+    })
   })
 });
 

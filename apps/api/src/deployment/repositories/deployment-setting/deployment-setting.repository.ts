@@ -340,9 +340,9 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
    * Upserts on the (dseq, userId) unique because a settings read creates a row lazily, because the
    * caller retries a create that failed to broadcast, and because an update of a deployment that
    * predates any record has to produce the row a create would have. The conflict branch leaves every
-   * field it does not name as the earlier writer set them, and an absent runtime limit counts as
-   * unnamed: drizzle drops undefined out of the set clause, so neither creating nor updating without a
-   * limit can clear one already there.
+   * field it does not name as the earlier writer set them, and an absent runtime limit or name counts
+   * as unnamed: drizzle drops undefined out of the set clause, so neither creating nor updating
+   * without one can clear what is already there.
    *
    * `sealedSecrets` reads that same rule in both directions, which is why it is typed to allow null.
    * A create always states a value — the token, or null when the request carried no secrets — so a
@@ -355,7 +355,8 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     sdl,
     manifestVersion,
     runtimeLimitHours,
-    sealedSecrets
+    sealedSecrets,
+    name
   }: {
     userId: string;
     dseq: string;
@@ -363,13 +364,14 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     manifestVersion: string;
     runtimeLimitHours?: number;
     sealedSecrets?: string | null;
+    name?: string;
   }): Promise<string> {
     const [row] = await this.cursor
       .insert(this.table)
-      .values({ userId, dseq, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT, sdl, manifestVersion, runtimeLimitHours, sealedSecrets })
+      .values({ userId, dseq, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT, sdl, manifestVersion, runtimeLimitHours, sealedSecrets, name })
       .onConflictDoUpdate({
         target: [this.table.dseq, this.table.userId],
-        set: { sdl, manifestVersion, runtimeLimitHours, sealedSecrets, updatedAt: sql`now()` }
+        set: { sdl, manifestVersion, runtimeLimitHours, sealedSecrets, name, updatedAt: sql`now()` }
       })
       .returning({ id: this.table.id });
 

@@ -512,6 +512,54 @@ describe(DeploymentSettingRepository.name, () => {
       expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ runtimeLimitHours: 6 });
     });
 
+    it("records the name a create was given", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG", name: "web+db" });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ name: "web+db" });
+    });
+
+    it("records no name for a definition written without one", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG" });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ name: null });
+    });
+
+    it("leaves a name already on the row alone when none is given", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG", name: "web" });
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.1'", manifestVersion: "BQYH" });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ sdl: "version: '2.1'", name: "web" });
+    });
+
+    it("replaces a name an earlier write recorded", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG", name: "web" });
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG", name: "renamed" });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ name: "renamed" });
+    });
+
+    it("names a row a settings read created first", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: false });
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG", name: "web" });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ name: "web" });
+    });
+
     it("replaces a definition an earlier write recorded", async () => {
       const { deploymentSettingRepository, user } = await setup();
       const dseq = newDseq();
