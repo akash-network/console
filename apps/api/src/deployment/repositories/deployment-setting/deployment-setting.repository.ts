@@ -101,6 +101,27 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return super.create({ ...input, autoTopUpEnabled: input.autoTopUpEnabled ?? AUTO_TOP_UP_ENABLED_BY_DEFAULT });
   }
 
+  /**
+   * The names for one page of deployments, keyed by dseq and absent for a dseq with no row. One query for the
+   * page rather than one per deployment, since a list of 100 would otherwise be 100 round trips.
+   *
+   * Scoped twice over like the single read, by the caller's own id and by `accessibleBy` from their ability,
+   * because the (dseq, userId) unique means two users holding the same dseq is an ordinary state: a query
+   * naming only the dseqs would answer with another user's names.
+   */
+  async findNamesByDseqs({ userId, dseqs }: { userId: string; dseqs: string[] }): Promise<Map<string, string | null>> {
+    if (dseqs.length === 0) {
+      return new Map();
+    }
+
+    const rows = await this.cursor
+      .select({ dseq: this.table.dseq, name: this.table.name })
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs))));
+
+    return new Map(rows.map(row => [row.dseq, row.name]));
+  }
+
   /** Reads every owner in one query, because the per-owner lookup this used to repeat selects from the same tables under the same filters. */
   async *findAutoTopUpDeploymentsByOwnerIteratively(): AsyncGenerator<{
     address: string;

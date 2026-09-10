@@ -54,15 +54,15 @@ export class DeploymentReaderService {
 
   public async findByUserIdAndDseq(userId: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
-    const [deployment, consoleSettings] = await Promise.all([this.findByWalletAndDseq(wallet, dseq), this.findConsoleSettings(userId, dseq)]);
+    const [deployment, recorded] = await Promise.all([this.findByWalletAndDseq(wallet, dseq), this.findRecorded(userId, dseq)]);
 
-    return { ...deployment, consoleSettings };
+    return { ...deployment, ...recorded };
   }
 
   /**
-   * What the console recorded for this deployment, or null when it recorded nothing. The chain knows only the
-   * manifest, so the SDL that produced it is ours to remember or lose; this is what lets a deployment created on
-   * one device be read back on another.
+   * What the console recorded for this deployment: its name, and the definition it stored or null when it stored
+   * nothing. The chain knows only the manifest, so the SDL that produced it is ours to remember or lose; this is
+   * what lets a deployment created on one device be read back on another.
    *
    * Scoped twice over, because the (dseq, userId) unique means two users holding the same dseq is an ordinary
    * state rather than a collision: the query names the caller's own id, and `accessibleBy` ANDs the same
@@ -71,16 +71,27 @@ export class DeploymentReaderService {
    *
    * A row with no `sdl` is reported as nothing recorded rather than as a partial record. Settings reads create
    * rows lazily and deployments predating the recording leave both columns null, so an absent SDL is the common
-   * case and not a broken one.
+   * case and not a broken one. The name is read off the same row and reported on its own, so a deployment
+   * carrying a name but no definition still answers with the name.
    */
-  private async findConsoleSettings(userId: string, dseq: string): Promise<ConsoleSettings | null> {
+  private async findRecorded(userId: string, dseq: string): Promise<{ name: string | null; consoleSettings: ConsoleSettings | null }> {
     const setting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy({ userId, dseq });
+    const name = setting?.name ?? null;
 
     if (!setting?.sdl || !setting.manifestVersion) {
-      return null;
+      return { name, consoleSettings: null };
     }
 
-    return { sdl: setting.sdl, manifestVersion: setting.manifestVersion };
+    return { name, consoleSettings: { sdl: setting.sdl, manifestVersion: setting.manifestVersion } };
+  }
+
+  /** Under the same double scoping as the single read, and skipped entirely for an empty page so a list with nothing on it costs no query. */
+  private async findNamesFor(userId: string, dseqs: string[]): Promise<Map<string, string | null>> {
+    if (dseqs.length === 0) {
+      return new Map();
+    }
+
+    return await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findNamesByDseqs({ userId, dseqs });
   }
 
   public async findByWalletAndDseq(wallet: WalletInitialized, dseq: string): Promise<DeploymentResponse> {
@@ -164,10 +175,13 @@ export class DeploymentReaderService {
       .for(deployments)
       .process(async deployment => this.leaseHttpService.list({ owner, dseq: deployment.deployment.id.dseq }));
 
+    const names = await this.findNamesFor(query.userId, deployments.map(deployment => deployment.deployment.id.dseq));
+
     const deploymentsWithLeases = deployments.map((deployment, index) => ({
       deployment: deployment.deployment,
       leases: leaseResults[index]?.leases?.map(({ lease }) => lease) ?? [],
-      escrow_account: deployment.escrow_account
+      escrow_account: deployment.escrow_account,
+      name: names.get(deployment.deployment.id.dseq) ?? null
     }));
     return {
       deployments: deploymentsWithLeases,

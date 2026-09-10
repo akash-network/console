@@ -4318,6 +4318,11 @@
                             "state"
                           ]
                         },
+                        "name": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "The name this deployment carries, or null for one created before the console recorded names."
+                        },
                         "consoleSettings": {
                           "type": "object",
                           "nullable": true,
@@ -4342,6 +4347,7 @@
                         "deployment",
                         "leases",
                         "escrow_account",
+                        "name",
                         "consoleSettings"
                       ]
                     }
@@ -6127,12 +6133,18 @@
                                   "id",
                                   "state"
                                 ]
+                              },
+                              "name": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "The name this deployment carries, or null for one created before the console recorded names."
                               }
                             },
                             "required": [
                               "deployment",
                               "leases",
-                              "escrow_account"
+                              "escrow_account",
+                              "name"
                             ]
                           }
                         },
