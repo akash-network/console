@@ -14,7 +14,7 @@ export interface DeploymentDefinition {
   source: DeploymentDefinitionSource;
 }
 
-const USABLE_SOURCES: readonly DeploymentDefinitionSource[] = ["api", "local", "superseded"];
+const USABLE_SOURCES: readonly DeploymentDefinitionSource[] = ["api", "local"];
 
 /** An absent definition can still carry the API's rejected SDL for inspection, so views must gate on the source, not on SDL presence. */
 export function isUsableDeploymentDefinition(definition: DeploymentDefinition): definition is DeploymentDefinition & { sdl: string } {

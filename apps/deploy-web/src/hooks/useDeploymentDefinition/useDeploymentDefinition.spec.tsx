@@ -167,7 +167,7 @@ describe(useDeploymentDefinition.name, () => {
 });
 
 describe(isUsableDeploymentDefinition.name, () => {
-  it.each(["api", "local", "superseded"] as const)("accepts a definition resolved from the %s source", source => {
+  it.each(["api", "local"] as const)("accepts a definition resolved from the %s source", source => {
     expect(isUsableDeploymentDefinition({ sdl: API_SDL, name: undefined, source })).toBe(true);
   });
 
