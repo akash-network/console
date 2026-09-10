@@ -41,6 +41,10 @@ describe(ProviderShellProbeService.name, () => {
       expect(SHELL_PROBE_SCRIPT.match(/printf '\| %s\\n' "\$l"/g)).toHaveLength(2);
     });
 
+    it("reads a whole stat file before parsing it, since a workload can put a newline in its own process name", () => {
+      expect(SHELL_PROBE_SCRIPT).toContain('{ s=; while IFS= read -r x; do s="$s$x "; done < "$p/stat"; } 2>/dev/null; [ -n "$s" ] || continue');
+    });
+
     it("streams the process listing line by line and bounds each cmdline read, so a hung or starved process still leaves the rest visible", () => {
       expect(SHELL_PROBE_SCRIPT).toContain("T=$(command -v timeout >/dev/null 2>&1 && printf 'timeout 2')");
       expect(SHELL_PROBE_SCRIPT).toContain("c=$({ $T tr '\\0' ' ' < \"$p/cmdline\"; } 2>/dev/null)");
@@ -83,6 +87,12 @@ describe(ProviderShellProbeService.name, () => {
       const reported = runProcsCollector([{ pid: "9000001", comm: "mine)r", utimeTicks: 100, stimeTicks: 0, rssPages: 256, cmdline: ["mine)r"] }]);
 
       expect(reported).toEqual(["--procs", "9000001 cpu_s=1 rss_mb=1 comm=mine)r exe= cwd= cmd=mine)r"]);
+    });
+
+    it("keeps the cpu time and memory of a process whose name contains a newline, since a workload names itself", () => {
+      const reported = runProcsCollector([{ pid: "9000001", comm: "ev\nil", utimeTicks: 12_000, stimeTicks: 3_000, rssPages: 51_200, cmdline: ["miner"] }]);
+
+      expect(reported).toEqual(["--procs", "9000001 cpu_s=150 rss_mb=200 comm=ev il exe= cwd= cmd=miner"]);
     });
 
     it("leaves out a process with no command line, so kernel threads do not crowd out the workload", () => {
