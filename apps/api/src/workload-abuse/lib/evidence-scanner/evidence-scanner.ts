@@ -67,3 +67,24 @@ function toSnippet(line: string, matchIndex: number): string {
 export function sanitizeEvidenceText(text: string): string {
   return text.replace(CONTROL_CHARACTERS_EXCEPT_TAB_AND_NEWLINE, " ");
 }
+
+const SECTION_HEADER_PATTERN = /^--[a-z-]+$/;
+const FILE_CONTENT_SECTIONS = new Set(["--files", "--recent-conf"]);
+const FILE_HEADER_PREFIX = "== ";
+
+/** A clean deployment is somebody's app, and the config files the probe reads to find a pool can hold that app's own keys. */
+export function withoutFileContents(excerpt: string): string {
+  let inFileSection = false;
+
+  return excerpt
+    .split("\n")
+    .filter(line => {
+      if (SECTION_HEADER_PATTERN.test(line)) {
+        inFileSection = FILE_CONTENT_SECTIONS.has(line);
+        return true;
+      }
+
+      return !inFileSection || line.startsWith(FILE_HEADER_PREFIX);
+    })
+    .join("\n");
+}

@@ -34,6 +34,13 @@ describe(ProviderShellProbeService.name, () => {
       expect(SHELL_PROBE_SCRIPT).not.toMatch(/echo "/);
     });
 
+    it("streams the process listing line by line and bounds each cmdline read, so a hung or starved process still leaves the rest visible", () => {
+      expect(SHELL_PROBE_SCRIPT).toContain("T=$(command -v timeout >/dev/null 2>&1 && printf 'timeout 2')");
+      expect(SHELL_PROBE_SCRIPT).toContain("c=$({ $T tr '\\0' ' ' < \"$p/cmdline\"; } 2>/dev/null)");
+      expect(SHELL_PROBE_SCRIPT).toContain('n=$((n + 1)); [ "$n" -ge 150 ] && break; done');
+      expect(SHELL_PROBE_SCRIPT).not.toContain("head -150");
+    });
+
     it("leaves its own shell and that shell's children out of the process listing by pid, not by what they run", () => {
       expect(SHELL_PROBE_SCRIPT).toContain('[ "${p#/proc/}" = "$$" ] && continue');
       expect(SHELL_PROBE_SCRIPT).toContain('[ "${2:-}" = "$$" ] && continue');
