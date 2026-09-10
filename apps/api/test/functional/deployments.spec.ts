@@ -1339,7 +1339,7 @@ describe("Deployments API", () => {
       expect(setting?.sdl).toContain("email: placeholder@example.test");
     });
 
-    it.only("stores a token bound to the deployment it updated, opening to every value the sdl carried", async () => {
+    it("stores a token bound to the deployment it updated, opening to every value the sdl carried", async () => {
       const { user, setting } = await updateDeploymentWithSecrets();
       const sdl: SDLInput = yaml.raw(fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl-with-secrets.yml"), "utf8"));
       const env = Object.fromEntries(
