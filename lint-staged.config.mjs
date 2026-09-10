@@ -40,6 +40,7 @@ function eslintCommandsByOwningConfig(files) {
 }
 
 export default {
+  "*": "secretlint --no-glob",
   "*.{mjs,js,jsx,ts,tsx}": files => [...eslintCommandsByOwningConfig(files), `prettier --write ${files.map(toArg).join(" ")}`],
   "package.json": "npx sort-package-json",
   "package-lock.json,**/*/package.json": "npm ci --dry-run --ignore-scripts > /dev/null",

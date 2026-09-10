@@ -16,6 +16,9 @@ permissions:
   contents: read
   pull-requests: read
 
+env:
+  APP_TO_VALIDATE: ${{ inputs.app }}
+
 jobs:
   should-validate:
     uses: ./.github/workflows/reusable-should-validate.yml
@@ -35,6 +38,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - uses: ./.github/actions/setup-app-deps
         with:
@@ -52,22 +57,32 @@ jobs:
           echo "has_tests=$has_tests" >> "$GITHUB_OUTPUT"
           echo "requires_env_setup=$requires_env_setup" >> "$GITHUB_OUTPUT"
 
+      # The per-run key never pre-exists, so every run saves a fresh cache; restore-keys picks up the
+      # newest previous one. The prefix hashes the lockfile and shared eslint config sources because
+      # ESLint's cache does not invalidate itself on plugin or config-package upgrades.
+      - name: Restore ESLint cache
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group' && steps.tests_details.outputs.has_tests != 'true'
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: apps/${{ inputs.app }}/.eslintcache
+          key: eslint-${{ inputs.app }}-${{ runner.os }}-${{ hashFiles('package-lock.json', 'packages/dev-config/eslint/**', 'packages/dev-config/eslint-plugin-akash/**') }}-${{ github.sha }}
+          restore-keys: |
+            eslint-${{ inputs.app }}-${{ runner.os }}-${{ hashFiles('package-lock.json', 'packages/dev-config/eslint/**', 'packages/dev-config/eslint-plugin-akash/**') }}-
+
       - name: Run static code analysis
         if: github.event_name == 'pull_request' || github.event_name == 'merge_group' && steps.tests_details.outputs.has_tests != 'true'
         run: |
-          npm run lint -w apps/${{ inputs.app }} -- --quiet
+          npm run lint -w "apps/$APP_TO_VALIDATE" -- --quiet --cache --cache-location .eslintcache --cache-strategy content
 
       - name: Ensure there are no leftovers
         if: github.event_name == 'pull_request'
         run: |
-          npm run knip -- --workspace apps/${{ inputs.app }}
+          npm run knip -- --workspace "apps/$APP_TO_VALIDATE"
 
       # Apps opt in by exposing a `validate:types` script; the others short-circuit until they can pass it.
       - name: Validate types
-        env:
-          APP: ${{ inputs.app }}
         run: |
-          npm run --if-present validate:types --workspace="apps/$APP"
+          npm run --if-present validate:types --workspace="apps/$APP_TO_VALIDATE"
 
       - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
         if: ${{ steps.tests_details.outputs.requires_env_setup == 'true' }}
@@ -87,11 +102,11 @@ jobs:
           BUILDX_BAKE_ENTITLEMENTS_FS: 0
           POSTGRES_SKIP_IMPORT: "true"
         run: |
-          npm run --if-present --workspace=apps/${{ inputs.app }} test:ci-setup
+          npm run --if-present --workspace="apps/$APP_TO_VALIDATE" test:ci-setup
 
       - name: Run tests
         if: ${{ steps.tests_details.outputs.has_tests == 'true' }}
-        run: npm run "$TEST_SCRIPT_NAME" --workspace=apps/${{ inputs.app }}
+        run: npm run "$TEST_SCRIPT_NAME" --workspace="apps/$APP_TO_VALIDATE"
 
       - name: Find mutation testing targets
         id: mutation_targets
@@ -125,7 +140,6 @@ jobs:
         if: ${{ steps.mutation_targets.outputs.mutate != '' }}
         working-directory: apps/${{ inputs.app }}
         env:
-          APP: ${{ inputs.app }}
           MUTATE: ${{ steps.mutation_targets.outputs.mutate }}
           TEST_FILES: ${{ steps.mutation_targets.outputs.test_files }}
           TEST_ENV: ${{ steps.mutation_targets.outputs.test_env }}
@@ -140,10 +154,10 @@ jobs:
           score_status=0
           summary=$(node "$GITHUB_WORKSPACE/script/mutation-report.mjs" "$STRYKER_JSON_REPORT" \
             --min "$MUTATION_MIN_SCORE" \
-            --reproduce "cd apps/$APP && npx stryker run ../../stryker.config.mjs --mutate '$MUTATE' --testFiles '$TEST_FILES'") || score_status=$?
+            --reproduce "cd apps/$APP_TO_VALIDATE && npx stryker run ../../stryker.config.mjs --mutate '$MUTATE' --testFiles '$TEST_FILES'") || score_status=$?
 
           {
-            echo "### Mutation testing: $APP"
+            echo "### Mutation testing: $APP_TO_VALIDATE"
             echo
             # A fenced block, not an inline code span: the spec paths come from PR-controlled file names,
             # and a backtick in one would otherwise close the span and let raw markdown into the summary.
@@ -163,7 +177,7 @@ jobs:
 
       - name: Teardown tests environment
         if: ${{ always() && steps.tests_details.outputs.requires_env_setup == 'true' }}
-        run: npm run --if-present --workspace=apps/${{ inputs.app }} test:ci-teardown
+        run: npm run --if-present --workspace="apps/$APP_TO_VALIDATE" test:ci-teardown
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() && steps.tests_details.outputs.has_tests == 'true' && github.event_name != 'merge_group' }}
@@ -191,6 +205,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Build the Docker image for API
         env:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
@@ -198,7 +214,7 @@ jobs:
           # to not install node_modules inside this job
           mkdir -p node_modules/.bin
           ln -s "$PWD/packages/docker/script/dc.sh" node_modules/.bin/dc
-          npm run -w apps/${{ inputs.app }} build:container
+          npm run -w "apps/$APP_TO_VALIDATE" build:container
 
   result:
     runs-on: ubuntu-latest
@@ -211,6 +227,7 @@ jobs:
       - name: Checkout gha
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           sparse-checkout: |
             .github
       - name: Conditionally required codecov/patch check

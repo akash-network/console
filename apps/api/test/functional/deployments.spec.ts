@@ -1,4 +1,4 @@
-import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
+import { manifestToSortedJSON, type SDLInput, yaml } from "@akashnetwork/chain-sdk";
 import { faker } from "@faker-js/faker";
 import createError, { NotFound } from "http-errors";
 import nock from "nock";
@@ -1341,10 +1341,18 @@ describe("Deployments API", () => {
 
     it("stores a token bound to the deployment it updated, opening to every value the sdl carried", async () => {
       const { user, setting } = await updateDeploymentWithSecrets();
+      const sdl: SDLInput = yaml.raw(fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl-with-secrets.yml"), "utf8"));
+      const env = Object.fromEntries(
+        Object.values(sdl.services)[0].env?.map(e => {
+          const index = e.indexOf("=");
+          if (index === -1) return [e, ""];
+          return [e.slice(0, index), e.slice(index + 1)];
+        }) ?? []
+      );
 
       await expect(openStoredToken(user, setting!.dseq, setting!.sealedSecrets!)).resolves.toEqual({
         s0_e0: "PLACEHOLDER_API_TOKEN",
-        s0_e1: "postgres://placeholder:PLACEHOLDER_DB_PASSWORD@db.example.test:5432/app?ssl=true",
+        s0_e1: env.DATABASE_URL,
         s0_c_username: "PLACEHOLDER_REGISTRY_USERNAME",
         s0_c_password: "PLACEHOLDER_REGISTRY_PASSWORD"
       });
