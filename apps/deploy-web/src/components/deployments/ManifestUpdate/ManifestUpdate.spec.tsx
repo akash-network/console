@@ -162,16 +162,16 @@ describe(ManifestUpdate.name, () => {
       await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
     });
 
-    it("renders for an api copy the chain has moved past once its notice is dismissed", async () => {
+    it("renders for an api copy the chain has moved past, with no withheld-values notice standing in the way", async () => {
       const { dependencies } = setup({
         definition: { sdl: "version: '2.0' # recorded-v1", source: "absent" },
         deployment: { dseq: "123", state: "active", hash: "on-chain-hash" },
         dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("recorded-v1-hash") }) }
       });
 
-      await continuePastTheNotice(dependencies);
-
       await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
+      expect(screen.queryByText(/secret values withheld/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/it looks like this deployment was created using another deploy tool/i)).not.toBeInTheDocument();
     });
 
     it("seeds the editor with the api copy the chain has moved past so the user can see what the console recorded", async () => {
@@ -359,6 +359,15 @@ describe(ManifestUpdate.name, () => {
     });
   });
 
+  it("keeps the update action available for a complete api copy the chain has moved past", async () => {
+    const { dependencies } = setup({
+      editedManifest: "version: '2.0' # recorded-v1",
+      definition: { sdl: "version: '2.0' # recorded-v1", source: "absent" }
+    });
+
+    await waitFor(() => expect(updateButtonOf(dependencies)?.disabled).toBe(false));
+  });
+
   it("keeps the update action available for a browser copy whose env value is deliberately blank", async () => {
     const { dependencies } = setup({ editedManifest: BLANK_ENV_VALUES_SDL, definition: { sdl: BLANK_ENV_VALUES_SDL, source: "local" } });
 
@@ -462,6 +471,24 @@ describe(ManifestUpdate.name, () => {
     await succeed(handles);
 
     expect(handles.deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "123", { manifest: "version: '2.0'" });
+  });
+
+  it("refetches the resolved definition so the details it feeds stop describing the replaced document", async () => {
+    const handles = setup({ deployment: { dseq: "456" }, editedManifest: "version: '2.0'" });
+
+    await clickUpdate(handles);
+    await succeed(handles);
+
+    expect(handles.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["getDeployment", "456"] });
+  });
+
+  it("leaves the resolved definition alone when the update is refused", async () => {
+    const handles = setup({ editedManifest: "version: '2.0'" });
+
+    await clickUpdate(handles);
+    await fail(handles, BAD_SDL);
+
+    expect(handles.queryClient.invalidateQueries).not.toHaveBeenCalled();
   });
 
   it("caches the sdl it submitted, not the one edited while the update was in flight", async () => {
@@ -895,6 +922,7 @@ describe(ManifestUpdate.name, () => {
       current?: { onSuccess?: (data: unknown, variables: { dseq: string; data: { sdl: string } }) => void; onError?: (cause: unknown) => void };
     } = {};
     const api = mockDeep<AppDIContainer["api"]>();
+    api.v1.getDeployment.getKey.mockImplementation(request => ["getDeployment", request?.dseq ?? ""]);
     api.v1.updateDeployment.useMutation.mockImplementation(options => {
       mutationOptions.current = options as typeof mutationOptions.current;
       return mock<ReturnType<typeof api.v1.updateDeployment.useMutation>>({ mutate });
@@ -920,6 +948,9 @@ describe(ManifestUpdate.name, () => {
     let definition: DeploymentDefinition = { sdl: "version: '2.0'", name: undefined, source: "local", ...input?.definition };
     const useDeploymentDefinition: typeof DEPENDENCIES.useDeploymentDefinition = () => definition;
 
+    const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
+    const useQueryClient: typeof DEPENDENCIES.useQueryClient = () => queryClient;
+
     const dependencies = MockComponents(DEPENDENCIES, {
       DeploymentTabHeader: vi.fn(({ actions, children }) => (
         <>
@@ -932,6 +963,7 @@ describe(ManifestUpdate.name, () => {
       useSnackbar,
       useBlockchainStatus,
       useDeploymentDefinition,
+      useQueryClient,
       deploymentData: mock<typeof DEPENDENCIES.deploymentData>({
         getManifestVersion: vi.fn().mockResolvedValue("test-version")
       }),
@@ -984,6 +1016,7 @@ describe(ManifestUpdate.name, () => {
       deploymentLocalStorage,
       logger,
       dependencies,
+      queryClient,
       mutate,
       mutationOptions,
       enqueueSnackbar,

@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
 import { Alert, Button, CustomTooltip, Snackbar } from "@akashnetwork/ui/components";
+import { useQueryClient as useQueryClientOriginal } from "@tanstack/react-query";
 import { InfoCircle, Upload, WarningCircle } from "iconoir-react";
 import yaml from "js-yaml";
 import { useSnackbar as useSnackbarOriginal } from "notistack";
@@ -13,7 +14,7 @@ import { useBlockchainStatus as useBlockchainStatusOriginal } from "@src/context
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet as useWalletOriginal } from "@src/context/WalletProvider";
 import { AddCreditsSnackbarContent } from "@src/context/WalletProvider/useSignAndBroadcast";
-import type { DeploymentDefinitionSource } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useDeploymentDefinition as useDeploymentDefinitionOriginal } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useBalances as useBalancesOriginal } from "@src/queries/useBalancesQuery";
 import type { DeploymentDto } from "@src/types/deployment";
@@ -42,6 +43,7 @@ export const DEPENDENCIES = {
   useSnackbar: useSnackbarOriginal,
   useBlockchainStatus: useBlockchainStatusOriginal,
   useDeploymentDefinition: useDeploymentDefinitionOriginal,
+  useQueryClient: useQueryClientOriginal,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   deploymentData: deploymentDataOriginal
 };
@@ -55,9 +57,14 @@ const ADD_CREDITS_TITLE = "Add credits to continue";
 /** Refused rather than submitted: a document whose values are references would commit a manifest whose environment is the reference strings themselves. */
 const WITHHELD_VALUES_ERROR = "This configuration still has withheld secret values. Replace them with real values before updating.";
 
+/** The api withholds a value by stripping it, so a copy it served that is still self-contained lost nothing: the chain has merely moved past it. */
+function isApiRecordComplete(definition: DeploymentDefinition): boolean {
+  return definition.source === "absent" && !!definition.sdl && isStoredSdlSelfContained(definition.sdl);
+}
+
 /** The api serves its own copy only when the chain is already running it, and a copy the api stripped hashes to a manifest the chain never committed. */
-function needsChainVersionCheck(sdl: string, source: DeploymentDefinitionSource): boolean {
-  return source === "local" || (source === "absent" && isStoredSdlSelfContained(sdl));
+function needsChainVersionCheck(definition: DeploymentDefinition): boolean {
+  return definition.source === "local" || isApiRecordComplete(definition);
 }
 
 function isBadRequest(cause: unknown): boolean {
@@ -131,6 +138,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const { isBlockchainDown } = d.useBlockchainStatus();
   const definition = d.useDeploymentDefinition(deployment.dseq);
+  const queryClient = d.useQueryClient();
   const seededDseq = useRef<string | undefined>(undefined);
   const seededSdl = useRef("");
   const updateDeployment = api.v1.updateDeployment.useMutation({
@@ -150,7 +158,8 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   }, []);
 
   const isResolvingDefinition = definition.source === "resolving";
-  const showsWithheldValuesNotice = definition.source === "absent" && dseqWithDismissedNotice !== deployment.dseq;
+  /** A complete copy the chain has moved past is shown with the divergence warning instead, since nothing about it was withheld. */
+  const showsWithheldValuesNotice = definition.source === "absent" && !isApiRecordComplete(definition) && dseqWithDismissedNotice !== deployment.dseq;
   /** Only against the api's own record does a blank env value name a withheld one; in a document of the user's own it can be deliberate. */
   const apiRecord = definition.source === "absent" ? definition.sdl : undefined;
   const hasWithheldValues = useMemo(
@@ -180,9 +189,9 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     function compareTheResolvedCopyAgainstTheChain() {
       if (isResolvingDefinition) return;
 
-      const { sdl, source } = definition;
+      const { sdl } = definition;
 
-      if (!sdl || !needsChainVersionCheck(sdl, source)) {
+      if (!sdl || !needsChainVersionCheck(definition)) {
         setDeploymentVersion(null);
         return;
       }
@@ -229,12 +238,18 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
   function recordUpdate(submittedSdl: string) {
     cacheSubmittedManifest(submittedSdl);
+    refetchResolvedDefinition();
     analyticsService.track("update_deployment", { category: "deployments", label: "Update deployment" });
     analyticsService.track("successful_tx", { category: "transactions", label: "Successful transaction" });
     refetchBalances();
     enqueueSnackbar(<d.Snackbar title="Success" subTitle="Deployment updated successfully" iconVariant="success" />, {
       variant: "success"
     });
+  }
+
+  /** The resolved definition also feeds the header's service count and the placement cards, which would otherwise keep describing the document this update replaced. */
+  function refetchResolvedDefinition() {
+    queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq: deployment.dseq }) });
   }
 
   /** A full or corrupted browser storage must not turn an update the api already accepted into a reported failure. */
