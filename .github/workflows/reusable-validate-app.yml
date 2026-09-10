@@ -70,12 +70,12 @@ jobs:
       - name: Run static code analysis
         if: github.event_name == 'pull_request' || github.event_name == 'merge_group' && steps.tests_details.outputs.has_tests != 'true'
         run: |
-          npm run lint -w apps/$APP_TO_VALIDATE -- --quiet --cache --cache-location .eslintcache --cache-strategy content
+          npm run lint -w "apps/$APP_TO_VALIDATE" -- --quiet --cache --cache-location .eslintcache --cache-strategy content
 
       - name: Ensure there are no leftovers
         if: github.event_name == 'pull_request'
         run: |
-          npm run knip -- --workspace apps/$APP_TO_VALIDATE
+          npm run knip -- --workspace "apps/$APP_TO_VALIDATE"
 
       # Apps opt in by exposing a `validate:types` script; the others short-circuit until they can pass it.
       - name: Validate types
@@ -100,11 +100,11 @@ jobs:
           BUILDX_BAKE_ENTITLEMENTS_FS: 0
           POSTGRES_SKIP_IMPORT: "true"
         run: |
-          npm run --if-present --workspace=apps/$APP_TO_VALIDATE test:ci-setup
+          npm run --if-present --workspace="apps/$APP_TO_VALIDATE" test:ci-setup
 
       - name: Run tests
         if: ${{ steps.tests_details.outputs.has_tests == 'true' }}
-        run: npm run "$TEST_SCRIPT_NAME" --workspace=apps/$APP_TO_VALIDATE
+        run: npm run "$TEST_SCRIPT_NAME" --workspace="apps/$APP_TO_VALIDATE"
 
       - name: Find mutation testing targets
         id: mutation_targets
@@ -175,7 +175,7 @@ jobs:
 
       - name: Teardown tests environment
         if: ${{ always() && steps.tests_details.outputs.requires_env_setup == 'true' }}
-        run: npm run --if-present --workspace=apps/$APP_TO_VALIDATE test:ci-teardown
+        run: npm run --if-present --workspace="apps/$APP_TO_VALIDATE" test:ci-teardown
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() && steps.tests_details.outputs.has_tests == 'true' && github.event_name != 'merge_group' }}
