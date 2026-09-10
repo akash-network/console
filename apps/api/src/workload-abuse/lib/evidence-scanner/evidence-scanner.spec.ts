@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { CompiledSignature } from "@src/workload-abuse/config/env.config";
-import { sanitizeEvidenceText, scanForSignals, toVerdict } from "./evidence-scanner";
+import { sanitizeEvidenceText, scanForSignals, toVerdict, withoutFileContents } from "./evidence-scanner";
 
 const SIGNATURES: CompiledSignature[] = [
   { bucket: "hard", category: "stratum-url", pattern: /stratum\+tcp:\/\//i },
@@ -126,6 +126,58 @@ describe("evidence scanner", () => {
       const signals = scanForSignals([{ kind: "shell", text: "1 comm=xray" }], SIGNATURES);
 
       expect(toVerdict(signals)).toBe("proxy");
+    });
+  });
+
+  describe(withoutFileContents.name, () => {
+    it("keeps the file names and drops the marked file bodies", () => {
+      const excerpt = [
+        "--- shell web",
+        "--procs",
+        "1 cpu_s=45 comm=node cmd=node server.js",
+        "--files",
+        "== /tmp/config.json",
+        '| {"pool":"x:3333"}',
+        "--authorized-keys",
+        "ssh-rsa AAAA operator",
+        "--recent-conf",
+        "== /app/server/data/auth_keys.json",
+        "| {",
+        '|   "session_hmac_key": "secret"',
+        "| }"
+      ].join("\n");
+
+      expect(withoutFileContents(excerpt)).toBe(
+        [
+          "--- shell web",
+          "--procs",
+          "1 cpu_s=45 comm=node cmd=node server.js",
+          "--files",
+          "== /tmp/config.json",
+          "--authorized-keys",
+          "ssh-rsa AAAA operator",
+          "--recent-conf",
+          "== /app/server/data/auth_keys.json"
+        ].join("\n")
+      );
+    });
+
+    it("drops a body line that reads like a file header", () => {
+      const excerpt = "--files\n== /tmp/app.conf\n| == session_hmac_key=secret";
+
+      expect(withoutFileContents(excerpt)).toBe("--files\n== /tmp/app.conf");
+    });
+
+    it("keeps dropping bodies after a body line that reads like a section header", () => {
+      const excerpt = "--files\n== /tmp/args.txt\n| --procs\n| pool=x:3333\n== /tmp/next.conf\n| api_key=secret";
+
+      expect(withoutFileContents(excerpt)).toBe("--files\n== /tmp/args.txt\n== /tmp/next.conf");
+    });
+
+    it("returns an excerpt without file bodies unchanged", () => {
+      const excerpt = "[hard/miner-binary] shell:web: junorig\n--- shell web\n--procs\n7 cpu_s=900 comm=junorig cmd=junorig -o pool:3333";
+
+      expect(withoutFileContents(excerpt)).toBe(excerpt);
     });
   });
 });

@@ -67,3 +67,14 @@ function toSnippet(line: string, matchIndex: number): string {
 export function sanitizeEvidenceText(text: string): string {
   return text.replace(CONTROL_CHARACTERS_EXCEPT_TAB_AND_NEWLINE, " ");
 }
+
+/** The probe marks each file body line as it reads it, so a body line that reads like a section or a file header cannot pass for one here. */
+export const FILE_BODY_PREFIX = "| ";
+
+/** A clean deployment is somebody's app, and the config files the probe reads to find a pool can hold that app's own keys. */
+export function withoutFileContents(excerpt: string): string {
+  return excerpt
+    .split("\n")
+    .filter(line => !line.startsWith(FILE_BODY_PREFIX))
+    .join("\n");
+}

@@ -2,6 +2,7 @@ import { inject, singleton } from "tsyringe";
 
 import { isWalletInitialized, UserWalletRepository } from "@src/billing/repositories";
 import { type CreateLogger, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, JobQueueService, LOGGER_FACTORY } from "@src/core";
+import { withoutFileContents } from "@src/workload-abuse/lib/evidence-scanner/evidence-scanner";
 import { truncateToUtf8Bytes } from "@src/workload-abuse/lib/utf8-text/utf8-text";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import { EnforceTrialAbuse, enforceTrialAbuseKeyFor } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
@@ -98,7 +99,7 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
       userId: wallet.userId,
       verdict: report.verdict,
       probeStatus: report.probeStatus,
-      evidence: truncateToUtf8Bytes(report.excerpt, MAX_LOGGED_EXCERPT_BYTES),
+      evidence: truncateToUtf8Bytes(withoutFileContents(report.excerpt), MAX_LOGGED_EXCERPT_BYTES),
       leases: report.leases.map(lease => ({
         provider: lease.provider,
         services: lease.services,
@@ -129,7 +130,7 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
       verdict: report.verdict as "hard" | "soft" | "proxy",
       probeStatus: report.probeStatus,
       signals: report.signals,
-      evidenceExcerpt: report.excerpt
+      evidenceExcerpt: withoutFileContents(report.excerpt)
     });
     this.instrumentation.recordDetection(report.verdict);
 

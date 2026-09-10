@@ -68,6 +68,17 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_WORKLOAD_PROBED", verdict: "clean", evidence: "x".repeat(4_096) }));
   });
 
+  it("logs the names but not the contents of the files the shell read", async () => {
+    const excerpt = '--- shell web\n--recent-conf\n== /app/auth_keys.json\n| {"session_hmac_key":"secret"}';
+    const { handler, logger } = setup({ report: createReport({ verdict: "clean", excerpt }) });
+
+    await handler.handle(PAYLOAD);
+
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "TRIAL_WORKLOAD_PROBED", evidence: "--- shell web\n--recent-conf\n== /app/auth_keys.json" })
+    );
+  });
+
   it("cuts the logged evidence by bytes, so multibyte output a workload controls cannot outgrow the line budget", async () => {
     const multibyte = "\u65e5";
     const { handler, logger } = setup({ report: createReport({ verdict: "clean", excerpt: multibyte.repeat(5_000) }) });
@@ -95,6 +106,17 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     });
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_WORKLOAD_SUSPICIOUS", detectionId: "detection-1" }));
     expect(probeJobService.scheduleNext).toHaveBeenCalledWith(PAYLOAD);
+  });
+
+  it("stores the names but not the contents of the files the shell read", async () => {
+    const excerpt = '[soft/pool-port] shell:ssh: pool:3333\n--- shell ssh\n--files\n== /tmp/app.json\n| {"api_key":"secret","pool":"pool:3333"}';
+    const { handler, detectionRepository } = setup({ report: createReport({ verdict: "soft", excerpt }) });
+
+    await handler.handle(PAYLOAD);
+
+    expect(detectionRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({ evidenceExcerpt: "[soft/pool-port] shell:ssh: pool:3333\n--- shell ssh\n--files\n== /tmp/app.json" })
+    );
   });
 
   it("records confirmed mining and stops probing the deployment", async () => {
