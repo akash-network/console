@@ -5,10 +5,10 @@ import type { ReadonlyURLSearchParams } from "next/navigation";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { LocalNotesContextType as LocalNotesContext } from "@src/components/LocalNoteManager";
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import type { SdlContextProps } from "@src/context/SdlBuilderProvider";
 import type { AppDIContainer } from "@src/context/ServicesProvider";
+import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
@@ -205,20 +205,28 @@ describe(NewDeploymentContainer.name, () => {
   });
 
   it("redirects to edit-deployment step when redeploy param is present", async () => {
-    const redeployData = {
-      name: "Redeployed App",
-      manifest: "redeploy manifest content"
-    };
-
     const { mockRouter } = setup({
       step: RouteStep.chooseTemplate,
       redeploy: "123",
-      redeployData
+      redeployDefinition: { sdl: "redeploy manifest content", name: "Redeployed App", source: "api" }
     });
 
     await vi.waitFor(() => {
       expect(mockRouter.replace).toHaveBeenCalledWith(expect.stringContaining(`step=${RouteStep.editDeployment}`));
     });
+  });
+
+  it("ignores the redeploy definition when it is absent despite an inspection-only api sdl", async () => {
+    const { mockRouter } = setup({
+      step: RouteStep.chooseTemplate,
+      redeploy: "123",
+      redeployDefinition: { sdl: "redeploy manifest content # not-self-contained", name: "Redeployed App", source: "absent" }
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByTestId("template-list")).toBeInTheDocument();
+    });
+    expect(mockRouter.replace).not.toHaveBeenCalled();
   });
 
   it("toggles ssh component when template has ssh config", async () => {
@@ -341,6 +349,46 @@ describe(NewDeploymentContainer.name, () => {
     expect(ManifestEdit).toHaveBeenLastCalledWith(expect.objectContaining({ editedManifest: userEditedManifest }), {});
   });
 
+  it("seeds the editor once the redeploy definition resolves into an untouched editor", async () => {
+    const { ManifestEdit, rerender } = setup({
+      step: RouteStep.editDeployment,
+      redeploy: "123",
+      redeployDefinition: { sdl: undefined, source: "resolving" }
+    });
+
+    rerender({ redeployDefinition: { sdl: "version: 2.0\n# from the api", name: "Redeployed App", source: "api" } });
+
+    await vi.waitFor(() => {
+      expect(ManifestEdit).toHaveBeenLastCalledWith(expect.objectContaining({ editedManifest: "version: 2.0\n# from the api" }), {});
+    });
+  });
+
+  it("keeps the manifest a user typed before the redeploy definition resolved", async () => {
+    const { ManifestEdit, rerender } = setup({
+      step: RouteStep.editDeployment,
+      redeploy: "123",
+      redeployDefinition: { sdl: undefined, source: "resolving" }
+    });
+
+    await vi.waitFor(() => {
+      expect(ManifestEdit).toHaveBeenCalled();
+    });
+
+    const typedBeforeTheApiAnswered = "version: 2.0\n# typed while the api was still resolving";
+    ManifestEdit.mock.calls.at(-1)?.[0].setEditedManifest(typedBeforeTheApiAnswered);
+
+    await vi.waitFor(() => {
+      expect(ManifestEdit).toHaveBeenLastCalledWith(expect.objectContaining({ editedManifest: typedBeforeTheApiAnswered }), {});
+    });
+
+    rerender({ redeployDefinition: { sdl: "version: 2.0\n# from the api", name: "Redeployed App", source: "api" } });
+
+    await vi.waitFor(() => {
+      expect(ManifestEdit).toHaveBeenCalled();
+    });
+    expect(ManifestEdit).toHaveBeenLastCalledWith(expect.objectContaining({ editedManifest: typedBeforeTheApiAnswered }), {});
+  });
+
   function setup(
     input: {
       step?: RouteStep;
@@ -350,7 +398,7 @@ describe(NewDeploymentContainer.name, () => {
       code?: string;
       state?: string;
       redeploy?: string;
-      redeployData?: { name: string; manifest: string };
+      redeployDefinition?: Partial<DeploymentDefinition>;
       requestedTemplate?: TemplateOutput;
       deploySdl?: TemplateCreation | null;
       isLoadingTemplates?: boolean;
@@ -389,9 +437,13 @@ describe(NewDeploymentContainer.name, () => {
 
     // Create stable references for hook return values to prevent infinite re-renders
     const sdlBuilder = mock<SdlContextProps>();
-    const localNotes = mock<LocalNotesContext>({
-      getDeploymentData: vi.fn().mockReturnValue(input.redeployData ?? null)
+    const resolveDefinition = (next: Partial<DeploymentDefinition> | undefined): DeploymentDefinition => ({
+      sdl: undefined,
+      name: undefined,
+      source: "absent",
+      ...next
     });
+    let redeployDefinition = resolveDefinition(input.redeployDefinition);
     const templatesValue = {
       isLoading: input.isLoadingTemplates ?? false,
       templates: [] as never[],
@@ -413,7 +465,7 @@ describe(NewDeploymentContainer.name, () => {
       useRouter: () => mockRouter,
       useSearchParams: () => mockSearchParams,
       useSdlBuilder: () => sdlBuilder,
-      useLocalNotes: () => localNotes,
+      useDeploymentDefinition: () => redeployDefinition,
       useTemplates: () => templatesValue
     } as unknown as typeof DEPENDENCIES;
     const store = createStore();
@@ -441,12 +493,12 @@ describe(NewDeploymentContainer.name, () => {
       mockSearchParams = buildSearchParams(merged);
       currentRequestedTemplate = merged.requestedTemplate;
       currentTemplateId = merged.templateId;
+      redeployDefinition = resolveDefinition(merged.redeployDefinition);
       view.rerender(renderTree());
     };
 
     return {
       mockRouter,
-      localNotes,
       sdlBuilder,
       Layout,
       CreateLease,

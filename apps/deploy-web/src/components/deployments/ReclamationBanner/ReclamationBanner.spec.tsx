@@ -1,14 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mock } from "vitest-mock-extended";
 
+import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { LeaseDto } from "@src/types/deployment";
 import { DEPENDENCIES, ReclamationBanner } from "./ReclamationBanner";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
-
-type DeploymentData = NonNullable<ReturnType<ReturnType<typeof DEPENDENCIES.useLocalNotes>["getDeploymentData"]>>;
 
 describe("ReclamationBanner", () => {
   afterEach(() => {
@@ -58,10 +56,10 @@ describe("ReclamationBanner", () => {
     expect(screen.getByRole("button", { name: "Redeploy" })).toBeInTheDocument();
   });
 
-  it("redeploys with the stored sdl and name when Redeploy is clicked", async () => {
+  it("redeploys with the resolved sdl and name when Redeploy is clicked", async () => {
     const { redeploy } = setup({
       leases: [createLease({ state: "reclaiming" })],
-      deploymentData: { manifest: "version: 2.0", name: "my-app" }
+      definition: { sdl: "version: 2.0", name: "my-app", source: "api" }
     });
 
     await userEvent.click(screen.getByRole("button", { name: "Redeploy" }));
@@ -69,15 +67,52 @@ describe("ReclamationBanner", () => {
     expect(redeploy).toHaveBeenCalledWith({ sdl: "version: 2.0", name: "my-app" });
   });
 
-  function setup(input: { leases: LeaseDto[] | null; deploymentData?: { manifest?: string; name?: string } | null }) {
-    const localNotes = mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>();
-    localNotes.getDeploymentData.mockReturnValue(input.deploymentData ? mock<DeploymentData>(input.deploymentData) : null);
+  it("redeploys from the api definition on a device holding no local copy", async () => {
+    const { redeploy } = setup({
+      leases: [createLease({ state: "reclaiming" })],
+      definition: { sdl: "version: 2.0 # from-the-api", name: undefined, source: "api" }
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Redeploy" }));
+
+    expect(redeploy).toHaveBeenCalledWith({ sdl: "version: 2.0 # from-the-api", name: undefined });
+  });
+
+  it("disables Redeploy while the definition is still resolving", () => {
+    setup({ leases: [createLease({ state: "reclaiming" })], definition: { sdl: undefined, source: "resolving" } });
+
+    expect(screen.getByRole("button", { name: "Redeploy" })).toBeDisabled();
+  });
+
+  it("falls back to a 'new SDL' link when neither source holds a definition", () => {
+    setup({ leases: [createLease({ state: "reclaiming" })], definition: { sdl: undefined, source: "absent" } });
+
+    expect(screen.getByRole("link", { name: "Start a new deployment" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Redeploy" })).not.toBeInTheDocument();
+  });
+
+  it("falls back to a 'new SDL' link when the definition is absent despite an inspection-only api sdl", () => {
+    setup({ leases: [createLease({ state: "reclaiming" })], definition: { sdl: "version: 2.0 # not-self-contained", source: "absent" } });
+
+    expect(screen.getByRole("link", { name: "Start a new deployment" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Redeploy" })).not.toBeInTheDocument();
+  });
+
+  function setup(input: { leases: LeaseDto[] | null; definition?: Partial<DeploymentDefinition> }) {
+    const definition: DeploymentDefinition = { sdl: "version: 2.0", name: "my-app", source: "local", ...input.definition };
     const redeploy = vi.fn();
 
-    const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () => localNotes;
+    const useDeploymentDefinition: typeof DEPENDENCIES.useDeploymentDefinition = () => definition;
+    const useNewDeploymentUrl: typeof DEPENDENCIES.useNewDeploymentUrl = () => () => "/new-deployment";
     const useRedeploy: typeof DEPENDENCIES.useRedeploy = () => redeploy;
 
-    const utils = render(<ReclamationBanner leases={input.leases} dseq="123" dependencies={MockComponents(DEPENDENCIES, { useLocalNotes, useRedeploy })} />);
+    const utils = render(
+      <ReclamationBanner
+        leases={input.leases}
+        dseq="123"
+        dependencies={MockComponents(DEPENDENCIES, { useDeploymentDefinition, useNewDeploymentUrl, useRedeploy })}
+      />
+    );
 
     return { ...utils, redeploy };
   }

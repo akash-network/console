@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { LoggerService } from "@akashnetwork/logging";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
 import { Alert, Button, CustomTooltip, Snackbar } from "@akashnetwork/ui/components";
+import { useQueryClient as useQueryClientOriginal } from "@tanstack/react-query";
 import { InfoCircle, Upload, WarningCircle } from "iconoir-react";
 import yaml from "js-yaml";
 import { useSnackbar as useSnackbarOriginal } from "notistack";
@@ -14,9 +14,12 @@ import { useBlockchainStatus as useBlockchainStatusOriginal } from "@src/context
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet as useWalletOriginal } from "@src/context/WalletProvider";
 import { AddCreditsSnackbarContent } from "@src/context/WalletProvider/useSignAndBroadcast";
+import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { useDeploymentDefinition as useDeploymentDefinitionOriginal } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useBalances as useBalancesOriginal } from "@src/queries/useBalancesQuery";
 import type { DeploymentDto } from "@src/types/deployment";
 import { deploymentData as deploymentDataOriginal } from "@src/utils/deploymentData";
+import { hasSdlReference, isStoredSdlSelfContained, leavesWithheldEnvValuesBlank } from "@src/utils/sdl/storedDefinition";
 import RemoteDeployUpdate from "../../remote-deploy/update/RemoteDeployUpdate";
 import { SDLEditor } from "../../sdl/SDLEditor/SDLEditor";
 import { DeploymentTabHeader } from "../DeploymentDetail/DeploymentTabHeader";
@@ -39,11 +42,11 @@ export const DEPENDENCIES = {
   useBalances: useBalancesOriginal,
   useSnackbar: useSnackbarOriginal,
   useBlockchainStatus: useBlockchainStatusOriginal,
+  useDeploymentDefinition: useDeploymentDefinitionOriginal,
+  useQueryClient: useQueryClientOriginal,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   deploymentData: deploymentDataOriginal
 };
-
-const logger = new LoggerService({ name: "ManifestUpdate" });
 
 /** The api answers 400 for provider-credential and schema failures too, and only a refusal of the document itself belongs in the editor's inline alert. */
 const SDL_REFUSAL_PREFIXES = ["Invalid SDL:", "SDL is not valid YAML", "SDL is too large"];
@@ -51,6 +54,18 @@ const SDL_REFUSAL_PREFIXES = ["Invalid SDL:", "SDL is not valid YAML", "SDL is t
 const TRIAL_GATE_MARK = "not available on free trial";
 const UPDATE_FAILURE_MESSAGE = "Something went wrong while updating the deployment. Please try again.";
 const ADD_CREDITS_TITLE = "Add credits to continue";
+/** Refused rather than submitted: a document whose values are references would commit a manifest whose environment is the reference strings themselves. */
+const WITHHELD_VALUES_ERROR = "This configuration still has withheld secret values. Replace them with real values before updating.";
+
+/** The api withholds a value by stripping it, so a copy it served that is still self-contained lost nothing: the chain has merely moved past it. */
+function isApiRecordComplete(definition: DeploymentDefinition): boolean {
+  return definition.source === "absent" && !!definition.sdl && isStoredSdlSelfContained(definition.sdl);
+}
+
+/** The api serves its own copy only when the chain is already running it, and a copy the api stripped hashes to a manifest the chain never committed. */
+function needsChainVersionCheck(definition: DeploymentDefinition): boolean {
+  return definition.source === "local" || isApiRecordComplete(definition);
+}
 
 function isBadRequest(cause: unknown): boolean {
   return isApiError(cause) && cause.status === 400;
@@ -113,15 +128,19 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   onRedeploy,
   dependencies: d = DEPENDENCIES
 }) => {
-  const { api, analyticsService, deploymentLocalStorage } = useServices();
+  const { api, analyticsService, deploymentLocalStorage, logger } = useServices();
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
-  const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
+  const [dseqWithDismissedNotice, setDseqWithDismissedNotice] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const { address } = d.useWallet();
   const { refetch: refetchBalances } = d.useBalances(address);
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const { isBlockchainDown } = d.useBlockchainStatus();
+  const definition = d.useDeploymentDefinition(deployment.dseq);
+  const queryClient = d.useQueryClient();
+  const seededDseq = useRef<string | undefined>(undefined);
+  const seededSdl = useRef("");
   const updateDeployment = api.v1.updateDeployment.useMutation({
     onSuccess: (_data, variables) => recordUpdate(variables.data.sdl),
     onError: reportUpdateFailure
@@ -138,28 +157,58 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     };
   }, []);
 
-  useEffect(() => {
-    const init = async () => {
-      const localDeploymentData = deploymentLocalStorage.get(address, deployment.dseq);
+  const isResolvingDefinition = definition.source === "resolving";
+  /** A complete copy the chain has moved past is shown with the divergence warning instead, since nothing about it was withheld. */
+  const showsWithheldValuesNotice = definition.source === "absent" && !isApiRecordComplete(definition) && dseqWithDismissedNotice !== deployment.dseq;
+  /** Only against the api's own record does a blank env value name a withheld one; in a document of the user's own it can be deliberate. */
+  const apiRecord = definition.source === "absent" ? definition.sdl : undefined;
+  const hasWithheldValues = useMemo(
+    () => !!editedManifest && (hasSdlReference(editedManifest) || (!!apiRecord && leavesWithheldEnvValuesBlank(editedManifest, apiRecord))),
+    [editedManifest, apiRecord]
+  );
+  const editorAlertMessage = parsingError ?? (hasWithheldValues ? WITHHELD_VALUES_ERROR : null);
 
-      if (localDeploymentData?.manifest) {
-        onManifestChange(localDeploymentData.manifest);
+  useEffect(
+    function seedEditorOnceTheDefinitionResolves() {
+      if (isResolvingDefinition) return;
 
+      const { sdl } = definition;
+
+      const editorHoldsUnseededEdits = seededDseq.current === deployment.dseq && (editedManifest || "") !== seededSdl.current;
+      if (editorHoldsUnseededEdits) return;
+
+      seededDseq.current = deployment.dseq;
+      seededSdl.current = sdl ?? "";
+
+      if (sdl) onManifestChange(sdl);
+    },
+    [isResolvingDefinition, definition.sdl, deployment.dseq]
+  );
+
+  useEffect(
+    function compareTheResolvedCopyAgainstTheChain() {
+      if (isResolvingDefinition) return;
+
+      const { sdl } = definition;
+
+      if (!sdl || !needsChainVersionCheck(definition)) {
+        setDeploymentVersion(null);
+        return;
+      }
+
+      const readVersionOfResolvedCopy = async () => {
         try {
-          const yamlVersion = yaml.load(localDeploymentData.manifest);
-          const version = await d.deploymentData.getManifestVersion(yamlVersion);
-          setDeploymentVersion(version);
+          setDeploymentVersion(await d.deploymentData.getManifestVersion(yaml.load(sdl)));
         } catch (error) {
-          console.error(error);
+          logger.error({ event: "MANIFEST_VERSION_READ_FAILED", error });
           setParsingError("Error getting manifest version.");
         }
-      } else {
-        setShowOutsideDeploymentMessage(true);
-      }
-    };
+      };
 
-    init();
-  }, [deployment, address, deploymentLocalStorage]);
+      readVersionOfResolvedCopy();
+    },
+    [isResolvingDefinition, definition.sdl, definition.source]
+  );
 
   function handleManifestChange(value: string) {
     setParsingError(null);
@@ -181,18 +230,26 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   }
 
   function handleUpdateClick() {
+    if (hasWithheldValues) return;
+
     setIsUpdating(true);
     updateDeployment.mutate({ dseq: deployment.dseq, data: { sdl: editedManifest } }, { onSuccess: closeAfterUpdate, onError: releaseAfterFailure });
   }
 
   function recordUpdate(submittedSdl: string) {
     cacheSubmittedManifest(submittedSdl);
+    refetchResolvedDefinition();
     analyticsService.track("update_deployment", { category: "deployments", label: "Update deployment" });
     analyticsService.track("successful_tx", { category: "transactions", label: "Successful transaction" });
     refetchBalances();
     enqueueSnackbar(<d.Snackbar title="Success" subTitle="Deployment updated successfully" iconVariant="success" />, {
       variant: "success"
     });
+  }
+
+  /** The resolved definition also feeds the header's service count and the placement cards, which would otherwise keep describing the document this update replaced. */
+  function refetchResolvedDefinition() {
+    queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq: deployment.dseq }) });
   }
 
   /** A full or corrupted browser storage must not turn an update the api already accepted into a reported failure. */
@@ -247,15 +304,24 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     );
   }
 
+  if (isResolvingDefinition) {
+    return (
+      <div className="p-2" data-testid="manifest-update-resolving">
+        <d.LinearLoadingSkeleton isLoading />
+      </div>
+    );
+  }
+
   return (
     <>
-      {showOutsideDeploymentMessage ? (
+      {showsWithheldValuesNotice ? (
         <div className="p-2">
           <d.Alert>
-            It looks like this deployment was created using another deploy tool. We can't show you the configuration file that was used initially, but you can
-            still update it. Simply continue and enter the configuration you want to use.
+            {definition.sdl
+              ? "The configuration stored for this deployment has its secret values withheld, so they are not shown below. Continue and enter them before updating."
+              : "It looks like this deployment was created using another deploy tool. We can't show you the configuration file that was used initially, but you can still update it. Simply continue and enter the configuration you want to use."}
             <div className="mt-1">
-              <d.Button onClick={() => setShowOutsideDeploymentMessage(false)} size="sm">
+              <d.Button onClick={() => setDseqWithDismissedNotice(deployment.dseq)} size="sm">
                 Continue
               </d.Button>
             </div>
@@ -275,7 +341,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
                     </d.Button>
                   )}
                   <d.Button
-                    disabled={!!parsingError || !editedManifest || isUpdating || deployment.state !== "active" || isBlockchainDown}
+                    disabled={!!parsingError || !editedManifest || hasWithheldValues || isUpdating || deployment.state !== "active" || isBlockchainDown}
                     onClick={() => handleUpdateClick()}
                     size="md"
                     type="button"
@@ -310,7 +376,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
               )}
             </d.DeploymentTabHeader>
 
-            {parsingError && <d.Alert variant="warning">{parsingError}</d.Alert>}
+            {editorAlertMessage && <d.Alert variant="warning">{editorAlertMessage}</d.Alert>}
 
             <d.LinearLoadingSkeleton isLoading={isUpdating} />
 

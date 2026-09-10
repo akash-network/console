@@ -1,10 +1,12 @@
 import type { MouseEvent } from "react";
+import type { LoggerService } from "@akashnetwork/logging";
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
 import type { ContextType } from "@src/context/WalletProvider";
+import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { DeploymentStorageService } from "@src/services/deployment-storage/deployment-storage.service";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
@@ -37,41 +39,43 @@ const TRIAL_GATED_SDL = new ApiError(
 );
 const UNTITLED_OUT_OF_CREDITS = new ApiError(402, { message: "Not enough funds to cover the transaction fee" }, "PUT /v1/deployments/{dseq} → 402");
 
+const WITHHELD_VALUES_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=ac-secret://s0_e0"\n';
+const BLANK_ENV_VALUES_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN="\n';
+const TWO_BLANK_ENV_VALUES_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN="\n      - "OTHER="\n';
+const ONE_ENV_VALUE_SUPPLIED_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=given"\n      - "OTHER="\n';
+const BOTH_ENV_VALUES_SUPPLIED_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=given"\n      - "OTHER=given"\n';
+
 describe(ManifestUpdate.name, () => {
-  it("shows outside deployment message when no local manifest exists", () => {
-    setup({ storedManifest: null });
+  it("shows outside deployment message when neither source holds a definition", () => {
+    setup({ definition: { sdl: undefined, source: "absent" } });
 
     expect(screen.getByText(/it looks like this deployment was created using another deploy tool/i)).toBeInTheDocument();
   });
 
   it("hides outside deployment message and shows editor after clicking Continue", async () => {
-    const { dependencies } = setup({ storedManifest: null });
+    const { dependencies } = setup({ definition: { sdl: undefined, source: "absent" } });
 
     expect(screen.getByText(/it looks like this deployment was created using another deploy tool/i)).toBeInTheDocument();
 
-    const continueButton = dependencies.Button.mock.calls.find(call => call[0].children === "Continue");
-
-    await act(() => {
-      continueButton?.[0].onClick?.(mock<MouseEvent<HTMLButtonElement>>());
-    });
+    await continuePastTheNotice(dependencies);
 
     await waitFor(() => {
       expect(screen.queryByText(/it looks like this deployment was created using another deploy tool/i)).not.toBeInTheDocument();
     });
   });
 
-  it("loads manifest from local storage and calls onManifestChange", async () => {
+  it("seeds the editor from the resolved definition", async () => {
     const onManifestChange = vi.fn();
-    setup({ onManifestChange, storedManifest: "version: '2.0'" });
+    setup({ onManifestChange, definition: { sdl: "version: '2.0'", source: "local" } });
 
     await waitFor(() => {
       expect(onManifestChange).toHaveBeenCalledWith("version: '2.0'");
     });
   });
 
-  it("shows parsing error when manifest version retrieval fails", async () => {
-    setup({
-      storedManifest: "version: '2.0'",
+  it("shows parsing error and logs the cause when manifest version retrieval fails", async () => {
+    const { logger } = setup({
+      definition: { sdl: "version: '2.0'", source: "local" },
       dependencies: {
         deploymentData: mock<typeof DEPENDENCIES.deploymentData>({
           getManifestVersion: vi.fn().mockRejectedValue(new Error("parse error"))
@@ -82,6 +86,306 @@ describe(ManifestUpdate.name, () => {
     await waitFor(() => {
       expect(screen.getByText("Error getting manifest version.")).toBeInTheDocument();
     });
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "MANIFEST_VERSION_READ_FAILED" }));
+  });
+
+  it("seeds the editor from the api definition, never from this browser's copy", async () => {
+    const onManifestChange = vi.fn();
+    setup({
+      onManifestChange,
+      definition: { sdl: "version: '2.0' # from-the-api", source: "api" },
+      storedManifest: "version: '2.0' # from-this-browser"
+    });
+
+    await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '2.0' # from-the-api"));
+    expect(onManifestChange.mock.calls.flat()).not.toContain("version: '2.0' # from-this-browser");
+  });
+
+  it("shows neither the editor nor a notice while the definition is still resolving", () => {
+    const onManifestChange = vi.fn();
+    const { dependencies } = setup({ definition: { sdl: undefined, source: "resolving" }, onManifestChange });
+
+    expect(screen.queryByText(/it looks like this deployment was created using another deploy tool/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/secret values withheld/i)).not.toBeInTheDocument();
+    expect(dependencies.SDLEditor).not.toHaveBeenCalled();
+    expect(onManifestChange).not.toHaveBeenCalled();
+  });
+
+  it("keeps the user's unsaved edits when a refetch changes the resolved definition", async () => {
+    const onManifestChange = vi.fn();
+    const { rerenderDefinition } = setup({ definition: { sdl: "version: '2.0'", source: "local" }, onManifestChange });
+
+    await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '2.0'"));
+
+    rerenderDefinition({ sdl: "version: '3.0' # refetched", name: undefined, source: "api" }, { editedManifest: "version: '2.0' # user edit" });
+
+    expect(onManifestChange).not.toHaveBeenCalledWith("version: '3.0' # refetched");
+  });
+
+  it("reseeds an untouched editor when a refetch changes the resolved definition", async () => {
+    const onManifestChange = vi.fn();
+    const { rerenderDefinition } = setup({ definition: { sdl: "version: '2.0'", source: "local" }, onManifestChange });
+
+    await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '2.0'"));
+
+    rerenderDefinition({ sdl: "version: '3.0' # refetched", name: undefined, source: "api" }, { editedManifest: "version: '2.0'" });
+
+    await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '3.0' # refetched"));
+  });
+
+  it("keeps what the user typed into an editor that resolved with no definition at all", () => {
+    const onManifestChange = vi.fn();
+    const { rerenderDefinition } = setup({ definition: { sdl: undefined, source: "absent" }, editedManifest: "", onManifestChange });
+
+    rerenderDefinition({ sdl: "version: '2.0' # recorded later", name: undefined, source: "absent" }, { editedManifest: "version: '2.0' # typed by hand" });
+
+    expect(onManifestChange).not.toHaveBeenCalledWith("version: '2.0' # recorded later");
+  });
+
+  it("seeds an untouched editor once a definition the api had yet to record arrives", async () => {
+    const onManifestChange = vi.fn();
+    const { rerenderDefinition } = setup({ definition: { sdl: undefined, source: "absent" }, editedManifest: "", onManifestChange });
+
+    rerenderDefinition({ sdl: "version: '2.0' # recorded later", name: undefined, source: "absent" }, { editedManifest: "" });
+
+    await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '2.0' # recorded later"));
+  });
+
+  describe("the local-versus-chain warning", () => {
+    it("renders for a definition served from this browser whose version differs from the chain", async () => {
+      const { dependencies } = setup({
+        definition: { sdl: "version: '2.0'", source: "local" },
+        deployment: { dseq: "123", state: "active", hash: "on-chain-hash" },
+        dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("a-different-hash") }) }
+      });
+
+      await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
+    });
+
+    it("renders for an api copy the chain has moved past, with no withheld-values notice standing in the way", async () => {
+      const { dependencies } = setup({
+        definition: { sdl: "version: '2.0' # recorded-v1", source: "absent" },
+        deployment: { dseq: "123", state: "active", hash: "on-chain-hash" },
+        dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("recorded-v1-hash") }) }
+      });
+
+      await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
+      expect(screen.queryByText(/secret values withheld/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/it looks like this deployment was created using another deploy tool/i)).not.toBeInTheDocument();
+    });
+
+    it("seeds the editor with the api copy the chain has moved past so the user can see what the console recorded", async () => {
+      const onManifestChange = vi.fn();
+      setup({ definition: { sdl: "version: '2.0' # recorded-v1", source: "absent" }, onManifestChange });
+
+      await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '2.0' # recorded-v1"));
+    });
+
+    it("does not render for a definition served by the api", async () => {
+      const { dependencies } = setup({
+        definition: { sdl: "version: '2.0'", source: "api" },
+        deployment: { dseq: "123", state: "active", hash: "on-chain-hash" },
+        dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("a-different-hash") }) }
+      });
+
+      await waitFor(() => expect(dependencies.SDLEditor).toHaveBeenCalled());
+      expect(dependencies.WarningCircle).not.toHaveBeenCalled();
+    });
+
+    it("stops rendering when a refetch moves the definition from this browser to the api", async () => {
+      const { dependencies, rerenderDefinition } = setup({
+        definition: { sdl: "version: '2.0'", source: "local" },
+        deployment: { dseq: "123", state: "active", hash: "on-chain-hash" },
+        dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("a-different-hash") }) }
+      });
+
+      await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
+
+      rerenderDefinition({ sdl: "version: '2.0'", name: undefined, source: "api" });
+      dependencies.WarningCircle.mockClear();
+      rerenderDefinition({ sdl: "version: '2.0'", name: undefined, source: "api" });
+
+      expect(dependencies.WarningCircle).not.toHaveBeenCalled();
+    });
+
+    it("stops rendering once the api's copy is confirmed current, even while the editor holds unsaved edits", async () => {
+      const { dependencies, rerenderDefinition } = setup({
+        definition: { sdl: "version: '2.0'", source: "local" },
+        deployment: { dseq: "123", state: "active", hash: "on-chain-hash" },
+        dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("a-different-hash") }) }
+      });
+
+      await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
+
+      rerenderDefinition({ sdl: "version: '2.0'", name: undefined, source: "api" }, { editedManifest: "version: '2.0' # user edit" });
+      dependencies.WarningCircle.mockClear();
+      rerenderDefinition({ sdl: "version: '2.0'", name: undefined, source: "api" }, { editedManifest: "version: '2.0' # user edit" });
+
+      expect(dependencies.WarningCircle).not.toHaveBeenCalled();
+    });
+
+    it("renders for a browser copy whose env value is blank and whose version differs from the chain", async () => {
+      const { dependencies } = setup({
+        definition: { sdl: BLANK_ENV_VALUES_SDL, source: "local" },
+        deployment: { dseq: "123", state: "active", hash: "on-chain-hash" },
+        dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("a-different-hash") }) }
+      });
+
+      await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
+    });
+
+    it("does not render for a copy whose values the api withheld", async () => {
+      const { dependencies } = setup({
+        definition: { sdl: WITHHELD_VALUES_SDL, source: "absent" },
+        deployment: { dseq: "123", state: "active", hash: "on-chain-hash" },
+        dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("a-different-hash") }) }
+      });
+
+      await continuePastTheNotice(dependencies);
+
+      expect(dependencies.WarningCircle).not.toHaveBeenCalled();
+    });
+
+    it("does not render for a browser copy that agrees with the chain", async () => {
+      const { dependencies } = setup({
+        definition: { sdl: "version: '2.0'", source: "local" },
+        deployment: { dseq: "123", state: "active", hash: "same-hash" },
+        dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("same-hash") }) }
+      });
+
+      await waitFor(() => expect(dependencies.SDLEditor).toHaveBeenCalled());
+      expect(dependencies.WarningCircle).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("a definition whose secret values the api withheld", () => {
+    it("displays it unchanged and says the values are withheld", async () => {
+      const onManifestChange = vi.fn();
+      setup({ definition: { sdl: WITHHELD_VALUES_SDL, source: "absent" }, onManifestChange });
+
+      expect(screen.getByText(/secret values withheld/i)).toBeInTheDocument();
+      await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith(WITHHELD_VALUES_SDL));
+    });
+
+    it("disables the update action", () => {
+      const { dependencies } = setup({ editedManifest: WITHHELD_VALUES_SDL });
+
+      expect(updateButtonOf(dependencies)?.disabled).toBe(true);
+    });
+
+    it("submits nothing when the update action fires anyway", async () => {
+      const handles = setup({
+        editedManifest: WITHHELD_VALUES_SDL,
+        deployment: { dseq: "123", state: "active", hash: "different-hash" }
+      });
+
+      await clickUpdate(handles);
+
+      expect(handles.mutate).not.toHaveBeenCalled();
+      expect(screen.getByText(/withheld secret values/i)).toBeInTheDocument();
+    });
+
+    it("disables the update action when the values were withheld by blanking them", async () => {
+      const { dependencies } = setup({ editedManifest: BLANK_ENV_VALUES_SDL, definition: { sdl: BLANK_ENV_VALUES_SDL, source: "absent" } });
+
+      await continuePastTheNotice(dependencies);
+
+      expect(updateButtonOf(dependencies)?.disabled).toBe(true);
+    });
+
+    it("submits nothing when the update action fires with blanked values", async () => {
+      const handles = setup({
+        editedManifest: BLANK_ENV_VALUES_SDL,
+        definition: { sdl: BLANK_ENV_VALUES_SDL, source: "absent" },
+        deployment: { dseq: "123", state: "active", hash: "different-hash" }
+      });
+
+      await continuePastTheNotice(handles.dependencies);
+      await clickUpdate(handles);
+
+      expect(handles.mutate).not.toHaveBeenCalled();
+      expect(screen.getByText(/withheld secret values/i)).toBeInTheDocument();
+    });
+
+    it("keeps the update action disabled while only some of the withheld values have been supplied", async () => {
+      const { dependencies } = setup({
+        editedManifest: ONE_ENV_VALUE_SUPPLIED_SDL,
+        definition: { sdl: TWO_BLANK_ENV_VALUES_SDL, source: "absent" }
+      });
+
+      await continuePastTheNotice(dependencies);
+
+      expect(updateButtonOf(dependencies)?.disabled).toBe(true);
+    });
+
+    it("releases the update action once every withheld value has been supplied", async () => {
+      const { dependencies } = setup({
+        editedManifest: BOTH_ENV_VALUES_SUPPLIED_SDL,
+        definition: { sdl: TWO_BLANK_ENV_VALUES_SDL, source: "absent" }
+      });
+
+      await continuePastTheNotice(dependencies);
+
+      expect(updateButtonOf(dependencies)?.disabled).toBe(false);
+    });
+
+    it("releases the update action for a blank env value of the user's own that the api never withheld", async () => {
+      const { dependencies } = setup({
+        editedManifest: BLANK_ENV_VALUES_SDL,
+        definition: { sdl: "version: '2.0' # recorded-v1", source: "absent" }
+      });
+
+      await continuePastTheNotice(dependencies);
+
+      expect(updateButtonOf(dependencies)?.disabled).toBe(false);
+    });
+
+    it("says why the update action is unavailable without waiting for it to be used", () => {
+      setup({ editedManifest: WITHHELD_VALUES_SDL });
+
+      expect(screen.getByText(/withheld secret values/i)).toBeInTheDocument();
+    });
+
+    it("shows the notice again once another deployment's definition resolves", async () => {
+      const { dependencies, rerenderDefinition } = setup({ definition: { sdl: WITHHELD_VALUES_SDL, source: "absent" }, deployment: { dseq: "123" } });
+
+      await continuePastTheNotice(dependencies);
+
+      expect(screen.queryByText(/secret values withheld/i)).not.toBeInTheDocument();
+
+      rerenderDefinition({ sdl: WITHHELD_VALUES_SDL, name: undefined, source: "absent" }, { deployment: { dseq: "456" } });
+
+      expect(screen.getByText(/secret values withheld/i)).toBeInTheDocument();
+    });
+  });
+
+  it("keeps the update action available for a complete api copy the chain has moved past", async () => {
+    const { dependencies } = setup({
+      editedManifest: "version: '2.0' # recorded-v1",
+      definition: { sdl: "version: '2.0' # recorded-v1", source: "absent" }
+    });
+
+    await waitFor(() => expect(updateButtonOf(dependencies)?.disabled).toBe(false));
+  });
+
+  it("keeps the update action available for a browser copy whose env value is deliberately blank", async () => {
+    const { dependencies } = setup({ editedManifest: BLANK_ENV_VALUES_SDL, definition: { sdl: BLANK_ENV_VALUES_SDL, source: "local" } });
+
+    await waitFor(() => expect(updateButtonOf(dependencies)?.disabled).toBe(false));
+  });
+
+  it("seeds another deployment's definition even when the previous one held unsaved edits", async () => {
+    const onManifestChange = vi.fn();
+    const { rerenderDefinition } = setup({ definition: { sdl: "version: '2.0' # first", source: "local" }, deployment: { dseq: "123" }, onManifestChange });
+
+    await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '2.0' # first"));
+
+    rerenderDefinition(
+      { sdl: "version: '2.0' # second", name: undefined, source: "local" },
+      { deployment: { dseq: "456" }, editedManifest: "version: '2.0' # unsaved edit" }
+    );
+
+    await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '2.0' # second"));
   });
 
   it("enables the update button for an active deployment the user can still change", async () => {
@@ -167,6 +471,24 @@ describe(ManifestUpdate.name, () => {
     await succeed(handles);
 
     expect(handles.deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "123", { manifest: "version: '2.0'" });
+  });
+
+  it("refetches the resolved definition so the details it feeds stop describing the replaced document", async () => {
+    const handles = setup({ deployment: { dseq: "456" }, editedManifest: "version: '2.0'" });
+
+    await clickUpdate(handles);
+    await succeed(handles);
+
+    expect(handles.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["getDeployment", "456"] });
+  });
+
+  it("leaves the resolved definition alone when the update is refused", async () => {
+    const handles = setup({ editedManifest: "version: '2.0'" });
+
+    await clickUpdate(handles);
+    await fail(handles, BAD_SDL);
+
+    expect(handles.queryClient.invalidateQueries).not.toHaveBeenCalled();
   });
 
   it("caches the sdl it submitted, not the one edited while the update was in flight", async () => {
@@ -480,7 +802,7 @@ describe(ManifestUpdate.name, () => {
 
   it("clears deployment version when text changes in editor", async () => {
     const onManifestChange = vi.fn();
-    const { dependencies } = setup({ onManifestChange, storedManifest: "version: '2.0'" });
+    const { dependencies } = setup({ onManifestChange, definition: { sdl: "version: '2.0'", source: "local" } });
 
     await waitFor(() => {
       expect(onManifestChange).toHaveBeenCalledWith("version: '2.0'");
@@ -519,6 +841,7 @@ describe(ManifestUpdate.name, () => {
 
   type Handles = ReturnType<typeof setup>;
   type Dependencies = Handles["dependencies"];
+  type Overrides = { editedManifest?: string; deployment?: Partial<{ dseq: string; state: string; hash: string }> };
 
   function editorChangeEvent() {
     return mock<Parameters<NonNullable<Parameters<typeof DEPENDENCIES.SDLEditor>[0]["onChange"]>>[1]>();
@@ -530,6 +853,14 @@ describe(ManifestUpdate.name, () => {
 
   function redeployButtonOf(dependencies: Dependencies, onRedeploy: () => void) {
     return dependencies.Button.mock.calls.filter(call => call[0].onClick === onRedeploy).at(-1)?.[0];
+  }
+
+  async function continuePastTheNotice(dependencies: Dependencies) {
+    const continueButton = dependencies.Button.mock.calls.filter(call => call[0].children === "Continue").at(-1)?.[0];
+
+    await act(async () => {
+      continueButton?.onClick?.(mock<MouseEvent<HTMLButtonElement>>());
+    });
   }
 
   async function clickUpdate(handles: Handles) {
@@ -577,10 +908,12 @@ describe(ManifestUpdate.name, () => {
     onManifestChange?: (value: string) => void;
     onRedeploy?: () => void;
     wallet?: Partial<{ address: string; signAndBroadcastTx: ContextType["signAndBroadcastTx"] }>;
+    definition?: Partial<DeploymentDefinition>;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const providerProxy = mock<ProviderProxyService>();
     const analyticsService = mock<AnalyticsService>();
+    const logger = mock<LoggerService>();
     const deploymentLocalStorage = mock<DeploymentStorageService>();
     deploymentLocalStorage.get.mockReturnValue(input?.storedManifest === null ? null : { manifest: input?.storedManifest ?? "version: '2.0'" });
 
@@ -589,6 +922,7 @@ describe(ManifestUpdate.name, () => {
       current?: { onSuccess?: (data: unknown, variables: { dseq: string; data: { sdl: string } }) => void; onError?: (cause: unknown) => void };
     } = {};
     const api = mockDeep<AppDIContainer["api"]>();
+    api.v1.getDeployment.getKey.mockImplementation(request => ["getDeployment", request?.dseq ?? ""]);
     api.v1.updateDeployment.useMutation.mockImplementation(options => {
       mutationOptions.current = options as typeof mutationOptions.current;
       return mock<ReturnType<typeof api.v1.updateDeployment.useMutation>>({ mutate });
@@ -611,6 +945,12 @@ describe(ManifestUpdate.name, () => {
     const useBlockchainStatus: typeof DEPENDENCIES.useBlockchainStatus = () =>
       mock<ReturnType<typeof DEPENDENCIES.useBlockchainStatus>>({ isBlockchainDown: false });
 
+    let definition: DeploymentDefinition = { sdl: "version: '2.0'", name: undefined, source: "local", ...input?.definition };
+    const useDeploymentDefinition: typeof DEPENDENCIES.useDeploymentDefinition = () => definition;
+
+    const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
+    const useQueryClient: typeof DEPENDENCIES.useQueryClient = () => queryClient;
+
     const dependencies = MockComponents(DEPENDENCIES, {
       DeploymentTabHeader: vi.fn(({ actions, children }) => (
         <>
@@ -622,6 +962,8 @@ describe(ManifestUpdate.name, () => {
       useBalances,
       useSnackbar,
       useBlockchainStatus,
+      useDeploymentDefinition,
+      useQueryClient,
       deploymentData: mock<typeof DEPENDENCIES.deploymentData>({
         getManifestVersion: vi.fn().mockResolvedValue("test-version")
       }),
@@ -631,13 +973,14 @@ describe(ManifestUpdate.name, () => {
     const closeManifestEditor = input?.closeManifestEditor || vi.fn();
     const onManifestChange = input?.onManifestChange || vi.fn();
 
-    const componentWith = (overrides?: { editedManifest: string }) => (
+    const componentWith = (overrides?: Overrides) => (
       <TestContainerProvider
         services={{
           api: () => api,
           providerProxy: () => providerProxy,
           analyticsService: () => analyticsService,
-          deploymentLocalStorage: () => deploymentLocalStorage
+          deploymentLocalStorage: () => deploymentLocalStorage,
+          logger: () => logger
         }}
       >
         <ManifestUpdate
@@ -646,7 +989,8 @@ describe(ManifestUpdate.name, () => {
               dseq: "123",
               state: "active",
               hash: "abc",
-              ...input?.deployment
+              ...input?.deployment,
+              ...overrides?.deployment
             } as Parameters<typeof ManifestUpdate>[0]["deployment"]
           }
           closeManifestEditor={closeManifestEditor}
@@ -662,11 +1006,17 @@ describe(ManifestUpdate.name, () => {
     const { unmount, rerender } = render(componentWith());
 
     return {
-      rerenderWith: (overrides: { editedManifest: string }) => rerender(componentWith(overrides)),
+      rerenderWith: (overrides: Overrides) => rerender(componentWith(overrides)),
+      rerenderDefinition: (next: DeploymentDefinition, overrides?: Overrides) => {
+        definition = next;
+        rerender(componentWith(overrides));
+      },
       providerProxy,
       analyticsService,
       deploymentLocalStorage,
+      logger,
       dependencies,
+      queryClient,
       mutate,
       mutationOptions,
       enqueueSnackbar,

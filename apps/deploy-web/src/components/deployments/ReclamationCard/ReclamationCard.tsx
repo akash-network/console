@@ -5,8 +5,8 @@ import { cn } from "@akashnetwork/ui/utils";
 import { WarningTriangle } from "iconoir-react";
 import Link from "next/link";
 
-import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useWallet } from "@src/context/WalletProvider";
+import { isUsableDeploymentDefinition, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
@@ -14,7 +14,7 @@ import type { LeaseDto } from "@src/types/deployment";
 import { getLeaseCloseReasonLabel } from "@src/utils/reclamationUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 
-export const DEPENDENCIES = { useWallet, useManagedDeploymentConfirm, useLocalNotes, useNewDeploymentUrl, useRedeploy };
+export const DEPENDENCIES = { useWallet, useManagedDeploymentConfirm, useDeploymentDefinition, useNewDeploymentUrl, useRedeploy };
 
 type Props = {
   lease: LeaseDto;
@@ -29,17 +29,16 @@ type Props = {
  * deployment) + Redeploy. The live, still-running case is handled by ReclamationBanner.
  */
 export const ReclamationCard: React.FunctionComponent<Props> = ({ lease, dseq, onClosed, dependencies = DEPENDENCIES }) => {
-  const { useWallet, useManagedDeploymentConfirm, useLocalNotes, useNewDeploymentUrl, useRedeploy } = dependencies;
+  const { useWallet, useManagedDeploymentConfirm, useDeploymentDefinition, useNewDeploymentUrl, useRedeploy } = dependencies;
   const { address, signAndBroadcastTx } = useWallet();
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
-  const { getDeploymentData } = useLocalNotes();
   const newDeploymentUrl = useNewDeploymentUrl();
   const redeploy = useRedeploy();
   const [isClosing, setIsClosing] = useState(false);
 
   const reasonLabel = getLeaseCloseReasonLabel(lease.reclamation?.reason ?? lease.reason);
-  const deploymentData = getDeploymentData(dseq);
-  const hasLocalManifest = !!deploymentData?.manifest;
+  const definition = useDeploymentDefinition(dseq);
+  const canRedeploy = definition.source === "resolving" || isUsableDeploymentDefinition(definition);
 
   const confirmAndClose = async () => {
     const isConfirmed = await closeDeploymentConfirm([dseq]);
@@ -67,12 +66,13 @@ export const ReclamationCard: React.FunctionComponent<Props> = ({ lease, dseq, o
           <Button variant="default" size="sm" onClick={confirmAndClose} disabled={isClosing}>
             {isClosing ? <Spinner size="small" /> : "Close & refund"}
           </Button>
-          {hasLocalManifest ? (
+          {canRedeploy ? (
             <Button
               variant="outline"
               size="sm"
               className="text-foreground"
-              onClick={() => redeploy({ sdl: deploymentData?.manifest, name: deploymentData?.name })}
+              disabled={definition.source === "resolving"}
+              onClick={() => redeploy({ sdl: definition.sdl, name: definition.name })}
             >
               Redeploy
             </Button>
