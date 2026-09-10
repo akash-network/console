@@ -33,6 +33,20 @@ describe(DeploymentSettingService.name, () => {
       expect(result).toEqual(expect.objectContaining({ userId: params.userId, dseq: params.dseq }));
     });
 
+    it("publishes none of the stored fields this response does not document, the deployment's name among them", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, name: "web", sealedSecrets: "seal" }));
+
+      const result = await service.findByUserIdAndDseq(params);
+
+      expect(result).not.toHaveProperty("name");
+      expect(result).not.toHaveProperty("sealedSecrets");
+      expect(result).not.toHaveProperty("manifestVersion");
+    });
+
     it("returns undefined and writes no row when nothing is stored for the deployment", async () => {
       const { service, deploymentSettingRepository } = setup();
       const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };

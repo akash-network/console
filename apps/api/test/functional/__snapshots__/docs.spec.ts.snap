@@ -6970,6 +6970,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "pattern": "^0*[1-9]\\d*$",
                         "type": "string",
                       },
+                      "name": {
+                        "description": "Name for this deployment, shown wherever it is listed. Omit it and the console names the deployment after the services the SDL declares, joined with \`+\`.",
+                        "maxLength": 256,
+                        "minLength": 1,
+                        "type": "string",
+                      },
                       "runtimeLimitHours": {
                         "description": "Optional runtime limit in hours (1 to 48), counted from lease start. Automatic funding keeps the deployment running until the limit, then the deployment is closed automatically and unused funds are returned. Extend a limit with PATCH /v2/deployment-settings/{dseq}. Omit for always-on funding.",
                         "maximum": 48,
@@ -8447,6 +8453,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "properties": {
                   "data": {
                     "properties": {
+                      "name": {
+                        "description": "Renames the deployment. Omitting it keeps the name the deployment already carries, unlike the rest of the definition this endpoint replaces wholesale.",
+                        "maxLength": 256,
+                        "minLength": 1,
+                        "type": "string",
+                      },
                       "sdl": {
                         "type": "string",
                       },
