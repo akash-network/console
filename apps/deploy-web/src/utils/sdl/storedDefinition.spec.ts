@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { hasOnlyBlankEnvValues, hasSdlReference, isStoredSdlSelfContained } from "./storedDefinition";
+import { hasSdlReference, isStoredSdlSelfContained, leavesWithheldEnvValuesBlank } from "./storedDefinition";
 
 describe("storedDefinition", () => {
   describe(hasSdlReference.name, () => {
@@ -33,29 +33,41 @@ describe("storedDefinition", () => {
     });
   });
 
-  describe(hasOnlyBlankEnvValues.name, () => {
-    it("is true when every env entry across every service is empty", () => {
-      expect(hasOnlyBlankEnvValues(sdlWithTwoServices(["TOKEN="], ["OTHER="]))).toBe(true);
+  describe(leavesWithheldEnvValuesBlank.name, () => {
+    it("is true when a key the api blanked is still blank", () => {
+      expect(leavesWithheldEnvValuesBlank(sdlWithEnv(["TOKEN="]), sdlWithEnv(["TOKEN="]))).toBe(true);
     });
 
-    it("does not treat a bare name as empty, because it inherits from the host environment", () => {
-      expect(hasOnlyBlankEnvValues(sdlWithEnv(["TOKEN"]))).toBe(false);
+    it("is true when only some of the keys the api blanked have been filled in", () => {
+      expect(leavesWithheldEnvValuesBlank(sdlWithEnv(["TOKEN=given", "OTHER="]), sdlWithEnv(["TOKEN=", "OTHER="]))).toBe(true);
     });
 
-    it("is false when a blank entry sits beside a host-inherited one", () => {
-      expect(hasOnlyBlankEnvValues(sdlWithEnv(["TOKEN=", "INHERITED_FROM_HOST"]))).toBe(false);
+    it("is true when a key the api blanked in another service is still blank", () => {
+      expect(leavesWithheldEnvValuesBlank(sdlWithTwoServices(["TOKEN=given"], ["OTHER="]), sdlWithTwoServices(["TOKEN="], ["OTHER="]))).toBe(true);
     });
 
-    it("is false when one service still holds a value", () => {
-      expect(hasOnlyBlankEnvValues(sdlWithTwoServices(["TOKEN="], ["OTHER=kept"]))).toBe(false);
+    it("is false once every key the api blanked has been given a value", () => {
+      expect(leavesWithheldEnvValuesBlank(sdlWithEnv(["TOKEN=given", "OTHER=given"]), sdlWithEnv(["TOKEN=", "OTHER="]))).toBe(false);
     });
 
-    it("is false when the sdl declares no env at all", () => {
-      expect(hasOnlyBlankEnvValues(sdlWithoutEnv())).toBe(false);
+    it("is false for a blank key of the user's own that the api's record never held", () => {
+      expect(leavesWithheldEnvValuesBlank(sdlWithEnv(["OPTIONAL="]), sdlWithEnv(["TOKEN=given"]))).toBe(false);
     });
 
-    it("is false for an sdl that does not parse", () => {
-      expect(hasOnlyBlankEnvValues("services: [unclosed")).toBe(false);
+    it("is false when the api's record blanked nothing", () => {
+      expect(leavesWithheldEnvValuesBlank(sdlWithEnv(["TOKEN="]), sdlWithoutEnv())).toBe(false);
+    });
+
+    it("does not treat a bare name as blank, because it inherits from the host environment", () => {
+      expect(leavesWithheldEnvValuesBlank(sdlWithEnv(["TOKEN"]), sdlWithEnv(["TOKEN"]))).toBe(false);
+    });
+
+    it("is false when the edited sdl does not parse", () => {
+      expect(leavesWithheldEnvValuesBlank("services: [unclosed", sdlWithEnv(["TOKEN="]))).toBe(false);
+    });
+
+    it("is false when the api's record does not parse", () => {
+      expect(leavesWithheldEnvValuesBlank(sdlWithEnv(["TOKEN="]), "services: [unclosed")).toBe(false);
     });
   });
 

@@ -18,7 +18,7 @@ import { useDeploymentDefinition as useDeploymentDefinitionOriginal } from "@src
 import { useBalances as useBalancesOriginal } from "@src/queries/useBalancesQuery";
 import type { DeploymentDto } from "@src/types/deployment";
 import { deploymentData as deploymentDataOriginal } from "@src/utils/deploymentData";
-import { hasOnlyBlankEnvValues, hasSdlReference, isStoredSdlSelfContained } from "@src/utils/sdl/storedDefinition";
+import { hasSdlReference, isStoredSdlSelfContained, leavesWithheldEnvValuesBlank } from "@src/utils/sdl/storedDefinition";
 import RemoteDeployUpdate from "../../remote-deploy/update/RemoteDeployUpdate";
 import { SDLEditor } from "../../sdl/SDLEditor/SDLEditor";
 import { DeploymentTabHeader } from "../DeploymentDetail/DeploymentTabHeader";
@@ -55,9 +55,9 @@ const ADD_CREDITS_TITLE = "Add credits to continue";
 /** Refused rather than submitted: a document whose values are references would commit a manifest whose environment is the reference strings themselves. */
 const WITHHELD_VALUES_ERROR = "This configuration still has withheld secret values. Replace them with real values before updating.";
 
-/** The api serves its own copy only when the chain is already running it, and a copy stripped of its values hashes to a manifest the chain never committed. */
+/** The api serves its own copy only when the chain is already running it, and a copy the api stripped hashes to a manifest the chain never committed. */
 function needsChainVersionCheck(sdl: string, source: DeploymentDefinitionSource): boolean {
-  return source !== "api" && isStoredSdlSelfContained(sdl);
+  return source === "local" || (source === "absent" && isStoredSdlSelfContained(sdl));
 }
 
 function isBadRequest(cause: unknown): boolean {
@@ -151,11 +151,11 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
   const isResolvingDefinition = definition.source === "resolving";
   const showsWithheldValuesNotice = definition.source === "absent" && dseqWithDismissedNotice !== deployment.dseq;
-  /** A blank env value only signals a withheld one in the api's own record; in a document of the user's own it can be deliberate. */
-  const isServingTheApiRecord = definition.source === "absent" && !!definition.sdl;
+  /** Only against the api's own record does a blank env value name a withheld one; in a document of the user's own it can be deliberate. */
+  const apiRecord = definition.source === "absent" ? definition.sdl : undefined;
   const hasWithheldValues = useMemo(
-    () => !!editedManifest && (hasSdlReference(editedManifest) || (isServingTheApiRecord && hasOnlyBlankEnvValues(editedManifest))),
-    [editedManifest, isServingTheApiRecord]
+    () => !!editedManifest && (hasSdlReference(editedManifest) || (!!apiRecord && leavesWithheldEnvValuesBlank(editedManifest, apiRecord))),
+    [editedManifest, apiRecord]
   );
   const editorAlertMessage = parsingError ?? (hasWithheldValues ? WITHHELD_VALUES_ERROR : null);
 
