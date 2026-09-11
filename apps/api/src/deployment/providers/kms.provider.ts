@@ -12,6 +12,7 @@ const CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
 
 /** The Cloud KMS operations the console performs on the SDL secrets key, narrowed so they can be doubled in tests. */
 export interface SdlSecretsKmsClient {
+  getCryptoKeyVersion(request: { name: string }, options?: CallOptions): Promise<[protos.google.cloud.kms.v1.ICryptoKeyVersion, ...unknown[]]>;
   getPublicKey(request: { name: string }, options?: CallOptions): Promise<[protos.google.cloud.kms.v1.IPublicKey, ...unknown[]]>;
   asymmetricDecrypt(request: {
     name: string;
@@ -28,6 +29,7 @@ export interface SdlSecretsKmsClient {
  */
 export interface SdlSecretsKmsTarget {
   client: SdlSecretsKmsClient;
+  version: string;
   versionName: string;
   kid: string;
   resolveVersionName(kid: unknown): string | undefined;
@@ -53,6 +55,7 @@ export function createSdlSecretsKmsTarget(input: {
 
   return {
     client,
+    version,
     versionName: versionPath(version),
     kid: `${key}.v${version}`,
     resolveVersionName(kid) {
