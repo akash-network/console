@@ -27,6 +27,8 @@ const DATA_KEY = randomBytes(32);
 const SEALING_KEYPAIR = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const SEALING_KEY_PEM = SEALING_KEYPAIR.publicKey.export({ type: "spki", format: "pem" }).toString();
 
+const ONE_MINUTE_MS = 60_000;
+
 const A_TOKEN = "eyJhbGciOiJkaXIifQ..YWxwaGEtaXY.YWxwaGEtY2lwaGVydGV4dA.YWxwaGEtdGFn";
 const ANOTHER_TOKEN = "eyJhbGciOiJkaXIifQ..Z2FtbWEtaXY.Z2FtbWEtY2lwaGVydGV4dA.Z2FtbWEtdGFn";
 
@@ -47,12 +49,37 @@ describe(DataKeyRewrapService.name, () => {
       await expect(service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: true })).resolves.toBeDefined();
     });
 
+    it("refuses a version whose state the key service did not report at all", async () => {
+      const { service, dataKeyRepository } = setup({ versionState: null });
+
+      await expect(service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: false })).rejects.toThrow();
+
+      expect(dataKeyRepository.updateById).not.toHaveBeenCalled();
+    });
+
+    it("asks the key service about the target version by name", async () => {
+      const { service, client } = setup({});
+
+      await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: true });
+
+      expect(client.getCryptoKeyVersion).toHaveBeenCalledWith({ name: versionPath(TARGET_VERSION) });
+    });
+
     it("refuses a batch size below one, which would read as a fleet needing no work", async () => {
       const { service, dataKeyRepository } = setup({});
 
       await expect(service.rewrapDataKeys({ targetVersion: TARGET_VERSION, batchSize: 0, dryRun: false })).rejects.toThrow();
 
       expect(dataKeyRepository.findWrappedUnderOtherVersionsIteratively).not.toHaveBeenCalled();
+    });
+
+    it("accepts a batch size of one, the smallest a run can use", async () => {
+      const { service, dataKeyRepository, txService } = setup({ rows: [aRow({}), aRow({})] });
+
+      await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, batchSize: 1, dryRun: false });
+
+      expect(dataKeyRepository.updateById).toHaveBeenCalledTimes(2);
+      expect(txService.transaction).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -110,13 +137,15 @@ describe(DataKeyRewrapService.name, () => {
     });
 
     it("selects in batches of the size asked for, and of a default when none is given", async () => {
-      const { service, dataKeyRepository } = setup({});
+      const { service, dataKeyRepository, deploymentSettingRepository } = setup({});
 
       await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, batchSize: 25, dryRun: false });
       await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: false });
 
       expect(dataKeyRepository.findWrappedUnderOtherVersionsIteratively).toHaveBeenNthCalledWith(1, { targetKid: TARGET_KID, batchSize: 25 });
       expect(dataKeyRepository.findWrappedUnderOtherVersionsIteratively).toHaveBeenNthCalledWith(2, { targetKid: TARGET_KID, batchSize: 100 });
+      expect(deploymentSettingRepository.findStoredSecretsIteratively).toHaveBeenNthCalledWith(1, { batchSize: 25 });
+      expect(deploymentSettingRepository.findStoredSecretsIteratively).toHaveBeenNthCalledWith(3, { batchSize: 100 });
     });
   });
 
@@ -186,6 +215,7 @@ describe(DataKeyRewrapService.name, () => {
       });
       expect(summary.fingerprint.after?.digest).toBe(summary.fingerprint.before.digest);
       expect(summary.elapsedMs).toBeGreaterThanOrEqual(0);
+      expect(summary.elapsedMs).toBeLessThan(ONE_MINUTE_MS);
     });
 
     it("marks the run's start and completion with structured events", async () => {
@@ -195,6 +225,12 @@ describe(DataKeyRewrapService.name, () => {
 
       expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "DATA_KEY_REWRAP_START", toVersion: TARGET_KID, dryRun: false }));
       expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "DATA_KEY_REWRAP_END", report: expect.objectContaining({ toVersion: TARGET_KID }) }));
+    });
+
+    it("names itself as the context every one of those events carries", () => {
+      const { createLogger } = setup({});
+
+      expect(createLogger).toHaveBeenCalledWith({ context: DataKeyRewrapService.name });
     });
 
     it("carries no key material and no secret value into any event", async () => {
@@ -297,7 +333,7 @@ describe(DataKeyRewrapService.name, () => {
   }) {
     const rows = input.rows ?? [];
     const client = mock<SdlSecretsKmsClient>();
-    client.getCryptoKeyVersion.mockResolvedValue([{ name: versionPath(TARGET_VERSION), state: input.versionState ?? "ENABLED" }]);
+    client.getCryptoKeyVersion.mockResolvedValue([{ name: versionPath(TARGET_VERSION), state: "versionState" in input ? input.versionState : "ENABLED" }]);
     client.getPublicKey.mockResolvedValue([
       {
         name: versionPath(TARGET_VERSION),
@@ -352,6 +388,7 @@ describe(DataKeyRewrapService.name, () => {
 
     return {
       service,
+      createLogger,
       dataKeyRepository,
       deploymentSettingRepository,
       wrappedJweService,

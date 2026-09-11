@@ -20,7 +20,7 @@ import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.re
 const { CryptoKeyVersionState } = protos.google.cloud.kms.v1.CryptoKeyVersion;
 
 /** Holds both encodings of the state, because the Cloud KMS API reports an enum as either its name or its ordinal. */
-const ENABLED_KEY_VERSION_STATES: ReadonlySet<string | number> = new Set(["ENABLED", CryptoKeyVersionState.ENABLED]);
+const ENABLED_KEY_VERSION_STATES: ReadonlySet<unknown> = new Set(["ENABLED", CryptoKeyVersionState.ENABLED]);
 
 const DEFAULT_BATCH_SIZE = 100;
 
@@ -126,7 +126,7 @@ export class DataKeyRewrapService {
   async #assertUsableTarget(target: SdlSecretsKmsTarget): Promise<SdlSecretsSealingKey> {
     const [version] = await target.client.getCryptoKeyVersion({ name: target.versionName });
 
-    if (!ENABLED_KEY_VERSION_STATES.has(version.state ?? "")) {
+    if (!ENABLED_KEY_VERSION_STATES.has(version.state)) {
       this.logger.error({ event: "DATA_KEY_REWRAP_TARGET_UNUSABLE", toVersion: target.kid, state: version.state });
 
       throw new Error(`Key version ${target.kid} is not enabled`);
