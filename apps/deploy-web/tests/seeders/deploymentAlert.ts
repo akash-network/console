@@ -5,7 +5,7 @@ export function buildDeploymentAlert(
   overrides?: Partial<components["schemas"]["DeploymentAlertsResponse"]["data"]>
 ): components["schemas"]["DeploymentAlertsResponse"]["data"] {
   return {
-    dseq: faker.string.numeric(),
+    dseq: faker.string.numeric({ length: 8, allowLeadingZeros: false }),
     alerts: {
       deploymentBalance: {
         id: faker.string.uuid(),

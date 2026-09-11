@@ -8,7 +8,7 @@ export function createAutoTopUpDeployment(overrides: Partial<AutoTopUpDeployment
     id: faker.string.uuid(),
     userId: faker.string.uuid(),
     walletId: faker.number.int(),
-    dseq: faker.string.numeric(),
+    dseq: faker.string.numeric({ length: 8, allowLeadingZeros: false }),
     address: createAkashAddress(),
     isWalletAutoTopUpEnabled: false,
     walletIsTrialing: false,

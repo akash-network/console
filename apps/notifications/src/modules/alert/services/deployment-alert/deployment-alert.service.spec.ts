@@ -184,7 +184,7 @@ describe(DeploymentAlertService.name, () => {
   describe("get", () => {
     it("should retrieve and summarise alerts", async () => {
       const { alertRepository, service } = await setup();
-      const dseq = faker.string.numeric();
+      const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
       const owner = mockAkashAddress();
       const deploymentBalanceRawAlert = generateDeploymentBalanceAlert({
         params: {
@@ -246,7 +246,7 @@ describe(DeploymentAlertService.name, () => {
     it("should retrieve and summarise empty result", async () => {
       const { alertRepository, service } = await setup();
       alertRepository.findAllDeploymentAlerts.mockResolvedValueOnce([]);
-      const dseq = faker.string.numeric();
+      const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
 
       expect(await service.get(dseq, {} as MongoAbility)).toEqual({
         dseq,
