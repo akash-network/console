@@ -41,6 +41,15 @@ async function createEnabledVersion() {
   return created.name!.split("/").pop()!;
 }
 
+/** Provisioned once: every RSA-3072 keypair the emulator mints costs real CPU on the same host the database runs on, and no test mutates the pair. */
+let rotationPair: Promise<{ oldVersion: string; newVersion: string }> | undefined;
+
+function enabledRotationPair() {
+  rotationPair ??= Promise.all([createEnabledVersion(), createEnabledVersion()]).then(([oldVersion, newVersion]) => ({ oldVersion, newVersion }));
+
+  return rotationPair;
+}
+
 async function disableVersion(version: string) {
   await kmsClient.updateCryptoKeyVersion({
     cryptoKeyVersion: { name: versionPath(version), state: "DISABLED" },
@@ -56,7 +65,7 @@ async function publicKeyOf(version: string) {
 
 describe(`${KmsWrappedJweService.name} against Cloud KMS`, () => {
   it("opens a data key wrapped under an older enabled version once the configured version moves on", async () => {
-    const [oldVersion, newVersion] = await Promise.all([createEnabledVersion(), createEnabledVersion()]);
+    const { oldVersion, newVersion } = await enabledRotationPair();
     const { createTestUser, consoleAt } = setup();
     const user = await createTestUser();
 
@@ -73,7 +82,7 @@ describe(`${KmsWrappedJweService.name} against Cloud KMS`, () => {
   });
 
   it("wraps a new user's data key under the configured version once it moves on", async () => {
-    const newVersion = await createEnabledVersion();
+    const { newVersion } = await enabledRotationPair();
     const { createTestUser, consoleAt } = setup();
     const user = await createTestUser();
 
@@ -86,7 +95,7 @@ describe(`${KmsWrappedJweService.name} against Cloud KMS`, () => {
   });
 
   it("accepts a seal a client made against the older version's published key", async () => {
-    const [oldVersion, newVersion] = await Promise.all([createEnabledVersion(), createEnabledVersion()]);
+    const { oldVersion, newVersion } = await enabledRotationPair();
     const { createTestUser, consoleAt, sealFor } = setup();
     const user = await createTestUser();
     const secrets = { DB_URL: `postgres://app:${randomUUID()}@db.internal/app` };
@@ -97,7 +106,7 @@ describe(`${KmsWrappedJweService.name} against Cloud KMS`, () => {
   });
 
   it("refuses a seal naming a crypto key that is not the console's, without reaching the key service", async () => {
-    const version = await createEnabledVersion();
+    const { newVersion: version } = await enabledRotationPair();
     const { createTestUser, consoleAt, sealFor } = setup();
     const user = await createTestUser();
     const asymmetricDecrypt = vi.spyOn(kmsClient, "asymmetricDecrypt");
@@ -109,7 +118,7 @@ describe(`${KmsWrappedJweService.name} against Cloud KMS`, () => {
   });
 
   it("cannot open a wrap made under one version with another, so the versions are not one key", async () => {
-    const [oldVersion, newVersion] = await Promise.all([createEnabledVersion(), createEnabledVersion()]);
+    const { oldVersion, newVersion } = await enabledRotationPair();
     const { createTestUser, consoleAt } = setup();
     const user = await createTestUser();
 
