@@ -393,7 +393,16 @@ describe(DataKeyUnwrapperService.name, () => {
       const key = keyFor(USER_A);
       const wrappedJwe = wrappedJwes.get(USER_A) as string;
       const records = inspect([...logger.info.mock.calls, ...logger.error.mock.calls], { depth: null, maxArrayLength: null, maxStringLength: null });
-      const neverLoggable = [key.toString("hex"), key.toString("base64url"), key.toString("latin1"), inspect(key), wrappedJwe, wrappedJwe.split(".")[1]];
+      const neverLoggable = [
+        key.toString("hex"),
+        key.toString("base64"),
+        key.toString("base64url"),
+        key.toString("latin1"),
+        inspect(key),
+        wrappedJwe,
+        wrappedJwe.split(".")[1],
+        rowFor(USER_A).wrappedKey
+      ];
 
       expect(logger.info.mock.calls.length + logger.error.mock.calls.length).toBeGreaterThan(0);
 
