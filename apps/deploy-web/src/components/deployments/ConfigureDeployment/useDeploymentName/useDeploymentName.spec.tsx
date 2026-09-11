@@ -3,6 +3,7 @@ import { createStore, Provider as JotaiStoreProvider } from "jotai";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/config/deploy.config";
 import type { DeploymentStorageService } from "@src/services/deployment-storage/deployment-storage.service";
 import { settingsIdAtom } from "@src/store/settingsStore";
 import type { DEPENDENCIES } from "./useDeploymentName";
@@ -17,10 +18,24 @@ describe(useDeploymentName.name, () => {
     expect(result.current.name).toBe("my-app");
   });
 
-  it("shows the name the api holds once the deployment exists", () => {
-    const { result } = setup({ initialName: "my-app", dseq: "12345", apiName: "named-elsewhere" });
+  it("holds a seeded name to the length the api accepts, so a legacy name cannot fail the create", () => {
+    const { result } = setup({ initialName: "a".repeat(MAX_DEPLOYMENT_NAME_LENGTH + 10) });
+
+    expect(result.current.name).toBe("a".repeat(MAX_DEPLOYMENT_NAME_LENGTH));
+  });
+
+  it("fills the field from the api when this session typed no name of its own", () => {
+    const { result } = setup({ dseq: "12345", apiName: "named-elsewhere" });
 
     expect(result.current.name).toBe("named-elsewhere");
+  });
+
+  it("keeps a name typed after the deployment exists, so an edit is never discarded", () => {
+    const { result } = setup({ initialName: "my-app", dseq: "12345", apiName: "named-elsewhere" });
+
+    act(() => result.current.setName("renamed-before-retrying"));
+
+    expect(result.current.name).toBe("renamed-before-retrying");
   });
 
   it("keeps showing the typed name while no deployment exists to carry it", () => {

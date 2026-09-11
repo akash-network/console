@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/config/deploy.config";
 import { DeploymentNameField } from "./DeploymentNameField";
 
 import { render, screen } from "@testing-library/react";
@@ -10,6 +11,12 @@ describe("DeploymentNameField", () => {
     setup({ disabled: true });
 
     expect(screen.getByRole("textbox", { name: "Deployment name" })).toBeDisabled();
+  });
+
+  it("caps the name at the length the api accepts, so a long name cannot fail the whole create", () => {
+    setup({ value: "" });
+
+    expect(screen.getByRole("textbox", { name: "Deployment name" })).toHaveAttribute("maxlength", String(MAX_DEPLOYMENT_NAME_LENGTH));
   });
 
   it("reports typed changes", async () => {

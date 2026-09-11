@@ -8,29 +8,35 @@ import { useAtom } from "jotai";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
 
+import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/config/deploy.config";
 import { useServices } from "@src/context/ServicesProvider";
+import { useResolvedDeploymentName } from "@src/hooks/useResolvedDeploymentName/useResolvedDeploymentName";
 import { settingsIdAtom } from "@src/store/settingsStore";
 
-export const DEPENDENCIES = { useSnackbar, useQueryClient };
+export const DEPENDENCIES = { useSnackbar, useQueryClient, useResolvedDeploymentName };
 
 const formSchema = z.object({
-  name: z.string().trim().min(1, "Enter a name for this deployment")
+  name: z
+    .string()
+    .trim()
+    .min(1, "Enter a name for this deployment")
+    .max(MAX_DEPLOYMENT_NAME_LENGTH, `Use at most ${MAX_DEPLOYMENT_NAME_LENGTH} characters`)
 });
 
 type Props = {
   dseq: string | number | null | undefined;
   onClose: () => void;
   onSaved: () => void;
-  getDeploymentName: (dseq: string | number | null) => string | null;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, getDeploymentName, dependencies: d = DEPENDENCIES }) => {
+export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, dependencies: d = DEPENDENCIES }) => {
   const { api, deploymentLocalStorage } = useServices();
   const [address] = useAtom(settingsIdAtom);
   const formRef = useRef<HTMLFormElement | null>(null);
   const { enqueueSnackbar } = d.useSnackbar();
   const queryClient = d.useQueryClient();
+  const resolvedName = d.useResolvedDeploymentName(dseq ? String(dseq) : null);
   const renameDeployment = api.v1.patchDeployment.useMutation();
   const form = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
@@ -38,30 +44,38 @@ export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, g
     },
     resolver: zodResolver(formSchema)
   });
-  const { handleSubmit, control, setValue } = form;
+  const { handleSubmit, control, setValue, formState } = form;
+  const isEdited = formState.isDirty;
 
-  useEffect(() => {
-    if (dseq) {
-      const name = getDeploymentName(dseq);
-      setValue("name", name || "");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dseq, getDeploymentName]);
+  useEffect(
+    function seedFromTheNameOnShow() {
+      if (dseq && !isEdited) setValue("name", resolvedName ?? "");
+    },
+    [dseq, resolvedName, isEdited, setValue]
+  );
 
   const onSaveClick = (event: React.MouseEvent) => {
     event.preventDefault();
     formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
 
+  /** The deployments list still resolves names from this browser alone, so the record is kept in step until it reads the api too — and a full or blocked store must not strand a rename the api has already accepted. */
+  function recordNameInThisBrowser(name: string) {
+    try {
+      deploymentLocalStorage.update(address, dseq, { name });
+    } catch {
+      return;
+    }
+  }
+
   function onSubmit({ name }: z.infer<typeof formSchema>) {
-    if (!dseq) return;
+    if (!dseq || renameDeployment.isPending) return;
 
     renameDeployment.mutate(
       { dseq: String(dseq), data: { name } },
       {
         onSuccess: function recordRename() {
-          /** The deployments list still resolves names from this browser alone, so the record is kept in step until it reads the api too. */
-          deploymentLocalStorage.update(address, dseq, { name });
+          recordNameInThisBrowser(name);
           queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq: String(dseq) }) });
           enqueueSnackbar(<Snackbar title="Success!" iconVariant="success" />, { variant: "success", autoHideDuration: 1000 });
           onSaved();
@@ -92,6 +106,7 @@ export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, g
           color: "primary",
           variant: "default",
           side: "right",
+          disabled: renameDeployment.isPending,
           onClick: onSaveClick
         }
       ]}
@@ -104,7 +119,7 @@ export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, g
             control={control}
             name="name"
             render={({ field }) => {
-              return <FormInput {...field} label="Name" autoFocus type="text" />;
+              return <FormInput {...field} label="Name" autoFocus type="text" maxLength={MAX_DEPLOYMENT_NAME_LENGTH} />;
             }}
           />
         </form>

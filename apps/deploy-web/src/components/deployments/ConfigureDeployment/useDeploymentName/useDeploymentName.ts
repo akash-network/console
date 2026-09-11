@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAtomValue } from "jotai";
 
+import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/config/deploy.config";
 import { useServices } from "@src/context/ServicesProvider";
 import { useResolvedDeploymentName } from "@src/hooks/useResolvedDeploymentName/useResolvedDeploymentName";
 import { settingsIdAtom } from "@src/store/settingsStore";
@@ -8,7 +9,7 @@ import { settingsIdAtom } from "@src/store/settingsStore";
 export const DEPENDENCIES = { useServices, useResolvedDeploymentName };
 
 export interface DeploymentName {
-  /** The name to show: the api's own once the deployment exists, and the one typed in this session before that. */
+  /** The name to show: the one typed in this session, and the api's own only where this session has none. */
   name: string;
   setName: (name: string) => void;
 }
@@ -24,7 +25,7 @@ interface UseDeploymentNameInput {
 export function useDeploymentName({ initialName, dseq }: UseDeploymentNameInput, dependencies = DEPENDENCIES): DeploymentName {
   const { deploymentLocalStorage } = dependencies.useServices();
   const settingsId = useAtomValue(settingsIdAtom);
-  const [typedName, setTypedName] = useState(() => initialName ?? "");
+  const [typedName, setTypedName] = useState(() => (initialName ?? "").slice(0, MAX_DEPLOYMENT_NAME_LENGTH));
   const nameRef = useRef(typedName);
   nameRef.current = typedName;
   const resolvedName = dependencies.useResolvedDeploymentName(dseq);
@@ -39,5 +40,5 @@ export function useDeploymentName({ initialName, dseq }: UseDeploymentNameInput,
     },
     [dseq, settingsId, deploymentLocalStorage]
   );
-  return { name: resolvedName ?? typedName, setName: setTypedName };
+  return { name: typedName || resolvedName || "", setName: setTypedName };
 }
