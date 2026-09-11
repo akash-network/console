@@ -111,7 +111,7 @@ describe(DataKeyRotationService.name, () => {
     expect((await users[0].unwrapDataKeyAt(newVersion)).equals(keyBefore)).toBe(true);
   });
 
-  it("continues an interrupted run and spends nothing on a fleet already rotated", async () => {
+  it("rolls a failed batch back whole, continues on the next run and spends nothing on a rotated fleet", async () => {
     const { oldVersion, newVersion } = await enabledRotationPair();
     const { storeUserWithSecrets, rotationAt, dataKeyRepository } = await setup();
     for (let index = 0; index < 3; index++) await storeUserWithSecrets(oldVersion);
@@ -124,16 +124,18 @@ describe(DataKeyRotationService.name, () => {
         throw new Error("connection lost");
       });
 
-    const first = await rotation.rotate({ targetVersion: newVersion, batchSize: 1, dryRun: false });
+    const first = await rotation.rotate({ targetVersion: newVersion, batchSize: 2, dryRun: false });
+    const rotatedAfterTheFailedBatch = await dataKeyRepository.countWrappedUnder(`${KEY}.v${newVersion}`);
     interrupted.mockRestore();
     const asymmetricDecrypt = vi.spyOn(kmsClient, "asymmetricDecrypt");
-    const second = await rotation.rotate({ targetVersion: newVersion, batchSize: 1, dryRun: false });
+    const second = await rotation.rotate({ targetVersion: newVersion, batchSize: 2, dryRun: false });
     const unwrapsOfSecondRun = asymmetricDecrypt.mock.calls.length;
     const third = await rotation.rotate({ targetVersion: newVersion, dryRun: false });
 
     expect(first.err).toBe(true);
-    expect(second.unwrap().usersReWrapped).toBe(2);
-    expect(unwrapsOfSecondRun).toBe(2);
+    expect(rotatedAfterTheFailedBatch).toBe(0);
+    expect(second.unwrap().usersReWrapped).toBe(3);
+    expect(unwrapsOfSecondRun).toBe(3);
     expect(third.unwrap().usersReWrapped).toBe(0);
     expect(asymmetricDecrypt.mock.calls.length).toBe(unwrapsOfSecondRun);
     expect(await dataKeyRepository.countWrappedUnder(`${KEY}.v${oldVersion}`)).toBe(0);
