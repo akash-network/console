@@ -243,13 +243,20 @@ describe(KmsWrappedJweService.name, () => {
     await expectFailure(service.open(service.parse(await wrap(randomBytes(32)))), "AUTHENTICATION_FAILED");
   });
 
-  it("times one key service call per open", async () => {
+  it("times one key service call per open, recording how long the call took and not when it happened", async () => {
     const { service, wrap, instrumentationService } = setup();
+    const parsed = service.parse(await wrap(randomBytes(32)));
 
-    await service.open(service.parse(await wrap(randomBytes(32))));
+    const startedAt = Date.now();
+    await service.open(parsed);
+    const wholeOpenDurationMs = Date.now() - startedAt;
 
     expect(instrumentationService.recordCallSucceeded).toHaveBeenCalledExactlyOnceWith(expect.any(Number));
     expect(instrumentationService.recordCallFailed).not.toHaveBeenCalled();
+
+    const [recordedDurationMs] = instrumentationService.recordCallSucceeded.mock.calls[0];
+    expect(recordedDurationMs).toBeGreaterThanOrEqual(0);
+    expect(recordedDurationMs).toBeLessThanOrEqual(wholeOpenDurationMs);
   });
 
   it("counts one unwrap the key service served per open", async () => {
@@ -272,14 +279,21 @@ describe(KmsWrappedJweService.name, () => {
     expect(instrumentationService.recordUnwrapFailed).not.toHaveBeenCalled();
   });
 
-  it("times a call the key service never answered as a failed call", async () => {
+  it("times a call the key service never answered as a failed call, recording how long it waited and not when it gave up", async () => {
     const { service, wrap, kmsClient, instrumentationService } = setup();
+    const parsed = service.parse(await wrap(randomBytes(32)));
     kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("14 UNAVAILABLE"), { code: grpc.status.UNAVAILABLE }));
 
-    await expectFailure(service.open(service.parse(await wrap(randomBytes(32)))), "KEY_SERVICE_UNREACHABLE");
+    const startedAt = Date.now();
+    await expectFailure(service.open(parsed), "KEY_SERVICE_UNREACHABLE");
+    const wholeOpenDurationMs = Date.now() - startedAt;
 
     expect(instrumentationService.recordCallFailed).toHaveBeenCalledExactlyOnceWith(expect.any(Number));
     expect(instrumentationService.recordCallSucceeded).not.toHaveBeenCalled();
+
+    const [recordedDurationMs] = instrumentationService.recordCallFailed.mock.calls[0];
+    expect(recordedDurationMs).toBeGreaterThanOrEqual(0);
+    expect(recordedDurationMs).toBeLessThanOrEqual(wholeOpenDurationMs);
   });
 
   it("times a call the key service answered unusably as a successful call, because the latency was the key service's own", async () => {

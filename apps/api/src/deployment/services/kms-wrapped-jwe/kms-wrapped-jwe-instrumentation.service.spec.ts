@@ -17,6 +17,7 @@ describe(KmsWrappedJweInstrumentationService.name, () => {
   it("measures latency and call outcomes under names a dashboard can separate from database latency", () => {
     const { meter, metricsService } = setup();
 
+    expect(metricsService.getMeter).toHaveBeenCalledWith("kms-key-service");
     expect(metricsService.createHistogram).toHaveBeenCalledWith(meter, "kms_key_service_call_duration_ms", expect.objectContaining({ unit: "ms" }));
     expect(metricsService.createCounter).toHaveBeenCalledWith(meter, "kms_key_service_calls_total", expect.anything());
   });
