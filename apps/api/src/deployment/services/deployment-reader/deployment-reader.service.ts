@@ -174,13 +174,17 @@ export class DeploymentReaderService {
     const [{ results: leaseResults }, names] = await Promise.all([
       PromisePool.withConcurrency(100)
         .for(deployments)
+        .useCorrespondingResults()
         .process(async deployment => this.leaseHttpService.list({ owner, dseq: deployment.deployment.id.dseq })),
-      this.findNamesFor(query.userId, deployments.map(deployment => deployment.deployment.id.dseq))
+      this.findNamesFor(
+        query.userId,
+        deployments.map(deployment => deployment.deployment.id.dseq)
+      )
     ]);
 
     const deploymentsWithLeases = deployments.map((deployment, index) => ({
       deployment: deployment.deployment,
-      leases: leaseResults[index]?.leases?.map(({ lease }) => lease) ?? [],
+      leases: (leaseResults as RestAkashLeaseListResponse[])[index]?.leases?.map(({ lease }) => lease) ?? [],
       escrow_account: deployment.escrow_account,
       name: names.get(deployment.deployment.id.dseq) ?? null
     }));
