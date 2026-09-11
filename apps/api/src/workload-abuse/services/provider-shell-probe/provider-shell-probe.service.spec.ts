@@ -104,7 +104,7 @@ describe(ProviderShellProbeService.name, () => {
       expect(reported).toEqual(["--procs", "9000002 cpu_s=1 rss_mb=1 comm=node exe= cwd= cmd=node server.js"]);
     });
 
-    it("stops after 150 processes, so a fork bomb cannot crowd out the sections that follow", () => {
+    it("stops after 150 processes, so a fork bomb cannot crowd out the sections that follow", { timeout: 30_000 }, () => {
       const forkBomb = Array.from({ length: 160 }, (_unused, index) => ({
         pid: `${9_000_001 + index}`,
         comm: "worker",

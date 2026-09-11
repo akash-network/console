@@ -1,6 +1,6 @@
 import type { SDLInput } from "@akashnetwork/chain-sdk";
 import { DeploymentInfoSchema } from "@akashnetwork/http-sdk";
-import { z } from "zod";
+import { z } from "@hono/zod-openapi";
 
 import { SignTxResponseOutputSchema } from "@src/billing/http-schemas/tx.schema";
 import { MAX_MANIFEST_VERSION_LENGTH, MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
@@ -250,6 +250,10 @@ function assignsAField(patch: Record<string, unknown>): boolean {
   return Object.values(patch).some(value => !isEmptyRecord(value));
 }
 
+export function assignsAnyServiceField(services: Record<string, Record<string, unknown>> | undefined): boolean {
+  return Object.values(services ?? {}).some(assignsAField);
+}
+
 /** An array is a value even when empty, because `command: []` clears the list the service declared. */
 function isEmptyRecord(value: unknown): boolean {
   return !!value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 0;
@@ -284,7 +288,7 @@ export const PatchDeploymentParamsSchema = z.object({
 
 /** A seal and a name are each a write no service patch can describe, so naming a service and changing none of its fields is how a caller asks for a rotation and nothing else. */
 function patchesSomething(data: { services?: Record<string, Record<string, unknown>>; name?: string; sealedSecrets?: string }): boolean {
-  return !!data.sealedSecrets || !!data.name || Object.values(data.services ?? {}).some(assignsAField);
+  return !!data.sealedSecrets || !!data.name || assignsAnyServiceField(data.services);
 }
 
 /** `.refine` rather than a length rule on the record itself, which this zod version does not offer. */

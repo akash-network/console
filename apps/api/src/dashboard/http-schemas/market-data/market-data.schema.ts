@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@hono/zod-openapi";
 
 export const MarketDataParamsSchema = z.object({
   coin: z.enum(["akash-network", "akt"]).optional().default("akt").openapi({ example: "akt" })

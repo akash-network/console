@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@hono/zod-openapi";
 
 export const PricingSpecsSchema = z.object({
   cpu: z.number().min(0).openapi({ description: "CPU in thousandths of a core. 1000 = 1 core", example: 1000 }),

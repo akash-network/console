@@ -8261,11 +8261,17 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "description": "Base64 manifest version this patch recorded and committed on chain. Absent for a rename, which records none.",
                           "type": "string",
                         },
+                        "name": {
+                          "description": "The name this deployment carries, or null for one created before the console recorded names.",
+                          "nullable": true,
+                          "type": "string",
+                        },
                       },
                       "required": [
                         "deployment",
                         "leases",
                         "escrow_account",
+                        "name",
                       ],
                       "type": "object",
                     },

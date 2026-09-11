@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@hono/zod-openapi";
 
 import { AkashAddressSchema } from "@src/utils/schema";
 

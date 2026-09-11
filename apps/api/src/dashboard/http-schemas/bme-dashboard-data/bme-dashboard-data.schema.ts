@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@hono/zod-openapi";
 
 const BmePeriodSchema = z.object({
   date: z.string(),

@@ -14,6 +14,7 @@ import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-
 import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY, TxService } from "@src/core";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import {
+  assignsAnyServiceField,
   CreateDeploymentRequest,
   CreateDeploymentResponse,
   DeploymentResponse,
@@ -415,7 +416,7 @@ export class DeploymentWriterService {
     input: PatchDeploymentRequest["data"],
     ability: AnyAbility
   ): Promise<PatchDeploymentResponse["data"]> {
-    if (input.name !== undefined && !input.services && !input.sealedSecrets) {
+    if (input.name !== undefined && !assignsAnyServiceField(input.services) && !input.sealedSecrets) {
       return await this.#renameByUserIdAndDseq(userId, dseq, input.name, ability);
     }
 

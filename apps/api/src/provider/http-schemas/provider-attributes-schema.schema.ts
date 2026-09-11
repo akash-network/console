@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@hono/zod-openapi";
 
 const attributeSchemaType = z.object({
   key: z.string(),
