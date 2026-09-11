@@ -31,10 +31,17 @@ describe("DeploymentStatusBadge", () => {
     expect(screen.getByText("Running")).toBeInTheDocument();
   });
 
-  it("treats a lease in its reclamation grace period as still running", () => {
+  it("reports a lease in its reclamation grace period as reclaiming rather than running", () => {
     setup({ state: "active", leases: [mock<LeaseDto>({ state: "reclaiming" })] });
 
-    expect(screen.getByText("Running")).toBeInTheDocument();
+    expect(screen.getByText("Reclaiming")).toBeInTheDocument();
+    expect(screen.queryByText("Running")).not.toBeInTheDocument();
+  });
+
+  it("reports reclaiming even when another placement is still healthy", () => {
+    setup({ state: "active", leases: [mock<LeaseDto>({ state: "active" }), mock<LeaseDto>({ state: "reclaiming" })] });
+
+    expect(screen.getByText("Reclaiming")).toBeInTheDocument();
   });
 
   it("reports why the lease closed instead of 'Running' when the deployment is still active on chain", () => {
@@ -76,6 +83,12 @@ describe("DeploymentStatusBadge", () => {
       ]);
 
       expect(status.label).toBe("Closed by provider (workloads unstable)");
+    });
+
+    it("warns while a lease is being reclaimed", () => {
+      const status = getDeploymentStatus("active", [mock<LeaseDto>({ state: "reclaiming" })]);
+
+      expect(status.tone).toBe("warning");
     });
 
     it("reports a running tone while a lease is live", () => {
