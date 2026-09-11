@@ -3,6 +3,7 @@ import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { UserRepository } from "@src/user/repositories";
+import type { DataKeyOutput } from "./data-key.repository";
 import { DataKeyRepository } from "./data-key.repository";
 
 describe(DataKeyRepository.name, () => {
@@ -94,6 +95,102 @@ describe(DataKeyRepository.name, () => {
     });
   });
 
+  describe("countByWrappingVersion", () => {
+    it("counts the data keys under each version separately rather than in total", async () => {
+      const { versionOf, seedDataKey, censusOfOwnKey } = setup();
+      await seedDataKey(versionOf(1));
+      await seedDataKey(versionOf(1));
+      await seedDataKey(versionOf(2));
+
+      const census = await censusOfOwnKey();
+
+      expect(census).toEqual([
+        { wrappedByKid: versionOf(1), count: 2 },
+        { wrappedByKid: versionOf(2), count: 1 }
+      ]);
+    });
+
+    it("leaves out a version nothing is wrapped under", async () => {
+      const { versionOf, seedDataKey, censusOfOwnKey } = setup();
+      await seedDataKey(versionOf(1));
+
+      const census = await censusOfOwnKey();
+
+      expect(census.map(entry => entry.wrappedByKid)).not.toContain(versionOf(2));
+    });
+  });
+
+  describe("findWrappedUnderOtherVersionsIteratively", () => {
+    it("yields the rows wrapped under another version and passes over those already at the target", async () => {
+      const { versionOf, seedDataKey, findRewrapCandidates } = setup();
+      const staleFirst = await seedDataKey(versionOf(1));
+      const staleSecond = await seedDataKey(versionOf(1));
+      const alreadyAtTarget = await seedDataKey(versionOf(2));
+
+      const candidates = await findRewrapCandidates(versionOf(2));
+
+      expect(candidates.map(row => row.id).sort()).toEqual([staleFirst.id, staleSecond.id].sort());
+      expect(candidates.map(row => row.id)).not.toContain(alreadyAtTarget.id);
+    });
+
+    it("yields what re-wrapping a row needs to open it and record its new version", async () => {
+      const { versionOf, seedDataKey, findRewrapCandidates } = setup();
+      const stale = await seedDataKey(versionOf(1));
+
+      const candidates = await findRewrapCandidates(versionOf(2));
+
+      expect(candidates).toEqual([
+        expect.objectContaining({ id: stale.id, userId: stale.userId, wrappedKey: stale.wrappedKey, wrappedByKid: versionOf(1) })
+      ]);
+    });
+
+    it("yields nothing once every row is at the target", async () => {
+      const { versionOf, seedDataKey, findRewrapCandidates } = setup();
+      await seedDataKey(versionOf(2));
+      await seedDataKey(versionOf(2));
+
+      expect(await findRewrapCandidates(versionOf(2))).toEqual([]);
+    });
+
+    it("pages every row exactly once when the batch is smaller than the set", async () => {
+      const { versionOf, seedDataKey, findRewrapCandidates } = setup();
+      await seedDataKey(versionOf(1));
+      await seedDataKey(versionOf(1));
+      await seedDataKey(versionOf(1));
+
+      const oneAtATime = await findRewrapCandidates(versionOf(2), 1);
+      const allAtOnce = await findRewrapCandidates(versionOf(2), 1000);
+
+      expect(allAtOnce).toHaveLength(3);
+      expect(oneAtATime.map(row => row.id)).toEqual(allAtOnce.map(row => row.id));
+    });
+
+    it("yields rows in id order, so a run that stops resumes after the last row it moved", async () => {
+      const { versionOf, seedDataKey, findRewrapCandidates } = setup();
+      await seedDataKey(versionOf(1));
+      await seedDataKey(versionOf(1));
+      await seedDataKey(versionOf(1));
+
+      const candidates = await findRewrapCandidates(versionOf(2), 2);
+
+      expect(candidates.map(row => row.id)).toEqual([...candidates.map(row => row.id)].sort());
+    });
+
+    it("yields batches no larger than the size asked for", async () => {
+      const { dataKeyRepository, versionOf, seedDataKey } = setup();
+      await seedDataKey(versionOf(1));
+      await seedDataKey(versionOf(1));
+      await seedDataKey(versionOf(1));
+      const sizes: number[] = [];
+
+      for await (const batch of dataKeyRepository.findWrappedUnderOtherVersionsIteratively({ targetKid: versionOf(2), batchSize: 2 })) {
+        sizes.push(batch.length);
+      }
+
+      expect(Math.max(...sizes)).toBeLessThanOrEqual(2);
+    });
+  });
+
   describe("user deletion", () => {
     it("deletes the data key when its user is deleted", async () => {
       const { dataKeyRepository, userRepository, createTestUser } = setup();
@@ -124,6 +221,7 @@ describe(DataKeyRepository.name, () => {
     const dataKeyRepository = container.resolve(DataKeyRepository);
     const userRepository = container.resolve(UserRepository);
     const createdUserIds: string[] = [];
+    const keyName = faker.string.alphanumeric(10);
 
     cleanup = async () => {
       if (createdUserIds.length > 0) {
@@ -137,6 +235,36 @@ describe(DataKeyRepository.name, () => {
       return user;
     }
 
-    return { dataKeyRepository, userRepository, createTestUser };
+    function versionOf(version: number) {
+      return `${keyName}.v${version}`;
+    }
+
+    async function seedDataKey(wrappedByKid: string) {
+      const user = await createTestUser();
+
+      return await dataKeyRepository.create({ userId: user.id, wrappedKey: wrappedKeyBlob(), wrappedByKid });
+    }
+
+    function isOwnKey(wrappedByKid: string) {
+      return wrappedByKid.startsWith(`${keyName}.`);
+    }
+
+    async function censusOfOwnKey() {
+      const census = await dataKeyRepository.countByWrappingVersion();
+
+      return census.filter(entry => isOwnKey(entry.wrappedByKid));
+    }
+
+    async function findRewrapCandidates(targetKid: string, batchSize = 1000) {
+      const candidates: DataKeyOutput[] = [];
+
+      for await (const batch of dataKeyRepository.findWrappedUnderOtherVersionsIteratively({ targetKid, batchSize })) {
+        candidates.push(...batch.filter(row => isOwnKey(row.wrappedByKid)));
+      }
+
+      return candidates;
+    }
+
+    return { dataKeyRepository, userRepository, createTestUser, versionOf, seedDataKey, censusOfOwnKey, findRewrapCandidates };
   }
 });

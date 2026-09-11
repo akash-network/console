@@ -48,6 +48,12 @@ export type OpenDeployment = {
   createdAt: Date;
 };
 
+/** A deployment's stored secrets token alongside the id it is sealed to. */
+export type DeploymentStoredSecrets = {
+  id: string;
+  sealedSecrets: string;
+};
+
 export type LiveTrialDeployment = {
   userId: string;
   dseq: string;
@@ -168,6 +174,36 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       }
 
       yield batch as OpenDeployment[];
+
+      if (batch.length < batchSize) {
+        return;
+      }
+
+      cursor = batch[batch.length - 1].id;
+    }
+  }
+
+  /**
+   * Every stored secrets token there is, keyset-paged on `id`. Rows holding none are left out, so
+   * the count and byte total a fingerprint reports describe the deployments that actually carry a
+   * secret rather than the size of the table.
+   */
+  async *findStoredSecretsIteratively({ batchSize }: { batchSize: number }): AsyncGenerator<DeploymentStoredSecrets[]> {
+    let cursor: string | undefined;
+
+    while (true) {
+      const batch = await this.pg
+        .select({ id: this.table.id, sealedSecrets: this.table.sealedSecrets })
+        .from(this.table)
+        .where(and(isNotNull(this.table.sealedSecrets), ...(cursor ? [gt(this.table.id, cursor)] : [])))
+        .orderBy(asc(this.table.id))
+        .limit(batchSize);
+
+      if (!batch.length) {
+        return;
+      }
+
+      yield batch as DeploymentStoredSecrets[];
 
       if (batch.length < batchSize) {
         return;

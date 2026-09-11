@@ -871,6 +871,69 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("findStoredSecretsIteratively", () => {
+    it("yields a deployment's token under the id that holds it", async () => {
+      const { sealedToken, createSettingWithSecrets, findStoredSecrets } = await setup();
+      const id = await createSettingWithSecrets(sealedToken);
+
+      const stored = await findStoredSecrets([id]);
+
+      expect(stored).toEqual([{ id, sealedSecrets: sealedToken }]);
+    });
+
+    it("passes over a deployment holding no token, which no fingerprint has anything to say about", async () => {
+      const { sealedToken, createSetting, createSettingWithSecrets, findStoredSecrets } = await setup();
+      const withoutSecrets = await createSetting();
+      const withSecrets = await createSettingWithSecrets(sealedToken);
+
+      const stored = await findStoredSecrets([withoutSecrets, withSecrets]);
+
+      expect(stored.map(row => row.id)).toEqual([withSecrets]);
+    });
+
+    it("pages every token-holding deployment exactly once when the batch is smaller than the set", async () => {
+      const { sealedToken, otherSealedToken, createSettingWithSecrets, findStoredSecrets } = await setup();
+      const ids = [
+        await createSettingWithSecrets(sealedToken),
+        await createSettingWithSecrets(otherSealedToken),
+        await createSettingWithSecrets(sealedToken)
+      ];
+
+      const oneAtATime = await findStoredSecrets(ids, 1);
+      const allAtOnce = await findStoredSecrets(ids, 1000);
+
+      expect(allAtOnce).toHaveLength(3);
+      expect(oneAtATime).toEqual(allAtOnce);
+    });
+
+    it("yields rows in id order, so each batch stays an index scan on the primary key", async () => {
+      const { sealedToken, createSettingWithSecrets, findStoredSecrets } = await setup();
+      const ids = [
+        await createSettingWithSecrets(sealedToken),
+        await createSettingWithSecrets(sealedToken),
+        await createSettingWithSecrets(sealedToken)
+      ];
+
+      const stored = await findStoredSecrets(ids, 2);
+
+      expect(stored.map(row => row.id)).toEqual([...ids].sort());
+    });
+
+    it("yields batches no larger than the size asked for", async () => {
+      const { sealedToken, deploymentSettingRepository, createSettingWithSecrets } = await setup();
+      await createSettingWithSecrets(sealedToken);
+      await createSettingWithSecrets(sealedToken);
+      await createSettingWithSecrets(sealedToken);
+      const sizes: number[] = [];
+
+      for await (const batch of deploymentSettingRepository.findStoredSecretsIteratively({ batchSize: 2 })) {
+        sizes.push(batch.length);
+      }
+
+      expect(Math.max(...sizes)).toBeLessThanOrEqual(2);
+    });
+  });
+
   describe("createDefaultIfMissing", () => {
     it("records a deployment nothing had recorded yet, with funding on", async () => {
       const { deploymentSettingRepository, user } = await setup();
@@ -1352,6 +1415,22 @@ describe(DeploymentSettingRepository.name, () => {
       return setting.id;
     }
 
+    async function createSettingWithSecrets(sealedSecrets: string) {
+      const setting = await deploymentSettingRepository.create({ userId: user.id, dseq: newDseq(), autoTopUpEnabled: true, sealedSecrets });
+
+      return setting.id;
+    }
+
+    async function findStoredSecrets(ids: string[], batchSize = 1000) {
+      const stored = [];
+
+      for await (const batch of deploymentSettingRepository.findStoredSecretsIteratively({ batchSize })) {
+        stored.push(...batch.filter(row => ids.includes(row.id)));
+      }
+
+      return stored;
+    }
+
     async function findOpenDeployments(addresses?: string[], batchSize = 1000) {
       const open = [];
 
@@ -1438,6 +1517,8 @@ describe(DeploymentSettingRepository.name, () => {
       readDefinition,
       readSettingDseq,
       createSetting,
+      createSettingWithSecrets,
+      findStoredSecrets,
       createLimitedSetting,
       createAnchoredSetting,
       findAutoTopUpOwners,

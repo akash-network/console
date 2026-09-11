@@ -1,3 +1,4 @@
+import { and, asc, gt, ne, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -7,6 +8,12 @@ import { TxService } from "@src/core/services";
 type Table = ApiPgTables["DataKeys"];
 export type DataKeyInput = Table["$inferInsert"];
 export type DataKeyOutput = Table["$inferSelect"];
+
+/** How many data keys one KMS key version still holds, which is what gates destroying that version. */
+export type DataKeyWrappingCount = {
+  wrappedByKid: DataKeyOutput["wrappedByKid"];
+  count: number;
+};
 
 @singleton()
 export class DataKeyRepository extends BaseRepository<Table, DataKeyInput, DataKeyOutput> {
@@ -50,5 +57,50 @@ export class DataKeyRepository extends BaseRepository<Table, DataKeyInput, DataK
   /** Answers whether a KMS key version may still be destroyed without making stored data keys unrecoverable. */
   async countWrappedUnder(wrappedByKid: DataKeyOutput["wrappedByKid"]): Promise<number> {
     return this.count({ wrappedByKid });
+  }
+
+  /** The same question asked of every version at once, so a rotation can report which versions are still in use without knowing what to ask about. */
+  async countByWrappingVersion(): Promise<DataKeyWrappingCount[]> {
+    return await this.cursor
+      .select({ wrappedByKid: this.table.wrappedByKid, count: sql<number>`count(*)::int` })
+      .from(this.table)
+      .groupBy(this.table.wrappedByKid)
+      .orderBy(asc(this.table.wrappedByKid));
+  }
+
+  /**
+   * Keyset-paged on `id`, and filtered on the version rather than on a progress marker, so a
+   * re-wrap that stopped halfway resumes by selection alone: a row it already moved no longer
+   * matches. Read outside any transaction, because the caller commits each batch in one of its own.
+   */
+  async *findWrappedUnderOtherVersionsIteratively({
+    targetKid,
+    batchSize
+  }: {
+    targetKid: DataKeyOutput["wrappedByKid"];
+    batchSize: number;
+  }): AsyncGenerator<DataKeyOutput[]> {
+    let cursor: DataKeyOutput["id"] | undefined;
+
+    while (true) {
+      const batch = await this.pg
+        .select()
+        .from(this.table)
+        .where(and(ne(this.table.wrappedByKid, targetKid), ...(cursor ? [gt(this.table.id, cursor)] : [])))
+        .orderBy(asc(this.table.id))
+        .limit(batchSize);
+
+      if (!batch.length) {
+        return;
+      }
+
+      yield this.toOutputList(batch);
+
+      if (batch.length < batchSize) {
+        return;
+      }
+
+      cursor = batch[batch.length - 1].id;
+    }
   }
 }
