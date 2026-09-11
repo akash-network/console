@@ -254,4 +254,16 @@ services:
       GCP_KMS_KEY: sdl-secrets
     post_start:
       - command: ["sh", "/script/seed-gcp-kms-mock.sh"]
+    # Probes the seeded crypto key rather than the port, because `post_start` runs after the
+    # container is up: without this `--wait` returns while the seeder is still creating it.
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q -O /dev/null $${KMS_EMULATOR_REST}/v1/projects/$${GCP_KMS_PROJECT_ID}/locations/$${GCP_KMS_LOCATION}/keyRings/$${GCP_KMS_KEY_RING}/cryptoKeys/$${GCP_KMS_KEY}"
+        ]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
     restart: unless-stopped
