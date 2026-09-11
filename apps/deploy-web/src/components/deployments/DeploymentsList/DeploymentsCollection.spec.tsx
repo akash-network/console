@@ -4,7 +4,7 @@ import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
 import type { NamedDeploymentDto } from "@src/types/deployment";
 import { DEPENDENCIES, DeploymentsCollection } from "./DeploymentsCollection";
 
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe("DeploymentsCollection", () => {
@@ -37,7 +37,30 @@ describe("DeploymentsCollection", () => {
     );
   });
 
-  function setup(input: { viewMode: DeploymentsViewMode; dseqs: string[]; selectedIds?: string[] }) {
+  it("treats a collection with no selection as nothing selected", () => {
+    const { DeploymentCard } = setup({ viewMode: "grid", dseqs: ["100"] });
+
+    expect(DeploymentCard).toHaveBeenCalledWith(expect.objectContaining({ isSelected: false }), expect.anything());
+  });
+
+  it("adds a selection column to the table only when the collection is selectable", () => {
+    setup({ viewMode: "list", dseqs: ["100"], isSelectable: true });
+    expect(screen.getAllByRole("columnheader")).toHaveLength(6);
+
+    cleanup();
+
+    setup({ viewMode: "list", dseqs: ["100"], isSelectable: false });
+    expect(screen.getAllByRole("columnheader")).toHaveLength(5);
+  });
+
+  it("passes the close callback through to every item", () => {
+    const onDeploymentClosed = vi.fn();
+    const { DeploymentCard } = setup({ viewMode: "grid", dseqs: ["100"], onDeploymentClosed });
+
+    expect(DeploymentCard).toHaveBeenCalledWith(expect.objectContaining({ onDeploymentClosed }), expect.anything());
+  });
+
+  function setup(input: { viewMode: DeploymentsViewMode; dseqs: string[]; selectedIds?: string[]; isSelectable?: boolean; onDeploymentClosed?: () => void }) {
     const DeploymentCard = vi.fn(() => <div>card</div>);
     const DeploymentRow = vi.fn(() => <tr />);
 
@@ -46,8 +69,9 @@ describe("DeploymentsCollection", () => {
         deployments={input.dseqs.map(dseq => ({ dseq, state: "active" }) as NamedDeploymentDto)}
         providers={[]}
         viewMode={input.viewMode}
-        isSelectable
+        isSelectable={input.isSelectable ?? true}
         selectedIds={input.selectedIds}
+        onDeploymentClosed={input.onDeploymentClosed}
         dependencies={MockComponents(DEPENDENCIES, { DeploymentCard, DeploymentRow })}
       />
     );

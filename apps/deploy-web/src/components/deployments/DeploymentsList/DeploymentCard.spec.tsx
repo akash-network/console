@@ -57,6 +57,40 @@ describe("DeploymentCard", () => {
     expect(onSelect).toHaveBeenCalledWith({ id: "100", isShiftPressed: true });
   });
 
+  it("resolves reachability for this deployment against the provider list", () => {
+    const { useDeploymentReachability, providers, deployment } = setup({ deployment: { dseq: "100" } });
+
+    expect(useDeploymentReachability).toHaveBeenCalledWith({ deployment, providers });
+  });
+
+  it("shows the reclamation countdown for the deployment's own leases", () => {
+    const leases = [mock<LeaseDto>({ state: "reclaiming" })];
+    const { ReclamationCountdown } = setup({ deployment: { dseq: "100" }, leases });
+
+    expect(ReclamationCountdown).toHaveBeenCalledWith({ leases }, expect.anything());
+  });
+
+  it("reports a plain click as a non-range selection", async () => {
+    const { onSelect } = setup({ deployment: { dseq: "100", name: "acme" }, isSelectable: true });
+
+    await userEvent.click(screen.getByRole("checkbox", { name: "Select deployment acme" }));
+
+    expect(onSelect).toHaveBeenCalledWith({ id: "100", isShiftPressed: false });
+  });
+
+  it("marks the checkbox for a deployment that is already selected", () => {
+    setup({ deployment: { dseq: "100", name: "acme" }, isSelectable: true, isSelected: true });
+
+    expect(screen.getByRole("checkbox", { name: "Select deployment acme" })).toBeChecked();
+  });
+
+  it("hands the actions menu the deployment and the refresh to run after a close", () => {
+    const onDeploymentClosed = vi.fn();
+    const { DeploymentActionsMenu, deployment } = setup({ deployment: { dseq: "100" }, onDeploymentClosed });
+
+    expect(DeploymentActionsMenu).toHaveBeenCalledWith({ deployment, onDeploymentClosed }, expect.anything());
+  });
+
   it("offers no selection when the collection cannot be acted on in bulk", () => {
     setup({ deployment: { dseq: "100" } });
 
@@ -68,6 +102,8 @@ describe("DeploymentCard", () => {
     leases?: LeaseDto[];
     reachability?: Partial<DeploymentReachability>;
     isSelectable?: boolean;
+    isSelected?: boolean;
+    onDeploymentClosed?: () => void;
   }) {
     const leases = input.leases ?? [];
     const useDeploymentReachability = vi.fn<typeof DEPENDENCIES.useDeploymentReachability>(() => ({
@@ -82,19 +118,41 @@ describe("DeploymentCard", () => {
     const DeploymentStatusBadge = vi.fn(() => <div>status</div>);
     const DeploymentEndpoints = vi.fn(() => <div>endpoints</div>);
     const DeploymentSpecSummary = vi.fn(() => <div>specs</div>);
+    const ReclamationCountdown = vi.fn(() => <div>countdown</div>);
+    const DeploymentActionsMenu = vi.fn(() => <div>actions</div>);
+    const providers: never[] = [];
     const onSelect = vi.fn();
     const deployment = { state: "active", cpuAmount: 1, memoryAmount: 1, storageAmount: 1, ...input.deployment } as NamedDeploymentDto;
 
     render(
       <DeploymentCard
         deployment={deployment}
-        providers={[]}
+        providers={providers}
         isSelectable={input.isSelectable}
+        isSelected={input.isSelected}
         onSelect={onSelect}
-        dependencies={MockComponents(DEPENDENCIES, { useDeploymentReachability, DeploymentStatusBadge, DeploymentEndpoints, DeploymentSpecSummary })}
+        onDeploymentClosed={input.onDeploymentClosed}
+        dependencies={MockComponents(DEPENDENCIES, {
+          useDeploymentReachability,
+          DeploymentStatusBadge,
+          DeploymentEndpoints,
+          DeploymentSpecSummary,
+          ReclamationCountdown,
+          DeploymentActionsMenu
+        })}
       />
     );
 
-    return { onSelect, DeploymentStatusBadge, DeploymentEndpoints, DeploymentSpecSummary };
+    return {
+      onSelect,
+      DeploymentStatusBadge,
+      DeploymentEndpoints,
+      DeploymentSpecSummary,
+      ReclamationCountdown,
+      DeploymentActionsMenu,
+      useDeploymentReachability,
+      providers,
+      deployment
+    };
   }
 });

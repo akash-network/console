@@ -6,6 +6,7 @@ import {
   classifyLeaseCloseReason,
   getClosedLeaseLabel,
   getLeaseCloseReasonLabel,
+  getNearestReclamationDeadline,
   getReclamationDeadline,
   isProviderReclaimed,
   isReclaiming,
@@ -159,6 +160,54 @@ describe("reclamationUtils", () => {
       expect(isProviderReclaimed(createLease({ state: "reclaiming", reclamation: { startedAt: "1700000000" } }))).toBe(false);
     });
   });
+
+  describe("getNearestReclamationDeadline", () => {
+    it("returns the soonest deadline among several reclaiming leases", () => {
+      const nearest = getNearestReclamationDeadline([
+        reclaimingLeaseWithDeadline(3_000),
+        reclaimingLeaseWithDeadline(1_000),
+        reclaimingLeaseWithDeadline(2_000)
+      ]);
+
+      expect(nearest).toEqual(new Date(1_000_000));
+    });
+
+    it("keeps the single deadline when only one lease is reclaiming", () => {
+      const nearest = getNearestReclamationDeadline([reclaimingLeaseWithDeadline(2_000)]);
+
+      expect(nearest).toEqual(new Date(2_000_000));
+    });
+
+    it("ignores a lease that is not being reclaimed, however soon its deadline reads", () => {
+      const nearest = getNearestReclamationDeadline([createLease({ state: "active", reclamation: { deadline: 1 } }), reclaimingLeaseWithDeadline(2_000)]);
+
+      expect(nearest).toEqual(new Date(2_000_000));
+    });
+
+    it("ignores a reclaiming lease whose deadline the chain has not published", () => {
+      const nearest = getNearestReclamationDeadline([createLease({ state: "reclaiming" }), reclaimingLeaseWithDeadline(2_000)]);
+
+      expect(nearest).toEqual(new Date(2_000_000));
+    });
+
+    it("returns null when no lease is being reclaimed", () => {
+      expect(getNearestReclamationDeadline([createLease({ state: "active" })])).toBeNull();
+    });
+
+    it("returns null when every reclaiming lease is missing a deadline", () => {
+      expect(getNearestReclamationDeadline([createLease({ state: "reclaiming" })])).toBeNull();
+    });
+
+    it("returns null for a deployment whose leases have not loaded", () => {
+      expect(getNearestReclamationDeadline(undefined)).toBeNull();
+      expect(getNearestReclamationDeadline(null)).toBeNull();
+      expect(getNearestReclamationDeadline([])).toBeNull();
+    });
+  });
+
+  function reclaimingLeaseWithDeadline(deadline: number): LeaseDto {
+    return createLease({ state: "reclaiming", reclamation: { deadline } });
+  }
 
   function createLease(
     overrides: {

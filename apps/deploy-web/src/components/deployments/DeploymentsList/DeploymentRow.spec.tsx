@@ -4,6 +4,7 @@ import type { NamedDeploymentDto } from "@src/types/deployment";
 import { DEPENDENCIES, DeploymentRow } from "./DeploymentRow";
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe("DeploymentRow", () => {
@@ -26,7 +27,35 @@ describe("DeploymentRow", () => {
     expect(screen.getAllByRole("cell")).toHaveLength(6);
   });
 
-  function setup(input: { deployment: Partial<NamedDeploymentDto> & { dseq: string }; isSelectable?: boolean }) {
+  it("resolves reachability for this deployment against the provider list", () => {
+    const { useDeploymentReachability, providers, deployment } = setup({ deployment: { dseq: "100" } });
+
+    expect(useDeploymentReachability).toHaveBeenCalledWith({ deployment, providers });
+  });
+
+  it("falls back to the dseq when the deployment has no local name", () => {
+    setup({ deployment: { dseq: "100", name: "" } });
+
+    expect(screen.getByRole("link", { name: "Deployment #100" })).toBeInTheDocument();
+  });
+
+  it("reports a shift-click so a range of rows can be selected at once", async () => {
+    const { onSelect } = setup({ deployment: { dseq: "100", name: "acme" }, isSelectable: true });
+    const user = userEvent.setup();
+
+    await user.keyboard("{Shift>}");
+    await user.click(screen.getByRole("checkbox", { name: "Select deployment acme" }));
+
+    expect(onSelect).toHaveBeenCalledWith({ id: "100", isShiftPressed: true });
+  });
+
+  it("marks the checkbox for a row that is already selected", () => {
+    setup({ deployment: { dseq: "100", name: "acme" }, isSelectable: true, isSelected: true });
+
+    expect(screen.getByRole("checkbox", { name: "Select deployment acme" })).toBeChecked();
+  });
+
+  function setup(input: { deployment: Partial<NamedDeploymentDto> & { dseq: string }; isSelectable?: boolean; isSelected?: boolean }) {
     const useDeploymentReachability = vi.fn<typeof DEPENDENCIES.useDeploymentReachability>(() => ({
       leases: [],
       isLoadingLeases: false,
@@ -35,19 +64,25 @@ describe("DeploymentRow", () => {
       unreachableReason: null
     }));
 
+    const providers: never[] = [];
+    const onSelect = vi.fn();
+    const deployment = { state: "active", ...input.deployment } as NamedDeploymentDto;
+
     render(
       <table>
         <tbody>
           <DeploymentRow
-            deployment={{ state: "active", ...input.deployment } as NamedDeploymentDto}
-            providers={[]}
+            deployment={deployment}
+            providers={providers}
             isSelectable={input.isSelectable}
+            isSelected={input.isSelected}
+            onSelect={onSelect}
             dependencies={MockComponents(DEPENDENCIES, { useDeploymentReachability })}
           />
         </tbody>
       </table>
     );
 
-    return input;
+    return { ...input, onSelect, useDeploymentReachability, providers, deployment };
   }
 });
