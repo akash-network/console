@@ -39,7 +39,7 @@ describe(StoredSecretFingerprintService.name, () => {
     const reconciliation = await service.reconcile(await service.take({ batchSize: 1 }), { batchSize: 1 });
 
     expect(reconciliation.after).toEqual(reconciliation.before);
-    expect(reconciliation).toMatchObject({ ownerRewritten: 0, created: 0, removed: 0, reSealed: [] });
+    expect(reconciliation).toMatchObject({ ownerRewritten: 0, created: 0, removed: 0, unexplained: [] });
   });
 
   it("counts a user rewriting their own secrets during the run as their own write", async () => {
@@ -51,20 +51,20 @@ describe(StoredSecretFingerprintService.name, () => {
     await rewriteAsOwner(dseq, newSealedToken());
     const reconciliation = await service.reconcile(before);
 
-    expect(reconciliation).toMatchObject({ ownerRewritten: 1, created: 0, removed: 0, reSealed: [] });
+    expect(reconciliation).toMatchObject({ ownerRewritten: 1, created: 0, removed: 0, unexplained: [] });
     expect(reconciliation.after.digest).not.toBe(reconciliation.before.digest);
   });
 
   it("reports a token rewritten without its updated_at moving as a re-seal", async () => {
-    const { service, storeSecrets, rewriteWithoutTouchingUpdatedAt } = await setup();
+    const { service, storeSecrets, writeSecretsWithoutTouchingUpdatedAt } = await setup();
     const { id } = await storeSecrets(newSealedToken());
     await storeSecrets(newSealedToken());
 
     const before = await service.take();
-    await rewriteWithoutTouchingUpdatedAt(id, newSealedToken());
+    await writeSecretsWithoutTouchingUpdatedAt(id, newSealedToken());
     const reconciliation = await service.reconcile(before);
 
-    expect(reconciliation).toMatchObject({ ownerRewritten: 0, reSealed: [id] });
+    expect(reconciliation).toMatchObject({ ownerRewritten: 0, unexplained: [id] });
   });
 
   it("counts a deployment that stored secrets during the run as created", async () => {
@@ -75,7 +75,7 @@ describe(StoredSecretFingerprintService.name, () => {
     await storeSecrets(newSealedToken());
     const reconciliation = await service.reconcile(before);
 
-    expect(reconciliation).toMatchObject({ created: 1, ownerRewritten: 0, removed: 0, reSealed: [] });
+    expect(reconciliation).toMatchObject({ created: 1, ownerRewritten: 0, removed: 0, unexplained: [] });
     expect(reconciliation.after.rowCount).toBe(reconciliation.before.rowCount + 1);
   });
 
@@ -88,7 +88,43 @@ describe(StoredSecretFingerprintService.name, () => {
     await clearSecrets(dseq);
     const reconciliation = await service.reconcile(before);
 
-    expect(reconciliation).toMatchObject({ removed: 1, ownerRewritten: 0, created: 0, reSealed: [] });
+    expect(reconciliation).toMatchObject({ removed: 1, ownerRewritten: 0, created: 0, unexplained: [] });
+  });
+
+  it("counts a deployment deleted during the run as removed", async () => {
+    const { service, storeSecrets, deleteDeployment } = await setup();
+    const { id } = await storeSecrets(newSealedToken());
+    await storeSecrets(newSealedToken());
+
+    const before = await service.take();
+    await deleteDeployment(id);
+    const reconciliation = await service.reconcile(before);
+
+    expect(reconciliation).toMatchObject({ removed: 1, ownerRewritten: 0, created: 0, unexplained: [] });
+  });
+
+  it("reports a token cleared without its updated_at moving as a re-seal", async () => {
+    const { service, storeSecrets, writeSecretsWithoutTouchingUpdatedAt } = await setup();
+    const { id } = await storeSecrets(newSealedToken());
+    await storeSecrets(newSealedToken());
+
+    const before = await service.take();
+    await writeSecretsWithoutTouchingUpdatedAt(id, null);
+    const reconciliation = await service.reconcile(before);
+
+    expect(reconciliation).toMatchObject({ removed: 0, ownerRewritten: 0, unexplained: [id] });
+  });
+
+  it("reports a token that appeared without its updated_at moving as a re-seal", async () => {
+    const { service, storeSecrets, storeNothing, writeSecretsWithoutTouchingUpdatedAt } = await setup();
+    await storeSecrets(newSealedToken());
+    const { id } = await storeNothing();
+
+    const before = await service.take();
+    await writeSecretsWithoutTouchingUpdatedAt(id, newSealedToken());
+    const reconciliation = await service.reconcile(before);
+
+    expect(reconciliation).toMatchObject({ created: 0, removed: 0, unexplained: [id] });
   });
 
   async function setup() {
@@ -113,7 +149,15 @@ describe(StoredSecretFingerprintService.name, () => {
     }
 
     async function storeNothing() {
-      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: newDseq(), sdl: SDL, manifestVersion: "BAUG", sealedSecrets: null });
+      const id = await deploymentSettingRepository.upsertDefinition({
+        userId: user.id,
+        dseq: newDseq(),
+        sdl: SDL,
+        manifestVersion: "BAUG",
+        sealedSecrets: null
+      });
+
+      return { id };
     }
 
     async function rewriteAsOwner(dseq: string, sealedSecrets: string) {
@@ -124,10 +168,14 @@ describe(StoredSecretFingerprintService.name, () => {
       await deploymentSettingRepository.replaceDefinitionIfVersionMatches({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BQYH", sealedSecrets: null });
     }
 
-    async function rewriteWithoutTouchingUpdatedAt(id: string, sealedSecrets: string) {
+    async function writeSecretsWithoutTouchingUpdatedAt(id: string, sealedSecrets: string | null) {
       await db.update(deploymentSettingsTable).set({ sealedSecrets }).where(eq(deploymentSettingsTable.id, id));
     }
 
-    return { service, storeSecrets, storeNothing, rewriteAsOwner, clearSecrets, rewriteWithoutTouchingUpdatedAt };
+    async function deleteDeployment(id: string) {
+      await db.delete(deploymentSettingsTable).where(eq(deploymentSettingsTable.id, id));
+    }
+
+    return { service, storeSecrets, storeNothing, rewriteAsOwner, clearSecrets, writeSecretsWithoutTouchingUpdatedAt, deleteDeployment };
   }
 });

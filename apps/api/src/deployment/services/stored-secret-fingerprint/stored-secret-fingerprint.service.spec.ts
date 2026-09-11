@@ -5,8 +5,9 @@ import { mock } from "vitest-mock-extended";
 import type { DeploymentSettingRepository, SealedSecret } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { StoredSecretFingerprintService } from "./stored-secret-fingerprint.service";
 
-const WRITTEN_AT = "2026-09-01 10:00:00.123456+00";
-const REWRITTEN_AT = "2026-09-01 10:05:00.654321+00";
+const WRITTEN_AT = "2026-09-01T10:00:00.123456";
+const RUN_OPENED_AT = "2026-09-01T10:02:00.000000";
+const REWRITTEN_AT = "2026-09-01T10:05:00.654321";
 
 function newSealedToken() {
   return Array.from({ length: 5 }, () => randomBytes(24).toString("base64url")).join(".");
@@ -46,7 +47,7 @@ describe(StoredSecretFingerprintService.name, () => {
       const reconciliation = await service.reconcile(await service.take());
 
       expect(reconciliation.after).toEqual(reconciliation.before);
-      expect(reconciliation).toMatchObject({ ownerRewritten: 0, created: 0, removed: 0, reSealed: [] });
+      expect(reconciliation).toMatchObject({ ownerRewritten: 0, created: 0, removed: 0, unexplained: [] });
     });
 
     it("counts a token rewritten with its updated_at as the owner's own write", async () => {
@@ -56,7 +57,7 @@ describe(StoredSecretFingerprintService.name, () => {
 
       const reconciliation = await service.reconcile(await service.take());
 
-      expect(reconciliation).toMatchObject({ ownerRewritten: 1, reSealed: [] });
+      expect(reconciliation).toMatchObject({ ownerRewritten: 1, unexplained: [] });
       expect(reconciliation.after.digest).not.toBe(reconciliation.before.digest);
     });
 
@@ -67,7 +68,7 @@ describe(StoredSecretFingerprintService.name, () => {
 
       const reconciliation = await service.reconcile(await service.take());
 
-      expect(reconciliation).toMatchObject({ ownerRewritten: 0, reSealed: ["a"] });
+      expect(reconciliation).toMatchObject({ ownerRewritten: 0, unexplained: ["a"] });
     });
 
     it("reports tokens swapped between two deployments, though the set of tokens did not change", async () => {
@@ -80,27 +81,76 @@ describe(StoredSecretFingerprintService.name, () => {
 
       const reconciliation = await service.reconcile(await service.take());
 
-      expect(reconciliation.reSealed).toEqual(["a", "b"]);
+      expect(reconciliation.unexplained).toEqual(["a", "b"]);
       expect(reconciliation.after.digest).not.toBe(reconciliation.before.digest);
       expect(reconciliation.after.byteTotal).toBe(reconciliation.before.byteTotal);
     });
 
-    it("counts a row that appeared during the run as created", async () => {
+    it("counts a token stored during the run as created", async () => {
       const before = [storedSecret({ id: "a" })];
-      const { service } = setup({ sweeps: [before, [...before, storedSecret({ id: "b" })]] });
+      const appeared = storedSecret({ id: "b", updatedAtMarker: REWRITTEN_AT });
+      const { service } = setup({ sweeps: [before, [...before, appeared]] });
 
       const reconciliation = await service.reconcile(await service.take());
 
-      expect(reconciliation).toMatchObject({ created: 1, ownerRewritten: 0, removed: 0, reSealed: [] });
+      expect(reconciliation).toMatchObject({ created: 1, ownerRewritten: 0, removed: 0, unexplained: [] });
     });
 
-    it("counts a row that disappeared during the run as removed", async () => {
+    it("reports a token that appeared under a stamp older than the run as a re-seal", async () => {
+      const before = [storedSecret({ id: "a" })];
+      const appeared = storedSecret({ id: "b", updatedAtMarker: WRITTEN_AT });
+      const { service } = setup({ sweeps: [before, [...before, appeared]] });
+
+      const reconciliation = await service.reconcile(await service.take());
+
+      expect(reconciliation).toMatchObject({ created: 0, unexplained: ["b"] });
+    });
+
+    it("reports a token that appeared on a row carrying no stamp at all as a re-seal", async () => {
+      const before = [storedSecret({ id: "a" })];
+      const appeared = storedSecret({ id: "b", updatedAtMarker: null });
+      const { service } = setup({ sweeps: [before, [...before, appeared]] });
+
+      const reconciliation = await service.reconcile(await service.take());
+
+      expect(reconciliation).toMatchObject({ created: 0, unexplained: ["b"] });
+    });
+
+    it("counts a row deleted during the run as removed", async () => {
       const before = [storedSecret({ id: "a" }), storedSecret({ id: "b" })];
       const { service } = setup({ sweeps: [before, [before[0]]] });
 
       const reconciliation = await service.reconcile(await service.take());
 
-      expect(reconciliation).toMatchObject({ removed: 1, ownerRewritten: 0, created: 0, reSealed: [] });
+      expect(reconciliation).toMatchObject({ removed: 1, ownerRewritten: 0, created: 0, unexplained: [] });
+    });
+
+    it("counts a token cleared by a write as removed", async () => {
+      const before = [storedSecret({ id: "a" }), storedSecret({ id: "b" })];
+      const { service } = setup({ sweeps: [before, [before[0]]], markersAfterRun: { b: REWRITTEN_AT } });
+
+      const reconciliation = await service.reconcile(await service.take());
+
+      expect(reconciliation).toMatchObject({ removed: 1, unexplained: [] });
+    });
+
+    it("reports a token cleared from a row nothing wrote as a re-seal", async () => {
+      const before = [storedSecret({ id: "a" }), storedSecret({ id: "b" })];
+      const { service } = setup({ sweeps: [before, [before[0]]], markersAfterRun: { b: WRITTEN_AT } });
+
+      const reconciliation = await service.reconcile(await service.take());
+
+      expect(reconciliation).toMatchObject({ removed: 0, unexplained: ["b"] });
+    });
+
+    it("asks for the stamps of every vanished row, a batch at a time", async () => {
+      const before = [storedSecret({ id: "a" }), storedSecret({ id: "b" }), storedSecret({ id: "c" })];
+      const { service, deploymentSettingRepository } = setup({ sweeps: [before, []], markersAfterRun: { a: WRITTEN_AT, b: WRITTEN_AT, c: WRITTEN_AT } });
+
+      const reconciliation = await service.reconcile(await service.take(), { batchSize: 2 });
+
+      expect(deploymentSettingRepository.findUpdatedAtMarkers.mock.calls).toEqual([[["a", "b"]], [["c"]]]);
+      expect(reconciliation.unexplained).toEqual(["a", "b", "c"]);
     });
 
     it("reports a token that changed while its updated_at stayed unset as a re-seal", async () => {
@@ -110,7 +160,7 @@ describe(StoredSecretFingerprintService.name, () => {
 
       const reconciliation = await service.reconcile(await service.take());
 
-      expect(reconciliation).toMatchObject({ ownerRewritten: 0, reSealed: ["a"] });
+      expect(reconciliation).toMatchObject({ ownerRewritten: 0, unexplained: ["a"] });
     });
 
     it("counts a first-ever updated_at as the owner's own write", async () => {
@@ -120,17 +170,17 @@ describe(StoredSecretFingerprintService.name, () => {
 
       const reconciliation = await service.reconcile(await service.take());
 
-      expect(reconciliation).toMatchObject({ ownerRewritten: 1, reSealed: [] });
+      expect(reconciliation).toMatchObject({ ownerRewritten: 1, unexplained: [] });
     });
 
     it("counts a token rewritten within the same millisecond as its previous write as the owner's own write", async () => {
-      const before = [storedSecret({ id: "a", updatedAtMarker: "2026-09-01 10:00:00.123456+00" })];
-      const after = [storedSecret({ id: "a", updatedAtMarker: "2026-09-01 10:00:00.123999+00" })];
+      const before = [storedSecret({ id: "a", updatedAtMarker: "2026-09-01T10:00:00.123456" })];
+      const after = [storedSecret({ id: "a", updatedAtMarker: "2026-09-01T10:00:00.123999" })];
       const { service } = setup({ sweeps: [before, after] });
 
       const reconciliation = await service.reconcile(await service.take());
 
-      expect(reconciliation).toMatchObject({ ownerRewritten: 1, reSealed: [] });
+      expect(reconciliation).toMatchObject({ ownerRewritten: 1, unexplained: [] });
     });
 
     it("reports a token that changed while its updated_at read exactly as before as a re-seal", async () => {
@@ -140,14 +190,19 @@ describe(StoredSecretFingerprintService.name, () => {
 
       const reconciliation = await service.reconcile(await service.take());
 
-      expect(reconciliation).toMatchObject({ ownerRewritten: 0, reSealed: ["a"] });
+      expect(reconciliation).toMatchObject({ ownerRewritten: 0, unexplained: ["a"] });
     });
   });
 
-  function setup(input: { sweeps: SealedSecret[][]; pageSize?: number }) {
+  function setup(input: { sweeps: SealedSecret[][]; pageSize?: number; markersAfterRun?: Record<string, string | null> }) {
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     const remaining = [...input.sweeps];
+    const markersAfterRun = input.markersAfterRun ?? {};
 
+    deploymentSettingRepository.readCurrentUpdatedAtMarker.mockResolvedValue(RUN_OPENED_AT);
+    deploymentSettingRepository.findUpdatedAtMarkers.mockImplementation(async ids =>
+      ids.reduce((markers, id) => (id in markersAfterRun ? markers.set(id, markersAfterRun[id]) : markers), new Map<string, string | null>())
+    );
     deploymentSettingRepository.findSealedSecretsIteratively.mockImplementation(async function* yieldNextSweep() {
       const rows = remaining.shift() ?? [];
       const pageSize = input.pageSize ?? Math.max(rows.length, 1);

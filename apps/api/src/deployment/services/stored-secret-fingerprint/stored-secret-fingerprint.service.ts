@@ -18,6 +18,7 @@ interface StoredToken {
 export interface StoredSecretSnapshot {
   fingerprint: StoredSecretFingerprint;
   tokens: Map<string, StoredToken>;
+  takenAtMarker: string;
 }
 
 export interface StoredSecretReconciliation {
@@ -25,9 +26,9 @@ export interface StoredSecretReconciliation {
   after: StoredSecretFingerprint;
   ownerRewritten: number;
   created: number;
-  /** A row whose secrets were deleted or cleared, which cannot be evidence that anything re-sealed a value it should never have read. */
+  /** A row whose token a writer cleared, and a row that no longer exists at all, which nothing left behind can tell apart from a deployment its owner deleted. */
   removed: number;
-  reSealed: string[];
+  unexplained: string[];
 }
 
 const DEFAULT_BATCH_SIZE = 100;
@@ -41,11 +42,14 @@ function digestOf(sealedSecrets: string) {
   return createHash("sha256").update(sealedSecrets).digest("hex");
 }
 
-/** A row whose `updated_at` still reads as it did was written by nothing that goes through a repository, so a token that changed under it changed with no writer behind it. */
-function wasWrittenSince(original: StoredToken, current: StoredToken) {
-  if (!current.updatedAtMarker) return false;
+/** Both writers of a stored token stamp `updated_at` in the same statement, so a row whose stamp still reads as it did was written by nothing that goes through a repository. */
+function stampMoved(previous: string | null, current: string | null) {
+  return current !== null && current !== previous;
+}
 
-  return current.updatedAtMarker !== original.updatedAtMarker;
+/** Markers are fixed-width and ordered as text, so a token found under a stamp below the one the run opened with arrived without a write behind it. */
+function stampedSince(marker: string | null, runOpenedAt: string) {
+  return marker !== null && marker >= runOpenedAt;
 }
 
 /** Reports differences rather than throwing, because what a difference means belongs to the run being verified, not to the instrument. */
@@ -54,6 +58,7 @@ export class StoredSecretFingerprintService {
   constructor(private readonly deploymentSettingRepository: DeploymentSettingRepository) {}
 
   async take({ batchSize = DEFAULT_BATCH_SIZE }: { batchSize?: number } = {}): Promise<StoredSecretSnapshot> {
+    const takenAtMarker = await this.deploymentSettingRepository.readCurrentUpdatedAtMarker();
     const rows = createHash("sha256");
     const tokens = new Map<string, StoredToken>();
     let rowCount = 0;
@@ -70,29 +75,58 @@ export class StoredSecretFingerprintService {
       }
     }
 
-    return { fingerprint: { digest: rows.digest("hex"), rowCount, byteTotal }, tokens };
+    return { fingerprint: { digest: rows.digest("hex"), rowCount, byteTotal }, tokens, takenAtMarker };
   }
 
   /** Compares per row rather than by digest alone, because under live traffic the digests legitimately differ and only a per-row answer names what is behind it. */
-  async reconcile(before: StoredSecretSnapshot, { batchSize }: { batchSize?: number } = {}): Promise<StoredSecretReconciliation> {
+  async reconcile(before: StoredSecretSnapshot, { batchSize = DEFAULT_BATCH_SIZE }: { batchSize?: number } = {}): Promise<StoredSecretReconciliation> {
     const after = await this.take({ batchSize });
-    const unseen = new Map(before.tokens);
-    const reSealed: string[] = [];
+    const vanished = new Map(before.tokens);
+    const unexplained: string[] = [];
     let ownerRewritten = 0;
     let created = 0;
 
     for (const [id, token] of after.tokens) {
-      const original = unseen.get(id);
-      unseen.delete(id);
+      const original = vanished.get(id);
+      vanished.delete(id);
 
       if (!original) {
-        created += 1;
+        if (stampedSince(token.updatedAtMarker, before.takenAtMarker)) created += 1;
+        else unexplained.push(id);
       } else if (original.digest !== token.digest) {
-        if (wasWrittenSince(original, token)) ownerRewritten += 1;
-        else reSealed.push(id);
+        if (stampMoved(original.updatedAtMarker, token.updatedAtMarker)) ownerRewritten += 1;
+        else unexplained.push(id);
       }
     }
 
-    return { before: before.fingerprint, after: after.fingerprint, ownerRewritten, created, removed: unseen.size, reSealed };
+    const gone = await this.#classifyVanished(vanished, batchSize);
+
+    return {
+      before: before.fingerprint,
+      after: after.fingerprint,
+      ownerRewritten,
+      created,
+      removed: gone.removed,
+      unexplained: [...unexplained, ...gone.unexplained]
+    };
+  }
+
+  /** The sweep only reads rows that carry a token, so a row that lost one has to be asked for its stamp directly rather than read off the second sweep. */
+  async #classifyVanished(vanished: Map<string, StoredToken>, batchSize: number) {
+    const entries = [...vanished];
+    const unexplained: string[] = [];
+    let removed = 0;
+
+    for (let start = 0; start < entries.length; start += batchSize) {
+      const chunk = entries.slice(start, start + batchSize);
+      const markers = await this.deploymentSettingRepository.findUpdatedAtMarkers(chunk.map(([id]) => id));
+
+      for (const [id, original] of chunk) {
+        if (!markers.has(id) || stampMoved(original.updatedAtMarker, markers.get(id) ?? null)) removed += 1;
+        else unexplained.push(id);
+      }
+    }
+
+    return { removed, unexplained };
   }
 }

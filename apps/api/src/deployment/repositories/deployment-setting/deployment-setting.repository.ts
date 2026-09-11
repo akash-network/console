@@ -51,7 +51,7 @@ export type OpenDeployment = {
 export type SealedSecret = {
   id: string;
   sealedSecrets: string;
-  /** The write timestamp as stored, in text, so a write landing in the same millisecond as the previous one still reads as a change a `Date` would flatten. */
+  /** The write timestamp as stored, fixed-width and microsecond-exact, so two readings compare and order as text without a `Date` flattening them to milliseconds. */
   updatedAtMarker: string | null;
 };
 
@@ -83,6 +83,8 @@ export type AutoTopUpDeployment = {
  * initialised managed wallet, so there is no owner for whom auto top-up cannot work.
  */
 const AUTO_TOP_UP_ENABLED_BY_DEFAULT = true;
+
+const UPDATED_AT_MARKER_FORMAT = 'YYYY-MM-DD"T"HH24:MI:SS.US';
 
 @singleton()
 export class DeploymentSettingRepository extends BaseRepository<Table, DeploymentSettingsInput, DeploymentSettingsOutput> {
@@ -190,7 +192,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
 
     while (true) {
       const batch = await this.pg
-        .select({ id: this.table.id, sealedSecrets: this.table.sealedSecrets, updatedAtMarker: sql<string | null>`${this.table.updatedAt}::text` })
+        .select({ id: this.table.id, sealedSecrets: this.table.sealedSecrets, updatedAtMarker: this.#updatedAtMarker() })
         .from(this.table)
         .where(and(isNotNull(this.table.sealedSecrets), ...(cursor ? [gt(this.table.id, cursor)] : [])))
         .orderBy(asc(this.table.id))
@@ -208,6 +210,28 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
 
       cursor = batch[batch.length - 1].id;
     }
+  }
+
+  /** The reading a write happening now would leave, so a row carrying a stamp below it carries one no writer of this run produced. */
+  async readCurrentUpdatedAtMarker(): Promise<string> {
+    const [row] = await this.pg.execute<{ marker: string }>(sql`select to_char(now()::timestamp, ${UPDATED_AT_MARKER_FORMAT}) as marker`);
+
+    return row.marker;
+  }
+
+  /** Answers for rows the sealed-secrets sweep cannot reach, so a row that lost its token can still be asked whether anything wrote it; an id absent from the result no longer exists. */
+  async findUpdatedAtMarkers(ids: string[]): Promise<Map<string, string | null>> {
+    if (ids.length === 0) {
+      return new Map();
+    }
+
+    const rows = await this.pg.select({ id: this.table.id, updatedAtMarker: this.#updatedAtMarker() }).from(this.table).where(inArray(this.table.id, ids));
+
+    return new Map(rows.map(row => [row.id, row.updatedAtMarker]));
+  }
+
+  #updatedAtMarker() {
+    return sql<string | null>`to_char(${this.table.updatedAt}, ${UPDATED_AT_MARKER_FORMAT})`;
   }
 
   async #findAutoTopUpDeployments(address?: string): Promise<AutoTopUpDeployment[]> {
