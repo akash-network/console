@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Download, Page } from "@playwright/test";
 
 import { testEnvConfig } from "../fixture/test-env.config";
 import { AppNav } from "./AppNav";
@@ -19,12 +19,47 @@ export class ConfigureDeploymentPage {
   /**
    * Reaches the configure screen the way a user does — from the app home, opening the Deploy entry in whichever
    * nav is rendered (the classic deployment-type/template picker), then choosing "Run Custom Container" (bring
-   * your own image), which routes on to configure under the onboarding redesign — rather than deep-linking to the URL.
+   * your own image), which routes on to configure — rather than deep-linking to the URL.
    */
   async open() {
+    await this.openFromPicker("Run Custom Container");
+  }
+
+  /** The Container-VM entry: the same picker walk through the card that seeds an SSH-accessible linux VM. */
+  async openContainerVm() {
+    await this.openFromPicker("Launch Container-VM");
+  }
+
+  /** The legacy Container-VM URL, kept alive for old links and bookmarks; it redirects onto configure. */
+  async gotoDeployLinux() {
+    await this.page.goto(`${testEnvConfig.BASE_URL}/deploy-linux`);
+    await this.page.getByRole("heading", { name: "Configure your deployment" }).waitFor({ state: "visible", timeout: 30_000 });
+  }
+
+  /**
+   * Answers deployment creation locally and records every attempt, so a submit can be driven against a deployed
+   * environment with no chance of putting a deployment on chain even if the form's own guards regress.
+   */
+  async blockDeploymentCreation(): Promise<string[]> {
+    const attempts: string[] = [];
+
+    await this.page.route(/\/api\/proxy\/v1\/deployments(\?|$)/, async route => {
+      if (route.request().method() !== "POST") {
+        return route.fallback();
+      }
+
+      attempts.push(route.request().postData() ?? "");
+      await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "blocked by e2e" }) });
+    });
+
+    return attempts;
+  }
+
+  /** The picker cards are divs carrying only an aria-label, so getByLabel is the locator that reaches them. */
+  private async openFromPicker(cardLabel: string) {
     await this.page.goto(`${testEnvConfig.BASE_URL}/`, { waitUntil: "commit" });
     await new AppNav(this.page).openDeploy();
-    await this.page.getByLabel("Run Custom Container").click({ timeout: 60_000 });
+    await this.page.getByLabel(cardLabel).click({ timeout: 60_000 });
     await this.page.getByRole("heading", { name: "Configure your deployment" }).waitFor({ state: "visible", timeout: 30_000 });
   }
 
@@ -35,6 +70,18 @@ export class ConfigureDeploymentPage {
 
   async fillImageName(image: string) {
     await this.dockerImageInput().fill(image);
+  }
+
+  async selectDistro(distro: string) {
+    await this.distributionSelect().click();
+    await this.page.getByRole("option", { name: distro }).click();
+  }
+
+  /** Arms the download listener before the click, since the zip is saved synchronously once the key pair exists. */
+  async generateSshKeys(): Promise<Download> {
+    const download = this.page.waitForEvent("download", { timeout: 30_000 });
+    await this.page.getByRole("button", { name: "Generate new key" }).click();
+    return download;
   }
 
   /** The SDL persisted for the active configure draft, or null when none has been written yet. */
@@ -55,6 +102,27 @@ export class ConfigureDeploymentPage {
 
   dockerImageInput() {
     return this.page.getByRole("textbox", { name: "Docker image" });
+  }
+
+  /** The image card, which is titled "Operating System" instead of "Docker" for a Container-VM service. */
+  operatingSystemCard() {
+    return this.page.getByRole("button", { name: /(Collapse|Expand) Operating System/ });
+  }
+
+  distributionSelect() {
+    return this.page.getByRole("combobox", { name: "Distribution" });
+  }
+
+  exposeSshCheckbox() {
+    return this.page.getByRole("checkbox", { name: "Expose SSH" });
+  }
+
+  sshPublicKeyInput() {
+    return this.page.getByRole("textbox", { name: "SSH public key" });
+  }
+
+  sshKeyRequiredError() {
+    return this.page.getByText("SSH Public key is required.");
   }
 
   cpuInput() {
