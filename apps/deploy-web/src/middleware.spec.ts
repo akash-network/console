@@ -108,6 +108,14 @@ describe("middleware", () => {
     expect(response.headers.get("location")).toBe("http://localhost/");
   });
 
+  it("keeps a same-origin absolute return url with a protocol-relative path on the request origin", () => {
+    const { response } = setup({ path: "/maintenance?return=http%3A%2F%2Flocalhost%2F%2Fevil.example%2Fphish" });
+
+    const location = new URL(response.headers.get("location") ?? "");
+    expect(location.host).toBe("localhost");
+    expect(location.hostname).not.toBe("evil.example");
+  });
+
   function setup(input: { path: string }) {
     const request = new NextRequest(new URL(`http://localhost${input.path}`));
     const response = middleware(request);

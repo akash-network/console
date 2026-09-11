@@ -41,10 +41,10 @@ export function middleware(request: NextRequest) {
     setContentSecurityPolicyHeaders(redirectResponse, contentSecurityPolicyHeaderName, contentSecurityPolicy, contentSecurityPolicyReportHeaders);
     return redirectResponse;
   } else if (!isMaintenanceMode && pathname.startsWith(maintenancePage)) {
-    const returnPath = getReturnPath(request);
-    logger.info({ message: `Redirecting from maintenance page to ${returnPath}` });
+    const returnUrl = getReturnPath(request);
+    logger.info({ message: `Redirecting from maintenance page to ${returnUrl.pathname}${returnUrl.search}` });
 
-    const redirectResponse = NextResponse.redirect(new URL(returnPath, request.url), 307); // 307 - temporary redirect
+    const redirectResponse = NextResponse.redirect(returnUrl, 307); // 307 - temporary redirect
     setContentSecurityPolicyHeaders(redirectResponse, contentSecurityPolicyHeaderName, contentSecurityPolicy, contentSecurityPolicyReportHeaders);
     return redirectResponse;
   }
@@ -82,17 +82,21 @@ function setContentSecurityPolicyHeaders(
 }
 
 function getReturnPath(request: NextRequest) {
+  const requestUrl = new URL(request.url);
   try {
     const returnParam = request.nextUrl.searchParams.get("return");
     const returnPath = returnParam ? decodeURIComponent(returnParam) : "/";
-    const requestUrl = new URL(request.url);
     const returnUrl = new URL(returnPath, requestUrl);
     const isSameOrigin = returnUrl.origin === requestUrl.origin;
 
-    return isSameOrigin ? `${returnUrl.pathname}${returnUrl.search}${returnUrl.hash}` : "/";
+    // Return the validated same-origin URL object rather than a pathname string.
+    // A same-origin absolute return (e.g. `http://host//evil.example/phish`) yields a
+    // pathname of `//evil.example/phish`; re-parsing that string against the request URL
+    // treats it as a protocol-relative URL and escapes to an external origin (CWE-601).
+    return isSameOrigin ? returnUrl : new URL("/", requestUrl);
   } catch (error) {
     logger.error({ message: "Failed to get return path", error });
-    return "/";
+    return new URL("/", requestUrl);
   }
 }
 
