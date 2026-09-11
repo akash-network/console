@@ -17,6 +17,24 @@ describe(useDeploymentName.name, () => {
     expect(result.current.name).toBe("my-app");
   });
 
+  it("shows the name the api holds once the deployment exists", () => {
+    const { result } = setup({ initialName: "my-app", dseq: "12345", apiName: "named-elsewhere" });
+
+    expect(result.current.name).toBe("named-elsewhere");
+  });
+
+  it("keeps showing the typed name while no deployment exists to carry it", () => {
+    const { result } = setup({ initialName: "my-app", dseq: null, apiName: "named-elsewhere" });
+
+    expect(result.current.name).toBe("my-app");
+  });
+
+  it("resolves to an empty name when neither the api nor this session holds one, leaving the field its placeholder", () => {
+    const { result } = setup({ dseq: "12345" });
+
+    expect(result.current.name).toBe("");
+  });
+
   it("updates the name via setName", () => {
     const { result } = setup({ initialName: "my-app" });
 
@@ -56,9 +74,10 @@ describe(useDeploymentName.name, () => {
     expect(deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "12345", { name: "my-app" });
   });
 
-  function setup(input: { initialName?: string; dseq?: string | null; settingsId?: string | null }) {
+  function setup(input: { initialName?: string; dseq?: string | null; settingsId?: string | null; apiName?: string }) {
     const deploymentLocalStorage = mock<DeploymentStorageService>();
     const useServices: typeof DEPENDENCIES.useServices = () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ deploymentLocalStorage });
+    const useResolvedDeploymentName: typeof DEPENDENCIES.useResolvedDeploymentName = dseq => (dseq ? input.apiName : undefined);
 
     const store = createStore();
     store.set(settingsIdAtom, input.settingsId ?? null);
@@ -66,7 +85,10 @@ describe(useDeploymentName.name, () => {
     const initialProps = { initialName: input.initialName, dseq: input.dseq ?? null };
 
     return {
-      ...renderHook((props: { initialName?: string; dseq: string | null }) => useDeploymentName(props, { useServices }), { wrapper, initialProps }),
+      ...renderHook((props: { initialName?: string; dseq: string | null }) => useDeploymentName(props, { useServices, useResolvedDeploymentName }), {
+        wrapper,
+        initialProps
+      }),
       deploymentLocalStorage,
       store
     };
