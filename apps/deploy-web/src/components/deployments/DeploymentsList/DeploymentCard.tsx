@@ -25,9 +25,11 @@ export const DEPENDENCIES = {
 
 /**
  * Selection and the actions menu are secondary to reading the card, so they stay out of the way until the card
- * is hovered. Where hover does not exist (touch) they stay visible, and keyboard focus reveals them everywhere.
+ * is hovered. Where hover does not exist (touch) they stay visible, keyboard focus reveals them everywhere, and
+ * a ticked checkbox stays visible so a selection is never hidden by moving the pointer away.
  */
-const HOVER_REVEALED = "transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100";
+const HOVER_REVEALED =
+  "transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 data-[state=checked]:opacity-100";
 
 export interface DeploymentCardProps {
   deployment: NamedDeploymentDto;
@@ -60,7 +62,7 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
                 aria-label={`Select deployment ${deployment.name || deployment.dseq}`}
                 checked={isSelected}
                 expandedTouchTarget
-                className={cn("shrink-0", !isSelected && HOVER_REVEALED)}
+                className={cn("shrink-0", HOVER_REVEALED)}
                 onClick={event => onSelect?.({ id: deployment.dseq, isShiftPressed: event.shiftKey })}
               />
             )}

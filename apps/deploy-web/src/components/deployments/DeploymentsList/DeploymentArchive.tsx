@@ -2,7 +2,6 @@
 import type { FC } from "react";
 import { useState } from "react";
 import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowRight } from "iconoir-react";
 
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
@@ -23,15 +22,14 @@ export interface DeploymentArchiveProps {
 }
 
 export const DeploymentArchive: FC<DeploymentArchiveProps> = ({ deployments, providers, viewMode, dependencies: d = DEPENDENCIES }) => {
-  const [isOpen, setIsOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(ARCHIVE_PAGE_SIZE);
 
   if (deployments.length === 0) return null;
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="py-8">
-      <CollapsibleTrigger className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground">
-        <NavArrowRight className={cn("h-4 w-4 transition-transform", isOpen && "rotate-90")} />
+    <Collapsible className="py-8">
+      <CollapsibleTrigger className="group inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground">
+        <NavArrowRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
         Archive // {deployments.length} closed
       </CollapsibleTrigger>
       <CollapsibleContent className="pt-4">

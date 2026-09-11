@@ -1,6 +1,5 @@
 "use client";
 import type { FC } from "react";
-import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger, Skeleton } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowDown, OpenInWindow } from "iconoir-react";
@@ -22,8 +21,6 @@ export interface DeploymentEndpointsProps {
 }
 
 export const DeploymentEndpoints: FC<DeploymentEndpointsProps> = ({ endpoints, isLoading, unreachableReason, className }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-
   if (isLoading) {
     return <Skeleton className={cn("h-5 w-40", className)} data-testid="deployment-endpoints-skeleton" />;
   }
@@ -37,10 +34,10 @@ export const DeploymentEndpoints: FC<DeploymentEndpointsProps> = ({ endpoints, i
   }
 
   return (
-    <Collapsible open={isExpanded} onOpenChange={setIsExpanded} className={className}>
-      <CollapsibleTrigger className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground">
+    <Collapsible className={className}>
+      <CollapsibleTrigger className="group inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground">
         {endpoints.length} endpoints
-        <NavArrowDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+        <NavArrowDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
       </CollapsibleTrigger>
       <CollapsibleContent className="mt-2 space-y-1">
         {endpoints.map(endpoint => (
