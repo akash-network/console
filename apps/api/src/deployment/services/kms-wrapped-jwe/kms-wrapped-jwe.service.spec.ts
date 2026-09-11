@@ -9,8 +9,8 @@ import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 
 import type { SdlSecretsKmsClient } from "@src/deployment/providers/kms.provider";
-import { KmsWrappedJweInstrumentationService } from "./kms-wrapped-jwe-instrumentation.service";
 import { KmsWrappedJweError, KmsWrappedJweService } from "./kms-wrapped-jwe.service";
+import type { KmsWrappedJweInstrumentationService } from "./kms-wrapped-jwe-instrumentation.service";
 
 const KID = "sdl-secrets.v1";
 const VERSION_NAME = "projects/console-test/locations/global/keyRings/console-api/cryptoKeys/sdl-secrets/cryptoKeyVersions/1";
