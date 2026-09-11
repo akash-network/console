@@ -14,6 +14,7 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/top-up-deployments.controller";
 import { GpuBotController } from "@src/deployment/controllers/gpu-bot/gpu-bot.controller";
 import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
+import { DataKeyRewrapController } from "@src/secret/controllers/data-key-rewrap/data-key-rewrap.controller";
 import { WorkloadAbuseController } from "@src/workload-abuse/controllers/workload-abuse.controller";
 import { APP_INITIALIZER, ON_APP_START } from "../core/providers/app-initializer";
 
@@ -119,6 +120,18 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       await container.resolve(GpuBotController).createGpuBids();
+    });
+  });
+
+program
+  .command("rewrap-data-keys")
+  .description("Re-wrap every user's data key onto a KMS key version, so the versions it leaves behind can be disabled")
+  .requiredOption("-t, --target-version <string>", "KMS key version every data key is wrapped under", value => z.string().min(1).parse(value))
+  .option("-b, --batch-size <number>", "How many data keys are re-wrapped per transaction", value => z.number({ coerce: true }).int().positive().parse(value))
+  .option("-d, --dry-run", "Report the census and what would be re-wrapped without writing anything", false)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(DataKeyRewrapController).rewrapDataKeys(options);
     });
   });
 
