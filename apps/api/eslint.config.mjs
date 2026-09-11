@@ -1,5 +1,7 @@
 import tsConfig from "@akashnetwork/dev-config/eslint/typescript.mjs";
 
+import isolatedUnitTests from "./test/isolated-unit-tests.json" with { type: "json" };
+
 export default [
   ...tsConfig,
   {
@@ -21,6 +23,39 @@ export default [
               message: "Import createRoute from '@src/core/lib/create-route/create-route' instead to enforce security declaration."
             }
           ]
+        }
+      ]
+    }
+  },
+  {
+    files: ["src/**/*.spec.ts"],
+    ignores: isolatedUnitTests,
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "ImportDeclaration[source.value='tsyringe'] > ImportSpecifier[imported.name='container'][local.name!='container']",
+          message: "Import tsyringe's container under its own name so the root container rule below can see how it is used."
+        },
+        {
+          selector: "ImportDeclaration[source.value='tsyringe'] > ImportNamespaceSpecifier",
+          message: "Import tsyringe's members by name so the root container rule below can see how the container is used."
+        },
+        {
+          selector: "VariableDeclarator[init.name='container']",
+          message: "Renaming or destructuring the root container hides it from the rule below. Call container.createChildContainer() directly, or list this test in test/isolated-unit-tests.json."
+        },
+        {
+          selector: "MemberExpression[object.name='container'][property.name!='createChildContainer']",
+          message: "Reused workers share the root container, so registering or resolving on it leaks into other files. Use container.createChildContainer(), or list this test in test/isolated-unit-tests.json."
+        },
+        {
+          selector: "ImportExpression[source.value='tsyringe']",
+          message: "Tests importing tsyringe dynamically must be listed in test/isolated-unit-tests.json."
+        },
+        {
+          selector: "CallExpression[callee.property.name=/^(mock|doMock|unmock|doUnmock|resetModules|hoisted)$/], CallExpression[callee.property.value=/^(mock|doMock|unmock|doUnmock|resetModules|hoisted)$/]",
+          message: "Module mocks require isolation. Use dependency injection or list this test in test/isolated-unit-tests.json."
         }
       ]
     }
