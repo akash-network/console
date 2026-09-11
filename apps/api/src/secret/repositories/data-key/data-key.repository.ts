@@ -1,6 +1,7 @@
 import { and, asc, gt, ne, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
+import { assertBatchSize } from "@src/core/lib/batch-size/batch-size";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
@@ -76,6 +77,8 @@ export class DataKeyRepository extends BaseRepository<Table, DataKeyInput, DataK
     targetKid: DataKeyOutput["wrappedByKid"];
     batchSize: number;
   }): AsyncGenerator<DataKeyOutput[]> {
+    assertBatchSize(batchSize);
+
     let cursor: DataKeyOutput["id"] | undefined;
 
     while (true) {

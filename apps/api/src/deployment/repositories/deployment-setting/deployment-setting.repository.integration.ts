@@ -872,6 +872,14 @@ describe(DeploymentSettingRepository.name, () => {
   });
 
   describe("findStoredSecretsIteratively", () => {
+    it("refuses a batch size of zero, which would read as a fleet holding no secrets", async () => {
+      const { deploymentSettingRepository } = await setup();
+
+      await expect(deploymentSettingRepository.findStoredSecretsIteratively({ batchSize: 0 }).next()).rejects.toThrow(
+        "Batch size must be a positive integer"
+      );
+    });
+
     it("yields a deployment's token under the id that holds it", async () => {
       const { sealedToken, createSettingWithSecrets, findStoredSecrets } = await setup();
       const id = await createSettingWithSecrets(sealedToken);

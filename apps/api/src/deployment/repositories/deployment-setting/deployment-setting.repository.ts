@@ -2,6 +2,7 @@ import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, or, s
 import { singleton } from "tsyringe";
 
 import { UserWallets, WalletSetting } from "@src/billing/model-schemas";
+import { assertBatchSize } from "@src/core/lib/batch-size/batch-size";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
@@ -185,6 +186,8 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
 
   /** Rows holding no secret are left out, so a fingerprint's row and byte counts describe the deployments that actually carry one. */
   async *findStoredSecretsIteratively({ batchSize }: { batchSize: number }): AsyncGenerator<DeploymentStoredSecrets[]> {
+    assertBatchSize(batchSize);
+
     let cursor: string | undefined;
 
     while (true) {

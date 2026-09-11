@@ -121,6 +121,14 @@ describe(DataKeyRepository.name, () => {
   });
 
   describe("findWrappedUnderOtherVersionsIteratively", () => {
+    it("refuses a batch size of zero, which would read as a fleet needing no work", async () => {
+      const { dataKeyRepository, versionOf } = setup();
+
+      await expect(dataKeyRepository.findWrappedUnderOtherVersionsIteratively({ targetKid: versionOf(2), batchSize: 0 }).next()).rejects.toThrow(
+        "Batch size must be a positive integer"
+      );
+    });
+
     it("yields the rows wrapped under another version and passes over those already at the target", async () => {
       const { versionOf, seedDataKey, findRewrapCandidates } = setup();
       const staleFirst = await seedDataKey(versionOf(1));
