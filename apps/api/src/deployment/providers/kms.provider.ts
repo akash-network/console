@@ -21,14 +21,46 @@ export interface SdlSecretsKmsClient {
 }
 
 /**
- * The crypto key version SDL secrets are sealed to, and the short alias clients put in a seal's
- * `kid`. `asymmetricDecrypt` names an exact version and cannot infer one from a ciphertext, so the
- * alias is what later maps an incoming seal back to `versionName`.
+ * The crypto key version new wraps are sealed to, the short alias clients put in a seal's `kid`,
+ * and the mapping from any alias of the same crypto key back to a version name. `versionName` and
+ * `kid` name the write target alone; reads follow `resolveVersionName`, so raising the configured
+ * version leaves everything wrapped under an earlier one readable.
  */
 export interface SdlSecretsKmsTarget {
   client: SdlSecretsKmsClient;
   versionName: string;
   kid: string;
+  resolveVersionName(kid: unknown): string | undefined;
+}
+
+/** Cloud KMS version ids are positive integers written without a leading zero, and no crypto key id contains a dot, so `<key>.v<digits>` splits unambiguously. */
+const VERSION_ALIAS_SUFFIX = /^\.v([1-9][0-9]{0,9})$/;
+
+function parseVersionAlias(key: string, kid: unknown): string | undefined {
+  if (typeof kid !== "string" || !kid.startsWith(key)) return undefined;
+
+  return VERSION_ALIAS_SUFFIX.exec(kid.slice(key.length))?.[1];
+}
+
+/** Takes `versionPath` rather than building the resource name itself, so the SDK stays the only thing that knows its shape. */
+export function createSdlSecretsKmsTarget(input: {
+  client: SdlSecretsKmsClient;
+  versionPath: (version: string) => string;
+  key: string;
+  version: string;
+}): SdlSecretsKmsTarget {
+  const { client, versionPath, key, version } = input;
+
+  return {
+    client,
+    versionName: versionPath(version),
+    kid: `${key}.v${version}`,
+    resolveVersionName(kid) {
+      const resolved = parseVersionAlias(key, kid);
+
+      return resolved && versionPath(resolved);
+    }
+  };
 }
 
 export const KMS_CLIENT: InjectionToken<KeyManagementServiceClient> = Symbol("KMS_CLIENT");
@@ -68,12 +100,12 @@ container.register(SDL_SECRETS_KMS_TARGET, {
     const auth = config.get("GCP_KMS_AUTH");
     const client = c.resolve<KeyManagementServiceClient>(KMS_CLIENT);
     const key = config.get("GCP_KMS_KEY");
-    const version = config.get("GCP_KMS_KEY_VERSION");
 
-    return {
+    return createSdlSecretsKmsTarget({
       client,
-      versionName: client.cryptoKeyVersionPath(auth.project_id, config.get("GCP_KMS_LOCATION"), config.get("GCP_KMS_KEY_RING"), key, version),
-      kid: `${key}.v${version}`
-    };
+      versionPath: version => client.cryptoKeyVersionPath(auth.project_id, config.get("GCP_KMS_LOCATION"), config.get("GCP_KMS_KEY_RING"), key, version),
+      key,
+      version: config.get("GCP_KMS_KEY_VERSION")
+    });
   })
 });

@@ -10,8 +10,10 @@ import { mock } from "vitest-mock-extended";
 import type { SdlSecretsKmsClient } from "@src/deployment/providers/kms.provider";
 import { KmsWrappedJweError, KmsWrappedJweService } from "./kms-wrapped-jwe.service";
 
+import { createTestSdlSecretsKmsTarget, sdlSecretsVersionPath } from "@test/mocks/sdl-secrets-kms.mock";
+
 const KID = "sdl-secrets.v1";
-const VERSION_NAME = "projects/console-test/locations/global/keyRings/console-api/cryptoKeys/sdl-secrets/cryptoKeyVersions/1";
+const VERSION_NAME = sdlSecretsVersionPath("1");
 
 async function expectFailure(open: Promise<unknown>, failure: string) {
   await expect(open).rejects.toMatchObject({ failure });
@@ -34,7 +36,7 @@ describe(KmsWrappedJweService.name, () => {
     const { service, wrap } = setup();
     const payload = randomBytes(32);
 
-    const plaintext = await service.open(service.parse(await wrap(payload)));
+    const plaintext = await service.open(service.parse(await wrap(payload)), VERSION_NAME);
 
     expect(plaintext.equals(payload)).toBe(true);
   });
@@ -42,7 +44,7 @@ describe(KmsWrappedJweService.name, () => {
   it("returns a payload that is not JSON, because what the bytes mean belongs to the caller", async () => {
     const { service, wrap } = setup();
 
-    const plaintext = await service.open(service.parse(await wrap(Buffer.from([0, 1, 255]))));
+    const plaintext = await service.open(service.parse(await wrap(Buffer.from([0, 1, 255]))), VERSION_NAME);
 
     expect([...plaintext]).toEqual([0, 1, 255]);
   });
@@ -71,19 +73,29 @@ describe(KmsWrappedJweService.name, () => {
     expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
   });
 
-  it("unwraps the content encryption key with the configured crypto key version", async () => {
+  it("unwraps the content encryption key with the crypto key version it is given", async () => {
     const { service, wrap, kmsClient } = setup();
 
-    await service.open(service.parse(await wrap(randomBytes(32))));
+    await service.open(service.parse(await wrap(randomBytes(32))), VERSION_NAME);
 
     expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledWith(expect.objectContaining({ name: VERSION_NAME }));
+  });
+
+  it("unwraps with the version it is given rather than the one its target is configured for", async () => {
+    const { service, wrap, kmsClient } = setup();
+    const olderVersion = sdlSecretsVersionPath("7");
+
+    await service.open(service.parse(await wrap(randomBytes(32))), olderVersion);
+
+    expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledWith(expect.objectContaining({ name: olderVersion }));
+    expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalledWith(expect.objectContaining({ name: VERSION_NAME }));
   });
 
   it("spends one key service call per open", async () => {
     const { service, wrap, kmsClient } = setup();
     const parsed = service.parse(await wrap(randomBytes(32)));
 
-    await service.open(parsed);
+    await service.open(parsed, VERSION_NAME);
 
     expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(1);
   });
@@ -152,7 +164,24 @@ describe(KmsWrappedJweService.name, () => {
     const { service, wrap, kmsClient } = setup();
     kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("3 INVALID_ARGUMENT"), { code: grpc.status.INVALID_ARGUMENT }));
 
-    await expectFailure(service.open(service.parse(await wrap(randomBytes(32)))), "ENCRYPTED_KEY_REJECTED");
+    await expectFailure(service.open(service.parse(await wrap(randomBytes(32))), VERSION_NAME), "ENCRYPTED_KEY_REJECTED");
+  });
+
+  it("reports a version the key service does not have separately from one that is unreachable", async () => {
+    const { service, wrap, kmsClient } = setup();
+    kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("5 NOT_FOUND"), { code: grpc.status.NOT_FOUND }));
+
+    await expect(service.open(service.parse(await wrap(randomBytes(32))), VERSION_NAME)).rejects.toMatchObject({
+      failure: "WRAPPING_VERSION_UNUSABLE",
+      details: { versionName: VERSION_NAME }
+    });
+  });
+
+  it("reports a disabled or destroyed version as unusable rather than as an outage", async () => {
+    const { service, wrap, kmsClient } = setup();
+    kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("9 FAILED_PRECONDITION"), { code: grpc.status.FAILED_PRECONDITION }));
+
+    await expectFailure(service.open(service.parse(await wrap(randomBytes(32))), VERSION_NAME), "WRAPPING_VERSION_UNUSABLE");
   });
 
   it("reports an unreachable key service and carries the underlying error for the caller to log", async () => {
@@ -160,7 +189,7 @@ describe(KmsWrappedJweService.name, () => {
     const unreachable = Object.assign(new Error("14 UNAVAILABLE"), { code: grpc.status.UNAVAILABLE });
     kmsClient.asymmetricDecrypt.mockRejectedValue(unreachable);
 
-    await expect(service.open(service.parse(await wrap(randomBytes(32))))).rejects.toMatchObject({
+    await expect(service.open(service.parse(await wrap(randomBytes(32))), VERSION_NAME)).rejects.toMatchObject({
       failure: "KEY_SERVICE_UNREACHABLE",
       details: { versionName: VERSION_NAME, error: unreachable }
     });
@@ -170,21 +199,21 @@ describe(KmsWrappedJweService.name, () => {
     const { service, wrap, kmsClient } = setup();
     kmsClient.asymmetricDecrypt.mockResolvedValue([{ plaintext: Buffer.alloc(32), verifiedCiphertextCrc32c: false }]);
 
-    await expectFailure(service.open(service.parse(await wrap(randomBytes(32)))), "KEY_SERVICE_REQUEST_CORRUPTED");
+    await expectFailure(service.open(service.parse(await wrap(randomBytes(32))), VERSION_NAME), "KEY_SERVICE_REQUEST_CORRUPTED");
   });
 
   it("reports a key service that returned no plaintext", async () => {
     const { service, wrap, kmsClient } = setup();
     kmsClient.asymmetricDecrypt.mockResolvedValue([{ verifiedCiphertextCrc32c: true }]);
 
-    await expectFailure(service.open(service.parse(await wrap(randomBytes(32)))), "KEY_SERVICE_PLAINTEXT_MISSING");
+    await expectFailure(service.open(service.parse(await wrap(randomBytes(32))), VERSION_NAME), "KEY_SERVICE_PLAINTEXT_MISSING");
   });
 
   it("reports a key service whose plaintext fails its own checksum", async () => {
     const { service, wrap, kmsClient } = setup();
     kmsClient.asymmetricDecrypt.mockResolvedValue([{ plaintext: Buffer.alloc(32), plaintextCrc32c: { value: "1" }, verifiedCiphertextCrc32c: true }]);
 
-    await expectFailure(service.open(service.parse(await wrap(randomBytes(32)))), "KEY_SERVICE_RESPONSE_CORRUPTED");
+    await expectFailure(service.open(service.parse(await wrap(randomBytes(32))), VERSION_NAME), "KEY_SERVICE_RESPONSE_CORRUPTED");
   });
 
   it("reports an altered ciphertext as an authentication failure", async () => {
@@ -192,7 +221,7 @@ describe(KmsWrappedJweService.name, () => {
     const parts = (await wrap(randomBytes(32))).split(".");
     parts[3] = Buffer.from("tampered").toString("base64url");
 
-    await expectFailure(service.open(service.parse(parts.join("."))), "AUTHENTICATION_FAILED");
+    await expectFailure(service.open(service.parse(parts.join(".")), VERSION_NAME), "AUTHENTICATION_FAILED");
   });
 
   it("reports an altered protected header as an authentication failure, because the header is the additional authenticated data", async () => {
@@ -201,7 +230,7 @@ describe(KmsWrappedJweService.name, () => {
     const claims = JSON.parse(Buffer.from(protectedHeader, "base64url").toString());
     const forged = Buffer.from(JSON.stringify({ ...claims, kid: "sdl-secrets.v9" })).toString("base64url");
 
-    await expectFailure(service.open(service.parse([forged, ...rest].join("."))), "AUTHENTICATION_FAILED");
+    await expectFailure(service.open(service.parse([forged, ...rest].join(".")), VERSION_NAME), "AUTHENTICATION_FAILED");
   });
 
   it("reports a content encryption key that is not the length AES-256 requires as an authentication failure", async () => {
@@ -211,7 +240,7 @@ describe(KmsWrappedJweService.name, () => {
       { plaintext: shortKey, plaintextCrc32c: { value: String(crc32c.calculate(shortKey)) }, verifiedCiphertextCrc32c: true }
     ]);
 
-    await expectFailure(service.open(service.parse(await wrap(randomBytes(32)))), "AUTHENTICATION_FAILED");
+    await expectFailure(service.open(service.parse(await wrap(randomBytes(32))), VERSION_NAME), "AUTHENTICATION_FAILED");
   });
 
   function setup() {
@@ -233,7 +262,7 @@ describe(KmsWrappedJweService.name, () => {
       ];
     });
 
-    const service = new KmsWrappedJweService({ client: kmsClient, versionName: VERSION_NAME, kid: KID });
+    const service = new KmsWrappedJweService(createTestSdlSecretsKmsTarget({ client: kmsClient }));
 
     return { service, wrap, kmsClient, privateKey };
   }

@@ -14,8 +14,11 @@ import { KmsWrappedJweService } from "@src/deployment/services/kms-wrapped-jwe/k
 import type { UserOutput } from "@src/user/repositories";
 import { SdlSecretsUnsealerService } from "./sdl-secrets-unsealer.service";
 
+import { createTestSdlSecretsKmsTarget, sdlSecretsVersionPath } from "@test/mocks/sdl-secrets-kms.mock";
+
 const KID = "sdl-secrets.v1";
-const VERSION_NAME = "projects/console-test/locations/global/keyRings/console-api/cryptoKeys/sdl-secrets/cryptoKeyVersions/1";
+const VERSION_NAME = sdlSecretsVersionPath("1");
+const FOREIGN_KID = "other-key.v1";
 const SUBJECT = "3f2b6f7a-1c1d-4b0e-8b8a-9a0f5f5c2b11";
 const SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n';
 
@@ -38,12 +41,28 @@ describe(SdlSecretsUnsealerService.name, () => {
     expect(secrets).toEqual(clientSecrets);
   });
 
-  it("unwraps the content encryption key with the configured crypto key version", async () => {
+  it("unwraps the content encryption key with the crypto key version the seal's header names", async () => {
     const { open, seal, kmsClient } = setup();
 
     await open(await seal({ TOKEN: "t" }));
 
     expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledWith(expect.objectContaining({ name: VERSION_NAME }));
+  });
+
+  it("accepts a seal made under an older enabled version after the configured version moves on", async () => {
+    const { open, seal, clientSecrets, kmsClient } = setup({ configuredVersion: "2" });
+
+    await expect(open(await seal(clientSecrets, { kid: "sdl-secrets.v1" }))).resolves.toEqual(clientSecrets);
+
+    expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledWith(expect.objectContaining({ name: sdlSecretsVersionPath("1") }));
+  });
+
+  it("records the version a seal was opened under rather than the one new wraps use", async () => {
+    const { open, seal, clientSecrets, logger } = setup({ configuredVersion: "2" });
+
+    await open(await seal(clientSecrets, { kid: "sdl-secrets.v1" }));
+
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "SDL_SECRETS_SEAL_OPENED", kid: "sdl-secrets.v1" }));
   });
 
   it("rejects a seal made for another user", async () => {
@@ -73,9 +92,52 @@ describe(SdlSecretsUnsealerService.name, () => {
   });
 
   it("reports a seal made for a key the console no longer holds as a conflict so clients refetch", async () => {
+    const { open, seal, logger, kmsClient } = setup();
+
+    await expect(open(await seal({ TOKEN: "t" }, { kid: FOREIGN_KID }))).rejects.toMatchObject({ status: 409 });
+
+    expect(logger.warn).toHaveBeenCalledWith({ event: "SDL_SECRETS_SEAL_KID_UNKNOWN", received: FOREIGN_KID, expected: KID });
+    expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+  });
+
+  it.each([["sdl-secrets"], ["sdl-secrets.v"], ["sdl-secrets.v0"], ["sdl-secrets.v01"], ["sdl-secrets.vx"], ["sdl-secrets.v1x"], [VERSION_NAME]])(
+    "refuses the unparseable key version %s without spending an unwrap",
+    async kid => {
+      const { open, seal, kmsClient } = setup();
+
+      await expect(open(await seal({ TOKEN: "t" }, { kid }))).rejects.toMatchObject({ status: 409 });
+      expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+    }
+  );
+
+  it("refuses a seal carrying no key version without spending an unwrap", async () => {
+    const { open, seal, kmsClient } = setup();
+
+    await expect(open(await seal({ TOKEN: "t" }, { kid: undefined }))).rejects.toMatchObject({ status: 409 });
+    expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+  });
+
+  it("tells a client its key is unknown before telling it the seal expired, so it learns to refetch", async () => {
     const { open, seal } = setup();
 
+    await expect(open(await seal({ TOKEN: "t" }, { kid: FOREIGN_KID, exp: Math.floor(Date.now() / 1000) - 1 }))).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("reports a well-formed version the key service does not have as a conflict too", async () => {
+    const { open, seal, kmsClient, logger } = setup();
+    kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("5 NOT_FOUND"), { code: grpc.status.NOT_FOUND }));
+
     await expect(open(await seal({ TOKEN: "t" }, { kid: "sdl-secrets.v9" }))).rejects.toMatchObject({ status: 409 });
+
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "SDL_SECRETS_SEAL_KID_UNKNOWN" }));
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it("reports a version the key service has disabled as a conflict rather than as an outage", async () => {
+    const { open, seal, kmsClient } = setup();
+    kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("9 FAILED_PRECONDITION"), { code: grpc.status.FAILED_PRECONDITION }));
+
+    await expect(open(await seal({ TOKEN: "t" }))).rejects.toMatchObject({ status: 409 });
   });
 
   it("rejects a content encryption the console does not accept", async () => {
@@ -369,7 +431,7 @@ describe(SdlSecretsUnsealerService.name, () => {
     await expect(open(await seal({ TOKEN: "t" }))).rejects.toMatchObject({ status: 503 });
   });
 
-  function setup() {
+  function setup(input?: { configuredVersion?: string }) {
     const { publicKey, privateKey } = SEALING_KEY_PAIR;
     const jwk = { ...publicKey.export({ format: "jwk" }), use: "enc", alg: "RSA-OAEP-256" };
     const clientSecrets = { DB_URL: `postgres://app:${randomUUID()}@db.internal/app`, API_TOKEN: randomBytes(20).toString("hex") };
@@ -420,7 +482,7 @@ describe(SdlSecretsUnsealerService.name, () => {
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger: CreateLogger = () => logger;
 
-    const kmsTarget = { client: kmsClient, versionName: VERSION_NAME, kid: KID };
+    const kmsTarget = createTestSdlSecretsKmsTarget({ client: kmsClient, version: input?.configuredVersion });
     const service = new SdlSecretsUnsealerService(kmsTarget, new KmsWrappedJweService(kmsTarget), authService, createLogger);
     const open = (seal: string, sdl = SDL) => service.open({ seal, sdl });
 

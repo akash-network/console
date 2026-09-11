@@ -12,6 +12,8 @@ import { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secret
 import type { DataKeyOutput, DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
 import { DataKeyService } from "./data-key.service";
 
+import { createTestSdlSecretsKmsTarget, sdlSecretsVersionPath } from "@test/mocks/sdl-secrets-kms.mock";
+
 const WRAPPING_KEY_PAIR = generateKeyPairSync("rsa", { modulusLength: 3072 });
 const FOREIGN_KEY_PAIR = generateKeyPairSync("rsa", { modulusLength: 3072 });
 
@@ -40,7 +42,7 @@ describe(DataKeyService.name, () => {
     });
 
     it("stores the key version alias the wrapped blob itself names", async () => {
-      const { service, warmSealingKey } = setup({ kid: "sdl-secrets.v4" });
+      const { service, warmSealingKey } = setup({ version: "4" });
       await warmSealingKey();
 
       const dataKey = await service.ensureDataKey(faker.string.uuid());
@@ -106,7 +108,7 @@ describe(DataKeyService.name, () => {
     });
 
     it("logs the creation without the key material", async () => {
-      const { service, logger, warmSealingKey } = setup({ kid: "sdl-secrets.v1" });
+      const { service, logger, warmSealingKey } = setup({ version: "1" });
       await warmSealingKey();
       const userId = faker.string.uuid();
 
@@ -122,17 +124,17 @@ describe(DataKeyService.name, () => {
     expect(createDataKeyLogger).toHaveBeenCalledWith({ context: DataKeyService.name });
   });
 
-  function setup(input?: { kid?: string }) {
+  function setup(input?: { version?: string }) {
     const { publicKey, privateKey } = WRAPPING_KEY_PAIR;
     const pem = publicKey.export({ type: "spki", format: "pem" }).toString();
-    const versionName = "projects/console-test/locations/global/keyRings/console-api/cryptoKeys/sdl-secrets/cryptoKeyVersions/1";
+    const versionName = sdlSecretsVersionPath(input?.version ?? "1");
     const kmsClient = mock<SdlSecretsKmsClient>();
     kmsClient.getPublicKey.mockResolvedValue([
       { pem, name: versionName, algorithm: "RSA_DECRYPT_OAEP_3072_SHA256", pemCrc32c: { value: String(crc32c.calculate(pem)) } }
     ]);
 
     const createLogger: CreateLogger = () => mock<ReturnType<CreateLogger>>();
-    const sealingKeyService = new SdlSecretsSealingKeyService({ client: kmsClient, versionName, kid: input?.kid ?? "sdl-secrets.v1" }, createLogger);
+    const sealingKeyService = new SdlSecretsSealingKeyService(createTestSdlSecretsKmsTarget({ client: kmsClient, version: input?.version }), createLogger);
 
     const storedByUserId = new Map<string, DataKeyOutput>();
     const dataKeyRepository = mock<DataKeyRepository>();
