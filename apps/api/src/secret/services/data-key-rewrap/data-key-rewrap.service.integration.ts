@@ -46,7 +46,12 @@ async function createEnabledVersion() {
 let rotationPair: Promise<{ oldVersion: string; newVersion: string }> | undefined;
 
 function enabledRotationPair() {
-  rotationPair ??= Promise.all([createEnabledVersion(), createEnabledVersion()]).then(([oldVersion, newVersion]) => ({ oldVersion, newVersion }));
+  rotationPair ??= Promise.all([createEnabledVersion(), createEnabledVersion()])
+    .then(([oldVersion, newVersion]) => ({ oldVersion, newVersion }))
+    .catch(error => {
+      rotationPair = undefined;
+      throw error;
+    });
 
   return rotationPair;
 }
@@ -75,7 +80,7 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
     const report = await rewrapOnto(newVersion);
 
     expect(await readStoredSecrets()).toEqual(before);
-    expect(report.secretsReEncrypted).toBe(0);
+    expect(report.secretsDrift).toEqual({ corruptedIds: [], changedConcurrently: 0, added: 0, removed: 0 });
     expect(report.fingerprint.after).toEqual(report.fingerprint.before);
     expect(report.fingerprint.before).toMatchObject({ rowCount: 2 });
   });
@@ -159,10 +164,10 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
     expect(real.dataKeysRewrapped).toBe(rehearsal.dataKeysRewrapped);
   });
 
-  const pendingCleanups: Array<() => Promise<void>> = [];
+  let cleanup: () => Promise<void>;
   afterEach(async () => {
     vi.restoreAllMocks();
-    await Promise.all(pendingCleanups.splice(0).map(async runCleanup => await runCleanup()));
+    await cleanup?.();
   });
 
   function setup() {
@@ -174,11 +179,11 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
     const txService = container.resolve(TxService);
     const createdUserIds: string[] = [];
 
-    pendingCleanups.push(async () => {
+    cleanup = async () => {
       if (createdUserIds.length > 0) {
         await userRepository.deleteById(createdUserIds);
       }
-    });
+    };
 
     const createKmsTarget: SdlSecretsKmsTargetFactory = version => createSdlSecretsKmsTarget({ client: kmsClient, versionPath, key: KEY, version });
 
