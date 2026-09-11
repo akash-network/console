@@ -2,6 +2,7 @@ import path from "path";
 import swc, { type Options } from "unplugin-swc";
 import { defineConfig } from "vitest/config";
 
+import isolatedUnitTests from "./test/isolated-unit-tests.json";
 import { localConfig } from "./test/services/local.config";
 import tsconfig from "./tsconfig.build.json";
 
@@ -63,7 +64,17 @@ export default defineConfig({
         extends: true,
         test: {
           name: "unit",
+          isolate: false,
           include: ["src/**/*.spec.ts"],
+          exclude: isolatedUnitTests,
+          setupFiles: ["./test/setup-unit-env.ts", "./test/setup-shared-unit-tests.ts"]
+        }
+      },
+      {
+        extends: true,
+        test: {
+          name: "unit-isolated",
+          include: isolatedUnitTests,
           setupFiles: ["./test/setup-unit-env.ts", "./test/setup-unit-tests.ts"]
         }
       },
@@ -71,7 +82,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: "integration",
-          include: ["src/**/*.integration.ts"],
+          include: ["src/**/*.integration.ts", "test/services/**/*.integration.ts"],
           globalSetup: ["./test/global-setup-db.ts"],
           setupFiles: ["./test/setup-integration-env.ts", "./test/setup-integration-tests.ts"],
           testTimeout: 60_000,

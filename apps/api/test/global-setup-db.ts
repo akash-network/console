@@ -9,7 +9,6 @@ import {
   INDEXER_MIGRATIONS_FOLDER,
   INDEXER_TEMPLATE_ENV_VAR,
   TEMPLATE_ADVISORY_LOCK_KEY,
-  TEMPLATE_NAME_PREFIX,
   USER_TEMPLATE_ENV_VAR
 } from "./services/test-database-templates";
 
@@ -26,7 +25,6 @@ export async function setup() {
     try {
       await ensureTemplate(admin, postgresUri, userTemplate, API_MIGRATIONS_FOLDER);
       await ensureTemplate(admin, postgresUri, indexerTemplate, INDEXER_MIGRATIONS_FOLDER);
-      await dropTemplatesFromEarlierMigrations(admin, [userTemplate, indexerTemplate]);
     } finally {
       await admin`SELECT pg_advisory_unlock(${TEMPLATE_ADVISORY_LOCK_KEY})`;
     }
@@ -63,17 +61,6 @@ async function ensureTemplate(admin: postgres.Sql, postgresUri: string, name: st
 
   await migrationClient.end();
   await admin`ALTER DATABASE ${admin(name)} WITH IS_TEMPLATE true ALLOW_CONNECTIONS false`;
-}
-
-async function dropTemplatesFromEarlierMigrations(admin: postgres.Sql, keep: string[]) {
-  const stale = await admin<{ datname: string }[]>`
-    SELECT datname FROM pg_database
-    WHERE datname LIKE ${`${TEMPLATE_NAME_PREFIX}%`} AND datname <> ALL(${admin.array(keep)})
-  `;
-
-  for (const { datname } of stale) {
-    await dropTemplate(admin, datname);
-  }
 }
 
 async function dropTemplate(admin: postgres.Sql, name: string) {
