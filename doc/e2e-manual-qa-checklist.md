@@ -29,10 +29,11 @@ The following flows are already covered by automated E2E tests:
   - Template selection and customization
   - Wallet connection verification
 
-- ✅ **Linux Deployment** (`deploy-linux.spec.ts`)
-  - SSH key generation and download
-  - Ubuntu 24.04 distribution selection
-  - Key pair validation
+- ✅ **Container-VM (SSH) Deployment** (`configure-deployment-container-vm.spec.ts`)
+  - Container-VM entry on the Configure page, seeded as a VM
+  - Managed distribution selection (Ubuntu 24.04, Debian 11)
+  - SSH key generation, download and the required-key gate on submission
+  - `/deploy-linux` redirect into the Container-VM flow
 
 #### 2. **Wallet Management**
 
