@@ -150,10 +150,7 @@ export abstract class BaseRepository<
   async updateManyById(ids: Output["id"][], payload: Partial<Input>): Promise<void> {
     await this.cursor
       .update(this.table)
-      .set({
-        ...this.toInput(payload),
-        updated_at: sql`now()`
-      })
+      .set(this.toUpdateSet(payload))
       .where(inArray(this.table.id, ids));
   }
 
@@ -162,10 +159,7 @@ export abstract class BaseRepository<
   async updateBy(query: Partial<Output>, payload: Partial<Input>, options?: MutationOptions): Promise<void | Output> {
     const cursor = this.cursor
       .update(this.table)
-      .set({
-        ...this.toInput(payload),
-        updated_at: sql`now()`
-      })
+      .set(this.toUpdateSet(payload))
       .where(this.queryToWhere(query));
 
     if (options?.returning) {
@@ -217,6 +211,11 @@ export abstract class BaseRepository<
       : undefined;
 
     return this.whereAccessibleBy(where);
+  }
+
+  /** Drizzle builds the SET clause from schema property names, so a raw column key such as updated_at is dropped without an error. */
+  private toUpdateSet(payload: Partial<Input>) {
+    return { updatedAt: sql`now()`, ...this.toInput(payload) };
   }
 
   protected toInput(payload: Partial<Input>): Partial<T["$inferInsert"]> {
