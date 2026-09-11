@@ -48,6 +48,13 @@ export type OpenDeployment = {
   createdAt: Date;
 };
 
+export type SealedSecret = {
+  id: string;
+  sealedSecrets: string;
+  /** The write timestamp as stored, in text, so a write landing in the same millisecond as the previous one still reads as a change a `Date` would flatten. */
+  updatedAtMarker: string | null;
+};
+
 export type LiveTrialDeployment = {
   userId: string;
   dseq: string;
@@ -168,6 +175,32 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       }
 
       yield batch as OpenDeployment[];
+
+      if (batch.length < batchSize) {
+        return;
+      }
+
+      cursor = batch[batch.length - 1].id;
+    }
+  }
+
+  /** Keyset-paged on `id` rather than offset-paged, because a sweep whose offsets shift under live traffic skips rows and its digest then proves nothing. */
+  async *findSealedSecretsIteratively({ batchSize }: { batchSize: number }): AsyncGenerator<SealedSecret[]> {
+    let cursor: string | undefined;
+
+    while (true) {
+      const batch = await this.pg
+        .select({ id: this.table.id, sealedSecrets: this.table.sealedSecrets, updatedAtMarker: sql<string | null>`${this.table.updatedAt}::text` })
+        .from(this.table)
+        .where(and(isNotNull(this.table.sealedSecrets), ...(cursor ? [gt(this.table.id, cursor)] : [])))
+        .orderBy(asc(this.table.id))
+        .limit(batchSize);
+
+      if (!batch.length) {
+        return;
+      }
+
+      yield batch as SealedSecret[];
 
       if (batch.length < batchSize) {
         return;
