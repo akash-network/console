@@ -3,6 +3,7 @@ import crc32c from "fast-crc32c";
 import { grpc } from "google-gax";
 import { CompactEncrypt } from "jose";
 import { constants, generateKeyPairSync, privateDecrypt, randomBytes } from "node:crypto";
+import { inspect } from "node:util";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -26,6 +27,24 @@ const USER_B = "6d0b1f4c-2222-4444-8888-1a2b3c4d5e6f";
 
 const WRAPPING_KEY_PAIR = generateKeyPairSync("rsa", { modulusLength: 3072 });
 
+const dropAuthenticationTagSegment = (wrappedKey: string) => wrappedKey.split(".").slice(0, -1).join(".");
+
+const tamperAuthenticationTag = (wrappedKey: string) => {
+  const parts = wrappedKey.split(".");
+  parts[3] = Buffer.from("tampered").toString("base64url");
+
+  return parts.join(".");
+};
+
+const FAILING_UNWRAPS = [
+  { path: "the row is wrapped under a key version this process does not target", input: { kid: "sdl-secrets.v9" } },
+  { path: "the key service is unreachable", input: { keyServiceStatus: grpc.status.UNAVAILABLE } },
+  { path: "the key service rejects the encrypted key", input: { keyServiceStatus: grpc.status.INVALID_ARGUMENT } },
+  { path: "the wrapped key is missing a segment", input: { mutateWrappedKey: dropAuthenticationTagSegment } },
+  { path: "the wrapped key fails authentication", input: { mutateWrappedKey: tamperAuthenticationTag } },
+  { path: "the row wraps something other than 256 bits", input: { keyBytes: 16 } }
+];
+
 describe(DataKeyUnwrapperService.name, () => {
   it("returns the key the user's data key row wraps", async () => {
     const { service, inRequest, keyFor } = setup();
@@ -41,6 +60,14 @@ describe(DataKeyUnwrapperService.name, () => {
     const dataKey = await inRequest(async () => await service.getDataKey(USER_A));
 
     expect(dataKey.id).toBe(rowFor(USER_A).id);
+  });
+
+  it("records the user, the data key and the wrapping key version when it unwraps", async () => {
+    const { service, inRequest, logger, rowFor } = setup();
+
+    await inRequest(async () => await (await service.getDataKey(USER_A)).unwrap());
+
+    expect(logger.info).toHaveBeenCalledExactlyOnceWith({ event: "USER_DATA_KEY_UNWRAPPED", userId: USER_A, dataKeyId: rowFor(USER_A).id, kid: KID });
   });
 
   it("spends no key service call for the record identity alone", async () => {
@@ -108,6 +135,17 @@ describe(DataKeyUnwrapperService.name, () => {
     expect(keyOfA.equals(keyFor(USER_A))).toBe(true);
     expect(keyOfB.equals(keyFor(USER_B))).toBe(true);
     expect(keyOfA.equals(keyOfB)).toBe(false);
+  });
+
+  it("names each user a request unwrapped for", async () => {
+    const { service, inRequest, unwrappedUserIds } = setup();
+
+    await inRequest(async () => {
+      await (await service.getDataKey(USER_A)).unwrap();
+      await (await service.getDataKey(USER_B)).unwrap();
+    });
+
+    expect(new Set(unwrappedUserIds())).toEqual(new Set([USER_A, USER_B]));
   });
 
   it("holds nothing for a request that has not asked for a data key", async () => {
@@ -227,21 +265,23 @@ describe(DataKeyUnwrapperService.name, () => {
   });
 
   it("rejects with 503 when the key service is unreachable", async () => {
-    const { service, inRequest, kmsClient, logger } = setup();
-    kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("14 UNAVAILABLE"), { code: grpc.status.UNAVAILABLE }));
+    const { service, inRequest, logger } = setup({ keyServiceStatus: grpc.status.UNAVAILABLE });
 
     await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toMatchObject({ status: 503 }));
 
-    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "USER_DATA_KEY_UNWRAP_FAILED", failure: "KEY_SERVICE_UNREACHABLE" }));
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "USER_DATA_KEY_UNWRAP_FAILED", failure: "KEY_SERVICE_UNREACHABLE", userId: USER_A })
+    );
   });
 
   it("blames itself rather than a caller when the key service rejects the encrypted key", async () => {
-    const { service, inRequest, kmsClient, logger } = setup();
-    kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("3 INVALID_ARGUMENT"), { code: grpc.status.INVALID_ARGUMENT }));
+    const { service, inRequest, logger } = setup({ keyServiceStatus: grpc.status.INVALID_ARGUMENT });
 
     await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toMatchObject({ status: 500 }));
 
-    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "USER_DATA_KEY_UNREADABLE", failure: "ENCRYPTED_KEY_REJECTED" }));
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "USER_DATA_KEY_UNREADABLE", failure: "ENCRYPTED_KEY_REJECTED", userId: USER_A })
+    );
   });
 
   it("rejects with 500 when the wrapped key is not a compact JWE", async () => {
@@ -251,14 +291,7 @@ describe(DataKeyUnwrapperService.name, () => {
   });
 
   it("rejects with 500 when the wrapped key fails authentication", async () => {
-    const { service, inRequest } = setup({
-      mutateWrappedKey: wrappedKey => {
-        const parts = wrappedKey.split(".");
-        parts[3] = Buffer.from("tampered").toString("base64url");
-
-        return parts.join(".");
-      }
-    });
+    const { service, inRequest } = setup({ mutateWrappedKey: tamperAuthenticationTag });
 
     await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toMatchObject({ status: 500 }));
   });
@@ -278,10 +311,27 @@ describe(DataKeyUnwrapperService.name, () => {
     await inRequest(async () => await expect(service.getDataKey(USER_A)).rejects.toThrow("no row"));
   });
 
-  function setup(input?: { kid?: string; keyBytes?: number; mutateWrappedKey?: (wrappedKey: string) => string }) {
+  it("logs no key material when it unwraps", async () => {
+    const { service, inRequest, expectNoKeyMaterialLogged } = setup();
+
+    await inRequest(async () => await (await service.getDataKey(USER_A)).unwrap());
+
+    expectNoKeyMaterialLogged();
+  });
+
+  it.each(FAILING_UNWRAPS)("logs no key material when $path", async ({ input }) => {
+    const { service, inRequest, expectNoKeyMaterialLogged } = setup(input);
+
+    await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toThrow());
+
+    expectNoKeyMaterialLogged();
+  });
+
+  function setup(input?: { kid?: string; keyBytes?: number; keyServiceStatus?: grpc.status; mutateWrappedKey?: (wrappedKey: string) => string }) {
     const { publicKey, privateKey } = WRAPPING_KEY_PAIR;
     const wrappedKid = input?.kid ?? KID;
     const keys = new Map<string, Buffer>();
+    const wrappedJwes = new Map<string, string>();
     const rows = new Map<string, DataKeyOutput>();
 
     const dataKeyService = mock<DataKeyService>();
@@ -295,6 +345,7 @@ describe(DataKeyUnwrapperService.name, () => {
       const row = createDataKey({ userId, wrappedKey: input?.mutateWrappedKey?.(wrapped) ?? wrapped, wrappedByKid: wrappedKid });
 
       keys.set(userId, key);
+      wrappedJwes.set(userId, wrapped);
       rows.set(userId, row);
 
       return row;
@@ -302,6 +353,10 @@ describe(DataKeyUnwrapperService.name, () => {
 
     const kmsClient = mock<SdlSecretsKmsClient>();
     kmsClient.asymmetricDecrypt.mockImplementation(async request => {
+      if (input?.keyServiceStatus !== undefined) {
+        throw Object.assign(new Error(`key service refused with ${input.keyServiceStatus}`), { code: input.keyServiceStatus });
+      }
+
       const plaintext = privateDecrypt({ key: privateKey, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" }, Buffer.from(request.ciphertext));
 
       return [
@@ -328,6 +383,25 @@ describe(DataKeyUnwrapperService.name, () => {
     const keyFor = (userId: string) => keys.get(userId) as Buffer;
     const rowFor = (userId: string) => rows.get(userId) as DataKeyOutput;
 
-    return { service, dataKeyService, kmsClient, executionContextService, logger, inRequest, keyFor, rowFor };
+    const unwrappedUserIds = () => {
+      const records = logger.info.mock.calls.flat() as Array<Record<string, unknown>>;
+
+      return records.filter(record => record.event === "USER_DATA_KEY_UNWRAPPED").map(record => record.userId);
+    };
+
+    const expectNoKeyMaterialLogged = () => {
+      const key = keyFor(USER_A);
+      const wrappedJwe = wrappedJwes.get(USER_A) as string;
+      const records = inspect([...logger.info.mock.calls, ...logger.error.mock.calls], { depth: null, maxArrayLength: null, maxStringLength: null });
+      const neverLoggable = [key.toString("hex"), key.toString("base64url"), key.toString("latin1"), inspect(key), wrappedJwe, wrappedJwe.split(".")[1]];
+
+      expect(logger.info.mock.calls.length + logger.error.mock.calls.length).toBeGreaterThan(0);
+
+      for (const secret of neverLoggable) {
+        expect(records).not.toContain(secret);
+      }
+    };
+
+    return { service, dataKeyService, kmsClient, executionContextService, logger, inRequest, keyFor, rowFor, unwrappedUserIds, expectNoKeyMaterialLogged };
   }
 });
