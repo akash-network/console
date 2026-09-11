@@ -86,6 +86,16 @@ export function isReclaiming(lease: Pick<LeaseDto, "state">): boolean {
   return lease.state === "reclaiming";
 }
 
+/** The soonest deadline among a deployment's reclaiming leases: the moment the workload actually goes dark. */
+export function getNearestReclamationDeadline(leases: LeaseDto[] | null | undefined): Date | null {
+  const deadlines = (leases ?? [])
+    .filter(isReclaiming)
+    .map(getReclamationDeadline)
+    .filter((deadline): deadline is Date => deadline !== null);
+  if (deadlines.length === 0) return null;
+  return deadlines.reduce((earliest, current) => (current < earliest ? current : earliest));
+}
+
 function hasReclamationStarted(lease: Pick<LeaseDto, "reclamation">): boolean {
   const startedAt = lease.reclamation?.startedAt;
   return startedAt !== undefined && Number(startedAt) > 0;

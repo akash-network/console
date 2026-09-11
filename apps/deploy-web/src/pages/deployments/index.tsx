@@ -1,7 +1,7 @@
 import React from "react";
 
-import { DeploymentList } from "@src/components/deployments/DeploymentList";
+import { DeploymentsListPage } from "@src/components/deployments/DeploymentsListPage";
 
 export default function DeploymentsPage() {
-  return <DeploymentList />;
+  return <DeploymentsListPage />;
 }
