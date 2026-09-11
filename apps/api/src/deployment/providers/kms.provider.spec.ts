@@ -1,8 +1,13 @@
+import type { KeyManagementServiceClient } from "@google-cloud/kms";
+import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { SdlSecretsKmsClient } from "./kms.provider";
-import { createSdlSecretsKmsTarget } from "./kms.provider";
+import { createSdlSecretsKmsTarget, KMS_CLIENT, SDL_SECRETS_KMS_TARGET } from "./kms.provider";
+
+import { mockConfigService } from "@test/mocks/config-service.mock";
 
 describe(createSdlSecretsKmsTarget.name, () => {
   it("names the configured version as the write target", () => {
@@ -71,5 +76,48 @@ describe(createSdlSecretsKmsTarget.name, () => {
     const target = createSdlSecretsKmsTarget({ client, versionPath, key: "sdl-secrets", version: input?.version ?? "1" });
 
     return { target, client };
+  }
+});
+
+describe("SDL_SECRETS_KMS_TARGET", () => {
+  it("targets the crypto key version the environment names, through the SDK's own path builder", () => {
+    const { target, kmsClient } = setup({ location: "europe-west1", keyRing: "console-api", key: "sdl-secrets", version: "4" });
+
+    expect(kmsClient.cryptoKeyVersionPath).toHaveBeenCalledWith("console-test", "europe-west1", "console-api", "sdl-secrets", "4");
+    expect(target.versionName).toBe("console-test/europe-west1/console-api/sdl-secrets/4");
+    expect(target.kid).toBe("sdl-secrets.v4");
+  });
+
+  it("reads an older version of the same key through that same path builder", () => {
+    const { target, kmsClient } = setup({ location: "europe-west1", keyRing: "console-api", key: "sdl-secrets", version: "4" });
+
+    expect(target.resolveVersionName("sdl-secrets.v1")).toBe("console-test/europe-west1/console-api/sdl-secrets/1");
+    expect(kmsClient.cryptoKeyVersionPath).toHaveBeenCalledWith("console-test", "europe-west1", "console-api", "sdl-secrets", "1");
+  });
+
+  it("moves the write target to whichever version is configured, with no other change", () => {
+    const { target } = setup({ location: "global", keyRing: "console-api", key: "sdl-secrets", version: "12" });
+
+    expect(target.kid).toBe("sdl-secrets.v12");
+    expect(target.versionName).toBe("console-test/global/console-api/sdl-secrets/12");
+  });
+
+  function setup(input: { location: string; keyRing: string; key: string; version: string }) {
+    const kmsClient = mock<KeyManagementServiceClient>();
+    kmsClient.cryptoKeyVersionPath.mockImplementation((project, location, keyRing, key, version) => [project, location, keyRing, key, version].join("/"));
+
+    const testContainer = container.createChildContainer();
+    testContainer.register(KMS_CLIENT, { useValue: kmsClient });
+    testContainer.register(DeploymentConfigService, {
+      useValue: mockConfigService<DeploymentConfigService>({
+        GCP_KMS_AUTH: { project_id: "console-test", servicePath: "http://localhost:9090" },
+        GCP_KMS_LOCATION: input.location,
+        GCP_KMS_KEY_RING: input.keyRing,
+        GCP_KMS_KEY: input.key,
+        GCP_KMS_KEY_VERSION: input.version
+      })
+    });
+
+    return { target: testContainer.resolve(SDL_SECRETS_KMS_TARGET), kmsClient };
   }
 });
