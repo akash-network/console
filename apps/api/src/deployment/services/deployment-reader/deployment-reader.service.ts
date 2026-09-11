@@ -23,7 +23,13 @@ import type { WalletInitialized } from "@src/billing/repositories";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { Memoize } from "@src/caching/helpers";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
-import { ConsoleSettings, DeploymentResponse, GetDeploymentResponse, ListDeploymentsItem } from "@src/deployment/http-schemas/deployment.schema";
+import {
+  ConsoleSettings,
+  DeploymentResponse,
+  GetDeploymentResponse,
+  ListDeploymentNamesResponse,
+  ListDeploymentsItem
+} from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -92,6 +98,24 @@ export class DeploymentReaderService {
     }
 
     return await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findNamesByDseqs({ userId, dseqs });
+  }
+
+  /**
+   * One page of the names the caller recorded, read straight from the console's own rows: no wallet, no chain, and no
+   * dseqs to name, which is what lets a closed deployment carry a name in a list the chain answers for active ones.
+   *
+   * Reads one row more than the page holds and reports its existence as `hasMore`, so a caller learns whether to ask
+   * again without this costing a second count query.
+   */
+  public async listNames({ userId, skip, limit }: { userId: string; skip: number; limit: number }): Promise<ListDeploymentNamesResponse["data"]> {
+    const read = await this.deploymentSettingRepository
+      .accessibleBy(this.authService.ability, "read")
+      .findNamesByUserId({ userId, skip, limit: limit + 1 });
+
+    return {
+      names: read.slice(0, limit),
+      pagination: { skip, limit, hasMore: read.length > limit }
+    };
   }
 
   public async findByWalletAndDseq(wallet: WalletInitialized, dseq: string): Promise<DeploymentResponse> {

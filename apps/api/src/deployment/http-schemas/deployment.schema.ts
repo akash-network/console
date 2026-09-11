@@ -345,6 +345,37 @@ export const ListDeploymentsResponseSchema = z.object({
   })
 });
 
+export const deploymentNamesMaxLimit = 1000;
+
+export const ListDeploymentNamesQuerySchema = z.object({
+  skip: z.coerce.number().min(0).default(0).openapi({
+    description: "Names to skip",
+    example: 0
+  }),
+  limit: z.coerce.number().min(1).max(deploymentNamesMaxLimit).default(deploymentNamesMaxLimit).openapi({
+    description: `Names to return, at most ${deploymentNamesMaxLimit}`,
+    example: 100
+  })
+});
+
+export const ListDeploymentNamesResponseSchema = z.object({
+  data: z.object({
+    names: z.array(
+      z.object({
+        dseq: DseqSchema,
+        name: z.string().openapi({ description: "The name this deployment carries." })
+      })
+    ),
+    pagination: z.object({
+      skip: z.number(),
+      limit: z.number(),
+      hasMore: z.boolean().openapi({
+        description: "Whether a further page exists. No total is reported, so a caller reads pages until this is false rather than counting them up front."
+      })
+    })
+  })
+});
+
 export const deploymentListMaxLimit = 100;
 
 export const ListWithResourcesParamsSchema = z.object({
@@ -484,5 +515,6 @@ export type ListWithResourcesParams = z.infer<typeof ListWithResourcesParamsSche
 export type ListWithResourcesQuery = z.infer<typeof ListWithResourcesQuerySchema>;
 export type ListWithResourcesResponse = z.infer<typeof ListWithResourcesResponseSchema>;
 export type ListDeploymentsItem = z.infer<typeof DeploymentLeaseListItemSchema>;
+export type ListDeploymentNamesResponse = z.infer<typeof ListDeploymentNamesResponseSchema>;
 export type GetDeploymentByOwnerDseqResponse = z.infer<typeof GetDeploymentByOwnerDseqResponseSchema>;
 export type GetWeeklyDeploymentCostResponse = z.infer<typeof GetWeeklyDeploymentCostResponseSchema>;

@@ -407,6 +407,62 @@ describe(DeploymentReaderService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: DeploymentReaderService.name });
   });
 
+  describe("listNames", () => {
+    it("returns the names the caller recorded, with no chain read at all", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentHttpService, walletReaderService } = setup({ recordedNames: [{ dseq: "100", name: "web" }] });
+
+      const result = await service.listNames({ userId: wallet.userId, skip: 0, limit: 10 });
+
+      expect(result.names).toEqual([{ dseq: "100", name: "web" }]);
+      expect(deploymentHttpService.findAll).not.toHaveBeenCalled();
+      expect(walletReaderService.getWalletByUserId).not.toHaveBeenCalled();
+    });
+
+    it("reads the names under the caller's own ability and user id", async () => {
+      const { service, deploymentSettingRepository, scopedDeploymentSettingRepository, authService } = setup();
+
+      await service.listNames({ userId: "user-1", skip: 0, limit: 10 });
+
+      expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
+      expect(scopedDeploymentSettingRepository.findNamesByUserId).toHaveBeenCalledWith({ userId: "user-1", skip: 0, limit: 11 });
+    });
+
+    it("reports more names remain when the read filled the page, handing back only the page", async () => {
+      const { service } = setup({
+        recordedNames: [
+          { dseq: "300", name: "third" },
+          { dseq: "200", name: "second" },
+          { dseq: "100", name: "first" }
+        ]
+      });
+
+      const result = await service.listNames({ userId: "user-1", skip: 0, limit: 2 });
+
+      expect(result.names).toEqual([
+        { dseq: "300", name: "third" },
+        { dseq: "200", name: "second" }
+      ]);
+      expect(result.pagination).toEqual({ skip: 0, limit: 2, hasMore: true });
+    });
+
+    it("reports no more names when the read did not fill the page", async () => {
+      const { service } = setup({ recordedNames: [{ dseq: "100", name: "web" }] });
+
+      const result = await service.listNames({ userId: "user-1", skip: 0, limit: 2 });
+
+      expect(result.pagination).toEqual({ skip: 0, limit: 2, hasMore: false });
+    });
+
+    it("reports the page the caller asked for rather than the one it read", async () => {
+      const { service } = setup({ recordedNames: [{ dseq: "100", name: "web" }] });
+
+      const result = await service.listNames({ userId: "user-1", skip: 40, limit: 20 });
+
+      expect(result.pagination).toMatchObject({ skip: 40, limit: 20 });
+    });
+  });
+
   function setup(
     input: {
       wallet?: WalletInitialized;
@@ -417,6 +473,7 @@ describe(DeploymentReaderService.name, () => {
       recorded?: (Pick<DeploymentSettingsOutput, "sdl" | "manifestVersion"> & { name?: string | null }) | null;
       listedDseqs?: string[];
       names?: Record<string, string | null>;
+      recordedNames?: Array<{ dseq: string; name: string }>;
     } = {}
   ) {
     const defaultWallet = createUserWallet() as WalletInitialized;
@@ -466,7 +523,8 @@ describe(DeploymentReaderService.name, () => {
     const recorded = input.recorded === undefined ? { sdl: "version: '2.0'", manifestVersion: "BAUG", name: null } : input.recorded;
     const scopedDeploymentSettingRepository = mock<DeploymentSettingRepository>({
       findOneBy: vi.fn().mockResolvedValue(recorded ? mock<DeploymentSettingsOutput>({ ...recorded, name: recorded.name ?? null }) : undefined),
-      findNamesByDseqs: vi.fn().mockResolvedValue(new Map(Object.entries(input.names ?? {})))
+      findNamesByDseqs: vi.fn().mockResolvedValue(new Map(Object.entries(input.names ?? {}))),
+      findNamesByUserId: vi.fn().mockImplementation(async ({ skip, limit }: { skip: number; limit: number }) => (input.recordedNames ?? []).slice(skip, skip + limit))
     });
     const deploymentSettingRepository = mock<DeploymentSettingRepository>({
       accessibleBy: vi.fn().mockReturnValue(scopedDeploymentSettingRepository)

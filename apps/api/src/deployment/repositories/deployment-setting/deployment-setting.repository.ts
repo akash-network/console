@@ -122,6 +122,26 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return new Map(rows.map(row => [row.dseq, row.name]));
   }
 
+  /**
+   * One page of the caller's own deployment names, newest first, for a caller naming no dseqs at all — the deployments
+   * list has no dseqs to name until the chain answers, and a closed deployment never appears in that answer.
+   *
+   * Scoped twice over like the reads above, by the caller's own id and by `accessibleBy` from their ability. Rows
+   * carrying no name are left out rather than reported as null: they say nothing a caller could show, and including
+   * them would spend the page on deployments whose settings row exists only because something read it.
+   */
+  async findNamesByUserId({ userId, skip, limit }: { userId: string; skip: number; limit: number }): Promise<Array<{ dseq: string; name: string }>> {
+    const rows = await this.cursor
+      .select({ dseq: this.table.dseq, name: this.table.name })
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), isNotNull(this.table.name))))
+      .orderBy(desc(this.table.createdAt), desc(this.table.dseq))
+      .limit(limit)
+      .offset(skip);
+
+    return rows.flatMap(row => (row.name === null ? [] : [{ dseq: row.dseq, name: row.name }]));
+  }
+
   /** Reads every owner in one query, because the per-owner lookup this used to repeat selects from the same tables under the same filters. */
   async *findAutoTopUpDeploymentsByOwnerIteratively(): AsyncGenerator<{
     address: string;

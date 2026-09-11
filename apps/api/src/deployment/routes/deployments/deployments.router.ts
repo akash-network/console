@@ -18,6 +18,8 @@ import {
   GetDeploymentParamsSchema,
   GetDeploymentResponseSchema,
   GetWeeklyDeploymentCostResponseSchema,
+  ListDeploymentNamesQuerySchema,
+  ListDeploymentNamesResponseSchema,
   ListDeploymentsQuerySchema,
   ListDeploymentsResponseSchema,
   ListWithResourcesParamsSchema,
@@ -358,6 +360,35 @@ const listRoute = createRoute({
 deploymentsRouter.openapi(listRoute, async function routeListDeployments(c) {
   const { skip, limit } = c.req.valid("query");
   const result = await container.resolve(DeploymentController).list({ skip, limit });
+  return c.json(result, 200);
+});
+
+const listNamesRoute = createRoute({
+  method: "get",
+  path: "/v1/deployment-names",
+  summary: "List the names of the caller's deployments",
+  description:
+    "The names the console recorded for this caller's deployments, newest first. Answers for closed deployments too, unlike GET /v1/deployments, and costs no chain read: a client resolving names for a list it already holds needs no dseqs to ask.",
+  operationId: "listDeploymentNames",
+  tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  request: {
+    query: ListDeploymentNamesQuerySchema
+  },
+  responses: {
+    200: {
+      description: "Returns one page of deployment names",
+      content: {
+        "application/json": {
+          schema: ListDeploymentNamesResponseSchema
+        }
+      }
+    }
+  }
+});
+deploymentsRouter.openapi(listNamesRoute, async function routeListDeploymentNames(c) {
+  const { skip, limit } = c.req.valid("query");
+  const result = await container.resolve(DeploymentController).listNames({ skip, limit });
   return c.json(result, 200);
 });
 

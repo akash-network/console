@@ -13,6 +13,7 @@ import {
   GetDeploymentByOwnerDseqResponse,
   GetDeploymentResponse,
   GetWeeklyDeploymentCostResponse,
+  ListDeploymentNamesResponse,
   ListDeploymentsResponseSchema,
   ListWithResourcesParams,
   ListWithResourcesQuery,
@@ -96,6 +97,12 @@ export class DeploymentController {
         }
       }
     };
+  }
+
+  @Protected([{ action: "read", subject: "DeploymentSetting" }])
+  async listNames({ skip, limit }: { skip: number; limit: number }): Promise<ListDeploymentNamesResponse> {
+    const data = await this.deploymentReaderService.listNames({ userId: this.authService.currentUser.id, skip, limit });
+    return { data };
   }
 
   async listWithResources({ address, ...query }: ListWithResourcesParams & ListWithResourcesQuery): Promise<ListWithResourcesResponse> {
