@@ -1,13 +1,14 @@
 import type { protos } from "@google-cloud/kms";
+import type { Histogram, Meter } from "@opentelemetry/api";
 import crc32c from "fast-crc32c";
 import { grpc } from "google-gax";
 import { CompactEncrypt } from "jose";
 import { constants, generateKeyPairSync, privateDecrypt, randomBytes } from "node:crypto";
 import { inspect } from "node:util";
-import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { MetricsService } from "@src/core";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { SdlSecretsKmsClient } from "@src/deployment/providers/kms.provider";
@@ -16,6 +17,7 @@ import type { KmsWrappedJweInstrumentationService } from "@src/deployment/servic
 import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
 import type { DataKeyOutput } from "@src/secret/repositories/data-key/data-key.repository";
 import type { DataKeyService } from "@src/secret/services/data-key/data-key.service";
+import { DataKeyUnwrapInstrumentationService } from "./data-key-unwrap-instrumentation.service";
 import { DataKeyUnwrapperService } from "./data-key-unwrapper.service";
 
 import { createDataKey } from "@test/seeders/data-key.seeder";
@@ -311,6 +313,63 @@ describe(DataKeyUnwrapperService.name, () => {
     await inRequest(async () => await expect(service.getDataKey(USER_A)).rejects.toThrow("no row"));
   });
 
+  it("measures one unwrap for a request that unwrapped one user's key twice", async () => {
+    const { service, inRequest, unwrapsPerRequest } = setup();
+
+    await inRequest(async () => {
+      await (await service.getDataKey(USER_A)).unwrap();
+      await (await service.getDataKey(USER_A)).unwrap();
+    });
+
+    expect(unwrapsPerRequest.record).toHaveBeenCalledExactlyOnceWith(1);
+  });
+
+  it("measures one unwrap for each user a request unwrapped for", async () => {
+    const { service, inRequest, unwrapsPerRequest } = setup();
+
+    await inRequest(async () => {
+      await (await service.getDataKey(USER_A)).unwrap();
+      await (await service.getDataKey(USER_B)).unwrap();
+    });
+
+    expect(unwrapsPerRequest.record.mock.calls).toEqual([[1], [1]]);
+  });
+
+  it("measures no unwrap for a request that asked only for the record", async () => {
+    const { service, inRequest, unwrapsPerRequest } = setup();
+
+    await inRequest(async () => await service.getDataKey(USER_A));
+
+    expect(unwrapsPerRequest.record).toHaveBeenCalledExactlyOnceWith(0);
+  });
+
+  it("measures no unwrap for a user whose unwrap failed", async () => {
+    const { service, inRequest, unwrapsPerRequest } = setup({ keyServiceStatus: grpc.status.UNAVAILABLE });
+
+    await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toThrow());
+
+    expect(unwrapsPerRequest.record).toHaveBeenCalledExactlyOnceWith(0);
+  });
+
+  it("measures nothing for a request that never asked for a data key", async () => {
+    const { inRequest, unwrapsPerRequest } = setup();
+
+    await inRequest(async () => undefined);
+
+    expect(unwrapsPerRequest.record).not.toHaveBeenCalled();
+  });
+
+  it("keeps the measurements of two concurrent requests apart", async () => {
+    const { service, inRequest, unwrapsPerRequest } = setup();
+
+    await Promise.all([
+      inRequest(async () => await (await service.getDataKey(USER_A)).unwrap()),
+      inRequest(async () => await (await service.getDataKey(USER_B)).unwrap())
+    ]);
+
+    expect(unwrapsPerRequest.record.mock.calls).toEqual([[1], [1]]);
+  });
+
   it("logs no key material when it unwraps", async () => {
     const { service, inRequest, expectNoKeyMaterialLogged } = setup();
 
@@ -369,12 +428,19 @@ describe(DataKeyUnwrapperService.name, () => {
     });
 
     const kmsTarget = { client: kmsClient, versionName: VERSION_NAME, kid: KID };
-    const executionContextService = container.resolve(ExecutionContextService);
     const logger = mock<ReturnType<CreateLogger>>();
+    const executionContextService = new ExecutionContextService(() => logger);
+
+    const unwrapsPerRequest = mock<Histogram>();
+    const metricsService = mock<MetricsService>();
+    metricsService.getMeter.mockReturnValue(mock<Meter>());
+    metricsService.createHistogram.mockReturnValue(unwrapsPerRequest);
+
     const service = new DataKeyUnwrapperService(
       dataKeyService,
       executionContextService,
       new KmsWrappedJweService(kmsTarget, mock<KmsWrappedJweInstrumentationService>()),
+      new DataKeyUnwrapInstrumentationService(metricsService, executionContextService),
       kmsTarget,
       () => logger
     );
@@ -411,6 +477,18 @@ describe(DataKeyUnwrapperService.name, () => {
       }
     };
 
-    return { service, dataKeyService, kmsClient, executionContextService, logger, inRequest, keyFor, rowFor, unwrappedUserIds, expectNoKeyMaterialLogged };
+    return {
+      service,
+      dataKeyService,
+      kmsClient,
+      executionContextService,
+      logger,
+      unwrapsPerRequest,
+      inRequest,
+      keyFor,
+      rowFor,
+      unwrappedUserIds,
+      expectNoKeyMaterialLogged
+    };
   }
 });

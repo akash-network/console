@@ -16,6 +16,7 @@ import type { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-s
 import { SdlSecretsUnsealerService } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
 import { DataKeyService } from "@src/secret/services/data-key/data-key.service";
+import type { DataKeyUnwrapInstrumentationService } from "@src/secret/services/data-key-unwrapper/data-key-unwrap-instrumentation.service";
 import { DataKeyUnwrapperService } from "@src/secret/services/data-key-unwrapper/data-key-unwrapper.service";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
@@ -240,7 +241,17 @@ describe(SecretCipherService.name, () => {
     const authService = mock<AuthService>();
 
     const buildCipher = () =>
-      new SecretCipherService(new DataKeyUnwrapperService(dataKeyService, executionContextService, wrappedJweService, kmsTarget, createLogger), createLogger);
+      new SecretCipherService(
+        new DataKeyUnwrapperService(
+          dataKeyService,
+          executionContextService,
+          wrappedJweService,
+          mock<DataKeyUnwrapInstrumentationService>(),
+          kmsTarget,
+          createLogger
+        ),
+        createLogger
+      );
 
     const unsealer = new SdlSecretsUnsealerService(kmsTarget, wrappedJweService, authService, createLogger);
     const createdUserIds: string[] = [];
