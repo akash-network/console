@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { VisitEndpoint } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
 import { DeploymentEndpoints } from "./DeploymentEndpoints";
@@ -46,6 +46,45 @@ describe("DeploymentEndpoints", () => {
     setup({ endpoints: [], unreachableReason: "provider-unreachable" });
 
     expect(screen.getByText("endpoints unavailable · provider unreachable")).toBeInTheDocument();
+  });
+
+  it("keeps a click on an endpoint from reaching whatever the row is wired to", async () => {
+    const onContainerClick = vi.fn();
+    render(
+      <div onClick={onContainerClick}>
+        <DeploymentEndpoints endpoints={[endpoint({ host: "acmecorp.com", port: 443 })]} isLoading={false} unreachableReason={null} />
+      </div>
+    );
+
+    await userEvent.click(screen.getByRole("link"));
+
+    expect(onContainerClick).not.toHaveBeenCalled();
+  });
+
+  it("opens an endpoint in a new tab without leaking the referrer", () => {
+    setup({ endpoints: [endpoint({ host: "acmecorp.com", port: 443 })] });
+
+    const link = screen.getByRole("link");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noreferrer");
+  });
+
+  it("collapses the expanded list again on demand", async () => {
+    setup({ endpoints: [endpoint({ host: "one.example.com" }), endpoint({ host: "two.example.com", port: 8080 })] });
+
+    await userEvent.click(screen.getByRole("button", { name: /2 endpoints/ }));
+    expect(screen.getAllByRole("link")).toHaveLength(2);
+
+    await userEvent.click(screen.getByRole("button", { name: /2 endpoints/ }));
+
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("says nothing at all when there are no endpoints and no reason to give", () => {
+    setup({ endpoints: [], unreachableReason: undefined });
+
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.queryByText(/no public endpoint|not running|provider unreachable/)).not.toBeInTheDocument();
   });
 
   it("shows a placeholder instead of a wrong reason while endpoints are still resolving", () => {
