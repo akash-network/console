@@ -4,6 +4,7 @@ import { CompactEncrypt } from "jose";
 import { Err, Ok, type Result } from "ts-results";
 import { inject, singleton } from "tsyringe";
 
+import { assertBatchSize } from "@src/core/lib/batch-size/batch-size";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { TxService } from "@src/core/services";
 import type { SdlSecretsKmsTarget, SdlSecretsKmsTargetFactory } from "@src/deployment/providers/kms.provider";
@@ -61,7 +62,7 @@ export class DataKeyRewrapService {
 
   async rewrapDataKeys({ targetVersion, batchSize, dryRun }: DataKeyRewrapOptions): Promise<Result<DataKeyRewrapReport, unknown[]>> {
     const startedAt = Date.now();
-    const pageSize = this.#assertUsableBatchSize(batchSize ?? DEFAULT_BATCH_SIZE);
+    const pageSize = assertBatchSize(batchSize ?? DEFAULT_BATCH_SIZE);
     const target = this.createKmsTarget(targetVersion);
     const sealingKey = await this.#assertUsableTarget(target);
 
@@ -107,14 +108,6 @@ export class DataKeyRewrapService {
     this.logger.info({ event: "DATA_KEY_REWRAP_END", report });
 
     return errors.length > 0 ? Err(errors) : Ok(report);
-  }
-
-  #assertUsableBatchSize(batchSize: number): number {
-    if (!Number.isInteger(batchSize) || batchSize < 1) {
-      throw new Error(`Batch size must be a positive integer, got ${batchSize}`);
-    }
-
-    return batchSize;
   }
 
   /** The public key alone cannot answer this: Cloud KMS refuses a disabled version's key, but the emulator serves it. */
