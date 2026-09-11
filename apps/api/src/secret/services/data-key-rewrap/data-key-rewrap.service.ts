@@ -145,7 +145,7 @@ export class DataKeyRewrapService {
     return Object.fromEntries(census.map(({ wrappedByKid, count }) => [wrappedByKid, count]));
   }
 
-  /** Counts only rows a real run could move, so the dry-run promise holds for corrupted and foreign rows too — without spending a KMS unwrap on any of them. */
+  /** Parsing and version resolution are every check a dry run can make without spending a KMS unwrap, so the count stays an upper bound: the unwrap itself can still refuse a row. */
   #auditBatch(batch: DataKeyOutput[], target: SdlSecretsKmsTarget, errors: unknown[]): number {
     let resolvable = 0;
 
