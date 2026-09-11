@@ -34,6 +34,7 @@ import { SdlSecretsService, unreferencedNameError } from "@src/deployment/servic
 import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
 import { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
+import { deriveDeploymentName } from "@src/deployment/utils/deployment-name/deployment-name";
 import type { StorableSdl, StoredSdlPosition, StoredSdlRefusal } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { parseSdlForStorage, sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -146,7 +147,8 @@ export class DeploymentWriterService {
       sdl,
       manifestVersion,
       sealedSecrets,
-      runtimeLimitHours: input.runtimeLimitHours
+      runtimeLimitHours: input.runtimeLimitHours,
+      name: input.name ?? deriveDeploymentName(manifest.groups)
     });
 
     const result = await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, [message]);
@@ -169,6 +171,7 @@ export class DeploymentWriterService {
     manifestVersion: Uint8Array;
     sealedSecrets: string | null;
     runtimeLimitHours?: number;
+    name?: string;
   }): Promise<void> {
     const { owner, ...definition } = input;
 
@@ -222,6 +225,7 @@ export class DeploymentWriterService {
     /** Stated rather than optional, so a definition write cannot leave the previous create's token beside an SDL that no longer references the names in it. */
     sealedSecrets: string | null;
     runtimeLimitHours?: number;
+    name?: string;
   }): Promise<string> {
     const { manifestVersion, ...rest } = input;
 
@@ -386,7 +390,7 @@ export class DeploymentWriterService {
     const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
     const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq, secrets: derived });
 
-    await this.recordDefinition({ userId: wallet.userId, dseq, sdl, manifestVersion, sealedSecrets });
+    await this.recordDefinition({ userId: wallet.userId, dseq, sdl, manifestVersion, sealedSecrets, name: input.name });
 
     await this.ensureDeploymentIsUpToDate(wallet, dseq, manifestVersion, deployment);
     const auth = { walletId: wallet.id };

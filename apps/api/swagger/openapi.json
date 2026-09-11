@@ -4451,6 +4451,12 @@
                     "properties": {
                       "sdl": {
                         "type": "string"
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256,
+                        "description": "Renames the deployment. Omitting it keeps the name the deployment already carries, unlike the rest of the definition this endpoint replaces wholesale."
                       }
                     },
                     "required": [
@@ -5595,6 +5601,12 @@
                       "sdl": {
                         "type": "string",
                         "maxLength": 524288
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256,
+                        "description": "Name for this deployment, shown wherever it is listed. Omit it and the console names the deployment after the services the SDL declares, joined with `+`."
                       },
                       "sealedSecrets": {
                         "type": "string",

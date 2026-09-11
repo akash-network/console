@@ -19,6 +19,8 @@ export const DeploymentSettings = pgTable(
     lastFundedAt: timestamp("last_funded_at"),
     runtimeLimitHours: integer("runtime_limit_hours"),
     sdl: text("sdl"),
+    /** Unsized on purpose: the length a caller may supply is bounded by the request schema, while a name the console derives from an SDL is bounded by nothing the caller controls. */
+    name: text("name"),
     /** A JWE compact serialization, so `text` rather than a sized column: the plaintext it carries is bounded, its ciphertext is not sized by anything this schema knows. */
     sealedSecrets: text("sealed_secrets"),
     manifestVersion: varchar("manifest_version", { length: 64 }),

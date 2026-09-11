@@ -173,12 +173,12 @@ describe(DeploymentWriterService.name, () => {
   } as WalletInitialized;
 
   const manifestValue = {
-    groups: [{ name: "test-group" }],
+    groups: [{ name: "test-group", services: [{ name: "web" }] }],
     groupSpecs: [{ name: "test-group", resources: [] }]
   };
 
   const resolvedManifestValue = {
-    groups: [{ name: "resolved-group" }],
+    groups: [{ name: "resolved-group", services: [{ name: "web" }] }],
     groupSpecs: [{ name: "resolved-group", resources: [] }]
   };
 
@@ -368,8 +368,25 @@ describe(DeploymentWriterService.name, () => {
         sdl: expect.stringContaining("API_TOKEN="),
         manifestVersion: "BAUG",
         sealedSecrets: null,
-        runtimeLimitHours: undefined
+        runtimeLimitHours: undefined,
+        name: "web"
       });
+    });
+
+    it("names the deployment after the services the manifest declares, joined", async () => {
+      const { service, deploymentSettingRepository } = setup({ serviceNames: ["db", "web"] });
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ name: "db+web" }));
+    });
+
+    it("keeps the name the request supplied rather than deriving one", async () => {
+      const { service, deploymentSettingRepository } = setup({ serviceNames: ["db", "web"] });
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5, name: "checkout stack" });
+
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ name: "checkout stack" }));
     });
 
     it("passes the seal and the sdl exactly as they arrived to the intake", async () => {
@@ -1222,6 +1239,22 @@ describe(DeploymentWriterService.name, () => {
       expect(rpcMessageService.getUpdateDeploymentMsg).toHaveBeenCalledWith(expect.objectContaining({ owner: wallet.address, dseq: "100" }));
       expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledWith("user-1", [updateMsg]);
       expect(result).toBe(deploymentData);
+    });
+
+    it("records the name the update supplies", async () => {
+      const { service, deploymentSettingRepository } = setup();
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl", name: "renamed" });
+
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ name: "renamed" }));
+    });
+
+    it("names no name for an update that supplies none, leaving the one already recorded", async () => {
+      const { service, deploymentSettingRepository } = setup();
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
+
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ name: undefined }));
     });
 
     it("enqueues no compensation for an update, whose deployment the chain has already answered for", async () => {
@@ -2144,6 +2177,7 @@ describe(DeploymentWriterService.name, () => {
     storedRuntimeLimitHours?: number | null;
     sourceSetting?: DeploymentSettingsOutput;
     isTrialing?: boolean;
+    serviceNames?: string[];
   }) {
     const signerService = mock<ManagedSignerService>();
     const rpcMessageService = mock<RpcMessageService>();
@@ -2206,9 +2240,12 @@ describe(DeploymentWriterService.name, () => {
     sdlService.parse.mockReturnValue({ ok: true, value: parsedSdlValue } as any);
     sdlService.generateManifest.mockResolvedValue({ ok: true, value: manifestValue } as any);
     sdlService.generateManifestVersion.mockResolvedValue(new Uint8Array([4, 5, 6]));
+    const resolvedManifest = input?.serviceNames
+      ? { ...resolvedManifestValue, groups: [{ name: "resolved-group", services: input.serviceNames.map(name => ({ name })) }] }
+      : resolvedManifestValue;
     sdlService.generateResolvedManifest.mockResolvedValue({
       ok: true,
-      value: { manifest: resolvedManifestValue, manifestVersion: input?.manifestVersion ?? new Uint8Array([4, 5, 6]) }
+      value: { manifest: resolvedManifest, manifestVersion: input?.manifestVersion ?? new Uint8Array([4, 5, 6]) }
     } as any);
     deploymentReaderService.findByWalletAndDseq.mockResolvedValue(deploymentData);
 

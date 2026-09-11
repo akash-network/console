@@ -26,7 +26,7 @@ type DeploymentSettingChange = Pick<DeploymentSettingsInput, "runtimeLimitHours"
 
 type DeploymentSettingWithEstimatedTopUpAmount = Omit<
   DeploymentSettingsOutput,
-  "lastFundedAt" | "runtimeEndingNotifiedFor" | "providerUnreachableNotifiedFor" | "sealedSecrets" | "manifestVersion" | "runtimeEndsAt"
+  "lastFundedAt" | "runtimeEndingNotifiedFor" | "providerUnreachableNotifiedFor" | "sealedSecrets" | "manifestVersion" | "name" | "runtimeEndsAt"
 > & {
   estimatedTopUpAmount: number;
   topUpFrequencyMs: number;
@@ -324,7 +324,8 @@ export class DeploymentSettingService {
       return undefined;
     }
 
-    const { lastFundedAt, runtimeEndingNotifiedFor, providerUnreachableNotifiedFor, sdl, sealedSecrets, manifestVersion, runtimeEndsAt, ...rest } = params;
+    const { lastFundedAt, runtimeEndingNotifiedFor, providerUnreachableNotifiedFor, sdl, sealedSecrets, manifestVersion, name, runtimeEndsAt, ...rest } =
+      params;
     const setting = { ...rest, runtimeEndsAt: runtimeEndsAt?.toISOString() ?? null };
 
     if (!setting.autoTopUpEnabled) {

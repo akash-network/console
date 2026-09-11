@@ -545,7 +545,7 @@ describe("Deployment sealed secrets", () => {
     expect(response.status).toBe(200);
     const createBody = (JSON.parse(document) as OpenApiPaths).paths["/v1/deployments"].post.requestBody.content["application/json"].schema.properties.data
       .properties;
-    expect(Object.keys(createBody)).toEqual(["sdl", "sealedSecrets", "inheritSecretsFrom", "deposit", "runtimeLimitHours"]);
+    expect(Object.keys(createBody)).toEqual(["sdl", "name", "sealedSecrets", "inheritSecretsFrom", "deposit", "runtimeLimitHours"]);
   });
 
   it("describes the seal on both routes that accept one, so neither reads as create-only", async () => {
