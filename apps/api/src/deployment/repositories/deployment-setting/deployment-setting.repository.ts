@@ -2,6 +2,7 @@ import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, or, s
 import { singleton } from "tsyringe";
 
 import { UserWallets, WalletSetting } from "@src/billing/model-schemas";
+import { assertBatchSize } from "@src/core/lib/batch-size/batch-size";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
@@ -46,6 +47,12 @@ export type OpenDeployment = {
   dseq: string;
   address: string;
   createdAt: Date;
+};
+
+/** A deployment's stored secrets token alongside the id it is sealed to. */
+export type DeploymentStoredSecrets = {
+  id: string;
+  sealedSecrets: string;
 };
 
 export type LiveTrialDeployment = {
@@ -168,6 +175,34 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       }
 
       yield batch as OpenDeployment[];
+
+      if (batch.length < batchSize) {
+        return;
+      }
+
+      cursor = batch[batch.length - 1].id;
+    }
+  }
+
+  /** Rows holding no secret are left out, so a fingerprint's row and byte counts describe the deployments that actually carry one. */
+  async *findStoredSecretsIteratively({ batchSize }: { batchSize: number }): AsyncGenerator<DeploymentStoredSecrets[]> {
+    assertBatchSize(batchSize);
+
+    let cursor: string | undefined;
+
+    while (true) {
+      const batch = await this.pg
+        .select({ id: this.table.id, sealedSecrets: this.table.sealedSecrets })
+        .from(this.table)
+        .where(and(isNotNull(this.table.sealedSecrets), ...(cursor ? [gt(this.table.id, cursor)] : [])))
+        .orderBy(asc(this.table.id))
+        .limit(batchSize);
+
+      if (!batch.length) {
+        return;
+      }
+
+      yield batch as DeploymentStoredSecrets[];
 
       if (batch.length < batchSize) {
         return;
