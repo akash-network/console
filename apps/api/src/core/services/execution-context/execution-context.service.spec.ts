@@ -5,6 +5,12 @@ import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { ExecutionContextService } from "./execution-context.service";
 
 describe(ExecutionContextService.name, () => {
+  it("names itself on the logs it writes", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: ExecutionContextService.name });
+  });
+
   describe("onContextEnd", () => {
     it("runs the callback when the context ends", async () => {
       const { service } = setup();
@@ -78,6 +84,15 @@ describe(ExecutionContextService.name, () => {
       expect(onEnd).toHaveBeenCalledTimes(1);
     });
 
+    it("reports nothing when every callback succeeded", async () => {
+      const { service, logger } = setup();
+      service.onContextEnd(vi.fn());
+
+      await service.runWithContext(async () => undefined);
+
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
     it("reports a callback that threw rather than losing it", async () => {
       const { service, logger } = setup();
       service.onContextEnd(() => {
@@ -92,8 +107,9 @@ describe(ExecutionContextService.name, () => {
 
   function setup() {
     const logger = mock<ReturnType<CreateLogger>>();
-    const service = new ExecutionContextService(() => logger);
+    const createLogger = vi.fn<CreateLogger>(() => logger);
+    const service = new ExecutionContextService(createLogger);
 
-    return { service, logger };
+    return { service, logger, createLogger };
   }
 });
