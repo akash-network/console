@@ -886,7 +886,7 @@ describe(DeploymentSettingRepository.name, () => {
 
       const stored = await findStoredSecrets([id]);
 
-      expect(stored).toEqual([{ id, sealedSecrets: sealedToken }]);
+      expect(stored).toEqual([{ id, sealedSecrets: sealedToken, updatedAt: expect.any(Date) }]);
     });
 
     it("passes over a deployment holding no token, which no fingerprint has anything to say about", async () => {

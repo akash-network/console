@@ -29,6 +29,9 @@ const SEALING_KEY_PEM = SEALING_KEYPAIR.publicKey.export({ type: "spki", format:
 
 const ONE_MINUTE_MS = 60_000;
 
+const TOUCHED_AT = new Date("2026-09-01T10:00:00Z");
+const TOUCHED_LATER = new Date("2026-09-01T10:05:00Z");
+
 const A_TOKEN = "eyJhbGciOiJkaXIifQ..YWxwaGEtaXY.YWxwaGEtY2lwaGVydGV4dA.YWxwaGEtdGFn";
 const ANOTHER_TOKEN = "eyJhbGciOiJkaXIifQ..Z2FtbWEtaXY.Z2FtbWEtY2lwaGVydGV4dA.Z2FtbWEtdGFn";
 
@@ -206,7 +209,7 @@ describe(DataKeyRewrapService.name, () => {
         census: { [SOURCE_KID]: 2, [TARGET_KID]: 1 },
         dataKeysRewrapped: 2,
         dataKeysFailed: 0,
-        secretsReEncrypted: 0,
+        secretsDrift: { corruptedIds: [], changedConcurrently: 0, added: 0, removed: 0 },
         bytesRewritten: writtenKeys().reduce((total, key) => total + Buffer.byteLength(key), 0),
         fingerprint: {
           before: { rowCount: 2, byteCount: A_TOKEN.length + ANOTHER_TOKEN.length },
@@ -275,17 +278,17 @@ describe(DataKeyRewrapService.name, () => {
   });
 
   describe("when a stored secret changed under the run", () => {
-    it("fails hard rather than reporting a rotation that proved nothing", async () => {
+    it("fails hard when a token changed while its updatedAt stood still, which no user write can produce", async () => {
       const { service } = setup({
         rows: [aRow({})],
-        storedSecrets: [{ id: "a", sealedSecrets: A_TOKEN }],
-        storedSecretsAfter: [{ id: "a", sealedSecrets: ANOTHER_TOKEN }]
+        storedSecrets: [{ id: "a", sealedSecrets: A_TOKEN, updatedAt: TOUCHED_AT }],
+        storedSecretsAfter: [{ id: "a", sealedSecrets: ANOTHER_TOKEN, updatedAt: TOUCHED_AT }]
       });
 
       await expect(service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: false })).rejects.toThrow();
     });
 
-    it("reports how many stored secrets moved, which a row count alone cannot show", async () => {
+    it("names the rows it cannot vouch for, which a digest alone cannot show", async () => {
       const { service, logger } = setup({
         rows: [aRow({})],
         storedSecrets: [
@@ -301,8 +304,36 @@ describe(DataKeyRewrapService.name, () => {
       await expect(service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: false })).rejects.toThrow();
 
       expect(logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ event: "DATA_KEY_REWRAP_FINGERPRINT_MISMATCH", report: expect.objectContaining({ secretsReEncrypted: 1 }) })
+        expect.objectContaining({
+          event: "DATA_KEY_REWRAP_FINGERPRINT_MISMATCH",
+          report: expect.objectContaining({ secretsDrift: expect.objectContaining({ corruptedIds: ["a"] }) })
+        })
       );
+    });
+
+    it("passes a run during which a user re-saved their secrets, since their write moved updatedAt along with the token", async () => {
+      const { service, report, logger } = setup({
+        rows: [aRow({})],
+        storedSecrets: [{ id: "a", sealedSecrets: A_TOKEN, updatedAt: TOUCHED_AT }],
+        storedSecretsAfter: [{ id: "a", sealedSecrets: ANOTHER_TOKEN, updatedAt: TOUCHED_LATER }]
+      });
+
+      const summary = report(await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: false }));
+
+      expect(summary.secretsDrift).toEqual({ corruptedIds: [], changedConcurrently: 1, added: 0, removed: 0 });
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DATA_KEY_REWRAP_SECRETS_CHANGED_CONCURRENTLY" }));
+    });
+
+    it("passes a run during which a secret arrived and another disappeared", async () => {
+      const { service, report } = setup({
+        rows: [aRow({})],
+        storedSecrets: [{ id: "a", sealedSecrets: A_TOKEN }],
+        storedSecretsAfter: [{ id: "b", sealedSecrets: ANOTHER_TOKEN }]
+      });
+
+      const summary = report(await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: false }));
+
+      expect(summary.secretsDrift).toEqual({ corruptedIds: [], changedConcurrently: 0, added: 1, removed: 1 });
     });
   });
 
@@ -326,8 +357,8 @@ describe(DataKeyRewrapService.name, () => {
   function setup(input: {
     rows?: DataKeyOutput[];
     census?: Array<{ wrappedByKid: string; count: number }>;
-    storedSecrets?: Array<{ id: string; sealedSecrets: string }>;
-    storedSecretsAfter?: Array<{ id: string; sealedSecrets: string }>;
+    storedSecrets?: Array<{ id: string; sealedSecrets: string; updatedAt?: Date | null }>;
+    storedSecretsAfter?: Array<{ id: string; sealedSecrets: string; updatedAt?: Date | null }>;
     unopenableIds?: string[];
     versionState?: protos.google.cloud.kms.v1.ICryptoKeyVersion["state"];
   }) {
@@ -375,7 +406,7 @@ describe(DataKeyRewrapService.name, () => {
     deploymentSettingRepository.findStoredSecretsIteratively.mockImplementation(async function* () {
       const scanned = scans++ === 0 ? (input.storedSecrets ?? []) : (input.storedSecretsAfter ?? input.storedSecrets ?? []);
 
-      if (scanned.length) yield scanned;
+      if (scanned.length) yield scanned.map(row => ({ ...row, updatedAt: row.updatedAt ?? null }));
     });
 
     const txService = mock<TxService>();

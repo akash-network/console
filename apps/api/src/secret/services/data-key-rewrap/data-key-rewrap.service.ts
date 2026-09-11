@@ -12,7 +12,7 @@ import { DeploymentSettingRepository } from "@src/deployment/repositories/deploy
 import { KmsWrappedJweService } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe.service";
 import type { SdlSecretsSealingKey } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
 import { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
-import type { StoredSecretsSummary } from "@src/secret/lib/stored-secrets-fingerprint/stored-secrets-fingerprint";
+import type { StoredSecretsDrift, StoredSecretsSummary } from "@src/secret/lib/stored-secrets-fingerprint/stored-secrets-fingerprint";
 import { StoredSecretsFingerprint } from "@src/secret/lib/stored-secrets-fingerprint/stored-secrets-fingerprint";
 import type { DataKeyOutput } from "@src/secret/repositories/data-key/data-key.repository";
 import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
@@ -37,18 +37,13 @@ export interface DataKeyRewrapReport {
   census: Record<string, number>;
   dataKeysRewrapped: number;
   dataKeysFailed: number;
-  secretsReEncrypted: number;
+  secretsDrift?: StoredSecretsDrift;
   bytesRewritten: number;
   elapsedMs: number;
   fingerprint: { before: StoredSecretsSummary; after?: StoredSecretsSummary };
 }
 
-/**
- * Moves every user's data encryption key onto a KMS key version, so the versions it leaves behind
- * can be disabled. A data key is re-wrapped, never replaced, and a deployment's secrets are sealed
- * to the data key's identity rather than to its wrapping — so this rewrites one row per user and
- * must leave every stored secret exactly as it found it, which the fingerprint either side proves.
- */
+/** Re-wraps every user's data key onto one KMS key version so the versions left behind can be disabled, and proves through the fingerprint drift that it left every stored secret untouched. */
 @singleton()
 export class DataKeyRewrapService {
   private readonly logger: ReturnType<CreateLogger>;
@@ -102,7 +97,7 @@ export class DataKeyRewrapService {
       census,
       dataKeysRewrapped: rewrapped,
       dataKeysFailed: errors.length,
-      secretsReEncrypted: after ? before.countDifferencesFrom(after) : 0,
+      secretsDrift: after?.driftFrom(before),
       bytesRewritten,
       elapsedMs: Date.now() - startedAt,
       fingerprint: { before: before.summarize(), after: after?.summarize() }
@@ -153,11 +148,7 @@ export class DataKeyRewrapService {
     return Object.fromEntries(census.map(({ wrappedByKid, count }) => [wrappedByKid, count]));
   }
 
-  /**
-   * A row nothing can open is recorded and stepped over rather than aborting the run: selection is
-   * keyset-paged, so a row that failed the whole run would be the first one every re-run picks, and
-   * the rest of the fleet would never move off the version the operator is trying to retire.
-   */
+  /** A row nothing can open is recorded and stepped over, because keyset selection would hand it to every re-run first and the fleet would never move off the retiring version. */
   async #rewrapBatch(
     batch: DataKeyOutput[],
     target: SdlSecretsKmsTarget,
@@ -194,10 +185,19 @@ export class DataKeyRewrapService {
       .encrypt(sealingKey.publicKey);
   }
 
+  /** Concurrent user writes move the digest legitimately, so only a row changed without its `updatedAt` moving fails the run. */
   #assertStoredSecretsUntouched(report: DataKeyRewrapReport) {
-    const { before, after } = report.fingerprint;
+    const drift = report.secretsDrift;
 
-    if (!after || (after.digest === before.digest && after.rowCount === before.rowCount && after.byteCount === before.byteCount)) {
+    if (!drift) {
+      return;
+    }
+
+    if (drift.changedConcurrently > 0 || drift.added > 0 || drift.removed > 0) {
+      this.logger.warn({ event: "DATA_KEY_REWRAP_SECRETS_CHANGED_CONCURRENTLY", drift });
+    }
+
+    if (drift.corruptedIds.length === 0) {
       return;
     }
 

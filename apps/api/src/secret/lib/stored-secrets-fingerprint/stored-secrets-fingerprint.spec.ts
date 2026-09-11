@@ -5,6 +5,8 @@ import { StoredSecretsFingerprint } from "./stored-secrets-fingerprint";
 const FIRST = { id: "11111111-1111-4111-8111-111111111111", sealedSecrets: "aGVhZGVy.a2V5.aXY.Zmlyc3Q.dGFn" };
 const SECOND = { id: "22222222-2222-4222-8222-222222222222", sealedSecrets: "aGVhZGVy.a2V5.aXY.c2Vjb25k.dGFn" };
 const THIRD = { id: "33333333-3333-4333-8333-333333333333", sealedSecrets: "aGVhZGVy.a2V5.aXY.dGhpcmQ.dGFn" };
+const TOUCHED_AT = new Date("2026-09-01T10:00:00Z");
+const TOUCHED_LATER = new Date("2026-09-01T10:05:00Z");
 
 describe(StoredSecretsFingerprint.name, () => {
   it("digests the same rows to the same value whatever order they arrive in", () => {
@@ -81,37 +83,47 @@ describe(StoredSecretsFingerprint.name, () => {
     expect(summary.digest).not.toBe(setup({ rows: [FIRST] }).summary.digest);
   });
 
-  describe("countDifferencesFrom", () => {
-    it("counts no difference against an identical fleet", () => {
-      const { fingerprint } = setup({ rows: [FIRST, SECOND] });
+  describe("driftFrom", () => {
+    it("reports no drift against an identical fleet", () => {
+      const before = setup({ rows: [FIRST, SECOND] });
+      const after = setup({ rows: [SECOND, FIRST] });
 
-      expect(fingerprint.countDifferencesFrom(setup({ rows: [SECOND, FIRST] }).fingerprint)).toBe(0);
+      expect(after.fingerprint.driftFrom(before.fingerprint)).toEqual({ corruptedIds: [], changedConcurrently: 0, added: 0, removed: 0 });
     });
 
-    it("counts each row whose token changed", () => {
-      const { fingerprint } = setup({ rows: [FIRST, SECOND, THIRD] });
-      const { fingerprint: changed } = setup({ rows: [FIRST, { ...SECOND, sealedSecrets: "changed" }, { ...THIRD, sealedSecrets: "also-changed" }] });
+    it("flags a row whose token changed while its updatedAt stood still as corrupted", () => {
+      const before = setup({ rows: [FIRST, { ...SECOND, updatedAt: TOUCHED_AT }] });
+      const after = setup({ rows: [FIRST, { ...SECOND, sealedSecrets: "changed", updatedAt: TOUCHED_AT }] });
 
-      expect(fingerprint.countDifferencesFrom(changed)).toBe(2);
+      expect(after.fingerprint.driftFrom(before.fingerprint)).toMatchObject({ corruptedIds: [SECOND.id], changedConcurrently: 0 });
     });
 
-    it("counts a row that arrived and a row that disappeared", () => {
-      const { fingerprint } = setup({ rows: [FIRST, SECOND] });
-      const { fingerprint: moved } = setup({ rows: [FIRST, THIRD] });
+    it("flags a row whose token changed without any updatedAt to vouch for it as corrupted", () => {
+      const before = setup({ rows: [FIRST, SECOND] });
+      const after = setup({ rows: [FIRST, { ...SECOND, sealedSecrets: "changed" }] });
 
-      expect(fingerprint.countDifferencesFrom(moved)).toBe(2);
+      expect(after.fingerprint.driftFrom(before.fingerprint)).toMatchObject({ corruptedIds: [SECOND.id], changedConcurrently: 0 });
     });
 
-    it("counts a swap as both rows having moved", () => {
-      const { fingerprint } = setup({ rows: [FIRST, SECOND] });
-      const { fingerprint: swapped } = setup({
-        rows: [
-          { id: FIRST.id, sealedSecrets: SECOND.sealedSecrets },
-          { id: SECOND.id, sealedSecrets: FIRST.sealedSecrets }
-        ]
-      });
+    it("counts a row whose token and updatedAt both moved as a concurrent write rather than corruption", () => {
+      const before = setup({ rows: [FIRST, { ...SECOND, updatedAt: TOUCHED_AT }] });
+      const after = setup({ rows: [FIRST, { ...SECOND, sealedSecrets: "changed", updatedAt: TOUCHED_LATER }] });
 
-      expect(fingerprint.countDifferencesFrom(swapped)).toBe(2);
+      expect(after.fingerprint.driftFrom(before.fingerprint)).toEqual({ corruptedIds: [], changedConcurrently: 1, added: 0, removed: 0 });
+    });
+
+    it("reports no drift for a row whose updatedAt moved while its token stayed", () => {
+      const before = setup({ rows: [{ ...FIRST, updatedAt: TOUCHED_AT }] });
+      const after = setup({ rows: [{ ...FIRST, updatedAt: TOUCHED_LATER }] });
+
+      expect(after.fingerprint.driftFrom(before.fingerprint)).toEqual({ corruptedIds: [], changedConcurrently: 0, added: 0, removed: 0 });
+    });
+
+    it("counts a row that arrived as added and one that disappeared as removed", () => {
+      const before = setup({ rows: [FIRST, SECOND] });
+      const after = setup({ rows: [FIRST, THIRD] });
+
+      expect(after.fingerprint.driftFrom(before.fingerprint)).toEqual({ corruptedIds: [], changedConcurrently: 0, added: 1, removed: 1 });
     });
   });
 
@@ -119,11 +131,11 @@ describe(StoredSecretsFingerprint.name, () => {
     expect(setup({ rows: [FIRST, SECOND] }).summary).toEqual(setup({ rows: [FIRST, SECOND] }).summary);
   });
 
-  function setup(input: { rows: Array<{ id: string; sealedSecrets: string }> }) {
+  function setup(input: { rows: Array<{ id: string; sealedSecrets: string; updatedAt?: Date | null }> }) {
     const fingerprint = new StoredSecretsFingerprint();
 
     for (const row of input.rows) {
-      fingerprint.add(row);
+      fingerprint.add({ ...row, updatedAt: row.updatedAt ?? null });
     }
 
     return { fingerprint, summary: fingerprint.summarize() };

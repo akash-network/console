@@ -4,6 +4,14 @@ import { createHash } from "node:crypto";
 export interface StoredSecretsEntry {
   id: string;
   sealedSecrets: string;
+  updatedAt: Date | null;
+}
+
+export interface StoredSecretsDrift {
+  corruptedIds: string[];
+  changedConcurrently: number;
+  added: number;
+  removed: number;
 }
 
 export interface StoredSecretsSummary {
@@ -19,33 +27,40 @@ const LENGTH_PREFIX_BYTES = 4;
 
 /** Digests each row under its own id and combines the row digests in id order, so the result reflects the rows themselves rather than the order a scan yielded them in. */
 export class StoredSecretsFingerprint {
-  readonly #rowDigests = new Map<string, { digest: Buffer; byteCount: number }>();
+  readonly #rowDigests = new Map<string, { digest: Buffer; byteCount: number; updatedAtMs: number | null }>();
 
-  add({ id, sealedSecrets }: StoredSecretsEntry): void {
+  add({ id, sealedSecrets, updatedAt }: StoredSecretsEntry): void {
     const token = Buffer.from(sealedSecrets, "utf8");
     const hash = createHash(DIGEST_ALGORITHM);
 
     appendLengthPrefixed(hash, Buffer.from(id, "utf8"));
     appendLengthPrefixed(hash, token);
 
-    this.#rowDigests.set(id, { digest: hash.digest(), byteCount: token.length });
+    this.#rowDigests.set(id, { digest: hash.digest(), byteCount: token.length, updatedAtMs: updatedAt?.getTime() ?? null });
   }
 
-  /** How many rows hold a different token than they did in `other`, counting one that arrived or disappeared as a difference of its own. */
-  countDifferencesFrom(other: StoredSecretsFingerprint): number {
-    const ids = new Set([...this.#rowDigests.keys(), ...other.#rowDigests.keys()]);
-    let differences = 0;
+  /** A token that changed while its row's `updatedAt` stood still is corruption, because every legitimate secrets write bumps that timestamp. */
+  driftFrom(before: StoredSecretsFingerprint): StoredSecretsDrift {
+    const drift: StoredSecretsDrift = { corruptedIds: [], changedConcurrently: 0, added: 0, removed: 0 };
 
-    for (const id of ids) {
-      const mine = this.#rowDigests.get(id);
-      const theirs = other.#rowDigests.get(id);
+    for (const id of new Set([...this.#rowDigests.keys(), ...before.#rowDigests.keys()])) {
+      const current = this.#rowDigests.get(id);
+      const previous = before.#rowDigests.get(id);
 
-      if (!mine || !theirs || !mine.digest.equals(theirs.digest)) {
-        differences++;
+      if (!previous) {
+        drift.added++;
+      } else if (!current) {
+        drift.removed++;
+      } else if (!current.digest.equals(previous.digest)) {
+        if (current.updatedAtMs === previous.updatedAtMs) {
+          drift.corruptedIds.push(id);
+        } else {
+          drift.changedConcurrently++;
+        }
       }
     }
 
-    return differences;
+    return drift;
   }
 
   summarize(): StoredSecretsSummary {
