@@ -263,6 +263,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
               <d.ConfigureDeploymentHeader
                 flow={flow}
                 sdl={liveSdl}
+                deploymentName={deploymentName}
                 onDeploy={() => openReview(flow.selections)}
                 allPlacementsHaveBids={allPlacementsHaveBids}
               />

@@ -24,8 +24,17 @@ describe(ConfigureDeploymentHeader.name, () => {
 
     fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
 
-    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL));
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, ""));
     expect(enqueueSnackbar).not.toHaveBeenCalled();
+  });
+
+  it("requests quotes with the name typed into the deployment pane, so the api records it on create", async () => {
+    const requestQuotes = vi.fn();
+    setup({ phase: "configuring", requestQuotes, deploymentName: "my-app" });
+
+    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
+
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, "my-app"));
   });
 
   it("blocks a trial deployment whose GPU resolves to a blocked selection and surfaces the trial message", async () => {
@@ -57,7 +66,7 @@ describe(ConfigureDeploymentHeader.name, () => {
 
     fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
 
-    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL));
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, ""));
   });
 
   it("does not apply the trial GPU guard for a non-trial user", async () => {
@@ -71,7 +80,7 @@ describe(ConfigureDeploymentHeader.name, () => {
 
     fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
 
-    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL));
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, ""));
   });
 
   it("surfaces SDL validation errors and does not request quotes when the spec is invalid", async () => {
@@ -248,6 +257,7 @@ describe(ConfigureDeploymentHeader.name, () => {
     expiry?: QuoteExpiry | null;
     cancelAndEdit?: () => void;
     isRestricted?: boolean;
+    deploymentName?: string;
     services?: Array<{ profile: { hasGpu?: boolean; gpuModels?: Array<{ vendor: string; name?: string }> } }>;
   }) {
     const flow = mock<DeploymentFlow>({
@@ -281,6 +291,7 @@ describe(ConfigureDeploymentHeader.name, () => {
         <ConfigureDeploymentHeader
           flow={flow}
           sdl={input.sdl ?? ""}
+          deploymentName={input.deploymentName ?? ""}
           onDeploy={input.onDeploy ?? vi.fn()}
           allPlacementsHaveBids={input.allPlacementsHaveBids ?? false}
           dependencies={dependencies}
