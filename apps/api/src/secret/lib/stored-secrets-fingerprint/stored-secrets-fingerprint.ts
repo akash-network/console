@@ -41,19 +41,15 @@ export class StoredSecretsFingerprint {
     const hash = createHash(DIGEST_ALGORITHM);
     let byteCount = 0;
 
-    for (const [, row] of [...this.#rowDigests].sort(byId)) {
+    for (const id of [...this.#rowDigests.keys()].sort()) {
+      const row = this.#rowDigests.get(id)!;
+
       hash.update(row.digest);
       byteCount += row.byteCount;
     }
 
     return { digest: hash.digest("hex"), rowCount: this.#rowDigests.size, byteCount };
   }
-}
-
-function byId([left]: [string, unknown], [right]: [string, unknown]) {
-  if (left === right) return 0;
-
-  return left < right ? -1 : 1;
 }
 
 /** Without the length, a row's id and its token could be rearranged into another row's pair and digest alike. */
