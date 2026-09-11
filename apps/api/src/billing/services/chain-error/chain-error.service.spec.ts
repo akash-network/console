@@ -8,6 +8,7 @@ import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { TxNotIncludedError, TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 import type { TxManagerService } from "../tx-manager/tx-manager.service";
 import { ChainErrorService } from "./chain-error.service";
 
@@ -25,6 +26,20 @@ describe(ChainErrorService.name, () => {
       const err = new Error("just some random failure");
       const result = await service.toAppError(err, encodeMessages);
       expect(result).toBe(err);
+    });
+
+    it("returns an undecided transaction outcome untouched", async () => {
+      const { service } = setup();
+      const error = new TxOutcomeUnknownError("ABC123");
+
+      expect(await service.toAppError(error, encodeMessages)).toBe(error);
+    });
+
+    it("returns a not-included transaction outcome untouched", async () => {
+      const { service } = setup();
+      const error = new TxNotIncludedError("ABC123");
+
+      expect(await service.toAppError(error, encodeMessages)).toBe(error);
     });
 
     it("returns 503 when master wallet balance is less than required in uakt", async () => {

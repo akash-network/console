@@ -1,0 +1,59 @@
+import { and, desc, eq, gt, inArray, isNull, lt, ne } from "drizzle-orm";
+import { singleton } from "tsyringe";
+
+import { UserWallets } from "@src/billing/model-schemas";
+import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
+import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
+import { TxService } from "@src/core/services";
+
+type Table = ApiPgTables["WorkloadAbuseDetections"];
+export type WorkloadAbuseDetectionInput = Partial<Table["$inferInsert"]>;
+export type WorkloadAbuseDetectionOutput = Table["$inferSelect"];
+
+@singleton()
+export class WorkloadAbuseDetectionRepository extends BaseRepository<Table, WorkloadAbuseDetectionInput, WorkloadAbuseDetectionOutput> {
+  constructor(
+    @InjectPg() protected readonly pg: ApiPgDatabase,
+    @InjectPgTable("WorkloadAbuseDetections") protected readonly table: Table,
+    protected readonly txManager: TxService
+  ) {
+    super(pg, table, txManager, "WorkloadAbuseDetection", "WorkloadAbuseDetections");
+  }
+
+  accessibleBy(...abilityParams: AbilityParams) {
+    return new WorkloadAbuseDetectionRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
+  }
+
+  async findRecentHardTargets({ since }: { since: Date }): Promise<Array<{ walletId: number; dseq: string }>> {
+    return await this.cursor
+      .selectDistinct({ walletId: this.table.walletId, dseq: this.table.dseq })
+      .from(this.table)
+      .where(and(eq(this.table.verdict, "hard"), gt(this.table.createdAt, since)));
+  }
+
+  /** One detection per wallet, since the wipe covers the whole wallet whichever of its detections re-queues it. */
+  async findStalledEnforcements({ updatedBefore }: { updatedBefore: Date }): Promise<Array<{ walletId: number; detectionId: string }>> {
+    return await this.cursor
+      .selectDistinctOn([this.table.walletId], { walletId: this.table.walletId, detectionId: this.table.id })
+      .from(this.table)
+      .innerJoin(UserWallets, eq(UserWallets.id, this.table.walletId))
+      .where(
+        and(
+          eq(this.table.verdict, "hard"),
+          inArray(this.table.action, ["enforcing", "enforcement_failed"]),
+          lt(this.table.updatedAt, updatedBefore),
+          eq(UserWallets.isTrialing, true),
+          isNull(UserWallets.abuseLockedAt)
+        )
+      )
+      .orderBy(this.table.walletId, desc(this.table.updatedAt));
+  }
+
+  /** A locked wallet settles every confirmed detection it has, including the ones whose own enforcement job never ran or failed. */
+  async markWalletEnforced(walletId: number): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({ action: "enforced", enforcementError: null, updatedAt: new Date() })
+      .where(and(eq(this.table.walletId, walletId), eq(this.table.verdict, "hard"), ne(this.table.action, "enforced")));
+  }
+}

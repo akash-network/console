@@ -28,19 +28,17 @@ describe(PaymentMethodService.name, () => {
     const payingUser = () => mock<PayingUser>({ id: "user_1", stripeCustomerId: "cus_1" });
     const listResponse = (data: Stripe.PaymentMethod[]) => ({ data, has_more: false }) as unknown as Stripe.Response<Stripe.ApiList<Stripe.PaymentMethod>>;
 
-    it("repairs an unsynced remote method by syncing it and pushing the Stripe default", async () => {
+    it("repairs an unsynced remote method by syncing it as the local default", async () => {
       const { service, stripe, paymentMethodRepository } = setup();
       const remote = generatePaymentMethod({ id: "pm_1", card: { fingerprint: "fp_1" } });
       const healed = { ...generateDatabasePaymentMethod({ paymentMethodId: "pm_1", fingerprint: "fp_1" }), isDefault: true };
       vi.spyOn(stripe.paymentMethods, "list").mockResolvedValue(listResponse([remote]));
       paymentMethodRepository.findByUserId.mockResolvedValueOnce([]).mockResolvedValueOnce([healed]);
       paymentMethodRepository.upsert.mockResolvedValue({ paymentMethod: healed, isNew: true });
-      const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(mock<Stripe.Response<Stripe.Customer>>());
 
       const result = await service.getPaymentMethods(payingUser(), ability);
 
       expect(paymentMethodRepository.upsert).toHaveBeenCalledWith({ userId: "user_1", fingerprint: "fp_1", paymentMethodId: "pm_1" });
-      expect(update).toHaveBeenCalledWith("cus_1", { invoice_settings: { default_payment_method: "pm_1" } }, { timeout: 3_000 });
       expect(result).toEqual([{ ...remote, validated: false, isDefault: true }]);
     });
 
@@ -51,7 +49,6 @@ describe(PaymentMethodService.name, () => {
       vi.spyOn(stripe.paymentMethods, "list").mockResolvedValue(listResponse([newer, older]));
       paymentMethodRepository.findByUserId.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
       paymentMethodRepository.upsert.mockResolvedValue({ paymentMethod: generateDatabasePaymentMethod({ paymentMethodId: "pm_old" }), isNew: true });
-      vi.spyOn(stripe.customers, "update").mockResolvedValue(mock<Stripe.Response<Stripe.Customer>>());
 
       await service.getPaymentMethods(payingUser(), ability);
 
@@ -73,18 +70,19 @@ describe(PaymentMethodService.name, () => {
   });
 
   describe("markPaymentMethodAsDefault", () => {
-    it("sets an already-synced method as default locally and on Stripe", async () => {
+    it("sets an already-synced method as the local default without touching the Stripe customer", async () => {
       const { service, stripe, paymentMethodRepository } = setup();
       const user = mock<PayingUser>({ id: "user_1", stripeCustomerId: "cus_1" });
       const local = generateDatabasePaymentMethod({ paymentMethodId: "pm_1" });
-      const remote = generatePaymentMethod({ id: "pm_1" });
+      const remote = generatePaymentMethod({ id: "pm_1", customer: "cus_1" });
       paymentMethodRepository.markAsDefault.mockResolvedValue(local);
       vi.spyOn(stripe.paymentMethods, "retrieve").mockResolvedValue(asPaymentMethodResponse(remote));
-      const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(mock<Stripe.Response<Stripe.Customer>>());
+      const update = vi.spyOn(stripe.customers, "update");
 
       const result = await service.markPaymentMethodAsDefault("pm_1", user, ability);
 
-      expect(update).toHaveBeenCalledWith("cus_1", { invoice_settings: { default_payment_method: "pm_1" } }, { timeout: 3_000 });
+      expect(paymentMethodRepository.markAsDefault).toHaveBeenCalledWith("pm_1");
+      expect(update).not.toHaveBeenCalled();
       expect(paymentMethodRepository.createAsDefault).not.toHaveBeenCalled();
       expect(result).toEqual({ ...remote, validated: local.isValidated, isDefault: local.isDefault });
     });
@@ -92,12 +90,11 @@ describe(PaymentMethodService.name, () => {
     it("creates a local record for an unsynced method, then sets it as default", async () => {
       const { service, stripe, paymentMethodRepository } = setup();
       const user = mock<PayingUser>({ id: "user_1", stripeCustomerId: "cus_1" });
-      const remote = generatePaymentMethod({ id: "pm_1", card: { fingerprint: "fp_1" } });
+      const remote = generatePaymentMethod({ id: "pm_1", customer: "cus_1", card: { fingerprint: "fp_1" } });
       const created = generateDatabasePaymentMethod({ paymentMethodId: "pm_1", fingerprint: "fp_1" });
       paymentMethodRepository.markAsDefault.mockResolvedValue(undefined);
       paymentMethodRepository.createAsDefault.mockResolvedValue(created);
       vi.spyOn(stripe.paymentMethods, "retrieve").mockResolvedValue(asPaymentMethodResponse(remote));
-      vi.spyOn(stripe.customers, "update").mockResolvedValue(mock<Stripe.Response<Stripe.Customer>>());
 
       const result = await service.markPaymentMethodAsDefault("pm_1", user, ability);
 
@@ -105,11 +102,38 @@ describe(PaymentMethodService.name, () => {
       expect(result).toEqual({ ...remote, validated: created.isValidated, isDefault: created.isDefault });
     });
 
+    it("rejects with 404 without touching local rows when the method belongs to another customer", async () => {
+      const { service, stripe, paymentMethodRepository } = setup();
+      const user = mock<PayingUser>({ id: "user_1", stripeCustomerId: "cus_1" });
+      vi.spyOn(stripe.paymentMethods, "retrieve").mockResolvedValue(asPaymentMethodResponse(generatePaymentMethod({ id: "pm_1", customer: "cus_other" })));
+
+      await expect(service.markPaymentMethodAsDefault("pm_1", user, ability)).rejects.toMatchObject({ status: 404 });
+      expect(paymentMethodRepository.markAsDefault).not.toHaveBeenCalled();
+      expect(paymentMethodRepository.createAsDefault).not.toHaveBeenCalled();
+    });
+
+    it("rejects with 404 when Stripe reports the method missing", async () => {
+      const { service, stripe, paymentMethodRepository } = setup();
+      const user = mock<PayingUser>({ id: "user_1", stripeCustomerId: "cus_1" });
+      vi.spyOn(stripe.paymentMethods, "retrieve").mockRejectedValue(
+        new Stripe.errors.StripeInvalidRequestError({
+          type: "invalid_request_error",
+          code: "resource_missing",
+          message: "No such PaymentMethod"
+        } as Stripe.StripeRawError)
+      );
+
+      await expect(service.markPaymentMethodAsDefault("pm_1", user, ability)).rejects.toMatchObject({ status: 404 });
+      expect(paymentMethodRepository.markAsDefault).not.toHaveBeenCalled();
+    });
+
     it("rejects with 403 when an unsynced method has no identifiable fingerprint", async () => {
       const { service, stripe, paymentMethodRepository } = setup();
       const user = mock<PayingUser>({ id: "user_1", stripeCustomerId: "cus_1" });
       paymentMethodRepository.markAsDefault.mockResolvedValue(undefined);
-      const remote = generatePaymentMethod({ type: "us_bank_account", card: null } as unknown as Parameters<typeof generatePaymentMethod>[0]);
+      const remote = generatePaymentMethod({ type: "us_bank_account", customer: "cus_1", card: null } as unknown as Parameters<
+        typeof generatePaymentMethod
+      >[0]);
       vi.spyOn(stripe.paymentMethods, "retrieve").mockResolvedValue(asPaymentMethodResponse(remote));
 
       await expect(service.markPaymentMethodAsDefault("pm_1", user, ability)).rejects.toMatchObject({ status: 403 });
@@ -118,28 +142,27 @@ describe(PaymentMethodService.name, () => {
   });
 
   describe("syncAttached", () => {
-    it("upserts and marks a newly created default method as default on Stripe", async () => {
+    it("upserts a first card as the local default without touching the Stripe customer", async () => {
       const { service, stripe, paymentMethodRepository } = setup();
       const user = mock<PayingUser>({ id: "user_1", stripeCustomerId: "cus_1" });
       const paymentMethod = generatePaymentMethod({ id: "pm_1", card: { fingerprint: "fp_1" } });
       const local = { ...generateDatabasePaymentMethod({ paymentMethodId: "pm_1" }), isDefault: true };
       paymentMethodRepository.upsert.mockResolvedValue({ paymentMethod: local, isNew: true });
-      const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(mock<Stripe.Response<Stripe.Customer>>());
+      const update = vi.spyOn(stripe.customers, "update");
 
       const result = await service.syncAttached({ user, paymentMethod });
 
       expect(paymentMethodRepository.upsert).toHaveBeenCalledWith({ userId: "user_1", fingerprint: "fp_1", paymentMethodId: "pm_1" });
-      expect(update).toHaveBeenCalledWith("cus_1", { invoice_settings: { default_payment_method: "pm_1" } }, { timeout: 3_000 });
+      expect(update).not.toHaveBeenCalled();
       expect(result).toEqual({ isNew: true, isDefault: true });
     });
 
     it("resumes auto top-up so a wallet paused by declines can charge the new default card", async () => {
-      const { service, stripe, paymentMethodRepository, autoReloadPauseService } = setup();
+      const { service, paymentMethodRepository, autoReloadPauseService } = setup();
       const user = mock<PayingUser>({ id: "user_1", stripeCustomerId: "cus_1" });
       const paymentMethod = generatePaymentMethod({ id: "pm_1", card: { fingerprint: "fp_1" } });
       const local = { ...generateDatabasePaymentMethod({ paymentMethodId: "pm_1" }), isDefault: true };
       paymentMethodRepository.upsert.mockResolvedValue({ paymentMethod: local, isNew: true });
-      vi.spyOn(stripe.customers, "update").mockResolvedValue(mock<Stripe.Response<Stripe.Customer>>());
 
       await service.syncAttached({ user, paymentMethod });
 
@@ -147,12 +170,11 @@ describe(PaymentMethodService.name, () => {
     });
 
     it("keeps the upserted method when resuming auto top-up fails", async () => {
-      const { service, stripe, paymentMethodRepository, autoReloadPauseService } = setup();
+      const { service, paymentMethodRepository, autoReloadPauseService } = setup();
       const user = mock<PayingUser>({ id: "user_1", stripeCustomerId: "cus_1" });
       const paymentMethod = generatePaymentMethod({ id: "pm_1", card: { fingerprint: "fp_1" } });
       const local = { ...generateDatabasePaymentMethod({ paymentMethodId: "pm_1" }), isDefault: true };
       paymentMethodRepository.upsert.mockResolvedValue({ paymentMethod: local, isNew: true });
-      vi.spyOn(stripe.customers, "update").mockResolvedValue(mock<Stripe.Response<Stripe.Customer>>());
       autoReloadPauseService.resume.mockRejectedValue(new Error("queue unavailable"));
 
       const result = await service.syncAttached({ user, paymentMethod });
@@ -172,17 +194,16 @@ describe(PaymentMethodService.name, () => {
       expect(autoReloadPauseService.resume).not.toHaveBeenCalled();
     });
 
-    it("upserts without a remote default sync for an already-synced method", async () => {
-      const { service, stripe, paymentMethodRepository } = setup();
+    it("leaves auto top-up alone for an already-synced method", async () => {
+      const { service, paymentMethodRepository, autoReloadPauseService } = setup();
       const user = mock<PayingUser>({ id: "user_1", stripeCustomerId: "cus_1" });
       const paymentMethod = generatePaymentMethod({ id: "pm_1", card: { fingerprint: "fp_1" } });
       const local = { ...generateDatabasePaymentMethod({ paymentMethodId: "pm_1" }), isDefault: true };
       paymentMethodRepository.upsert.mockResolvedValue({ paymentMethod: local, isNew: false });
-      const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(mock<Stripe.Response<Stripe.Customer>>());
 
       const result = await service.syncAttached({ user, paymentMethod });
 
-      expect(update).not.toHaveBeenCalled();
+      expect(autoReloadPauseService.resume).not.toHaveBeenCalled();
       expect(result).toEqual({ isNew: false, isDefault: true });
     });
 

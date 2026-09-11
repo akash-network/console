@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
-import type { Manifest } from "@akashnetwork/chain-sdk/web";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
 import { Alert, Button, CustomTooltip, Snackbar } from "@akashnetwork/ui/components";
+import { useQueryClient as useQueryClientOriginal } from "@tanstack/react-query";
 import { InfoCircle, Upload, WarningCircle } from "iconoir-react";
 import yaml from "js-yaml";
 import { useSnackbar as useSnackbarOriginal } from "notistack";
@@ -12,15 +13,15 @@ import { ViewPanel } from "@src/components/shared/ViewPanel";
 import { useBlockchainStatus as useBlockchainStatusOriginal } from "@src/context/BlockchainStatusProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet as useWalletOriginal } from "@src/context/WalletProvider";
-import { useProviderCredentials as useProviderCredentialsOriginal } from "@src/hooks/useProviderCredentials/useProviderCredentials";
-import { useProviderList as useProviderListOriginal } from "@src/queries/useProvidersQuery";
-import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
-import type { ApiProviderList } from "@src/types/provider";
+import { AddCreditsSnackbarContent } from "@src/context/WalletProvider/useSignAndBroadcast";
+import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { useDeploymentDefinition as useDeploymentDefinitionOriginal } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { useBalances as useBalancesOriginal } from "@src/queries/useBalancesQuery";
+import type { DeploymentDto } from "@src/types/deployment";
 import { deploymentData as deploymentDataOriginal } from "@src/utils/deploymentData";
-import { TransactionMessageData as TransactionMessageDataOriginal } from "@src/utils/TransactionMessageData";
+import { hasSdlReference, isStoredSdlSelfContained, leavesWithheldEnvValuesBlank } from "@src/utils/sdl/storedDefinition";
 import RemoteDeployUpdate from "../../remote-deploy/update/RemoteDeployUpdate";
 import { SDLEditor } from "../../sdl/SDLEditor/SDLEditor";
-import { ManifestErrorSnackbar } from "../../shared/ManifestErrorSnackbar/ManifestErrorSnackbar";
 import { DeploymentTabHeader } from "../DeploymentDetail/DeploymentTabHeader";
 
 export const DEPENDENCIES = {
@@ -28,27 +29,87 @@ export const DEPENDENCIES = {
   Button,
   CustomTooltip,
   Snackbar,
+  AddCreditsSnackbarContent,
   LinearLoadingSkeleton,
   LinkTo,
   ViewPanel,
   RemoteDeployUpdate,
   SDLEditor,
-  ManifestErrorSnackbar,
   InfoCircle,
   WarningCircle,
+  DeploymentTabHeader,
   useWallet: useWalletOriginal,
-  useProviderList: useProviderListOriginal,
-  useProviderCredentials: useProviderCredentialsOriginal,
+  useBalances: useBalancesOriginal,
   useSnackbar: useSnackbarOriginal,
   useBlockchainStatus: useBlockchainStatusOriginal,
+  useDeploymentDefinition: useDeploymentDefinitionOriginal,
+  useQueryClient: useQueryClientOriginal,
   // eslint-disable-next-line akash/dependencies-component-or-hook
-  deploymentData: deploymentDataOriginal,
-  TransactionMessageData: TransactionMessageDataOriginal
+  deploymentData: deploymentDataOriginal
 };
+
+/** The api answers 400 for provider-credential and schema failures too, and only a refusal of the document itself belongs in the editor's inline alert. */
+const SDL_REFUSAL_PREFIXES = ["Invalid SDL:", "SDL is not valid YAML", "SDL is too large"];
+/** The api wraps trial fair-use gating in the same "Invalid SDL:" 400 as document refusals, yet only adding credits resolves it. */
+const TRIAL_GATE_MARK = "not available on free trial";
+const UPDATE_FAILURE_MESSAGE = "Something went wrong while updating the deployment. Please try again.";
+const ADD_CREDITS_TITLE = "Add credits to continue";
+/** Refused rather than submitted: a document whose values are references would commit a manifest whose environment is the reference strings themselves. */
+const WITHHELD_VALUES_ERROR = "This configuration still has withheld secret values. Replace them with real values before updating.";
+
+/** The api withholds a value by stripping it, so a copy it served that is still self-contained lost nothing: the chain has merely moved past it. */
+function isApiRecordComplete(definition: DeploymentDefinition): boolean {
+  return definition.source === "absent" && !!definition.sdl && isStoredSdlSelfContained(definition.sdl);
+}
+
+/** The api serves its own copy only when the chain is already running it, and a copy the api stripped hashes to a manifest the chain never committed. */
+function needsChainVersionCheck(definition: DeploymentDefinition): boolean {
+  return definition.source === "local" || isApiRecordComplete(definition);
+}
+
+function isBadRequest(cause: unknown): boolean {
+  return isApiError(cause) && cause.status === 400;
+}
+
+function isPaymentRequired(cause: unknown): boolean {
+  return isApiError(cause) && cause.status === 402;
+}
+
+/** Mirrors signAndBroadcast, which keeps client-side refusals out of the failed_tx metric. */
+function isClientRefusal(cause: unknown): boolean {
+  return isBadRequest(cause) || isPaymentRequired(cause);
+}
+
+function sdlRefusalOf(cause: unknown): string | null {
+  if (!isBadRequest(cause) || trialGateRefusalOf(cause) !== null) return null;
+
+  const message = extractApiErrorMessage(cause);
+
+  return message && SDL_REFUSAL_PREFIXES.some(prefix => message.startsWith(prefix)) ? message : null;
+}
+
+function trialGateRefusalOf(cause: unknown): string | null {
+  if (!isBadRequest(cause)) return null;
+
+  const message = extractApiErrorMessage(cause);
+
+  return message?.includes(TRIAL_GATE_MARK) ? message.replace(/^Invalid SDL: /, "") : null;
+}
+
+function creditsRefusalOf(cause: unknown): string | null {
+  return isPaymentRequired(cause) ? extractApiErrorMessage(cause) ?? "" : trialGateRefusalOf(cause);
+}
+
+function addCreditsContentOf(refusal: string): { title: string; message?: string } {
+  const separatorAt = refusal.indexOf(": ");
+
+  if (separatorAt === -1) return { title: ADD_CREDITS_TITLE, message: refusal || undefined };
+
+  return { title: refusal.slice(0, separatorAt), message: refusal.slice(separatorAt + 2) };
+}
 
 type Props = {
   deployment: DeploymentDto;
-  leases: LeaseDto[];
   closeManifestEditor: () => void;
   isRemoteDeploy: boolean;
   editedManifest: string;
@@ -60,7 +121,6 @@ type Props = {
 
 export const ManifestUpdate: React.FunctionComponent<Props> = ({
   deployment,
-  leases,
   closeManifestEditor,
   isRemoteDeploy,
   editedManifest,
@@ -68,42 +128,95 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   onRedeploy,
   dependencies: d = DEPENDENCIES
 }) => {
-  const { providerProxy, analyticsService, deploymentLocalStorage } = useServices();
+  const { api, analyticsService, deploymentLocalStorage, logger } = useServices();
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
-  const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
-  const [isSendingManifest, setIsSendingManifest] = useState(false);
-  const { address, signAndBroadcastTx } = d.useWallet();
-  const { data: providers } = d.useProviderList();
-  const providerCredentials = d.useProviderCredentials();
-  const { enqueueSnackbar } = d.useSnackbar();
+  const [dseqWithDismissedNotice, setDseqWithDismissedNotice] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const { address } = d.useWallet();
+  const { refetch: refetchBalances } = d.useBalances(address);
+  const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const { isBlockchainDown } = d.useBlockchainStatus();
+  const definition = d.useDeploymentDefinition(deployment.dseq);
+  const queryClient = d.useQueryClient();
+  const seededDseq = useRef<string | undefined>(undefined);
+  const seededSdl = useRef("");
+  const updateDeployment = api.v1.updateDeployment.useMutation({
+    onSuccess: (_data, variables) => recordUpdate(variables.data.sdl),
+    onError: reportUpdateFailure
+  });
 
-  useEffect(() => {
-    const init = async () => {
-      const localDeploymentData = deploymentLocalStorage.get(address, deployment.dseq);
+  /** The inline alert only exists while the editor is mounted, so a refusal arriving after it closes has to fall back to a snackbar. */
+  const isEditorMounted = useRef(true);
 
-      if (localDeploymentData?.manifest) {
-        onManifestChange(localDeploymentData.manifest);
+  useEffect(function trackEditorMount() {
+    isEditorMounted.current = true;
 
+    return function markEditorUnmounted() {
+      isEditorMounted.current = false;
+    };
+  }, []);
+
+  const isResolvingDefinition = definition.source === "resolving";
+  /** A complete copy the chain has moved past is shown with the divergence warning instead, since nothing about it was withheld. */
+  const showsWithheldValuesNotice = definition.source === "absent" && !isApiRecordComplete(definition) && dseqWithDismissedNotice !== deployment.dseq;
+  /** Only against the api's own record does a blank env value name a withheld one; in a document of the user's own it can be deliberate. */
+  const apiRecord = definition.source === "absent" ? definition.sdl : undefined;
+  const hasWithheldValues = useMemo(
+    () => !!editedManifest && (hasSdlReference(editedManifest) || (!!apiRecord && leavesWithheldEnvValuesBlank(editedManifest, apiRecord))),
+    [editedManifest, apiRecord]
+  );
+  const editorAlertMessage = parsingError ?? (hasWithheldValues ? WITHHELD_VALUES_ERROR : null);
+
+  useEffect(
+    function seedEditorOnceTheDefinitionResolves() {
+      if (isResolvingDefinition) return;
+
+      const { sdl } = definition;
+
+      const editorHoldsUnseededEdits = seededDseq.current === deployment.dseq && (editedManifest || "") !== seededSdl.current;
+      if (editorHoldsUnseededEdits) return;
+
+      seededDseq.current = deployment.dseq;
+      seededSdl.current = sdl ?? "";
+
+      if (sdl) onManifestChange(sdl);
+    },
+    [isResolvingDefinition, definition.sdl, deployment.dseq]
+  );
+
+  useEffect(
+    function compareTheResolvedCopyAgainstTheChain() {
+      if (isResolvingDefinition) return;
+
+      const { sdl } = definition;
+
+      if (!sdl || !needsChainVersionCheck(definition)) {
+        setDeploymentVersion(null);
+        return;
+      }
+
+      const readVersionOfResolvedCopy = async () => {
         try {
-          const yamlVersion = yaml.load(localDeploymentData.manifest);
-          const version = await d.deploymentData.getManifestVersion(yamlVersion);
-          setDeploymentVersion(version);
+          setDeploymentVersion(await d.deploymentData.getManifestVersion(yaml.load(sdl)));
         } catch (error) {
-          console.error(error);
+          logger.error({ event: "MANIFEST_VERSION_READ_FAILED", error });
           setParsingError("Error getting manifest version.");
         }
-      } else {
-        setShowOutsideDeploymentMessage(true);
-      }
-    };
+      };
 
-    init();
-  }, [deployment, address, deploymentLocalStorage]);
+      readVersionOfResolvedCopy();
+    },
+    [isResolvingDefinition, definition.sdl, definition.source]
+  );
+
+  function handleManifestChange(value: string) {
+    setParsingError(null);
+    onManifestChange(value);
+  }
 
   function handleTextChange(value: string | undefined) {
-    onManifestChange(value || "");
+    handleManifestChange(value || "");
 
     if (deploymentVersion) {
       setDeploymentVersion(null);
@@ -116,78 +229,99 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     window.open("https://akash.network/docs/deployments/akash-cli/installation/#update-the-deployment", "_blank");
   }
 
-  async function sendManifest(providerInfo: ApiProviderList, manifest: Manifest) {
+  function handleUpdateClick() {
+    if (hasWithheldValues) return;
+
+    setIsUpdating(true);
+    updateDeployment.mutate({ dseq: deployment.dseq, data: { sdl: editedManifest } }, { onSuccess: closeAfterUpdate, onError: releaseAfterFailure });
+  }
+
+  function recordUpdate(submittedSdl: string) {
+    cacheSubmittedManifest(submittedSdl);
+    refetchResolvedDefinition();
+    analyticsService.track("update_deployment", { category: "deployments", label: "Update deployment" });
+    analyticsService.track("successful_tx", { category: "transactions", label: "Successful transaction" });
+    refetchBalances();
+    enqueueSnackbar(<d.Snackbar title="Success" subTitle="Deployment updated successfully" iconVariant="success" />, {
+      variant: "success"
+    });
+  }
+
+  /** The resolved definition also feeds the header's service count and the placement cards, which would otherwise keep describing the document this update replaced. */
+  function refetchResolvedDefinition() {
+    queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq: deployment.dseq }) });
+  }
+
+  /** A full or corrupted browser storage must not turn an update the api already accepted into a reported failure. */
+  function cacheSubmittedManifest(manifest: string) {
     try {
-      return await providerProxy.sendManifest(providerInfo, manifest, {
-        dseq: deployment.dseq,
-        ensureToken: providerCredentials.ensureToken
-      });
-    } catch (err) {
-      enqueueSnackbar(<d.ManifestErrorSnackbar err={err} />, { variant: "error", autoHideDuration: null });
-      throw err;
+      deploymentLocalStorage.update(address, deployment.dseq, { manifest });
+    } catch (error) {
+      logger.error({ event: "DEPLOYMENT_MANIFEST_CACHE_FAILED", error });
     }
   }
 
-  async function handleUpdateClick() {
-    let response;
+  function closeAfterUpdate() {
+    setIsUpdating(false);
+    closeManifestEditor();
+  }
 
-    try {
-      const doc = yaml.load(editedManifest);
+  function reportUpdateFailure(cause: unknown) {
+    refetchBalances();
 
-      const dd = await d.deploymentData.NewDeploymentData(editedManifest, deployment.dseq, address);
-      const mani = d.deploymentData.getManifest(doc);
-
-      // If it's actual update, send a transaction, else just send the manifest
-      if (Buffer.from(dd.hash).toString("base64") !== deployment.hash) {
-        const message = d.TransactionMessageData.getUpdateDeploymentMsg(dd);
-        response = await signAndBroadcastTx([message]);
-      } else {
-        response = true;
-      }
-
-      if (response) {
-        setIsSendingManifest(true);
-
-        deploymentLocalStorage.update(address, dd.deploymentId.dseq, {
-          manifest: editedManifest,
-          manifestVersion: dd.hash
-        });
-
-        const leaseProviders = leases.map(lease => lease.provider).filter((v, i, s) => s.indexOf(v) === i);
-
-        for (const provider of leaseProviders) {
-          const providerInfo = providers?.find(x => x.owner === provider);
-          await sendManifest(providerInfo as ApiProviderList, mani);
-        }
-
-        analyticsService.track("update_deployment", {
-          category: "deployments",
-          label: "Update deployment"
-        });
-
-        setIsSendingManifest(false);
-        closeManifestEditor();
-      }
-    } catch (error: any) {
-      if (error.name === "YAMLException" || error.name === "CustomValidationError") {
-        setParsingError(error.message);
-      } else {
-        setParsingError("Error while parsing SDL file");
-        console.error(error);
-      }
-      setIsSendingManifest(false);
+    if (!isClientRefusal(cause)) {
+      analyticsService.track("failed_tx", { category: "transactions", label: "Failed transaction" });
     }
+
+    if (sdlRefusalOf(cause) && isEditorMounted.current) return;
+
+    const creditsRefusal = creditsRefusalOf(cause);
+    if (creditsRefusal !== null) {
+      offerCredits(creditsRefusal);
+      return;
+    }
+
+    enqueueSnackbar(<d.Snackbar title="Error" subTitle={extractApiErrorMessage(cause) ?? UPDATE_FAILURE_MESSAGE} iconVariant="error" />, {
+      variant: "error",
+      autoHideDuration: null
+    });
+  }
+
+  function releaseAfterFailure(cause: unknown) {
+    setIsUpdating(false);
+    setParsingError(sdlRefusalOf(cause));
+  }
+
+  function offerCredits(refusal: string) {
+    const { title, message } = addCreditsContentOf(refusal);
+
+    const key = enqueueSnackbar(
+      <d.Snackbar title={title} subTitle={<d.AddCreditsSnackbarContent message={message} onAction={() => closeSnackbar(key)} />} iconVariant="warning" />,
+      {
+        variant: "warning",
+        autoHideDuration: 10000
+      }
+    );
+  }
+
+  if (isResolvingDefinition) {
+    return (
+      <div className="p-2" data-testid="manifest-update-resolving">
+        <d.LinearLoadingSkeleton isLoading />
+      </div>
+    );
   }
 
   return (
     <>
-      {showOutsideDeploymentMessage ? (
+      {showsWithheldValuesNotice ? (
         <div className="p-2">
           <d.Alert>
-            It looks like this deployment was created using another deploy tool. We can't show you the configuration file that was used initially, but you can
-            still update it. Simply continue and enter the configuration you want to use.
+            {definition.sdl
+              ? "The configuration stored for this deployment has its secret values withheld, so they are not shown below. Continue and enter them before updating."
+              : "It looks like this deployment was created using another deploy tool. We can't show you the configuration file that was used initially, but you can still update it. Simply continue and enter the configuration you want to use."}
             <div className="mt-1">
-              <d.Button onClick={() => setShowOutsideDeploymentMessage(false)} size="sm">
+              <d.Button onClick={() => setDseqWithDismissedNotice(deployment.dseq)} size="sm">
                 Continue
               </d.Button>
             </div>
@@ -196,26 +330,18 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
       ) : (
         <>
           <div>
-            <DeploymentTabHeader
+            <d.DeploymentTabHeader
               title="Update Deployment"
               actions={
                 <div className="flex items-center gap-2">
                   {onRedeploy && (
-                    <d.Button variant="outline" size="md" className="gap-1" type="button" disabled={isSendingManifest} onClick={onRedeploy}>
+                    <d.Button variant="outline" size="md" className="gap-1" type="button" disabled={isUpdating} onClick={onRedeploy}>
                       <Upload className="text-xs" />
                       Redeploy
                     </d.Button>
                   )}
                   <d.Button
-                    disabled={
-                      !providerCredentials.details.usable ||
-                      !!parsingError ||
-                      !editedManifest ||
-                      !providers ||
-                      isSendingManifest ||
-                      deployment.state !== "active" ||
-                      isBlockchainDown
-                    }
+                    disabled={!!parsingError || !editedManifest || hasWithheldValues || isUpdating || deployment.state !== "active" || isBlockchainDown}
                     onClick={() => handleUpdateClick()}
                     size="md"
                     type="button"
@@ -248,15 +374,15 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
                   <d.WarningCircle className="text-xs text-warning" />
                 </d.CustomTooltip>
               )}
-            </DeploymentTabHeader>
+            </d.DeploymentTabHeader>
 
-            {parsingError && <d.Alert variant="warning">{parsingError}</d.Alert>}
+            {editorAlertMessage && <d.Alert variant="warning">{editorAlertMessage}</d.Alert>}
 
-            <d.LinearLoadingSkeleton isLoading={isSendingManifest} />
+            <d.LinearLoadingSkeleton isLoading={isUpdating} />
 
             <d.ViewPanel stickToBottom style={{ overflow: isRemoteDeploy ? "unset" : "hidden" }}>
               {isRemoteDeploy ? (
-                <d.RemoteDeployUpdate sdlString={editedManifest} onManifestChange={onManifestChange} />
+                <d.RemoteDeployUpdate sdlString={editedManifest} onManifestChange={handleManifestChange} />
               ) : (
                 <d.SDLEditor value={editedManifest} onChange={handleTextChange} onValidate={() => setParsingError(null)} />
               )}

@@ -12,6 +12,9 @@ import { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secret
 import type { DataKeyOutput, DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
 import { DataKeyService } from "./data-key.service";
 
+const WRAPPING_KEY_PAIR = generateKeyPairSync("rsa", { modulusLength: 3072 });
+const FOREIGN_KEY_PAIR = generateKeyPairSync("rsa", { modulusLength: 3072 });
+
 describe(DataKeyService.name, () => {
   describe("ensureDataKey", () => {
     it("wraps a 256-bit data key that only the KMS private key can open", async () => {
@@ -28,7 +31,7 @@ describe(DataKeyService.name, () => {
 
     it("cannot be opened by a private key other than the sealing key's", async () => {
       const { service, warmSealingKey } = setup();
-      const foreignPrivateKey = generateKeyPairSync("rsa", { modulusLength: 3072 }).privateKey;
+      const foreignPrivateKey = FOREIGN_KEY_PAIR.privateKey;
       await warmSealingKey();
 
       const dataKey = await service.ensureDataKey(faker.string.uuid());
@@ -120,7 +123,7 @@ describe(DataKeyService.name, () => {
   });
 
   function setup(input?: { kid?: string }) {
-    const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 3072 });
+    const { publicKey, privateKey } = WRAPPING_KEY_PAIR;
     const pem = publicKey.export({ type: "spki", format: "pem" }).toString();
     const versionName = "projects/console-test/locations/global/keyRings/console-api/cryptoKeys/sdl-secrets/cryptoKeyVersions/1";
     const kmsClient = mock<SdlSecretsKmsClient>();

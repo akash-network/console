@@ -1777,7 +1777,7 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "description": "Start date (YYYY-MM-DD). Defaults to 30 days before endDate",
+              "description": "Start date (YYYY-MM-DD), inclusive. Defaults to a 30-day window ending at endDate",
               "example": "2024-01-01"
             },
             "required": false,
@@ -1788,7 +1788,7 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
+              "description": "End date (YYYY-MM-DD), inclusive. Defaults to today (UTC)",
               "example": "2024-01-31"
             },
             "required": false,
@@ -1875,7 +1875,7 @@
             }
           },
           "400": {
-            "description": "Invalid address format"
+            "description": "Invalid address format or invalid date range: dates must be YYYY-MM-DD, startDate must not be after endDate and the range cannot exceed 366 days"
           }
         }
       }
@@ -1902,7 +1902,7 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "description": "Start date (YYYY-MM-DD). Defaults to 30 days before endDate",
+              "description": "Start date (YYYY-MM-DD), inclusive. Defaults to a 30-day window ending at endDate",
               "example": "2024-01-01"
             },
             "required": false,
@@ -1913,7 +1913,7 @@
             "schema": {
               "type": "string",
               "format": "date",
-              "description": "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
+              "description": "End date (YYYY-MM-DD), inclusive. Defaults to today (UTC)",
               "example": "2024-01-31"
             },
             "required": false,
@@ -1961,7 +1961,7 @@
             }
           },
           "400": {
-            "description": "Invalid address format"
+            "description": "Invalid address format or invalid date range: dates must be YYYY-MM-DD, startDate must not be after endDate and the range cannot exceed 366 days"
           }
         }
       }
@@ -2051,6 +2051,11 @@
                           "nullable": true
                         },
                         "onboardingSkippedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "fairUsePolicyAcceptedAt": {
                           "type": "string",
                           "nullable": true,
                           "format": "date-time"
@@ -2144,6 +2149,11 @@
                           "nullable": true
                         },
                         "onboardingSkippedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "fairUsePolicyAcceptedAt": {
                           "type": "string",
                           "nullable": true,
                           "format": "date-time"
@@ -2364,6 +2374,31 @@
         "responses": {
           "204": {
             "description": "Onboarding skipped"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/v1/user/acceptFairUsePolicy": {
+      "post": {
+        "operationId": "acceptFairUsePolicy",
+        "summary": "Accept the Fair Use Policy",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Fair Use Policy accepted"
           },
           "401": {
             "description": "Unauthorized"
@@ -3017,7 +3052,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "description": "Deployment sequence number"
             },
             "required": true,
@@ -3045,7 +3080,11 @@
                         },
                         "dseq": {
                           "type": "string",
-                          "pattern": "^d+$"
+                          "pattern": "^0*[1-9]\\d*$"
+                        },
+                        "sdl": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "autoTopUpEnabled": {
                           "type": "boolean"
@@ -3080,6 +3119,7 @@
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -3143,7 +3183,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "description": "Deployment sequence number"
             },
             "required": true,
@@ -3197,7 +3237,11 @@
                         },
                         "dseq": {
                           "type": "string",
-                          "pattern": "^d+$"
+                          "pattern": "^0*[1-9]\\d*$"
+                        },
+                        "sdl": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "autoTopUpEnabled": {
                           "type": "boolean"
@@ -3232,6 +3276,7 @@
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -3335,7 +3380,7 @@
                       },
                       "dseq": {
                         "type": "string",
-                        "pattern": "^d+$",
+                        "pattern": "^0*[1-9]\\d*$",
                         "description": "Deployment sequence number"
                       }
                     },
@@ -3372,7 +3417,11 @@
                         },
                         "dseq": {
                           "type": "string",
-                          "pattern": "^d+$"
+                          "pattern": "^0*[1-9]\\d*$"
+                        },
+                        "sdl": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "autoTopUpEnabled": {
                           "type": "boolean"
@@ -3407,6 +3456,7 @@
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -3433,6 +3483,7 @@
         "tags": [
           "Deployment Settings"
         ],
+        "operationId": "getDeploymentSetting",
         "security": [
           {
             "BearerAuth": []
@@ -3445,7 +3496,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "description": "Deployment sequence number"
             },
             "required": true,
@@ -3483,7 +3534,11 @@
                         },
                         "dseq": {
                           "type": "string",
-                          "pattern": "^d+$"
+                          "pattern": "^0*[1-9]\\d*$"
+                        },
+                        "sdl": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "autoTopUpEnabled": {
                           "type": "boolean"
@@ -3518,6 +3573,7 @@
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -3572,7 +3628,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "description": "Deployment sequence number"
             },
             "required": true,
@@ -3636,7 +3692,11 @@
                         },
                         "dseq": {
                           "type": "string",
-                          "pattern": "^d+$"
+                          "pattern": "^0*[1-9]\\d*$"
+                        },
+                        "sdl": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "autoTopUpEnabled": {
                           "type": "boolean"
@@ -3671,6 +3731,7 @@
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -3770,7 +3831,7 @@
                     "properties": {
                       "dseq": {
                         "type": "string",
-                        "pattern": "^d+$",
+                        "pattern": "^0*[1-9]\\d*$",
                         "description": "Deployment sequence number"
                       },
                       "userId": {
@@ -3811,7 +3872,11 @@
                         },
                         "dseq": {
                           "type": "string",
-                          "pattern": "^d+$"
+                          "pattern": "^0*[1-9]\\d*$"
+                        },
+                        "sdl": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "autoTopUpEnabled": {
                           "type": "boolean"
@@ -3846,6 +3911,7 @@
                         "id",
                         "userId",
                         "dseq",
+                        "sdl",
                         "autoTopUpEnabled",
                         "estimatedTopUpAmount",
                         "topUpFrequencyMs",
@@ -3885,7 +3951,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "description": "Deployment sequence number"
             },
             "required": true,
@@ -3916,7 +3982,7 @@
                                 },
                                 "dseq": {
                                   "type": "string",
-                                  "pattern": "^d+$"
+                                  "pattern": "^0*[1-9]\\d*$"
                                 }
                               },
                               "required": [
@@ -3954,7 +4020,7 @@
                                   },
                                   "dseq": {
                                     "type": "string",
-                                    "pattern": "^d+$"
+                                    "pattern": "^0*[1-9]\\d*$"
                                   },
                                   "gseq": {
                                     "type": "number"
@@ -4307,7 +4373,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "description": "Deployment sequence number"
             },
             "required": true,
@@ -4346,8 +4412,10 @@
         }
       },
       "put": {
-        "summary": "Update a deployment",
+        "summary": "Update a deployment (deprecated)",
+        "description": "Deprecated. Resubmits the whole SDL, so rotating one secret means re-supplying every other value the document carries, and the console cannot return a stored value for you to resupply. Use PATCH /v1/deployments/{dseq} instead. This endpoint will be removed in a future release.",
         "operationId": "updateDeployment",
+        "deprecated": true,
         "tags": [
           "Deployments"
         ],
@@ -4363,7 +4431,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "description": "Deployment sequence number"
             },
             "required": true,
@@ -4419,7 +4487,7 @@
                                 },
                                 "dseq": {
                                   "type": "string",
-                                  "pattern": "^d+$"
+                                  "pattern": "^0*[1-9]\\d*$"
                                 }
                               },
                               "required": [
@@ -4457,7 +4525,7 @@
                                   },
                                   "dseq": {
                                     "type": "string",
-                                    "pattern": "^d+$"
+                                    "pattern": "^0*[1-9]\\d*$"
                                   },
                                   "gseq": {
                                     "type": "number"
@@ -4771,6 +4839,733 @@
             }
           }
         }
+      },
+      "patch": {
+        "summary": "Patch a deployment",
+        "description": "Patches the SDL the console stored for this deployment; the SDL is never accepted from the request. Only the services named are touched. A patched environment variable is re-appended to its service's env list, so the order shown by GET may differ afterwards. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw. Re-sending the identical request repairs that: it recomputes the same manifest version, is accepted rather than refused, and goes on to broadcast and push the manifest.",
+        "operationId": "patchDeployment",
+        "tags": [
+          "Deployments"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^0*[1-9]\\d*$",
+              "description": "Deployment sequence number"
+            },
+            "required": true,
+            "description": "Deployment sequence number",
+            "name": "dseq",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "services": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "object",
+                          "properties": {
+                            "image": {
+                              "type": "string"
+                            },
+                            "command": {
+                              "type": "array",
+                              "nullable": true,
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "args": {
+                              "type": "array",
+                              "nullable": true,
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "env": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "description": "Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change."
+                            },
+                            "credentials": {
+                              "type": "object",
+                              "nullable": true,
+                              "properties": {
+                                "host": {
+                                  "type": "string"
+                                },
+                                "username": {
+                                  "type": "string"
+                                },
+                                "password": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "host",
+                                "username",
+                                "password"
+                              ],
+                              "description": "Private registry pull credentials. Null clears them."
+                            },
+                            "expose": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "object",
+                                "properties": {
+                                  "accept": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "description": "Custom domains. Replaces the existing list. Emptying it is rejected by providers that do not generate a hostname of their own, which leaves the patch recorded but undeployed."
+                                  },
+                                  "httpOptions": {
+                                    "type": "object",
+                                    "properties": {
+                                      "maxBodySize": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 104857600
+                                      },
+                                      "readTimeout": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 4294967295
+                                      },
+                                      "sendTimeout": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 4294967295
+                                      },
+                                      "nextTries": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 4294967295
+                                      },
+                                      "nextTimeout": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 4294967295
+                                      },
+                                      "nextCases": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "enum": [
+                                            "error",
+                                            "timeout",
+                                            "500",
+                                            "502",
+                                            "503",
+                                            "504",
+                                            "403",
+                                            "404",
+                                            "429",
+                                            "off"
+                                          ]
+                                        },
+                                        "minItems": 1,
+                                        "description": "Conditions the proxy retries on. Replaces the existing list; \"off\" disables retrying and stands alone."
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "description": "Keyed by container port. Only hosts and http options are patchable; endpoint kind and count are fixed at create."
+                            },
+                            "storage": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "object",
+                                "properties": {
+                                  "mount": {
+                                    "type": "string"
+                                  },
+                                  "readOnly": {
+                                    "type": "boolean"
+                                  }
+                                }
+                              },
+                              "description": "Keyed by volume name. Mount point and read-only flag only — sizes are fixed at create."
+                            }
+                          }
+                        },
+                        "description": "Keyed by service name. Only the named services are touched; omitted services keep their current definition."
+                      },
+                      "sealedSecrets": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Compact JWE sealing a flat name-to-value map, as on create, but holding only the names this patch replaces. Omitted names keep the values the deployment already stores."
+                      },
+                      "ifManifestVersion": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "description": "Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very patch produces, which makes a retry of it succeed. Omitting this does not turn the guard off: the patch is then guarded on the version it read for itself, so a concurrent patch still answers 409 rather than overwriting it."
+                      }
+                    },
+                    "required": [
+                      "services"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Deployment patched successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "deployment": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "object",
+                              "properties": {
+                                "owner": {
+                                  "type": "string"
+                                },
+                                "dseq": {
+                                  "type": "string",
+                                  "pattern": "^0*[1-9]\\d*$"
+                                }
+                              },
+                              "required": [
+                                "owner",
+                                "dseq"
+                              ]
+                            },
+                            "state": {
+                              "type": "string"
+                            },
+                            "hash": {
+                              "type": "string"
+                            },
+                            "created_at": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "state",
+                            "hash",
+                            "created_at"
+                          ]
+                        },
+                        "leases": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "object",
+                                "properties": {
+                                  "owner": {
+                                    "type": "string"
+                                  },
+                                  "dseq": {
+                                    "type": "string",
+                                    "pattern": "^0*[1-9]\\d*$"
+                                  },
+                                  "gseq": {
+                                    "type": "number"
+                                  },
+                                  "oseq": {
+                                    "type": "number"
+                                  },
+                                  "provider": {
+                                    "type": "string"
+                                  },
+                                  "bseq": {
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "owner",
+                                  "dseq",
+                                  "gseq",
+                                  "oseq",
+                                  "provider",
+                                  "bseq"
+                                ]
+                              },
+                              "state": {
+                                "type": "string"
+                              },
+                              "price": {
+                                "type": "object",
+                                "properties": {
+                                  "denom": {
+                                    "type": "string"
+                                  },
+                                  "amount": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "denom",
+                                  "amount"
+                                ]
+                              },
+                              "created_at": {
+                                "type": "string"
+                              },
+                              "closed_on": {
+                                "type": "string"
+                              },
+                              "reason": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "object",
+                                "nullable": true,
+                                "properties": {
+                                  "forwarded_ports": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "port": {
+                                            "type": "number"
+                                          },
+                                          "externalPort": {
+                                            "type": "number"
+                                          },
+                                          "host": {
+                                            "type": "string"
+                                          },
+                                          "available": {
+                                            "type": "number"
+                                          }
+                                        },
+                                        "required": [
+                                          "port",
+                                          "externalPort"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "ips": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "IP": {
+                                            "type": "string"
+                                          },
+                                          "Port": {
+                                            "type": "number"
+                                          },
+                                          "ExternalPort": {
+                                            "type": "number"
+                                          },
+                                          "Protocol": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "IP",
+                                          "Port",
+                                          "ExternalPort",
+                                          "Protocol"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "services": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "type": "object",
+                                      "properties": {
+                                        "name": {
+                                          "type": "string"
+                                        },
+                                        "available": {
+                                          "type": "number"
+                                        },
+                                        "total": {
+                                          "type": "number"
+                                        },
+                                        "uris": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "observed_generation": {
+                                          "type": "number"
+                                        },
+                                        "replicas": {
+                                          "type": "number"
+                                        },
+                                        "updated_replicas": {
+                                          "type": "number"
+                                        },
+                                        "ready_replicas": {
+                                          "type": "number"
+                                        },
+                                        "available_replicas": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "name",
+                                        "available",
+                                        "total",
+                                        "uris",
+                                        "observed_generation",
+                                        "replicas",
+                                        "updated_replicas",
+                                        "ready_replicas",
+                                        "available_replicas"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "forwarded_ports",
+                                  "ips",
+                                  "services"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "state",
+                              "price",
+                              "created_at",
+                              "closed_on",
+                              "status"
+                            ]
+                          }
+                        },
+                        "escrow_account": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "object",
+                              "properties": {
+                                "scope": {
+                                  "type": "string"
+                                },
+                                "xid": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "scope",
+                                "xid"
+                              ]
+                            },
+                            "state": {
+                              "type": "object",
+                              "properties": {
+                                "owner": {
+                                  "type": "string"
+                                },
+                                "state": {
+                                  "type": "string"
+                                },
+                                "transferred": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "denom": {
+                                        "type": "string"
+                                      },
+                                      "amount": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount"
+                                    ]
+                                  }
+                                },
+                                "settled_at": {
+                                  "type": "string"
+                                },
+                                "funds": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "denom": {
+                                        "type": "string"
+                                      },
+                                      "amount": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount"
+                                    ]
+                                  }
+                                },
+                                "deposits": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "owner": {
+                                        "type": "string"
+                                      },
+                                      "height": {
+                                        "type": "string"
+                                      },
+                                      "source": {
+                                        "type": "string"
+                                      },
+                                      "balance": {
+                                        "type": "object",
+                                        "properties": {
+                                          "denom": {
+                                            "type": "string"
+                                          },
+                                          "amount": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "denom",
+                                          "amount"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "owner",
+                                      "height",
+                                      "source",
+                                      "balance"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "owner",
+                                "state",
+                                "transferred",
+                                "settled_at",
+                                "funds",
+                                "deposits"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "state"
+                          ]
+                        },
+                        "manifestVersion": {
+                          "type": "string",
+                          "description": "Base64 manifest version this patch recorded and committed on chain."
+                        }
+                      },
+                      "required": [
+                        "deployment",
+                        "leases",
+                        "escrow_account",
+                        "manifestVersion"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, or leaves a reference with no value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No SDL is recorded for this deployment, so there is nothing to patch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The deployment definition changed between this patch reading it and writing it. A patch naming no `ifManifestVersion` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The deployment's stored state could not be read: `code` is `stored_secrets_unreadable` when the sealed secrets would not open and `stored_sdl_unreadable` when the recorded SDL would not parse. Both are permanent rather than transient, so a retry cannot help, and both leave the stored token untouched. A 500 carrying any other `code` is an unexpected failure and promises neither of those things",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The key management service is temporarily unreachable. Transient and worth retrying, unlike the 500 above",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/deployments": {
@@ -4800,6 +5595,16 @@
                       "sdl": {
                         "type": "string",
                         "maxLength": 524288
+                      },
+                      "sealedSecrets": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Compact JWE sealing a flat name-to-value map of the secrets this SDL references, encrypted to the console's public sealing key. Fetch that key and the claims to sign from GET /v1/sdl-secrets-context. Values are never returned by any endpoint once sealed."
+                      },
+                      "inheritSecretsFrom": {
+                        "type": "string",
+                        "pattern": "^0*[1-9]\\d*$",
+                        "description": "Dseq of one of your own deployments whose stored secrets this deployment starts from, for redeploying an SDL without re-entering its values. The source may be closed. A name also present in `sealedSecrets` takes precedence over the inherited one."
                       },
                       "deposit": {
                         "type": "number",
@@ -4838,7 +5643,7 @@
                       "properties": {
                         "dseq": {
                           "type": "string",
-                          "pattern": "^d+$"
+                          "pattern": "^0*[1-9]\\d*$"
                         },
                         "manifest": {
                           "type": "string"
@@ -4872,6 +5677,156 @@
                   },
                   "required": [
                     "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No deployment of yours matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Either the `sealedSecrets` value was sealed to a key the console no longer holds — refetch `GET /v1/sdl-secrets-context` and seal again — or, with `code` `inherited_secrets_unreadable`, the secrets recorded for the deployment named by `inheritSecretsFrom` can no longer be decrypted. The second is permanent rather than transient, so a retry cannot help; supply the values in `sealedSecrets` instead",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The key management service is temporarily unreachable. Transient and worth retrying, unlike the 409 above",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
                   ]
                 }
               }
@@ -4942,7 +5897,7 @@
                                       },
                                       "dseq": {
                                         "type": "string",
-                                        "pattern": "^d+$"
+                                        "pattern": "^0*[1-9]\\d*$"
                                       }
                                     },
                                     "required": [
@@ -4980,7 +5935,7 @@
                                         },
                                         "dseq": {
                                           "type": "string",
-                                          "pattern": "^d+$"
+                                          "pattern": "^0*[1-9]\\d*$"
                                         },
                                         "gseq": {
                                           "type": "number"
@@ -5237,7 +6192,7 @@
                     "properties": {
                       "dseq": {
                         "type": "string",
-                        "pattern": "^d+$",
+                        "pattern": "^0*[1-9]\\d*$",
                         "description": "Deployment sequence number"
                       },
                       "deposit": {
@@ -5280,7 +6235,7 @@
                                 },
                                 "dseq": {
                                   "type": "string",
-                                  "pattern": "^d+$"
+                                  "pattern": "^0*[1-9]\\d*$"
                                 }
                               },
                               "required": [
@@ -5318,7 +6273,7 @@
                                   },
                                   "dseq": {
                                     "type": "string",
-                                    "pattern": "^d+$"
+                                    "pattern": "^0*[1-9]\\d*$"
                                   },
                                   "gseq": {
                                     "type": "number"
@@ -5723,7 +6678,7 @@
                           },
                           "dseq": {
                             "type": "string",
-                            "pattern": "^d+$"
+                            "pattern": "^0*[1-9]\\d*$"
                           },
                           "status": {
                             "type": "string"
@@ -5771,7 +6726,7 @@
                                 },
                                 "dseq": {
                                   "type": "string",
-                                  "pattern": "^d+$"
+                                  "pattern": "^0*[1-9]\\d*$"
                                 },
                                 "gseq": {
                                   "type": "number"
@@ -5859,7 +6814,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^d+$",
+              "pattern": "^0*[1-9]\\d*$",
               "description": "Deployment sequence number"
             },
             "required": true,
@@ -5880,7 +6835,7 @@
                     },
                     "dseq": {
                       "type": "string",
-                      "pattern": "^d+$"
+                      "pattern": "^0*[1-9]\\d*$"
                     },
                     "balance": {
                       "type": "number"
@@ -6610,7 +7565,7 @@
                                   },
                                   "dseq": {
                                     "type": "string",
-                                    "pattern": "^d+$"
+                                    "pattern": "^0*[1-9]\\d*$"
                                   }
                                 },
                                 "required": [
@@ -6648,7 +7603,7 @@
                                     },
                                     "dseq": {
                                       "type": "string",
-                                      "pattern": "^d+$"
+                                      "pattern": "^0*[1-9]\\d*$"
                                     },
                                     "gseq": {
                                       "type": "number"
@@ -7184,7 +8139,7 @@
                                 },
                                 "dseq": {
                                   "type": "string",
-                                  "pattern": "^d+$"
+                                  "pattern": "^0*[1-9]\\d*$"
                                 }
                               },
                               "required": [
@@ -7222,7 +8177,7 @@
                                   },
                                   "dseq": {
                                     "type": "string",
-                                    "pattern": "^d+$"
+                                    "pattern": "^0*[1-9]\\d*$"
                                   },
                                   "gseq": {
                                     "type": "number"
@@ -7850,7 +8805,9 @@
                 "type": "object",
                 "properties": {
                   "manifest": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "The manifest to send to the provider, in YAML format (deprecated)",
+                    "deprecated": true
                   },
                   "leases": {
                     "type": "array",
@@ -7859,7 +8816,7 @@
                       "properties": {
                         "dseq": {
                           "type": "string",
-                          "pattern": "^d+$"
+                          "pattern": "^0*[1-9]\\d*$"
                         },
                         "gseq": {
                           "type": "number"
@@ -7881,7 +8838,6 @@
                   }
                 },
                 "required": [
-                  "manifest",
                   "leases"
                 ]
               }
@@ -7910,7 +8866,7 @@
                                 },
                                 "dseq": {
                                   "type": "string",
-                                  "pattern": "^d+$"
+                                  "pattern": "^0*[1-9]\\d*$"
                                 }
                               },
                               "required": [
@@ -7948,7 +8904,7 @@
                                   },
                                   "dseq": {
                                     "type": "string",
-                                    "pattern": "^d+$"
+                                    "pattern": "^0*[1-9]\\d*$"
                                   },
                                   "gseq": {
                                     "type": "number"
@@ -8390,7 +9346,7 @@
                                   },
                                   "dseq": {
                                     "type": "string",
-                                    "pattern": "^d+$"
+                                    "pattern": "^0*[1-9]\\d*$"
                                   },
                                   "gseq": {
                                     "type": "number"
@@ -9080,7 +10036,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^d+$"
+              "pattern": "^0*[1-9]\\d*$"
             },
             "required": true,
             "name": "dseq",
@@ -9111,7 +10067,7 @@
                                   },
                                   "dseq": {
                                     "type": "string",
-                                    "pattern": "^d+$"
+                                    "pattern": "^0*[1-9]\\d*$"
                                   },
                                   "gseq": {
                                     "type": "number"
@@ -9528,7 +10484,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^d+$"
+              "pattern": "^0*[1-9]\\d*$"
             },
             "required": true,
             "name": "dseq",
@@ -9559,7 +10515,7 @@
                                   },
                                   "dseq": {
                                     "type": "string",
-                                    "pattern": "^d+$"
+                                    "pattern": "^0*[1-9]\\d*$"
                                   },
                                   "gseq": {
                                     "type": "number"
@@ -10713,6 +11669,25 @@
                       "type": "string",
                       "nullable": true
                     },
+                    "reportedCpuArchs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Distinct CPU architectures the provider's nodes reported in its last successful snapshot. Known spellings such as x86_64 or aarch64 are folded onto amd64 or arm64; any other reported value is kept as reported. Empty when no node reports one.",
+                      "example": [
+                        "arm64"
+                      ]
+                    },
+                    "cpuArchAgreement": {
+                      "type": "string",
+                      "enum": [
+                        "match",
+                        "mismatch",
+                        "unknown"
+                      ],
+                      "description": "Whether the self-declared capabilities/cpu/arch attribute agrees with the architecture the nodes report. Unknown when either side is missing or the declared value is not a recognised architecture."
+                    },
                     "hardwareGpuVendor": {
                       "type": "string",
                       "nullable": true
@@ -10833,6 +11808,8 @@
                     "hostingProvider",
                     "hardwareCpu",
                     "hardwareCpuArch",
+                    "reportedCpuArchs",
+                    "cpuArchAgreement",
                     "hardwareGpuVendor",
                     "hardwareGpuModels",
                     "hardwareDisk",
@@ -13059,7 +14036,7 @@
                           },
                           "dseq": {
                             "type": "string",
-                            "pattern": "^d+$"
+                            "pattern": "^0*[1-9]\\d*$"
                           },
                           "denom": {
                             "type": "string"
@@ -16125,7 +17102,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^d+$"
+              "pattern": "^0*[1-9]\\d*$"
             },
             "required": false,
             "name": "dseq",
@@ -16176,7 +17153,7 @@
                         "properties": {
                           "dseq": {
                             "type": "string",
-                            "pattern": "^d+$"
+                            "pattern": "^0*[1-9]\\d*$"
                           },
                           "oseq": {
                             "type": "number"
@@ -18475,6 +19452,9 @@
                       },
                       "suppressedBySystem": {
                         "type": "boolean"
+                      },
+                      "reclaimNotifiedAt": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -18755,6 +19735,9 @@
                       },
                       "suppressedBySystem": {
                         "type": "boolean"
+                      },
+                      "reclaimNotifiedAt": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -19581,6 +20564,9 @@
                       },
                       "suppressedBySystem": {
                         "type": "boolean"
+                      },
+                      "reclaimNotifiedAt": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -19882,6 +20868,9 @@
                       },
                       "suppressedBySystem": {
                         "type": "boolean"
+                      },
+                      "reclaimNotifiedAt": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -20842,6 +21831,9 @@
                         },
                         "suppressedBySystem": {
                           "type": "boolean"
+                        },
+                        "reclaimNotifiedAt": {
+                          "type": "string"
                         }
                       },
                       "required": [
@@ -21143,6 +22135,9 @@
                         },
                         "suppressedBySystem": {
                           "type": "boolean"
+                        },
+                        "reclaimNotifiedAt": {
+                          "type": "string"
                         }
                       },
                       "required": [

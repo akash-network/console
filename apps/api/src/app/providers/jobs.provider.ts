@@ -7,8 +7,11 @@ import type { AppInitializer } from "@src/core/providers/app-initializer";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { DeleteUnbackedDeploymentSettingHandler } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
+import { ReconcileManagedTxHandler } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx.handler";
 import { RecordDeploymentSettingHandler } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { NotificationHandler } from "@src/notifications/services/notification-handler/notification.handler";
+import { EnforceTrialAbuseHandler } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
+import { ProbeTrialDeploymentHandler } from "@src/workload-abuse/services/probe-trial-deployment/probe-trial-deployment.handler";
 import { AutoRechargeSucceededHandler } from "../services/auto-recharge-succeeded/auto-recharge-succeeded.handler";
 import { CloseExpiredDeploymentHandler } from "../services/close-expired-deployment/close-expired-deployment.handler";
 import { CloseTrialDeploymentHandler } from "../services/close-trial-deployment/close-trial-deployment.handler";
@@ -40,7 +43,10 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(AutoRechargeSucceededHandler),
     container.resolve(ActivateTrialHandler),
     container.resolve(DeleteUnbackedDeploymentSettingHandler),
-    container.resolve(RecordDeploymentSettingHandler)
+    container.resolve(RecordDeploymentSettingHandler),
+    container.resolve(ReconcileManagedTxHandler),
+    container.resolve(ProbeTrialDeploymentHandler),
+    container.resolve(EnforceTrialAbuseHandler)
   ]);
 }
 

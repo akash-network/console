@@ -242,6 +242,164 @@ describe(SdlSecretsDerivationService.name, () => {
     });
   });
 
+  describe("a name another slot in the same document is already standing on", () => {
+    it("does not mint the name a reference elsewhere already holds", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["A=plain", "B=ac-secret://s0_e0"] } });
+
+      const secrets = service.derive(document, { includeEnvValues: true });
+
+      expect(Object.keys(secrets)).not.toContain("s0_e0");
+    });
+
+    it("leaves that reference resolving to its own stored value rather than to the derived one", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["A=plain", "B=ac-secret://s0_e0"] } });
+
+      const secrets = service.derive(document, { includeEnvValues: true });
+
+      expect(document.services.web.env).toEqual(["A=ac-secret://s0_e0_2", "B=ac-secret://s0_e0"]);
+      expect(secrets).toEqual({ s0_e0_2: "plain" });
+    });
+
+    it("walks the suffix upward when the spelling it falls back to is taken as well", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["A=plain", "B=ac-secret://s0_e0", "C=ac-secret://s0_e0_2"] } });
+
+      const secrets = service.derive(document, { includeEnvValues: true });
+
+      expect(secrets).toEqual({ s0_e0_3: "plain" });
+      expect(document.services.web.env).toEqual(["A=ac-secret://s0_e0_3", "B=ac-secret://s0_e0", "C=ac-secret://s0_e0_2"]);
+    });
+
+    it("keeps one name per slot when positions have shifted under the references", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["B=ac-secret://s0_e1", "C=plain"] } });
+
+      const secrets = service.derive(document, { includeEnvValues: true });
+
+      expect(secrets).toEqual({ s0_e1_2: "plain" });
+      expect(document.services.web.env).toEqual(["B=ac-secret://s0_e1", "C=ac-secret://s0_e1_2"]);
+    });
+
+    it("mints a name unique in the document, whatever it happens to spell", () => {
+      const { service, sdlReferenceService } = setup();
+      const document = documentWith({ web: { env: ["A=ac-secret://s0_e0", "B=resupplied"] } });
+
+      const secrets = service.derive(document, { includeEnvValues: true });
+
+      expect(Object.keys(secrets)).toHaveLength(1);
+      expect(Object.keys(secrets)[0]).not.toBe("s0_e0");
+      expect(sdlReferenceService.validate(document)).toEqual([]);
+    });
+
+    it("mints a fresh name for a credential even when a seal supplied the env values", () => {
+      const { service } = setup();
+      const document = documentWith({
+        web: { env: ["A=ac-secret://MY_TOKEN"], credentials: { host: REGISTRY_HOST, username: "u", password: "p" } }
+      });
+
+      const secrets = service.derive(document, { includeEnvValues: false });
+
+      expect(Object.keys(secrets).sort()).toEqual(["s0_c_password", "s0_c_username"]);
+      expect(document.services.web.env).toEqual(["A=ac-secret://MY_TOKEN"]);
+    });
+
+    it("avoids a client-chosen seal name a credential position would otherwise mint onto", () => {
+      const { service } = setup();
+      const document = documentWith({
+        web: { env: ["A=ac-secret://s0_c_username"], credentials: { host: REGISTRY_HOST, username: "u", password: "p" } }
+      });
+
+      const secrets = service.derive(document, { includeEnvValues: false });
+
+      expect(Object.keys(secrets)).not.toContain("s0_c_username");
+      expect(document.services.web.env).toEqual(["A=ac-secret://s0_c_username"]);
+    });
+
+    it("gives every colliding slot a name of its own rather than one they share", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["A=first", "B=second", "C=ac-secret://s0_e0", "D=ac-secret://s0_e1"] } });
+
+      const secrets = service.derive(document, { includeEnvValues: true });
+
+      expect(Object.keys(secrets)).toHaveLength(2);
+      expect(new Set(Object.values(secrets))).toEqual(new Set(["first", "second"]));
+    });
+
+    it("avoids a name a registry credential reference is standing on", () => {
+      const { service } = setup();
+      const document = documentWith({
+        web: { credentials: { host: REGISTRY_HOST, username: "ac-secret://s0_c_password", password: "plain" } }
+      });
+
+      const secrets = service.derive(document, { includeEnvValues: false });
+
+      expect(Object.keys(secrets)).toEqual(["s0_c_password_2"]);
+      expect(document.services.web.credentials).toMatchObject({
+        username: "ac-secret://s0_c_password",
+        password: "ac-secret://s0_c_password_2"
+      });
+    });
+
+    it("mints names the reference grammar still accepts after avoiding a collision", () => {
+      const { service, sdlReferenceService } = setup();
+      const document = documentWith({ web: { env: ["A=plain", "B=ac-secret://s0_e0"] } });
+
+      const secrets = service.derive(document, { includeEnvValues: true });
+
+      expect(sdlReferenceService.validate(document)).toEqual([]);
+      expect(Object.keys(secrets).every(name => name.length <= MAX_SDL_REFERENCE_NAME_LENGTH)).toBe(true);
+    });
+  });
+
+  describe("the positions a caller bounds it to", () => {
+    it("takes only the value at a position the caller named", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["A=one", "B=two"] } });
+
+      const secrets = service.derive(document, { includeEnvValues: true, onlyAt: new Set(["/services/web/env/1"]) });
+
+      expect(secrets).toEqual({ s0_e1: "two" });
+      expect(document.services.web.env).toEqual(["A=one", "B=ac-secret://s0_e1"]);
+    });
+
+    it("leaves a plaintext value in a service the caller did not name", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["A=one"] }, worker: { env: ["B=two"] } });
+
+      const secrets = service.derive(document, { includeEnvValues: true, onlyAt: new Set(["/services/web/env/0"]) });
+
+      expect(secrets).toEqual({ s0_e0: "one" });
+      expect(document.services.worker.env).toEqual(["B=two"]);
+    });
+
+    it("leaves a registry credential the caller did not name, secret though the position is", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { credentials: { host: REGISTRY_HOST, username: "u", password: "p" } } });
+
+      const secrets = service.derive(document, { includeEnvValues: false, onlyAt: new Set(["/services/web/credentials/password"]) });
+
+      expect(Object.keys(secrets)).toEqual(["s0_c_password"]);
+      expect(document.services.web.credentials).toMatchObject({ username: "u" });
+    });
+
+    it("takes nothing when the caller names no position at all", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["A=one"] } });
+
+      expect(service.derive(document, { includeEnvValues: true, onlyAt: new Set() })).toEqual({});
+      expect(document.services.web.env).toEqual(["A=one"]);
+    });
+
+    it("still walks the whole document when the caller names no bound", () => {
+      const { service } = setup();
+      const document = documentWith({ web: { env: ["A=one"] }, worker: { env: ["B=two"] } });
+
+      expect(service.derive(document, { includeEnvValues: true })).toEqual({ s0_e0: "one", s1_e0: "two" });
+    });
+  });
+
   describe("the names it mints", () => {
     it("are names the reference grammar accepts", () => {
       const { service } = setup();
@@ -300,9 +458,8 @@ describe(SdlSecretsDerivationService.name, () => {
 
     const secrets = service.derive(rewritten, { includeEnvValues: true });
     const reparsed = yaml.raw<SDLInput>(dump(rewritten, { lineWidth: -1 }));
-    const byService = Object.fromEntries(Object.keys(reparsed.services).map(serviceName => [serviceName, secrets]));
 
-    expect(sdlReferenceService.substitute(reparsed, { secrets: byService })).toEqual([]);
+    expect(sdlReferenceService.substitute(reparsed, { secrets })).toEqual([]);
     expect(reparsed.services.web.env).toEqual(values.map((value, index) => `V${index}=${value}`));
   });
 
@@ -319,9 +476,8 @@ describe(SdlSecretsDerivationService.name, () => {
     const rewritten = documentWith(services);
 
     const secrets = service.derive(rewritten, { includeEnvValues: true });
-    const byService = Object.fromEntries(Object.keys(rewritten.services).map(serviceName => [serviceName, secrets]));
 
-    expect(sdlReferenceService.substitute(rewritten, { secrets: byService })).toEqual([]);
+    expect(sdlReferenceService.substitute(rewritten, { secrets })).toEqual([]);
     expect(rewritten).toEqual(submitted);
   });
 

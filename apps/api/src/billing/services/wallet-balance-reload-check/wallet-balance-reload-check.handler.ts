@@ -16,7 +16,7 @@ import { BalancesService } from "@src/billing/services/balances/balances.service
 import { type PaymentMethod, PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { AUTO_RECHARGE_METADATA_KEY, StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
-import { JobHandler, JobMeta, JobPayload } from "@src/core";
+import { JobHandler, JobMeta, JobPayload, type JobPermissions } from "@src/core";
 import type { Require } from "@src/core/types/require.type";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
@@ -77,6 +77,10 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     private readonly instrumentationService: WalletBalanceReloadCheckInstrumentationService,
     private readonly autoReloadPauseService: AutoReloadPauseService
   ) {}
+
+  requiresPermission(): JobPermissions {
+    return [];
+  }
 
   async handle(payload: JobPayload<WalletBalanceReloadCheck>, job: JobMeta): Promise<void> {
     const startTime = Date.now();
@@ -215,14 +219,26 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     const coverageRatio = threshold > 0 ? balance / threshold : undefined;
 
     if (balance > threshold) {
-      this.instrumentationService.recordReloadSkipped({ mode, reason: "sufficient_balance", coverageRatio, logContext: log });
+      this.instrumentationService.recordReloadSkipped({
+        mode,
+        triggeredByDeployment: resources.triggeredByDeployment,
+        reason: "sufficient_balance",
+        coverageRatio,
+        logContext: log
+      });
       return;
     }
 
     if (!resources.triggeredByDeployment) {
       const activeDeploymentCount = await this.deploymentRepository.countActiveByOwner(resources.wallet.address);
       if (activeDeploymentCount === 0) {
-        this.instrumentationService.recordReloadSkipped({ mode, reason: "no_active_deployments", coverageRatio, logContext: log });
+        this.instrumentationService.recordReloadSkipped({
+          mode,
+          triggeredByDeployment: resources.triggeredByDeployment,
+          reason: "no_active_deployments",
+          coverageRatio,
+          logContext: log
+        });
         return;
       }
     }
@@ -245,13 +261,21 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     const coverageRatio = costUntilTargetDateInFiat > 0 ? resources.balance / costUntilTargetDateInFiat : undefined;
 
     if (costUntilTargetDateInFiat === 0) {
-      this.instrumentationService.recordReloadSkipped({ mode, reason: "zero_cost", coverageRatio, projectedCost: costUntilTargetDateInFiat, logContext: log });
+      this.instrumentationService.recordReloadSkipped({
+        mode,
+        triggeredByDeployment: resources.triggeredByDeployment,
+        reason: "zero_cost",
+        coverageRatio,
+        projectedCost: costUntilTargetDateInFiat,
+        logContext: log
+      });
       return;
     }
 
     if (resources.balance >= threshold) {
       this.instrumentationService.recordReloadSkipped({
         mode,
+        triggeredByDeployment: resources.triggeredByDeployment,
         reason: "sufficient_balance",
         coverageRatio,
         projectedCost: costUntilTargetDateInFiat,
@@ -288,6 +312,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
       const nextCheckAt = this.#calculateChargeWindowReopenDate(attempt.secondsUntilWindowReopen);
       this.instrumentationService.recordReloadSkipped({
         mode,
+        triggeredByDeployment: resources.triggeredByDeployment,
         reason: "charge_rate_limited",
         coverageRatio,
         projectedCost,
@@ -317,10 +342,23 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
         await this.walletSettingRepository.resetChargeFailures(resources.walletSetting.id);
       }
 
-      this.instrumentationService.recordReloadTriggered({ mode, amount, coverageRatio, projectedCost, logContext });
+      this.instrumentationService.recordReloadTriggered({
+        mode,
+        triggeredByDeployment: resources.triggeredByDeployment,
+        amount,
+        coverageRatio,
+        projectedCost,
+        logContext
+      });
     } catch (error) {
       const decline = toCardDecline(error);
-      this.instrumentationService.recordReloadFailed({ mode, error, declineCode: decline?.declineCode, logContext });
+      this.instrumentationService.recordReloadFailed({
+        mode,
+        triggeredByDeployment: resources.triggeredByDeployment,
+        error,
+        declineCode: decline?.declineCode,
+        logContext
+      });
 
       if (decline) {
         await this.#recordDecline(attempt.claim, resources, decline);

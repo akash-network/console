@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { DEPENDENCIES } from "./AuthPage";
-import { AuthPage } from "./AuthPage";
+import { AuthPage, PROVIDER_LOGIN_FAILED_ERROR } from "./AuthPage";
 
 import { render, screen } from "@testing-library/react";
 
@@ -34,10 +34,21 @@ describe(AuthPage.name, () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
-  function setup(input: { authParam?: string; tab?: string }) {
+  it("shows a provider failure message when ?error=provider_login_failed is present", () => {
+    setup({ error: PROVIDER_LOGIN_FAILED_ERROR });
+    expect(screen.getByText(/Sign-in with your provider did not complete/)).toBeInTheDocument();
+  });
+
+  it("does not show a provider failure message without the error param", () => {
+    setup({});
+    expect(screen.queryByText(/Sign-in with your provider did not complete/)).not.toBeInTheDocument();
+  });
+
+  function setup(input: { authParam?: string; tab?: string; error?: string }) {
     const params = new URLSearchParams();
     if (input.authParam) params.set("auth", input.authParam);
     if (input.tab) params.set("tab", input.tab);
+    if (input.error) params.set("error", input.error);
     const replace = vi.fn();
     const dependencies: typeof DEPENDENCIES = {
       AuthLayout: (({ children }: { children?: React.ReactNode }) => <div data-testid="layout">{children}</div>) as never,

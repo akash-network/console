@@ -4,6 +4,7 @@ import { BidHttpService } from "@akashnetwork/http-sdk";
 import { Trace } from "@akashnetwork/instrumentation";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import assert from "http-assert";
+import createError from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { STANDARD_TOP_UP_MIN_AMOUNT_USD } from "@src/billing/config";
@@ -11,12 +12,17 @@ import { getTrialEndsAt } from "@src/billing/lib/trial-window/trial-window";
 import type { TrialWindow, UserWalletOutput } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { AUDITOR, TRIAL_ATTRIBUTE, TRIAL_REGISTERED_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import { groupSpecsRequestGpuInterconnect } from "@src/deployment/utils/gpu-interconnect/gpu-interconnect";
 import { findTrialResourceViolation } from "@src/deployment/utils/group-resources/group-resources";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import type { UserOutput } from "@src/user/repositories";
+import { UserRepository } from "@src/user/repositories";
+
+export const FAIR_USE_POLICY_REQUIRED_ERROR_CODE = "fair_use_policy_required";
 
 @singleton()
 export class TrialValidationService {
@@ -27,6 +33,8 @@ export class TrialValidationService {
     private readonly providerRepository: ProviderRepository,
     private readonly bidHttpService: BidHttpService,
     private readonly blockedGpuService: BlockedGpuService,
+    private readonly userRepository: UserRepository,
+    private readonly featureFlagsService: FeatureFlagsService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: TrialValidationService.name });
@@ -154,6 +162,23 @@ export class TrialValidationService {
 
       assert(false, 403, violation.message);
     }
+  }
+
+  @Trace()
+  async validateFairUsePolicyAccepted(messages: EncodeObject[], userWallet: UserWalletOutput) {
+    if (!userWallet.isTrialing) return;
+    if (!messages.some(message => message.typeUrl === `/${MsgCreateDeployment.$type}`)) return;
+    if (!this.featureFlagsService.isEnabled(FeatureFlags.FAIR_USE_POLICY_GATE)) return;
+
+    const user = await this.userRepository.findById(userWallet.userId);
+
+    if (user?.fairUsePolicyAcceptedAt) return;
+
+    this.logger.info({ event: "FAIR_USE_POLICY_NOT_ACCEPTED", userId: userWallet.userId, owner: userWallet.address });
+
+    throw createError(403, "Accept the Fair Use Policy in Akash Console before deploying on the free trial", {
+      errorCode: FAIR_USE_POLICY_REQUIRED_ERROR_CODE
+    });
   }
 
   @Trace()

@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import subDays from "date-fns/subDays";
 import subMinutes from "date-fns/subMinutes";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
@@ -7,6 +8,8 @@ import { UserRepository } from "@src/user/repositories";
 import { UserWalletRepository } from "./user-wallet.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+
+const RECOVERY_WINDOWS = { confirmWindowMinutes: 30, resendCooldownHours: 168 };
 
 describe(UserWalletRepository.name, () => {
   describe("claimActivation", () => {
@@ -45,12 +48,12 @@ describe(UserWalletRepository.name, () => {
   describe("clearCreditsLowNotifiedIfRecoveryConfirmed", () => {
     it("clears the notified stamp once credits have read sufficient for the whole window", async () => {
       const { userWalletRepository, wallet } = await setup({
-        creditsLowNotifiedAt: subMinutes(new Date(), 90),
+        creditsLowNotifiedAt: subDays(new Date(), 8),
         creditsSufficientSince: subMinutes(new Date(), 31),
         creditsLowSince: subMinutes(new Date(), 120)
       });
 
-      const isCleared = await userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(wallet.id, 30);
+      const isCleared = await userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(wallet.id, RECOVERY_WINDOWS);
 
       const updated = await userWalletRepository.findById(wallet.id);
       expect(isCleared).toBe(true);
@@ -59,14 +62,28 @@ describe(UserWalletRepository.name, () => {
       expect(updated?.creditsLowSince).toBeNull();
     });
 
-    it("keeps the notified stamp while the window has not elapsed", async () => {
+    it("keeps the notified stamp while the email went out inside the resend cooldown", async () => {
       const creditsLowNotifiedAt = subMinutes(new Date(), 90);
+      const { userWalletRepository, wallet } = await setup({
+        creditsLowNotifiedAt,
+        creditsSufficientSince: subMinutes(new Date(), 31)
+      });
+
+      const isCleared = await userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(wallet.id, RECOVERY_WINDOWS);
+
+      const updated = await userWalletRepository.findById(wallet.id);
+      expect(isCleared).toBe(false);
+      expect(updated?.creditsLowNotifiedAt).toEqual(creditsLowNotifiedAt);
+    });
+
+    it("keeps the notified stamp while the window has not elapsed", async () => {
+      const creditsLowNotifiedAt = subDays(new Date(), 8);
       const { userWalletRepository, wallet } = await setup({
         creditsLowNotifiedAt,
         creditsSufficientSince: subMinutes(new Date(), 5)
       });
 
-      const isCleared = await userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(wallet.id, 30);
+      const isCleared = await userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(wallet.id, RECOVERY_WINDOWS);
 
       const updated = await userWalletRepository.findById(wallet.id);
       expect(isCleared).toBe(false);
@@ -76,7 +93,7 @@ describe(UserWalletRepository.name, () => {
     it("keeps the notified stamp when no recovery has been recorded", async () => {
       const { userWalletRepository, wallet } = await setup({ creditsLowNotifiedAt: subMinutes(new Date(), 90) });
 
-      const isCleared = await userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(wallet.id, 30);
+      const isCleared = await userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(wallet.id, RECOVERY_WINDOWS);
 
       expect(isCleared).toBe(false);
     });
@@ -84,18 +101,20 @@ describe(UserWalletRepository.name, () => {
     it("reports no clear when the wallet was never notified", async () => {
       const { userWalletRepository, wallet } = await setup({ creditsSufficientSince: subMinutes(new Date(), 90) });
 
-      const isCleared = await userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(wallet.id, 30);
+      const isCleared = await userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(wallet.id, RECOVERY_WINDOWS);
 
       expect(isCleared).toBe(false);
     });
 
     it("clears exactly once across concurrent attempts", async () => {
       const { userWalletRepository, wallet } = await setup({
-        creditsLowNotifiedAt: subMinutes(new Date(), 90),
+        creditsLowNotifiedAt: subDays(new Date(), 8),
         creditsSufficientSince: subMinutes(new Date(), 31)
       });
 
-      const results = await Promise.all(Array.from({ length: 5 }, () => userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(wallet.id, 30)));
+      const results = await Promise.all(
+        Array.from({ length: 5 }, () => userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(wallet.id, RECOVERY_WINDOWS))
+      );
 
       expect(results.filter(Boolean)).toHaveLength(1);
     });
@@ -159,6 +178,58 @@ describe(UserWalletRepository.name, () => {
       const { userWalletRepository } = await setup();
 
       expect(await userWalletRepository.findByAddresses([])).toEqual([]);
+    });
+  });
+
+  describe("lockForAbuse", () => {
+    it("zeroes both allowances, ends the trial and stamps the lock in one write", async () => {
+      const { userWalletRepository, wallet } = await setup();
+      await userWalletRepository.updateById(wallet.id, { deploymentAllowance: 1_000_000, feeAllowance: 500_000, isTrialing: true });
+
+      await userWalletRepository.lockForAbuse(wallet.id, "workload_abuse");
+
+      const locked = await userWalletRepository.findById(wallet.id);
+      expect(locked).toMatchObject({ deploymentAllowance: 0, feeAllowance: 0, isTrialing: false, abuseLockedReason: "workload_abuse" });
+      expect(locked?.abuseLockedAt).toBeInstanceOf(Date);
+    });
+  });
+
+  describe("clearAbuseLock", () => {
+    it("removes the lock and its reason without touching the allowances", async () => {
+      const { userWalletRepository, wallet } = await setup();
+      await userWalletRepository.lockForAbuse(wallet.id, "workload_abuse");
+
+      await expect(userWalletRepository.clearAbuseLock(wallet.id)).resolves.toBe(true);
+
+      expect(await userWalletRepository.findById(wallet.id)).toMatchObject({
+        abuseLockedAt: null,
+        abuseLockedReason: null,
+        deploymentAllowance: 0,
+        feeAllowance: 0,
+        isTrialing: false
+      });
+    });
+
+    it("reports no clear for a wallet that holds no lock", async () => {
+      const { userWalletRepository, wallet } = await setup();
+
+      await expect(userWalletRepository.clearAbuseLock(wallet.id)).resolves.toBe(false);
+    });
+  });
+
+  describe("findDrainingWallets", () => {
+    it("leaves a wallet locked for abuse out of the fee refill", async () => {
+      const { userWalletRepository, wallet } = await setup();
+      const { wallet: lockedWallet } = await setup();
+      await userWalletRepository.updateById(wallet.id, { activatedAt: new Date(), feeAllowance: 0, isTrialing: false });
+      await userWalletRepository.updateById(lockedWallet.id, { activatedAt: new Date(), feeAllowance: 0, isTrialing: false });
+      await userWalletRepository.lockForAbuse(lockedWallet.id, "workload_abuse");
+
+      const draining = await userWalletRepository.findDrainingWallets({ fee: 1_000, trialExpirationDays: 30 });
+
+      const ids = draining.map(candidate => candidate.id);
+      expect(ids).toContain(wallet.id);
+      expect(ids).not.toContain(lockedWallet.id);
     });
   });
 

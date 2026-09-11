@@ -10,4 +10,5 @@ export type FeatureFlag =
   | "hackathons"
   | "deployment_runtime_limit"
   | "ui_sdl_proxy_http_options"
-  | "ui_sdl_cpu_arch";
+  | "ui_sdl_cpu_arch"
+  | "fair_use_policy_gate";

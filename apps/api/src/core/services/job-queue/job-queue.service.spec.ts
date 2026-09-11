@@ -1,14 +1,15 @@
+import { type MongoAbility, subject } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import type { Job as PgBossJob, PgBoss, QueueResult, WorkHandler } from "pg-boss";
 import type { Sql } from "postgres";
-import { describe, expect, it, vi } from "vitest";
-import { mock, mockDeep } from "vitest-mock-extended";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
+import { mock, mockDeep, type MockProxy } from "vitest-mock-extended";
 
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { CoreConfigService } from "../core-config/core-config.service";
 import type { ExecutionContextService } from "../execution-context/execution-context.service";
 import type { TxService } from "../tx/tx.service";
-import { type EnqueueOptions, type Job, JOB_NAME, type JobHandler, JobQueueService } from "./job-queue.service";
+import { type EnqueueOptions, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, JobQueueService } from "./job-queue.service";
 
 describe(JobQueueService.name, () => {
   describe("registerHandlers", () => {
@@ -110,17 +111,54 @@ describe(JobQueueService.name, () => {
       expect(pgBoss.getQueues).toHaveBeenCalledWith(["test", "another"]);
     });
 
-    it("warns when a handler declares a policy the live queue does not carry", async () => {
-      const { service, logger } = setup({ queues: [liveQueue({ policy: "standard" })] });
+    it("rewrites the policy of an unpartitioned live queue onto the one its handler declares", async () => {
+      const { service, pgBoss, logger } = setup({ queues: [liveQueue({ policy: "standard", partition: false })] });
 
       await service.registerHandlers([new SingletonTestHandler(vi.fn())]);
 
+      expect(pgBoss.getDb().executeSql).toHaveBeenCalledWith(expect.stringMatching(/UPDATE \S+\.queue SET policy = \$2/), ["test", "singleton"]);
+      expect(logger.info).toHaveBeenCalledWith({ event: "JOB_QUEUE_POLICY_CONVERGED", queue: "test", from: "standard", to: "singleton" });
+    });
+
+    it("rewrites the policy back to standard for a handler that stopped declaring one", async () => {
+      const { service, pgBoss } = setup({ queues: [liveQueue({ policy: "singleton", partition: false })] });
+
+      await service.registerHandlers([new TestHandler(vi.fn())]);
+
+      expect(pgBoss.getDb().executeSql).toHaveBeenCalledWith(expect.stringContaining("SET policy = $2"), ["test", "standard"]);
+    });
+
+    it("leaves the policy of a live queue that already matches its handler untouched", async () => {
+      const { service, pgBoss } = setup({ queues: [liveQueue({ policy: "singleton", partition: false })] });
+
+      await service.registerHandlers([new SingletonTestHandler(vi.fn())]);
+
+      expect(pgBoss.getDb().executeSql).not.toHaveBeenCalled();
+    });
+
+    it("warns instead of rewriting the policy of a partitioned queue, whose table lacks the other policies' indexes", async () => {
+      const { service, pgBoss, logger } = setup({ queues: [liveQueue({ policy: "standard", partition: true })] });
+
+      await service.registerHandlers([new SingletonTestHandler(vi.fn())]);
+
+      expect(pgBoss.getDb().executeSql).not.toHaveBeenCalled();
       expect(logger.warn).toHaveBeenCalledWith({
         event: "JOB_QUEUE_POLICY_UNCHANGEABLE",
         queue: "test",
         declared: "singleton",
         live: "standard"
       });
+    });
+
+    it("still converges the retry settings when the policy rewrite fails", async () => {
+      const error = new Error("update failed");
+      const { service, pgBoss, logger } = setup({ queues: [liveQueue({ policy: "standard", partition: false, retryDelay: 0 })] });
+      vi.mocked(pgBoss.getDb().executeSql).mockRejectedValue(error);
+
+      await service.registerHandlers([new SingletonTestHandler(vi.fn())]);
+
+      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_QUEUE_POLICY_CONVERGE_FAILED", queue: "test", error });
+      expect(pgBoss.updateQueue).toHaveBeenCalledWith("test", expect.objectContaining({ retryDelay: 30 }));
     });
 
     it("starts workers even when it cannot converge the queue settings", async () => {
@@ -288,6 +326,50 @@ describe(JobQueueService.name, () => {
     });
   });
 
+  describe("hasWaitingSingleton", () => {
+    it("asks for a job under the key that no worker holds yet and that is not due before the instant given", async () => {
+      const { service, pgBoss, txService } = setup();
+      txService.getConnection.mockReturnValue(undefined);
+      const executeSql = vi.fn().mockResolvedValue({ rows: [{ "?column?": 1 }] });
+      vi.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql });
+
+      await expect(
+        service.hasWaitingSingleton({ name: "test-job", singletonKey: "singleton-1", notDueBefore: new Date("2026-01-01T00:03:00.000Z") })
+      ).resolves.toBe(true);
+
+      expect(executeSql).toHaveBeenCalledWith(expect.stringContaining("state IN ('created', 'retry')"), [
+        "test-job",
+        "singleton-1",
+        "2026-01-01T00:03:00.000Z"
+      ]);
+      expect(executeSql).toHaveBeenCalledWith(expect.stringContaining("start_after > $3"), expect.anything());
+    });
+
+    it("reports no job when nothing under the key is still waiting", async () => {
+      const { service, pgBoss, txService } = setup();
+      txService.getConnection.mockReturnValue(undefined);
+      vi.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql: vi.fn().mockResolvedValue({ rows: [] }) });
+
+      await expect(
+        service.hasWaitingSingleton({ name: "test-job", singletonKey: "singleton-1", notDueBefore: new Date("2026-01-01T00:03:00.000Z") })
+      ).resolves.toBe(false);
+    });
+
+    it("reads on the ambient transaction connection when one is active", async () => {
+      const { service, pgBoss, txService } = setup();
+      const unsafe = vi.fn().mockResolvedValue([{ "?column?": 1 }]);
+      txService.getConnection.mockReturnValue({ unsafe } as unknown as Sql);
+      const getDb = vi.spyOn(pgBoss, "getDb");
+
+      await expect(
+        service.hasWaitingSingleton({ name: "test-job", singletonKey: "singleton-1", notDueBefore: new Date("2026-01-01T00:03:00.000Z") })
+      ).resolves.toBe(true);
+
+      expect(unsafe).toHaveBeenCalledWith(expect.stringContaining("singleton_key = $2"), ["test-job", "singleton-1", "2026-01-01T00:03:00.000Z"]);
+      expect(getDb).not.toHaveBeenCalled();
+    });
+  });
+
   describe("cancelCreatedBy", () => {
     it("cancels created jobs on the pg-boss connection when no transaction is active", async () => {
       const { service, pgBoss, txService } = setup();
@@ -440,6 +522,226 @@ describe(JobQueueService.name, () => {
       expect(handleFn).toHaveBeenCalledWith({ message: "Job 1", userId: "user-1" }, { id: job.id });
     });
 
+    it("rethrows a NUL-free copy of a failing handler's error so pg-boss can store it", async () => {
+      const error = new Error("Failed query: insert params: cmd=tr '\u0000' ' '");
+      error.name = "DrizzleQueryError";
+      error.stack = "DrizzleQueryError: \u0000\n    at insert";
+      const { service, pgBoss, logger } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      const thrown = (result as PromiseRejectedResult).reason as Error;
+      expect(thrown).not.toBe(error);
+      expect(thrown.name).toBe("DrizzleQueryError");
+      expect(thrown.message).toBe("Failed query: insert params: cmd=tr ' ' ' '");
+      expect(thrown.stack).toBe("DrizzleQueryError:  \n    at insert");
+      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_FAILED", jobId: expect.any(String), error });
+    });
+
+    it("rewrites the error when only its stack carries a NUL byte", async () => {
+      const error = new Error("insert failed");
+      error.stack = "Error: insert failed\n    at params: \u0000";
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      const thrown = (result as PromiseRejectedResult).reason as Error;
+      expect(thrown).not.toBe(error);
+      expect(thrown.message).toBe("insert failed");
+      expect(thrown.stack).toBe("Error: insert failed\n    at params:  ");
+    });
+
+    it("rewrites the error when only its message carries a NUL byte", async () => {
+      const error = new Error("insert failed: \u0000");
+      error.stack = "Error: insert failed\n    at insert";
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      const thrown = (result as PromiseRejectedResult).reason as Error;
+      expect(thrown).not.toBe(error);
+      expect(thrown.message).toBe("insert failed:  ");
+      expect(thrown.stack).toBe("Error: insert failed\n    at insert");
+    });
+
+    it("leaves the stack missing when the original error has none", async () => {
+      const error = new Error("insert failed: \u0000");
+      error.stack = undefined;
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      const thrown = (result as PromiseRejectedResult).reason as Error;
+      expect(thrown.message).toBe("insert failed:  ");
+      expect(thrown.stack).toBeUndefined();
+    });
+
+    it("rethrows an error whose cause is null as it is", async () => {
+      const error = new Error("insert failed", { cause: null });
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      expect((result as PromiseRejectedResult).reason).toBe(error);
+    });
+
+    it("rethrows a non-Error rejection as it is", async () => {
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue("boom"))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      expect((result as PromiseRejectedResult).reason).toBe("boom");
+    });
+
+    it("rewrites the error when a NUL byte sits only in a field of its own, as a failed insert's params do", async () => {
+      const error = Object.assign(new Error("insert failed"), { params: ["cmd=tr '\u0000' ' '"] });
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      const thrown = (result as PromiseRejectedResult).reason as Error & { params?: string[] };
+      expect(thrown).not.toBe(error);
+      expect(thrown.message).toBe("insert failed");
+      expect(thrown.params).toBeUndefined();
+    });
+
+    it("rewrites the error when a NUL byte sits only in its cause", async () => {
+      const error = new Error("insert failed", { cause: new Error("params: \u0000") });
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      const thrown = (result as PromiseRejectedResult).reason as Error;
+      expect(thrown).not.toBe(error);
+      expect(thrown.message).toBe("insert failed");
+      expect(thrown.cause).toBeUndefined();
+    });
+
+    it("strips the NUL bytes out of a rejected string", async () => {
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue("cmd=tr '\u0000' ' '"))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      expect((result as PromiseRejectedResult).reason).toBe("cmd=tr ' ' ' '");
+    });
+
+    it("describes a rejected object whose field carries a NUL byte", async () => {
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue({ evidence: "x\u0000y" }))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      expect((result as PromiseRejectedResult).reason).toBe('{"evidence":"x\\u0000y"}');
+    });
+
+    it("describes a rejected object Postgres could never store as one", async () => {
+      const cyclic: Record<string, unknown> = {};
+      cyclic.self = cyclic;
+      cyclic.evidence = "x\u0000y";
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(cyclic))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      expect((result as PromiseRejectedResult).reason).toBe("unserializable rejection");
+    });
+
+    it("installs the permissions the handler declares for its execution", async () => {
+      const { service, pgBoss, executionContextService } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new ReadPaymentMethodTestHandler(vi.fn().mockResolvedValue(undefined))]);
+      await service.startWorkers({ concurrency: 1 });
+
+      const ability = installedAbility(executionContextService);
+      expect(ability.can("read", "PaymentMethod")).toBe(true);
+      expect(ability.can("update", "PaymentMethod")).toBe(false);
+    });
+
+    it("installs an ability without rules when the handler declares no permissions", async () => {
+      const { service, pgBoss, executionContextService } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockResolvedValue(undefined))]);
+      await service.startWorkers({ concurrency: 1 });
+
+      const ability = installedAbility(executionContextService);
+      expect(abilityInstallations(executionContextService)).toHaveLength(1);
+      expect(ability.rules).toEqual([]);
+      expect(ability.can("read", "PaymentMethod")).toBe(false);
+    });
+
+    it("declares the permissions from the payload the handler is given", async () => {
+      const { service, pgBoss } = setup();
+      const handler = new ReadOwnPaymentMethodTestHandler(vi.fn().mockResolvedValue(undefined));
+      const requiresPermission = vi.spyOn(handler, "requiresPermission");
+      const job = deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([handler]);
+      await service.startWorkers({ concurrency: 1 });
+
+      expect(requiresPermission).toHaveBeenCalledWith(job.data);
+    });
+
+    it("keeps the conditions the handler declares for the job at hand", async () => {
+      const { service, pgBoss, executionContextService } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new ReadOwnPaymentMethodTestHandler(vi.fn().mockResolvedValue(undefined))]);
+      await service.startWorkers({ concurrency: 1 });
+
+      const ability = installedAbility(executionContextService);
+      expect(ability.can("read", subject("PaymentMethod", { userId: "user-1" }))).toBe(true);
+      expect(ability.can("read", subject("PaymentMethod", { userId: "user-2" }))).toBe(false);
+    });
+
+    it("installs the declared permissions before running the handler", async () => {
+      const { service, pgBoss, executionContextService } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+      const handle = vi.fn(async () => {
+        expect(installedAbility(executionContextService).can("read", "PaymentMethod")).toBe(true);
+      });
+
+      await service.registerHandlers([new ReadPaymentMethodTestHandler(handle)]);
+      await service.startWorkers({ concurrency: 1 });
+
+      expect(handle).toHaveBeenCalledTimes(1);
+    });
+
+    it("fails the job when the handler cannot declare its permissions", async () => {
+      const error = new Error("Permissions unavailable");
+      const { service, pgBoss, logger } = setup();
+      const handle = vi.fn().mockResolvedValue(undefined);
+      const job = deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new UndeclarablePermissionTestHandler(handle, error)]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      expect(result.status).toBe("rejected");
+      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_FAILED", jobId: job.id, error });
+      expect(handle).not.toHaveBeenCalled();
+    });
+
     it("uses default options when none provided", async () => {
       const handleFn = vi.fn().mockResolvedValue(undefined);
       const handler = new TestHandler(handleFn);
@@ -521,6 +823,10 @@ describe(JobQueueService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: JobQueueService.name });
   });
 
+  it("obliges every handler to declare the permissions its execution needs", () => {
+    expectTypeOf<JobHandler<TestJob>["requiresPermission"]>().toBeFunction();
+  });
+
   function setup(input?: { pgBoss?: PgBoss; postgresDbUri?: string; queues?: QueueResult[] }) {
     const mocks = {
       logger: mock<ReturnType<CreateLogger>>(),
@@ -577,12 +883,50 @@ describe(JobQueueService.name, () => {
   class TestHandler implements JobHandler<TestJob> {
     readonly accepts = TestJob;
     constructor(public readonly handle: JobHandler<TestJob>["handle"]) {}
+
+    requiresPermission(): JobPermissions {
+      return [];
+    }
   }
 
   class SingletonTestHandler implements JobHandler<TestJob> {
     readonly accepts = TestJob;
     readonly policy = "singleton" as const;
     constructor(public readonly handle: JobHandler<TestJob>["handle"]) {}
+
+    requiresPermission(): JobPermissions {
+      return [];
+    }
+  }
+
+  class ReadPaymentMethodTestHandler implements JobHandler<TestJob> {
+    readonly accepts = TestJob;
+    constructor(public readonly handle: JobHandler<TestJob>["handle"]) {}
+
+    requiresPermission(): JobPermissions {
+      return [{ action: "read", subject: "PaymentMethod" }];
+    }
+  }
+
+  class ReadOwnPaymentMethodTestHandler implements JobHandler<TestJob> {
+    readonly accepts = TestJob;
+    constructor(public readonly handle: JobHandler<TestJob>["handle"]) {}
+
+    requiresPermission(payload: JobPayload<TestJob>): JobPermissions {
+      return [{ action: "read", subject: "PaymentMethod", conditions: { userId: payload.userId } }];
+    }
+  }
+
+  class UndeclarablePermissionTestHandler implements JobHandler<TestJob> {
+    readonly accepts = TestJob;
+    constructor(
+      public readonly handle: JobHandler<TestJob>["handle"],
+      private readonly error: Error
+    ) {}
+
+    requiresPermission(): JobPermissions {
+      throw this.error;
+    }
   }
 
   class AnotherTestJob implements Job {
@@ -596,12 +940,37 @@ describe(JobQueueService.name, () => {
   class AnotherTestHandler implements JobHandler<AnotherTestJob> {
     readonly accepts = AnotherTestJob;
     constructor(public readonly handle: JobHandler<AnotherTestJob>["handle"]) {}
+
+    requiresPermission(): JobPermissions {
+      return [];
+    }
+  }
+
+  function deliverOneJob(pgBoss: PgBoss, data: Record<string, unknown>) {
+    const job = { id: "1", data };
+    vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: WorkHandler<unknown>) => {
+      await processFn([job as PgBossJob<unknown>]);
+      return "work-id";
+    });
+
+    return job;
+  }
+
+  function abilityInstallations(executionContextService: MockProxy<ExecutionContextService>) {
+    return vi.mocked(executionContextService.set).mock.calls.filter(([key]) => key === "ABILITY");
+  }
+
+  function installedAbility(executionContextService: MockProxy<ExecutionContextService>) {
+    const [installation] = abilityInstallations(executionContextService);
+
+    return installation[1] as MongoAbility;
   }
 
   function liveQueue(overrides?: Partial<QueueResult>) {
     return mock<QueueResult>({
       name: TestJob[JOB_NAME],
       policy: "standard",
+      partition: false,
       retryLimit: 5,
       retryBackoff: true,
       retryDelay: 30,

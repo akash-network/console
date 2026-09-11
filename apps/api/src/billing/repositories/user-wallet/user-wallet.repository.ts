@@ -106,8 +106,11 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return claimed ? this.toOutput(claimed) : undefined;
   }
 
-  /** Re-checks the window in SQL so a concurrent check that read the credits low still wins by clearing `creditsSufficientSince`. */
-  async clearCreditsLowNotifiedIfRecoveryConfirmed(id: UserWalletOutput["id"], confirmWindowMinutes: number): Promise<boolean> {
+  /** Re-checks both windows in SQL so a concurrent check that read the credits low still wins by clearing `creditsSufficientSince`. */
+  async clearCreditsLowNotifiedIfRecoveryConfirmed(
+    id: UserWalletOutput["id"],
+    { confirmWindowMinutes, resendCooldownHours }: { confirmWindowMinutes: number; resendCooldownHours: number }
+  ): Promise<boolean> {
     const [cleared] = await this.cursor
       .update(this.table)
       .set({ creditsLowNotifiedAt: null, creditsSufficientSince: null, creditsLowSince: null })
@@ -116,6 +119,7 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
           and(
             eq(this.table.id, id),
             isNotNull(this.table.creditsLowNotifiedAt),
+            lte(this.table.creditsLowNotifiedAt, sql`now() - ${resendCooldownHours}::double precision * interval '1 hour'`),
             isNotNull(this.table.creditsSufficientSince),
             lte(this.table.creditsSufficientSince, sql`now() - ${confirmWindowMinutes}::double precision * interval '1 minute'`)
           )
@@ -153,12 +157,29 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
         where: this.whereAccessibleBy(
           and(
             isNotNull(this.table.activatedAt),
+            isNull(this.table.abuseLockedAt),
             lte(this.table.feeAllowance, thresholds.fee.toString()),
             or(and(eq(this.table.isTrialing, true), gt(this.table.activatedAt, trialWindowStart)), eq(this.table.isTrialing, false))
           )
         )
       })
     );
+  }
+
+  /** One write, so a wallet is never left with zeroed allowances but no lock or the other way round. */
+  async lockForAbuse(id: UserWalletOutput["id"], reason: string): Promise<void> {
+    await this.updateById(id, { deploymentAllowance: 0, feeAllowance: 0, isTrialing: false, abuseLockedAt: new Date(), abuseLockedReason: reason });
+  }
+
+  /** Re-checks the lock in SQL so a lock applied after the payer read the wallet is still cleared by that payment. */
+  async clearAbuseLock(id: UserWalletOutput["id"]): Promise<boolean> {
+    const [cleared] = await this.cursor
+      .update(this.table)
+      .set({ abuseLockedAt: null, abuseLockedReason: null })
+      .where(this.whereAccessibleBy(and(eq(this.table.id, id), isNotNull(this.table.abuseLockedAt))))
+      .returning({ id: this.table.id });
+
+    return !!cleared;
   }
 
   @Trace()

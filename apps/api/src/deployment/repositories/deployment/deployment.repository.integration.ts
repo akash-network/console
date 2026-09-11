@@ -5,9 +5,20 @@ import { describe, expect, it } from "vitest";
 import { CHAIN_DB } from "@src/chain";
 import { DeploymentRepository } from "./deployment.repository";
 
-import { createAkashBlock, createAkashMessage, createDeployment, createDeploymentGroup, createDeploymentGroupResource, createTransaction } from "@test/seeders";
+import {
+  createAkashAddress,
+  createAkashBlock,
+  createAkashMessage,
+  createDeployment,
+  createDeploymentGroup,
+  createDeploymentGroupResource,
+  createTransaction
+} from "@test/seeders";
 
 const BID_TYPE = "/akash.market.v1beta5.MsgCreateBid";
+
+/** Well above the ascending bands the GPU tests claim, so date-based blocks never collide with them. */
+const BLOCK_HEIGHT_BAND = 9_000_000;
 
 describe(DeploymentRepository.name, () => {
   describe("findAllWithGpuResources", () => {
@@ -101,17 +112,161 @@ describe(DeploymentRepository.name, () => {
   });
 
   let testBand = 0;
+  let blockHeightCounter = 0;
+
+  describe("findClosureStates", () => {
+    it("reports a deployment the chain has closed as closed", async () => {
+      const { repository } = setup();
+      const owner = createAkashAddress();
+      const deployment = await createDeployment({ owner, closedHeight: 5_000_000 });
+
+      const states = await repository.findClosureStates([{ owner, dseq: deployment.dseq }]);
+
+      expect(states).toEqual([{ owner, dseq: deployment.dseq, isClosed: true }]);
+    });
+
+    it("reports a deployment the chain still holds open as open", async () => {
+      const { repository } = setup();
+      const owner = createAkashAddress();
+      const deployment = await createDeployment({ owner, closedHeight: undefined });
+
+      const states = await repository.findClosureStates([{ owner, dseq: deployment.dseq }]);
+
+      expect(states).toEqual([{ owner, dseq: deployment.dseq, isClosed: false }]);
+    });
+
+    it("leaves out a deployment the indexer holds no row for, so absence is not read as either state", async () => {
+      const { repository } = setup();
+
+      const states = await repository.findClosureStates([{ owner: createAkashAddress(), dseq: "999999999999" }]);
+
+      expect(states).toEqual([]);
+    });
+
+    it("matches on the owner as well as the dseq, so one owner's close cannot answer for another's", async () => {
+      const { repository } = setup();
+      const owner = createAkashAddress();
+      const otherOwner = createAkashAddress();
+      const deployment = await createDeployment({ owner, closedHeight: 5_000_000 });
+
+      const states = await repository.findClosureStates([{ owner: otherOwner, dseq: deployment.dseq }]);
+
+      expect(states).toEqual([]);
+    });
+
+    it("answers for each pair of a mixed batch", async () => {
+      const { repository } = setup();
+      const owner = createAkashAddress();
+      const closed = await createDeployment({ owner, closedHeight: 5_000_000 });
+      const open = await createDeployment({ owner, closedHeight: undefined });
+      const unknownDseq = "888888888888";
+
+      const states = await repository.findClosureStates([
+        { owner, dseq: closed.dseq },
+        { owner, dseq: open.dseq },
+        { owner, dseq: unknownDseq }
+      ]);
+
+      expect(states).toHaveLength(2);
+      expect(states).toContainEqual({ owner, dseq: closed.dseq, isClosed: true });
+      expect(states).toContainEqual({ owner, dseq: open.dseq, isClosed: false });
+    });
+
+    it("returns nothing for an empty batch without querying", async () => {
+      const { repository } = setup();
+
+      await expect(repository.findClosureStates([])).resolves.toEqual([]);
+    });
+  });
+
+  describe("countActiveByOwner", () => {
+    const WINDOW = { startDate: "2025-03-01", endDate: "2025-03-31" };
+
+    it("counts a deployment that is still open inside the window", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-03-05" });
+
+      await expect(repository.countActiveByOwner(owner, WINDOW)).resolves.toBe(1);
+    });
+
+    it("counts a deployment that closed inside the window", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-03-05", closedOn: "2025-03-10" });
+
+      await expect(repository.countActiveByOwner(owner, WINDOW)).resolves.toBe(1);
+    });
+
+    it("counts a deployment that spans the whole window", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-02-01", closedOn: "2025-04-10" });
+
+      await expect(repository.countActiveByOwner(owner, WINDOW)).resolves.toBe(1);
+    });
+
+    it("counts a deployment created on the last day of the window", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-03-31" });
+
+      await expect(repository.countActiveByOwner(owner, WINDOW)).resolves.toBe(1);
+    });
+
+    it("counts a deployment closed on the first day of the window", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-02-01", closedOn: "2025-03-01" });
+
+      await expect(repository.countActiveByOwner(owner, WINDOW)).resolves.toBe(1);
+    });
+
+    it("leaves out a deployment that closed before the window", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-02-01", closedOn: "2025-02-20" });
+
+      await expect(repository.countActiveByOwner(owner, WINDOW)).resolves.toBe(0);
+    });
+
+    it("leaves out a deployment created after the window", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-04-05" });
+
+      await expect(repository.countActiveByOwner(owner, WINDOW)).resolves.toBe(0);
+    });
+
+    it("counts only the deployments of the owner asked for", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-03-05" });
+      await seedDeployment({ owner: createAkashAddress(), createdOn: "2025-03-05" });
+
+      await expect(repository.countActiveByOwner(owner, WINDOW)).resolves.toBe(1);
+    });
+
+    it("counts every deployment overlapping the window, whatever its state", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-03-02" });
+      await seedDeployment({ owner, createdOn: "2025-03-03", closedOn: "2025-03-20" });
+      await seedDeployment({ owner, createdOn: "2025-01-10", closedOn: "2025-01-20" });
+
+      await expect(repository.countActiveByOwner(owner, WINDOW)).resolves.toBe(2);
+    });
+
+    it("counts only the deployments still open when no window is given", async () => {
+      const { repository, owner } = setup();
+      await seedDeployment({ owner, createdOn: "2025-03-02" });
+      await seedDeployment({ owner, createdOn: "2025-03-03", closedOn: "2025-03-20" });
+
+      await expect(repository.countActiveByOwner(owner)).resolves.toBe(1);
+    });
+  });
 
   function setup() {
-    // Resolve CHAIN_DB so the chain Sequelize instance (and its models) is initialized — the
-    // repository uses the static models directly and does not inject the connection itself.
+    // Resolve CHAIN_DB so the chain Sequelize instance (and its models) is initialized before the
+    // static models this repository still reads through are used.
     container.resolve(CHAIN_DB);
     const repository = container.resolve(DeploymentRepository);
     testBand += 1;
     // Each test owns a disjoint, ascending height band so its query (minHeight = base) sees only
     // its own deployments: lower bands are filtered out, higher bands are seeded by later tests.
     const base = 1_000_000 + testBand * 10_000;
-    return { repository, base, band: testBand };
+    return { repository, base, band: testBand, owner: createAkashAddress() };
   }
 
   async function collect<T>(generator: AsyncGenerator<T>) {
@@ -124,6 +279,21 @@ describe(DeploymentRepository.name, () => {
   // test), distinct bands keep ids unique across tests in the shared per-file database.
   function orderedId(band: number, seq: number) {
     return `${band.toString(16).padStart(8, "0")}-0000-4000-8000-${seq.toString(16).padStart(12, "0")}`;
+  }
+
+  async function seedDeployment(input: { owner: string; createdOn: string; closedOn?: string }) {
+    const createdHeight = await seedBlockAt(input.createdOn);
+    const closedHeight = input.closedOn ? await seedBlockAt(input.closedOn) : undefined;
+
+    return await createDeployment({ owner: input.owner, createdHeight, closedHeight, dseq: faker.string.numeric(12) });
+  }
+
+  async function seedBlockAt(date: string) {
+    blockHeightCounter += 1;
+    const height = BLOCK_HEIGHT_BAND + blockHeightCounter;
+    await createAkashBlock({ height, datetime: new Date(`${date}T12:00:00.000Z`) });
+
+    return height;
   }
 
   async function seedGpuDeployment(input: {

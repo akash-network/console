@@ -5,13 +5,22 @@ import { isAutoReloadActive } from "@src/billing/lib/auto-reload/auto-reload";
 import { isWalletInitialized, type UserWalletOutput, UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { type CreateLogger, type JobHandler, type JobPayload, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { creditsRunningLowNotification } from "@src/notifications/services/notification-templates/credits-running-low-notification";
 import { type UserOutput, UserRepository } from "@src/user/repositories";
 
-type SkipReason = "auto_reload_enabled" | "no_wallet" | "trialing" | "no_email" | "zero_cost" | "sufficient_balance" | "already_notified" | "low_unconfirmed";
+type SkipReason =
+  | "auto_reload_enabled"
+  | "no_wallet"
+  | "trialing"
+  | "abuse_locked"
+  | "no_email"
+  | "zero_cost"
+  | "sufficient_balance"
+  | "already_notified"
+  | "low_unconfirmed";
 
 type NotLowReason = Extract<SkipReason, "zero_cost" | "sufficient_balance">;
 
@@ -43,6 +52,10 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: WalletCreditsLowCheckHandler.name });
+  }
+
+  requiresPermission(): JobPermissions {
+    return [];
   }
 
   async handle(payload: JobPayload<WalletCreditsLowCheck>): Promise<void> {
@@ -143,6 +156,11 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
       return;
     }
 
+    if (wallet.abuseLockedAt) {
+      this.#skip("abuse_locked", userId);
+      return;
+    }
+
     const user = await this.userRepository.findById(userId);
     if (!user?.email) {
       this.#skip("no_email", userId);
@@ -178,10 +196,10 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
       return;
     }
 
-    const isCleared = await this.userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(
-      wallet.id,
-      this.billingConfig.get("CREDITS_LOW_RECOVERY_CONFIRM_WINDOW_MIN")
-    );
+    const isCleared = await this.userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed(wallet.id, {
+      confirmWindowMinutes: this.billingConfig.get("CREDITS_LOW_RECOVERY_CONFIRM_WINDOW_MIN"),
+      resendCooldownHours: this.billingConfig.get("CREDITS_LOW_RESEND_COOLDOWN_H")
+    });
 
     if (isCleared) {
       this.logger.info({ event: "CREDITS_LOW_NOTIFIED_CLEARED", userId, reason, creditsSufficientSince: wallet.creditsSufficientSince });

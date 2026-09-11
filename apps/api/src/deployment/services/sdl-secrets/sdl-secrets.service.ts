@@ -1,10 +1,11 @@
 import type { SDLInput, ValidationError } from "@akashnetwork/chain-sdk";
-import createError from "http-errors";
+import createError, { isHttpError } from "http-errors";
+import { decodeProtectedHeader } from "jose";
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { jsonEncodedBytes } from "@src/deployment/config/sdl-secrets.config";
-import type { NamespacedSdlSecrets, SdlReferenceDeclaration } from "@src/deployment/services/sdl-reference/sdl-reference.service";
+import type { SdlReferenceDeclaration } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import {
   MAX_ECHOED_REFERENCE_LENGTH,
   MAX_SDL_REFERENCE_NAME_LENGTH,
@@ -13,25 +14,55 @@ import {
   SdlReferenceService
 } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
-import { SdlSecretsUnsealerService } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
+import { parseSdlSecrets, SdlSecretsUnsealerService } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
+import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
 import { SecretCipherService } from "@src/secret/services/secret-cipher/secret-cipher.service";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 
 /** The kind of SDL Reference a sealed payload answers. Other kinds resolve from elsewhere and are none of this service's business. */
 const SECRET_REFERENCE_KIND = "secret";
 
-export interface ReceivedSdlSecrets {
-  /** What the client sealed, unchanged, because this is what gets re-sealed for storage: one flat name-to-value map per deployment. */
-  supplied: SdlSecrets;
-  /** The same values indexed by the service that referenced them, which is the shape resolution reads. */
-  byService: NamespacedSdlSecrets;
+/** What the client sealed, unchanged: the one flat name-to-value map a deployment has, which is both what resolution reads and what gets re-sealed for storage. */
+export type ReceiveSdlSecretsResult = { ok: true; value: SdlSecrets } | { ok: false; value: ValidationError[] };
+
+const NOTHING_SUPPLIED: SdlSecrets = {};
+
+/** Which set broke a limit, because a redeploy that inherits its values supplied none of them and must not be told to supply fewer. */
+type SdlSecretsOrigin = "supplied" | "carried" | "stored";
+
+function countExceededMessage(origin: SdlSecretsOrigin, maxCount: number): string {
+  const messages: Record<SdlSecretsOrigin, string> = {
+    supplied: `At most ${maxCount} secrets may be supplied for one deployment`,
+    carried: `At most ${maxCount} secrets may be carried by one deployment, counting those inherited from another`,
+    stored: `At most ${maxCount} secrets may be stored for one deployment`
+  };
+
+  return messages[origin];
 }
 
-export type ReceiveSdlSecretsResult = { ok: true; value: ReceivedSdlSecrets } | { ok: false; value: ValidationError[] };
+/** The two ways a reference can already be answered when a create is received: by this request, or by the deployment it inherits from. */
+type ReceivedSdlSecretSets = { supplied: SdlSecrets; inherited: SdlSecrets };
 
-const NOTHING_SUPPLIED: ReceivedSdlSecrets = { supplied: {}, byService: {} };
+/** Each set is asked separately, so a non-string sitting under a name in one of them cannot shadow a usable value in the other. */
+function isCovered(sets: ReceivedSdlSecretSets, name: string): boolean {
+  return typeof ownValue(sets.supplied, name) === "string" || typeof ownValue(sets.inherited, name) === "string";
+}
 
-function unreferencedNameError(name: string): ValidationError {
+/** An unreachable key service answers 503 and will succeed on retry, so it is not evidence that anything moved the stored data. */
+function isRetryable(error: unknown): boolean {
+  return isHttpError(error) && error.status === 503;
+}
+
+/** Reads the protected header without a key, so a token that cannot be decrypted can still say which data key and deployment it claims to belong to. */
+function claimsOf(sealedSecrets: string): Record<string, unknown> | undefined {
+  try {
+    return decodeProtectedHeader(sealedSecrets) as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+}
+
+export function unreferencedNameError(name: string): ValidationError {
   const echoed = name.slice(0, MAX_ECHOED_REFERENCE_LENGTH);
 
   return {
@@ -59,28 +90,39 @@ export class SdlSecretsService {
   }
 
   /** Takes the parsed document, because an SDL that does not parse has already been refused by the manifest generator and this must not report it twice. */
-  async receive(input: { sdl: SDLInput; rawSdl: string; sealedSecrets?: string }): Promise<ReceiveSdlSecretsResult> {
+  async receive(input: { sdl: SDLInput; rawSdl: string; sealedSecrets?: string; inherited?: SdlSecrets }): Promise<ReceiveSdlSecretsResult> {
     const declarations = this.sdlReferenceService.declarationsOf(input.sdl, SECRET_REFERENCE_KIND);
+    const inherited = input.inherited ?? NOTHING_SUPPLIED;
+    const supplied = input.sealedSecrets ? await this.#openSupplied(input.sealedSecrets, input.rawSdl) : NOTHING_SUPPLIED;
 
-    if (!input.sealedSecrets) {
-      return declarations.length === 0 ? { ok: true, value: NOTHING_SUPPLIED } : { ok: false, value: declarations.map(missingSdlReferenceValueError) };
-    }
-
-    const supplied = await this.unsealerService.open({ seal: input.sealedSecrets, sdl: input.rawSdl });
-    this.#assertWithinLimits(supplied);
-
-    const { byService, errors } = this.#assignToServices(declarations, supplied);
+    const errors = this.#mismatchesBetween(declarations, { supplied, inherited });
 
     if (errors.length > 0) return { ok: false, value: errors };
 
-    this.#loggerService.info({
-      event: "SDL_SECRETS_RECEIVED",
-      suppliedCount: Object.keys(supplied).length,
-      referencedNames: [...new Set(declarations.map(declaration => declaration.name))],
-      serviceCount: Object.keys(byService).length
-    });
+    if (declarations.length > 0 || Object.keys(supplied).length > 0) {
+      this.#loggerService.info({
+        event: "SDL_SECRETS_RECEIVED",
+        suppliedCount: Object.keys(supplied).length,
+        inheritedCount: Object.keys(inherited).length,
+        referencedNames: [...new Set(declarations.map(declaration => declaration.name))],
+        serviceCount: new Set(declarations.map(declaration => declaration.serviceName)).size
+      });
+    }
 
-    return { ok: true, value: { supplied, byService } };
+    return { ok: true, value: supplied };
+  }
+
+  /** Opening is what costs a key-service call, so it stays behind the check for a seal rather than inside the one pass that reads both sets. */
+  async #openSupplied(seal: string, rawSdl: string): Promise<SdlSecrets> {
+    const supplied = await this.unsealerService.open({ seal, sdl: rawSdl });
+    this.#assertWithinLimits(supplied, "supplied");
+
+    return supplied;
+  }
+
+  /** Bounds the whole set a deployment would carry, because measuring one request alone would let a merge grow the stored token past the ceiling one request at a time. */
+  assertStorable(secrets: SdlSecrets, origin: Exclude<SdlSecretsOrigin, "supplied">): void {
+    this.#assertWithinLimits(secrets, origin);
   }
 
   /** Returns null when nothing was supplied, so a create always has a value to write and a retry cannot inherit an abandoned attempt's token. */
@@ -96,39 +138,78 @@ export class SdlSecretsService {
     return sealed;
   }
 
-  /** Namespaces are built from the walk rather than by copying everything to every service, so a service that references nothing is handed nothing. */
-  #assignToServices(declarations: SdlReferenceDeclaration[], supplied: SdlSecrets) {
-    const byService: NamespacedSdlSecrets = Object.create(null);
+  /** Opens a client's seal without holding it to what the SDL declares, because a patch supplies only what changed and the rest resolves from what is stored. */
+  async receiveForMerge(input: { rawSdl: string; sealedSecrets: string }): Promise<SdlSecrets> {
+    const supplied = await this.unsealerService.open({ seal: input.sealedSecrets, sdl: input.rawSdl });
+    this.#assertWithinLimits(supplied, "supplied");
+
+    this.#loggerService.info({ event: "SDL_SECRETS_RECEIVED_FOR_MERGE", suppliedCount: Object.keys(supplied).length });
+
+    return supplied;
+  }
+
+  /** Opens what `sealForStorage` wrote under the same binding, so a token moved to another deployment's row or another user's fails to open rather than resolving into it. */
+  async openStored(input: { userId: string; dseq: string; sealedSecrets: string }): Promise<SdlSecrets> {
+    const opened = await this.#decryptStored(input);
+    const secrets = parseSdlSecrets(opened);
+
+    if (!secrets) {
+      this.#loggerService.error({ event: "SDL_SECRETS_STORED_PAYLOAD_INVALID", userId: input.userId, dseq: input.dseq });
+
+      throw createError(500, SECRET_UNREADABLE_ERROR_MESSAGE);
+    }
+
+    this.#loggerService.info({ event: "SDL_SECRETS_STORED_OPENED", userId: input.userId, dseq: input.dseq, secretCount: Object.keys(secrets).length });
+
+    return secrets;
+  }
+
+  /** Records only a permanent failure, and only the header's claims, which name the data key, the user and the deployment and carry none of the ciphertext. */
+  async #decryptStored(input: { userId: string; dseq: string; sealedSecrets: string }): Promise<string> {
+    try {
+      return await this.secretCipherService.decrypt(input.userId, input.sealedSecrets, { sub: input.userId, dseq: input.dseq });
+    } catch (error) {
+      if (!isRetryable(error)) {
+        this.#loggerService.error({
+          event: "SECRET_DECRYPT_FAILED",
+          userId: input.userId,
+          dseq: input.dseq,
+          claims: claimsOf(input.sealedSecrets)
+        });
+      }
+
+      throw error;
+    }
+  }
+
+  /** Both directions are reported from one pass, so a request that gets each side wrong hears about both at once. */
+  #mismatchesBetween(declarations: SdlReferenceDeclaration[], sets: ReceivedSdlSecretSets): ValidationError[] {
     const errors: ValidationError[] = [];
     const referenced = new Set<string>();
 
     for (const declaration of declarations) {
-      const value = ownValue(supplied, declaration.name);
-
-      if (typeof value !== "string") {
-        errors.push(missingSdlReferenceValueError(declaration));
+      if (isCovered(sets, declaration.name)) {
+        referenced.add(declaration.name);
         continue;
       }
 
-      const namespace = (byService[declaration.serviceName] ??= Object.create(null) as SdlSecrets);
-      namespace[declaration.name] = value;
-      referenced.add(declaration.name);
+      errors.push(missingSdlReferenceValueError(declaration));
     }
 
-    for (const name of Object.keys(supplied)) {
+    for (const name of Object.keys(sets.supplied)) {
       if (!referenced.has(name)) errors.push(unreferencedNameError(name));
     }
 
-    return { byService, errors };
+    return errors;
   }
 
   /** Every bound is measured as `jsonEncodedBytes`, matching the seal budget, because a raw-length check would let a payload pass here and die on the body limit. */
-  #assertWithinLimits(supplied: SdlSecrets): void {
+  #assertWithinLimits(supplied: SdlSecrets, origin: SdlSecretsOrigin): void {
     const maxCount = this.config.get("SDL_SECRETS_MAX_COUNT");
     const names = Object.keys(supplied);
 
     if (names.length > maxCount) {
-      throw this.#reject("SDL_SECRETS_COUNT_EXCEEDED", `At most ${maxCount} secrets may be supplied for one deployment`, { suppliedCount: names.length });
+      throw this.#reject("SDL_SECRETS_COUNT_EXCEEDED", countExceededMessage(origin, maxCount), { suppliedCount: names.length, origin });
     }
 
     const maxValueBytes = this.config.get("SDL_SECRETS_MAX_VALUE_BYTES");

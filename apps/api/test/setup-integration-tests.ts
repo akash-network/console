@@ -1,10 +1,14 @@
 import "reflect-metadata";
 
+import nock from "nock";
 import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, beforeEach, expect } from "vitest";
 
 import MemoryCacheEngine from "@src/caching/memoryCacheEngine";
 import { TestDatabaseService } from "./services/test-database.service";
+
+nock.disableNetConnect();
+nock.enableNetConnect(/^(localhost|127\.0\.0\.1|\[::1\])(:|$)/);
 
 const testPath = expect.getState().testPath;
 const dbService = new TestDatabaseService(testPath!);
@@ -12,7 +16,7 @@ const dbService = new TestDatabaseService(testPath!);
 beforeAll(async () => {
   MemoryCacheEngine.clearAllCaches();
   await dbService.setup();
-}, 20_000);
+});
 
 afterAll(async () => {
   try {
@@ -22,7 +26,7 @@ afterAll(async () => {
   }
   await dbService.teardown();
   MemoryCacheEngine.clearAllCaches();
-}, 20_000);
+});
 
 beforeEach(() => {
   MemoryCacheEngine.clearAllCaches();

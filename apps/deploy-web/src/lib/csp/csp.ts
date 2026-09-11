@@ -13,8 +13,11 @@ const isDevelopment = process.env.NODE_ENV !== "production";
  */
 export const THEME_SCRIPT_HASH = "'sha256-eMuh8xiwcX72rRYNAGENurQBAcH7kLlAUQcoOri3BIo='";
 
+/** GA4 also calls the bare host, which `*.analytics.google.com` cannot match: a CSP wildcard requires at least one subdomain label. */
+const GOOGLE_ANALYTICS_ORIGINS = ["https://*.google-analytics.com", "https://*.analytics.google.com", "https://analytics.google.com"];
+
 /**
- * Third-party endpoints the app connects to directly (Stripe, Cloudflare, Google, Growth Channel, Amplitude); these never vary by environment.
+ * Third-party endpoints the app connects to directly (Stripe, Cloudflare, Google, Growth Channel, Amplitude, jsDelivr); these never vary by environment.
  * Amplitude core events are proxied via NEXT_PUBLIC_AMPLITUDE_PROXY_URL, but Session Replay (config + ingest) and the no-proxy fallback hit
  * `*.amplitude.com` subdomains directly, so the wildcard is required regardless of the proxy setting.
  */
@@ -23,21 +26,39 @@ const FIXED_VENDOR_CONNECT_ORIGINS = [
   "https://m.stripe.network",
   "https://challenges.cloudflare.com",
   "https://www.googletagmanager.com",
-  "https://*.google-analytics.com",
-  "https://*.analytics.google.com",
+  ...GOOGLE_ANALYTICS_ORIGINS,
   "https://pxl.growth-channel.net",
-  "https://*.amplitude.com"
+  "https://*.amplitude.com",
+  "https://cdn.jsdelivr.net"
 ];
 
-/** Image hosts that never vary by environment (inline data/blob URIs, GitHub avatars/raw content, Google). */
-const FIXED_IMG_SRC = [
-  "data:",
-  "blob:",
-  "https://raw.githubusercontent.com",
-  "https://avatars.githubusercontent.com",
-  "https://www.googletagmanager.com",
-  "https://*.google-analytics.com"
+/** Template logos are community-supplied and point at arbitrary origins, so img-src cannot be a host allowlist. */
+const FIXED_IMG_SRC = ["data:", "blob:", "https:"];
+
+const STACKADAPT_ORIGIN = "https://tags.srv.stackadapt.com";
+const IQM_ORIGIN = "https://pxl.iqm.com";
+
+/** CSP cannot wildcard a TLD, so Google Ads' per-country audience endpoints have to be listed one by one. */
+const GOOGLE_ADS_COUNTRY_ORIGINS = [
+  "https://www.google.com",
+  "https://www.google.be",
+  "https://www.google.co.in",
+  "https://www.google.com.br",
+  "https://www.google.com.pe",
+  "https://www.google.com.ph",
+  "https://www.google.com.pk",
+  "https://www.google.com.ua",
+  "https://www.google.com.vn",
+  "https://www.google.de",
+  "https://www.google.fi",
+  "https://www.google.fr",
+  "https://www.google.kz",
+  "https://www.google.pl",
+  "https://www.google.pt"
 ];
+
+/** The matching image pixels need no img-src entry because the blanket https: already covers them. */
+const MARKETING_TAG_CONNECT_ORIGINS = [STACKADAPT_ORIGIN, "https://*.g.doubleclick.net", ...GOOGLE_ADS_COUNTRY_ORIGINS];
 
 export interface ContentSecurityPolicyInput {
   mainnetApiUrl?: string;
@@ -95,7 +116,9 @@ export function buildContentSecurityPolicy(input: ContentSecurityPolicyInput) {
     "https://*.google-analytics.com",
     "https://pxl.growth-channel.net",
     "https://challenges.cloudflare.com",
-    "https://js.stripe.com"
+    "https://js.stripe.com",
+    STACKADAPT_ORIGIN,
+    IQM_ORIGIN
   ];
 
   const providerProxyOrigin = toOrigin(input.providerProxyUrl);
@@ -110,11 +133,12 @@ export function buildContentSecurityPolicy(input: ContentSecurityPolicyInput) {
     toOrigin(input.amplitudeProxyUrl),
     toOrigin(input.unleashFrontendApiUrl),
     toOrigin(input.sentryDsn),
+    toOrigin(input.templatesUrl),
     ...(input.networkRpcAndApiUrls ?? []).map(toOrigin)
   ];
 
-  const connectSrc = dedupeOrigins(["'self'", ...envConnectOrigins, ...FIXED_VENDOR_CONNECT_ORIGINS]);
-  const imgSrc = dedupeOrigins(["'self'", ...FIXED_IMG_SRC, toOrigin(input.templatesUrl)]);
+  const connectSrc = dedupeOrigins(["'self'", ...envConnectOrigins, ...FIXED_VENDOR_CONNECT_ORIGINS, ...MARKETING_TAG_CONNECT_ORIGINS]);
+  const imgSrc = dedupeOrigins(["'self'", ...FIXED_IMG_SRC]);
   const sentrySecurityReportUri = toSentrySecurityReportUri(input.sentryDsn);
 
   if (isDevelopment) {
@@ -129,7 +153,7 @@ export function buildContentSecurityPolicy(input: ContentSecurityPolicyInput) {
     "frame-ancestors 'none'",
     "form-action 'self'",
     `script-src ${scriptSrc.join(" ")}`,
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${STACKADAPT_ORIGIN}`,
     "style-src-attr 'unsafe-inline'",
     `img-src ${imgSrc.join(" ")}`,
     "font-src 'self' data: https://fonts.gstatic.com",

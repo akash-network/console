@@ -1,14 +1,14 @@
 
 
 html {
-  scroll-padding-top: 57px;
+  scroll-padding-top: calc(57px + var(--top-banner-height, 0px));
   -webkit-font-smoothing: auto;
   height: 100%;
   width: 100%;
 }
 
 body {
-  height: calc(100% - 57px) !important;
+  height: calc(100% - 57px - var(--top-banner-height, 0px)) !important;
   width: 100%;
   padding: 0 !important;
 }

@@ -4,7 +4,7 @@ import { inject, singleton } from "tsyringe";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
-import { type CreateLogger, Job, JOB_NAME, JobHandler, JobPayload, JobQueueService, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, Job, JOB_NAME, JobHandler, JobPayload, type JobPermissions, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { RESOLVED_MARKER } from "@src/notifications/services/notification-data-resolver/notification-data-resolver.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
@@ -40,6 +40,10 @@ export class CloseTrialDeploymentHandler implements JobHandler<CloseTrialDeploym
     private readonly chainErrorService: ChainErrorService
   ) {
     this.logger = createLogger({ context: CloseTrialDeploymentHandler.name });
+  }
+
+  requiresPermission(): JobPermissions {
+    return [];
   }
 
   async handle(payload: JobPayload<CloseTrialDeployment>): Promise<void> {

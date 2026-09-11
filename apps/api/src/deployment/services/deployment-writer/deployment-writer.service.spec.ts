@@ -1,7 +1,11 @@
+import type { SDLInput, ValidationError } from "@akashnetwork/chain-sdk";
+import { yaml } from "@akashnetwork/chain-sdk";
 import { DeploymentReclamation, MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import type { AnyAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import createError, { NotFound } from "http-errors";
+import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
 
@@ -14,13 +18,18 @@ import type { CreateLogger, JobQueueService, TxService } from "@src/core";
 import { JOB_NAME } from "@src/core";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
-import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeleteUnbackedDeploymentSetting } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
-import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
+import type { GenerateResolvedManifestResult, SdlManifest, SdlService } from "@src/deployment/services/sdl/sdl.service";
+import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
-import type { ReceivedSdlSecrets, SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import type { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
+import type { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
+import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
+import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
+import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 import type { StaleManagedDeploymentsCleanerService } from "../stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
@@ -34,6 +43,7 @@ const REGISTRY_USERNAME = faker.string.alphanumeric(10);
 const REGISTRY_PASSWORD = faker.internet.password();
 const DEPLOYMENT_SETTING_ID = faker.string.uuid();
 const GRACE_IN_MIN = 60;
+const SIGNER_REQUEST_TIMEOUT_MS = 180_000;
 const RETRY_LIMIT = 47;
 const RETRY_DELAY_MAX_IN_MIN = 30;
 const RETRY_DELAY_IN_SEC = 30;
@@ -127,6 +137,31 @@ ${Array.from({ length: 24 }, (_, level) => `        a${level + 1}: &a${level + 1
 `
 );
 
+const CLIENT_SEAL = "client.seal.aaa.bbb.ccc";
+
+const SOURCE_DSEQ = "1420000000001";
+
+/** Answers one reference from the request while leaving credentials in the clear, so a create stores both what was supplied and what the console took out. */
+const SDL_REFERENCING_A_SUPPLIED_VALUE = sdlAround(`    credentials:
+      host: registry.example.test
+      username: ${REGISTRY_USERNAME}
+      password: ${REGISTRY_PASSWORD}
+    env:
+      - TOKEN=ac-secret://TOKEN
+`);
+
+/** A redeploy submits the sdl a previous deployment stored, so every value it needs already stands as a reference. */
+const SDL_OF_A_REDEPLOY = sdlAround(`    env:
+      - API_TOKEN=ac-secret://API_TOKEN
+      - DATABASE_URL=ac-secret://DATABASE_URL
+`);
+
+/** The same document with one value still in the clear, so the console derives a name of its own beside the inherited ones. */
+const SDL_OF_A_REDEPLOY_WITH_PLAINTEXT = sdlAround(`    env:
+      - API_TOKEN=ac-secret://API_TOKEN
+      - LOG_LEVEL=${ENV_VALUE}
+`);
+
 describe(DeploymentWriterService.name, () => {
   const wallet: WalletInitialized = {
     id: 1,
@@ -210,6 +245,32 @@ describe(DeploymentWriterService.name, () => {
       expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledWith("user-1", [createMsg]);
     });
 
+    it("asks the signer whether the create can be broadcast before sealing or recording anything", async () => {
+      const { service, signerService, rpcMessageService, sdlSecretsService, deploymentSettingRepository } = setup();
+      const createMsg = { typeUrl: "/create", value: MsgCreateDeployment.fromPartial({}) };
+      rpcMessageService.getCreateDeploymentMsg.mockReturnValue(createMsg);
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(signerService.assertCanBroadcast).toHaveBeenCalledWith("user-1", [createMsg]);
+      expect(signerService.assertCanBroadcast.mock.invocationCallOrder[0]).toBeLessThan(sdlSecretsService.sealForStorage.mock.invocationCallOrder[0]);
+      expect(signerService.assertCanBroadcast.mock.invocationCallOrder[0]).toBeLessThan(
+        deploymentSettingRepository.upsertDefinition.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("records nothing and seals nothing when the signer refuses the create", async () => {
+      const { service, signerService, sdlSecretsService, deploymentSettingRepository, jobQueueService } = setup();
+      signerService.assertCanBroadcast.mockRejectedValue(createError(402, "Not enough balance to cover the deployment deposit."));
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 })).rejects.toMatchObject({ status: 402 });
+
+      expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
     it("throws 400 when SDL is invalid", async () => {
       const { service, sdlService } = setup();
       sdlService.generateResolvedManifest.mockReturnValue({
@@ -231,13 +292,32 @@ describe(DeploymentWriterService.name, () => {
       expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
     });
 
-    it("returns the manifest built from the resolved sdl", async () => {
+    it("returns the manifest built from the submitted sdl, not the resolved one it hashed", async () => {
       const { service } = setup();
 
       const result = await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
 
-      expect(result.manifest).toContain("resolved-group");
-      expect(result.manifest).not.toContain("test-group");
+      expect(result.manifest).toContain("test-group");
+      expect(result.manifest).not.toContain("resolved-group");
+    });
+
+    it("applies the trial limits to the manifest it hashes and not to the one it returns", async () => {
+      const { service, sdlService, walletReaderService } = setup();
+      walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, isTrialing: true });
+
+      await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
+
+      expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.objectContaining({ isTrialing: true }));
+      expect(sdlService.generateManifest).toHaveBeenCalledWith("valid-sdl");
+    });
+
+    it("builds the returned manifest before broadcasting, so a document it cannot rebuild costs no deployment on chain", async () => {
+      const { service, sdlService, signerService } = setup();
+      sdlService.generateManifest.mockResolvedValue({ ok: false, value: [mock<ValidationError>({ message: "unbuildable" })] });
+
+      await expect(service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 })).rejects.toMatchObject({ status: 400 });
+
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
     });
 
     it("forwards the reclamation block to getCreateDeploymentMsg when the SDL declares it", async () => {
@@ -297,24 +377,23 @@ describe(DeploymentWriterService.name, () => {
 
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
 
-      expect(sdlSecretsService.receive).toHaveBeenCalledWith({ sdl: parsedSdlValue, rawSdl: SDL_WITH_SECRETS, sealedSecrets: SEAL });
+      expect(sdlSecretsService.receive).toHaveBeenCalledWith({ sdl: parsedSdlValue, rawSdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, inherited: {} });
     });
 
     it("resolves the manifest from the values the intake handed back", async () => {
-      const byService = { web: { TOKEN: "resolved" } };
-      const { service, sdlService } = setup({ received: { supplied: { TOKEN: "resolved" }, byService } });
+      const received = { TOKEN: "resolved" };
+      const { service, sdlService } = setup({ received });
 
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
 
-      expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.objectContaining({ secrets: byService }));
+      expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.objectContaining({ secrets: received }));
     });
 
     it("seals what the client supplied together with the credentials it took out itself, against the dseq it just minted", async () => {
-      const supplied = { TOKEN: "resolved" };
-      const { service, sdlSecretsService } = setup({ received: { supplied, byService: { web: supplied } } });
+      const { service, sdlSecretsService } = setup({ received: { TOKEN: "resolved" } });
       vi.spyOn(Date, "now").mockReturnValue(1748400000000);
 
-      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
+      await service.create({ userId: "user-1", sdl: SDL_REFERENCING_A_SUPPLIED_VALUE, sealedSecrets: SEAL, deposit: 5 });
 
       expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith({
         userId: wallet.userId,
@@ -334,8 +413,7 @@ describe(DeploymentWriterService.name, () => {
     });
 
     it("refuses a supplied name the console derives for the same deployment, before minting a dseq", async () => {
-      const supplied = { s0_c_password: "resolved" };
-      const { service, deploymentSettingRepository, signerService } = setup({ received: { supplied, byService: { web: supplied } } });
+      const { service, deploymentSettingRepository, signerService } = setup({ received: { s0_c_password: "resolved" } });
       const dateNow = vi.spyOn(Date, "now");
 
       await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 })).rejects.toMatchObject({
@@ -367,8 +445,8 @@ describe(DeploymentWriterService.name, () => {
     });
 
     it("seals once for the whole create", async () => {
-      const supplied = Object.fromEntries(Array.from({ length: 12 }, (_, index) => [`SECRET_${index}`, "value"]));
-      const { service, sdlSecretsService } = setup({ received: { supplied, byService: { web: supplied, worker: supplied } } });
+      const received = Object.fromEntries(Array.from({ length: 12 }, (_, index) => [`SECRET_${index}`, "value"]));
+      const { service, sdlSecretsService } = setup({ received });
 
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
 
@@ -492,7 +570,7 @@ describe(DeploymentWriterService.name, () => {
     });
 
     it("says nothing about a supplied value in what it logs", async () => {
-      const { service, logger } = setup({ received: { supplied: { TOKEN: ENV_VALUE }, byService: { web: { TOKEN: ENV_VALUE } } } });
+      const { service, logger } = setup({ received: { TOKEN: ENV_VALUE } });
 
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL, deposit: 5 });
 
@@ -654,7 +732,32 @@ describe(DeploymentWriterService.name, () => {
       );
     });
 
-    it("refuses the create when the queue accepted no compensation", async () => {
+    it("goes on with the create when the queue refused the compensation because one is already waiting for the row", async () => {
+      const { service, signerService, logger } = setup({ compensationEnqueued: false, compensationAlreadyWaiting: true });
+      vi.spyOn(Date, "now").mockReturnValue(1748400000000);
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 })).resolves.toMatchObject({ dseq: "1748400000000" });
+
+      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "UNBACKED_DEPLOYMENT_SETTING_COMPENSATION_ALREADY_WAITING", dseq: "1748400000000" })
+      );
+    });
+
+    it("asks for a compensation still waiting under the key the create would have enqueued, and not due before the signer could have given up", async () => {
+      const { service, jobQueueService } = setup({ compensationEnqueued: false, compensationAlreadyWaiting: true });
+      vi.spyOn(Date, "now").mockReturnValue(1748400000000);
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(jobQueueService.hasWaitingSingleton).toHaveBeenCalledWith({
+        name: DeleteUnbackedDeploymentSetting[JOB_NAME],
+        singletonKey: "deleteUnbackedDeploymentSetting.user-1.1748400000000",
+        notDueBefore: new Date(1748400000000 + SIGNER_REQUEST_TIMEOUT_MS)
+      });
+    });
+
+    it("refuses the create when the queue accepted no compensation and none is still waiting for the row", async () => {
       const { service } = setup({ compensationEnqueued: false });
 
       await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 })).rejects.toThrow(/without a compensation/);
@@ -794,6 +897,15 @@ describe(DeploymentWriterService.name, () => {
       expect(loggedTextOf(logger)).not.toContain("API_TOKEN");
     });
 
+    it("reclaims a trial wallet's orphans before asking whether the create can be broadcast, so the freed allowance counts", async () => {
+      const { service, staleDeploymentsCleaner, signerService, walletReaderService } = setup();
+      walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, isTrialing: true });
+
+      await service.create({ userId: "user-1", sdl: "valid-sdl", deposit: 5 });
+
+      expect(staleDeploymentsCleaner.cleanUpForWallet.mock.invocationCallOrder[0]).toBeLessThan(signerService.assertCanBroadcast.mock.invocationCallOrder[0]);
+    });
+
     it("reclaims trial orphans with age 0 before signing the create when the wallet is trialing", async () => {
       const { service, staleDeploymentsCleaner, signerService, walletReaderService } = setup();
       walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, isTrialing: true });
@@ -847,6 +959,151 @@ describe(DeploymentWriterService.name, () => {
 
       await expect(service.create({ userId: "user-1", sdl: SDL_ALIASING_ONE_SCALAR, deposit: 5 })).rejects.toMatchObject({ status: 400 });
       expect(staleDeploymentsCleaner.cleanUpForWallet).not.toHaveBeenCalled();
+    });
+
+    describe("values inherited from another deployment", () => {
+      it("seals what the source deployment held, against the dseq it just minted", async () => {
+        const carried = { API_TOKEN: faker.string.alphanumeric(24), DATABASE_URL: faker.internet.url() };
+        const { service, sdlSecretsService } = setup({ inherited: carried });
+        vi.spyOn(Date, "now").mockReturnValue(1748400000000);
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith({ userId: wallet.userId, dseq: "1748400000000", secrets: carried });
+      });
+
+      it("looks the source up as the caller's own deployment", async () => {
+        const { service, sdlSecretsInheritanceService } = setup({ inherited: { API_TOKEN: "a", DATABASE_URL: "b" } });
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(sdlSecretsInheritanceService.open).toHaveBeenCalledWith({ userId: "user-1", dseq: SOURCE_DSEQ });
+      });
+
+      it("consults no source when the request names none", async () => {
+        const { service, sdlSecretsInheritanceService } = setup();
+
+        await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+        expect(sdlSecretsInheritanceService.open).not.toHaveBeenCalled();
+      });
+
+      it("stores none of the source's values the new sdl does not reference", async () => {
+        const spare = faker.string.alphanumeric(24);
+        const { service, storedSecrets } = setup({ inherited: { API_TOKEN: "a", DATABASE_URL: "b", SPARE: spare } });
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(storedSecrets()).toEqual({ API_TOKEN: "a", DATABASE_URL: "b" });
+      });
+
+      it("prefers an explicitly supplied value to the inherited one of the same name", async () => {
+        const replaced = faker.internet.url();
+        const { service, storedSecrets } = setup({ inherited: { API_TOKEN: "a", DATABASE_URL: "stale" }, received: { DATABASE_URL: replaced } });
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, sealedSecrets: CLIENT_SEAL, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(storedSecrets()).toEqual({ API_TOKEN: "a", DATABASE_URL: replaced });
+      });
+
+      it("prefers a value the document itself gave up to an inherited name that collides with it", async () => {
+        const { service, storedSecrets } = setup({ inherited: { API_TOKEN: "a", s0_e1: "stale" } });
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY_WITH_PLAINTEXT, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(storedSecrets()).toEqual({ API_TOKEN: "a", s0_e1: ENV_VALUE });
+      });
+
+      it("resolves the submitted document against what it inherited as well as what was supplied", async () => {
+        const replaced = faker.internet.url();
+        const { service, sdlService } = setup({ inherited: { API_TOKEN: "a", DATABASE_URL: "stale" }, received: { DATABASE_URL: replaced } });
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, sealedSecrets: CLIENT_SEAL, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.objectContaining({ secrets: { API_TOKEN: "a", DATABASE_URL: replaced } }));
+      });
+
+      it("hands the inherited set to the intake, so a reference it answers needs no supplied value", async () => {
+        const carried = { API_TOKEN: "a", DATABASE_URL: "b" };
+        const { service, sdlSecretsService } = setup({ inherited: carried });
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(sdlSecretsService.receive).toHaveBeenCalledWith(expect.objectContaining({ inherited: carried }));
+      });
+
+      it("holds everything it did not derive from this request's own document to the seal limits", async () => {
+        const replaced = faker.internet.url();
+        const { service, sdlSecretsService } = setup({ inherited: { API_TOKEN: "a", DATABASE_URL: "stale" }, received: { DATABASE_URL: replaced } });
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, sealedSecrets: CLIENT_SEAL, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({ API_TOKEN: "a", DATABASE_URL: replaced }, "carried");
+      });
+
+      it("leaves what it derived out of that bound, the sdl's own size ceiling already holding it", async () => {
+        const { service, sdlSecretsService } = setup({ inherited: { API_TOKEN: "a" } });
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY_WITH_PLAINTEXT, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({ API_TOKEN: "a" }, "carried");
+      });
+
+      it("leaves an inherited value a derived name displaces out of that bound, it never being stored", async () => {
+        const { service, sdlSecretsService } = setup({ inherited: { API_TOKEN: "a", s0_e1: "stale" } });
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY_WITH_PLAINTEXT, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({ API_TOKEN: "a" }, "carried");
+      });
+
+      it("refuses a chain that would carry more than a deployment may hold, before minting a dseq", async () => {
+        const { service, deploymentSettingRepository, signerService } = setup({
+          inherited: { API_TOKEN: "a", DATABASE_URL: "b" },
+          maxCount: 1
+        });
+        const now = vi.spyOn(Date, "now");
+
+        await expect(service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ })).rejects.toMatchObject({
+          status: 400,
+          message: "At most 1 secrets may be carried by one deployment, counting those inherited from another"
+        });
+
+        expect(now).not.toHaveBeenCalled();
+        expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+        expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      });
+
+      describe("a source it cannot read", () => {
+        it("answers the not found the lookup raised", async () => {
+          const { service } = setup({ inheritanceError: createError(404, "No deployment was found to inherit secrets from") });
+
+          await expect(service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ })).rejects.toMatchObject({ status: 404 });
+        });
+
+        it("answers the conflict the lookup raised for a token beyond this data key", async () => {
+          const { service } = setup({
+            inheritanceError: createError(409, "The secrets recorded for the deployment being inherited from can no longer be decrypted")
+          });
+
+          await expect(service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ })).rejects.toMatchObject({ status: 409 });
+        });
+
+        it("mints no dseq, seals nothing, records nothing and broadcasts nothing", async () => {
+          const { service, sdlSecretsService, deploymentSettingRepository, signerService, txService } = setup({
+            inheritanceError: createError(409, "unreadable")
+          });
+          const now = vi.spyOn(Date, "now");
+
+          await expect(service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ })).rejects.toThrow();
+
+          expect(now).not.toHaveBeenCalled();
+          expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+          expect(txService.transaction).not.toHaveBeenCalled();
+          expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+          expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+        });
+      });
     });
   });
 
@@ -974,6 +1231,33 @@ describe(DeploymentWriterService.name, () => {
 
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
       expect(jobQueueService.cancelCreatedBy).not.toHaveBeenCalled();
+    });
+
+    it("starts the trial workload probes over once every provider holds the new manifest", async () => {
+      const { service, probeJobService, providerService } = setup({ isTrialing: true });
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
+
+      expect(probeJobService.restartForUpdatedDeployment).toHaveBeenCalledWith({ walletId: wallet.id, dseq: "100", updatedAt: expect.any(Date) });
+      expect(providerService.sendManifest.mock.invocationCallOrder[0]).toBeLessThan(probeJobService.restartForUpdatedDeployment.mock.invocationCallOrder[0]);
+    });
+
+    it("leaves the probe schedule alone for an established wallet", async () => {
+      const { service, probeJobService } = setup();
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
+
+      expect(probeJobService.restartForUpdatedDeployment).not.toHaveBeenCalled();
+    });
+
+    it("still answers the update when the probes cannot be restarted", async () => {
+      const { service, probeJobService, logger } = setup({ isTrialing: true });
+      probeJobService.restartForUpdatedDeployment.mockRejectedValue(new Error("queue down"));
+
+      const result = await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
+
+      expect(result).toBe(deploymentData);
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_WORKLOAD_PROBE_RESTART_FAILED", userId: "user-1", dseq: "100" }));
     });
 
     it("skips update tx when manifest hash matches", async () => {
@@ -1179,19 +1463,694 @@ describe(DeploymentWriterService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: DeploymentWriterService.name });
   });
 
+  describe("patchByUserIdAndDseq", () => {
+    const STORED_VERSION = "U1RPUkVEVkVSU0lPTg==";
+    const STORED_TOKEN = "stored.token.aaa.bbb.ccc";
+    const STORED_SDL = [
+      'version: "2.0"',
+      "services:",
+      "  web:",
+      "    image: nginx",
+      "    env:",
+      "      - API_TOKEN=ac-secret://s0_e0",
+      "      - DATABASE_URL=ac-secret://s0_e1",
+      "profiles:",
+      "  compute:",
+      "    web:",
+      "      resources:",
+      "        cpu:",
+      "          units: 0.1",
+      "        memory:",
+      "          size: 128Mi",
+      "        storage:",
+      "          - size: 128Mi",
+      "  placement:",
+      "    dcloud:",
+      "      pricing:",
+      "        web:",
+      "          denom: uakt",
+      "          amount: 1000",
+      "deployment:",
+      "  web:",
+      "    dcloud:",
+      "      profile: web",
+      "      count: 1",
+      ""
+    ].join("\n");
+
+    /** A deployment created WITH a client seal keeps ordinary env values in the clear, which is the state that made the document-wide derivation reachable. */
+    const STORED_SDL_WITH_PLAINTEXT = [
+      'version: "2.0"',
+      "services:",
+      "  web:",
+      "    image: nginx",
+      "    env:",
+      "      - API_TOKEN=ac-secret://s0_e0",
+      "  worker:",
+      "    image: busybox",
+      "    env:",
+      "      - LOG_LEVEL=debug",
+      "profiles:",
+      "  compute:",
+      "    web:",
+      "      resources:",
+      "        cpu:",
+      "          units: 0.1",
+      "        memory:",
+      "          size: 128Mi",
+      "        storage:",
+      "          - size: 128Mi",
+      "    worker:",
+      "      resources:",
+      "        cpu:",
+      "          units: 0.1",
+      "        memory:",
+      "          size: 128Mi",
+      "        storage:",
+      "          - size: 128Mi",
+      "  placement:",
+      "    dcloud:",
+      "      pricing:",
+      "        web:",
+      "          denom: uakt",
+      "          amount: 1000",
+      "        worker:",
+      "          denom: uakt",
+      "          amount: 1000",
+      "deployment:",
+      "  web:",
+      "    dcloud:",
+      "      profile: web",
+      "      count: 1",
+      "  worker:",
+      "    dcloud:",
+      "      profile: worker",
+      "      count: 1",
+      ""
+    ].join("\n");
+
+    describe("a plaintext value the patch never named", () => {
+      it("leaves an untouched service's plaintext env value in the clear", async () => {
+        const { service, ability, deploymentSettingRepository } = setup({ sdl: STORED_SDL_WITH_PLAINTEXT, held: { s0_e0: "token" } });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+        const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
+        expect(sdl).toContain("LOG_LEVEL=debug");
+      });
+
+      it("does not pull an untouched service's value into the token", async () => {
+        const { service, ability, sealedFor } = setup({ sdl: STORED_SDL_WITH_PLAINTEXT, held: { s0_e0: "token" } });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+        expect(sealedFor()).toEqual({ s0_e0: "token" });
+      });
+
+      it("leaves a plaintext value in the very service it patched, when the patch did not name that variable", async () => {
+        const { service, ability, deploymentSettingRepository } = setup({ sdl: STORED_SDL_WITH_PLAINTEXT, held: { s0_e0: "token" } });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { worker: { image: "busybox:1.36" } } }, ability);
+
+        const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
+        expect(sdl).toContain("LOG_LEVEL=debug");
+      });
+
+      it("seals a value the patch does write, in that same service", async () => {
+        const { service, ability, sealedFor, deploymentSettingRepository } = setup({ sdl: STORED_SDL_WITH_PLAINTEXT, held: { s0_e0: "token" } });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { worker: { env: { LOG_LEVEL: "trace" } } } }, ability);
+
+        const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
+        expect(sdl).not.toContain("LOG_LEVEL=trace");
+        expect(sdl).toContain("LOG_LEVEL=ac-secret://s1_e0");
+        expect(sealedFor()).toEqual({ s0_e0: "token", s1_e0: "trace" });
+      });
+    });
+
+    describe("the name a re-supplied value ends up stored under", () => {
+      it("gives a patched variable a different derived name, since names need only be unique", async () => {
+        const { service, ability, sealedFor } = setup({ held: { s0_e0: "token", s0_e1: "kept" } });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { env: { API_TOKEN: "rotated" } } } }, ability);
+
+        const names = Object.keys(sealedFor());
+        expect(names).not.toContain("s0_e0");
+        expect(Object.values(sealedFor())).toEqual(expect.arrayContaining(["rotated", "kept"]));
+      });
+
+      it("drops the name the value used to be stored under from the re-sealed token", async () => {
+        const { service, ability, sealedFor } = setup({ held: { s0_e0: "token", s0_e1: "kept" } });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { env: { API_TOKEN: "rotated" } } } }, ability);
+
+        expect(sealedFor()).not.toHaveProperty("s0_e0");
+      });
+
+      it("keeps the value of every variable the patch did not name, whatever name it now sits under", async () => {
+        const { service, ability, sealedFor } = setup({ held: { s0_e0: "token", s0_e1: "kept" } });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { env: { API_TOKEN: "rotated" } } } }, ability);
+
+        expect(Object.values(sealedFor())).toContain("kept");
+      });
+
+      it("records an sdl whose references all resolve against the re-sealed token", async () => {
+        const { service, ability, sealedFor, deploymentSettingRepository, sdlReferenceService } = setup({ held: { s0_e0: "token", s0_e1: "kept" } });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { env: { API_TOKEN: "rotated" } } } }, ability);
+
+        const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
+        const document = yaml.raw<SDLInput>(sdl);
+        expect(sdlReferenceService.substitute(document, { secrets: sealedFor() })).toEqual([]);
+      });
+    });
+
+    describe("the size of the set it would store", () => {
+      it("refuses when the merged set exceeds the count a deployment may carry", async () => {
+        const held = Object.fromEntries(Array.from({ length: 2 }, (_, index) => [`s0_e${index}`, "value"]));
+        const { service, ability } = setup({ held, maxCount: 1 });
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toMatchObject({ status: 400 });
+      });
+
+      it("measures what it would store, not merely what the request supplied", async () => {
+        const { service, ability, sdlSecretsService } = setup({ held: { s0_e0: "a", s0_e1: "b" } });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(sdlSecretsService.assertStorable).toHaveBeenCalledWith({ s0_e0: "a", s0_e1: "b" }, "stored");
+      });
+
+      it("writes nothing when the merged set is refused", async () => {
+        const { service, ability, deploymentSettingRepository } = setup({ held: { s0_e0: "a", s0_e1: "b" }, maxCount: 1 });
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toThrow();
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("a supplied name the patched sdl does not reference", () => {
+      it("refuses it rather than dropping it, naming the name", async () => {
+        const { service, ability } = setup({ held: { s0_e0: "a" }, supplied: { s0_eTYPO: "rotated" } });
+
+        await expect(
+          service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } }, sealedSecrets: CLIENT_SEAL }, ability)
+        ).rejects.toThrow(/s0_eTYPO/);
+      });
+
+      it("answers 400", async () => {
+        const { service, ability } = setup({ held: { s0_e0: "a" }, supplied: { s0_eTYPO: "rotated" } });
+
+        await expect(
+          service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } }, sealedSecrets: CLIENT_SEAL }, ability)
+        ).rejects.toMatchObject({
+          status: 400
+        });
+      });
+
+      it("writes nothing", async () => {
+        const { service, ability, deploymentSettingRepository } = setup({ held: { s0_e0: "a" }, supplied: { s0_eTYPO: "rotated" } });
+
+        await expect(
+          service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } }, sealedSecrets: CLIENT_SEAL }, ability)
+        ).rejects.toThrow();
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
+      });
+
+      it("still drops a stored name the patched sdl stopped referencing, without complaint", async () => {
+        const { service, ability, sealedFor } = setup({ held: { s0_e0: "kept", s0_e1: "orphan" } });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { env: { DATABASE_URL: null } } } }, ability);
+
+        expect(sealedFor()).toEqual({ s0_e0: "kept" });
+      });
+    });
+
+    it("patches the sdl the console stored rather than one the request carries", async () => {
+      const { service, ability, deploymentSettingRepository } = setup();
+
+      await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+      expect(deploymentSettingRepository.findOneBy).toHaveBeenCalledWith({ userId: "user-1", dseq: "1234" });
+    });
+
+    it("records the patched document, carrying the new image", async () => {
+      const { service, ability, deploymentSettingRepository } = setup();
+
+      await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+      expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).toHaveBeenCalledWith(
+        expect.objectContaining({ sdl: expect.stringContaining("nginx:1.27") })
+      );
+    });
+
+    it("keeps every stored value the patched sdl still references", async () => {
+      const { service, ability, sealedFor } = setup({ held: { s0_e0: "token", s0_e1: "postgres://db" } });
+
+      await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+      expect(sealedFor()).toEqual({ s0_e0: "token", s0_e1: "postgres://db" });
+    });
+
+    it("overlays a supplied value over the stored one under the same name", async () => {
+      const { service, ability, sealedFor } = setup({ held: { s0_e0: "old", s0_e1: "kept" }, supplied: { s0_e0: "rotated" } });
+
+      await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: {} }, sealedSecrets: CLIENT_SEAL }, ability);
+
+      expect(sealedFor()).toEqual({ s0_e0: "rotated", s0_e1: "kept" });
+    });
+
+    it("drops a name the patched sdl no longer references", async () => {
+      const { service, ability, sealedFor } = setup({ held: { s0_e0: "token", s0_e1: "dropped" } });
+
+      await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { env: { DATABASE_URL: null } } } }, ability);
+
+      expect(sealedFor()).toEqual({ s0_e0: "token" });
+    });
+
+    it("opens the stored token under the very deployment and user the row belongs to", async () => {
+      const { service, ability, sdlSecretsService } = setup({ held: { s0_e0: "token" } });
+
+      await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+      expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ userId: "user-1", dseq: "1234", sealedSecrets: STORED_TOKEN });
+    });
+
+    it("opens the client's seal against the sdl the console stored, which is what it was sealed to", async () => {
+      const { service, ability, sdlSecretsService } = setup({ supplied: { s0_e0: "rotated" } });
+
+      await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: {} }, sealedSecrets: CLIENT_SEAL }, ability);
+
+      expect(sdlSecretsService.receiveForMerge).toHaveBeenCalledWith({ rawSdl: STORED_SDL, sealedSecrets: CLIENT_SEAL });
+    });
+
+    it("opens the stored token exactly once however many secrets change", async () => {
+      const { service, ability, sdlSecretsService } = setup({ held: Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`s0_e${i}`, `v${i}`])) });
+
+      await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+      expect(sdlSecretsService.openStored).toHaveBeenCalledTimes(1);
+    });
+
+    it("seals the merged set exactly once", async () => {
+      const { service, ability, sdlSecretsService } = setup({ held: { s0_e0: "a", s0_e1: "b" }, supplied: { s0_e0: "c" } });
+
+      await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+      expect(sdlSecretsService.sealForStorage).toHaveBeenCalledTimes(1);
+    });
+
+    it("reaches no key service at all when the deployment holds no token and the patch supplies none", async () => {
+      const { service, ability, sdlSecretsService } = setup({
+        storedToken: null,
+        sdl: STORED_SDL.replace(/ *- API_TOKEN.*\n/, "").replace(/ *- DATABASE_URL.*\n/, "")
+      });
+
+      await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+      expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
+      expect(sdlSecretsService.receiveForMerge).not.toHaveBeenCalled();
+    });
+
+    describe("a refusal", () => {
+      it("answers 404 for a deployment the console recorded no sdl for", async () => {
+        const { service, ability } = setup({ setting: undefined });
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toMatchObject({ status: 404 });
+      });
+
+      it("writes nothing when the patch names a service the sdl does not declare", async () => {
+        const { service, ability, deploymentSettingRepository } = setup();
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { api: { image: "x" } } }, ability)).rejects.toMatchObject({ status: 400 });
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
+      });
+
+      it("spends no key-service call on a patch it refuses structurally", async () => {
+        const { service, ability, sdlSecretsService } = setup({ held: { s0_e0: "a" } });
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { api: { image: "x" } } }, ability)).rejects.toThrow();
+        expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
+        expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+      });
+
+      it("answers 400 naming the reference it holds no value for", async () => {
+        const { service, ability } = setup({
+          held: {},
+          resolveErrors: [
+            {
+              schemaPath: "",
+              instancePath: "",
+              keyword: "sdl-reference",
+              params: {},
+              message: 'no value supplied for SDL Reference "ac-secret://s0_e0" in service "web"'
+            }
+          ]
+        });
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toThrow(/ac-secret:\/\/s0_e0/);
+      });
+
+      it("writes nothing when a reference resolves to no value", async () => {
+        const { service, ability, deploymentSettingRepository } = setup({
+          held: {},
+          resolveErrors: [{ schemaPath: "", instancePath: "", keyword: "sdl-reference", params: {}, message: "no value" }]
+        });
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toThrow();
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
+      });
+
+      it("answers 409 when the version the patch expected is no longer current", async () => {
+        const { service, ability } = setup({ written: undefined });
+
+        await expect(
+          service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } }, ifManifestVersion: "STALE" }, ability)
+        ).rejects.toMatchObject({
+          status: 409
+        });
+      });
+
+      it("sends no manifest to any provider when the write is refused", async () => {
+        const { service, ability, providerService } = setup({ written: undefined });
+
+        await expect(
+          service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } }, ifManifestVersion: "STALE" }, ability)
+        ).rejects.toThrow();
+        expect(providerService.sendManifest).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("stored state the console cannot read or store back", () => {
+      it("answers a permanent 5xx when the recorded sdl will not parse", async () => {
+        const { service, ability } = setup({ sdl: "services: [this is not: valid: yaml" });
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toMatchObject({
+          status: 500,
+          errorCode: "stored_sdl_unreadable"
+        });
+      });
+
+      it("writes nothing when the recorded sdl will not parse", async () => {
+        const { service, ability, deploymentSettingRepository } = setup({ sdl: "services: [this is not: valid: yaml" });
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toThrow();
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
+      });
+
+      it("refuses a patched document too large to store, naming the bound", async () => {
+        const { service, ability } = setup({ held: {}, sdl: STORED_SDL });
+
+        await expect(
+          service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "n".repeat(SDL_MAX_LENGTH + 1) } } }, ability)
+        ).rejects.toMatchObject({
+          status: 400
+        });
+      });
+
+      it("writes nothing when the patched document is too large to store", async () => {
+        const { service, ability, deploymentSettingRepository } = setup({ held: {}, sdl: STORED_SDL });
+
+        await expect(
+          service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "n".repeat(SDL_MAX_LENGTH + 1) } } }, ability)
+        ).rejects.toThrow();
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("a stored token that will not open", () => {
+      it("fails with the permanent 5xx rather than a retryable one", async () => {
+        const { service, ability } = setup({ openStoredError: createError(500, SECRET_UNREADABLE_ERROR_MESSAGE) });
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toMatchObject({
+          status: 500,
+          message: SECRET_UNREADABLE_ERROR_MESSAGE
+        });
+      });
+
+      it("never overwrites the token it could not read", async () => {
+        const { service, ability, deploymentSettingRepository } = setup({ openStoredError: createError(500, SECRET_UNREADABLE_ERROR_MESSAGE) });
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toThrow();
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
+      });
+
+      it("re-seals nothing", async () => {
+        const { service, ability, sdlSecretsService } = setup({ openStoredError: createError(500, SECRET_UNREADABLE_ERROR_MESSAGE) });
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toThrow();
+        expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+      });
+
+      it("keeps a key service that is merely unreachable answering its retryable status", async () => {
+        const { service, ability } = setup({ openStoredError: createError(503, "Service temporarily unavailable") });
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toMatchObject({ status: 503 });
+      });
+    });
+
+    describe("what it commits and pushes", () => {
+      it("broadcasts an update when the patched manifest version differs from the chain's", async () => {
+        const { service, ability, signerService } = setup({ chainHash: "SOMETHING_ELSE" });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+      });
+
+      it("broadcasts nothing when the chain already holds the patched version", async () => {
+        const { service, ability, signerService } = setup({ chainHash: Buffer.from(new Uint8Array([1, 2, 3])).toString("base64") });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      });
+
+      it("sends the resolved manifest to each lease provider once", async () => {
+        const { service, ability, providerService } = setup({ providers: ["akash1provider", "akash1other"] });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(providerService.sendManifest).toHaveBeenCalledTimes(2);
+      });
+
+      it("returns the manifest version it recorded", async () => {
+        const { service, ability } = setup();
+
+        const result = await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(result.manifestVersion).toBe(Buffer.from(new Uint8Array([1, 2, 3])).toString("base64"));
+      });
+
+      it("guards a patch naming no version on the version it read, so a concurrent patch cannot be discarded unseen", async () => {
+        const { service, ability, deploymentSettingRepository } = setup();
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).toHaveBeenCalledWith(
+          expect.objectContaining({ expectedManifestVersion: STORED_VERSION })
+        );
+      });
+
+      it("prefers the version the caller named over the one it read", async () => {
+        const { service, ability, deploymentSettingRepository } = setup();
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } }, ifManifestVersion: "Q0xJRU5U" }, ability);
+
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).toHaveBeenCalledWith(
+          expect.objectContaining({ expectedManifestVersion: "Q0xJRU5U" })
+        );
+      });
+
+      it("guards on nothing when the row records no version to guard on", async () => {
+        const { service, ability, deploymentSettingRepository } = setup({ storedVersion: null });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).toHaveBeenCalledWith(
+          expect.objectContaining({ expectedManifestVersion: undefined })
+        );
+      });
+
+      it("resolves the very bytes it recorded", async () => {
+        const { service, ability, sdlService, deploymentSettingRepository } = setup();
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+        const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
+        expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.objectContaining({ sdl }));
+      });
+    });
+
+    describe("the trial limits a wallet is still under", () => {
+      it("starts a trialing wallet's workload probes over once the patched manifest is pushed", async () => {
+        const { service, ability, probeJobService, providerService } = setup({ isTrialing: true });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+        expect(probeJobService.restartForUpdatedDeployment).toHaveBeenCalledWith({ walletId: 7, dseq: "1234", updatedAt: expect.any(Date) });
+        expect(providerService.sendManifest.mock.invocationCallOrder[0]).toBeLessThan(probeJobService.restartForUpdatedDeployment.mock.invocationCallOrder[0]);
+      });
+
+      it("leaves an established wallet's probe schedule alone", async () => {
+        const { service, ability, probeJobService } = setup({ isTrialing: false });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+        expect(probeJobService.restartForUpdatedDeployment).not.toHaveBeenCalled();
+      });
+
+      it("resolves a trialing wallet's patch under them", async () => {
+        const { service, sdlService, ability } = setup({ isTrialing: true });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+        expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.objectContaining({ isTrialing: true }));
+      });
+
+      it("resolves an established wallet's patch without them", async () => {
+        const { service, sdlService, ability } = setup({ isTrialing: false });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+        expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.objectContaining({ isTrialing: false }));
+      });
+    });
+
+    function setup(input?: {
+      sdl?: string;
+      setting?: DeploymentSettingsOutput | undefined;
+      storedVersion?: string | null;
+      storedToken?: string | null;
+      held?: Record<string, string>;
+      supplied?: Record<string, string>;
+      resolveErrors?: Array<{ schemaPath: string; instancePath: string; keyword: string; params: Record<string, unknown>; message: string }>;
+      maxCount?: number;
+      written?: string | undefined;
+      chainHash?: string;
+      providers?: string[];
+      openStoredError?: Error;
+      isTrialing?: boolean;
+    }) {
+      const manifestVersion = new Uint8Array([1, 2, 3]);
+      const storedToken = input?.storedToken === undefined ? STORED_TOKEN : input.storedToken;
+      const hasSetting = !("setting" in (input ?? {})) || input?.setting !== undefined;
+
+      const walletReaderService = mock<WalletReaderService>();
+      walletReaderService.getWalletByUserId.mockResolvedValue(
+        mock<WalletInitialized>({ id: 7, userId: "user-1", address: "akash1owner", isTrialing: input?.isTrialing ?? false })
+      );
+
+      const deploymentSettingRepository = mock<DeploymentSettingRepository>();
+      const scoped = mock<DeploymentSettingRepository>();
+      const storedVersion = input?.storedVersion === undefined ? STORED_VERSION : input.storedVersion;
+      scoped.findOneBy.mockResolvedValue(
+        hasSetting ? mock<DeploymentSettingsOutput>({ sdl: input?.sdl ?? STORED_SDL, sealedSecrets: storedToken, manifestVersion: storedVersion }) : undefined
+      );
+      scoped.replaceDefinitionIfVersionMatches.mockResolvedValue("written" in (input ?? {}) ? input!.written : randomUUID());
+      deploymentSettingRepository.accessibleBy.mockReturnValue(scoped);
+
+      const deploymentReaderService = mock<DeploymentReaderService>();
+      deploymentReaderService.findByWalletAndDseq.mockResolvedValue({
+        deployment: { id: { owner: "akash1owner", dseq: "1234" }, state: "active", hash: input?.chainHash ?? "OTHER", created_at: "" },
+        leases: (input?.providers ?? ["akash1provider"]).map(provider =>
+          mock<Awaited<ReturnType<DeploymentReaderService["findByWalletAndDseq"]>>["leases"][number]>({ id: { provider } })
+        ),
+        escrow_account: mock()
+      });
+
+      const resolved: GenerateResolvedManifestResult = input?.resolveErrors
+        ? { ok: false, value: input.resolveErrors }
+        : { ok: true, value: { manifestVersion, manifest: mock<SdlManifest>({ groups: [] }) } };
+      const sdlService = mock<SdlService>();
+      sdlService.generateResolvedManifest.mockResolvedValue(resolved);
+
+      const sdlSecretsService = mock<SdlSecretsService>();
+      if (input?.openStoredError) sdlSecretsService.openStored.mockRejectedValue(input.openStoredError);
+      else sdlSecretsService.openStored.mockResolvedValue(input?.held ?? {});
+      sdlSecretsService.receiveForMerge.mockResolvedValue(input?.supplied ?? {});
+      sdlSecretsService.sealForStorage.mockResolvedValue("resealed.token.aaa.bbb.ccc");
+      const maxCount = input?.maxCount;
+      sdlSecretsService.assertStorable.mockImplementation(secrets => {
+        if (maxCount !== undefined && Object.keys(secrets).length > maxCount) {
+          throw createError(400, `At most ${maxCount} secrets may be stored for one deployment`);
+        }
+      });
+
+      const providerService = mock<ProviderService>();
+      const signerService = mock<ManagedSignerService>();
+      const logger = mock<ReturnType<CreateLogger>>();
+      const createLogger: CreateLogger = () => logger;
+
+      const sdlReferenceService = new SdlReferenceService();
+      const probeJobService = mock<TrialWorkloadProbeJobService>();
+      const ability = mock<AnyAbility>();
+      const service = new DeploymentWriterService(
+        signerService,
+        mock<RpcMessageService>(),
+        sdlService,
+        mockConfigService<BillingConfigService>({}),
+        providerService,
+        deploymentReaderService,
+        walletReaderService,
+        mock<StaleManagedDeploymentsCleanerService>(),
+        createLogger,
+        mockConfigService<DeploymentConfigService>({}),
+        deploymentSettingRepository,
+        mock<TxService>(),
+        mock<JobQueueService>(),
+        sdlSecretsService,
+        new SdlSecretsDerivationService(new SdlReferenceService()),
+        new SdlPatchService(),
+        sdlReferenceService,
+        mock<SdlSecretsInheritanceService>(),
+        probeJobService
+      );
+
+      function sealedFor() {
+        return vi.mocked(sdlSecretsService.sealForStorage).mock.calls[0][0].secrets;
+      }
+
+      return {
+        service,
+        ability,
+        deploymentSettingRepository: scoped,
+        deploymentReaderService,
+        sdlService,
+        sdlSecretsService,
+        providerService,
+        signerService,
+        logger,
+        sdlReferenceService,
+        probeJobService,
+        sealedFor
+      };
+    }
+  });
+
   function setup(input?: {
     defaultDeposit?: number;
     transactionRuns?: boolean;
     compensationEnqueued?: boolean;
+    compensationAlreadyWaiting?: boolean;
     manifestVersion?: Uint8Array;
-    received?: ReceivedSdlSecrets;
+    received?: SdlSecrets;
+    inherited?: SdlSecrets;
+    inheritanceError?: Error;
+    maxCount?: number;
     sealedSecrets?: string | null;
+    storedSdl?: string;
+    storedRuntimeLimitHours?: number | null;
+    sourceSetting?: DeploymentSettingsOutput;
+    isTrialing?: boolean;
   }) {
     const signerService = mock<ManagedSignerService>();
     const rpcMessageService = mock<RpcMessageService>();
     const sdlService = mock<SdlService>();
     const billingConfig: MockProxy<BillingConfigService> = mockConfigService<BillingConfigService>({
-      DEPLOYMENT_GRANT_DENOM: "uakt"
+      DEPLOYMENT_GRANT_DENOM: "uakt",
+      TX_SIGNER_REQUEST_TIMEOUT_MS: SIGNER_REQUEST_TIMEOUT_MS
     });
     const providerService = mock<ProviderService>();
     const deploymentReaderService = mock<DeploymentReaderService>();
@@ -1208,20 +2167,44 @@ describe(DeploymentWriterService.name, () => {
     });
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.upsertDefinition.mockResolvedValue(DEPLOYMENT_SETTING_ID);
+    const scopedSettingRepository = mock<DeploymentSettingRepository>();
+    scopedSettingRepository.findOneBy.mockResolvedValue(
+      "sourceSetting" in (input ?? {})
+        ? input!.sourceSetting
+        : mock<DeploymentSettingsOutput>({
+            sdl: input?.storedSdl ?? SDL_OF_A_REDEPLOY,
+            runtimeLimitHours: input?.storedRuntimeLimitHours ?? null,
+            sealedSecrets: "stored.token.aaa.bbb.ccc"
+          })
+    );
+    deploymentSettingRepository.accessibleBy.mockReturnValue(scopedSettingRepository);
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => (input?.transactionRuns === false ? (undefined as never) : await cb()));
     const jobQueueService = mock<JobQueueService>();
     jobQueueService.enqueue.mockResolvedValue(input?.compensationEnqueued === false ? null : COMPENSATION_JOB_ID);
+    jobQueueService.hasWaitingSingleton.mockResolvedValue(input?.compensationAlreadyWaiting ?? false);
 
     const sdlSecretsService = mock<SdlSecretsService>();
     /** Real rather than doubled, because what every stored-sdl assertion below measures is the document this produces. */
     const sdlSecretsDerivationService = new SdlSecretsDerivationService(new SdlReferenceService());
-    sdlSecretsService.receive.mockResolvedValue({ ok: true, value: input?.received ?? { supplied: {}, byService: {} } });
+    sdlSecretsService.receive.mockResolvedValue({ ok: true, value: input?.received ?? {} });
     sdlSecretsService.sealForStorage.mockResolvedValue(input?.sealedSecrets ?? null);
 
-    walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
+    const maxCount = input?.maxCount;
+    sdlSecretsService.assertStorable.mockImplementation(secrets => {
+      if (maxCount !== undefined && Object.keys(secrets).length > maxCount) {
+        throw createError(400, `At most ${maxCount} secrets may be carried by one deployment, counting those inherited from another`);
+      }
+    });
+
+    const sdlSecretsInheritanceService = mock<SdlSecretsInheritanceService>();
+    if (input?.inheritanceError) sdlSecretsInheritanceService.open.mockRejectedValue(input.inheritanceError);
+    else sdlSecretsInheritanceService.open.mockResolvedValue(input?.inherited ?? {});
+
+    walletReaderService.getWalletByUserId.mockResolvedValue(input?.isTrialing ? { ...wallet, isTrialing: true } : wallet);
+    const probeJobService = mock<TrialWorkloadProbeJobService>();
     sdlService.parse.mockReturnValue({ ok: true, value: parsedSdlValue } as any);
-    sdlService.generateManifest.mockReturnValue({ ok: true, value: manifestValue } as any);
+    sdlService.generateManifest.mockResolvedValue({ ok: true, value: manifestValue } as any);
     sdlService.generateManifestVersion.mockResolvedValue(new Uint8Array([4, 5, 6]));
     sdlService.generateResolvedManifest.mockResolvedValue({
       ok: true,
@@ -1244,8 +2227,16 @@ describe(DeploymentWriterService.name, () => {
       txService,
       jobQueueService,
       sdlSecretsService,
-      sdlSecretsDerivationService
+      sdlSecretsDerivationService,
+      new SdlPatchService(),
+      new SdlReferenceService(),
+      sdlSecretsInheritanceService,
+      probeJobService
     );
+
+    function storedSecrets() {
+      return vi.mocked(sdlSecretsService.sealForStorage).mock.calls[0][0].secrets;
+    }
 
     return {
       service,
@@ -1263,7 +2254,12 @@ describe(DeploymentWriterService.name, () => {
       deploymentSettingRepository,
       txService,
       jobQueueService,
-      sdlSecretsService
+      sdlSecretsService,
+      sdlSecretsInheritanceService,
+      scopedSettingRepository,
+      probeJobService,
+      ability: mock<AnyAbility>(),
+      storedSecrets
     };
   }
 });

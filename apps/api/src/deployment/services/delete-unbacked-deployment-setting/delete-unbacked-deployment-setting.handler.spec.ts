@@ -131,6 +131,12 @@ describe(DeleteUnbackedDeploymentSettingHandler.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: DeleteUnbackedDeploymentSettingHandler.name });
   });
 
+  it("declares no permissions for its execution", () => {
+    const { handler } = setup({});
+
+    expect(handler.requiresPermission()).toEqual([]);
+  });
+
   function setup(input: { isOnChain?: boolean; chainLookupRejectsWith?: unknown; settingExists?: boolean; storedDseq?: string; recordedAt?: Date | null }) {
     const deploymentSettingId = faker.string.uuid();
     const recordedAt = input.recordedAt === undefined ? RECORDED_AT : input.recordedAt;

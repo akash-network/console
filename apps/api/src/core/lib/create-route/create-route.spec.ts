@@ -133,7 +133,7 @@ describe(createRoute.name, () => {
     });
 
     it("rejects unsupported Content-Type", async () => {
-      const { route, ctx, next } = setup({
+      const { route, ctx, next, json } = setup({
         method: "post",
         path: "/test",
         contentType: "text/plain",
@@ -151,12 +151,12 @@ describe(createRoute.name, () => {
       const middlewares = route.middleware as MiddlewareHandler[];
       await middlewares[1](ctx, next);
 
-      expect(ctx.json).toHaveBeenCalledWith({ error: "Unsupported Content-Type" }, 400);
+      expect(json).toHaveBeenCalledWith({ error: "Unsupported Content-Type" }, 400);
       expect(next).not.toHaveBeenCalled();
     });
 
     it("rejects missing Content-Type header", async () => {
-      const { route, ctx, next } = setup({
+      const { route, ctx, next, json } = setup({
         method: "post",
         path: "/test",
         contentType: null,
@@ -174,14 +174,14 @@ describe(createRoute.name, () => {
       const middlewares = route.middleware as MiddlewareHandler[];
       await middlewares[1](ctx, next);
 
-      expect(ctx.json).toHaveBeenCalledWith({ error: "Content-Type header is required" }, 400);
+      expect(json).toHaveBeenCalledWith({ error: "Content-Type header is required" }, 400);
       expect(next).not.toHaveBeenCalled();
     });
   });
 
   describe("when given config with additionalContentTypes", () => {
     it("accepts additional content types", async () => {
-      const { route, ctx, next } = setup({
+      const { route, ctx, next, json } = setup({
         method: "post",
         path: "/test",
         contentType: "text/yaml",
@@ -201,7 +201,7 @@ describe(createRoute.name, () => {
       await middlewares[1](ctx, next);
 
       expect(next).toHaveBeenCalled();
-      expect(ctx.json).not.toHaveBeenCalled();
+      expect(json).not.toHaveBeenCalled();
     });
   });
 
@@ -303,8 +303,9 @@ describe(createRoute.name, () => {
     });
 
     const responseHeaders = new Map<string, string>();
+    const json = vi.fn();
 
-    const ctx = mock<Context>({
+    const ctx = {
       req: {
         method: "GET",
         header: (name: string) => {
@@ -316,25 +317,25 @@ describe(createRoute.name, () => {
           }
           return undefined;
         }
-      } as Context["req"],
+      },
       res: {
         status: 200,
         headers: {
           get: (name: string) => responseHeaders.get(name) ?? null
         }
-      } as unknown as Context["res"]
-    });
-
-    ctx.header.mockImplementation((name: string, value?: string) => {
-      if (value !== undefined) {
-        responseHeaders.set(name, value);
-      }
-    });
+      },
+      header: (name: string, value?: string) => {
+        if (value !== undefined) {
+          responseHeaders.set(name, value);
+        }
+      },
+      json
+    } as unknown as Context;
 
     const next = vi.fn().mockResolvedValue(undefined) as Mock<Next>;
 
     const getHeader = (name: string) => responseHeaders.get(name);
 
-    return { route, ctx, next, getHeader };
+    return { route, ctx, next, getHeader, json };
   }
 });

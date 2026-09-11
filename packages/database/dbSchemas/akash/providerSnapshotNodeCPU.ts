@@ -37,4 +37,9 @@ export class ProviderSnapshotNodeCPU extends Model {
    * 1 vCPUs = 1 CPU
    */
   @Column(DataTypes.SMALLINT) vcores!: number;
+  /**
+   * The CPU architecture the node reports, null when its inventory operator predates architecture reporting
+   * ex: amd64, arm64
+   */
+  @Column(DataTypes.STRING) arch!: string | null;
 }

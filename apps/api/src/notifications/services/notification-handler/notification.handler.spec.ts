@@ -148,15 +148,13 @@ describe(NotificationHandler.name, () => {
       findUserById: vi.fn().mockResolvedValue(user)
     });
 
-    const initialCredits = faker.number.int({ min: 5_000_000, max: 10_000_000 });
     await handler.handle({
       template: "startTrial",
       userId: user.id,
       version: 1,
       vars: {
         trialEndsAt: "2023-11-13T12:00:00Z",
-        deploymentLifetimeInHours: 24,
-        initialCredits
+        deploymentLifetimeInHours: 24
       }
     });
 
@@ -164,8 +162,7 @@ describe(NotificationHandler.name, () => {
     expect(notificationService.createNotification).toHaveBeenCalledWith(
       startTrialNotification(user, {
         trialEndsAt: "2023-11-13T12:00:00Z",
-        deploymentLifetimeInHours: 24,
-        initialCredits
+        deploymentLifetimeInHours: 24
       })
     );
   });
@@ -305,6 +302,12 @@ describe(NotificationHandler.name, () => {
     const { createLogger } = setup();
 
     expect(createLogger).toHaveBeenCalledWith({ context: NotificationHandler.name });
+  });
+
+  it("declares no permissions for its execution", () => {
+    const { handler } = setup();
+
+    expect(handler.requiresPermission()).toEqual([]);
   });
 
   function setup(input?: {

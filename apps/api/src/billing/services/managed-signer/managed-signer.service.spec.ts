@@ -17,6 +17,7 @@ import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
+import { DeploymentDepositRefusalCache } from "@src/billing/services/deployment-deposit-refusal-cache/deployment-deposit-refusal-cache.service";
 import type { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
@@ -24,6 +25,7 @@ import type { WalletReloadJobService } from "@src/billing/services/wallet-reload
 import type { CreateLogger } from "@src/core";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
+import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { RecordDeploymentSetting } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
 import { createAkashAddress } from "../../../../test/seeders";
@@ -182,6 +184,119 @@ describe(ManagedSignerService.name, () => {
       );
 
       expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith(expect.anything(), { triggeredByDeployment: true });
+    });
+
+    it("tells a refused client when to retry", async () => {
+      const { service } = setupForCreate({ deploymentLimit: 0 });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toMatchObject({
+        status: 402,
+        headers: { "Retry-After": "300" }
+      });
+    });
+
+    it("answers a repeated refusal from cache without re-reading the chain or warning again", async () => {
+      const { service, balancesService, logger } = setupForCreate({
+        deploymentLimit: 0,
+        scheduleImmediate: vi.fn().mockResolvedValue(true)
+      });
+      const refusal = expect.objectContaining({ status: 402, headers: { "Retry-After": expect.stringMatching(/^\d+$/) } });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toEqual(refusal);
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toEqual(refusal);
+
+      expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledTimes(1);
+      expect(balancesService.retrieveAndCalcFeeLimit).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+      expect(logger.debug).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "DEPLOYMENT_CREATE_REFUSED_FROM_CACHE", userId: "user-123", reloadScheduled: true, suppressedAttempts: 1 })
+      );
+    });
+
+    it("stops promising a top up once auto recharge is paused between retries", async () => {
+      const { service } = setupForCreate({
+        deploymentLimit: 0,
+        scheduleImmediate: vi.fn().mockResolvedValueOnce(true).mockResolvedValue(false)
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow(
+        "A top up from your saved payment method is on the way, so try again in a moment."
+      );
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow(
+        "Add credits or turn on auto recharge to continue."
+      );
+    });
+
+    it("re-reads the chain when a repeated create asks for a deposit the refused allowance covers", async () => {
+      const { service, balancesService, txManagerService } = setupForCreate({ deploymentLimit: 400000 });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow("Not enough balance");
+      await service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(300000)]);
+
+      expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledTimes(2);
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledTimes(1);
+    });
+
+    it("lets a create through as soon as the wallet row shows that credits were added", async () => {
+      const refusedWallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 0 });
+      const { service, balancesService, txManagerService } = setup({
+        findOneByUserId: vi
+          .fn()
+          .mockResolvedValueOnce(refusedWallet)
+          .mockResolvedValue({ ...refusedWallet, deploymentAllowance: 5000000 }),
+        findById: vi.fn().mockResolvedValue(createUser({ userId: "user-123" })),
+        retrieveDeploymentLimit: vi.fn().mockResolvedValueOnce(0).mockResolvedValue(5000000),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "TESTHASH", rawLog: "[]" }),
+        refreshUserWalletLimits: vi.fn()
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow("Not enough balance");
+      await service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)]);
+
+      expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledTimes(2);
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledTimes(1);
+    });
+
+    it("picks up auto recharge being turned on between retries", async () => {
+      const { service, walletReloadJobService } = setupForCreate({
+        deploymentLimit: 0,
+        scheduleImmediate: vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true)
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow(
+        "Add credits or turn on auto recharge to continue."
+      );
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow(
+        "A top up from your saved payment method is on the way, so try again in a moment."
+      );
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow(
+        "A top up from your saved payment method is on the way, so try again in a moment."
+      );
+
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledTimes(3);
+    });
+
+    it("does not cache a refusal for a missing fee allowance", async () => {
+      const { service, balancesService } = setupForCreate({ deploymentLimit: 5000000, retrieveAndCalcFeeLimit: vi.fn().mockResolvedValue(0) });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow("transaction fee");
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow("transaction fee");
+
+      expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not cache a refusal the chain made after the pre-flight check passed", async () => {
+      const { service, balancesService, walletReloadJobService } = setupForCreate({
+        deploymentLimit: 500000,
+        signAndBroadcastWithDerivedWallet: vi.fn().mockRejectedValue(new Error("deposit invalid: insufficient balance")),
+        transformChainError: vi.fn().mockResolvedValue(createError(402, "Not enough balance to cover the deployment deposit."))
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow("Not enough balance");
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow("Not enough balance");
+
+      expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledTimes(2);
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledTimes(2);
     });
 
     it("does not schedule a reload when the broadcast fails for a reason other than balance", async () => {
@@ -474,6 +589,71 @@ describe(ManagedSignerService.name, () => {
       await service.executeDerivedDecodedTxByUserId("user-123", [closeMessage]);
 
       expect(domainEvents.publish).not.toHaveBeenCalledWith(expect.any(RecordDeploymentSetting), expect.anything());
+    });
+
+    it("records a deployment closed by broadcasting its message, so no later sweep has to discover the close", async () => {
+      const { service, deploymentSettingRepository } = setupForClose();
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123)]);
+
+      expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "user-123", dseq: "123" });
+    });
+
+    it("records every deployment one transaction closes", async () => {
+      const { service, deploymentSettingRepository } = setupForClose();
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123), closeMessageFor(456)]);
+
+      expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "user-123", dseq: "123" });
+      expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "user-123", dseq: "456" });
+    });
+
+    it("records nothing closed when the close reverted on chain", async () => {
+      const { service, deploymentSettingRepository } = setupForClose({
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 11, hash: "tx-hash", rawLog: "out of gas" })
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123)])).rejects.toThrow("out of gas");
+
+      expect(deploymentSettingRepository.markClosed).not.toHaveBeenCalled();
+    });
+
+    it("records nothing closed for a transaction that closes no deployment", async () => {
+      const { service, deploymentSettingRepository } = setupForClose();
+      const createMessage: EncodeObject = {
+        typeUrl: MsgCreateDeployment.$type,
+        value: MsgCreateDeployment.fromPartial({ id: { owner: "akash1test", dseq: 123 } })
+      };
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [createMessage]);
+
+      expect(deploymentSettingRepository.markClosed).not.toHaveBeenCalled();
+    });
+
+    it("logs a failed record rather than reporting a close the chain accepted as failed", async () => {
+      const { service, logger } = setupForClose({
+        markClosed: vi.fn().mockRejectedValue(new Error("database unavailable"))
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123)])).resolves.toEqual(
+        expect.objectContaining({ code: 0, transactionHash: "tx-hash" })
+      );
+
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "CLOSED_DEPLOYMENT_RECORD_FAILED", userId: "user-123", dseq: "123" }));
+    });
+
+    it("records a close even when a create in the same transaction fails to publish", async () => {
+      const { service, deploymentSettingRepository } = setupForClose({
+        publish: vi.fn().mockRejectedValue(new Error("queue unavailable"))
+      });
+      const createMessage: EncodeObject = {
+        typeUrl: MsgCreateDeployment.$type,
+        value: MsgCreateDeployment.fromPartial({ id: { owner: "akash1test", dseq: 123 } })
+      };
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createMessage, closeMessageFor(456)])).rejects.toThrow("queue unavailable");
+
+      expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "user-123", dseq: "456" });
     });
 
     it("does not publish FundDeploymentCommand when a trialing wallet creates a lease", async () => {
@@ -782,6 +962,58 @@ describe(ManagedSignerService.name, () => {
     });
   });
 
+  describe("assertCanBroadcast", () => {
+    it("refuses a create the deployment allowance cannot cover, without broadcasting", async () => {
+      const { service, txManagerService, logger } = setupForCreate({ deploymentLimit: 400000 });
+
+      await expect(service.assertCanBroadcast("user-123", [createDeploymentMessage(500000)])).rejects.toMatchObject({ status: 402 });
+
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CREATE_REFUSED_INSUFFICIENT_ALLOWANCE", requiredDeposit: 500000 }));
+    });
+
+    it("remembers the refusal, so the broadcast that would have followed is refused from the cache", async () => {
+      const { service, balancesService } = setupForCreate({ deploymentLimit: 400000 });
+      await expect(service.assertCanBroadcast("user-123", [createDeploymentMessage(500000)])).rejects.toMatchObject({ status: 402 });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toMatchObject({ status: 402 });
+
+      expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses a spend the wallet is not yet activated for", async () => {
+      const { service, trialActivationJobService, txManagerService } = setupForCreate({ deploymentLimit: 500000 });
+      trialActivationJobService.assertActivated.mockRejectedValue(createError(409, "provisioning", { errorCode: "wallet_provisioning" }));
+
+      await expect(service.assertCanBroadcast("user-123", [createDeploymentMessage(500000)])).rejects.toMatchObject({ status: 409 });
+
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+    });
+
+    it("lets a create the allowance covers through and broadcasts nothing", async () => {
+      const { service, txManagerService, balancesService } = setupForCreate({ deploymentLimit: 500000 });
+
+      await service.assertCanBroadcast("user-123", [createDeploymentMessage(500000)]);
+
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+      expect(balancesService.refreshUserWalletLimits).not.toHaveBeenCalled();
+    });
+
+    it("reads the wallet with the sign ability, as the broadcast does", async () => {
+      const { service, userWalletRepository, authService } = setupForCreate({ deploymentLimit: 500000 });
+
+      await service.assertCanBroadcast("user-123", [createDeploymentMessage(500000)]);
+
+      expect(userWalletRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "sign");
+    });
+
+    it("throws 404 when the wallet is missing", async () => {
+      const { service } = setup({ findOneByUserId: vi.fn().mockResolvedValue(null) });
+
+      await expect(service.assertCanBroadcast("user-123", [])).rejects.toMatchObject({ status: 404, message: "UserWallet Not Found" });
+    });
+  });
+
   describe("executeDerivedEncodedTxByUserId", () => {
     it("executes transaction and calls scheduleImmediate when transaction contains MsgCreateDeployment", async () => {
       const wallet = createUserWallet({
@@ -1052,11 +1284,31 @@ describe(ManagedSignerService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: ManagedSignerService.name });
   });
 
-  function setupForCreate(input: { deploymentLimit: number } & Omit<NonNullable<Parameters<typeof setup>[0]>, "retrieveDeploymentLimit">) {
-    const { deploymentLimit, ...rest } = input;
+  function closeMessageFor(dseq: number): EncodeObject {
+    return {
+      typeUrl: MsgCloseDeployment.$type,
+      value: MsgCloseDeployment.fromPartial({ id: { owner: "akash1test", dseq } })
+    };
+  }
+
+  function setupForClose(input?: Parameters<typeof setup>[0]) {
+    return setup({
+      findOneByUserId: vi.fn().mockResolvedValue(createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: false })),
+      findById: vi.fn().mockResolvedValue(createUser({ userId: "user-123" })),
+      signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+      refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
+      publish: vi.fn().mockResolvedValue(undefined),
+      ...input
+    });
+  }
+
+  function setupForCreate(
+    input: { deploymentLimit: number; walletDeploymentAllowance?: number } & Omit<NonNullable<Parameters<typeof setup>[0]>, "retrieveDeploymentLimit">
+  ) {
+    const { deploymentLimit, walletDeploymentAllowance = deploymentLimit, ...rest } = input;
 
     return setup({
-      findOneByUserId: vi.fn().mockResolvedValue(createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: deploymentLimit })),
+      findOneByUserId: vi.fn().mockResolvedValue(createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: walletDeploymentAllowance })),
       findById: vi.fn().mockResolvedValue(createUser({ userId: "user-123" })),
       retrieveDeploymentLimit: vi.fn().mockResolvedValue(deploymentLimit),
       signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "TESTHASH", rawLog: "[]" }),
@@ -1081,6 +1333,7 @@ describe(ManagedSignerService.name, () => {
     transformChainError?: ChainErrorService["toAppError"];
     hasLeases?: LeaseHttpService["hasLeases"];
     scheduleImmediate?: WalletReloadJobService["scheduleImmediate"];
+    markClosed?: DeploymentSettingRepository["markClosed"];
     decode?: Registry["decode"];
   }) {
     const mocks = {
@@ -1124,15 +1377,20 @@ describe(ManagedSignerService.name, () => {
         DEPLOYMENT_GRANT_DENOM: "uakt",
         FEE_ALLOWANCE_REFILL_AMOUNT: 1000000,
         FEE_ALLOWANCE_REFILL_THRESHOLD: 100000,
-        TRIAL_ALLOWANCE_EXPIRATION_DAYS: 30
+        TRIAL_ALLOWANCE_EXPIRATION_DAYS: 30,
+        DEPLOYMENT_CREATE_REFUSAL_CACHE_TTL_SECONDS: 300
       }),
       managedUserWalletService: mock<ManagedUserWalletService>({
         refillWalletFees: vi.fn()
       }),
       trialActivationJobService: mock<TrialActivationJobService>(),
+      deploymentSettingRepository: mock<DeploymentSettingRepository>({
+        markClosed: input?.markClosed ?? vi.fn()
+      }),
       logger: mock<ReturnType<CreateLogger>>({
         error: vi.fn(),
-        warn: vi.fn()
+        warn: vi.fn(),
+        debug: vi.fn()
       })
     };
 
@@ -1157,6 +1415,8 @@ describe(ManagedSignerService.name, () => {
       mocks.walletReloadJobService,
       mocks.managedUserWalletService,
       mocks.trialActivationJobService,
+      mocks.deploymentSettingRepository,
+      new DeploymentDepositRefusalCache(mocks.billingConfigService),
       createLogger
     );
 

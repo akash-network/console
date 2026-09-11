@@ -1,11 +1,13 @@
-import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
+import { manifestToSortedJSON, type SDLInput, yaml } from "@akashnetwork/chain-sdk";
 import { faker } from "@faker-js/faker";
-import { NotFound } from "http-errors";
+import createError, { NotFound } from "http-errors";
 import nock from "nock";
+import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.repository";
@@ -21,15 +23,16 @@ import { DeploymentSettingRepository } from "@src/deployment/repositories/deploy
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
+import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
-import { SecretCipherService } from "@src/secret/services/secret-cipher/secret-cipher.service";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
 import { deploymentVersion, marketVersion } from "@src/utils/constants";
 
 import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createApiKey } from "@test/seeders/api-key.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
 import { createDeploymentInfoErrorSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
@@ -39,6 +42,7 @@ import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 const OVERSIZED_FILLER = "z".repeat(4096);
+const CLIENT_MANIFEST = '{"client":"supplied"}';
 
 registerFakeSdlSecretsKms();
 
@@ -112,6 +116,8 @@ describe("Deployments API", () => {
       hash: "fake-transaction-hash",
       rawLog: "fake-raw-log"
     });
+
+    vi.spyOn(signerService, "assertCanBroadcast").mockResolvedValue(undefined);
 
     vi.spyOn(providerService, "sendManifest").mockResolvedValue(true);
     vi.spyOn(providerService, "getLeaseStatus").mockResolvedValue(createLeaseStatus());
@@ -620,6 +626,24 @@ describe("Deployments API", () => {
       });
     });
 
+    it("records nothing for a create the signer refuses", async () => {
+      const { user, userApiKeySecret } = await mockPersistedUser();
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+      vi.mocked(signerService.assertCanBroadcast).mockRejectedValue(
+        createError(402, "Not enough balance to cover the deployment deposit.", { headers: { "Retry-After": "300" } })
+      );
+
+      const response = await app.request("/v1/deployments", {
+        method: "POST",
+        body: JSON.stringify({ data: { sdl: yml, deposit: 5.5 } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(402);
+      expect(await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id })).toBeUndefined();
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
     it("returns 401 for an unauthenticated request", async () => {
       const response = await app.request("/v1/deployments", {
         method: "POST",
@@ -827,6 +851,7 @@ describe("Deployments API", () => {
       const response = await postOversizedDeployment(userApiKeySecret);
 
       expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: "Error", code: "bad_request", type: "client_error" });
     });
 
     it("says nothing about the sdl in the 400 it returns", async () => {
@@ -1138,6 +1163,16 @@ describe("Deployments API", () => {
   });
 
   describe("PUT /v1/deployments/{dseq}", () => {
+    it("announces itself as deprecated in the document callers read", async () => {
+      const response = await app.request("/v1/doc?scope=console");
+      const document = (await response.json()) as { paths: Record<string, Record<string, { deprecated?: boolean; description?: string }>> };
+
+      expect(response.status).toBe(200);
+      const put = document.paths["/v1/deployments/{dseq}"].put;
+      expect(put.deprecated).toBe(true);
+      expect(put.description).toContain("re-supplying every other value");
+    });
+
     it("should update a deployment successfully", async () => {
       const { userApiKeySecret, wallets } = await mockPersistedUser();
       const dseq = "1234";
@@ -1306,10 +1341,18 @@ describe("Deployments API", () => {
 
     it("stores a token bound to the deployment it updated, opening to every value the sdl carried", async () => {
       const { user, setting } = await updateDeploymentWithSecrets();
+      const sdl: SDLInput = yaml.raw(fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl-with-secrets.yml"), "utf8"));
+      const env = Object.fromEntries(
+        Object.values(sdl.services)[0].env?.map(e => {
+          const index = e.indexOf("=");
+          if (index === -1) return [e, ""];
+          return [e.slice(0, index), e.slice(index + 1)];
+        }) ?? []
+      );
 
       await expect(openStoredToken(user, setting!.dseq, setting!.sealedSecrets!)).resolves.toEqual({
         s0_e0: "PLACEHOLDER_API_TOKEN",
-        s0_e1: "postgres://placeholder:PLACEHOLDER_DB_PASSWORD@db.example.test:5432/app?ssl=true",
+        s0_e1: env.DATABASE_URL,
         s0_c_username: "PLACEHOLDER_REGISTRY_USERNAME",
         s0_c_password: "PLACEHOLDER_REGISTRY_PASSWORD"
       });
@@ -1427,9 +1470,9 @@ describe("Deployments API", () => {
 
     async function openStoredToken(user: { id: string }, dseq: string, token: string) {
       return await container.resolve(ExecutionContextService).runWithContext(async () => {
-        container.resolve(AuthService).currentUser = { id: user.id } as never;
+        container.resolve(AuthService).currentUser = mock<UserOutput>({ id: user.id });
 
-        return JSON.parse(await container.resolve(SecretCipherService).decrypt(user.id, token, { sub: user.id, dseq })) as Record<string, string>;
+        return await container.resolve(SdlSecretsService).openStored({ userId: user.id, dseq, sealedSecrets: token });
       });
     }
 
@@ -1459,6 +1502,205 @@ describe("Deployments API", () => {
       expect(response.status).toBe(200);
 
       return { user, setting: await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id, dseq }) };
+    }
+  });
+
+  describe("POST /v1/leases", () => {
+    it("sends the provider the manifest it derived, ignoring the one the request carried", async () => {
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const dseq = "1234";
+      const sdl = sdlMock("hello-world-sdl.yml");
+      await recordDefinition({ user, dseq, sdl });
+      mockLeaseChain({ wallets, dseq });
+
+      const response = await postLeases({ userApiKeySecret, dseq, manifest: '{"deliberately":"wrong"}' });
+
+      expect(response.status).toBe(200);
+      expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ manifest: await manifestOf(sdl) }));
+      expect(providerService.sendManifest).not.toHaveBeenCalledWith(expect.objectContaining({ manifest: '{"deliberately":"wrong"}' }));
+    });
+
+    it("resolves a stored value into the manifest every provider receives", async () => {
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const dseq = "1234";
+      const token = randomUUID();
+      await recordDefinition({ user, dseq, sdl: sdlWithEnvEntry("API_TOKEN=ac-secret://API_TOKEN"), secrets: { API_TOKEN: token } });
+      mockLeaseChain({ wallets, dseq });
+
+      const response = await postLeases({ userApiKeySecret, dseq, manifest: '{"deliberately":"wrong"}', providers: 2 });
+
+      expect(response.status).toBe(200);
+      expect(providerService.sendManifest).toHaveBeenCalledTimes(2);
+      const sent = vi.mocked(providerService.sendManifest).mock.calls.map(([options]) => options.manifest);
+      expect(sent).toEqual([await manifestOf(sdlWithEnvEntry(`API_TOKEN=${token}`)), await manifestOf(sdlWithEnvEntry(`API_TOKEN=${token}`))]);
+      expect(sent.join("")).not.toContain("ac-secret://");
+    });
+
+    it("falls back on the manifest the request carried for a dseq it recorded nothing for", async () => {
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
+      const dseq = "1234";
+      mockLeaseChain({ wallets, dseq });
+
+      const response = await postLeases({ userApiKeySecret, dseq, manifest: CLIENT_MANIFEST });
+
+      expect(response.status).toBe(200);
+      expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ manifest: CLIENT_MANIFEST }));
+    });
+
+    it("falls back for a deployment predating the recording, whose row carries no sdl", async () => {
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const dseq = "1234";
+      await container.resolve(DeploymentSettingRepository).createDefaultIfMissing({ userId: user.id, dseq });
+      mockLeaseChain({ wallets, dseq });
+
+      const response = await postLeases({ userApiKeySecret, dseq, manifest: CLIENT_MANIFEST });
+
+      expect(response.status).toBe(200);
+      expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ manifest: CLIENT_MANIFEST }));
+    });
+
+    it("refuses a definition whose sdl references a value it holds none of, rather than falling back", async () => {
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const dseq = "1234";
+      await recordDefinition({ user, dseq, sdl: sdlWithEnvEntry("API_TOKEN=ac-secret://API_TOKEN") });
+      mockLeaseChain({ wallets, dseq });
+
+      const response = await postLeases({ userApiKeySecret, dseq, manifest: CLIENT_MANIFEST });
+
+      expect(response.status).toBe(500);
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("fails a lease whose stored token was tampered with, leaving the row intact", async () => {
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const dseq = "1234";
+      const token = randomUUID();
+      await recordDefinition({ user, dseq, sdl: sdlWithEnvEntry("API_TOKEN=ac-secret://API_TOKEN"), secrets: { API_TOKEN: token } });
+      const repository = container.resolve(DeploymentSettingRepository);
+      const stored = await repository.findOneBy({ userId: user.id, dseq });
+      const tampered = tamper(stored!.sealedSecrets!);
+      await repository.upsertDefinition({
+        userId: user.id,
+        dseq,
+        sdl: stored!.sdl!,
+        manifestVersion: stored!.manifestVersion!,
+        sealedSecrets: tampered
+      });
+      mockLeaseChain({ wallets, dseq });
+
+      const response = await postLeases({ userApiKeySecret, dseq, manifest: CLIENT_MANIFEST });
+      const body = await response.text();
+
+      expect(response.status).toBe(500);
+      expect(body).not.toContain(token);
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+      const after = await repository.findOneBy({ userId: user.id, dseq });
+      expect(after).toMatchObject({ sdl: stored!.sdl, manifestVersion: stored!.manifestVersion, sealedSecrets: tampered });
+    });
+
+    it("returns not found for another user's dseq, resolving none of their stored values", async () => {
+      const owner = await mockPersistedUser();
+      const dseq = "1234";
+      const token = randomUUID();
+      await recordDefinition({ user: owner.user, dseq, sdl: sdlWithEnvEntry("API_TOKEN=ac-secret://API_TOKEN"), secrets: { API_TOKEN: token } });
+      const stranger = await mockPersistedUser();
+      mockLeaseChain({ wallets: stranger.wallets, dseq, deploymentFound: false });
+
+      const response = await postLeases({ userApiKeySecret: stranger.userApiKeySecret, dseq, manifest: CLIENT_MANIFEST });
+
+      expect(response.status).toBe(404);
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+      expect(JSON.stringify(vi.mocked(providerService.sendManifest).mock.calls)).not.toContain(token);
+    });
+
+    it("derives the same bytes for a lease repeated on one deployment, sending them both times", async () => {
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const dseq = "1234";
+      await recordDefinition({ user, dseq, sdl: sdlWithEnvEntry("API_TOKEN=ac-secret://API_TOKEN"), secrets: { API_TOKEN: randomUUID() } });
+      mockLeaseChain({ wallets, dseq });
+
+      const first = await postLeases({ userApiKeySecret, dseq, manifest: CLIENT_MANIFEST });
+      const second = await postLeases({ userApiKeySecret, dseq, manifest: CLIENT_MANIFEST });
+
+      expect([first.status, second.status]).toEqual([200, 200]);
+      const sent = vi.mocked(providerService.sendManifest).mock.calls.map(([options]) => options.manifest);
+      expect(sent).toHaveLength(2);
+      expect(sent[0]).toBe(sent[1]);
+      expect(sent[0]).not.toBe(CLIENT_MANIFEST);
+    });
+
+    function sdlMock(name: string) {
+      return fs.readFileSync(path.resolve(__dirname, `../mocks/${name}`), "utf8");
+    }
+
+    function sdlWithEnvEntry(entry: string) {
+      return sdlMock("hello-world-sdl.yml").replace("    expose:", `    env:\n      - "${entry}"\n    expose:`);
+    }
+
+    async function manifestOf(sdl: string) {
+      const result = await container.resolve(SdlService).generateManifest(sdl);
+
+      return manifestToSortedJSON((result as Extract<typeof result, { ok: true }>).value.groups);
+    }
+
+    function tamper(token: string) {
+      const segments = token.split(".");
+      const ciphertext = Buffer.from(segments[3], "base64url");
+      ciphertext[0] ^= 0xff;
+      segments[3] = ciphertext.toString("base64url");
+
+      return segments.join(".");
+    }
+
+    async function recordDefinition({ user, dseq, sdl, secrets }: { user: { id: string }; dseq: string; sdl: string; secrets?: Record<string, string> }) {
+      const sealedSecrets = secrets ? await sealForStorage(user, dseq, secrets) : null;
+
+      await container.resolve(DeploymentSettingRepository).upsertDefinition({ userId: user.id, dseq, sdl, manifestVersion: "AAAA", sealedSecrets });
+    }
+
+    async function sealForStorage(user: { id: string }, dseq: string, secrets: Record<string, string>) {
+      return await container.resolve(ExecutionContextService).runWithContext(async () => {
+        container.resolve(AuthService).currentUser = mock<UserOutput>({ id: user.id });
+
+        return await container.resolve(SdlSecretsService).sealForStorage({ userId: user.id, dseq, secrets });
+      });
+    }
+
+    function mockLeaseChain({ wallets, dseq, deploymentFound = true }: { wallets: UserWalletOutput[]; dseq: string; deploymentFound?: boolean }) {
+      const address = wallets[0].address;
+      const restUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
+      const leases = createManyLeaseApiResponses(1, { owner: address!, dseq, state: "active" });
+
+      nock(restUrl).persist().get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`).reply(200, { leases });
+      nock(restUrl)
+        .persist()
+        .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${dseq}&pagination.limit=1000`)
+        .reply(200, { leases });
+
+      if (!deploymentFound) {
+        nock(restUrl)
+          .persist()
+          .get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`)
+          .reply(404, { code: 404, message: "Deployment not found" });
+
+        return;
+      }
+
+      nock(restUrl)
+        .persist()
+        .get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`)
+        .reply(200, createDeploymentInfoSeed({ owner: address!, dseq }));
+    }
+
+    function postLeases({ userApiKeySecret, dseq, manifest, providers = 1 }: { userApiKeySecret: string; dseq: string; manifest: string; providers?: number }) {
+      return app.request("/v1/leases", {
+        method: "POST",
+        body: JSON.stringify({
+          manifest,
+          leases: Array.from({ length: providers }, (_, index) => ({ dseq, gseq: index + 1, oseq: 1, provider: createAkashAddress() }))
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
     }
   });
 

@@ -1,6 +1,7 @@
 import { singleton } from "tsyringe";
 
 import type { DryRunOptions } from "@src/core/types/console";
+import { ClosedDeploymentsReconcilerService } from "@src/deployment/services/closed-deployments-reconciler/closed-deployments-reconciler.service";
 import { DeploymentCloseJobService } from "@src/deployment/services/deployment-close-job/deployment-close-job.service";
 import { ExpiringDeploymentsNotifierService } from "@src/deployment/services/expiring-deployments-notifier/expiring-deployments-notifier.service";
 import { StaleManagedDeploymentsCleanerService } from "@src/deployment/services/stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
@@ -17,12 +18,14 @@ export class TopUpDeploymentsController {
     private readonly deploymentCloseJobService: DeploymentCloseJobService,
     private readonly expiringDeploymentsNotifierService: ExpiringDeploymentsNotifierService,
     private readonly unreachableProviderDeploymentsNotifierService: UnreachableProviderDeploymentsNotifierService,
-    private readonly unreachableProviderDeploymentsCloserService: UnreachableProviderDeploymentsCloserService
+    private readonly unreachableProviderDeploymentsCloserService: UnreachableProviderDeploymentsCloserService,
+    private readonly closedDeploymentsReconcilerService: ClosedDeploymentsReconcilerService
   ) {}
 
-  /** The reconcile goes first because it only needs the database, so a chain-RPC failure in the sweep cannot skip it for the hour. */
+  /** The reconciles go first because they only need the databases, so a chain-RPC failure in the sweep cannot skip them for the hour. */
   async topUpDeployments(options: DryRunOptions) {
     await this.deploymentCloseJobService.reconcileExpired(options);
+    await this.closedDeploymentsReconcilerService.reconcileClosedDeployments(options);
     await this.topUpManagedDeploymentsService.topUpDeployments(options);
   }
 

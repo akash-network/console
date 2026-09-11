@@ -39,7 +39,8 @@
     "test:unit": "vitest run --project=unit",
     "test:unit:cov": "vitest run --project=unit --coverage",
     "test:unit:watch": "vitest run --project=unit --watch",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "validate:types": "tsc --noEmit"
   },
   "dependencies": {
     "@akashnetwork/akash-api": "1.4.3",

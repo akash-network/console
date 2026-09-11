@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 import { hoursToMilliseconds } from "date-fns";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
+import { TxService } from "@src/core/services/tx/tx.service";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/deployment/http-schemas/runtime-limit";
 import type { UserOutput } from "@src/user/repositories";
@@ -692,6 +693,73 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("findOpenDeploymentsIteratively", () => {
+    it("yields an open deployment whose owner turned funding off, which the funding sweep never reaches", async () => {
+      const { deploymentSettingRepository, user, wallet, findOpenDeployments } = await setup();
+      const fundingOff = await deploymentSettingRepository.create({ userId: user.id, dseq: newDseq(), autoTopUpEnabled: false });
+
+      const open = await findOpenDeployments([wallet.address]);
+
+      expect(open.map(deployment => deployment.id)).toContain(fundingOff.id);
+    });
+
+    it("reports what a chain lookup and a compensation for the record need", async () => {
+      const { deploymentSettingRepository, settingId, user, wallet, findOpenDeployments } = await setup();
+      const setting = await deploymentSettingRepository.findById(settingId);
+
+      const open = await findOpenDeployments([wallet.address]);
+
+      expect(open).toContainEqual({ id: settingId, userId: user.id, dseq: setting!.dseq, address: wallet.address, createdAt: new Date(setting!.createdAt) });
+    });
+
+    it("passes over a deployment already marked closed", async () => {
+      const { deploymentSettingRepository, settingId, wallet, findOpenDeployments } = await setup();
+      await deploymentSettingRepository.markAsClosed([settingId]);
+
+      const open = await findOpenDeployments([wallet.address]);
+
+      expect(open.map(deployment => deployment.id)).not.toContain(settingId);
+    });
+
+    it("passes over a deployment whose wallet has no address yet, since there is nothing to look up", async () => {
+      const { deploymentSettingRepository, userRepository, db, userWalletsTable, findOpenDeployments } = await setup();
+      const walletlessUser = await userRepository.create({ userId: faker.string.uuid() });
+      await db.insert(userWalletsTable).values({ userId: walletlessUser.id, deploymentAllowance: "0", feeAllowance: "0", isTrialing: false });
+      const setting = await deploymentSettingRepository.create({ userId: walletlessUser.id, dseq: newDseq(), autoTopUpEnabled: true });
+
+      const open = await findOpenDeployments();
+
+      expect(open.map(deployment => deployment.id)).not.toContain(setting.id);
+    });
+
+    it("pages every open deployment exactly once when the batch is smaller than the set", async () => {
+      const { createSetting, wallet, findOpenDeployments } = await setup();
+      await createSetting();
+      await createSetting();
+      await createSetting();
+
+      const oneAtATime = await findOpenDeployments([wallet.address], 1);
+      const allAtOnce = await findOpenDeployments([wallet.address], 1000);
+
+      expect(allAtOnce).toHaveLength(4);
+      expect(oneAtATime.map(deployment => deployment.id).sort()).toEqual(allAtOnce.map(deployment => deployment.id).sort());
+    });
+
+    it("yields batches no larger than the size asked for", async () => {
+      const { deploymentSettingRepository, createSetting } = await setup();
+      await createSetting();
+      await createSetting();
+      await createSetting();
+      const sizes: number[] = [];
+
+      for await (const batch of deploymentSettingRepository.findOpenDeploymentsIteratively({ batchSize: 2 })) {
+        sizes.push(batch.length);
+      }
+
+      expect(Math.max(...sizes)).toBeLessThanOrEqual(2);
+    });
+  });
+
   describe("createDefaultIfMissing", () => {
     it("records a deployment nothing had recorded yet, with funding on", async () => {
       const { deploymentSettingRepository, user } = await setup();
@@ -730,6 +798,285 @@ describe(DeploymentSettingRepository.name, () => {
     return faker.number.int({ min: 100000, max: 999999 }).toString();
   }
 
+  describe("findLiveTrialDeployments", () => {
+    it("returns open trial deployments created inside the window with their wallet id", async () => {
+      const { deploymentSettingRepository, user, trialUser, trialWallet, createSetting, db, deploymentSettingsTable } = await setup();
+      const liveDseq = faker.number.int({ min: 100000, max: 999999 }).toString();
+      await db.insert(deploymentSettingsTable).values({ userId: trialUser.id, dseq: liveDseq, autoTopUpEnabled: true });
+      await db.insert(deploymentSettingsTable).values({ userId: trialUser.id, dseq: `1`, autoTopUpEnabled: true, closed: true });
+      await db
+        .insert(deploymentSettingsTable)
+        .values({ userId: trialUser.id, dseq: `2`, autoTopUpEnabled: true, createdAt: new Date(Date.now() - hoursToMilliseconds(48)) });
+      await createSetting();
+
+      const deployments = await deploymentSettingRepository.findLiveTrialDeployments({ maxAgeHours: 26 });
+
+      const ofTrialUser = deployments.filter(deployment => deployment.userId === trialUser.id);
+      expect(ofTrialUser).toEqual([{ userId: trialUser.id, dseq: liveDseq, walletId: trialWallet.walletId, createdAt: expect.any(Date) }]);
+      expect(deployments.map(deployment => deployment.userId)).not.toContain(user.id);
+    });
+
+    it("selects the same deployments whatever the session time zone", async () => {
+      const { deploymentSettingRepository, trialUser, deploymentSettingsTable } = await setup();
+      const txService = container.resolve(TxService);
+      const insideWindowDseq = faker.number.int({ min: 100000, max: 999999 }).toString();
+      const outsideWindowDseq = faker.number.int({ min: 100000, max: 999999 }).toString();
+
+      const dseqs = await txService.transaction(async () => {
+        const tx = txService.getPgTx()!;
+        await tx.execute(sql`set local time zone 'Asia/Tokyo'`);
+        await tx.insert(deploymentSettingsTable).values([
+          { userId: trialUser.id, dseq: insideWindowDseq, autoTopUpEnabled: true, createdAt: sql`now() - interval '25 hours'` },
+          { userId: trialUser.id, dseq: outsideWindowDseq, autoTopUpEnabled: true, createdAt: sql`now() - interval '27 hours'` }
+        ]);
+
+        return (await deploymentSettingRepository.findLiveTrialDeployments({ maxAgeHours: 26 })).map(deployment => deployment.dseq);
+      });
+
+      expect(dseqs).toContain(insideWindowDseq);
+      expect(dseqs).not.toContain(outsideWindowDseq);
+    });
+
+    it("leaves the deployments of a wallet locked for abuse out of the sweep", async () => {
+      const { deploymentSettingRepository, trialUser, trialWallet, db, deploymentSettingsTable, userWalletsTable } = await setup();
+      await db
+        .insert(deploymentSettingsTable)
+        .values({ userId: trialUser.id, dseq: faker.number.int({ min: 100000, max: 999999 }).toString(), autoTopUpEnabled: true });
+      await db.update(userWalletsTable).set({ abuseLockedAt: new Date() }).where(eq(userWalletsTable.id, trialWallet.walletId));
+
+      const deployments = await deploymentSettingRepository.findLiveTrialDeployments({ maxAgeHours: 26 });
+
+      expect(deployments.some(deployment => deployment.userId === trialUser.id)).toBe(false);
+    });
+  });
+
+  describe("replaceDefinitionIfVersionMatches", () => {
+    it("replaces the definition when the version the caller read is still current", async () => {
+      const { deploymentSettingRepository, user, createDefinition, readDefinition, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA" });
+
+      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken,
+        expectedManifestVersion: "AAAA"
+      });
+
+      expect(id).toEqual(expect.any(String));
+      expect(await readDefinition(dseq)).toMatchObject({
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken
+      });
+    });
+
+    it("refuses when the version the caller read is no longer current", async () => {
+      const { deploymentSettingRepository, user, createDefinition, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA" });
+
+      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken,
+        expectedManifestVersion: "STALE"
+      });
+
+      expect(id).toBeUndefined();
+    });
+
+    it("leaves every column as it was when it refuses", async () => {
+      const { deploymentSettingRepository, user, createDefinition, readDefinition, sealedToken, otherSealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA", sealedSecrets: otherSealedToken });
+      const before = await readDefinition(dseq);
+
+      await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken,
+        expectedManifestVersion: "STALE"
+      });
+
+      expect(await readDefinition(dseq)).toEqual(before);
+    });
+
+    it("accepts a retry whose row already carries the version it computes, so a repeat is not a conflict", async () => {
+      const { deploymentSettingRepository, user, createDefinition, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "BBBB" });
+
+      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken,
+        expectedManifestVersion: "AAAA"
+      });
+
+      expect(id).toEqual(expect.any(String));
+    });
+
+    it("leaves the row at the version the retry recomputed", async () => {
+      const { deploymentSettingRepository, user, createDefinition, readDefinition, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "BBBB" });
+
+      await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken,
+        expectedManifestVersion: "AAAA"
+      });
+
+      expect(await readDefinition(dseq)).toMatchObject({ sdl: "version: '2.0' # patched", manifestVersion: "BBBB", sealedSecrets: sealedToken });
+    });
+
+    it("refuses a version that is neither the one the caller read nor the one it computes", async () => {
+      const { deploymentSettingRepository, user, createDefinition, readDefinition, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "CCCC" });
+
+      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken,
+        expectedManifestVersion: "AAAA"
+      });
+
+      expect(id).toBeUndefined();
+      expect(await readDefinition(dseq)).toMatchObject({ manifestVersion: "CCCC" });
+    });
+
+    it("awards the write to exactly one of several patches that read the same version", async () => {
+      const { deploymentSettingRepository, user, createDefinition, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA" });
+
+      const results = await Promise.all(
+        Array.from({ length: 5 }, (_, attempt) =>
+          deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+            userId: user.id,
+            dseq,
+            sdl: `version: '2.0' # patch ${attempt}`,
+            manifestVersion: `V${attempt}`,
+            sealedSecrets: sealedToken,
+            expectedManifestVersion: "AAAA"
+          })
+        )
+      );
+
+      expect(results.filter(Boolean)).toHaveLength(1);
+    });
+
+    it("leaves the one version that won as the current one", async () => {
+      const { deploymentSettingRepository, user, createDefinition, readDefinition, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA" });
+
+      await Promise.all(
+        Array.from({ length: 5 }, (_, attempt) =>
+          deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+            userId: user.id,
+            dseq,
+            sdl: `version: '2.0' # patch ${attempt}`,
+            manifestVersion: `V${attempt}`,
+            sealedSecrets: sealedToken,
+            expectedManifestVersion: "AAAA"
+          })
+        )
+      );
+
+      const stored = await readDefinition(dseq);
+      expect(stored?.manifestVersion).toMatch(/^V\d$/);
+      expect(stored?.sdl).toBe(`version: '2.0' # patch ${stored?.manifestVersion?.slice(1)}`);
+    });
+
+    it("replaces without a guard when the caller states no expectation", async () => {
+      const { deploymentSettingRepository, user, createDefinition, readDefinition, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA" });
+
+      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken
+      });
+
+      expect(id).toEqual(expect.any(String));
+      expect(await readDefinition(dseq)).toMatchObject({ manifestVersion: "BBBB" });
+    });
+
+    it("clears the token when the merged set of secrets is empty", async () => {
+      const { deploymentSettingRepository, user, createDefinition, readDefinition, otherSealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA", sealedSecrets: otherSealedToken });
+
+      await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: null,
+        expectedManifestVersion: "AAAA"
+      });
+
+      expect(await readDefinition(dseq)).toMatchObject({ sealedSecrets: null });
+    });
+
+    it("refuses a row that records no sdl, which a patch has nothing to build on", async () => {
+      const { deploymentSettingRepository, user, createSetting, readSettingDseq, sealedToken } = await setup();
+      const settingId = await createSetting();
+      const dseq = await readSettingDseq(settingId);
+
+      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken
+      });
+
+      expect(id).toBeUndefined();
+    });
+
+    it("refuses a deployment belonging to another user", async () => {
+      const { deploymentSettingRepository, trialUser, createDefinition, readDefinition, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA" });
+
+      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+        userId: trialUser.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken
+      });
+
+      expect(id).toBeUndefined();
+      expect(await readDefinition(dseq)).toMatchObject({ manifestVersion: "AAAA" });
+    });
+
+    it("refuses a deployment the caller's ability excludes", async () => {
+      const { deploymentSettingRepository, user, trialUser, createDefinition, readDefinition, abilityFor, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA" });
+
+      const id = await deploymentSettingRepository.accessibleBy(abilityFor(trialUser), "update").replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken
+      });
+
+      expect(id).toBeUndefined();
+      expect(await readDefinition(dseq)).toMatchObject({ manifestVersion: "AAAA" });
+    });
+  });
+
   async function setup() {
     const userRepository = container.resolve(UserRepository);
     const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
@@ -757,6 +1104,32 @@ describe(DeploymentSettingRepository.name, () => {
       return abilityService.getAbilityFor("REGULAR_USER", owner);
     }
 
+    async function createDefinition({ manifestVersion, sealedSecrets = null }: { manifestVersion: string; sealedSecrets?: string | null }) {
+      const dseq = faker.number.int({ min: 100000, max: 999999 }).toString();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion, sealedSecrets });
+
+      return dseq;
+    }
+
+    async function readDefinition(dseq: string) {
+      const [row] = await db
+        .select({
+          sdl: deploymentSettingsTable.sdl,
+          manifestVersion: deploymentSettingsTable.manifestVersion,
+          sealedSecrets: deploymentSettingsTable.sealedSecrets
+        })
+        .from(deploymentSettingsTable)
+        .where(and(eq(deploymentSettingsTable.userId, user.id), eq(deploymentSettingsTable.dseq, dseq)));
+
+      return row;
+    }
+
+    async function readSettingDseq(id: string) {
+      const [row] = await db.select({ dseq: deploymentSettingsTable.dseq }).from(deploymentSettingsTable).where(eq(deploymentSettingsTable.id, id));
+
+      return row.dseq;
+    }
+
     async function createSetting(userId: string = user.id) {
       const setting = await deploymentSettingRepository.create({
         userId,
@@ -764,6 +1137,16 @@ describe(DeploymentSettingRepository.name, () => {
         autoTopUpEnabled: true
       });
       return setting.id;
+    }
+
+    async function findOpenDeployments(addresses?: string[], batchSize = 1000) {
+      const open = [];
+
+      for await (const batch of deploymentSettingRepository.findOpenDeploymentsIteratively({ batchSize })) {
+        open.push(...batch.filter(deployment => !addresses || addresses.includes(deployment.address)));
+      }
+
+      return open;
     }
 
     async function findAutoTopUpOwners(addresses: string[]) {
@@ -829,6 +1212,7 @@ describe(DeploymentSettingRepository.name, () => {
       deploymentSettingRepository,
       db,
       deploymentSettingsTable,
+      userWalletsTable,
       user,
       trialUser,
       wallet,
@@ -837,10 +1221,14 @@ describe(DeploymentSettingRepository.name, () => {
       sealedToken: newSealedToken(),
       otherSealedToken: newSealedToken(),
       abilityFor,
+      createDefinition,
+      readDefinition,
+      readSettingDseq,
       createSetting,
       createLimitedSetting,
       createAnchoredSetting,
       findAutoTopUpOwners,
+      findOpenDeployments,
       backdateLastFundedAt,
       readClosed
     };

@@ -1,7 +1,8 @@
 import { inject, singleton } from "tsyringe";
 
-import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, type EnqueueOptions, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { DeploymentPresenceService } from "@src/deployment/services/deployment-presence/deployment-presence.service";
 
 /**
@@ -31,9 +32,24 @@ export function unbackedDeploymentSettingKeyFor({ userId, dseq }: { userId: stri
   return `deleteUnbackedDeploymentSetting.${userId}.${dseq}`;
 }
 
+/** Shared by every enqueuer of the compensation, so a row found unbacked later retries on the same horizon as one found at create. */
+export function unbackedDeploymentSettingRetryOptions(
+  config: DeploymentConfigService
+): Required<Pick<EnqueueOptions, "retryLimit" | "retryBackoff" | "retryDelay" | "retryDelayMax">> {
+  return {
+    retryLimit: config.get("UNBACKED_DEPLOYMENT_SETTING_RETRY_LIMIT"),
+    retryBackoff: true,
+    retryDelay: config.get("UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_IN_SEC"),
+    retryDelayMax: config.get("UNBACKED_DEPLOYMENT_SETTING_RETRY_DELAY_MAX_IN_MIN") * 60
+  };
+}
+
 @singleton()
 export class DeleteUnbackedDeploymentSettingHandler implements JobHandler<DeleteUnbackedDeploymentSetting> {
   public readonly accepts = DeleteUnbackedDeploymentSetting;
+
+  /** One compensation per row across queued, retrying and running; pg-boss's `singleton` only caps the running ones and would let the hourly reconcile queue a second behind the create path's. */
+  public readonly policy = "exclusive";
 
   private readonly logger: ReturnType<CreateLogger>;
 
@@ -43,6 +59,10 @@ export class DeleteUnbackedDeploymentSettingHandler implements JobHandler<Delete
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: DeleteUnbackedDeploymentSettingHandler.name });
+  }
+
+  requiresPermission(): JobPermissions {
+    return [];
   }
 
   /**

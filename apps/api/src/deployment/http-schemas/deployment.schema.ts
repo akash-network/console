@@ -1,8 +1,9 @@
+import type { SDLInput } from "@akashnetwork/chain-sdk";
 import { DeploymentInfoSchema } from "@akashnetwork/http-sdk";
 import { z } from "zod";
 
 import { SignTxResponseOutputSchema } from "@src/billing/http-schemas/tx.schema";
-import { MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
+import { MAX_MANIFEST_VERSION_LENGTH, MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
 import { openApiExampleAddress } from "@src/utils/constants";
 import { AkashAddressSchema, DseqSchema } from "@src/utils/schema";
 import { LeaseStatusResponseSchema } from "./lease.schema";
@@ -105,11 +106,20 @@ export const GetDeploymentParamsSchema = z.object({
   dseq: DseqSchema.describe("Deployment sequence number")
 });
 
+/** Every reader treats an empty seal as no seal, so accepting one would take a request the caller meant as a secret write and silently do nothing. */
+const SealedSecretsSchema = z.string().min(1);
+
 export const CreateDeploymentRequestSchema = z.object({
   data: z.object({
     sdl: z.string().max(MAX_SUBMITTED_SDL_LENGTH),
-    /** Accepted and validated but withheld from every generated document by the route's `undocumentedRequestFields`, so the capability works before it is announced. */
-    sealedSecrets: z.string().optional(),
+    sealedSecrets: SealedSecretsSchema.optional().openapi({
+      description:
+        "Compact JWE sealing a flat name-to-value map of the secrets this SDL references, encrypted to the console's public sealing key. Fetch that key and the claims to sign from GET /v1/sdl-secrets-context. Values are never returned by any endpoint once sealed."
+    }),
+    inheritSecretsFrom: DseqSchema.optional().openapi({
+      description:
+        "Dseq of one of your own deployments whose stored secrets this deployment starts from, for redeploying an SDL without re-entering its values. The source may be closed. A name also present in `sealedSecrets` takes precedence over the inherited one."
+    }),
     deposit: z.number().optional().openapi({
       deprecated: true,
       description: "Deprecated and ignored. The platform funds every deployment automatically from your account credits."
@@ -161,8 +171,131 @@ export const UpdateDeploymentRequestSchema = z.object({
   })
 });
 
+type SdlExposeNode = NonNullable<SDLInput["services"][string]["expose"]>[number];
+type SdlNextCase = NonNullable<NonNullable<SdlExposeNode["http_options"]>["next_cases"]>[number];
+
+/** A key carrying `=` would be written as `NAME=REST=value` and read back as a different variable, silently overwriting it and leaving the supplied value unsealed. */
+const ENV_VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+const PatchEnvSchema = z.record(z.string().regex(ENV_VARIABLE_NAME), z.string().nullable()).openapi({
+  description:
+    "Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change."
+});
+
+/** Every one of these is a uint32 by the time it reaches the provider. */
+const UINT32_MAX = 4294967295;
+
+/** The SDL grammar's own ceiling, refused here so the message names the field rather than the whole document. */
+const MAX_BODY_SIZE_BYTES = 104857600;
+
+/** A zero body size is the sentinel the provider's hostname operator reads as "this workload predates http options", on which it drops the rest of the block for its own defaults. */
+const MIN_BODY_SIZE_BYTES = 1;
+
+/** Providers disagree on what a zero timeout means, nginx's own default under the Gateway API against none at all under ingress, so the ambiguous spelling is refused rather than resolved. */
+const MIN_TIMEOUT_MS = 1;
+
+const HTTP_NEXT_CASES = ["error", "timeout", "500", "502", "503", "504", "403", "404", "429", "off"] as const satisfies readonly SdlNextCase[];
+
+/** `off` turns retrying off outright, so naming a case to retry on beside it is a contradiction. */
+function retriesOffAlone(cases: readonly SdlNextCase[]): boolean {
+  return cases.length === 1 || !cases.includes("off");
+}
+
+const PatchHttpOptionsSchema = z
+  .object({
+    maxBodySize: z.number().int().min(MIN_BODY_SIZE_BYTES).max(MAX_BODY_SIZE_BYTES),
+    readTimeout: z.number().int().min(MIN_TIMEOUT_MS).max(UINT32_MAX),
+    sendTimeout: z.number().int().min(MIN_TIMEOUT_MS).max(UINT32_MAX),
+    nextTries: z.number().int().nonnegative().max(UINT32_MAX),
+    nextTimeout: z.number().int().nonnegative().max(UINT32_MAX),
+    nextCases: z
+      .array(z.enum(HTTP_NEXT_CASES))
+      .nonempty()
+      .refine(retriesOffAlone, { message: '"off" cannot be combined with other cases' })
+      .openapi({ description: 'Conditions the proxy retries on. Replaces the existing list; "off" disables retrying and stands alone.' })
+  })
+  .partial();
+
+const PatchExposeSchema = z
+  .object({
+    accept: z.array(z.string()).openapi({
+      description:
+        "Custom domains. Replaces the existing list. Emptying it is rejected by providers that do not generate a hostname of their own, which leaves the patch recorded but undeployed."
+    }),
+    httpOptions: PatchHttpOptionsSchema
+  })
+  .partial();
+
+/** Naming a field is not patching one: `{ expose: {} }` reaches the writer with nothing to write, so an empty record has to count for as little as an empty patch. */
+function assignsAField(patch: Record<string, unknown>): boolean {
+  return Object.values(patch).some(value => !isEmptyRecord(value));
+}
+
+/** An array is a value even when empty, because `command: []` clears the list the service declared. */
+function isEmptyRecord(value: unknown): boolean {
+  return !!value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 0;
+}
+
+export const PatchServiceSchema = z
+  .object({
+    image: z.string(),
+    command: z.array(z.string()).nullable(),
+    args: z.array(z.string()).nullable(),
+    env: PatchEnvSchema,
+    credentials: z
+      .object({ host: z.string(), username: z.string(), password: z.string() })
+      .nullable()
+      .openapi({ description: "Private registry pull credentials. Null clears them." }),
+    expose: z.record(z.string(), PatchExposeSchema).openapi({
+      description: "Keyed by container port. Only hosts and http options are patchable; endpoint kind and count are fixed at create."
+    }),
+    storage: z.record(z.string(), z.object({ mount: z.string(), readOnly: z.boolean() }).partial()).openapi({
+      description: "Keyed by volume name. Mount point and read-only flag only — sizes are fixed at create."
+    })
+  })
+  .partial();
+
 export const UpdateDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema
+});
+
+export const PatchDeploymentParamsSchema = z.object({
+  dseq: DseqSchema.describe("Deployment sequence number")
+});
+
+/** A seal is a write no service patch can describe, so naming a service and changing none of its fields is how a caller asks for a rotation and nothing else. */
+function patchesSomething(data: { services: Record<string, Record<string, unknown>>; sealedSecrets?: string }): boolean {
+  return !!data.sealedSecrets || Object.values(data.services).some(assignsAField);
+}
+
+/** `.refine` rather than a length rule on the record itself, which this zod version does not offer. */
+export const PatchDeploymentRequestSchema = z.object({
+  data: z
+    .object({
+      services: z
+        .record(z.string(), PatchServiceSchema)
+        .refine(services => Object.keys(services).length > 0, { message: "At least one service must be patched" })
+        .openapi({
+          description: "Keyed by service name. Only the named services are touched; omitted services keep their current definition."
+        }),
+      sealedSecrets: SealedSecretsSchema.optional().openapi({
+        description:
+          "Compact JWE sealing a flat name-to-value map, as on create, but holding only the names this patch replaces. Omitted names keep the values the deployment already stores."
+      }),
+      ifManifestVersion: z.string().min(1).max(MAX_MANIFEST_VERSION_LENGTH).optional().openapi({
+        description:
+          "Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very patch produces, which makes a retry of it succeed. Omitting this does not turn the guard off: the patch is then guarded on the version it read for itself, so a concurrent patch still answers 409 rather than overwriting it."
+      })
+    })
+    .refine(patchesSomething, { message: "At least one field must be patched, or sealed secrets supplied" })
+});
+
+export const PatchDeploymentResponseSchema = z.object({
+  data: DeploymentResponseSchema.extend({
+    manifestVersion: z.string().openapi({
+      description: "Base64 manifest version this patch recorded and committed on chain."
+    })
+  })
 });
 
 export const ListDeploymentsQuerySchema = z.object({
@@ -313,6 +446,9 @@ export type CloseDeploymentResponse = z.infer<typeof CloseDeploymentResponseSche
 export type DepositDeploymentRequest = z.infer<typeof DepositDeploymentRequestSchema>;
 export type DepositDeploymentResponse = z.infer<typeof DepositDeploymentResponseSchema>;
 export type UpdateDeploymentRequest = z.infer<typeof UpdateDeploymentRequestSchema>;
+export type PatchService = z.infer<typeof PatchServiceSchema>;
+export type PatchDeploymentRequest = z.infer<typeof PatchDeploymentRequestSchema>;
+export type PatchDeploymentResponse = z.infer<typeof PatchDeploymentResponseSchema>;
 export type UpdateDeploymentResponse = z.infer<typeof UpdateDeploymentResponseSchema>;
 export type ListWithResourcesParams = z.infer<typeof ListWithResourcesParamsSchema>;
 export type ListWithResourcesQuery = z.infer<typeof ListWithResourcesQuerySchema>;

@@ -74,6 +74,17 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
     turnstileRef.current?.render();
     turnstileRef.current?.execute();
   }, []);
+  const isWidgetLoaded = useRef(false);
+  const startChallengeOnWidgetLoad = useRef<(() => void) | undefined>(undefined);
+  /** Cloudflare's api.js can still be in flight when the visitor submits, and it silently drops render and execute calls made before it lands, leaving a challenge that never starts. */
+  const startChallenge = useCallback(() => {
+    if (isWidgetLoaded.current) {
+      resetWidget();
+      return;
+    }
+
+    startChallengeOnWidgetLoad.current = resetWidget;
+  }, [resetWidget]);
   const abandonPendingChallenge = useRef<(() => void) | undefined>(undefined);
   const stopWaitingForChallenge = useRef<(() => void) | undefined>(undefined);
   /** Notifies the parent before rejecting so it can drop the abandoned attempt instead of rendering it as a failure. */
@@ -108,10 +119,11 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
 
         abandonPendingChallenge.current?.();
         hasReportedFailure.current = false;
-        resetWidget();
+        startChallenge();
         return new Promise((resolve, reject) => {
           const stopWaiting = () => {
             clearTimeout(deadline);
+            startChallengeOnWidgetLoad.current = undefined;
             eventBus.current.removeEventListener("success", successListener);
             eventBus.current.removeEventListener("error", errorListener);
             abandonPendingChallenge.current = undefined;
@@ -143,7 +155,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
         });
       }
     }),
-    [resetWidget, enabled, reportChallengeFailure]
+    [startChallenge, enabled, reportChallengeFailure]
   );
 
   if (!enabled) {
@@ -175,7 +187,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
               options={{ execution: "execute", size: "normal", ...RECOVERY_OPTIONS }}
               onError={error => {
                 setStatus("error");
-                reportChallengeFailure(error, "TURNSTILE_CHALLENGE_FAILED");
+                reportChallengeFailure(new Error(`Turnstile challenge failed with code ${error}`), "TURNSTILE_CHALLENGE_FAILED");
                 eventBus.current.dispatchEvent(new CustomEvent("error", { detail: { error, reason: "error" } }));
               }}
               onExpire={() => setStatus("expired")}
@@ -186,6 +198,12 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
                 eventBus.current.dispatchEvent(new CustomEvent("success", { detail: { token } }));
               }}
               onBeforeInteractive={() => setStatus("interactive")}
+              onWidgetLoad={() => {
+                isWidgetLoaded.current = true;
+                const startPendingChallenge = startChallengeOnWidgetLoad.current;
+                startChallengeOnWidgetLoad.current = undefined;
+                startPendingChallenge?.();
+              }}
             />
             <motion.div
               className="flex flex-col items-center"

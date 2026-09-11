@@ -1,0 +1,1 @@
+ALTER TABLE "userSetting" ADD COLUMN "fair_use_policy_accepted_at" timestamp with time zone;

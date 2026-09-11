@@ -55,7 +55,11 @@ export default [
       "simple-import-sort/imports": [
         "error",
         {
-          groups: [["^\\u0000"], ["^react", "^(?!(@src|@test))@?\\w"], ["^@src", "^\\.\\.(?!/?$)", "^\\.\\./?$", "^\\./(?=.*/)(?!/?$)", "^\\.(?!/?$)", "^\\./?$"]]
+          groups: [
+            ["^\\u0000"],
+            ["^react", "^(?!(@src|@test))@?\\w"],
+            ["^@src", "^\\.\\.(?!/?$)", "^\\.\\./?$", "^\\./(?=.*/)(?!/?$)", "^\\.(?!/?$)", "^\\./?$"]
+          ]
         }
       ],
       "@stylistic/space-infix-ops": ["error", { int32Hint: false }],
@@ -64,13 +68,13 @@ export default [
       "import-x/no-cycle": ["error", { ignoreExternal: true }],
       "import-x/no-self-import": ["error"],
       "import-x/no-useless-path-segments": ["error"],
-      "akash/no-mnemonic": ["error"],
       "akash/operation-id-format": [
         "error",
         {
           additionalVerbs: {
             get: { collection: ["export"] },
-            post: { collection: ["deposit", "screen", "apply", "validate", "confirm"] },
+            post: { collection: ["deposit", "screen", "apply", "validate", "confirm", "accept"] },
+            patch: { single: ["patch"] },
             delete: { single: ["close"] }
           }
         }

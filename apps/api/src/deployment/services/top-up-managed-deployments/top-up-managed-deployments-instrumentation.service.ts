@@ -6,7 +6,12 @@ import { type CreateLogger, LOGGER_FACTORY, MetricsService } from "@src/core";
 import type { DryRunOptions } from "@src/core/types/console";
 import { TopUpSummarizer } from "@src/deployment/lib/top-up-summarizer/top-up-summarizer";
 import { DrainingDeployment } from "@src/deployment/types/draining-deployment";
-import type { DeploymentTopUpInstrumentation, OwnerInsufficientBalanceItem } from "./deployment-top-up-instrumentation";
+import {
+  type DeploymentTopUpInstrumentation,
+  describeUnfundedOwner,
+  type FundingMessageItem,
+  type OwnerInsufficientBalanceItem
+} from "./deployment-top-up-instrumentation";
 
 @scoped(Lifecycle.ResolutionScoped)
 export class TopUpManagedDeploymentsInstrumentationService implements DeploymentTopUpInstrumentation {
@@ -15,8 +20,10 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
   private readonly jobDuration: Histogram;
   private readonly depositsTotal: Counter;
   private readonly chainTxErrors: Counter;
+  private readonly undecidedTxOutcomes: Counter;
   private readonly messagePreparationErrors: Counter;
   private readonly deploymentsMarkedClosed: Counter;
+  private readonly settingsWithoutChainState: Counter;
   private readonly deploymentsScanned: Counter;
   private readonly depositAmount: Histogram;
   private readonly predictedCloseBlocks: Histogram;
@@ -53,12 +60,20 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
       description: "Total number of failed deposit attempts"
     });
 
+    this.undecidedTxOutcomes = this.metricsService.createCounter(this.meter, "auto_top_up_undecided_tx_outcomes_total", {
+      description: "Total number of deposit attempts whose transaction may still land, so their funding claims were held rather than released"
+    });
+
     this.messagePreparationErrors = this.metricsService.createCounter(this.meter, "auto_top_up_message_preparation_errors_total", {
       description: "Total number of failed message preparation attempts"
     });
 
     this.deploymentsMarkedClosed = this.metricsService.createCounter(this.meter, "auto_top_up_deployments_marked_closed_total", {
       description: "Total number of deployments marked as closed by the auto top-up job"
+    });
+
+    this.settingsWithoutChainState = this.metricsService.createCounter(this.meter, "auto_top_up_settings_without_chain_state_total", {
+      description: "Deployment records the sweep could not resolve to any chain state, so it neither funded nor closed them"
     });
 
     this.deploymentsScanned = this.metricsService.createCounter(this.meter, "auto_top_up_deployments_scanned_total", {
@@ -171,6 +186,22 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
     });
   }
 
+  /** Deliberately not tracked as a failed wallet: `walletsTopUpErrorCount` reads as "the deposit was rejected", which is the one thing an undecided outcome does not say. */
+  recordUndecidedTxOutcome({ error, ...details }: { owner: string; items: FundingMessageItem[]; txHash?: string; error: unknown }): void {
+    this.topUpSummarizer.inc("deploymentTopUpUndecidedCount", details.items.length);
+
+    this.logger.error({
+      event: "TOP_UP_DEPLOYMENTS_UNDECIDED_TX_OUTCOME",
+      ...details,
+      ...this.serializeError(error),
+      dryRun: this.options?.dryRun
+    });
+
+    this.execWhenEnabled(() => {
+      this.undecidedTxOutcomes.add(1);
+    });
+  }
+
   recordHeadroomConceded(details: {
     dseq: string;
     address: string;
@@ -225,6 +256,7 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
     this.logger.warn({
       event: "TOP_UP_OWNER_INSUFFICIENT_BALANCE",
       owner,
+      ...describeUnfundedOwner(deployments[0].deployment),
       spendable,
       deploymentCount: deployments.length,
       deployments: deployments.map(({ deployment, desiredAmount }) => ({ dseq: deployment.dseq, desiredAmount })),
@@ -242,12 +274,23 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
     });
   }
 
-  recordDepositBelowUsefulRunway(details: { dseq: string; address: string; desiredAmount: number; affordableAmount: number; runwayMinutes: number }): void {
+  recordDepositBelowUsefulRunway({
+    deployment,
+    ...amounts
+  }: {
+    deployment: DrainingDeployment;
+    desiredAmount: number;
+    affordableAmount: number;
+    runwayMinutes: number;
+  }): void {
     this.topUpSummarizer.inc("depositsBelowUsefulRunwayCount");
 
     this.logger.warn({
       event: "DEPOSIT_BELOW_USEFUL_RUNWAY",
-      ...details,
+      dseq: deployment.dseq,
+      address: deployment.address,
+      ...describeUnfundedOwner(deployment),
+      ...amounts,
       dryRun: this.options?.dryRun
     });
 
@@ -262,6 +305,15 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
     this.execWhenEnabled(() => {
       this.deploymentsMarkedClosed.add(count);
     });
+  }
+
+  /** Logged at debug because a churning owner produces one per pass, while the counter is what says whether the number is falling. */
+  recordSettingWithoutChainState({ dseq, address }: { dseq: string; address: string }): void {
+    this.execWhenEnabled(() => {
+      this.settingsWithoutChainState.add(1);
+    });
+
+    this.logger.debug({ event: "TOP_UP_SETTING_WITHOUT_CHAIN_STATE", dseq, address, dryRun: this.options?.dryRun });
   }
 
   recordDeploymentClosedOnChain({

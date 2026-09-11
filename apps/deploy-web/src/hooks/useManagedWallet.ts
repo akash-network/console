@@ -7,7 +7,7 @@ import { ensureUserManagedWalletOwnership, updateStorageManagedWallet } from "@s
 
 export const useManagedWallet = () => {
   const { user } = useUser();
-  const { data: queried, isLoading: isInitialLoading, isFetching, refetch } = useManagedWalletQuery(user?.id);
+  const { data: queried, isLoading: isInitialLoading, isFetching, isError: isLookupFailed, refetch } = useManagedWalletQuery(user?.id);
   const wallet = queried as ApiManagedWalletOutput | undefined;
 
   useEffect(() => {
@@ -31,7 +31,8 @@ export const useManagedWallet = () => {
        */
       isInitializing: isInitialLoading,
       isFetching,
+      isLookupFailed,
       refetch
     };
-  }, [wallet, isInitialLoading, isFetching, refetch]);
+  }, [wallet, isInitialLoading, isFetching, isLookupFailed, refetch]);
 };

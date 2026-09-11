@@ -16,6 +16,7 @@ export const statusBarHeight = 30;
 export const drawerWidth = 240;
 export const closedDrawerWidth = 57;
 export const accountBarHeight = 57;
+export const topBannerHeightCssVar = "--top-banner-height";
 
 export const isProd = process.env.NODE_ENV === "production";
 export const isMaintenanceMode = process.env.MAINTENANCE_MODE === "true";

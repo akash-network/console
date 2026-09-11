@@ -33,16 +33,18 @@ env:
 
 jobs:
   create-check-run:
-    runs-on: [self-hosted, akash]
+    runs-on: ubuntu-latest
     outputs:
       run_scan: ${{ steps.decide.outputs.run_scan }}
       event: ${{ env.PARENT_WORKFLOW_EVENT }}
       check_run_id: ${{ steps.create_check.outputs.check_run_id }}
+      check_run_sha: ${{ steps.report_target.outputs.sha }}
       skip_reason: ${{ steps.decide.outputs.skip_reason }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           sparse-checkout: .github
       - name: Get associated PR
         if: ${{ env.PARENT_WORKFLOW_EVENT == 'pull_request' }}
@@ -100,13 +102,53 @@ jobs:
         run: | # shell
           echo "No \`security-scan\` check reported for ${PARENT_WORKFLOW_HEAD_SHA}: ${SKIP_REASON}" >> "$GITHUB_STEP_SUMMARY"
 
+      # A pull request in a stack is rewritten whenever a branch below it moves, and an empty retrigger commit
+      # does the same by hand, leaving CI's commit off the pull request: the verdict belongs on the commit the
+      # merge box reads, as long as that commit holds the content this run scanned.
+      - name: Resolve commit to report on
+        id: report_target
+        if: ${{ steps.decide.outputs.report_check == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.associated_pr.outputs.number }}
+          PR_HEAD: ${{ github.event.workflow_run.head_repository.owner.login }}:${{ github.event.workflow_run.head_branch }}
+        run: | # shell
+          report_on() {
+            echo "sha=$1" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+
+          tree_of() {
+            gh api "repos/$GITHUB_REPOSITORY/commits/$1" --jq .commit.tree.sha
+          }
+
+          [[ "$PARENT_WORKFLOW_EVENT" == "pull_request" ]] || report_on "$PARENT_WORKFLOW_HEAD_SHA"
+
+          pr="$PR_NUMBER"
+          if [[ -z "$pr" ]]; then
+            pr=$(gh api -X GET "repos/$GITHUB_REPOSITORY/pulls" -f state=open -f head="$PR_HEAD" --jq '.[0].number // ""') || pr=""
+          fi
+          [[ -n "$pr" ]] || report_on "$PARENT_WORKFLOW_HEAD_SHA"
+
+          head_sha=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr" --jq .head.sha) || report_on "$PARENT_WORKFLOW_HEAD_SHA"
+          [[ "$head_sha" != "$PARENT_WORKFLOW_HEAD_SHA" ]] || report_on "$PARENT_WORKFLOW_HEAD_SHA"
+
+          scanned_tree=$(tree_of "$PARENT_WORKFLOW_HEAD_SHA") || report_on "$PARENT_WORKFLOW_HEAD_SHA"
+          head_tree=$(tree_of "$head_sha") || report_on "$PARENT_WORKFLOW_HEAD_SHA"
+          [[ "$scanned_tree" == "$head_tree" ]] || report_on "$PARENT_WORKFLOW_HEAD_SHA"
+
+          echo "Reporting on $head_sha: #$pr moved off $PARENT_WORKFLOW_HEAD_SHA without changing content"
+          report_on "$head_sha"
+
       - name: Create check run
         id: create_check
         if: ${{ steps.decide.outputs.report_check == 'true' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          REPORT_SHA: ${{ steps.report_target.outputs.sha }}
         with:
           script: | # js
-            const sha = process.env.PARENT_WORKFLOW_HEAD_SHA;
+            const sha = process.env.REPORT_SHA;
             const workflowRunUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
             const res = await github.rest.checks.create({
               name: "security-scan",
@@ -135,6 +177,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Get associated PR
         id: associated_pr
@@ -194,6 +238,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           sparse-checkout: |
             .github
 
@@ -252,6 +297,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           ref: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
       - name: Get associated PR
         if: ${{ env.PARENT_WORKFLOW_EVENT == 'pull_request' }}
@@ -345,11 +391,12 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           CHECK_RUN_ID: ${{ needs.create-check-run.outputs.check_run_id }}
+          CHECK_RUN_SHA: ${{ needs.create-check-run.outputs.check_run_sha }}
           CONCLUSION: ${{ steps.final.outputs.conclusion }}
           SUMMARY: ${{ steps.final.outputs.summary }}
         with:
           script: | # js
-            const sha = process.env.PARENT_WORKFLOW_HEAD_SHA;
+            const sha = process.env.CHECK_RUN_SHA;
             const checkRunId = Number(process.env.CHECK_RUN_ID);
             const workflowRunUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
 

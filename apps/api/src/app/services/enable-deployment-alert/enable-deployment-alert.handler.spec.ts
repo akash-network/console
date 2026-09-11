@@ -33,6 +33,12 @@ describe(EnableDeploymentAlertHandler.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: EnableDeploymentAlertHandler.name });
   });
 
+  it("declares no permissions for its execution", () => {
+    const { handler } = setup();
+
+    expect(handler.requiresPermission()).toEqual([]);
+  });
+
   function setup(params?: { notificationService?: Partial<NotificationService>; logger?: Partial<ReturnType<CreateLogger>> }) {
     const notificationService = mock<NotificationService>({
       autoEnableDeploymentAlert: vi.fn().mockResolvedValue(undefined),

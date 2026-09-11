@@ -1,7 +1,7 @@
 "use client";
 import type { FC, ReactNode } from "react";
 import { useMemo } from "react";
-import { Button, Card, CardContent, CustomTooltip } from "@akashnetwork/ui/components";
+import { Button, Card, CardContent, CustomTooltip, Skeleton } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { EditPencil, InfoCircle } from "iconoir-react";
 
@@ -14,6 +14,7 @@ import { TrialDeploymentBadge } from "@src/components/shared/TrialDeploymentBadg
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
 import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
+import { useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useDeploymentEscrowBalance } from "@src/hooks/useDeploymentEscrowBalance/useDeploymentEscrowBalance";
 import { useHasDeploymentStopped } from "@src/hooks/useHasDeploymentStopped";
 import { useTickingNow } from "@src/hooks/useTickingNow";
@@ -37,6 +38,7 @@ import { RuntimeLimitMeter } from "./RuntimeLimitMeter";
 
 export const DEPENDENCIES = {
   useLocalNotes,
+  useDeploymentDefinition,
   useWallet,
   useDeploymentEscrowBalance,
   useDeploymentSettingQuery,
@@ -66,7 +68,7 @@ export interface DeploymentDetailHeaderProps {
 }
 
 export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deployment, leases, providers, dependencies: d = DEPENDENCIES }) => {
-  const { getDeploymentName, changeDeploymentName, getDeploymentData } = d.useLocalNotes();
+  const { changeDeploymentName } = d.useLocalNotes();
   const { isTrialing } = d.useWallet();
   const { denom } = d.useDeploymentEscrowBalance({ deployment, leases });
   const { data: settings } = d.useDeploymentSettingQuery({ dseq: deployment.dseq, pollUntilRuntimeAnchored: true });
@@ -84,13 +86,14 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
     ? getRuntimeLimitCountdown({ runtimeLimitHours: settings.runtimeLimitHours, runtimeEndsAt, hasStopped, now })
     : null;
 
-  const storedDeployment = getDeploymentData(deployment.dseq);
-  const storedManifest = storedDeployment?.manifest;
-  const manifestServices = useMemo(() => parseManifestServices(storedManifest), [storedManifest]);
-  const servicesByPlacement = useMemo(() => parseServicesByPlacement(storedManifest), [storedManifest]);
+  const definition = d.useDeploymentDefinition(deployment.dseq);
+  const definitionSdl = definition.sdl;
+  const servicesCount = useMemo(
+    () => countPlacementServices(leases ?? [], parseServicesByPlacement(definitionSdl), parseManifestServices(definitionSdl)),
+    [leases, definitionSdl]
+  );
 
-  const name = getDeploymentName(deployment.dseq) || `Deployment #${deployment.dseq}`;
-  const servicesCount = countPlacementServices(leases ?? [], servicesByPlacement, manifestServices);
+  const name = definition.name || `Deployment #${deployment.dseq}`;
 
   return (
     <div className="flex flex-col gap-6 py-6 lg:flex-row lg:items-start lg:justify-between">
@@ -119,7 +122,9 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
       <Card className="w-full shrink-0 lg:w-auto">
         <CardContent className="flex flex-col gap-5 p-6">
           <div className="grid grid-cols-4 gap-x-10">
-            <SummaryItem label="TOTAL SERVICES">{servicesCount}</SummaryItem>
+            <SummaryItem label="TOTAL SERVICES">
+              {definition.source === "resolving" ? <Skeleton className="h-5 w-6" data-testid="services-count-skeleton" /> : servicesCount}
+            </SummaryItem>
             <SummaryItem
               label={
                 <span className="inline-flex items-center gap-1">

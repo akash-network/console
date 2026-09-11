@@ -3,7 +3,7 @@ import { inject, singleton } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
-import { type CreateLogger, type JobHandler, type JobPayload, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { CloseExpiredDeploymentCommand } from "@src/deployment/commands/close-expired-deployment.command";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { type CloseExpiredDeploymentTarget, DeploymentCloseJobService } from "@src/deployment/services/deployment-close-job/deployment-close-job.service";
@@ -52,6 +52,10 @@ export class CloseExpiredDeploymentHandler implements JobHandler<CloseExpiredDep
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: CloseExpiredDeploymentHandler.name });
+  }
+
+  requiresPermission(): JobPermissions {
+    return [];
   }
 
   async handle(payload: JobPayload<CloseExpiredDeploymentCommand>): Promise<void> {

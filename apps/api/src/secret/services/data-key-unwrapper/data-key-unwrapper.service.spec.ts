@@ -23,6 +23,8 @@ const VERSION_NAME = "projects/console-test/locations/global/keyRings/console-ap
 const USER_A = "3f2b6f7a-1c1d-4b0e-8b8a-9a0f5f5c2b11";
 const USER_B = "6d0b1f4c-2222-4444-8888-1a2b3c4d5e6f";
 
+const WRAPPING_KEY_PAIR = generateKeyPairSync("rsa", { modulusLength: 3072 });
+
 describe(DataKeyUnwrapperService.name, () => {
   it("returns the key the user's data key row wraps", async () => {
     const { service, inRequest, keyFor } = setup();
@@ -276,7 +278,7 @@ describe(DataKeyUnwrapperService.name, () => {
   });
 
   function setup(input?: { kid?: string; keyBytes?: number; mutateWrappedKey?: (wrappedKey: string) => string }) {
-    const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 3072 });
+    const { publicKey, privateKey } = WRAPPING_KEY_PAIR;
     const wrappedKid = input?.kid ?? KID;
     const keys = new Map<string, Buffer>();
     const rows = new Map<string, DataKeyOutput>();

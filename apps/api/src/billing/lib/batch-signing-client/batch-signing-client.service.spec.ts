@@ -3,8 +3,7 @@ import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { Registry } from "@cosmjs/proto-signing";
-import type { Account, DeliverTxResponse, SigningStargateClient } from "@cosmjs/stargate";
-import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
+import type { Account, DeliverTxResponse, IndexedTx, SigningStargateClient } from "@cosmjs/stargate";
 import { faker } from "@faker-js/faker";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -231,7 +230,9 @@ describe(BatchSigningClientService.name, () => {
       RPC_NODE_ENDPOINT: "http://localhost:26657",
       WALLET_BATCHING_INTERVAL_MS: "0",
       GAS_SAFETY_MULTIPLIER: "1.2",
-      AVERAGE_GAS_PRICE: 0.025
+      AVERAGE_GAS_PRICE: 0.025,
+      SIGN_AND_BROADCAST_RETRY_INITIAL_DELAY_MS: 0,
+      TX_RECOVERY_RETRY_INITIAL_DELAY_MS: 0
     });
 
     const registry = new Registry();

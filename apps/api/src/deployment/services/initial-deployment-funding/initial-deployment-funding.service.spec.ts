@@ -5,6 +5,7 @@ import type { UserWalletRepository } from "@src/billing/repositories";
 import type { RpcMessageService } from "@src/billing/services";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
+import { TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
@@ -15,6 +16,7 @@ import { CachedBalance, type CachedBalanceService } from "@src/deployment/servic
 import type { DeploymentCloseJobService } from "@src/deployment/services/deployment-close-job/deployment-close-job.service";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
+import type { ReconcileManagedTxJobService } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx-job.service";
 import { InitialDeploymentFundingService } from "./initial-deployment-funding.service";
 import type { InitialDeploymentFundingInstrumentationService } from "./initial-deployment-funding-instrumentation.service";
 
@@ -35,6 +37,25 @@ describe(InitialDeploymentFundingService.name, () => {
     await expect(service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" })).rejects.toThrow("not visible on chain yet");
 
     expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+  });
+
+  it("throws when the chain has the deployment but not its lease yet", async () => {
+    const { service, drainingDeploymentService, managedSignerService } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ blockRate: 0, predictedClosedHeight: 0, hasNoLease: true })]);
+
+    await expect(service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" })).rejects.toThrow("not visible on chain yet");
+
+    expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+  });
+
+  it("skips funding when a lease-less deployment has already closed instead of retrying for its lease", async () => {
+    const { service, drainingDeploymentService, managedSignerService, instrumentation } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ blockRate: 0, isClosed: true, hasNoLease: true })]);
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+    expect(instrumentation.recordSkipped).toHaveBeenCalledWith("deployment_closed", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
   });
 
   it("skips funding when the deployment is closed", async () => {
@@ -151,7 +172,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const { service, drainingDeploymentService, cachedBalanceService, walletReloadJobService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-    cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(0, 0));
+    cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(0, { headroom: 0, minDeposit: MIN_DEPOSIT }));
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
@@ -527,6 +548,35 @@ describe(InitialDeploymentFundingService.name, () => {
       expect(deploymentSettingRepository.releaseFundingClaim).toHaveBeenCalledExactlyOnceWith([{ id: "setting-1", claimedAt: CLAIMED_AT }]);
     });
 
+    it("holds the claim and does not fail the job when the deposit outcome is undecided", async () => {
+      const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService, instrumentation } = setup();
+      drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+      managedSignerService.executeDerivedTx.mockRejectedValue(new TxOutcomeUnknownError("tx-hash"));
+
+      await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+      expect(deploymentSettingRepository.releaseFundingClaim).not.toHaveBeenCalled();
+      expect(instrumentation.recordUndecidedTxOutcome).toHaveBeenCalledWith(expect.objectContaining({ dseq: "123", txHash: "tx-hash" }));
+    });
+
+    it("schedules a chain reconciliation for an undecided deposit", async () => {
+      const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService, reconcileManagedTxJobService } = setup();
+      drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+      managedSignerService.executeDerivedTx.mockRejectedValue(new TxOutcomeUnknownError("tx-hash"));
+
+      await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+      expect(reconcileManagedTxJobService.schedule).toHaveBeenCalledWith({
+        txHash: "tx-hash",
+        owner: "akash1owner",
+        claims: [{ id: "setting-1", claimedAt: CLAIMED_AT }]
+      });
+    });
+
     it("releases the claim when the balance cannot fund anything", async () => {
       const { service, drainingDeploymentService, deploymentSettingRepository, cachedBalanceService, instrumentation } = setup();
       drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
@@ -640,6 +690,7 @@ describe(InitialDeploymentFundingService.name, () => {
     chainErrorService.isDeploymentClosedError.mockReturnValue(false);
     deploymentSettingRepository.claimForFunding.mockImplementation(async (ids: string[]) => ids.map(id => ({ id, claimedAt: CLAIMED_AT })));
     deploymentSettingRepository.releaseFundingClaim.mockResolvedValue(undefined);
+    const reconcileManagedTxJobService = mock<ReconcileManagedTxJobService>();
 
     const service = new InitialDeploymentFundingService(
       blockHttpService,
@@ -653,6 +704,7 @@ describe(InitialDeploymentFundingService.name, () => {
       deploymentConfig,
       walletReloadJobService,
       deploymentCloseJobService,
+      reconcileManagedTxJobService,
       chainErrorService,
       instrumentation,
       createLogger
@@ -669,6 +721,7 @@ describe(InitialDeploymentFundingService.name, () => {
       deploymentSettingRepository,
       walletReloadJobService,
       deploymentCloseJobService,
+      reconcileManagedTxJobService,
       chainErrorService,
       instrumentation,
       logger

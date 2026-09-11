@@ -18,11 +18,11 @@ export class LeaseController {
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async createLeasesAndSendManifest(input: CreateLeaseRequest): Promise<CreateLeaseResponse> {
-    const result = await this.leaseService.createLeasesAndSendManifest({
+    const data = await this.leaseService.createLeasesAndSendManifest({
       ...input,
       userId: this.authService.currentUser.id
     });
-    return { data: result };
+    return { data };
   }
 
   async listLeasesFallback(params: DatabaseLeaseListParams): Promise<FallbackLeaseListResponse> {

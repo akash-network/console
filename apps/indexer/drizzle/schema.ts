@@ -373,7 +373,8 @@ export const providerSnapshotNodeCpu = pgTable(
     snapshotNodeId: uuid().notNull(),
     vendor: varchar({ length: 255 }),
     model: varchar({ length: 255 }),
-    vcores: smallint()
+    vcores: smallint(),
+    arch: varchar({ length: 255 })
   },
   table => [
     index("provider_snapshot_node_c_p_u_snapshot_node_id").using("btree", table.snapshotNodeId.asc().nullsLast().op("uuid_ops")),

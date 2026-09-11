@@ -26,7 +26,8 @@ const getUsageHistoryRoute = createRoute({
       }
     },
     400: {
-      description: "Invalid address format"
+      description:
+        "Invalid address format or invalid date range: dates must be YYYY-MM-DD, startDate must not be after endDate and the range cannot exceed 366 days"
     }
   }
 });
@@ -50,7 +51,8 @@ const getUsageHistoryStatsRoute = createRoute({
       }
     },
     400: {
-      description: "Invalid address format"
+      description:
+        "Invalid address format or invalid date range: dates must be YYYY-MM-DD, startDate must not be after endDate and the range cannot exceed 366 days"
     }
   }
 });

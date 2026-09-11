@@ -11,7 +11,8 @@ export function createDrainingDeployment({
   predictedClosedHeight = faker.number.int({ min: 1, max: 99999999 }),
   owner = faker.string.alpha(),
   closedHeight = undefined,
-  isClosed = undefined
+  isClosed = undefined,
+  hasNoLease = undefined
 }: Partial<DrainingDeploymentOutput> = {}): DrainingDeploymentOutput {
   return {
     dseq,
@@ -20,6 +21,7 @@ export function createDrainingDeployment({
     predictedClosedHeight,
     owner,
     closedHeight,
-    isClosed
+    isClosed,
+    hasNoLease
   };
 }

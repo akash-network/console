@@ -1,3 +1,4 @@
+/* v8 ignore start */
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 import { z } from "zod";
@@ -16,6 +17,8 @@ import {
   ListWithResourcesParams,
   ListWithResourcesQuery,
   ListWithResourcesResponse,
+  PatchDeploymentRequest,
+  PatchDeploymentResponse,
   UpdateDeploymentRequest,
   UpdateDeploymentResponse
 } from "@src/deployment/http-schemas/deployment.schema";
@@ -63,6 +66,12 @@ export class DeploymentController {
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async update(dseq: string, input: UpdateDeploymentRequest["data"]): Promise<UpdateDeploymentResponse> {
     const result = await this.deploymentWriterService.updateByUserIdAndDseq(this.authService.currentUser.id, dseq, input);
+    return { data: result };
+  }
+
+  @Protected([{ action: "sign", subject: "UserWallet" }])
+  async patch(dseq: string, input: PatchDeploymentRequest["data"]): Promise<PatchDeploymentResponse> {
+    const result = await this.deploymentWriterService.patchByUserIdAndDseq(this.authService.currentUser.id, dseq, input, this.authService.ability);
     return { data: result };
   }
 

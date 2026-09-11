@@ -3,6 +3,7 @@ import { test as baseTest } from "@playwright/test";
 
 import { loginExistingUser, registerNewUser } from "../actions/auth";
 import { closeAllActiveDeployments } from "../actions/deployment-janitor";
+import { acceptFairUsePolicyIfPrompted } from "../actions/fair-use-policy";
 import { Auth0ManagementService } from "../services/auth0-management.service";
 import { createEmailVerificationStrategy, type EmailVerificationStrategy } from "../services/email-verification";
 import { testEnvConfig } from "./test-env.config";
@@ -41,20 +42,23 @@ export const test = baseTest.extend<Fixtures>({
     await routeTestingClientToken(page);
 
     let createdUserId: string | undefined;
-    if (userType === "existing") {
-      await loginExistingUser(page);
-    } else if (userType === "new") {
-      createdUserId = (await registerNewUser(page, { auth0, emailVerification })).userId;
-    }
+    try {
+      if (userType === "existing") {
+        await loginExistingUser(page);
+      } else if (userType === "new") {
+        createdUserId = (await registerNewUser(page, { auth0, emailVerification })).userId;
+        await acceptFairUsePolicyIfPrompted(page);
+      }
 
-    await use(page);
+      await use(page);
 
-    if (userType) {
-      await closeDeploymentsLeftBehind(page);
-    }
-
-    if (createdUserId) {
-      await auth0.deleteUser(createdUserId).catch(() => undefined);
+      if (userType) {
+        await closeDeploymentsLeftBehind(page);
+      }
+    } finally {
+      if (createdUserId) {
+        await auth0.deleteUser(createdUserId).catch(() => undefined);
+      }
     }
   }
 });

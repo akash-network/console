@@ -88,6 +88,15 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     expect(notificationService.createNotification).toHaveBeenCalled();
   });
 
+  it("does not send when the wallet has been locked for abuse", async () => {
+    const { handler, notificationService, logger, job } = setup({ abuseLockedAt: new Date("2026-09-06T14:00:00.000Z") });
+
+    await handler.handle(job);
+
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_SKIPPED", reason: "abuse_locked" }));
+  });
+
   it("does not send when the wallet is trialing", async () => {
     const { handler, notificationService, userWalletRepository, logger, job } = setup({
       isTrialing: true
@@ -283,7 +292,10 @@ describe(WalletCreditsLowCheckHandler.name, () => {
 
     await handler.handle(job);
 
-    expect(userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed).toHaveBeenCalledWith(wallet.id, 30);
+    expect(userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed).toHaveBeenCalledWith(wallet.id, {
+      confirmWindowMinutes: 30,
+      resendCooldownHours: 168
+    });
     expect(logger.info).toHaveBeenCalledWith({
       event: "CREDITS_LOW_NOTIFIED_CLEARED",
       userId: user.id,
@@ -303,7 +315,7 @@ describe(WalletCreditsLowCheckHandler.name, () => {
 
     await handler.handle(job);
 
-    expect(userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed).toHaveBeenCalledWith(wallet.id, expect.any(Number));
+    expect(userWalletRepository.clearCreditsLowNotifiedIfRecoveryConfirmed).toHaveBeenCalledWith(wallet.id, expect.any(Object));
     expect(userWalletRepository.updateById).not.toHaveBeenCalled();
     expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_NOTIFIED_CLEARED" }));
   });
@@ -391,11 +403,18 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: WalletCreditsLowCheckHandler.name });
   });
 
+  it("declares no permissions for its execution", () => {
+    const { handler } = setup();
+
+    expect(handler.requiresPermission()).toEqual([]);
+  });
+
   function setup(input?: {
     autoReloadEnabled?: boolean;
     autoReloadPausedAt?: Date;
     walletSettingNotFound?: boolean;
     isTrialing?: boolean;
+    abuseLockedAt?: Date | null;
     creditsLowNotifiedAt?: Date | null;
     creditsSufficientSince?: Date | null;
     creditsLowSince?: Date | null;
@@ -412,6 +431,7 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     const wallet = createUserWallet({
       userId: user.id,
       isTrialing: input?.isTrialing ?? false,
+      abuseLockedAt: input?.abuseLockedAt ?? null,
       creditsLowNotifiedAt: input?.creditsLowNotifiedAt ?? null,
       creditsSufficientSince: input?.creditsSufficientSince ?? null,
       creditsLowSince: input?.creditsLowSince === undefined ? new Date("2026-01-01T00:00:00.000Z") : input.creditsLowSince
@@ -443,7 +463,8 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     const billingConfig = mockConfigService<BillingConfigService>({
       CONSOLE_WEB_PAYMENT_LINK: paymentLink,
       CREDITS_LOW_RECOVERY_CONFIRM_WINDOW_MIN: input?.confirmWindowMinutes ?? 30,
-      CREDITS_LOW_CONFIRM_WINDOW_MIN: input?.confirmWindowMinutes ?? 30
+      CREDITS_LOW_CONFIRM_WINDOW_MIN: input?.confirmWindowMinutes ?? 30,
+      CREDITS_LOW_RESEND_COOLDOWN_H: 168
     });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);

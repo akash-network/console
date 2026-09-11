@@ -6,9 +6,11 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 import { setAccountCreatedCookie } from "@src/lib/analytics/account-created-cookie";
 import type { Session } from "@src/lib/auth0";
-import { CallbackHandlerError, IdentityProviderError, MissingStateCookieError } from "@src/lib/auth0";
+import { CallbackHandlerError, MissingStateCookieError } from "@src/lib/auth0";
 import { handleAuth, handleCallback, handleLogin, handleLogout } from "@src/lib/auth0";
 import { clearSessionCookies } from "@src/lib/auth0/clearSessionCookies/clearSessionCookies";
+import { getIdentityProviderError } from "@src/lib/auth0/getIdentityProviderError/getIdentityProviderError";
+import { getStateMismatchReturnTo } from "@src/lib/auth0/getStateMismatchReturnTo/getStateMismatchReturnTo";
 import { isAccessTokenExpired } from "@src/lib/auth0/isAccessTokenExpired/isAccessTokenExpired";
 import { isInvalidSessionError } from "@src/lib/auth0/isInvalidSessionError/isInvalidSessionError";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
@@ -62,9 +64,29 @@ const authHandler = once((services: AppServices) =>
           return;
         }
 
-        if (isAccessDeniedError(error)) {
+        const stateMismatchReturnTo = getStateMismatchReturnTo(error);
+        if (stateMismatchReturnTo) {
+          services.logger.warn({ event: "AUTH_CALLBACK_STATE_MISMATCH", returnToPath: getPathWithoutQuery(stateMismatchReturnTo) });
+          res.writeHead(302, { Location: services.urlReturnToStack.createReturnable(stateMismatchReturnTo, "/login?error=provider_login_failed") });
+          res.end();
+          return;
+        }
+
+        const identityProviderError = getIdentityProviderError(error);
+        if (identityProviderError?.error === "access_denied") {
           services.logger.info({ event: "AUTH_CALLBACK_ACCESS_DENIED" });
           res.writeHead(302, { Location: "/login" });
+          res.end();
+          return;
+        }
+
+        if (identityProviderError) {
+          services.logger.warn({
+            event: "AUTH_CALLBACK_IDENTITY_PROVIDER_ERROR",
+            error: identityProviderError.error,
+            errorDescription: identityProviderError.errorDescription
+          });
+          res.writeHead(302, { Location: "/login?error=provider_login_failed" });
           res.end();
           return;
         }
@@ -125,12 +147,12 @@ function isGeneralAxiosError(error: unknown): error is AxiosError {
   return isAxiosError(error) && !!error?.status && error.status >= 400 && error.status < 500;
 }
 
-function isMissingStateCookieError(error: unknown): boolean {
-  return error instanceof CallbackHandlerError && error.cause instanceof MissingStateCookieError;
+function getPathWithoutQuery(url: string): string {
+  return url.split("?")[0];
 }
 
-function isAccessDeniedError(error: unknown): boolean {
-  return error instanceof CallbackHandlerError && error.cause instanceof IdentityProviderError && error.cause.error === "access_denied";
+function isMissingStateCookieError(error: unknown): boolean {
+  return error instanceof CallbackHandlerError && error.cause instanceof MissingStateCookieError;
 }
 
 function clearSessionAndRedirectToLogin(req: NextApiRequest, res: NextApiResponse): void {

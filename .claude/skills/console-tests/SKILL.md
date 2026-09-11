@@ -14,7 +14,7 @@ Choose the lowest-effective test level:
 | Level | When to use in this repo | Mocking strategy |
 |-------|-------------------------|-----------------|
 | **Unit** (default) | Components, hooks, services, utilities | All deps mocked via DI (`mock<T>()`) — never `vi.mock()` |
-| **Integration** | Services with heavy DB logic or Repository patterns | Real DB fixtures; mock only 3rd-party calls |
+| **Integration** | Services with heavy DB logic or Repository patterns; **required for every pg-boss job handler** | Real DB fixtures; mock only 3rd-party calls |
 | **Functional** | Black-box HTTP endpoint verification | `nock` for external calls only; never mock internal services |
 | **E2E** | Post-deployment verification (beta/prod) | No mocks; happy path only; Playwright with semantic locators |
 
@@ -205,6 +205,27 @@ Key points:
 - Use function-based seeders (not class-based)
 - Use `@faker-js/faker` for randomized data in seeders
 - Seeder accepts `Partial<T>` overrides with sensible defaults
+
+## Background Job Handlers (apps/api)
+
+A pg-boss job handler needs an **integration** test (`*.handler.integration.ts`), not a unit spec. A unit spec cannot cover it, because the two ways a job fails in production are both invisible to mocks:
+
+- the worker installs a fake system user and an **empty** CASL ability, so any ability-scoped repository call throws `ForbiddenError` — the job then dies after its retries with no user-facing error
+- a query that matches no rows reports success while doing nothing
+
+Mocked repositories consult no ability and return whatever the test told them to, so they cannot produce either outcome.
+
+Rules:
+
+- Run the handler through the real worker — `useJobWorkers` + `startWorkers`, never `handler.handle(payload)` alone. Calling `handle` directly bypasses the worker context and tests an execution environment that does not exist in production.
+- Assert on **end state** (rows, job rows), never on `expect(repo.method).toHaveBeenCalled()`. A write that matched zero rows satisfies the spy and fails the row read.
+- Wait with `expectJobCompleted(jobName)` rather than only waiting on a side effect, so a refused job reports its cause instead of timing out opaquely.
+- Fake collaborators at the tsyringe boundary with `vi.spyOn(container.resolve(X), "m")`, or with `nock` for HTTP. `test:ci-setup` starts only the database and the mock OAuth2 server, so anything reaching notifications, provider-proxy, the tx signer, or KMS must be faked or the test dies on `ECONNREFUSED`.
+- Keep the existing unit spec. Integration coverage supersedes it as the guarantee, but removing specs is separate work with its own coverage argument.
+
+The shared helpers live in `apps/api/test/services/job-queue-harness.ts` and the DB seeders in `apps/api/test/seeders/db/`. `apps/api/src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler.integration.ts` is the reference example.
+
+An exception is fair for a handler that touches no table and makes no ability-scoped call — a pure pass-through to another service. Such a test asserts a spy was called after a queue round trip, which tests the harness rather than the handler. Say so rather than writing it.
 
 ## API Functional Tests
 

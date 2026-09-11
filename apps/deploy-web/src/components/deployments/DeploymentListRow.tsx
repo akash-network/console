@@ -12,6 +12,7 @@ import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
+import { isUsableDeploymentDefinition, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
@@ -48,7 +49,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const router = useRouter();
   const { analyticsService } = useServices();
   const [open, setOpen] = useState(false);
-  const { changeDeploymentName, getDeploymentData } = useLocalNotes();
+  const { changeDeploymentName } = useLocalNotes();
   const { address, signAndBroadcastTx, isTrialing } = useWallet();
   const isActive = deployment.state === "active";
   const { data: filteredLeases, isLoading: isLoadingLeases } = useDeploymentLeaseList(address, deployment, { enabled: !!deployment });
@@ -63,7 +64,8 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const closedReasonLabel = closedLease ? getClosedLeaseLabel(closedLease) : null;
   const hasGpu = Boolean(deployment.gpuAmount && deployment.gpuAmount > 0);
   const interconnect = useDeclaredGpuInterconnect(deployment);
-  const storageDeploymentData = getDeploymentData(deployment?.dseq);
+  /** Only once the menu is open, so a list of rows does not each fire a deployment read on mount. */
+  const definition = useDeploymentDefinition(open ? deployment?.dseq : null);
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
   const providersByOwner = useMemo(() => keyBy(providers, p => p.owner), [providers]);
   const lease = filteredLeases?.find(lease => !!(lease?.provider && providersByOwner[lease.provider]));
@@ -213,9 +215,10 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                       <CustomDropdownLinkItem onClick={() => changeDeploymentName(deployment.dseq)} icon={<Edit fontSize="small" />}>
                         Edit name
                       </CustomDropdownLinkItem>
-                      {storageDeploymentData?.manifest && (
+                      {(definition.source === "resolving" || isUsableDeploymentDefinition(definition)) && (
                         <CustomDropdownLinkItem
-                          onClick={() => redeploy({ sdl: storageDeploymentData?.manifest, name: storageDeploymentData?.name })}
+                          disabled={definition.source === "resolving"}
+                          onClick={() => redeploy({ sdl: definition.sdl, name: definition.name })}
                           icon={<Upload fontSize="small" />}
                         >
                           Redeploy

@@ -1,5 +1,5 @@
 import { MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { LeaseHttpService } from "@akashnetwork/http-sdk";
 import { Trace, withSpan } from "@akashnetwork/instrumentation";
@@ -7,7 +7,7 @@ import { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { IndexedTx } from "@cosmjs/stargate";
 import { context, trace } from "@opentelemetry/api";
 import assert from "http-assert";
-import { BadRequest, isHttpError } from "http-errors";
+import createError, { BadRequest, isHttpError } from "http-errors";
 import pick from "lodash/pick";
 import { inject, singleton } from "tsyringe";
 
@@ -23,12 +23,14 @@ import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.se
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { RecordDeploymentSetting, recordDeploymentSettingKeyFor } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { UserRepository } from "@src/user/repositories";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { BalancesService } from "../balances/balances.service";
 import { BillingConfigService } from "../billing-config/billing-config.service";
 import { ChainErrorService } from "../chain-error/chain-error.service";
+import { DeploymentDepositRefusalCache, isInsufficient } from "../deployment-deposit-refusal-cache/deployment-deposit-refusal-cache.service";
 import { TrialValidationService } from "../trial-validation/trial-validation.service";
 
 type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
@@ -58,6 +60,8 @@ export class ManagedSignerService {
     private readonly walletReloadJobService: WalletReloadJobService,
     private readonly managedUserWalletService: ManagedUserWalletService,
     private readonly trialActivationJobService: TrialActivationJobService,
+    private readonly deploymentSettingRepository: DeploymentSettingRepository,
+    private readonly depositRefusalCache: DeploymentDepositRefusalCache,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: ManagedSignerService.name });
@@ -99,12 +103,22 @@ export class ManagedSignerService {
     transactionHash: string;
     rawLog: string;
   }> {
+    return this.executeDecodedTxByUserWallet(await this.#findSigningWallet(userId), messages);
+  }
+
+  /** Every refusal the broadcast would raise before signing, for a caller that must not record anything a refusal would strand. */
+  @Trace()
+  async assertCanBroadcast(userId: UserWalletOutput["userId"], messages: EncodeObject[]): Promise<void> {
+    await this.#assertBroadcastable(await this.#findSigningWallet(userId), messages);
+  }
+
+  async #findSigningWallet(userId: UserWalletOutput["userId"]): Promise<UserWalletOutput> {
     assert(userId, 404, "User Not Found");
 
     const userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "sign").findOneByUserId(userId);
     assert(userWallet, 404, "UserWallet Not Found");
 
-    return this.executeDecodedTxByUserWallet(userWallet, messages);
+    return userWallet;
   }
 
   @Trace()
@@ -117,15 +131,7 @@ export class ManagedSignerService {
     transactionHash: string;
     rawLog: string;
   }> {
-    await this.#assertActivatedForSpending(userWallet, messages);
-    await this.#validateBalances(userWallet, messages);
-    await Promise.all([
-      this.anonymousValidateService.validateLeaseProvidersAuditors(messages, userWallet),
-      this.anonymousValidateService.validateDeploymentGpuModels(messages, userWallet),
-      this.anonymousValidateService.validateDeploymentGpuInterconnect(messages, userWallet),
-      this.anonymousValidateService.validateDeploymentResources(messages, userWallet),
-      this.anonymousValidateService.validateLeaseGpuModels(messages, userWallet)
-    ]);
+    await this.#assertBroadcastable(userWallet, messages);
 
     const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
     const hasCreateTrialLeaseMessage = userWallet.isTrialing && !!createLeaseMessage;
@@ -144,6 +150,8 @@ export class ManagedSignerService {
       await this.#scheduleReloadOnPaymentRequired(error, userWallet);
       throw error;
     }
+
+    await this.#recordClosedDeployments(userWallet, messages);
 
     if (hasCreateTrialLeaseMessage) {
       await this.domainEvents.publish(
@@ -198,15 +206,29 @@ export class ManagedSignerService {
 
   /** A create broadcast here never passes through the deployment API that would record it, so the record is written from the landed transaction. */
   async #recordCreatedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[]) {
-    const createdDseqs = messages
-      .filter((message): message is { typeUrl: string; value: MsgCreateDeployment } => message.typeUrl.endsWith(".MsgCreateDeployment"))
-      .map(message => message.value.id?.dseq)
-      .filter(dseq => dseq !== undefined);
-
-    for (const dseq of createdDseqs) {
+    for (const dseq of this.#findDeploymentDseqs(messages, ".MsgCreateDeployment")) {
       const key = { userId: userWallet.userId, dseq: dseq.toString() };
       await this.domainEvents.publish(new RecordDeploymentSetting(key), { singletonKey: recordDeploymentSettingKeyFor(key) });
     }
+  }
+
+  /** No close path writes this record, and it runs before the other post-broadcast work so a rejected publish cannot drop an accepted close. */
+  async #recordClosedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[]) {
+    for (const dseq of this.#findDeploymentDseqs(messages, ".MsgCloseDeployment")) {
+      try {
+        await this.deploymentSettingRepository.markClosed({ userId: userWallet.userId, dseq: dseq.toString() });
+      } catch (error) {
+        this.logger.error({ event: "CLOSED_DEPLOYMENT_RECORD_FAILED", userId: userWallet.userId, dseq: dseq.toString(), error });
+      }
+    }
+  }
+
+  /** Both deployment messages carry the id in the same shape, so one of the two types describes either. */
+  #findDeploymentDseqs(messages: EncodeObject[], typeUrlSuffix: string): bigint[] {
+    return messages
+      .filter((message): message is { typeUrl: string; value: MsgCreateDeployment | MsgCloseDeployment } => message.typeUrl.endsWith(typeUrlSuffix))
+      .map(message => message.value.id?.dseq)
+      .filter((dseq): dseq is bigint => dseq !== undefined);
   }
 
   async #ensureAutoReloadSchedule(userId: UserWalletOutput["userId"], messages: EncodeObject[]) {
@@ -232,6 +254,19 @@ export class ManagedSignerService {
     return messages.some(message => SPENDING_TXS.some(msg => message.typeUrl.endsWith(msg.$type)));
   }
 
+  async #assertBroadcastable(userWallet: UserWalletOutput, messages: EncodeObject[]): Promise<void> {
+    await this.#assertActivatedForSpending(userWallet, messages);
+    await this.#validateBalances(userWallet, messages);
+    await Promise.all([
+      this.anonymousValidateService.validateLeaseProvidersAuditors(messages, userWallet),
+      this.anonymousValidateService.validateDeploymentGpuModels(messages, userWallet),
+      this.anonymousValidateService.validateDeploymentGpuInterconnect(messages, userWallet),
+      this.anonymousValidateService.validateDeploymentResources(messages, userWallet),
+      this.anonymousValidateService.validateLeaseGpuModels(messages, userWallet),
+      this.anonymousValidateService.validateFairUsePolicyAccepted(messages, userWallet)
+    ]);
+  }
+
   /**
    * A managed wallet gets its address at registration but can only broadcast a spending tx once the trial is
    * activated and its on-chain grants are provisioned (in the background, see {@link WalletInitializerService}).
@@ -245,21 +280,17 @@ export class ManagedSignerService {
     await this.trialActivationJobService.assertActivated(userWallet);
   }
 
-  /**
-   * Validates that the user wallet has sufficient balances to cover transaction fees and deployment costs.
-   * Always fetches fee allowance from the chain to ensure accuracy, as database values may be out of sync.
-   * Fetches deployment allowance from the chain only when a deployment message is present, otherwise uses cached value.
-   * Automatically refills fee authorization for eligible trial wallets if fee allowance is below FEE_ALLOWANCE_REFILL_THRESHOLD.
-   *
-   * @param userWallet - The user wallet to validate balances for
-   * @param messages - Array of transaction messages to check for deployment messages
-   * @throws {HttpError} 402 if there are not enough funds to cover the transaction fee
-   * @throws {HttpError} 402 if the deployment allowance cannot cover the deposits the create messages ask for
-   */
+  /** Fee allowance always comes from the chain and the deployment allowance only when a create is present, since the row can lag behind the chain. */
   async #validateBalances(userWallet: UserWalletOutput, messages: EncodeObject[]) {
     return withSpan("ManagedSignerService.validateBalances", async () => {
       const createDeploymentMessages = this.#getCreateDeploymentMessages(messages);
       const hasDeploymentMessage = createDeploymentMessages.length > 0;
+      const requiredDeposit = this.#sumDepositsDrawnFromGrant(createDeploymentMessages);
+
+      if (hasDeploymentMessage) {
+        await this.#refuseFromCache(userWallet, requiredDeposit);
+      }
+
       const [feeAllowance, deploymentAllowance] = await Promise.all([
         this.ensureFeeGrants(userWallet),
         !hasDeploymentMessage ? Promise.resolve(userWallet.deploymentAllowance) : this.balancesService.retrieveDeploymentLimit(userWallet)
@@ -267,10 +298,9 @@ export class ManagedSignerService {
 
       assert(feeAllowance > 0, 402, "Not enough funds to cover the transaction fee");
 
-      const requiredDeposit = this.#sumDepositsDrawnFromGrant(createDeploymentMessages);
-
-      if (hasDeploymentMessage && (deploymentAllowance <= 0 || deploymentAllowance < requiredDeposit)) {
+      if (hasDeploymentMessage && isInsufficient(deploymentAllowance, requiredDeposit)) {
         const reloadScheduled = await this.#scheduleReloadForInsufficientBalance(userWallet);
+        const { retryAfterSeconds } = this.depositRefusalCache.remember(userWallet, deploymentAllowance);
 
         this.logger.warn({
           event: "DEPLOYMENT_CREATE_REFUSED_INSUFFICIENT_ALLOWANCE",
@@ -281,9 +311,37 @@ export class ManagedSignerService {
           reloadScheduled
         });
 
-        assert(false, 402, reloadScheduled ? INSUFFICIENT_DEPOSIT_BALANCE_RELOADING_MESSAGE : INSUFFICIENT_DEPOSIT_BALANCE_MESSAGE);
+        this.#throwInsufficientDepositBalance(reloadScheduled, retryAfterSeconds);
       }
     });
+  }
+
+  /** Re-serves a recent refusal until a funding path rewrites the wallet row, re-reading auto recharge every time so a pause mid-window still changes the answer. */
+  async #refuseFromCache(userWallet: UserWalletOutput, requiredDeposit: number): Promise<void> {
+    const cached = this.depositRefusalCache.find(userWallet, requiredDeposit);
+
+    if (!cached) {
+      return;
+    }
+
+    const reloadScheduled = await this.#scheduleReloadForInsufficientBalance(userWallet);
+
+    this.logger.debug({
+      event: "DEPLOYMENT_CREATE_REFUSED_FROM_CACHE",
+      userId: userWallet.userId,
+      deploymentAllowance: cached.chainDeploymentAllowance,
+      requiredDeposit,
+      reloadScheduled,
+      suppressedAttempts: cached.suppressedAttempts
+    });
+
+    this.#throwInsufficientDepositBalance(reloadScheduled, cached.retryAfterSeconds);
+  }
+
+  #throwInsufficientDepositBalance(reloadScheduled: boolean, retryAfterSeconds: number): never {
+    const message = reloadScheduled ? INSUFFICIENT_DEPOSIT_BALANCE_RELOADING_MESSAGE : INSUFFICIENT_DEPOSIT_BALANCE_MESSAGE;
+
+    throw createError(402, message, { headers: { "Retry-After": String(retryAfterSeconds) } });
   }
 
   #getCreateDeploymentMessages(messages: EncodeObject[]): { typeUrl: string; value: MsgCreateDeployment }[] {

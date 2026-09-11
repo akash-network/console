@@ -11,6 +11,7 @@ import { NextSeo } from "next-seo";
 import { createConfigureDraft } from "@src/components/deployments/ConfigureDeployment/useConfigureDraft/useConfigureDraft";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { isUsableDeploymentDefinition, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
@@ -33,6 +34,7 @@ export const DEPENDENCIES = {
   useRouter,
   useSearchParams,
   useRedeploy,
+  useDeploymentDefinition,
   useDeploymentDetail,
   useDeploymentLeaseList,
   useProviderList,
@@ -69,7 +71,7 @@ export interface DeploymentDetailProps {
 }
 
 export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies: d = DEPENDENCIES }) => {
-  const { deploymentLocalStorage, sdlAnalyzer, analyticsService } = d.useServices();
+  const { sdlAnalyzer, analyticsService } = d.useServices();
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
   const { address } = d.useWallet();
@@ -92,11 +94,13 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   });
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = d.useProviderList();
 
-  const storedDeployment = deployment ? deploymentLocalStorage.get(address, dseq) : null;
-  const deploymentManifest = storedDeployment?.manifest || "";
+  const definition = d.useDeploymentDefinition(dseq);
+  const deploymentManifest = definition.sdl || "";
   const isActive = deployment?.state === "active" && !!leases?.some(isLeaseLive);
   const isDeploymentNotFound = !!deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found") && !isLoadingDeployment;
   const showsPageSkeleton = !isDeploymentNotFound && !deploymentError && !isLeasesError && (!deployment || !isLeasesLoaded);
+  /** The placement cards read their services off the definition, so rendering them before it lands shows "0 services" and then corrects itself. */
+  const showsPlacementsSkeleton = definition.source === "resolving";
 
   useEffect(() => {
     if (deployment) {
@@ -107,13 +111,14 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
   useEffect(
     function redirectWhenInProgressWithoutLease() {
+      if (definition.source === "resolving") return;
+
       if (leases && deployment?.state === "active" && leases.length === 0 && !deployment.groups?.some(g => g.state === "paused")) {
-        const localData = deploymentLocalStorage.get(address, dseq);
-        const draftId = localData?.manifest ? createConfigureDraft(localData.manifest, localData.name) : undefined;
+        const draftId = isUsableDeploymentDefinition(definition) ? createConfigureDraft(definition.sdl, definition.name) : undefined;
         router.replace(UrlService.configureDeployment({ dseq, draftId }));
       }
     },
-    [address, deployment?.state, deployment?.groups, deploymentLocalStorage, dseq, leases, router]
+    [deployment?.state, deployment?.groups, definition.source, definition.sdl, definition.name, dseq, leases, router]
   );
 
   const tabQuery = searchParams?.get("tab");
@@ -130,8 +135,8 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
     }
   }
 
-  function redeployFromStoredManifest() {
-    redeploy({ sdl: storedDeployment?.manifest, name: storedDeployment?.name });
+  function redeployFromResolvedDefinition() {
+    redeploy({ sdl: definition.sdl, name: definition.name });
     analyticsService.track("redeploy_btn_clk", "Amplitude");
   }
 
@@ -166,7 +171,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
       {showsPageSkeleton && <DeploymentDetailSkeleton />}
 
-      {deployment && isLeasesLoaded && (
+      {!showsPageSkeleton && deployment && isLeasesLoaded && (
         <>
           <div className={PAGE_BAND}>
             <d.DeploymentDetailHeader deployment={deployment} leases={leases} providers={providers || []} />
@@ -191,15 +196,18 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
             <div className="flex-1 bg-muted py-6">
               <div className={PAGE_BAND}>
-                {activeTab === "DETAILS" && (
-                  <d.DeploymentPlacements
-                    leases={leases || []}
-                    providers={providers || []}
-                    deploymentManifest={deploymentManifest}
-                    dseq={dseq}
-                    onClosed={loadDeploymentDetail}
-                  />
-                )}
+                {activeTab === "DETAILS" &&
+                  (showsPlacementsSkeleton ? (
+                    <Skeleton className="h-64 w-full rounded-xl" data-testid="deployment-placements-skeleton" />
+                  ) : (
+                    <d.DeploymentPlacements
+                      leases={leases || []}
+                      providers={providers || []}
+                      deploymentManifest={deploymentManifest}
+                      dseq={dseq}
+                      onClosed={loadDeploymentDetail}
+                    />
+                  ))}
 
                 {activeTab === "LOGS" && (isActive ? <d.DeploymentLogs leases={leases} selectedLogsMode="logs" /> : <TabInactiveState />)}
                 {activeTab === "EVENTS" && (isActive ? <d.DeploymentLogs leases={leases} selectedLogsMode="events" /> : <TabInactiveState />)}
@@ -211,8 +219,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                     onManifestChange={setEditedManifest}
                     isRemoteDeploy={isRemoteDeploy}
                     deployment={deployment}
-                    leases={leases}
-                    onRedeploy={storedDeployment?.manifest ? redeployFromStoredManifest : undefined}
+                    onRedeploy={isUsableDeploymentDefinition(definition) ? redeployFromResolvedDefinition : undefined}
                     closeManifestEditor={() => {
                       changeTab("DETAILS");
                       loadDeploymentDetail();

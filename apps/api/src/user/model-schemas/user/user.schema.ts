@@ -28,6 +28,7 @@ export const Users = pgTable("userSetting", {
   lastUserAgent: varchar("last_user_agent", { length: userAgentMaxLength }),
   lastFingerprint: varchar("last_fingerprint", { length: 255 }),
   onboardingSkippedAt: timestamp("onboardingSkippedAt"),
+  fairUsePolicyAcceptedAt: timestamp("fair_use_policy_accepted_at", { withTimezone: true }),
   createdAt: timestamp("created_at").defaultNow()
 });
 

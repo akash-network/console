@@ -3,7 +3,7 @@ import { inject, singleton } from "tsyringe";
 
 import { TrialStarted } from "@src/billing/events/trial-started";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { type CreateLogger, EventPayload, JobHandler, JobQueueService, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, EventPayload, JobHandler, type JobPermissions, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { RESOLVED_MARKER } from "@src/notifications/services/notification-data-resolver/notification-data-resolver.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
@@ -26,6 +26,10 @@ export class TrialStartedHandler implements JobHandler<TrialStarted> {
     private readonly billingConfig: BillingConfigService
   ) {
     this.logger = createLogger({ context: TrialStartedHandler.name });
+  }
+
+  requiresPermission(): JobPermissions {
+    return [];
   }
 
   async handle(payload: EventPayload<TrialStarted>): Promise<void> {

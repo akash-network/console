@@ -4,7 +4,12 @@ import { singleton } from "tsyringe";
 
 import { MetricsService } from "@src/core";
 import type { DrainingDeployment } from "@src/deployment/types/draining-deployment";
-import type { DeploymentTopUpInstrumentation, FundingMessageItem, OwnerInsufficientBalanceItem } from "./deployment-top-up-instrumentation";
+import {
+  type DeploymentTopUpInstrumentation,
+  describeUnfundedOwner,
+  type FundingMessageItem,
+  type OwnerInsufficientBalanceItem
+} from "./deployment-top-up-instrumentation";
 
 export type FundDrainingFailureReason = "master_wallet_insufficient_funds" | "deposit_tx_failed" | "unknown";
 
@@ -41,8 +46,10 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
   private readonly messagePreparationErrors: Counter;
   private readonly insufficientBalanceWithAutoReload: Counter;
   private readonly chainTxErrors: Counter;
+  private readonly undecidedTxOutcomes: Counter;
   private readonly masterWalletInsufficientFunds: Counter;
   private readonly deploymentsMarkedClosed: Counter;
+  private readonly settingsWithoutChainState: Counter;
   private readonly claimReleaseErrors: Counter;
   private readonly headroomConcessions: Counter;
 
@@ -93,8 +100,16 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
       description: "Total number of failed immediate funding deposit attempts"
     });
 
+    this.undecidedTxOutcomes = this.metricsService.createCounter(this.meter, "fund_draining_deployments_undecided_tx_outcomes_total", {
+      description: "Total number of immediate funding deposits whose transaction may still land, so their funding claims were held rather than released"
+    });
+
     this.masterWalletInsufficientFunds = this.metricsService.createCounter(this.meter, "fund_draining_deployments_master_wallet_insufficient_funds_total", {
       description: "Total number of immediate funding deposits aborted because the master wallet had insufficient funds"
+    });
+
+    this.settingsWithoutChainState = this.metricsService.createCounter(this.meter, "fund_draining_settings_without_chain_state_total", {
+      description: "Deployment records the pass could not resolve to any chain state, so it neither funded nor closed them"
     });
 
     this.deploymentsMarkedClosed = this.metricsService.createCounter(this.meter, "fund_draining_deployments_deployments_marked_closed_total", {
@@ -150,9 +165,23 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
     this.emitLog("info", { event: "FUND_DRAINING_RUNTIME_LIMIT_REACHED", ...details });
   }
 
-  recordDepositBelowUsefulRunway(details: { dseq: string; address: string; desiredAmount: number; affordableAmount: number; runwayMinutes: number }): void {
+  recordDepositBelowUsefulRunway({
+    deployment,
+    ...amounts
+  }: {
+    deployment: DrainingDeployment;
+    desiredAmount: number;
+    affordableAmount: number;
+    runwayMinutes: number;
+  }): void {
     this.skips.add(1, { reason: "below_useful_runway" satisfies FundDrainingSkipReason });
-    this.emitLog("warn", { event: "FUND_DRAINING_DEPOSIT_BELOW_USEFUL_RUNWAY", ...details });
+    this.emitLog("warn", {
+      event: "FUND_DRAINING_DEPOSIT_BELOW_USEFUL_RUNWAY",
+      dseq: deployment.dseq,
+      address: deployment.address,
+      ...describeUnfundedOwner(deployment),
+      ...amounts
+    });
   }
 
   recordHeadroomConceded(details: {
@@ -199,6 +228,7 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
     this.emitLog("warn", {
       event: "FUND_DRAINING_OWNER_INSUFFICIENT_BALANCE",
       owner,
+      ...describeUnfundedOwner(deployments[0].deployment),
       spendable,
       deploymentCount: deployments.length,
       deployments: deployments.map(({ deployment, desiredAmount }) => ({ dseq: deployment.dseq, desiredAmount }))
@@ -210,6 +240,17 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
     this.emitLog("error", {
       event: "FUND_DRAINING_CHAIN_TX_ERROR",
       owner,
+      deposits: this.serializeDeposits(items),
+      error
+    });
+  }
+
+  recordUndecidedTxOutcome({ owner, items, txHash, error }: { owner: string; items: FundingMessageItem[]; txHash?: string; error: unknown }): void {
+    this.undecidedTxOutcomes.add(1);
+    this.emitLog("error", {
+      event: "FUND_DRAINING_UNDECIDED_TX_OUTCOME",
+      owner,
+      txHash,
       deposits: this.serializeDeposits(items),
       error
     });
@@ -237,6 +278,13 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
 
   recordDeploymentsMarkedClosed(count: number): void {
     this.deploymentsMarkedClosed.add(count);
+  }
+
+  /** Logged at debug because a churning owner produces one per pass, while the counter is what says whether the number is falling. */
+  recordSettingWithoutChainState({ dseq, address }: { dseq: string; address: string }): void {
+    this.settingsWithoutChainState.add(1);
+
+    this.emitLog("debug", { event: "FUND_DRAINING_SETTING_WITHOUT_CHAIN_STATE", dseq, address });
   }
 
   recordCreditsLowScheduleError({ walletId, error }: { walletId: number; error: unknown }): void {
@@ -302,7 +350,7 @@ export class FundDrainingDeploymentsInstrumentationService implements Deployment
    * escaping a record* call would mark an already-completed deposit as failed and trigger a retry.
    * Metrics are emitted before logging because the OTel spec guarantees instrument writes never throw.
    */
-  private emitLog(level: "info" | "warn" | "error", payload: Record<string, unknown>): void {
+  private emitLog(level: "debug" | "info" | "warn" | "error", payload: Record<string, unknown>): void {
     try {
       this.logger[level](payload);
     } catch {

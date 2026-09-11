@@ -26,7 +26,7 @@ type DeploymentSettingChange = Pick<DeploymentSettingsInput, "runtimeLimitHours"
 
 type DeploymentSettingWithEstimatedTopUpAmount = Omit<
   DeploymentSettingsOutput,
-  "lastFundedAt" | "runtimeEndingNotifiedFor" | "providerUnreachableNotifiedFor" | "sdl" | "sealedSecrets" | "manifestVersion" | "runtimeEndsAt"
+  "lastFundedAt" | "runtimeEndingNotifiedFor" | "providerUnreachableNotifiedFor" | "sealedSecrets" | "manifestVersion" | "runtimeEndsAt"
 > & {
   estimatedTopUpAmount: number;
   topUpFrequencyMs: number;
@@ -50,30 +50,11 @@ export class DeploymentSettingService {
     private readonly domainEvents: DomainEventsService
   ) {}
 
-  async findOrCreateByUserIdAndDseq(params: FindDeploymentSettingParams): Promise<DeploymentSettingWithEstimatedTopUpAmount | undefined> {
+  /** A read persists nothing: a row written for whatever dseq a client asks about is backed by no deployment, and nothing can ever close it. */
+  async findByUserIdAndDseq(params: FindDeploymentSettingParams): Promise<DeploymentSettingWithEstimatedTopUpAmount | undefined> {
     const setting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy(params);
 
-    if (setting) {
-      return this.withEstimatedTopUpAmount(setting);
-    }
-
-    try {
-      return await this.createWithDefaults(params);
-    } catch (error) {
-      if (error instanceof ForbiddenError) {
-        return undefined;
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * Creates a settings row on the repository's defaults, recording no choice by the user. Deployment
-   * create uses this: the row exists from the start without scheduling a wallet reload the user never
-   * asked for, which is what makes creating a row cheap enough to do for every deployment.
-   */
-  async createWithDefaults(params: FindDeploymentSettingParams): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
-    return await this.withEstimatedTopUpAmount(await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "create").create(params));
+    return setting && (await this.withEstimatedTopUpAmount(setting));
   }
 
   /**
@@ -105,7 +86,7 @@ export class DeploymentSettingService {
   }
 
   /**
-   * A row can appear between the read and the write: a settings read creates one lazily, and a second
+   * A row can appear between the read and the write: deployment create records one, and a second
    * request for the same deployment takes the same no-row-yet branch. The (dseq, userId) unique catches
    * whichever insert loses, and re-reading lets the request run again as an update, landing where it
    * would have had it arrived a moment later instead of surfacing the driver error as a 500. One retry
@@ -347,7 +328,7 @@ export class DeploymentSettingService {
     const setting = { ...rest, runtimeEndsAt: runtimeEndsAt?.toISOString() ?? null };
 
     if (!setting.autoTopUpEnabled) {
-      return { ...setting, estimatedTopUpAmount: 0, topUpFrequencyMs: this.topUpFrequencyMs };
+      return { ...setting, estimatedTopUpAmount: 0, topUpFrequencyMs: this.topUpFrequencyMs, sdl };
     }
 
     const estimatedTopUpAmount = await this.drainingDeploymentService.calculateTopUpAmountForDseqAndUserId(setting.dseq, setting.userId);
@@ -360,6 +341,6 @@ export class DeploymentSettingService {
       });
     }
 
-    return { ...setting, estimatedTopUpAmount, topUpFrequencyMs: this.topUpFrequencyMs };
+    return { ...setting, sdl, estimatedTopUpAmount, topUpFrequencyMs: this.topUpFrequencyMs };
   }
 }

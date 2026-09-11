@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { UserWallets, WalletSetting } from "@src/billing/model-schemas";
@@ -38,6 +38,21 @@ export type ExpiringRuntimeDeployment = {
   runtimeEndsAt: Date;
   /** The deadline as stored, in text, so a claim can match it without losing the sub-millisecond digits a `Date` drops. */
   runtimeEndsAtMarker: string;
+};
+
+export type OpenDeployment = {
+  id: string;
+  userId: string;
+  dseq: string;
+  address: string;
+  createdAt: Date;
+};
+
+export type LiveTrialDeployment = {
+  userId: string;
+  dseq: string;
+  walletId: number;
+  createdAt: Date;
 };
 
 export type AutoTopUpDeployment = {
@@ -107,6 +122,40 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return this.#findAutoTopUpDeployments(address);
   }
 
+  /** Keyset-paged on `id`, the leading column of `id_auto_top_up_enabled_closed_idx`, so each batch stays an index scan. */
+  async *findOpenDeploymentsIteratively({ batchSize }: { batchSize: number }): AsyncGenerator<OpenDeployment[]> {
+    let cursor: string | undefined;
+
+    while (true) {
+      const batch = await this.pg
+        .select({
+          id: this.table.id,
+          userId: this.table.userId,
+          dseq: this.table.dseq,
+          address: UserWallets.address,
+          createdAt: this.table.createdAt
+        })
+        .from(this.table)
+        .innerJoin(Users, eq(this.table.userId, Users.id))
+        .innerJoin(UserWallets, eq(Users.id, UserWallets.userId))
+        .where(and(eq(this.table.closed, false), isNotNull(UserWallets.address), ...(cursor ? [gt(this.table.id, cursor)] : [])))
+        .orderBy(asc(this.table.id))
+        .limit(batchSize);
+
+      if (!batch.length) {
+        return;
+      }
+
+      yield batch as OpenDeployment[];
+
+      if (batch.length < batchSize) {
+        return;
+      }
+
+      cursor = batch[batch.length - 1].id;
+    }
+  }
+
   async #findAutoTopUpDeployments(address?: string): Promise<AutoTopUpDeployment[]> {
     const clauses = [eq(this.table.autoTopUpEnabled, true), eq(this.table.closed, false), isNotNull(UserWallets.address)];
 
@@ -138,6 +187,32 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .orderBy(desc(this.table.id));
 
     return deployments as AutoTopUpDeployment[];
+  }
+
+  /** `closed` is Console bookkeeping that drifts from the chain, so these are candidates the probe job re-checks on chain. */
+  async findLiveTrialDeployments({ maxAgeHours }: { maxAgeHours: number }): Promise<LiveTrialDeployment[]> {
+    const hours = Math.max(1, Math.trunc(maxAgeHours));
+    const deployments = await this.cursor
+      .select({
+        userId: this.table.userId,
+        dseq: this.table.dseq,
+        walletId: UserWallets.id,
+        createdAt: this.table.createdAt
+      })
+      .from(this.table)
+      .innerJoin(UserWallets, eq(UserWallets.userId, this.table.userId))
+      .where(
+        and(
+          eq(this.table.closed, false),
+          eq(UserWallets.isTrialing, true),
+          isNotNull(UserWallets.address),
+          isNull(UserWallets.abuseLockedAt),
+          gt(this.table.createdAt, sql`now() - make_interval(hours => ${sql.raw(String(hours))})`)
+        )
+      )
+      .orderBy(desc(this.table.createdAt));
+
+    return deployments as LiveTrialDeployment[];
   }
 
   /**
@@ -299,6 +374,47 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .returning({ id: this.table.id });
 
     return row.id;
+  }
+
+  /** The expected version is compared inside this statement's own WHERE, not by a prior read, so two patches racing over one document cannot both write. */
+  async replaceDefinitionIfVersionMatches({
+    userId,
+    dseq,
+    sdl,
+    manifestVersion,
+    sealedSecrets,
+    expectedManifestVersion
+  }: {
+    userId: string;
+    dseq: string;
+    sdl: string;
+    manifestVersion: string;
+    sealedSecrets: string | null;
+    expectedManifestVersion?: string;
+  }): Promise<string | undefined> {
+    const [row] = await this.cursor
+      .update(this.table)
+      .set({ sdl, manifestVersion, sealedSecrets, updatedAt: sql`now()` })
+      .where(
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.userId, userId),
+            eq(this.table.dseq, dseq),
+            isNotNull(this.table.sdl),
+            ...this.#versionGuard(expectedManifestVersion, manifestVersion)
+          )
+        )
+      )
+      .returning({ id: this.table.id });
+
+    return row?.id;
+  }
+
+  /** A row already carrying the version this write computes is that write's own output, so a guarded retry succeeds rather than conflicting: `manifestVersion` hashes the resolved manifest, and equal versions mean equal effective state down to the secret values. */
+  #versionGuard(expectedManifestVersion: string | undefined, manifestVersion: string) {
+    if (expectedManifestVersion === undefined) return [];
+
+    return [or(eq(this.table.manifestVersion, expectedManifestVersion), eq(this.table.manifestVersion, manifestVersion))];
   }
 
   /** Conflicts are ignored rather than merged, so a row another path already wrote keeps every choice its writer made. */

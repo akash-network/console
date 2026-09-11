@@ -51,6 +51,10 @@ export const envSchema = z.object({
   CREDITS_LOW_RECOVERY_CONFIRM_WINDOW_MIN: z.number({ coerce: true }).min(0).default(30),
   /** How long credits must keep reading low before the email goes out, so a single misread cannot send one. */
   CREDITS_LOW_CONFIRM_WINDOW_MIN: z.number({ coerce: true }).min(0).default(30),
+  /** The notified latch holds at least this long before a recovery can clear it, so closing deployments and redeploying cannot re-arm the email within hours. */
+  CREDITS_LOW_RESEND_COOLDOWN_H: z.number({ coerce: true }).min(0).default(168),
+  /** Safety net only: a cached refusal is dropped as soon as any funding path rewrites the wallet row, so this bounds nothing but the residual race. */
+  DEPLOYMENT_CREATE_REFUSAL_CACHE_TTL_SECONDS: z.number({ coerce: true }).int().min(1).default(300),
   MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: z
     .string()
     .default("nvidia/b300,nvidia/b200,nvidia/h200,nvidia/h100,nvidia/pro6000se,nvidia/pro6000we,nvidia/a100,nvidia/rtx5090,nvidia/rtx4090,nvidia/rtx3090")
@@ -72,7 +76,9 @@ export const envSchema = z.object({
   MASTER_WALLET_AKT_RESERVE: z.number({ coerce: true }).int().nonnegative().default(2_000_000_000),
   MASTER_WALLET_MAX_MINT_UAKT: z.number({ coerce: true }).int().nonnegative().default(5_000_000_000),
   TX_SIGNER_BASE_URL: z.string(),
-  TX_SIGNER_API_KEY: z.string().min(32)
+  TX_SIGNER_API_KEY: z.string().min(32),
+  /** Must stay above the signer's own `SIGN_AND_BROADCAST_DEADLINE_MS`, or aborting here abandons a tx the signer is still broadcasting. */
+  TX_SIGNER_REQUEST_TIMEOUT_MS: z.number({ coerce: true }).positive().default(180_000)
 });
 
 export type BillingConfig = z.infer<typeof envSchema>;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ClosedDeploymentsReconcilerService } from "@src/deployment/services/closed-deployments-reconciler/closed-deployments-reconciler.service";
 import type { DeploymentCloseJobService } from "@src/deployment/services/deployment-close-job/deployment-close-job.service";
 import type { ExpiringDeploymentsNotifierService } from "@src/deployment/services/expiring-deployments-notifier/expiring-deployments-notifier.service";
 import type { StaleManagedDeploymentsCleanerService } from "@src/deployment/services/stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
@@ -27,6 +28,27 @@ describe(TopUpDeploymentsController.name, () => {
       await controller.topUpDeployments(options);
 
       expect(deploymentCloseJobService.reconcileExpired).toHaveBeenCalledWith(options);
+    });
+
+    it("reconciles deployment records against chain state, which the funding sweep's own selection cannot reach", async () => {
+      const { controller, closedDeploymentsReconcilerService } = setup();
+      const options = { concurrency: 5, dryRun: false };
+
+      await controller.topUpDeployments(options);
+
+      expect(closedDeploymentsReconcilerService.reconcileClosedDeployments).toHaveBeenCalledWith(options);
+    });
+
+    it("reconciles deployment records before the funding sweep so a sweep failure cannot skip them", async () => {
+      const { controller, topUpManagedDeploymentsService, closedDeploymentsReconcilerService } = setup();
+      topUpManagedDeploymentsService.topUpDeployments.mockRejectedValue(new Error("chain rpc unavailable"));
+      const options = { concurrency: 5, dryRun: false };
+
+      await expect(controller.topUpDeployments(options)).rejects.toThrow("chain rpc unavailable");
+
+      expect(closedDeploymentsReconcilerService.reconcileClosedDeployments.mock.invocationCallOrder[0]).toBeLessThan(
+        topUpManagedDeploymentsService.topUpDeployments.mock.invocationCallOrder[0]
+      );
     });
 
     it("reconciles close jobs before the funding sweep so a sweep failure cannot skip them", async () => {
@@ -95,13 +117,15 @@ describe(TopUpDeploymentsController.name, () => {
     const expiringDeploymentsNotifierService = mock<ExpiringDeploymentsNotifierService>();
     const unreachableProviderDeploymentsNotifierService = mock<UnreachableProviderDeploymentsNotifierService>();
     const unreachableProviderDeploymentsCloserService = mock<UnreachableProviderDeploymentsCloserService>();
+    const closedDeploymentsReconcilerService = mock<ClosedDeploymentsReconcilerService>();
     const controller = new TopUpDeploymentsController(
       topUpManagedDeploymentsService,
       staleDeploymentsCleanerService,
       deploymentCloseJobService,
       expiringDeploymentsNotifierService,
       unreachableProviderDeploymentsNotifierService,
-      unreachableProviderDeploymentsCloserService
+      unreachableProviderDeploymentsCloserService,
+      closedDeploymentsReconcilerService
     );
 
     return {
@@ -111,7 +135,8 @@ describe(TopUpDeploymentsController.name, () => {
       deploymentCloseJobService,
       expiringDeploymentsNotifierService,
       unreachableProviderDeploymentsNotifierService,
-      unreachableProviderDeploymentsCloserService
+      unreachableProviderDeploymentsCloserService,
+      closedDeploymentsReconcilerService
     };
   }
 });

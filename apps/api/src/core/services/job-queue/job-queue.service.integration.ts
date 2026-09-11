@@ -1,4 +1,4 @@
-import { secondsToMilliseconds } from "date-fns";
+import { addMinutes, addSeconds, secondsToMilliseconds } from "date-fns";
 import { sql } from "drizzle-orm";
 import { PgBoss, type Queue as PgBossQueue } from "pg-boss";
 import { container } from "tsyringe";
@@ -78,6 +78,18 @@ describe(JobQueueService.name, () => {
     expect(after.created_on).toEqual(before.created_on);
   });
 
+  it("rewrites a queue created as standard onto the exclusive policy its handler declares, so a second job under one key is refused", async () => {
+    const singletonKey = "row-1";
+    const { jobQueue, handler, createLegacyQueue, enqueue, findQueue } = await setup({ queueName: "exclusive-late", policy: "exclusive" });
+    await createLegacyQueue({ policy: "standard" });
+
+    await jobQueue.registerHandlers([handler]);
+
+    expect((await findQueue()).policy).toBe("exclusive");
+    expect(await enqueue({ singletonKey })).toEqual(expect.any(String));
+    expect(await enqueue({ singletonKey })).toBeNull();
+  });
+
   it("gives a queue it creates for the first time the same base delay", async () => {
     const { jobQueue, handler, findQueue } = await setup({ queueName: "never-seen" });
 
@@ -139,6 +151,81 @@ describe(JobQueueService.name, () => {
     expect((await findJob()).state).toBe("cancelled");
   });
 
+  it("reports a job waiting under the key when it is not due before the instant asked about", async () => {
+    const singletonKey = "row-1";
+    const { jobQueue, handler, enqueue } = await setup({ queueName: "waiting-far" });
+    await jobQueue.registerHandlers([handler]);
+    await enqueue({ singletonKey, startAfter: addMinutes(new Date(), 1).toISOString() });
+
+    const waiting = await jobQueue.hasWaitingSingleton({ name: "waiting-far", singletonKey, notDueBefore: addSeconds(new Date(), 30) });
+
+    expect(waiting).toBe(true);
+  });
+
+  it("leaves out a job under the key that comes due before the instant asked about", async () => {
+    const singletonKey = "row-1";
+    const { jobQueue, handler, enqueue } = await setup({ queueName: "waiting-soon" });
+    await jobQueue.registerHandlers([handler]);
+    await enqueue({ singletonKey, startAfter: addMinutes(new Date(), 1).toISOString() });
+
+    const waiting = await jobQueue.hasWaitingSingleton({ name: "waiting-soon", singletonKey, notDueBefore: addMinutes(new Date(), 5) });
+
+    expect(waiting).toBe(false);
+  });
+
+  it("leaves out a job under the key once a worker holds it", async () => {
+    const singletonKey = "row-1";
+    let release!: () => void;
+    const held = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const { jobQueue, handler, enqueue, findJob } = await setup({ queueName: "waiting-active", handle: () => held });
+    await jobQueue.registerHandlers([handler]);
+    await enqueue({ singletonKey });
+    await jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 });
+    await waitForJobState(findJob, "active");
+
+    const waiting = await jobQueue.hasWaitingSingleton({ name: "waiting-active", singletonKey, notDueBefore: new Date(0) });
+
+    expect(waiting).toBe(false);
+    release();
+    await waitForJobState(findJob, "completed");
+  });
+
+  it("takes a replacement under a key a worker already holds, so a job enqueued to supersede the run in flight is not dropped", async () => {
+    const singletonKey = "row-1";
+    let release!: () => void;
+    const held = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const { jobQueue, handler, enqueue, findJob, findJobs } = await setup({ queueName: "stately-active", policy: "stately", handle: () => held });
+    await jobQueue.registerHandlers([handler]);
+    await enqueue({ singletonKey });
+    await jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 });
+    await waitForJobState(findJob, "active");
+
+    const replacement = await enqueue({ singletonKey });
+    const secondReplacement = await enqueue({ singletonKey });
+
+    expect(replacement).toEqual(expect.any(String));
+    expect(secondReplacement).toBeNull();
+    release();
+    await vi.waitFor(async () => expect((await findJobs()).map(job => job.state)).toEqual(["completed", "completed"]), { timeout: 20_000, interval: 250 });
+  });
+
+  it("reports a job under the key that is waiting on a retry", async () => {
+    const singletonKey = "row-1";
+    const { jobQueue, handler, enqueue, findJob } = await setup({ queueName: "waiting-retry", handle: vi.fn().mockRejectedValue(new Error("boom")) });
+    await jobQueue.registerHandlers([handler]);
+    await enqueue({ singletonKey });
+    await jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 });
+    await waitForJobState(findJob, "retry");
+
+    const waiting = await jobQueue.hasWaitingSingleton({ name: "waiting-retry", singletonKey, notDueBefore: new Date(0) });
+
+    expect(waiting).toBe(true);
+  });
+
   function waitForJobState(findJob: () => Promise<JobRow>, state: string) {
     return vi.waitFor(
       async () => {
@@ -167,12 +254,26 @@ describe(JobQueueService.name, () => {
       constructor(public readonly data: Record<string, unknown> = {}) {}
     }
 
+    const findJobs = async () => {
+      const rows = await db.execute<JobRow>(
+        sql`select state, retry_limit, retry_backoff, retry_delay, retry_delay_max, start_after::text
+            from ${backgroundJobsSchema()}.job where name = ${queueName} order by created_on`
+      );
+
+      return rows as unknown as JobRow[];
+    };
+
     return {
       jobQueue,
-      handler: { accepts: ScopedJob, policy, handle: input.handle ?? vi.fn().mockResolvedValue(undefined) } satisfies JobHandler<Job>,
+      handler: {
+        accepts: ScopedJob,
+        policy,
+        requiresPermission: () => [],
+        handle: input.handle ?? vi.fn().mockResolvedValue(undefined)
+      } satisfies JobHandler<Job>,
       enqueue: (options?: EnqueueOptions) => jobQueue.enqueue(new ScopedJob(), options),
-      createLegacyQueue: () =>
-        pgBoss.createQueue(queueName, { retryLimit: RETRY_LIMIT, retryBackoff: true, retryDelayMax: RETRY_DELAY_MAX_IN_SECONDS, policy }),
+      createLegacyQueue: (overrides?: { policy?: PgBossQueue["policy"] }) =>
+        pgBoss.createQueue(queueName, { retryLimit: RETRY_LIMIT, retryBackoff: true, retryDelayMax: RETRY_DELAY_MAX_IN_SECONDS, policy, ...overrides }),
       findQueue: async () => {
         const rows = await db.execute<QueueRow>(
           sql`select name, policy, retry_limit, retry_backoff, retry_delay, retry_delay_max, created_on::text, updated_on::text
@@ -181,14 +282,8 @@ describe(JobQueueService.name, () => {
 
         return (rows as unknown as QueueRow[])[0];
       },
-      findJob: async () => {
-        const rows = await db.execute<JobRow>(
-          sql`select state, retry_limit, retry_backoff, retry_delay, retry_delay_max, start_after::text
-              from ${backgroundJobsSchema()}.job where name = ${queueName}`
-        );
-
-        return (rows as unknown as JobRow[])[0];
-      }
+      findJob: async () => (await findJobs())[0],
+      findJobs
     };
   }
 });

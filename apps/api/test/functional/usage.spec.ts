@@ -1,5 +1,5 @@
 import { subDays } from "date-fns";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { UsageHistoryResponse, UsageHistoryStats } from "@src/billing/http-schemas/usage.schema";
 import { app, initDb } from "@src/rest-app";
@@ -300,7 +300,7 @@ describe("GET /v1/usage/history", () => {
   it("returns usage history for a valid address with default date range", async () => {
     const { owners } = await setup();
     const response = await app.request(`/v1/usage/history?address=${owners[0]}`);
-    await expectUsageHistory(response, 31);
+    await expectUsageHistory(response, 30);
   });
 
   it("returns usage history for a valid address with custom date range", async () => {
@@ -318,7 +318,7 @@ describe("GET /v1/usage/history", () => {
   it("returns empty array for address with no leases", async () => {
     const { owners } = await setup();
     const response = await app.request(`/v1/usage/history?address=${owners[2]}`);
-    const data = await expectUsageHistory(response, 31);
+    const data = await expectUsageHistory(response, 30);
 
     data.forEach(day => {
       expect(day.activeDeployments).toBe(0);
@@ -382,9 +382,21 @@ describe("GET /v1/usage/history", () => {
     expect(response.status).toBe(400);
   });
 
-  it("responds with 400 when date range exceeds 365 days", async () => {
+  it("returns a full window for a range of exactly 366 days", async () => {
     const { owners, now } = await setup();
-    const startDate = formatUTCDate(subDays(now, 400));
+    const startDate = formatUTCDate(subDays(now, 365));
+    const endDate = formatUTCDate(now);
+
+    const response = await app.request(`/v1/usage/history?address=${owners[0]}&startDate=${startDate}&endDate=${endDate}`);
+    const data = await expectUsageHistory(response, 366);
+
+    expect(data[0].date).toBe(startDate);
+    expect(data[data.length - 1].date).toBe(endDate);
+  });
+
+  it("responds with 400 when the date range spans 367 days", async () => {
+    const { owners, now } = await setup();
+    const startDate = formatUTCDate(subDays(now, 366));
     const endDate = formatUTCDate(now);
 
     const response = await app.request(`/v1/usage/history?address=${owners[0]}&startDate=${startDate}&endDate=${endDate}`);
@@ -396,15 +408,22 @@ describe("GET /v1/usage/history", () => {
     const endDate = formatUTCDate(now);
 
     const response = await app.request(`/v1/usage/history?address=${owners[0]}&endDate=${endDate}`);
-    await expectUsageHistory(response, 31); // 30 days before endDate + endDate itself
+    await expectUsageHistory(response, 30);
   });
 
   it("uses current date as default endDate when not provided", async () => {
     const { now, owners } = await setup();
-    const startDate = formatUTCDate(subDays(now, 5));
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(now);
 
-    const response = await app.request(`/v1/usage/history?address=${owners[0]}&startDate=${startDate}`);
-    await expectUsageHistory(response, 6); // 5 days + today
+    try {
+      const startDate = formatUTCDate(subDays(now, 5));
+
+      const response = await app.request(`/v1/usage/history?address=${owners[0]}&startDate=${startDate}`);
+      await expectUsageHistory(response, 6);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -430,6 +449,27 @@ describe("GET /v1/usage/history/stats", () => {
     };
 
     return { owners, expectUsageStats };
+  }
+
+  async function seedDeploymentsAroundWindow() {
+    await initDb();
+    const now = new Date();
+    now.setUTCHours(12, 0, 0, 0);
+    const owner = createAkashAddress();
+
+    const blocks = await Promise.all([
+      createAkashBlock({ height: 900001, datetime: subDays(now, 10) }),
+      createAkashBlock({ height: 900002, datetime: subDays(now, 8) }),
+      createAkashBlock({ height: 900003, datetime: subDays(now, 2) })
+    ]);
+
+    await Promise.all([
+      createDeployment({ owner, dseq: "9001", createdHeight: blocks[0].height, closedHeight: blocks[2].height }),
+      createDeployment({ owner, dseq: "9002", createdHeight: blocks[2].height, closedHeight: null }),
+      createDeployment({ owner, dseq: "9003", createdHeight: blocks[0].height, closedHeight: blocks[1].height })
+    ]);
+
+    return { owner, startDate: formatUTCDate(subDays(now, 5)), endDate: formatUTCDate(now) };
   }
 
   it("returns usage stats for a valid address with default date range", async () => {
@@ -463,6 +503,16 @@ describe("GET /v1/usage/history/stats", () => {
     expect(data.averageDeploymentsPerDay).toBe(0);
   });
 
+  it("counts the deployments that were active during the window", async () => {
+    const { expectUsageStats } = setup();
+    const { owner, startDate, endDate } = await seedDeploymentsAroundWindow();
+
+    const response = await app.request(`/v1/usage/history/stats?address=${owner}&startDate=${startDate}&endDate=${endDate}`);
+    const data = await expectUsageStats(response);
+
+    expect(data.totalDeployments).toBe(2);
+  });
+
   it("responds with 400 for invalid address format", async () => {
     const response = await app.request("/v1/usage/history/stats?address=invalid-address");
     expect(response.status).toBe(400);
@@ -484,10 +534,20 @@ describe("GET /v1/usage/history/stats", () => {
     expect(response.status).toBe(400);
   });
 
-  it("responds with 400 when date range exceeds 365 days", async () => {
+  it("returns stats for a range of exactly 366 days", async () => {
+    const { owners, expectUsageStats } = setup();
+    const now = new Date();
+    const startDate = formatUTCDate(subDays(now, 365));
+    const endDate = formatUTCDate(now);
+
+    const response = await app.request(`/v1/usage/history/stats?address=${owners[0]}&startDate=${startDate}&endDate=${endDate}`);
+    await expectUsageStats(response);
+  });
+
+  it("responds with 400 when the date range spans 367 days", async () => {
     const { owners } = setup();
     const now = new Date();
-    const startDate = formatUTCDate(subDays(now, 400));
+    const startDate = formatUTCDate(subDays(now, 366));
     const endDate = formatUTCDate(now);
 
     const response = await app.request(`/v1/usage/history/stats?address=${owners[0]}&startDate=${startDate}&endDate=${endDate}`);

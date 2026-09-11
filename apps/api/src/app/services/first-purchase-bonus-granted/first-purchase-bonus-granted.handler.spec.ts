@@ -51,6 +51,12 @@ describe(FirstPurchaseBonusGrantedHandler.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: FirstPurchaseBonusGrantedHandler.name });
   });
 
+  it("declares no permissions for its execution", () => {
+    const { handler } = setup();
+
+    expect(handler.requiresPermission()).toEqual([]);
+  });
+
   function setup(input?: { findUserById?: UserRepository["findById"] }) {
     const mocks = {
       notificationService: mock<NotificationService>({

@@ -204,6 +204,10 @@ export class UserService {
   async skipOnboarding(userId: string) {
     await this.userRepository.updateBy({ id: userId, onboardingSkippedAt: null }, { onboardingSkippedAt: new Date() });
   }
+
+  async acceptFairUsePolicy(userId: string) {
+    await this.userRepository.updateBy({ id: userId, fairUsePolicyAcceptedAt: null }, { fairUsePolicyAcceptedAt: new Date() });
+  }
 }
 
 function adjustUsername(wantedUsername: string) {

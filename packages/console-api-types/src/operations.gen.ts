@@ -96,6 +96,14 @@ export const operations = {
       queryParams: ["timezone", "startDate", "endDate"],
       hasBody: false
     },
+    acceptFairUsePolicy: {
+      path: "/v1/user/acceptFairUsePolicy",
+      method: "post",
+      operationId: "acceptFairUsePolicy",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
     getDeploymentFundingConfig: {
       path: "/v1/deployment-funding-config",
       method: "get",
@@ -114,6 +122,7 @@ export const operations = {
       hasBody: false
     },
     updateDeployment: { path: "/v1/deployments/{dseq}", method: "put", operationId: "updateDeployment", pathParams: ["dseq"], queryParams: [], hasBody: true },
+    patchDeployment: { path: "/v1/deployments/{dseq}", method: "patch", operationId: "patchDeployment", pathParams: ["dseq"], queryParams: [], hasBody: true },
     createDeployment: { path: "/v1/deployments", method: "post", operationId: "createDeployment", pathParams: [], queryParams: [], hasBody: true },
     listDeployments: { path: "/v1/deployments", method: "get", operationId: "listDeployments", pathParams: [], queryParams: ["skip", "limit"], hasBody: false },
     depositDeployment: { path: "/v1/deposit-deployment", method: "post", operationId: "depositDeployment", pathParams: [], queryParams: [], hasBody: true },
@@ -212,6 +221,16 @@ export const operations = {
       operationId: "listDeploymentAlerts",
       pathParams: ["dseq"],
       queryParams: [],
+      hasBody: false
+    }
+  },
+  v2: {
+    getDeploymentSetting: {
+      path: "/v2/deployment-settings/{dseq}",
+      method: "get",
+      operationId: "getDeploymentSetting",
+      pathParams: ["dseq"],
+      queryParams: ["userId"],
       hasBody: false
     }
   }

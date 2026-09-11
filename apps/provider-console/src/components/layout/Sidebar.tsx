@@ -25,9 +25,8 @@ import getConfig from "next/config";
 import Image from "next/image";
 import Link from "next/link";
 
-import { useProvider } from "@src/context/ProviderContext";
 import type { ISidebarGroupMenu } from "@src/types";
-import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
+import { closedDrawerWidth, drawerWidth, topBannerHeightCssVar } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ControlMachineStatus } from "./ControlMachineStatus";
@@ -48,8 +47,6 @@ type Props = {
 
 export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isNavOpen, onOpenMenuClick }) => {
   const [isHovering, setIsHovering] = useState(false);
-
-  const { providerDetails, isLoadingProviderDetails, isOnline, isLoadingOnlineStatus } = useProvider();
 
   const _isNavOpen = isNavOpen || isHovering;
   const muiTheme = useMuiTheme();
@@ -179,20 +176,9 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
   const drawer = (
     <div
       style={{ width: _isNavOpen ? drawerWidth : closedDrawerWidth }}
-      className="border-muted-foreground/20 bg-popover dark:bg-background box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] transition-[width] duration-300 ease-in-out md:h-[calc(100%-57px)]"
+      className="border-muted-foreground/20 bg-popover dark:bg-background box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] transition-[width] duration-300 ease-in-out md:h-[calc(100%_-_57px_-_var(--top-banner-height,0px))]"
     >
       <div className={cn("flex w-full flex-col items-center justify-between", { ["p-2"]: _isNavOpen, ["pb-2 pt-2"]: !_isNavOpen })}>
-        {(isLoadingProviderDetails || isLoadingOnlineStatus) && (!providerDetails || !isOnline) && (
-          <Link
-            className={cn(buttonVariants({ variant: "default", size: _isNavOpen ? "lg" : "icon" }), "h-[45px] w-full leading-4", {
-              ["h-[45px] w-[45px] min-w-0 pb-2 pt-2"]: !_isNavOpen
-            })}
-            href="/become-provider"
-          >
-            {_isNavOpen && "Create Provider "}
-          </Link>
-        )}
-
         {routeGroups.map((g, i) => (
           <SidebarGroupMenu key={i} group={g} hasDivider={g.hasDivider} isNavOpen={_isNavOpen} />
         ))}
@@ -291,7 +277,13 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
         }}
         sx={{
           display: { xs: "block", sm: "block", md: "none" },
-          "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth, overflow: "hidden" }
+          "& .MuiDrawer-paper": {
+            boxSizing: "border-box",
+            width: drawerWidth,
+            overflow: "hidden",
+            top: `var(${topBannerHeightCssVar}, 0px)`,
+            height: `calc(100% - var(${topBannerHeightCssVar}, 0px))`
+          }
         }}
         PaperProps={{
           sx: {
@@ -308,10 +300,13 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
         onMouseEnter={onDrawerHover}
         onMouseLeave={() => setIsHovering(false)}
         PaperProps={{
-          className: cn("border-none ease z-[1000] bg-header/95 transition-[width] duration-300 box-border overflow-hidden mt-[57px]", {
-            ["md:w-[240px]"]: _isNavOpen,
-            ["md:w-[57px]"]: !_isNavOpen
-          })
+          className: cn(
+            "border-none ease z-[1000] bg-header/95 transition-[width] duration-300 box-border overflow-hidden mt-[calc(57px_+_var(--top-banner-height,0px))]",
+            {
+              ["md:w-[240px]"]: _isNavOpen,
+              ["md:w-[57px]"]: !_isNavOpen
+            }
+          )
         }}
         open
       >
