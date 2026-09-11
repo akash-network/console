@@ -78,19 +78,19 @@ export class DataKeyRewrapService {
     for await (const batch of this.dataKeyRepository.findWrappedUnderOtherVersionsIteratively({ targetKid: target.kid, batchSize: pageSize })) {
       if (dryRun) {
         rewrapped += this.#auditBatch(batch, target, errors);
-        continue;
+      } else {
+        const wrappings = await this.#rewrapBatch(batch, target, sealingKey, errors);
+
+        await this.txService.transaction(async () => {
+          for (const { id, wrappedKey } of wrappings) {
+            await this.dataKeyRepository.updateById(id, { wrappedKey, wrappedByKid: target.kid });
+          }
+        });
+
+        rewrapped += wrappings.length;
+        bytesRewritten += wrappings.reduce((total, { wrappedKey }) => total + Buffer.byteLength(wrappedKey), 0);
       }
 
-      const wrappings = await this.#rewrapBatch(batch, target, sealingKey, errors);
-
-      await this.txService.transaction(async () => {
-        for (const { id, wrappedKey } of wrappings) {
-          await this.dataKeyRepository.updateById(id, { wrappedKey, wrappedByKid: target.kid });
-        }
-      });
-
-      rewrapped += wrappings.length;
-      bytesRewritten += wrappings.reduce((total, { wrappedKey }) => total + Buffer.byteLength(wrappedKey), 0);
       this.logger.info({ event: "DATA_KEY_REWRAP_BATCH", rewrapped, failed: errors.length, bytesRewritten });
     }
 

@@ -253,6 +253,15 @@ describe(DataKeyRewrapService.name, () => {
   });
 
   describe("dry run", () => {
+    it("marks each audited batch with the same progress event a real run emits", async () => {
+      const { service, logger } = setup({ rows: [aRow({}), aRow({}), aRow({})] });
+
+      await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, batchSize: 2, dryRun: true });
+
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "DATA_KEY_REWRAP_BATCH", rewrapped: 2, failed: 0 }));
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "DATA_KEY_REWRAP_BATCH", rewrapped: 3, failed: 0 }));
+    });
+
     it("writes nothing and reports what a real run would move", async () => {
       const { service, report, dataKeyRepository, txService, wrappedJweService } = setup({
         rows: [aRow({ wrappedByKid: SOURCE_KID }), aRow({ wrappedByKid: SOURCE_KID })],
