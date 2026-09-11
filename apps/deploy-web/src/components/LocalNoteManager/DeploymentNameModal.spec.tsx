@@ -1,12 +1,9 @@
-import { createStore, Provider as JotaiStoreProvider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
-import type { MockProxy } from "vitest-mock-extended";
 import { mock, mockDeep } from "vitest-mock-extended";
 
 import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/config/deploy.config";
 import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
 import type { DeploymentStorageService } from "@src/services/deployment-storage/deployment-storage.service";
-import { settingsIdAtom } from "@src/store/settingsStore";
 import type { DEPENDENCIES } from "./DeploymentNameModal";
 import { DeploymentNameModal } from "./DeploymentNameModal";
 
@@ -31,12 +28,13 @@ describe("DeploymentNameModal", () => {
     await waitFor(() => expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.getDeployment.getKey({ dseq: "12345" }) }));
   });
 
-  it("records the new name in this browser too, which the deployments list still reads", async () => {
-    const { deploymentLocalStorage } = setup({});
+  it("records nothing in this browser, because the api is now where the name lives", async () => {
+    const { deploymentLocalStorage, onSaved } = setup({});
 
     await rename("my-app");
 
-    await waitFor(() => expect(deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "12345", { name: "my-app" }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(deploymentLocalStorage.update).not.toHaveBeenCalled();
   });
 
   it("reports the rename as saved once the api accepted it", async () => {
@@ -83,19 +81,6 @@ describe("DeploymentNameModal", () => {
     await rename("my-app");
 
     expect(patchMutate).not.toHaveBeenCalled();
-  });
-
-  it("still refreshes and closes when this browser cannot record the new name", async () => {
-    const deploymentLocalStorage = mock<DeploymentStorageService>();
-    deploymentLocalStorage.update.mockImplementation(() => {
-      throw new Error("QuotaExceededError");
-    });
-    const { queryClient, onSaved } = setup({ deploymentLocalStorage });
-
-    await rename("my-app");
-
-    await waitFor(() => expect(onSaved).toHaveBeenCalled());
-    expect(queryClient.invalidateQueries).toHaveBeenCalled();
   });
 
   it.each(["", "   "])("refuses a name of %p, which the api rejects rather than reading as unnamed", async typed => {
@@ -175,7 +160,6 @@ describe("DeploymentNameModal", () => {
     resolvedName?: string;
     patchMutate?: ReturnType<typeof vi.fn>;
     isPending?: boolean;
-    deploymentLocalStorage?: MockProxy<DeploymentStorageService>;
   }) {
     const dseq = input.dseq === undefined ? "12345" : input.dseq;
     const patchMutate = input.patchMutate ?? vi.fn((_variables, options) => options?.onSuccess?.());
@@ -186,7 +170,7 @@ describe("DeploymentNameModal", () => {
       mock<ReturnType<typeof api.v1.patchDeployment.useMutation>>({ mutate: patchMutate as never, isPending: input.isPending ?? false })
     );
 
-    const deploymentLocalStorage = input.deploymentLocalStorage ?? mock<DeploymentStorageService>();
+    const deploymentLocalStorage = mock<DeploymentStorageService>();
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
     const enqueueSnackbar = vi.fn();
     const onSaved = vi.fn();
@@ -198,15 +182,10 @@ describe("DeploymentNameModal", () => {
       useResolvedDeploymentName: () => resolvedName
     };
 
-    const store = createStore();
-    store.set(settingsIdAtom, "akash1abc");
-
     const modalFor = (shownDseq: string | number | null) => (
-      <JotaiStoreProvider store={store}>
-        <TestContainerProvider services={{ api: () => api, deploymentLocalStorage: () => deploymentLocalStorage }}>
-          <DeploymentNameModal dseq={shownDseq} onClose={onClose} onSaved={onSaved} dependencies={dependencies} />
-        </TestContainerProvider>
-      </JotaiStoreProvider>
+      <TestContainerProvider services={{ api: () => api, deploymentLocalStorage: () => deploymentLocalStorage }}>
+        <DeploymentNameModal dseq={shownDseq} onClose={onClose} onSaved={onSaved} dependencies={dependencies} />
+      </TestContainerProvider>
     );
     const { rerender } = render(modalFor(dseq));
 
