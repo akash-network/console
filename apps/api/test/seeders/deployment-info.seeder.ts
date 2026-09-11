@@ -24,7 +24,7 @@ export interface DeploymentInfoErrorSeederInput {
 export function createDeploymentInfoSeed(input: DeploymentInfoSeederInput = {}): RestAkashDeploymentInfoResponse {
   const {
     owner = createAkashAddress(),
-    dseq = faker.string.numeric(),
+    dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false }),
     state = "active",
     version = deploymentVersion,
     createdAt = "2021-01-01T00:00:00Z",

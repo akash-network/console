@@ -14,7 +14,7 @@ import { MockProvider } from "@test/mocks/provider.mock";
 describe(DeploymentAlertController.name, () => {
   it("should call deploymentAlertService.upsert() and return result", async () => {
     const { controller, service, authService } = await setup();
-    const dseq = faker.string.numeric();
+    const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
     const input = generateMock(DeploymentAlertCreateInput.schema);
     const output = generateMock(DeploymentAlertsResponse.schema);
 
@@ -28,7 +28,7 @@ describe(DeploymentAlertController.name, () => {
 
   it("should call deploymentAlertService.get() and return result", async () => {
     const { controller, service, authService } = await setup();
-    const dseq = faker.string.numeric();
+    const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
     const output = generateMock(DeploymentAlertsResponse.schema);
 
     service.get.mockResolvedValue(output.data);

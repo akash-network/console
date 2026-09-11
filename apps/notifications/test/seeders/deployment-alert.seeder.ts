@@ -5,7 +5,7 @@ import type { DeploymentAlertInput, DeploymentAlertOutput } from "@src/modules/a
 import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
 
 export const generateDeploymentBalanceAlertInput = ({
-  dseq = faker.string.numeric(),
+  dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false }),
   owner = mockAkashAddress(),
   notificationChannelId = faker.string.uuid(),
   enabled = true,
