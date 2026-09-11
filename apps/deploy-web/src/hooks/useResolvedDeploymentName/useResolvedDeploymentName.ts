@@ -18,10 +18,9 @@ export function useResolvedDeploymentName(dseq: string | undefined | null, depen
       catchError(error) {
         if (error instanceof ApiError && error.status >= 500) throw error;
         return null;
-      },
-      select: response => response?.data?.name ?? null
+      }
     }
   );
 
-  return query.data ?? deploymentLocalStorage.get(address, dseq)?.name;
+  return query.data?.data.name ?? deploymentLocalStorage.get(address, dseq)?.name;
 }

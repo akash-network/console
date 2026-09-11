@@ -20,6 +20,12 @@ describe(useResolvedDeploymentName.name, () => {
     await vi.waitFor(() => expect(result.current).toBe("api-name"));
   });
 
+  it("asks the api for the deployment the caller named", async () => {
+    const { getDeployment } = setup({ apiName: "api-name" });
+
+    await vi.waitFor(() => expect(getDeployment).toHaveBeenCalledWith({ dseq: "123" }));
+  });
+
   it("falls back to this browser's record when the api holds no name", async () => {
     const { result, getDeployment } = setup({ apiName: null, localName: "local-name" });
 
@@ -40,17 +46,22 @@ describe(useResolvedDeploymentName.name, () => {
     expect(result.current).toBeUndefined();
   });
 
-  it.each([401, 403, 404])("falls back to this browser's record on a %s without reporting it", async status => {
-    const { result, onQueryError } = setup({ apiError: new ApiError(status, {}, `GET /v1/deployments/{dseq} → ${status}`), localName: "local-name" });
+  it.each([401, 403, 404])("recovers a %s into this browser's record instead of failing the query", async status => {
+    const { result, onQueryError, queryStatus } = setup({
+      apiError: new ApiError(status, {}, `GET /v1/deployments/{dseq} → ${status}`),
+      localName: "local-name"
+    });
 
-    await vi.waitFor(() => expect(result.current).toBe("local-name"));
+    await vi.waitFor(() => expect(queryStatus()).toBe("success"));
+    expect(result.current).toBe("local-name");
     expect(onQueryError).not.toHaveBeenCalled();
   });
 
   it("reports a server error rather than silencing it, and still falls back", async () => {
-    const { result, onQueryError } = setup({ apiError: new ApiError(500, {}, "GET /v1/deployments/{dseq} → 500"), localName: "local-name" });
+    const { result, onQueryError, queryStatus } = setup({ apiError: new ApiError(500, {}, "GET /v1/deployments/{dseq} → 500"), localName: "local-name" });
 
     await vi.waitFor(() => expect(onQueryError).toHaveBeenCalled());
+    expect(queryStatus()).toBe("error");
     expect(result.current).toBe("local-name");
   });
 
@@ -87,6 +98,12 @@ describe(useResolvedDeploymentName.name, () => {
       services: { api: () => api, deploymentLocalStorage: () => deploymentLocalStorage, queryClient: () => queryClient }
     });
 
-    return { result, getDeployment, deploymentLocalStorage, onQueryError };
+    return {
+      result,
+      getDeployment,
+      deploymentLocalStorage,
+      onQueryError,
+      queryStatus: () => queryClient.getQueryState(api.v1.getDeployment.getKey({ dseq: "123" }))?.status
+    };
   }
 });
