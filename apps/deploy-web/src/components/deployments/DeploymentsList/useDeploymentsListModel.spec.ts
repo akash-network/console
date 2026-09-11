@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentsPage } from "@src/queries/useDeploymentQuery";
+import sdlStore from "@src/store/sdlStore";
+import type { TemplateCreation } from "@src/types";
 import type { DeploymentDto } from "@src/types/deployment";
 import { DEFAULT_PAGE_SIZE, DEPENDENCIES, useDeploymentsListModel } from "./useDeploymentsListModel";
 
@@ -118,6 +120,14 @@ describe(useDeploymentsListModel.name, () => {
       expect(result.current.showNoSearchResults).toBe(false);
     });
 
+    it("ignores the whitespace around a search term when matching", async () => {
+      const { result } = setup({ active: [deployment("100"), deployment("101")], names: { "100": "acme", "101": "other" } });
+
+      await act(async () => result.current.changeSearch("  acme  "));
+
+      expect(result.current.pageDeployments.map(d => d.dseq)).toEqual(["100"]);
+    });
+
     it("returns to the first page when the search changes", async () => {
       const many = Array.from({ length: DEFAULT_PAGE_SIZE + 1 }, (_, index) => deployment(`${100 + index}`));
       const { result } = setup({ active: many });
@@ -185,6 +195,19 @@ describe(useDeploymentsListModel.name, () => {
       expect(result.current.pageIndex).toBe(0);
       expect(result.current.pageSize).toBe(50);
       expect(useDeploymentsPage).toHaveBeenLastCalledWith("akash1owner", { state: "active", skip: 0, limit: 50 }, expect.anything());
+    });
+
+    it("steps back one page at a time until it lands on one that still has rows", async () => {
+      const { result } = setup({
+        activeByPage: { 0: [deployment("100")], 1: [deployment("101")], 2: [] },
+        hasNextPage: true
+      });
+
+      await act(async () => result.current.goToNextPage());
+      await act(async () => result.current.goToNextPage());
+
+      await waitFor(() => expect(result.current.pageIndex).toBe(1));
+      expect(result.current.pageDeployments.map(d => d.dseq)).toEqual(["101"]);
     });
 
     it("falls back a page when the current one has emptied out", async () => {
@@ -315,6 +338,15 @@ describe(useDeploymentsListModel.name, () => {
       expect(result.current.hasAnyDeployment).toBe(false);
     });
 
+    it("counts an account that has paged forward as having deployments, even on an empty page", async () => {
+      const { result, rerenderWith } = setup({ active: [deployment("100")], hasNextPage: true });
+
+      await act(async () => result.current.goToNextPage());
+      rerenderWith({ active: [], isFetching: true });
+
+      expect(result.current.hasAnyDeployment).toBe(true);
+    });
+
     it("counts an account with only closed deployments as having deployments", () => {
       const { result } = setup({ active: [], archived: [deployment("200", "closed")] });
 
@@ -371,11 +403,12 @@ describe(useDeploymentsListModel.name, () => {
   });
 
   it("clears any staged SDL when a new deployment is started", () => {
-    const { result } = setup({ active: [deployment("100")] });
+    const { result, store } = setup({ active: [deployment("100")] });
+    store.set(sdlStore.deploySdl, mock<TemplateCreation>());
 
     act(() => result.current.startNewDeployment());
 
-    expect(result.current.hasWallet).toBe(true);
+    expect(store.get(sdlStore.deploySdl)).toBeNull();
   });
 
   function lastListCallFor(useDeploymentList: ReturnType<typeof vi.fn>, state: string) {
@@ -388,6 +421,7 @@ describe(useDeploymentsListModel.name, () => {
 
   type Input = {
     active?: DeploymentDto[];
+    activeByPage?: Record<number, DeploymentDto[]>;
     archived?: DeploymentDto[];
     address?: string;
     hasNextPage?: boolean;
@@ -410,9 +444,12 @@ describe(useDeploymentsListModel.name, () => {
     const closeDeploymentConfirm = vi.fn(async () => current.isCloseConfirmed ?? true);
     const signAndBroadcastTx = vi.fn(async () => ("broadcastResponse" in current ? (current.broadcastResponse as boolean) : true));
 
-    const useDeploymentsPage = vi.fn<typeof DEPENDENCIES.useDeploymentsPage>(() =>
+    const useDeploymentsPage = vi.fn<typeof DEPENDENCIES.useDeploymentsPage>((_address, params) =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentsPage>>(), {
-        data: { deployments: current.active ?? [], hasNextPage: current.hasNextPage ?? false } satisfies DeploymentsPage,
+        data: {
+          deployments: current.activeByPage ? current.activeByPage[params.skip / params.limit] ?? [] : current.active ?? [],
+          hasNextPage: current.hasNextPage ?? false
+        } satisfies DeploymentsPage,
         isFetching: current.isFetching ?? false,
         isError: current.isError ?? false,
         refetch: refetchPage
@@ -457,6 +494,7 @@ describe(useDeploymentsListModel.name, () => {
 
     return {
       ...hook,
+      store,
       rerenderWith(next: Partial<Input>) {
         current = { ...current, ...next };
         hook.rerender();
