@@ -416,7 +416,7 @@ export class DeploymentWriterService {
     ability: AnyAbility
   ): Promise<PatchDeploymentResponse["data"]> {
     if (input.name !== undefined && !input.services && !input.sealedSecrets) {
-      return await this.#renameByUserIdAndDseq(userId, dseq, input.name);
+      return await this.#renameByUserIdAndDseq(userId, dseq, input.name, ability);
     }
 
     const [wallet, stored] = await Promise.all([
@@ -496,11 +496,11 @@ export class DeploymentWriterService {
    * pushes nothing. That is what lets it reach a deployment created before the console recorded SDLs, which the
    * patch path refuses outright. The chain read is the ownership check that path gets from its stored row.
    */
-  async #renameByUserIdAndDseq(userId: string, dseq: string, name: string): Promise<PatchDeploymentResponse["data"]> {
+  async #renameByUserIdAndDseq(userId: string, dseq: string, name: string, ability: AnyAbility): Promise<PatchDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
 
-    const persistedName = await this.deploymentSettingRepository.upsertName({ userId, dseq, name });
+    const persistedName = await this.deploymentSettingRepository.accessibleBy(ability, "update").upsertName({ userId, dseq, name });
 
     this.logger.info({ event: "DEPLOYMENT_RENAMED", userId, dseq });
 
