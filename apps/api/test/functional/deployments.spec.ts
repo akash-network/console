@@ -252,9 +252,10 @@ describe("Deployments API", () => {
   function setupDeploymentListMock(wallets: UserWalletOutput[], count: number = 2, state: string = "active") {
     const address = wallets[0].address;
     const deployments: RestAkashDeploymentInfoResponse[] = [];
+    const firstDseq = faker.number.int({ min: 100000, max: 999999 });
 
     for (let i = 0; i < count; i++) {
-      const dseq = faker.string.numeric();
+      const dseq = `${firstDseq + i}`;
       const deploymentInfo = createDeploymentInfoSeed({
         owner: address!,
         dseq,
