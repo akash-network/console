@@ -642,12 +642,4 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         set: { closed: true, updatedAt: sql`now()` }
       });
   }
-
-  protected toInput(payload: Partial<DeploymentSettingsInput>): Partial<DeploymentSettingsInput> {
-    if (!payload.updatedAt) {
-      payload.updatedAt = new Date();
-    }
-
-    return payload;
-  }
 }
