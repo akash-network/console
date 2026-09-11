@@ -38,6 +38,14 @@ export default [
           message: "Import tsyringe's container under its own name so the root container rule below can see how it is used."
         },
         {
+          selector: "ImportDeclaration[source.value='tsyringe'] > ImportNamespaceSpecifier",
+          message: "Import tsyringe's members by name so the root container rule below can see how the container is used."
+        },
+        {
+          selector: "VariableDeclarator[init.name='container']",
+          message: "Renaming or destructuring the root container hides it from the rule below. Call container.createChildContainer() directly, or list this test in test/isolated-unit-tests.json."
+        },
+        {
           selector: "MemberExpression[object.name='container'][property.name!='createChildContainer']",
           message: "Reused workers share the root container, so registering or resolving on it leaks into other files. Use container.createChildContainer(), or list this test in test/isolated-unit-tests.json."
         },
