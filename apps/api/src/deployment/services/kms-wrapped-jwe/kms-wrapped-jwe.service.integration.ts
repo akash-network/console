@@ -45,7 +45,12 @@ async function createEnabledVersion() {
 let rotationPair: Promise<{ oldVersion: string; newVersion: string }> | undefined;
 
 function enabledRotationPair() {
-  rotationPair ??= Promise.all([createEnabledVersion(), createEnabledVersion()]).then(([oldVersion, newVersion]) => ({ oldVersion, newVersion }));
+  rotationPair ??= Promise.all([createEnabledVersion(), createEnabledVersion()])
+    .then(([oldVersion, newVersion]) => ({ oldVersion, newVersion }))
+    .catch(error => {
+      rotationPair = undefined;
+      throw error;
+    });
 
   return rotationPair;
 }
