@@ -4,14 +4,12 @@ import { useForm } from "react-hook-form";
 import { Form, FormField, FormInput, Popup, Snackbar } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAtom } from "jotai";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
 
 import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/config/deploy.config";
 import { useServices } from "@src/context/ServicesProvider";
 import { useResolvedDeploymentName } from "@src/hooks/useResolvedDeploymentName/useResolvedDeploymentName";
-import { settingsIdAtom } from "@src/store/settingsStore";
 
 export const DEPENDENCIES = { useSnackbar, useQueryClient, useResolvedDeploymentName };
 
@@ -31,8 +29,7 @@ type Props = {
 };
 
 export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, dependencies: d = DEPENDENCIES }) => {
-  const { api, deploymentLocalStorage } = useServices();
-  const [address] = useAtom(settingsIdAtom);
+  const { api } = useServices();
   const formRef = useRef<HTMLFormElement | null>(null);
   const { enqueueSnackbar } = d.useSnackbar();
   const queryClient = d.useQueryClient();
@@ -70,23 +67,13 @@ export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, d
     formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
 
-  /** The deployments list still resolves names from this browser alone, so the record is kept in step until it reads the api too — and a full or blocked store must not strand a rename the api has already accepted. */
-  function recordNameInThisBrowser(name: string) {
-    try {
-      deploymentLocalStorage.update(address, dseq, { name });
-    } catch {
-      return;
-    }
-  }
-
   function onSubmit({ name }: z.infer<typeof formSchema>) {
     if (!dseq || renameDeployment.isPending) return;
 
     renameDeployment.mutate(
       { dseq: String(dseq), data: { name } },
       {
-        onSuccess: function recordRename() {
-          recordNameInThisBrowser(name);
+        onSuccess: function reportRenameSaved() {
           queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq: String(dseq) }) });
           enqueueSnackbar(<Snackbar title="Success!" iconVariant="success" />, { variant: "success", autoHideDuration: 1000 });
           onSaved();
