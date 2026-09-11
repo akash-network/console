@@ -256,7 +256,7 @@ const patchRoute = createRoute({
   path: "/v1/deployments/{dseq}",
   summary: "Patch a deployment",
   description:
-    "Patches the SDL the console stored for this deployment; the SDL is never accepted from the request. Only the services named are touched. A patched environment variable is re-appended to its service's env list, so the order shown by GET may differ afterwards. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw. Re-sending the identical request repairs that: it recomputes the same manifest version, is accepted rather than refused, and goes on to broadcast and push the manifest.",
+    "Patches the SDL the console stored for this deployment, or renames the deployment, or both; the SDL is never accepted from the request. Only the services named are touched. A `name` on its own touches no definition, so it renames a deployment the console holds no SDL for and neither broadcasts nor pushes a manifest. A patched environment variable is re-appended to its service's env list, so the order shown by GET may differ afterwards. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw. Re-sending the identical request repairs that: it recomputes the same manifest version, is accepted rather than refused, and goes on to broadcast and push the manifest.",
   operationId: "patchDeployment",
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,
@@ -291,7 +291,8 @@ const patchRoute = createRoute({
       }
     },
     404: {
-      description: "No SDL is recorded for this deployment, so there is nothing to patch",
+      description:
+        "No SDL is recorded for this deployment, so there is nothing to patch. A rename answers this only when the chain holds no such deployment for the caller, since it needs no recorded SDL",
       content: {
         "application/json": {
           schema: ErrorResponseSchema

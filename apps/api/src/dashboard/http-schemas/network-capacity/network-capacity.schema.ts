@@ -1,4 +1,4 @@
-import z from "zod";
+import { z } from "@hono/zod-openapi";
 
 const statItemSchema = z.object({
   active: z.number(),

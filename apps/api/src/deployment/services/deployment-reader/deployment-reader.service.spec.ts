@@ -269,6 +269,29 @@ describe(DeploymentReaderService.name, () => {
       expect(leaseHttpService.list).toHaveBeenCalledWith({ owner: wallet.address, dseq: "200" });
     });
 
+    it("fails the list rather than reporting a deployment whose lease fetch failed as lease-less", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, leaseHttpService } = setup({ wallet, listedDseqs: ["100", "200"] });
+      leaseHttpService.list.mockRejectedValue(createHttpError(400));
+
+      await expect(service.list({ query: { userId: wallet.userId } })).rejects.toThrow();
+    });
+
+    it("falls back to database for lease data when blockchain node is unreachable", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, leaseHttpService, fallbackLeaseReaderService } = setup({ wallet, listedDseqs: ["100"] });
+      leaseHttpService.list.mockRejectedValue(createNetworkError("ECONNREFUSED"));
+      fallbackLeaseReaderService.list.mockResolvedValue({
+        leases: [createLeaseApiResponse({ owner: wallet.address, dseq: "100" })],
+        pagination: { next_key: null, total: "1" }
+      });
+
+      const { deployments } = await service.list({ query: { userId: wallet.userId } });
+
+      expect(fallbackLeaseReaderService.list).toHaveBeenCalledWith({ owner: wallet.address, dseq: "100" });
+      expect(deployments.map(item => item.leases.map(lease => lease.id.dseq))).toEqual([["100"]]);
+    });
+
     it("reads no names for a page with no deployments on it", async () => {
       const wallet = createUserWallet() as WalletInitialized;
       const { service, scopedDeploymentSettingRepository } = setup({ wallet, listedDseqs: [] });

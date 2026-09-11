@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@hono/zod-openapi";
 
 import { openApiExampleValidatorAddress } from "@src/utils/constants";
 import { AkashValidatorAddressSchema } from "@src/utils/schema";

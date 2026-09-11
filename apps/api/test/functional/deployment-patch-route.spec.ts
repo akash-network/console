@@ -12,6 +12,7 @@ import { BILLING_CONFIG } from "@src/billing/providers";
 import { CORE_CONFIG } from "@src/core";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
+import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/deployment/utils/deployment-name/deployment-name";
 import { app } from "@src/rest-app";
 import { deploymentVersion, marketVersion } from "@src/utils/constants";
 
@@ -19,7 +20,7 @@ import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mock
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
-import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
+import { createDeploymentInfoErrorSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
 import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
 import { createLeaseStatus } from "@test/seeders/lease-status.seeder";
@@ -106,6 +107,7 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
         deployment: expect.any(Object),
         escrow_account: expect.any(Object),
         leases: expect.arrayContaining([expect.any(Object)]),
+        name: null,
         manifestVersion: expect.any(String)
       }
     });
@@ -140,6 +142,144 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
     expect(broadcastMessages()).toEqual([{ typeUrl: `/akash.deployment.${deploymentVersion}.MsgUpdateDeployment`, value: expect.any(String) }]);
   });
 
+  it("renames a deployment the console recorded a definition for", async () => {
+    const { apiKey, user } = await setup({ recordsDefinition: true, recordsName: "web" });
+
+    const response = await patch(apiKey, { name: "renamed" });
+
+    expect(response.status).toBe(200);
+    expect(await nameOf(user.id)).toBe("renamed");
+  });
+
+  it("renames a deployment the console recorded no sdl for, which no service patch could touch", async () => {
+    const { apiKey, user } = await setup();
+
+    const response = await patch(apiKey, { name: "renamed" });
+
+    expect(response.status).toBe(200);
+    expect(await nameOf(user.id)).toBe("renamed");
+  });
+
+  it("names a deployment that never carried a name", async () => {
+    const { apiKey, user } = await setup({ recordsDefinition: true });
+
+    const response = await patch(apiKey, { name: "first name" });
+
+    expect(response.status).toBe(200);
+    expect(await nameOf(user.id)).toBe("first name");
+  });
+
+  it("stores a name the request padded with spaces trimmed", async () => {
+    const { apiKey, user } = await setup({ recordsDefinition: true });
+
+    await patch(apiKey, { name: "  renamed  " });
+
+    expect(await nameOf(user.id)).toBe("renamed");
+  });
+
+  it("leaves the definition alone when a rename is all the patch carries", async () => {
+    const { apiKey, user } = await setup({ recordsDefinition: true, recordsName: "web" });
+
+    await patch(apiKey, { name: "renamed" });
+
+    expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq: DSEQ })).toMatchObject({
+      sdl: STORED_SDL,
+      manifestVersion: REPLACED_MANIFEST_VERSION
+    });
+  });
+
+  it("neither broadcasts nor pushes a manifest for a rename", async () => {
+    const { apiKey, broadcastMessages, sentManifests } = await setup({ recordsDefinition: true, recordsName: "web" });
+
+    const response = await patch(apiKey, { name: "renamed" });
+
+    expect(response.status).toBe(200);
+    expect(broadcastMessages()).toEqual([]);
+    expect(sentManifests()).toEqual([]);
+  });
+
+  it("answers a rename with the deployment, the stored name and no manifest version, having recorded none", async () => {
+    const { apiKey } = await setup({ recordsDefinition: true, recordsName: "web" });
+
+    const response = await patch(apiKey, { name: "renamed" });
+
+    expect(await response.json()).toEqual({
+      data: {
+        deployment: expect.any(Object),
+        escrow_account: expect.any(Object),
+        leases: expect.arrayContaining([expect.any(Object)]),
+        name: "renamed"
+      }
+    });
+  });
+
+  it("answers a rename with the trimmed name it stored rather than the one sent", async () => {
+    const { apiKey } = await setup({ recordsDefinition: true, recordsName: "web" });
+
+    const response = await patch(apiKey, { name: "  renamed  " });
+
+    const { data } = (await response.json()) as { data: { name: string } };
+    expect(data.name).toBe("renamed");
+  });
+
+  it("answers a service patch with the name the deployment already carries", async () => {
+    const { apiKey } = await setup({ recordsDefinition: true, recordsName: "web" });
+
+    const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
+
+    const { data } = (await response.json()) as { data: { name: string } };
+    expect(data.name).toBe("web");
+  });
+
+  it("leaves the name alone for a patch that names only services", async () => {
+    const { apiKey, user } = await setup({ recordsDefinition: true, recordsName: "web" });
+
+    const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
+
+    expect(response.status).toBe(200);
+    expect(await nameOf(user.id)).toBe("web");
+  });
+
+  it("renames and patches services together", async () => {
+    const { apiKey, user } = await setup({ recordsDefinition: true, recordsName: "web" });
+
+    const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } }, name: "renamed" });
+
+    expect(response.status).toBe(200);
+    expect(await nameOf(user.id)).toBe("renamed");
+  });
+
+  it("refuses a rename to nothing but spaces", async () => {
+    const { apiKey, user } = await setup({ recordsDefinition: true, recordsName: "web" });
+
+    const response = await patch(apiKey, { name: "   " });
+
+    expect(response.status).toBe(400);
+    expect(await nameOf(user.id)).toBe("web");
+  });
+
+  it("refuses a rename longer than a deployment may carry", async () => {
+    const { apiKey, user } = await setup({ recordsDefinition: true, recordsName: "web" });
+
+    const response = await patch(apiKey, { name: "n".repeat(MAX_DEPLOYMENT_NAME_LENGTH + 1) });
+
+    expect(response.status).toBe(400);
+    expect(await nameOf(user.id)).toBe("web");
+  });
+
+  it("refuses a rename of a deployment the chain does not hold for this caller, writing nothing", async () => {
+    const { apiKey, user } = await setup({ chainHoldsDeployment: false });
+
+    const response = await patch(apiKey, { name: "renamed" });
+
+    expect(response.status).toBe(404);
+    expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq: DSEQ })).toBeUndefined();
+  });
+
+  async function nameOf(userId: string) {
+    return (await deploymentSettingRepository.findOneBy({ userId, dseq: DSEQ }))?.name;
+  }
+
   function patch(apiKey: string | undefined, data: Record<string, unknown>) {
     const headers = new Headers({ "Content-Type": "application/json" });
     if (apiKey) headers.set("x-api-key", apiKey);
@@ -161,7 +301,7 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
     return apiKey;
   }
 
-  function nockChain({ address, provider }: { address: string; provider: string }) {
+  function nockChain({ address, provider, holdsDeployment }: { address: string; provider: string; holdsDeployment: boolean }) {
     const restUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
     const leases = [createLeaseApiResponse({ owner: address, dseq: DSEQ, provider, state: "active" })];
 
@@ -169,7 +309,7 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
       .persist()
       .get(`/akash/deployment/${deploymentVersion}/deployments/info`)
       .query({ "id.owner": address, "id.dseq": DSEQ })
-      .reply(200, createDeploymentInfoSeed({ owner: address, dseq: DSEQ }))
+      .reply(200, holdsDeployment ? createDeploymentInfoSeed({ owner: address, dseq: DSEQ }) : createDeploymentInfoErrorSeed())
       .get(`/akash/market/${marketVersion}/leases/list`)
       .query(query => query["filters.owner"] === address && query["filters.dseq"] === DSEQ)
       .reply(200, { leases })
@@ -209,13 +349,13 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
     return () => sentManifests;
   }
 
-  async function setup(input: { recordsDefinition?: boolean } = {}) {
+  async function setup(input: { recordsDefinition?: boolean; recordsName?: string; chainHoldsDeployment?: boolean } = {}) {
     const { user, address } = await seedUserWithWallet({ isTrialing: false, activatedAt: new Date() });
     const apiKey = await persistApiKeyFor(user.id);
     const provider = createAkashAddress();
 
     await createProvider({ owner: provider, deletedHeight: null });
-    nockChain({ address, provider });
+    nockChain({ address, provider, holdsDeployment: input.chainHoldsDeployment ?? true });
     const broadcastMessages = nockTxSigner();
     const sentManifests = nockProviderProxy();
 
@@ -224,8 +364,11 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
         userId: user.id,
         dseq: DSEQ,
         sdl: STORED_SDL,
-        manifestVersion: REPLACED_MANIFEST_VERSION
+        manifestVersion: REPLACED_MANIFEST_VERSION,
+        name: input.recordsName
       });
+    } else if (input.recordsName) {
+      await deploymentSettingRepository.create({ userId: user.id, dseq: DSEQ, name: input.recordsName });
     }
 
     return { user, apiKey, sentManifests, broadcastMessages };

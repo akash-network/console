@@ -2060,7 +2060,7 @@ export interface paths {
     head?: never;
     /**
      * Patch a deployment
-     * @description Patches the SDL the console stored for this deployment; the SDL is never accepted from the request. Only the services named are touched. A patched environment variable is re-appended to its service's env list, so the order shown by GET may differ afterwards. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw. Re-sending the identical request repairs that: it recomputes the same manifest version, is accepted rather than refused, and goes on to broadcast and push the manifest.
+     * @description Patches the SDL the console stored for this deployment, or renames the deployment, or both; the SDL is never accepted from the request. Only the services named are touched. A `name` on its own touches no definition, so it renames a deployment the console holds no SDL for and neither broadcasts nor pushes a manifest. A patched environment variable is re-appended to its service's env list, so the order shown by GET may differ afterwards. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw. Re-sending the identical request repairs that: it recomputes the same manifest version, is accepted rather than refused, and goes on to broadcast and push the manifest.
      */
     patch: operations["patchDeployment"];
     trace?: never;
@@ -8262,8 +8262,8 @@ export interface operations {
       content: {
         "application/json": {
           data: {
-            /** @description Keyed by service name. Only the named services are touched; omitted services keep their current definition. */
-            services: {
+            /** @description Keyed by service name. Only the named services are touched; omitted services keep their current definition. Omit it entirely to patch nothing about the definition, which is how a deployment is renamed on its own. */
+            services?: {
               [key: string]: {
                 image?: string;
                 command?: string[] | null;
@@ -8303,6 +8303,8 @@ export interface operations {
                 };
               };
             };
+            /** @description Renames the deployment. Supplied on its own it is the only patch that touches no definition, so it works on a deployment the console holds no SDL for and neither broadcasts nor pushes a manifest. */
+            name?: string;
             /** @description Compact JWE sealing a flat name-to-value map, as on create, but holding only the names this patch replaces. Omitted names keep the values the deployment already stores. */
             sealedSecrets?: string;
             /** @description Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very patch produces, which makes a retry of it succeed. Omitting this does not turn the guard off: the patch is then guarded on the version it read for itself, so a concurrent patch still answers 409 rather than overwriting it. */
@@ -8406,8 +8408,8 @@ export interface operations {
                   }[];
                 };
               };
-              /** @description Base64 manifest version this patch recorded and committed on chain. */
-              manifestVersion: string;
+              /** @description Base64 manifest version this patch recorded and committed on chain. Absent for a rename, which records none. */
+              manifestVersion?: string;
             };
           };
         };
@@ -8426,7 +8428,7 @@ export interface operations {
           };
         };
       };
-      /** @description No SDL is recorded for this deployment, so there is nothing to patch */
+      /** @description No SDL is recorded for this deployment, so there is nothing to patch. A rename answers this only when the chain holds no such deployment for the caller, since it needs no recorded SDL */
       404: {
         headers: {
           [name: string]: unknown;

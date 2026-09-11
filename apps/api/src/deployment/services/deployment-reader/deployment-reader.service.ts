@@ -174,13 +174,20 @@ export class DeploymentReaderService {
     const [{ results: leaseResults }, names] = await Promise.all([
       PromisePool.withConcurrency(100)
         .for(deployments)
-        .process(async deployment => this.leaseHttpService.list({ owner, dseq: deployment.deployment.id.dseq })),
-      this.findNamesFor(query.userId, deployments.map(deployment => deployment.deployment.id.dseq))
+        .useCorrespondingResults()
+        .handleError(async error => {
+          throw error;
+        })
+        .process(async deployment => this.getLeaseList({ owner, dseq: deployment.deployment.id.dseq })),
+      this.findNamesFor(
+        query.userId,
+        deployments.map(deployment => deployment.deployment.id.dseq)
+      )
     ]);
 
     const deploymentsWithLeases = deployments.map((deployment, index) => ({
       deployment: deployment.deployment,
-      leases: leaseResults[index]?.leases?.map(({ lease }) => lease) ?? [],
+      leases: this.#fetchedLeasesAt(leaseResults, index).map(({ lease }) => lease),
       escrow_account: deployment.escrow_account,
       name: names.get(deployment.deployment.id.dseq) ?? null
     }));
@@ -189,6 +196,16 @@ export class DeploymentReaderService {
       total,
       hasMore: skip !== undefined && limit !== undefined ? total > skip + limit : false
     };
+  }
+
+  #fetchedLeasesAt(leaseResults: Array<RestAkashLeaseListResponse | symbol>, index: number): RestAkashLeaseListResponse["leases"] {
+    const result = leaseResults[index];
+
+    if (typeof result === "symbol") {
+      throw new InternalServerError("Leases could not be fetched for every listed deployment");
+    }
+
+    return result.leases;
   }
 
   public async listWithResources({

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@hono/zod-openapi";
 
 import { openApiExampleProviderAddress } from "@src/utils/constants";
 import { DseqSchema } from "@src/utils/schema";

@@ -14,6 +14,7 @@ import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-
 import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY, TxService } from "@src/core";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import {
+  assignsAnyServiceField,
   CreateDeploymentRequest,
   CreateDeploymentResponse,
   DeploymentResponse,
@@ -415,6 +416,10 @@ export class DeploymentWriterService {
     input: PatchDeploymentRequest["data"],
     ability: AnyAbility
   ): Promise<PatchDeploymentResponse["data"]> {
+    if (input.name !== undefined && !assignsAnyServiceField(input.services) && !input.sealedSecrets) {
+      return await this.#renameByUserIdAndDseq(userId, dseq, input.name, ability);
+    }
+
     const [wallet, stored] = await Promise.all([
       this.walletReaderService.getWalletByUserId(userId),
       this.#findStoredDefinition({ userId, dseq }, ability, NOT_PATCHABLE_MESSAGE)
@@ -422,7 +427,7 @@ export class DeploymentWriterService {
     const parsed = this.#parseStored(stored.sdl, { userId, dseq });
     const document = parsed.document;
 
-    const written = this.sdlPatchService.apply(document, input.services);
+    const written = this.sdlPatchService.apply(document, input.services ?? {});
     const derived = this.sdlSecretsDerivationService.derive(document, { includeEnvValues: true, onlyAt: written });
     const patchedSdl = this.#serialize(parsed, { userId, dseq });
 
@@ -438,16 +443,17 @@ export class DeploymentWriterService {
     const recordedVersion = Buffer.from(manifestVersion).toString("base64");
     const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId, dseq, secrets: merged });
 
-    const recordedId = await this.deploymentSettingRepository.accessibleBy(ability, "update").replaceDefinitionIfVersionMatches({
+    const recorded = await this.deploymentSettingRepository.accessibleBy(ability, "update").replaceDefinitionIfVersionMatches({
       userId,
       dseq,
       sdl: patchedSdl,
       manifestVersion: recordedVersion,
       sealedSecrets,
+      name: input.name,
       expectedManifestVersion: input.ifManifestVersion ?? stored.manifestVersion
     });
 
-    if (!recordedId) {
+    if (!recorded) {
       throw createError(409, "Deployment definition changed concurrently, please retry");
     }
 
@@ -455,7 +461,7 @@ export class DeploymentWriterService {
       event: "DEPLOYMENT_PATCH_APPLIED",
       userId,
       dseq,
-      patchedServiceCount: Object.keys(input.services).length,
+      patchedServiceCount: Object.keys(input.services ?? {}).length,
       secretCount: Object.keys(merged).length,
       guarded: input.ifManifestVersion !== undefined
     });
@@ -469,7 +475,9 @@ export class DeploymentWriterService {
     });
     await this.restartTrialWorkloadProbe(wallet, dseq);
 
-    return { ...(await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq)), manifestVersion: recordedVersion };
+    const updatedDeployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+
+    return { ...updatedDeployment, name: recorded.name, manifestVersion: recordedVersion };
   }
 
   /** The probe is a backstopped extra, so failing to reschedule it must not fail an update the chain and the providers have already taken. */
@@ -484,6 +492,22 @@ export class DeploymentWriterService {
   }
 
   /** Read through the caller's own ability as well as their id, so a definition is unreachable by anyone the ability excludes even before the write re-checks it. */
+  /**
+   * A rename touches no definition, so it reads no stored SDL, computes no manifest version, broadcasts nothing and
+   * pushes nothing. That is what lets it reach a deployment created before the console recorded SDLs, which the
+   * patch path refuses outright. The chain read is the ownership check that path gets from its stored row.
+   */
+  async #renameByUserIdAndDseq(userId: string, dseq: string, name: string, ability: AnyAbility): Promise<PatchDeploymentResponse["data"]> {
+    const wallet = await this.walletReaderService.getWalletByUserId(userId);
+    const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+
+    const persistedName = await this.deploymentSettingRepository.accessibleBy(ability, "update").upsertName({ userId, dseq, name });
+
+    this.logger.info({ event: "DEPLOYMENT_RENAMED", userId, dseq });
+
+    return { ...deployment, name: persistedName };
+  }
+
   async #findStoredDefinition(
     key: { userId: string; dseq: string },
     ability: AnyAbility,
