@@ -164,12 +164,32 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
     expect(real.dataKeysRewrapped).toBe(rehearsal.dataKeysRewrapped);
   });
 
+  it("excludes from a dry run's count the row a real run could not open, and flags it", async () => {
+    const { oldVersion, newVersion } = await enabledRotationPair();
+    const { seedUser, seedCorruptedDataKey, attemptRewrapOnto, readDataKeys, logger } = setup();
+    await seedUser(oldVersion, "alpha-plaintext");
+    await seedCorruptedDataKey(oldVersion);
+    const before = await readDataKeys();
+
+    const rehearsal = await attemptRewrapOnto(newVersion, { dryRun: true });
+
+    expect(rehearsal.err).toBe(true);
+    expect(await readDataKeys()).toEqual(before);
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "DATA_KEY_REWRAP_END",
+        report: expect.objectContaining({ dryRun: true, dataKeysRewrapped: 1, dataKeysFailed: 1 })
+      })
+    );
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
   function setup() {
-    const createLogger: CreateLogger = () => mock<ReturnType<CreateLogger>>();
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger: CreateLogger = () => logger;
     const dataKeyRepository = container.resolve(DataKeyRepository);
     const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
     const userRepository = container.resolve(UserRepository);
@@ -223,7 +243,7 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
       return { userId: user.id, dseq };
     }
 
-    async function rewrapOnto(targetVersion: string, options: { batchSize?: number; dryRun?: boolean } = {}) {
+    async function attemptRewrapOnto(targetVersion: string, options: { batchSize?: number; dryRun?: boolean } = {}) {
       const service = new DataKeyRewrapService(
         dataKeyRepository,
         deploymentSettingRepository,
@@ -233,7 +253,11 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
         createLogger
       );
 
-      return (await service.rewrapDataKeys({ targetVersion, dryRun: options.dryRun ?? false, batchSize: options.batchSize })).unwrap();
+      return await service.rewrapDataKeys({ targetVersion, dryRun: options.dryRun ?? false, batchSize: options.batchSize });
+    }
+
+    async function rewrapOnto(targetVersion: string, options: { batchSize?: number; dryRun?: boolean } = {}) {
+      return (await attemptRewrapOnto(targetVersion, options)).unwrap();
     }
 
     async function seedUserWithoutDataKey() {
@@ -241,6 +265,12 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
       createdUserIds.push(user.id);
 
       return user;
+    }
+
+    async function seedCorruptedDataKey(version: string) {
+      const user = await seedUserWithoutDataKey();
+
+      return await dataKeyRepository.create({ userId: user.id, wrappedKey: "not-a-jwe", wrappedByKid: `${KEY}.v${version}` });
     }
 
     async function countDataKeys() {
@@ -278,7 +308,19 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
       });
     }
 
-    return { consoleAt, seedUser, seedUserWithoutDataKey, rewrapOnto, readDataKeys, countDataKeys, readStoredSecrets, failWriteOf };
+    return {
+      consoleAt,
+      seedUser,
+      seedUserWithoutDataKey,
+      seedCorruptedDataKey,
+      attemptRewrapOnto,
+      rewrapOnto,
+      readDataKeys,
+      countDataKeys,
+      readStoredSecrets,
+      failWriteOf,
+      logger
+    };
   }
 });
 

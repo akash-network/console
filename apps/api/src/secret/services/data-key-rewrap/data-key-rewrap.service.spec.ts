@@ -10,7 +10,7 @@ import type { TxService } from "@src/core/services";
 import type { SdlSecretsKmsClient, SdlSecretsKmsTargetFactory } from "@src/deployment/providers/kms.provider";
 import { createSdlSecretsKmsTarget } from "@src/deployment/providers/kms.provider";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import type { KmsWrappedJweService,ParsedKmsWrappedJwe  } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe.service";
+import type { KmsWrappedJweService, ParsedKmsWrappedJwe } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe.service";
 import { KmsWrappedJweError } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe.service";
 import type { DataKeyOutput, DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
 import { DataKeyRewrapService } from "./data-key-rewrap.service";
@@ -227,7 +227,9 @@ describe(DataKeyRewrapService.name, () => {
       await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: false });
 
       expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "DATA_KEY_REWRAP_START", toVersion: TARGET_KID, dryRun: false }));
-      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "DATA_KEY_REWRAP_END", report: expect.objectContaining({ toVersion: TARGET_KID }) }));
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "DATA_KEY_REWRAP_END", report: expect.objectContaining({ toVersion: TARGET_KID }) })
+      );
     });
 
     it("names itself as the context every one of those events carries", () => {
@@ -251,8 +253,18 @@ describe(DataKeyRewrapService.name, () => {
   });
 
   describe("dry run", () => {
+    it("marks each audited batch with the same progress event a real run emits", async () => {
+      const { service, logger } = setup({ rows: [aRow({}), aRow({}), aRow({})] });
+
+      await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, batchSize: 2, dryRun: true });
+
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "DATA_KEY_REWRAP_BATCH", rewrapped: 2, failed: 0 }));
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "DATA_KEY_REWRAP_BATCH", rewrapped: 3, failed: 0 }));
+    });
+
     it("writes nothing and reports what a real run would move", async () => {
-      const { service, report, dataKeyRepository, txService } = setup({
+      const { service, report, dataKeyRepository, txService, wrappedJweService } = setup({
+        rows: [aRow({ wrappedByKid: SOURCE_KID }), aRow({ wrappedByKid: SOURCE_KID })],
         census: [
           { wrappedByKid: SOURCE_KID, count: 2 },
           { wrappedByKid: TARGET_KID, count: 1 }
@@ -262,9 +274,38 @@ describe(DataKeyRewrapService.name, () => {
       const summary = report(await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: true }));
 
       expect(dataKeyRepository.updateById).not.toHaveBeenCalled();
-      expect(dataKeyRepository.findWrappedUnderOtherVersionsIteratively).not.toHaveBeenCalled();
       expect(txService.transaction).not.toHaveBeenCalled();
-      expect(summary).toMatchObject({ dryRun: true, dataKeysRewrapped: 2, census: { [SOURCE_KID]: 2, [TARGET_KID]: 1 } });
+      expect(wrappedJweService.open).not.toHaveBeenCalled();
+      expect(summary).toMatchObject({ dryRun: true, dataKeysRewrapped: 2, dataKeysFailed: 0, census: { [SOURCE_KID]: 2, [TARGET_KID]: 1 } });
+    });
+
+    it("excludes a row naming another crypto key from the count, flags it and reports the run as failed", async () => {
+      const foreign = aRow({ wrappedByKid: "someone-elses-key.v1" });
+      const { service, logger } = setup({ rows: [foreign, aRow({ wrappedByKid: SOURCE_KID })] });
+
+      const result = await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: true });
+
+      expect(result.err).toBe(true);
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "DATA_KEY_REWRAP_ROW_FAILED", dataKeyId: foreign.id, wrappedByKid: "someone-elses-key.v1" })
+      );
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "DATA_KEY_REWRAP_END", report: expect.objectContaining({ dataKeysRewrapped: 1, dataKeysFailed: 1 }) })
+      );
+    });
+
+    it("excludes a row whose header cannot be read, without spending a call on the key service", async () => {
+      const garbled = aRow({ wrappedByKid: SOURCE_KID });
+      const { service, logger, wrappedJweService } = setup({ rows: [garbled], unparseableIds: [garbled.id] });
+
+      const result = await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: true });
+
+      expect(result.err).toBe(true);
+      expect(wrappedJweService.open).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "DATA_KEY_REWRAP_ROW_FAILED", dataKeyId: garbled.id }));
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "DATA_KEY_REWRAP_END", report: expect.objectContaining({ dataKeysRewrapped: 0, dataKeysFailed: 1 }) })
+      );
     });
 
     it("fingerprints the fleet once and reports no after, since nothing happened between", async () => {
@@ -360,6 +401,7 @@ describe(DataKeyRewrapService.name, () => {
     storedSecrets?: Array<{ id: string; sealedSecrets: string; updatedAt?: Date | null }>;
     storedSecretsAfter?: Array<{ id: string; sealedSecrets: string; updatedAt?: Date | null }>;
     unopenableIds?: string[];
+    unparseableIds?: string[];
     versionState?: protos.google.cloud.kms.v1.ICryptoKeyVersion["state"];
   }) {
     const rows = input.rows ?? [];
@@ -380,6 +422,11 @@ describe(DataKeyRewrapService.name, () => {
     const wrappedJweService = mock<KmsWrappedJweService>();
     wrappedJweService.parse.mockImplementation(serialized => {
       const row = rows.find(candidate => candidate.wrappedKey === serialized)!;
+
+      if (input.unparseableIds?.includes(row.id)) {
+        throw new KmsWrappedJweError("HEADER_UNREADABLE");
+      }
+
       const header = { alg: "RSA-OAEP-256", enc: "A256GCM", cty: "application/octet-stream", kid: row.wrappedByKid };
       rowByHeader.set(header, row);
 
@@ -404,7 +451,7 @@ describe(DataKeyRewrapService.name, () => {
     let scans = 0;
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.findStoredSecretsIteratively.mockImplementation(async function* () {
-      const scanned = scans++ === 0 ? (input.storedSecrets ?? []) : (input.storedSecretsAfter ?? input.storedSecrets ?? []);
+      const scanned = scans++ === 0 ? input.storedSecrets ?? [] : input.storedSecretsAfter ?? input.storedSecrets ?? [];
 
       if (scanned.length) yield scanned.map(row => ({ ...row, updatedAt: row.updatedAt ?? null }));
     });

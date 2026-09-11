@@ -10,6 +10,7 @@ import { TxService } from "@src/core/services";
 import type { SdlSecretsKmsTarget, SdlSecretsKmsTargetFactory } from "@src/deployment/providers/kms.provider";
 import { SDL_SECRETS_KMS_TARGET_FACTORY } from "@src/deployment/providers/kms.provider";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import type { ParsedKmsWrappedJwe } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe.service";
 import { KmsWrappedJweService } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe.service";
 import type { SdlSecretsSealingKey } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
 import { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
@@ -71,11 +72,13 @@ export class DataKeyRewrapService {
     const before = await this.#fingerprintStoredSecrets(pageSize);
     const census = await this.#censusByVersion();
     const errors: unknown[] = [];
-    let rewrapped = dryRun ? countAwayFrom(census, target.kid) : 0;
+    let rewrapped = 0;
     let bytesRewritten = 0;
 
-    if (!dryRun) {
-      for await (const batch of this.dataKeyRepository.findWrappedUnderOtherVersionsIteratively({ targetKid: target.kid, batchSize: pageSize })) {
+    for await (const batch of this.dataKeyRepository.findWrappedUnderOtherVersionsIteratively({ targetKid: target.kid, batchSize: pageSize })) {
+      if (dryRun) {
+        rewrapped += this.#auditBatch(batch, target, errors);
+      } else {
         const wrappings = await this.#rewrapBatch(batch, target, sealingKey, errors);
 
         await this.txService.transaction(async () => {
@@ -86,8 +89,9 @@ export class DataKeyRewrapService {
 
         rewrapped += wrappings.length;
         bytesRewritten += wrappings.reduce((total, { wrappedKey }) => total + Buffer.byteLength(wrappedKey), 0);
-        this.logger.info({ event: "DATA_KEY_REWRAP_BATCH", rewrapped, failed: errors.length, bytesRewritten });
       }
+
+      this.logger.info({ event: "DATA_KEY_REWRAP_BATCH", rewrapped, failed: errors.length, bytesRewritten });
     }
 
     const after = dryRun ? undefined : await this.#fingerprintStoredSecrets(pageSize);
@@ -141,6 +145,22 @@ export class DataKeyRewrapService {
     return Object.fromEntries(census.map(({ wrappedByKid, count }) => [wrappedByKid, count]));
   }
 
+  /** Parsing and version resolution are every check a dry run can make without spending a KMS unwrap, so the count stays an upper bound: the unwrap itself can still refuse a row. */
+  #auditBatch(batch: DataKeyOutput[], target: SdlSecretsKmsTarget, errors: unknown[]): number {
+    let resolvable = 0;
+
+    for (const row of batch) {
+      try {
+        this.#parseWrapping(row, target);
+        resolvable += 1;
+      } catch (error) {
+        this.#recordRowFailure(row, error, errors);
+      }
+    }
+
+    return resolvable;
+  }
+
   /** A row nothing can open is recorded and stepped over, because keyset selection would hand it to every re-run first and the fleet would never move off the retiring version. */
   async #rewrapBatch(
     batch: DataKeyOutput[],
@@ -154,16 +174,19 @@ export class DataKeyRewrapService {
       try {
         wrappings.push({ id: row.id, wrappedKey: await this.#rewrap(row, target, sealingKey) });
       } catch (error) {
-        errors.push(error);
-        this.logger.error({ event: "DATA_KEY_REWRAP_ROW_FAILED", dataKeyId: row.id, userId: row.userId, wrappedByKid: row.wrappedByKid, error });
+        this.#recordRowFailure(row, error, errors);
       }
     }
 
     return wrappings;
   }
 
-  /** The unwrap is the only call the key service sees; wrapping again spends only the public half already in memory. */
-  async #rewrap(row: DataKeyOutput, target: SdlSecretsKmsTarget, sealingKey: SdlSecretsSealingKey): Promise<string> {
+  #recordRowFailure(row: DataKeyOutput, error: unknown, errors: unknown[]) {
+    errors.push(error);
+    this.logger.error({ event: "DATA_KEY_REWRAP_ROW_FAILED", dataKeyId: row.id, userId: row.userId, wrappedByKid: row.wrappedByKid, error });
+  }
+
+  #parseWrapping(row: DataKeyOutput, target: SdlSecretsKmsTarget): { parsed: ParsedKmsWrappedJwe; versionName: string } {
     const parsed = this.wrappedJweService.parse(row.wrappedKey);
     const versionName = target.resolveVersionName(parsed.header.kid);
 
@@ -171,6 +194,12 @@ export class DataKeyRewrapService {
       throw new Error(`Data key ${row.id} names a key version this console cannot resolve`);
     }
 
+    return { parsed, versionName };
+  }
+
+  /** The unwrap is the only call the key service sees; wrapping again spends only the public half already in memory. */
+  async #rewrap(row: DataKeyOutput, target: SdlSecretsKmsTarget, sealingKey: SdlSecretsSealingKey): Promise<string> {
+    const { parsed, versionName } = this.#parseWrapping(row, target);
     const dataKey = await this.wrappedJweService.open(parsed, versionName);
 
     return await new CompactEncrypt(dataKey)
@@ -198,8 +227,4 @@ export class DataKeyRewrapService {
 
     throw new Error(`Stored secrets changed while re-wrapping onto ${report.toVersion}`);
   }
-}
-
-function countAwayFrom(census: Record<string, number>, targetKid: string): number {
-  return Object.entries(census).reduce((total, [kid, count]) => (kid === targetKid ? total : total + count), 0);
 }
