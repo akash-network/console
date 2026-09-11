@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { Form, FormField, FormInput, Popup, Snackbar } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
@@ -10,8 +11,10 @@ import { z } from "zod";
 import { useServices } from "@src/context/ServicesProvider";
 import { settingsIdAtom } from "@src/store/settingsStore";
 
+export const DEPENDENCIES = { useSnackbar, useQueryClient };
+
 const formSchema = z.object({
-  name: z.string()
+  name: z.string().trim().min(1, "Enter a name for this deployment")
 });
 
 type Props = {
@@ -19,13 +22,16 @@ type Props = {
   onClose: () => void;
   onSaved: () => void;
   getDeploymentName: (dseq: string | number | null) => string | null;
+  dependencies?: typeof DEPENDENCIES;
 };
 
-export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, getDeploymentName }) => {
-  const { deploymentLocalStorage } = useServices();
+export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, getDeploymentName, dependencies: d = DEPENDENCIES }) => {
+  const { api, deploymentLocalStorage } = useServices();
   const [address] = useAtom(settingsIdAtom);
   const formRef = useRef<HTMLFormElement | null>(null);
-  const { enqueueSnackbar } = useSnackbar();
+  const { enqueueSnackbar } = d.useSnackbar();
+  const queryClient = d.useQueryClient();
+  const renameDeployment = api.v1.patchDeployment.useMutation();
   const form = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
       name: ""
@@ -48,11 +54,23 @@ export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, g
   };
 
   function onSubmit({ name }: z.infer<typeof formSchema>) {
-    deploymentLocalStorage.update(address, dseq, { name: name });
+    if (!dseq) return;
 
-    enqueueSnackbar(<Snackbar title="Success!" iconVariant="success" />, { variant: "success", autoHideDuration: 1000 });
-
-    onSaved();
+    renameDeployment.mutate(
+      { dseq: String(dseq), data: { name } },
+      {
+        onSuccess: function recordRename() {
+          /** The deployments list still resolves names from this browser alone, so the record is kept in step until it reads the api too. */
+          deploymentLocalStorage.update(address, dseq, { name });
+          queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq: String(dseq) }) });
+          enqueueSnackbar(<Snackbar title="Success!" iconVariant="success" />, { variant: "success", autoHideDuration: 1000 });
+          onSaved();
+        },
+        onError: function reportRenameFailure() {
+          enqueueSnackbar(<Snackbar title="Couldn't rename this deployment" iconVariant="error" />, { variant: "error" });
+        }
+      }
+    );
   }
 
   return (
