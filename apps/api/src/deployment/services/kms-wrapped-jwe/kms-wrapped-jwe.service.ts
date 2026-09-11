@@ -6,7 +6,7 @@ import { inject, singleton } from "tsyringe";
 import { SDL_SECRETS_WRAPPED_KEY_BYTES } from "@src/deployment/config/sdl-secrets.config";
 import type { SdlSecretsKmsTarget } from "@src/deployment/providers/kms.provider";
 import { SDL_SECRETS_KMS_TARGET } from "@src/deployment/providers/kms.provider";
-import { KmsWrappedJweInstrumentationService } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe-instrumentation.service";
+import { KmsWrappedJweInstrumentationService } from "./kms-wrapped-jwe-instrumentation.service";
 
 export type KmsWrappedJweFailure =
   | "MALFORMED"
