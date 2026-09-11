@@ -5410,6 +5410,11 @@
                             "state"
                           ]
                         },
+                        "name": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "The name this deployment carries, or null for one created before the console recorded names."
+                        },
                         "manifestVersion": {
                           "type": "string",
                           "description": "Base64 manifest version this patch recorded and committed on chain. Absent for a rename, which records none."
@@ -5418,7 +5423,8 @@
                       "required": [
                         "deployment",
                         "leases",
-                        "escrow_account"
+                        "escrow_account",
+                        "name"
                       ]
                     }
                   },
@@ -6602,6 +6608,118 @@
                         "deployment",
                         "leases",
                         "escrow_account"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/deployment-names": {
+      "get": {
+        "summary": "List the names of the caller's deployments",
+        "description": "The names the console recorded for this caller's deployments, newest first. Answers for closed deployments too, unlike GET /v1/deployments, and costs no chain read: a client resolving names for a list it already holds needs no dseqs to ask.",
+        "operationId": "listDeploymentNames",
+        "tags": [
+          "Deployments"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "number",
+              "nullable": true,
+              "minimum": 0,
+              "default": 0,
+              "description": "Names to skip",
+              "example": 0
+            },
+            "required": false,
+            "name": "skip",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 1000,
+              "description": "Names to return, at most 1000",
+              "example": 100
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns one page of deployment names",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "names": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "dseq": {
+                                "type": "string",
+                                "pattern": "^0*[1-9]\\d*$"
+                              },
+                              "name": {
+                                "type": "string",
+                                "description": "The name this deployment carries."
+                              }
+                            },
+                            "required": [
+                              "dseq",
+                              "name"
+                            ]
+                          }
+                        },
+                        "pagination": {
+                          "type": "object",
+                          "properties": {
+                            "skip": {
+                              "type": "number"
+                            },
+                            "limit": {
+                              "type": "number"
+                            },
+                            "hasMore": {
+                              "type": "boolean",
+                              "description": "Whether a further page exists. No total is reported, so a caller reads pages until this is false rather than counting them up front."
+                            }
+                          },
+                          "required": [
+                            "skip",
+                            "limit",
+                            "hasMore"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "names",
+                        "pagination"
                       ]
                     }
                   },

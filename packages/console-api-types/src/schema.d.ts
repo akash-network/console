@@ -2104,6 +2104,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/deployment-names": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List the names of the caller's deployments
+     * @description The names the console recorded for this caller's deployments, newest first. Answers for closed deployments too, unlike GET /v1/deployments, and costs no chain read: a client resolving names for a list it already holds needs no dseqs to ask.
+     */
+    get: operations["listDeploymentNames"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/addresses/{address}/deployments/{skip}/{limit}": {
     parameters: {
       query?: never;
@@ -8408,6 +8428,8 @@ export interface operations {
                   }[];
                 };
               };
+              /** @description The name this deployment carries, or null for one created before the console recorded names. */
+              name: string | null;
               /** @description Base64 manifest version this patch recorded and committed on chain. Absent for a rename, which records none. */
               manifestVersion?: string;
             };
@@ -8811,6 +8833,43 @@ export interface operations {
                     };
                   }[];
                 };
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+  listDeploymentNames: {
+    parameters: {
+      query?: {
+        skip?: number | null;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns one page of deployment names */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              names: {
+                dseq: string;
+                /** @description The name this deployment carries. */
+                name: string;
+              }[];
+              pagination: {
+                skip: number;
+                limit: number;
+                /** @description Whether a further page exists. No total is reported, so a caller reads pages until this is false rather than counting them up front. */
+                hasMore: boolean;
               };
             };
           };
