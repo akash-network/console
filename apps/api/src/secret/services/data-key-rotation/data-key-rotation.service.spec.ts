@@ -98,6 +98,14 @@ describe(DataKeyRotationService.name, () => {
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "KEY_ROTATION_FINGERPRINT_MISMATCH", deploymentSettingIds: ["deployment-setting-7"] }));
   });
 
+  it("tolerates a user rewriting their own secrets while the run is in flight", async () => {
+    const { service } = setup({ rows: [await storedKey()], ownerRewritten: 1 });
+
+    const result = await service.rotate({ targetVersion: TARGET_VERSION, dryRun: false });
+
+    expect(result.unwrap()).toMatchObject({ concurrentSecretWrites: 1, secretsReEncrypted: 0, usersReWrapped: 1 });
+  });
+
   it("emits a start, both fingerprints, a batch event per batch and a completion carrying the report", async () => {
     const { service, logger } = setup({ rows: await Promise.all([storedKey(), storedKey(), storedKey()]) });
 
@@ -129,7 +137,7 @@ describe(DataKeyRotationService.name, () => {
     return Buffer.from(plaintext);
   }
 
-  function setup(input?: { rows?: DataKeyOutput[]; targetVersionState?: "DISABLED" | "DESTROYED"; unexplained?: string[] }) {
+  function setup(input?: { rows?: DataKeyOutput[]; targetVersionState?: "DISABLED" | "DESTROYED"; unexplained?: string[]; ownerRewritten?: number }) {
     const rows = input?.rows ?? [];
     const writtenRows: Array<{ id: string; wrappedKey: string; wrappedByKid: string; wrappedUnder: string }> = [];
     const logger = mock<ReturnType<CreateLogger>>();
@@ -175,7 +183,7 @@ describe(DataKeyRotationService.name, () => {
     fingerprintService.reconcile.mockResolvedValue({
       before: fingerprint,
       after: fingerprint,
-      ownerRewritten: 0,
+      ownerRewritten: input?.ownerRewritten ?? 0,
       created: 0,
       removed: 0,
       unexplained: input?.unexplained ?? []
