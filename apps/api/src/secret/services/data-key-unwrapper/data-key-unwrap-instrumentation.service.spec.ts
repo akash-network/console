@@ -18,6 +18,24 @@ describe(DataKeyUnwrapInstrumentationService.name, () => {
     expect(metricsService.createHistogram).toHaveBeenCalledWith(meter, "user_data_key_unwraps_per_request", expect.anything());
   });
 
+  it("documents the metric, so an operator meets it with its meaning attached", () => {
+    const { metricsService, meter } = setup();
+
+    expect(metricsService.createHistogram).toHaveBeenCalledWith(
+      meter,
+      expect.any(String),
+      expect.objectContaining({ description: expect.stringMatching(/\S/) })
+    );
+  });
+
+  it("ends a request that touched no data key without reporting a failure", async () => {
+    const { inRequest, logger } = setup();
+
+    await inRequest(async () => undefined);
+
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
   it("measures nothing for a request that touched no data key", async () => {
     const { inRequest, unwrapsPerRequest } = setup();
 
@@ -124,11 +142,12 @@ describe(DataKeyUnwrapInstrumentationService.name, () => {
     metricsService.getMeter.mockReturnValue(meter);
     metricsService.createHistogram.mockReturnValue(unwrapsPerRequest);
 
-    const executionContextService = new ExecutionContextService(() => mock<ReturnType<CreateLogger>>());
+    const logger = mock<ReturnType<CreateLogger>>();
+    const executionContextService = new ExecutionContextService(() => logger);
     const service = new DataKeyUnwrapInstrumentationService(metricsService, executionContextService);
 
     const inRequest = <R>(cb: () => Promise<R>) => executionContextService.runWithContext(cb);
 
-    return { service, metricsService, meter, unwrapsPerRequest, executionContextService, inRequest };
+    return { service, metricsService, meter, unwrapsPerRequest, executionContextService, logger, inRequest };
   }
 });
