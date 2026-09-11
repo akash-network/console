@@ -25,9 +25,12 @@ export class TestDatabaseService {
   }
 
   async setup(): Promise<void> {
+    const userTemplate = requireTemplate(USER_TEMPLATE_ENV_VAR);
+    const indexerTemplate = requireTemplate(INDEXER_TEMPLATE_ENV_VAR);
+
     await Promise.all([
-      this.createDatabase(this.dbName, requireTemplate(USER_TEMPLATE_ENV_VAR)),
-      this.createDatabase(this.indexerDbName, requireTemplate(INDEXER_TEMPLATE_ENV_VAR))
+      this.createDatabase(this.dbName, userTemplate),
+      this.createDatabase(this.indexerDbName, indexerTemplate)
     ]);
   }
 

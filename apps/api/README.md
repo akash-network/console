@@ -16,11 +16,11 @@ You can make sure the api is working by accessing the status endpoint: `http://l
 
 ## Testing
 
-Project is configured to use [Jest](https://jestjs.io/) for testing. It is intended to be covered with unit and functional tests where applicable.
+The API uses [Vitest](https://vitest.dev/) for unit, integration, and functional tests.
 
 ### Running tests
 
-To execute both **unit and functional** tests, run:
+To execute unit, integration, and functional tests, run:
 
 ```shell
 npm test
@@ -31,6 +31,25 @@ To run **unit** tests exclusively, use:
 ```shell
 npm run test:unit
 ```
+
+This runs both `unit` and `unit-isolated`. When invoking Vitest directly, use
+`--project='unit*'` to include both projects.
+
+Ordinary unit tests share workers and their module cache. Tests that import
+`tsyringe` or mock modules belong in `test/isolated-unit-tests.json`; ESLint checks
+this boundary. Prefer constructing the subject with mocked dependencies. Restore
+any shared application state changed by a test. The shared setup restores Vitest
+spies, environment stubs, global stubs, and real timers after each file.
+
+To check for dependencies on test order, run:
+
+```shell
+npm run test:unit -- --maxWorkers=1 --sequence.shuffle --sequence.seed=42
+```
+
+Database tests clone migration-specific templates. Old templates remain available
+for concurrent runs on other branches and are removed when the local test cluster
+is reset. Use PostgreSQL's UTC timezone to match CI.
 
 To run only **functional** tests, use:
 
