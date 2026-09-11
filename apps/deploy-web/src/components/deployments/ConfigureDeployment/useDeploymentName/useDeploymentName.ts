@@ -11,6 +11,8 @@ export const DEPENDENCIES = { useServices, useResolvedDeploymentName };
 export interface DeploymentName {
   /** The name to show: the one typed in this session, and the api's own only where this session has none. */
   name: string;
+  /** The name this session typed, and only that: what the draft records and the next create carries, so a name the api derived is never persisted as the user's own nor sent back as one. */
+  typedName: string;
   setName: (name: string) => void;
 }
 
@@ -40,5 +42,5 @@ export function useDeploymentName({ initialName, dseq }: UseDeploymentNameInput,
     },
     [dseq, settingsId, deploymentLocalStorage]
   );
-  return { name: typedName || resolvedName || "", setName: setTypedName };
+  return { name: typedName || resolvedName || "", typedName, setName: setTypedName };
 }

@@ -44,6 +44,21 @@ describe(useDeploymentName.name, () => {
     expect(result.current.name).toBe("my-app");
   });
 
+  it("reports no typed name of its own while the shown one came from the api, so nothing derived is persisted as the user's", () => {
+    const { result } = setup({ dseq: "12345", apiName: "web+postgres" });
+
+    expect(result.current.name).toBe("web+postgres");
+    expect(result.current.typedName).toBe("");
+  });
+
+  it("reports the typed name as its own once this session types over the api's", () => {
+    const { result } = setup({ dseq: "12345", apiName: "web+postgres" });
+
+    act(() => result.current.setName("my-app"));
+
+    expect(result.current.typedName).toBe("my-app");
+  });
+
   it("resolves to an empty name when neither the api nor this session holds one, leaving the field its placeholder", () => {
     const { result } = setup({ dseq: "12345" });
 

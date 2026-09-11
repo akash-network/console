@@ -460,9 +460,25 @@ describe(ConfigureDeploymentForm.name, () => {
     await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("node:18"), "my-app", undefined));
   });
 
+  it("persists only the name this session typed, never one the api derived for it", async () => {
+    const { save } = setup({ initialSdl: undefined, apiDerivedName: "web+postgres", Panes: SdlProbePanes });
+
+    await userEvent.click(screen.getByRole("button", { name: "change image" }));
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.any(String), "", undefined));
+  });
+
+  it("shows the name the api derived while asking for quotes under none, so the api can derive it again", () => {
+    const { ConfigureDeploymentPanes, ConfigureDeploymentHeader } = setup({ initialSdl: undefined, apiDerivedName: "web+postgres" });
+
+    expect(ConfigureDeploymentPanes).toHaveBeenCalledWith(expect.objectContaining({ deploymentName: "web+postgres" }), expect.anything());
+    expect(ConfigureDeploymentHeader).toHaveBeenCalledWith(expect.objectContaining({ deploymentName: "" }), expect.anything());
+  });
+
   function setup(input: {
     initialSdl: string | undefined;
     initialName?: string;
+    apiDerivedName?: string;
     Panes?: typeof SdlProbePanes;
     draftId?: string;
     persistedRuntimeLimitHours?: number;
@@ -503,7 +519,11 @@ describe(ConfigureDeploymentForm.name, () => {
         clear
       })
     );
-    const useDeploymentName = ((args: { initialName?: string }) => ({ name: args.initialName ?? "", setName: setDeploymentName })) as never;
+    const useDeploymentName = ((args: { initialName?: string }) => ({
+      name: input.apiDerivedName ?? args.initialName ?? "",
+      typedName: args.initialName ?? "",
+      setName: setDeploymentName
+    })) as never;
     // The base flow is created upstream by the DeploymentFlowProvider now, so it arrives as a prop rather than a hook.
     const flow = mock<DeploymentFlow>({
       phase: input.phase ?? "configuring",
