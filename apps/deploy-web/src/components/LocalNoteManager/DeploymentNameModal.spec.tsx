@@ -119,6 +119,50 @@ describe("DeploymentNameModal", () => {
     expect(deploymentLocalStorage.update).not.toHaveBeenCalled();
   });
 
+  it("opens on the name of the deployment it was reopened for, not the one typed for another", async () => {
+    const { showDeployment } = setup({ dseq: "12345", resolvedName: "first-deployment" });
+    await type("typed-for-the-first");
+
+    showDeployment({ dseq: "67890", resolvedName: "second-deployment" });
+
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("second-deployment"));
+  });
+
+  it("renames the deployment it was reopened for with that deployment's own name", async () => {
+    const { showDeployment, patchMutate } = setup({ dseq: "12345", resolvedName: "first-deployment" });
+    await type("typed-for-the-first");
+
+    showDeployment({ dseq: "67890", resolvedName: "second-deployment" });
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(patchMutate).toHaveBeenCalledWith({ dseq: "67890", data: { name: "second-deployment" } }, expect.any(Object));
+  });
+
+  it("opens on the deployment's own name once an edit was abandoned by closing the dialog", async () => {
+    const { showDeployment } = setup({ dseq: "12345", resolvedName: "old-name" });
+    await type("abandoned");
+
+    showDeployment({ dseq: null, resolvedName: "old-name" });
+    showDeployment({ dseq: "12345", resolvedName: "old-name" });
+
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("old-name"));
+  });
+
+  it("keeps what the user typed when the api's name for the same deployment arrives afterwards", async () => {
+    const { showDeployment } = setup({ dseq: "12345" });
+    await type("typed-while-loading");
+
+    showDeployment({ dseq: "12345", resolvedName: "named-elsewhere" });
+
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("typed-while-loading");
+  });
+
+  async function type(name: string) {
+    const field = screen.getByRole("textbox", { name: "Name" });
+    await userEvent.clear(field);
+    await userEvent.type(field, name);
+  }
+
   async function rename(name: string) {
     const field = screen.getByRole("textbox", { name: "Name" });
     await userEvent.clear(field);
@@ -147,23 +191,30 @@ describe("DeploymentNameModal", () => {
     const enqueueSnackbar = vi.fn();
     const onSaved = vi.fn();
     const onClose = vi.fn();
+    let resolvedName = input.resolvedName;
     const dependencies: typeof DEPENDENCIES = {
       useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() }),
       useQueryClient: () => queryClient,
-      useResolvedDeploymentName: () => input.resolvedName
+      useResolvedDeploymentName: () => resolvedName
     };
 
     const store = createStore();
     store.set(settingsIdAtom, "akash1abc");
 
-    render(
+    const modalFor = (shownDseq: string | number | null) => (
       <JotaiStoreProvider store={store}>
         <TestContainerProvider services={{ api: () => api, deploymentLocalStorage: () => deploymentLocalStorage }}>
-          <DeploymentNameModal dseq={dseq} onClose={onClose} onSaved={onSaved} dependencies={dependencies} />
+          <DeploymentNameModal dseq={shownDseq} onClose={onClose} onSaved={onSaved} dependencies={dependencies} />
         </TestContainerProvider>
       </JotaiStoreProvider>
     );
+    const { rerender } = render(modalFor(dseq));
 
-    return { patchMutate, deploymentLocalStorage, queryClient, enqueueSnackbar, onSaved, onClose, api };
+    const showDeployment = (shown: { dseq: string | number | null; resolvedName?: string }) => {
+      resolvedName = shown.resolvedName;
+      rerender(modalFor(shown.dseq));
+    };
+
+    return { patchMutate, deploymentLocalStorage, queryClient, enqueueSnackbar, onSaved, onClose, api, showDeployment };
   }
 });

@@ -44,14 +44,25 @@ export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, d
     },
     resolver: zodResolver(formSchema)
   });
-  const { handleSubmit, control, setValue, formState } = form;
+  const { handleSubmit, control, reset, formState } = form;
   const isEdited = formState.isDirty;
+  /** One modal instance serves every deployment, so a name typed for one must never be carried into another's field. */
+  const seededDseqRef = useRef<string | null>(null);
 
   useEffect(
     function seedFromTheNameOnShow() {
-      if (dseq && !isEdited) setValue("name", resolvedName ?? "");
+      if (!dseq) {
+        seededDseqRef.current = null;
+        return;
+      }
+
+      const shown = String(dseq);
+      if (seededDseqRef.current !== shown || !isEdited) {
+        seededDseqRef.current = shown;
+        reset({ name: resolvedName ?? "" });
+      }
     },
-    [dseq, resolvedName, isEdited, setValue]
+    [dseq, resolvedName, isEdited, reset]
   );
 
   const onSaveClick = (event: React.MouseEvent) => {
