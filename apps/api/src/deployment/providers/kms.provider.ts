@@ -13,6 +13,8 @@ const CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
 /** The Cloud KMS operations the console performs on the SDL secrets key, narrowed so they can be doubled in tests. */
 export interface SdlSecretsKmsClient {
   getPublicKey(request: { name: string }, options?: CallOptions): Promise<[protos.google.cloud.kms.v1.IPublicKey, ...unknown[]]>;
+  /** Only this reports a version's state: Cloud KMS refuses a disabled version's public key, but the emulator serves it. */
+  getCryptoKeyVersion(request: { name: string }, options?: CallOptions): Promise<[protos.google.cloud.kms.v1.ICryptoKeyVersion, ...unknown[]]>;
   asymmetricDecrypt(request: {
     name: string;
     ciphertext: Buffer;
@@ -63,7 +65,12 @@ export function createSdlSecretsKmsTarget(input: {
   };
 }
 
+/** A target for any version of the console's crypto key, so a rotation can address one the configuration does not name. */
+export type SdlSecretsKmsTargetFactory = (version: string) => SdlSecretsKmsTarget;
+
 export const KMS_CLIENT: InjectionToken<KeyManagementServiceClient> = Symbol("KMS_CLIENT");
+
+export const SDL_SECRETS_KMS_TARGET_FACTORY: InjectionToken<SdlSecretsKmsTargetFactory> = Symbol("SDL_SECRETS_KMS_TARGET_FACTORY");
 
 export const SDL_SECRETS_KMS_TARGET: InjectionToken<SdlSecretsKmsTarget> = Symbol("SDL_SECRETS_KMS_TARGET");
 
@@ -94,18 +101,23 @@ container.register(KMS_CLIENT, {
   })
 });
 
-container.register(SDL_SECRETS_KMS_TARGET, {
+container.register(SDL_SECRETS_KMS_TARGET_FACTORY, {
   useFactory: instancePerContainerCachingFactory(c => {
     const config = c.resolve(DeploymentConfigService);
     const auth = config.get("GCP_KMS_AUTH");
     const client = c.resolve<KeyManagementServiceClient>(KMS_CLIENT);
     const key = config.get("GCP_KMS_KEY");
+    const versionPath = (version: string) =>
+      client.cryptoKeyVersionPath(auth.project_id, config.get("GCP_KMS_LOCATION"), config.get("GCP_KMS_KEY_RING"), key, version);
 
-    return createSdlSecretsKmsTarget({
-      client,
-      versionPath: version => client.cryptoKeyVersionPath(auth.project_id, config.get("GCP_KMS_LOCATION"), config.get("GCP_KMS_KEY_RING"), key, version),
-      key,
-      version: config.get("GCP_KMS_KEY_VERSION")
-    });
+    const createTarget: SdlSecretsKmsTargetFactory = version => createSdlSecretsKmsTarget({ client, versionPath, key, version });
+
+    return createTarget;
   })
+});
+
+container.register(SDL_SECRETS_KMS_TARGET, {
+  useFactory: instancePerContainerCachingFactory(c =>
+    c.resolve<SdlSecretsKmsTargetFactory>(SDL_SECRETS_KMS_TARGET_FACTORY)(c.resolve(DeploymentConfigService).get("GCP_KMS_KEY_VERSION"))
+  )
 });

@@ -31,6 +31,23 @@ export class StoredSecretsFingerprint {
     this.#rowDigests.set(id, { digest: hash.digest(), byteCount: token.length });
   }
 
+  /** How many rows hold a different token than they did in `other`, counting one that arrived or disappeared as a difference of its own. */
+  countDifferencesFrom(other: StoredSecretsFingerprint): number {
+    const ids = new Set([...this.#rowDigests.keys(), ...other.#rowDigests.keys()]);
+    let differences = 0;
+
+    for (const id of ids) {
+      const mine = this.#rowDigests.get(id);
+      const theirs = other.#rowDigests.get(id);
+
+      if (!mine || !theirs || !mine.digest.equals(theirs.digest)) {
+        differences++;
+      }
+    }
+
+    return differences;
+  }
+
   summarize(): StoredSecretsSummary {
     const hash = createHash(DIGEST_ALGORITHM);
     let byteCount = 0;

@@ -81,6 +81,40 @@ describe(StoredSecretsFingerprint.name, () => {
     expect(summary.digest).not.toBe(setup({ rows: [FIRST] }).summary.digest);
   });
 
+  describe("countDifferencesFrom", () => {
+    it("counts no difference against an identical fleet", () => {
+      const { fingerprint } = setup({ rows: [FIRST, SECOND] });
+
+      expect(fingerprint.countDifferencesFrom(setup({ rows: [SECOND, FIRST] }).fingerprint)).toBe(0);
+    });
+
+    it("counts each row whose token changed", () => {
+      const { fingerprint } = setup({ rows: [FIRST, SECOND, THIRD] });
+      const { fingerprint: changed } = setup({ rows: [FIRST, { ...SECOND, sealedSecrets: "changed" }, { ...THIRD, sealedSecrets: "also-changed" }] });
+
+      expect(fingerprint.countDifferencesFrom(changed)).toBe(2);
+    });
+
+    it("counts a row that arrived and a row that disappeared", () => {
+      const { fingerprint } = setup({ rows: [FIRST, SECOND] });
+      const { fingerprint: moved } = setup({ rows: [FIRST, THIRD] });
+
+      expect(fingerprint.countDifferencesFrom(moved)).toBe(2);
+    });
+
+    it("counts a swap as both rows having moved", () => {
+      const { fingerprint } = setup({ rows: [FIRST, SECOND] });
+      const { fingerprint: swapped } = setup({
+        rows: [
+          { id: FIRST.id, sealedSecrets: SECOND.sealedSecrets },
+          { id: SECOND.id, sealedSecrets: FIRST.sealedSecrets }
+        ]
+      });
+
+      expect(fingerprint.countDifferencesFrom(swapped)).toBe(2);
+    });
+  });
+
   it("summarizes the same fleet the same way across separate runs", () => {
     expect(setup({ rows: [FIRST, SECOND] }).summary).toEqual(setup({ rows: [FIRST, SECOND] }).summary);
   });
