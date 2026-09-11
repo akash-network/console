@@ -118,7 +118,7 @@ export class DataKeyUnwrapperService {
       throw this.#rejectUnreadable("USER_DATA_KEY_LENGTH_UNEXPECTED", { userId, keyBytes: key.length });
     }
 
-    this.#loggerService.info({ event: "USER_DATA_KEY_UNWRAPPED", userId, dataKeyId: dataKey.id });
+    this.#loggerService.info({ event: "USER_DATA_KEY_UNWRAPPED", userId, dataKeyId: dataKey.id, kid: parsed.header.kid });
 
     return key;
   }
