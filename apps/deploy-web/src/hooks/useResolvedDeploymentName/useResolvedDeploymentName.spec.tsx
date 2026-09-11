@@ -1,14 +1,15 @@
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { createProxy } from "@akashnetwork/react-query-proxy";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
+import { createStore, Provider as JotaiStoreProvider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentStorageService } from "@src/services/deployment-storage/deployment-storage.service";
+import { settingsIdAtom } from "@src/store/settingsStore";
 import type { DEPENDENCIES } from "./useResolvedDeploymentName";
 import { useResolvedDeploymentName } from "./useResolvedDeploymentName";
 
-import { buildWallet } from "@tests/seeders/wallet";
 import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
 
 type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["services"]>["api"]>>;
@@ -31,6 +32,13 @@ describe(useResolvedDeploymentName.name, () => {
 
     await vi.waitFor(() => expect(getDeployment).toHaveBeenCalled());
     expect(result.current).toBe("local-name");
+  });
+
+  it("reads this browser's record under the wallet the app recorded, with no wallet provider above the hook", async () => {
+    const { result, deploymentLocalStorage } = setup({ apiName: null, localName: "local-name" });
+
+    await vi.waitFor(() => expect(result.current).toBe("local-name"));
+    expect(deploymentLocalStorage.get).toHaveBeenCalledWith("akash1test", "123");
   });
 
   it("serves this browser's record while the api's answer is still resolving", () => {
@@ -80,7 +88,7 @@ describe(useResolvedDeploymentName.name, () => {
     const api = createProxy({ v1: { getDeployment } }) as unknown as ApiService;
 
     const deploymentLocalStorage = mock<DeploymentStorageService>({
-      get: vi.fn((_address, dseq) => (dseq && input.localName ? { name: input.localName } : null))
+      get: vi.fn((address, dseq) => (address && dseq && input.localName ? { name: input.localName } : null))
     });
 
     const onQueryError = vi.fn();
@@ -89,13 +97,16 @@ describe(useResolvedDeploymentName.name, () => {
       queryCache: new QueryCache({ onError: onQueryError })
     });
 
-    const useWallet: typeof DEPENDENCIES.useWallet = () => buildWallet({ address: "akash1test" });
     /** `satisfies` type-checks both fields against the real container, but `api` is a recursive proxy that `mock<T>()` recurses into until the heap dies. */
     const services = { api, deploymentLocalStorage } satisfies Partial<ReturnType<typeof DEPENDENCIES.useServices>>;
     const useServices: typeof DEPENDENCIES.useServices = () => services as unknown as ReturnType<typeof DEPENDENCIES.useServices>;
 
-    const { result } = setupQuery(() => useResolvedDeploymentName(input.dseq === undefined ? "123" : input.dseq, { useServices, useWallet }), {
-      services: { api: () => api, deploymentLocalStorage: () => deploymentLocalStorage, queryClient: () => queryClient }
+    const store = createStore();
+    store.set(settingsIdAtom, "akash1test");
+
+    const { result } = setupQuery(() => useResolvedDeploymentName(input.dseq === undefined ? "123" : input.dseq, { useServices }), {
+      services: { api: () => api, deploymentLocalStorage: () => deploymentLocalStorage, queryClient: () => queryClient },
+      wrapper: ({ children }) => <JotaiStoreProvider store={store}>{children}</JotaiStoreProvider>
     });
 
     return {
