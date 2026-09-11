@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 import type { KeyManagementServiceClient } from "@google-cloud/kms";
 import { decodeProtectedHeader } from "jose";
 import { container } from "tsyringe";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { CreateLogger } from "@src/core/providers/logging.provider";
@@ -164,10 +164,8 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
     expect(real.dataKeysRewrapped).toBe(rehearsal.dataKeysRewrapped);
   });
 
-  let cleanup: () => Promise<void>;
-  afterEach(async () => {
+  afterEach(() => {
     vi.restoreAllMocks();
-    await cleanup?.();
   });
 
   function setup() {
@@ -179,11 +177,11 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
     const txService = container.resolve(TxService);
     const createdUserIds: string[] = [];
 
-    cleanup = async () => {
+    onTestFinished(async () => {
       if (createdUserIds.length > 0) {
         await userRepository.deleteById(createdUserIds);
       }
-    };
+    });
 
     const createKmsTarget: SdlSecretsKmsTargetFactory = version => createSdlSecretsKmsTarget({ client: kmsClient, versionPath, key: KEY, version });
 
