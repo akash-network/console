@@ -38,6 +38,26 @@ describe(useDeploymentFlow.name, () => {
     expect(replace).toHaveBeenCalledWith("/new-deployment/configure/999?bid-strategy=select", undefined, { shallow: true });
   });
 
+  it("carries the typed name into the create request, so the api records the name the user chose", async () => {
+    const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+    const { result } = setup({ createMutate });
+
+    act(() => result.current.actions.requestQuotes("sdl-content", "  my-app  "));
+
+    await waitFor(() => expect(result.current.phase).toBe("quoting"));
+    expect(createMutate).toHaveBeenCalledWith({ data: { sdl: "sdl-content", name: "my-app", deposit: expect.any(Number) } }, expect.any(Object));
+  });
+
+  it.each([undefined, "", "   "])("omits a name of %p, which the api refuses rather than treating as unnamed", async name => {
+    const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+    const { result } = setup({ createMutate });
+
+    act(() => result.current.actions.requestQuotes("sdl-content", name));
+
+    await waitFor(() => expect(result.current.phase).toBe("quoting"));
+    expect(createMutate.mock.calls[0][0].data).not.toHaveProperty("name");
+  });
+
   it("mirrors the strategy current when a create resolves, not the one it was fired with", () => {
     const replace = vi.fn();
     let resolveCreate: ((result: { data: { dseq: string; manifest: string } }) => void) | undefined;

@@ -66,19 +66,6 @@ describe(LocalNoteManager.name, () => {
     expect(selectDeployment).toHaveBeenCalledWith(null);
   });
 
-  it("passes getDeploymentName from useLocalNotes to modal", () => {
-    const DeploymentNameModalMock = vi.fn(ComponentMock as unknown as typeof DeploymentNameModal);
-    const getDeploymentName = vi.fn().mockReturnValue("my-deployment");
-    setup({
-      getDeploymentName,
-      dependencies: {
-        DeploymentNameModal: DeploymentNameModalMock
-      }
-    });
-
-    expect(DeploymentNameModalMock).toHaveBeenCalledWith(expect.objectContaining({ getDeploymentName }), expect.anything());
-  });
-
   it("initializes favorite providers on mount", () => {
     const initFavoriteProviders = vi.fn();
     setup({ initFavoriteProviders });

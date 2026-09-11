@@ -48,13 +48,13 @@ describe(DeploymentDetailHeader.name, () => {
     expect(screen.getByText("3")).toBeInTheDocument();
   });
 
-  it("shows the deployment name recorded for this deployment in this browser", () => {
+  it("shows the resolved deployment name", () => {
     setup({ name: "My Storefront" });
 
     expect(screen.getByText("My Storefront")).toBeInTheDocument();
   });
 
-  it("falls back to a generated name when none is stored", () => {
+  it("falls back to a generated name when neither the api nor this browser holds one", () => {
     setup({ name: null });
 
     expect(screen.getByText("Deployment #1786440078202")).toBeInTheDocument();
