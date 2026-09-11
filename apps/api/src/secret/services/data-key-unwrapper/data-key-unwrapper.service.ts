@@ -12,6 +12,7 @@ import { KmsWrappedJweError, KmsWrappedJweService } from "@src/deployment/servic
 import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
 import type { DataKeyOutput } from "@src/secret/repositories/data-key/data-key.repository";
 import { DataKeyService } from "@src/secret/services/data-key/data-key.service";
+import { DataKeyUnwrapInstrumentationService } from "./data-key-unwrap-instrumentation.service";
 
 /** AES-256 content encryption, so the data encryption key is 256 bits. */
 const DATA_ENCRYPTION_KEY_BYTES = 32;
@@ -33,6 +34,7 @@ export class DataKeyUnwrapperService {
     private readonly dataKeyService: DataKeyService,
     private readonly executionContextService: ExecutionContextService,
     private readonly wrappedJweService: KmsWrappedJweService,
+    private readonly unwrapInstrumentationService: DataKeyUnwrapInstrumentationService,
     @inject(SDL_SECRETS_KMS_TARGET) private readonly kmsTarget: SdlSecretsKmsTarget,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -78,6 +80,7 @@ export class DataKeyUnwrapperService {
   /** Neither a failed nor a refused unwrap is remembered: the first lets a recovered key service serve the next value, the second drops the only reference this process holds to the plaintext key. */
   async #holdDataKey(userId: string, heldThisRequest: Map<string, Promise<HeldDataKey>>): Promise<HeldDataKey> {
     const dataKey = await this.dataKeyService.ensureDataKey(userId);
+    this.unwrapInstrumentationService.beginCountingUnwraps(userId);
     let unwrapping: Promise<Buffer> | undefined;
 
     const unwrap = async () => {
@@ -118,6 +121,7 @@ export class DataKeyUnwrapperService {
       throw this.#rejectUnreadable("USER_DATA_KEY_LENGTH_UNEXPECTED", { userId, keyBytes: key.length });
     }
 
+    this.unwrapInstrumentationService.countUnwrap(userId);
     this.#loggerService.info({ event: "USER_DATA_KEY_UNWRAPPED", userId, dataKeyId: dataKey.id, kid: parsed.header.kid });
 
     return key;
