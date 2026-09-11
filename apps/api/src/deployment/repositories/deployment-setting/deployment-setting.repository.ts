@@ -183,11 +183,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     }
   }
 
-  /**
-   * Every stored secrets token there is, keyset-paged on `id`. Rows holding none are left out, so
-   * the count and byte total a fingerprint reports describe the deployments that actually carry a
-   * secret rather than the size of the table.
-   */
+  /** Rows holding no secret are left out, so a fingerprint's row and byte counts describe the deployments that actually carry one. */
   async *findStoredSecretsIteratively({ batchSize }: { batchSize: number }): AsyncGenerator<DeploymentStoredSecrets[]> {
     let cursor: string | undefined;
 

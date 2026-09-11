@@ -68,11 +68,7 @@ export class DataKeyRepository extends BaseRepository<Table, DataKeyInput, DataK
       .orderBy(asc(this.table.wrappedByKid));
   }
 
-  /**
-   * Keyset-paged on `id`, and filtered on the version rather than on a progress marker, so a
-   * re-wrap that stopped halfway resumes by selection alone: a row it already moved no longer
-   * matches. Read outside any transaction, because the caller commits each batch in one of its own.
-   */
+  /** Filters on the version rather than a progress marker so an interrupted run resumes by selection alone; ids are random uuids, so one pass may skip a row inserted mid-scan and only the destroy-time count vouches for completeness. */
   async *findWrappedUnderOtherVersionsIteratively({
     targetKid,
     batchSize

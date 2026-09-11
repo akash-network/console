@@ -17,13 +17,7 @@ const DIGEST_ALGORITHM = "sha256";
 /** A length fits in four bytes for any token a row can hold, and the framing below needs a fixed-width one. */
 const LENGTH_PREFIX_BYTES = 4;
 
-/**
- * Proof that a run of the key rotation changed no stored secret, taken over the fleet before and
- * after it. Each row is digested under its own id, so a token moved to another deployment shows up
- * as a changed fingerprint rather than as the same one; the per-row digests are combined in id
- * order at the end, so the result is a function of the rows themselves and not of the order a scan
- * happened to yield them in.
- */
+/** Digests each row under its own id and combines the row digests in id order, so the result reflects the rows themselves rather than the order a scan yielded them in. */
 export class StoredSecretsFingerprint {
   readonly #rowDigests = new Map<string, { digest: Buffer; byteCount: number }>();
 
