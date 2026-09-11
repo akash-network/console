@@ -14,6 +14,7 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/top-up-deployments.controller";
 import { GpuBotController } from "@src/deployment/controllers/gpu-bot/gpu-bot.controller";
 import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
+import { DataKeyRotationController } from "@src/secret/controllers/data-key-rotation/data-key-rotation.controller";
 import { WorkloadAbuseController } from "@src/workload-abuse/controllers/workload-abuse.controller";
 import { APP_INITIALIZER, ON_APP_START } from "../core/providers/app-initializer";
 
@@ -119,6 +120,18 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       await container.resolve(GpuBotController).createGpuBids();
+    });
+  });
+
+program
+  .command("rotate-data-keys")
+  .description("Re-wrap every user's data key onto the configured KMS key version, proving no stored secret changed")
+  .requiredOption("-t, --target-version <version>", "The key version to move data keys onto, which must be the one this console is configured to wrap under")
+  .option("-b, --batch-size <number>", "How many data keys are written per transaction", value => z.number({ coerce: true }).parse(value))
+  .option("-d, --dry-run", "Log what would be re-wrapped without opening or writing anything", false)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(DataKeyRotationController).rotate(options);
     });
   });
 
