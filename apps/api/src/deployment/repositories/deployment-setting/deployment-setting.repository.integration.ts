@@ -676,6 +676,71 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("findNamesByDseqs", () => {
+    it("reads the names of a whole page in one query, keyed by dseq", async () => {
+      const { deploymentSettingRepository, user, abilityFor } = await setup();
+      const named = newDseq();
+      const alsoNamed = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: named, sdl: SDL, manifestVersion: "BAUG", name: "web" });
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: alsoNamed, sdl: SDL, manifestVersion: "BAUG", name: "db+web" });
+
+      const names = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "read")
+        .findNamesByDseqs({ userId: user.id, dseqs: [named, alsoNamed] });
+
+      expect(names.get(named)).toBe("web");
+      expect(names.get(alsoNamed)).toBe("db+web");
+    });
+
+    it("reads a null name for a deployment recorded before the column existed", async () => {
+      const { deploymentSettingRepository, user, abilityFor } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BAUG" });
+
+      const names = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findNamesByDseqs({ userId: user.id, dseqs: [dseq] });
+
+      expect(names.get(dseq)).toBeNull();
+    });
+
+    it("leaves a dseq the console has no row for out of the result entirely", async () => {
+      const { deploymentSettingRepository, user, abilityFor } = await setup();
+      const unrecorded = newDseq();
+
+      const names = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findNamesByDseqs({ userId: user.id, dseqs: [unrecorded] });
+
+      expect(names.has(unrecorded)).toBe(false);
+    });
+
+    it("refuses to read a name belonging to another user holding the same dseq", async () => {
+      const { deploymentSettingRepository, user, trialUser, abilityFor } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BAUG", name: "web" });
+      await deploymentSettingRepository.upsertDefinition({ userId: trialUser.id, dseq, sdl: SDL, manifestVersion: "BAUG", name: "someone else's" });
+
+      const names = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findNamesByDseqs({ userId: user.id, dseqs: [dseq] });
+
+      expect(names.get(dseq)).toBe("web");
+    });
+
+    it("reads nothing for a deployment the caller's ability excludes", async () => {
+      const { deploymentSettingRepository, user, trialUser, abilityFor } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BAUG", name: "web" });
+
+      const names = await deploymentSettingRepository.accessibleBy(abilityFor(trialUser), "read").findNamesByDseqs({ userId: user.id, dseqs: [dseq] });
+
+      expect(names.size).toBe(0);
+    });
+
+    it("issues no query at all for a page with no deployments on it", async () => {
+      const { deploymentSettingRepository, user, abilityFor } = await setup();
+
+      const names = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findNamesByDseqs({ userId: user.id, dseqs: [] });
+
+      expect(names.size).toBe(0);
+    });
+  });
+
   describe("findAutoTopUpDeploymentsByOwnerIteratively", () => {
     it("gathers every deployment of an owner into a single yield", async () => {
       const { createSetting, wallet, findAutoTopUpOwners } = await setup();

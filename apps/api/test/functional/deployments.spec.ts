@@ -1,4 +1,5 @@
 import { manifestToSortedJSON, type SDLInput, yaml } from "@akashnetwork/chain-sdk";
+import type { DeploymentInfo } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import createError, { NotFound } from "http-errors";
 import nock from "nock";
@@ -297,6 +298,7 @@ describe("Deployments API", () => {
         deployment: expect.any(Object),
         escrow_account: expect.any(Object),
         leases: expect.arrayContaining([expect.any(Object)]),
+        name: null,
         consoleSettings: null
       });
     });
@@ -390,6 +392,54 @@ describe("Deployments API", () => {
 
       expect((await readAs(first.userApiKeySecret)).data.consoleSettings).toEqual({ sdl: firstSdl, manifestVersion: "BAUG" });
       expect((await readAs(second.userApiKeySecret)).data.consoleSettings).toEqual({ sdl: secondSdl, manifestVersion: "BAUH" });
+    });
+
+    it("returns the name the console recorded for the deployment", async () => {
+      const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      await setupDeploymentInfoMock(wallets, dseq);
+      await container.resolve(DeploymentSettingRepository).upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG", name: "web" });
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: { name: unknown } };
+      expect(result.data.name).toBe("web");
+    });
+
+    it("returns the name of a deployment the console holds no sdl for, which reports no console settings", async () => {
+      const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      await setupDeploymentInfoMock(wallets, dseq);
+      await container.resolve(DeploymentSettingRepository).create({ userId: user.id, dseq, name: "named only" });
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: { name: unknown; consoleSettings: unknown } };
+      expect(result.data).toMatchObject({ name: "named only", consoleSettings: null });
+    });
+
+    it("returns no name for a deployment recorded before the console named them", async () => {
+      const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      await setupDeploymentInfoMock(wallets, dseq);
+      await container.resolve(DeploymentSettingRepository).upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG" });
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: { name: unknown } };
+      expect(result.data.name).toBeNull();
     });
 
     it("returns 404 for an error in deployment info", async () => {
@@ -491,6 +541,31 @@ describe("Deployments API", () => {
           hasMore: false
         }
       });
+    });
+
+    it("returns each listed deployment's name, and null for one recorded before the console named them", async () => {
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const deployments = setupDeploymentListMock(wallets, 2);
+      const [named, unnamed] = (deployments as DeploymentInfo[]).map(({ deployment }) => deployment.id.dseq);
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: named, sdl: "version: '2.0'", manifestVersion: "BAUG", name: "web" });
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: unnamed, sdl: "version: '2.0'", manifestVersion: "BAUG" });
+
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .persist()
+        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
+        .reply(200, { deployments, pagination: { total: deployments.length, next_key: null } });
+
+      const response = await app.request("/v1/deployments", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: { deployments: { deployment: { id: { dseq: string } }; name: string | null }[] } };
+      const nameByDseq = new Map(result.data.deployments.map(item => [item.deployment.id.dseq, item.name]));
+      expect(nameByDseq.get(named)).toBe("web");
+      expect(nameByDseq.get(unnamed)).toBeNull();
     });
 
     it("returns paginated list of deployments when skip and limit are provided", async () => {

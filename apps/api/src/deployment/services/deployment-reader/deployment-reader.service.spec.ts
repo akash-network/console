@@ -45,6 +45,38 @@ describe(DeploymentReaderService.name, () => {
       expect(result.consoleSettings).toBeNull();
     });
 
+    it("returns the name the console recorded for the deployment", async () => {
+      const { service, wallet } = setup({ recorded: { sdl: "version: '2.0'", manifestVersion: "BAUG", name: "web" } });
+
+      const result = await service.findByUserIdAndDseq(wallet.userId, "12345");
+
+      expect(result.name).toBe("web");
+    });
+
+    it("returns no name when nothing was recorded for the deployment", async () => {
+      const { service, wallet } = setup({ recorded: null });
+
+      const result = await service.findByUserIdAndDseq(wallet.userId, "12345");
+
+      expect(result.name).toBeNull();
+    });
+
+    it("returns the name of a deployment whose sdl was never recorded, which reports no console settings at all", async () => {
+      const { service, wallet } = setup({ recorded: { sdl: null, manifestVersion: null, name: "renamed" } });
+
+      const result = await service.findByUserIdAndDseq(wallet.userId, "12345");
+
+      expect(result).toMatchObject({ name: "renamed", consoleSettings: null });
+    });
+
+    it("reads the name and the console settings from a single settings read", async () => {
+      const { service, wallet, scopedDeploymentSettingRepository } = setup();
+
+      await service.findByUserIdAndDseq(wallet.userId, "12345");
+
+      expect(scopedDeploymentSettingRepository.findOneBy).toHaveBeenCalledTimes(1);
+    });
+
     it("reads the console settings under the caller's own ability and user id", async () => {
       const { service, wallet, deploymentSettingRepository, scopedDeploymentSettingRepository, authService } = setup();
 
@@ -203,6 +235,50 @@ describe(DeploymentReaderService.name, () => {
   });
 
   describe("list", () => {
+    it("returns each deployment's name, and null for one the console never named", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service } = setup({ wallet, listedDseqs: ["100", "200"], names: { "100": "web" } });
+
+      const { deployments } = await service.list({ query: { userId: wallet.userId } });
+
+      expect(deployments).toMatchObject([{ name: "web" }, { name: null }]);
+    });
+
+    it("looks the names up once for the whole page, under the caller's own ability and user id", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentSettingRepository, scopedDeploymentSettingRepository, authService } = setup({
+        wallet,
+        listedDseqs: ["100", "200"]
+      });
+
+      await service.list({ query: { userId: wallet.userId } });
+
+      expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
+      expect(scopedDeploymentSettingRepository.findNamesByDseqs).toHaveBeenCalledTimes(1);
+      expect(scopedDeploymentSettingRepository.findNamesByDseqs).toHaveBeenCalledWith({ userId: wallet.userId, dseqs: ["100", "200"] });
+    });
+
+    it("gives each listed deployment the leases fetched for that deployment alone", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, leaseHttpService } = setup({ wallet, listedDseqs: ["100", "200"] });
+
+      const { deployments } = await service.list({ query: { userId: wallet.userId } });
+
+      expect(deployments.map(item => item.leases.map(lease => lease.id.dseq))).toEqual([["100"], ["200"]]);
+      expect(leaseHttpService.list).toHaveBeenCalledWith({ owner: wallet.address, dseq: "100" });
+      expect(leaseHttpService.list).toHaveBeenCalledWith({ owner: wallet.address, dseq: "200" });
+    });
+
+    it("reads no names for a page with no deployments on it", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, scopedDeploymentSettingRepository } = setup({ wallet, listedDseqs: [] });
+
+      const { deployments } = await service.list({ query: { userId: wallet.userId } });
+
+      expect(deployments).toEqual([]);
+      expect(scopedDeploymentSettingRepository.findNamesByDseqs).not.toHaveBeenCalled();
+    });
+
     it("falls back to database when blockchain node is unreachable", async () => {
       const deploymentList = createDeploymentListResponseSeed({}, 2);
       const wallet = createUserWallet() as WalletInitialized;
@@ -315,13 +391,20 @@ describe(DeploymentReaderService.name, () => {
       fallbackDeploymentList?: ReturnType<typeof createDeploymentListResponseSeed>;
       fallbackLeases?: ReturnType<typeof createLeaseApiResponse>[];
       leases?: ReturnType<typeof createLeaseApiResponse>[];
-      recorded?: Pick<DeploymentSettingsOutput, "sdl" | "manifestVersion"> | null;
+      recorded?: (Pick<DeploymentSettingsOutput, "sdl" | "manifestVersion"> & { name?: string | null }) | null;
+      listedDseqs?: string[];
+      names?: Record<string, string | null>;
     } = {}
   ) {
     const defaultWallet = createUserWallet() as WalletInitialized;
     const wallet = input.wallet ?? defaultWallet;
     const defaultDeploymentInfo = createDeploymentInfoSeed();
-    const defaultDeploymentList = createDeploymentListResponseSeed({}, 0);
+    const defaultDeploymentList = input.listedDseqs
+      ? {
+          deployments: input.listedDseqs.map(dseq => createDeploymentInfoSeed({ owner: wallet.address, dseq })),
+          pagination: { next_key: null, total: String(input.listedDseqs.length) }
+        }
+      : createDeploymentListResponseSeed({}, 0);
 
     const mocks = {
       providerService: mock<ProviderService>({
@@ -337,7 +420,12 @@ describe(DeploymentReaderService.name, () => {
         findAll: vi.fn().mockResolvedValue(input.fallbackDeploymentList ?? defaultDeploymentList)
       }),
       leaseHttpService: mock<LeaseHttpService>({
-        list: vi.fn().mockResolvedValue({ leases: input.leases ?? [], pagination: { next_key: null, total: String(input.leases?.length ?? 0) } })
+        list: input.listedDseqs
+          ? vi.fn().mockImplementation(async ({ dseq }: { dseq?: string }) => ({
+              leases: dseq ? [createLeaseApiResponse({ owner: wallet.address, dseq })] : [],
+              pagination: { next_key: null, total: dseq ? "1" : "0" }
+            }))
+          : vi.fn().mockResolvedValue({ leases: input.leases ?? [], pagination: { next_key: null, total: String(input.leases?.length ?? 0) } })
       }),
       fallbackLeaseReaderService: mock<FallbackLeaseReaderService>({
         list: vi.fn().mockResolvedValue({
@@ -352,9 +440,10 @@ describe(DeploymentReaderService.name, () => {
       logger: mock<ReturnType<CreateLogger>>()
     };
 
-    const recorded = input.recorded === undefined ? { sdl: "version: '2.0'", manifestVersion: "BAUG" } : input.recorded;
+    const recorded = input.recorded === undefined ? { sdl: "version: '2.0'", manifestVersion: "BAUG", name: null } : input.recorded;
     const scopedDeploymentSettingRepository = mock<DeploymentSettingRepository>({
-      findOneBy: vi.fn().mockResolvedValue(recorded ? mock<DeploymentSettingsOutput>(recorded) : undefined)
+      findOneBy: vi.fn().mockResolvedValue(recorded ? mock<DeploymentSettingsOutput>({ ...recorded, name: recorded.name ?? null }) : undefined),
+      findNamesByDseqs: vi.fn().mockResolvedValue(new Map(Object.entries(input.names ?? {})))
     });
     const deploymentSettingRepository = mock<DeploymentSettingRepository>({
       accessibleBy: vi.fn().mockReturnValue(scopedDeploymentSettingRepository)

@@ -77,8 +77,14 @@ export const DeploymentResponseSchema = z.object({
   })
 });
 
+/** A sibling of `consoleSettings` rather than a member of it, because that object is null unless both an sdl and a manifest version were recorded, which a deployment named on its own never has. */
+const DeploymentNameResponseSchema = z.string().nullable().openapi({
+  description: "The name this deployment carries, or null for one created before the console recorded names."
+});
+
 const DeploymentLeaseListItemSchema = DeploymentResponseSchema.extend({
-  leases: z.array(DeploymentLeaseSchema.omit({ status: true }))
+  leases: z.array(DeploymentLeaseSchema.omit({ status: true })),
+  name: DeploymentNameResponseSchema
 });
 
 const ConsoleSettingsSchema = z.object({
@@ -92,6 +98,7 @@ const ConsoleSettingsSchema = z.object({
 
 export const GetDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema.extend({
+    name: DeploymentNameResponseSchema,
     consoleSettings: ConsoleSettingsSchema.nullable().openapi({
       description: "What the console recorded for this deployment, or null when it recorded nothing."
     })

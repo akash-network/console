@@ -46,3 +46,27 @@ export type TheDeploymentReadIsKeyed = Asserts<Carries<operations["getDeployment
 export type TheDeploymentUpdateIsKeyed = Asserts<Carries<operations["updateDeployment"], "escrow_account">>;
 export type TheDepositIsKeyed = Asserts<Carries<operations["depositDeployment"], "escrow_account">>;
 export type TheLeaseCreateIsKeyed = Asserts<Carries<operations["createLease"], "escrow_account">>;
+
+type ListedItem<T> = OkResponseData<T> extends { deployments: (infer I)[] } ? I : never;
+
+type CarriesInList<T, K extends string> = K extends keyof ListedItem<T> ? true : false;
+
+/** Fails while this file is generated from an openapi.json newer than it, which is the only thing standing between a stale client and a consumer reading `deployment.name` as a property TypeScript says does not exist. */
+export type TheNameIsOnTheDeploymentRead = Asserts<Carries<operations["getDeployment"], "name">>;
+export type TheNameIsOnEveryListedDeployment = Asserts<CarriesInList<operations["listDeployments"], "name">>;
+
+export type TheNameIsNotOnTheDeploymentUpdate = Refutes<Carries<operations["updateDeployment"], "name">>;
+export type TheNameIsNotOnTheDeposit = Refutes<Carries<operations["depositDeployment"], "name">>;
+export type TheNameIsNotOnTheLeaseCreate = Refutes<Carries<operations["createLease"], "name">>;
+
+/**
+ * `ListedItem` degrades in the same two directions `Carries` does, and the guards differ per direction:
+ * an extraction that matches nothing yields `never`, whose `keyof` holds every key, so the two `Asserts`
+ * above pass for the wrong reason and only the `consoleSettings` refutation below fails; one that matches
+ * keylessly yields no keys, so the refutation passes vacuously and the `escrow_account` probe fails.
+ */
+export type ADeploymentListResolves = Asserts<Resolves<operations["listDeployments"]>>;
+
+export type AListedDeploymentIsKeyed = Asserts<CarriesInList<operations["listDeployments"], "escrow_account">>;
+
+export type ConsoleSettingsIsNotOnAListedDeployment = Refutes<CarriesInList<operations["listDeployments"], "consoleSettings">>;
