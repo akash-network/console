@@ -10,6 +10,7 @@ import type { AuthService } from "@src/auth/services/auth.service";
 import type { CreateLogger } from "@src/core";
 import { SDL_SECRETS_MAX_SEAL_LIFETIME_MS } from "@src/deployment/config/sdl-secrets.config";
 import type { SdlSecretsKmsClient } from "@src/deployment/providers/kms.provider";
+import { KmsWrappedJweInstrumentationService } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe-instrumentation.service";
 import { KmsWrappedJweService } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe.service";
 import type { UserOutput } from "@src/user/repositories";
 import { SdlSecretsUnsealerService } from "./sdl-secrets-unsealer.service";
@@ -421,7 +422,12 @@ describe(SdlSecretsUnsealerService.name, () => {
     const createLogger: CreateLogger = () => logger;
 
     const kmsTarget = { client: kmsClient, versionName: VERSION_NAME, kid: KID };
-    const service = new SdlSecretsUnsealerService(kmsTarget, new KmsWrappedJweService(kmsTarget), authService, createLogger);
+    const service = new SdlSecretsUnsealerService(
+      kmsTarget,
+      new KmsWrappedJweService(kmsTarget, mock<KmsWrappedJweInstrumentationService>()),
+      authService,
+      createLogger
+    );
     const open = (seal: string, sdl = SDL) => service.open({ seal, sdl });
 
     return { open, kmsClient, authService, logger, seal, sealRaw, assembleSeal, privateKey, clientSecrets };

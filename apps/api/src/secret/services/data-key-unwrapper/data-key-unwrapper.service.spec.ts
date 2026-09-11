@@ -10,6 +10,7 @@ import { mock } from "vitest-mock-extended";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { SdlSecretsKmsClient } from "@src/deployment/providers/kms.provider";
+import { KmsWrappedJweInstrumentationService } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe-instrumentation.service";
 import { KmsWrappedJweService } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe.service";
 import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
 import type { DataKeyOutput } from "@src/secret/repositories/data-key/data-key.repository";
@@ -315,7 +316,13 @@ describe(DataKeyUnwrapperService.name, () => {
     const kmsTarget = { client: kmsClient, versionName: VERSION_NAME, kid: KID };
     const executionContextService = container.resolve(ExecutionContextService);
     const logger = mock<ReturnType<CreateLogger>>();
-    const service = new DataKeyUnwrapperService(dataKeyService, executionContextService, new KmsWrappedJweService(kmsTarget), kmsTarget, () => logger);
+    const service = new DataKeyUnwrapperService(
+      dataKeyService,
+      executionContextService,
+      new KmsWrappedJweService(kmsTarget, mock<KmsWrappedJweInstrumentationService>()),
+      kmsTarget,
+      () => logger
+    );
 
     const inRequest = <R>(cb: () => Promise<R>) => executionContextService.runWithContext(cb);
     const keyFor = (userId: string) => keys.get(userId) as Buffer;
