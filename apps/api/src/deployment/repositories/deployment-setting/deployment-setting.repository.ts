@@ -416,7 +416,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     sealedSecrets: string | null;
     name?: string;
     expectedManifestVersion?: string;
-  }): Promise<string | undefined> {
+  }): Promise<{ id: string; name: string | null } | undefined> {
     const [row] = await this.cursor
       .update(this.table)
       .set({ sdl, manifestVersion, sealedSecrets, name, updatedAt: sql`now()` })
@@ -430,9 +430,9 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
           )
         )
       )
-      .returning({ id: this.table.id });
+      .returning({ id: this.table.id, name: this.table.name });
 
-    return row?.id;
+    return row;
   }
 
   /** A row already carrying the version this write computes is that write's own output, so a guarded retry succeeds rather than conflicting: `manifestVersion` hashes the resolved manifest, and equal versions mean equal effective state down to the secret values. */
@@ -448,11 +448,14 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
    * that reaches deployments predating the definition recording — exactly the ones whose names still live only in
    * a browser. Keyed on (dseq, userId) with the caller's own id, so it can only ever write the caller's own row.
    */
-  async upsertName({ userId, dseq, name }: { userId: string; dseq: string; name: string }): Promise<void> {
-    await this.cursor
+  async upsertName({ userId, dseq, name }: { userId: string; dseq: string; name: string }): Promise<string | null> {
+    const [row] = await this.cursor
       .insert(this.table)
       .values({ userId, dseq, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT, name })
-      .onConflictDoUpdate({ target: [this.table.dseq, this.table.userId], set: { name, updatedAt: sql`now()` } });
+      .onConflictDoUpdate({ target: [this.table.dseq, this.table.userId], set: { name, updatedAt: sql`now()` } })
+      .returning({ name: this.table.name });
+
+    return row.name;
   }
 
   async createDefaultIfMissing({ userId, dseq }: { userId: string; dseq: string }): Promise<boolean> {

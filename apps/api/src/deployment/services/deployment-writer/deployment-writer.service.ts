@@ -442,7 +442,7 @@ export class DeploymentWriterService {
     const recordedVersion = Buffer.from(manifestVersion).toString("base64");
     const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId, dseq, secrets: merged });
 
-    const recordedId = await this.deploymentSettingRepository.accessibleBy(ability, "update").replaceDefinitionIfVersionMatches({
+    const recorded = await this.deploymentSettingRepository.accessibleBy(ability, "update").replaceDefinitionIfVersionMatches({
       userId,
       dseq,
       sdl: patchedSdl,
@@ -452,7 +452,7 @@ export class DeploymentWriterService {
       expectedManifestVersion: input.ifManifestVersion ?? stored.manifestVersion
     });
 
-    if (!recordedId) {
+    if (!recorded) {
       throw createError(409, "Deployment definition changed concurrently, please retry");
     }
 
@@ -474,7 +474,9 @@ export class DeploymentWriterService {
     });
     await this.restartTrialWorkloadProbe(wallet, dseq);
 
-    return { ...(await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq)), manifestVersion: recordedVersion };
+    const updatedDeployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+
+    return { ...updatedDeployment, name: recorded.name, manifestVersion: recordedVersion };
   }
 
   /** The probe is a backstopped extra, so failing to reschedule it must not fail an update the chain and the providers have already taken. */
@@ -498,11 +500,11 @@ export class DeploymentWriterService {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
 
-    await this.deploymentSettingRepository.upsertName({ userId, dseq, name });
+    const persistedName = await this.deploymentSettingRepository.upsertName({ userId, dseq, name });
 
     this.logger.info({ event: "DEPLOYMENT_RENAMED", userId, dseq });
 
-    return deployment;
+    return { ...deployment, name: persistedName };
   }
 
   async #findStoredDefinition(

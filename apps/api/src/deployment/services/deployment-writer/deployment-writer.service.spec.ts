@@ -2087,6 +2087,14 @@ describe(DeploymentWriterService.name, () => {
         expect(result.deployment).toEqual(expect.objectContaining({ id: { owner: "akash1owner", dseq: "1234" } }));
       });
 
+      it("answers with the name it stored", async () => {
+        const { service, ability } = setup();
+
+        const result = await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
+
+        expect(result.name).toBe("renamed");
+      });
+
       it("refuses a deployment the chain does not hold, writing no name", async () => {
         const { service, ability, deploymentReaderService, unscopedDeploymentSettingRepository } = setup();
         deploymentReaderService.findByWalletAndDseq.mockRejectedValue(createError(404, "Deployment not found"));
@@ -2123,6 +2131,22 @@ describe(DeploymentWriterService.name, () => {
 
         expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).toHaveBeenCalledWith(expect.objectContaining({ name: undefined }));
       });
+
+      it("answers with the name the write recorded", async () => {
+        const { service, ability } = setup();
+
+        const result = await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } }, name: "renamed" }, ability);
+
+        expect(result.name).toBe("renamed");
+      });
+
+      it("answers with the name the row already carried when the patch names none", async () => {
+        const { service, ability } = setup({ recordedName: "web" });
+
+        const result = await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+        expect(result.name).toBe("web");
+      });
     });
 
     function setup(input?: {
@@ -2135,6 +2159,7 @@ describe(DeploymentWriterService.name, () => {
       resolveErrors?: Array<{ schemaPath: string; instancePath: string; keyword: string; params: Record<string, unknown>; message: string }>;
       maxCount?: number;
       written?: string | undefined;
+      recordedName?: string;
       chainHash?: string;
       providers?: string[];
       openStoredError?: Error;
@@ -2155,7 +2180,11 @@ describe(DeploymentWriterService.name, () => {
       scoped.findOneBy.mockResolvedValue(
         hasSetting ? mock<DeploymentSettingsOutput>({ sdl: input?.sdl ?? STORED_SDL, sealedSecrets: storedToken, manifestVersion: storedVersion }) : undefined
       );
-      scoped.replaceDefinitionIfVersionMatches.mockResolvedValue("written" in (input ?? {}) ? input!.written : randomUUID());
+      scoped.replaceDefinitionIfVersionMatches.mockImplementation(async ({ name }) => {
+        const id = "written" in (input ?? {}) ? input!.written : randomUUID();
+        return id === undefined ? undefined : { id, name: name ?? input?.recordedName ?? null };
+      });
+      deploymentSettingRepository.upsertName.mockImplementation(async ({ name }) => name);
       deploymentSettingRepository.accessibleBy.mockReturnValue(scoped);
 
       const deploymentReaderService = mock<DeploymentReaderService>();

@@ -317,6 +317,7 @@ export const PatchDeploymentRequestSchema = z.object({
 
 export const PatchDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema.extend({
+    name: DeploymentNameResponseSchema,
     manifestVersion: z.string().optional().openapi({
       description: "Base64 manifest version this patch recorded and committed on chain. Absent for a rename, which records none."
     })

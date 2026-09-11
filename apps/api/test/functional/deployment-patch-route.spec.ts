@@ -107,6 +107,7 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
         deployment: expect.any(Object),
         escrow_account: expect.any(Object),
         leases: expect.arrayContaining([expect.any(Object)]),
+        name: null,
         manifestVersion: expect.any(String)
       }
     });
@@ -197,7 +198,7 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
     expect(sentManifests()).toEqual([]);
   });
 
-  it("answers a rename with the deployment and no manifest version, having recorded none", async () => {
+  it("answers a rename with the deployment, the stored name and no manifest version, having recorded none", async () => {
     const { apiKey } = await setup({ recordsDefinition: true, recordsName: "web" });
 
     const response = await patch(apiKey, { name: "renamed" });
@@ -206,9 +207,28 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
       data: {
         deployment: expect.any(Object),
         escrow_account: expect.any(Object),
-        leases: expect.arrayContaining([expect.any(Object)])
+        leases: expect.arrayContaining([expect.any(Object)]),
+        name: "renamed"
       }
     });
+  });
+
+  it("answers a rename with the trimmed name it stored rather than the one sent", async () => {
+    const { apiKey } = await setup({ recordsDefinition: true, recordsName: "web" });
+
+    const response = await patch(apiKey, { name: "  renamed  " });
+
+    const { data } = (await response.json()) as { data: { name: string } };
+    expect(data.name).toBe("renamed");
+  });
+
+  it("answers a service patch with the name the deployment already carries", async () => {
+    const { apiKey } = await setup({ recordsDefinition: true, recordsName: "web" });
+
+    const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } });
+
+    const { data } = (await response.json()) as { data: { name: string } };
+    expect(data.name).toBe("web");
   });
 
   it("leaves the name alone for a patch that names only services", async () => {

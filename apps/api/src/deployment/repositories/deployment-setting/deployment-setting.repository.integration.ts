@@ -684,9 +684,7 @@ describe(DeploymentSettingRepository.name, () => {
       await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: named, sdl: SDL, manifestVersion: "BAUG", name: "web" });
       await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: alsoNamed, sdl: SDL, manifestVersion: "BAUG", name: "db+web" });
 
-      const names = await deploymentSettingRepository
-        .accessibleBy(abilityFor(user), "read")
-        .findNamesByDseqs({ userId: user.id, dseqs: [named, alsoNamed] });
+      const names = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findNamesByDseqs({ userId: user.id, dseqs: [named, alsoNamed] });
 
       expect(names.get(named)).toBe("web");
       expect(names.get(alsoNamed)).toBe("db+web");
@@ -968,7 +966,7 @@ describe(DeploymentSettingRepository.name, () => {
       const { deploymentSettingRepository, user, createDefinition, readDefinition, sealedToken } = await setup();
       const dseq = await createDefinition({ manifestVersion: "AAAA" });
 
-      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+      const recorded = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
         userId: user.id,
         dseq,
         sdl: "version: '2.0' # patched",
@@ -977,7 +975,7 @@ describe(DeploymentSettingRepository.name, () => {
         expectedManifestVersion: "AAAA"
       });
 
-      expect(id).toEqual(expect.any(String));
+      expect(recorded?.id).toEqual(expect.any(String));
       expect(await readDefinition(dseq)).toMatchObject({
         sdl: "version: '2.0' # patched",
         manifestVersion: "BBBB",
@@ -989,7 +987,7 @@ describe(DeploymentSettingRepository.name, () => {
       const { deploymentSettingRepository, user, createDefinition, sealedToken } = await setup();
       const dseq = await createDefinition({ manifestVersion: "AAAA" });
 
-      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+      const recorded = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
         userId: user.id,
         dseq,
         sdl: "version: '2.0' # patched",
@@ -998,7 +996,7 @@ describe(DeploymentSettingRepository.name, () => {
         expectedManifestVersion: "STALE"
       });
 
-      expect(id).toBeUndefined();
+      expect(recorded).toBeUndefined();
     });
 
     it("leaves every column as it was when it refuses", async () => {
@@ -1022,7 +1020,7 @@ describe(DeploymentSettingRepository.name, () => {
       const { deploymentSettingRepository, user, createDefinition, sealedToken } = await setup();
       const dseq = await createDefinition({ manifestVersion: "BBBB" });
 
-      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+      const recorded = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
         userId: user.id,
         dseq,
         sdl: "version: '2.0' # patched",
@@ -1031,7 +1029,7 @@ describe(DeploymentSettingRepository.name, () => {
         expectedManifestVersion: "AAAA"
       });
 
-      expect(id).toEqual(expect.any(String));
+      expect(recorded?.id).toEqual(expect.any(String));
     });
 
     it("leaves the row at the version the retry recomputed", async () => {
@@ -1054,7 +1052,7 @@ describe(DeploymentSettingRepository.name, () => {
       const { deploymentSettingRepository, user, createDefinition, readDefinition, sealedToken } = await setup();
       const dseq = await createDefinition({ manifestVersion: "CCCC" });
 
-      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+      const recorded = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
         userId: user.id,
         dseq,
         sdl: "version: '2.0' # patched",
@@ -1063,7 +1061,7 @@ describe(DeploymentSettingRepository.name, () => {
         expectedManifestVersion: "AAAA"
       });
 
-      expect(id).toBeUndefined();
+      expect(recorded).toBeUndefined();
       expect(await readDefinition(dseq)).toMatchObject({ manifestVersion: "CCCC" });
     });
 
@@ -1113,7 +1111,7 @@ describe(DeploymentSettingRepository.name, () => {
       const { deploymentSettingRepository, user, createDefinition, readDefinition, sealedToken } = await setup();
       const dseq = await createDefinition({ manifestVersion: "AAAA" });
 
-      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+      const recorded = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
         userId: user.id,
         dseq,
         sdl: "version: '2.0' # patched",
@@ -1121,7 +1119,7 @@ describe(DeploymentSettingRepository.name, () => {
         sealedSecrets: sealedToken
       });
 
-      expect(id).toEqual(expect.any(String));
+      expect(recorded?.id).toEqual(expect.any(String));
       expect(await readDefinition(dseq)).toMatchObject({ manifestVersion: "BBBB" });
     });
 
@@ -1146,7 +1144,7 @@ describe(DeploymentSettingRepository.name, () => {
       const settingId = await createSetting();
       const dseq = await readSettingDseq(settingId);
 
-      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+      const recorded = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
         userId: user.id,
         dseq,
         sdl: "version: '2.0' # patched",
@@ -1154,14 +1152,14 @@ describe(DeploymentSettingRepository.name, () => {
         sealedSecrets: sealedToken
       });
 
-      expect(id).toBeUndefined();
+      expect(recorded).toBeUndefined();
     });
 
     it("refuses a deployment belonging to another user", async () => {
       const { deploymentSettingRepository, trialUser, createDefinition, readDefinition, sealedToken } = await setup();
       const dseq = await createDefinition({ manifestVersion: "AAAA" });
 
-      const id = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
+      const recorded = await deploymentSettingRepository.replaceDefinitionIfVersionMatches({
         userId: trialUser.id,
         dseq,
         sdl: "version: '2.0' # patched",
@@ -1169,7 +1167,7 @@ describe(DeploymentSettingRepository.name, () => {
         sealedSecrets: sealedToken
       });
 
-      expect(id).toBeUndefined();
+      expect(recorded).toBeUndefined();
       expect(await readDefinition(dseq)).toMatchObject({ manifestVersion: "AAAA" });
     });
 
@@ -1177,7 +1175,7 @@ describe(DeploymentSettingRepository.name, () => {
       const { deploymentSettingRepository, user, trialUser, createDefinition, readDefinition, abilityFor, sealedToken } = await setup();
       const dseq = await createDefinition({ manifestVersion: "AAAA" });
 
-      const id = await deploymentSettingRepository.accessibleBy(abilityFor(trialUser), "update").replaceDefinitionIfVersionMatches({
+      const recorded = await deploymentSettingRepository.accessibleBy(abilityFor(trialUser), "update").replaceDefinitionIfVersionMatches({
         userId: user.id,
         dseq,
         sdl: "version: '2.0' # patched",
@@ -1185,7 +1183,7 @@ describe(DeploymentSettingRepository.name, () => {
         sealedSecrets: sealedToken
       });
 
-      expect(id).toBeUndefined();
+      expect(recorded).toBeUndefined();
       expect(await readDefinition(dseq)).toMatchObject({ manifestVersion: "AAAA" });
     });
 
@@ -1205,12 +1203,28 @@ describe(DeploymentSettingRepository.name, () => {
       expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ name: "renamed" });
     });
 
+    it("hands back the name it recorded beside the definition", async () => {
+      const { deploymentSettingRepository, user, createDefinition, abilityFor, sealedToken } = await setup();
+      const dseq = await createDefinition({ manifestVersion: "AAAA" });
+
+      const recorded = await deploymentSettingRepository.accessibleBy(abilityFor(user), "update").replaceDefinitionIfVersionMatches({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0' # patched",
+        manifestVersion: "BBBB",
+        sealedSecrets: sealedToken,
+        name: "renamed"
+      });
+
+      expect(recorded?.name).toBe("renamed");
+    });
+
     it("leaves a name already on the row alone when the replacement names none", async () => {
       const { deploymentSettingRepository, user, abilityFor, sealedToken } = await setup();
       const dseq = newDseq();
       await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "AAAA", name: "web" });
 
-      await deploymentSettingRepository.accessibleBy(abilityFor(user), "update").replaceDefinitionIfVersionMatches({
+      const recorded = await deploymentSettingRepository.accessibleBy(abilityFor(user), "update").replaceDefinitionIfVersionMatches({
         userId: user.id,
         dseq,
         sdl: "version: '2.0' # patched",
@@ -1218,6 +1232,7 @@ describe(DeploymentSettingRepository.name, () => {
         sealedSecrets: sealedToken
       });
 
+      expect(recorded?.name).toBe("web");
       expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ manifestVersion: "BBBB", name: "web" });
     });
   });
@@ -1250,6 +1265,17 @@ describe(DeploymentSettingRepository.name, () => {
       await deploymentSettingRepository.upsertName({ userId: user.id, dseq, name: "renamed" });
 
       expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ sdl: SDL, manifestVersion: "AAAA", name: "renamed" });
+    });
+
+    it("hands back the name it stored, whether it created the row or replaced one", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+
+      const created = await deploymentSettingRepository.upsertName({ userId: user.id, dseq, name: "first" });
+      const replaced = await deploymentSettingRepository.upsertName({ userId: user.id, dseq, name: "renamed" });
+
+      expect(created).toBe("first");
+      expect(replaced).toBe("renamed");
     });
 
     it("names only the caller's own row when another user holds the same dseq", async () => {
