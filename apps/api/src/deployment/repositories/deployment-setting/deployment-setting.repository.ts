@@ -49,10 +49,11 @@ export type OpenDeployment = {
   createdAt: Date;
 };
 
-/** A deployment's stored secrets token alongside the id it is sealed to. */
+/** A deployment's stored secrets token alongside the id it is sealed to and the timestamp every legitimate secrets write bumps. */
 export type DeploymentStoredSecrets = {
   id: string;
   sealedSecrets: string;
+  updatedAt: Date | null;
 };
 
 export type LiveTrialDeployment = {
@@ -192,7 +193,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
 
     while (true) {
       const batch = await this.pg
-        .select({ id: this.table.id, sealedSecrets: this.table.sealedSecrets })
+        .select({ id: this.table.id, sealedSecrets: this.table.sealedSecrets, updatedAt: this.table.updatedAt })
         .from(this.table)
         .where(and(isNotNull(this.table.sealedSecrets), ...(cursor ? [gt(this.table.id, cursor)] : [])))
         .orderBy(asc(this.table.id))

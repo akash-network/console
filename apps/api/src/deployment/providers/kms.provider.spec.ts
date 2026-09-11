@@ -5,7 +5,8 @@ import { mock } from "vitest-mock-extended";
 
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { SdlSecretsKmsClient } from "./kms.provider";
-import { createSdlSecretsKmsTarget, KMS_CLIENT, SDL_SECRETS_KMS_TARGET } from "./kms.provider";
+import type { SdlSecretsKmsTargetFactory } from "./kms.provider";
+import { createSdlSecretsKmsTarget, KMS_CLIENT, SDL_SECRETS_KMS_TARGET, SDL_SECRETS_KMS_TARGET_FACTORY } from "./kms.provider";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 
@@ -119,5 +120,51 @@ describe("SDL_SECRETS_KMS_TARGET", () => {
     });
 
     return { target: testContainer.resolve(SDL_SECRETS_KMS_TARGET), kmsClient };
+  }
+});
+
+describe("SDL_SECRETS_KMS_TARGET_FACTORY", () => {
+  it("targets a version the configuration does not name, which is what a rotation needs", () => {
+    const { createTarget } = setup({ version: "2" });
+
+    const target = createTarget("7");
+
+    expect(target.kid).toBe("sdl-secrets.v7");
+    expect(target.versionName).toBe("console-test/global/console-api/sdl-secrets/7");
+  });
+
+  it("resolves any version of the same key from a target built for another one", () => {
+    const { createTarget } = setup({ version: "2" });
+
+    expect(createTarget("7").resolveVersionName("sdl-secrets.v1")).toBe("console-test/global/console-api/sdl-secrets/1");
+  });
+
+  it("builds the configured write target from the same factory", () => {
+    const { createTarget, configuredTarget } = setup({ version: "2" });
+
+    expect(configuredTarget.kid).toBe(createTarget("2").kid);
+    expect(configuredTarget.versionName).toBe(createTarget("2").versionName);
+  });
+
+  function setup(input: { version: string }) {
+    const kmsClient = mock<KeyManagementServiceClient>();
+    kmsClient.cryptoKeyVersionPath.mockImplementation((project, location, keyRing, key, version) => [project, location, keyRing, key, version].join("/"));
+
+    const testContainer = container.createChildContainer();
+    testContainer.register(KMS_CLIENT, { useValue: kmsClient });
+    testContainer.register(DeploymentConfigService, {
+      useValue: mockConfigService<DeploymentConfigService>({
+        GCP_KMS_AUTH: { project_id: "console-test", servicePath: "http://localhost:9090" },
+        GCP_KMS_LOCATION: "global",
+        GCP_KMS_KEY_RING: "console-api",
+        GCP_KMS_KEY: "sdl-secrets",
+        GCP_KMS_KEY_VERSION: input.version
+      })
+    });
+
+    return {
+      createTarget: testContainer.resolve<SdlSecretsKmsTargetFactory>(SDL_SECRETS_KMS_TARGET_FACTORY),
+      configuredTarget: testContainer.resolve(SDL_SECRETS_KMS_TARGET)
+    };
   }
 });
