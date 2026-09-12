@@ -57,11 +57,10 @@ export type AnalyticsEvent =
   | "authorize_spend"
   | "navigate_tab"
   | "deploy_sdl"
-  | "preview_sdl"
-  | "import_sdl"
-  | "reset_sdl"
+  /** Dormant until template saving returns to the configure page (CON-673). */
   | "create_sdl_template"
   | "create_sdl_template_link"
+  /** Dormant until template saving returns to the configure page (CON-673). */
   | "update_sdl_template"
   | "click_sdl_profile"
   | "click_view_template"
