@@ -415,10 +415,17 @@ describe(useDeploymentsListModel.name, () => {
       expect(result.current.showErrorState).toBe(false);
     });
 
-    it("holds the archive failure back while a retry is in flight", () => {
+    it("keeps the archive failure on screen while the retry is in flight", () => {
       const { result } = setup({ active: [], isArchiveError: true, isArchiveFetching: true });
 
-      expect(result.current.showArchiveError).toBe(false);
+      expect(result.current.showArchiveError).toBe(true);
+      expect(result.current.isRetryingArchive).toBe(true);
+    });
+
+    it("reports no retry in flight for an archive that simply has not loaded yet", () => {
+      const { result } = setup({ active: [], isArchiveFetching: true });
+
+      expect(result.current.isRetryingArchive).toBe(false);
     });
 
     it("withholds the no-results message while the archive that would have matched never loaded", async () => {

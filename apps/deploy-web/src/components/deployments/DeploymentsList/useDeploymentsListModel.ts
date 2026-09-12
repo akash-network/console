@@ -141,7 +141,8 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     hasSettledWithoutActiveDeployments:
       !hasPageResults && pageIndex === 0 && !isLoadingDeployments && !isError && !isArchiveError && !isSearching && !archiveList.isFetching,
     showErrorState: isError && !hasPageResults && !isLoadingDeployments,
-    showArchiveError: isArchiveError && !archiveList.isFetching,
+    showArchiveError: isArchiveError,
+    isRetryingArchive: isArchiveError && archiveList.isFetching,
     showNoSearchResults:
       isSearching && !isError && !isArchiveError && !isLoadingDeployments && !archiveList.isFetching && !hasPageResults && archiveDeployments.length === 0,
     pageIndex,

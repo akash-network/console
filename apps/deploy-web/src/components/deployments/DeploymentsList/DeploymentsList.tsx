@@ -182,6 +182,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
         providers={model.providers}
         viewMode={model.viewMode}
         isError={model.showArchiveError}
+        isRetrying={model.isRetryingArchive}
         onRetry={model.refetchDeployments}
       />
     </d.Layout>

@@ -97,11 +97,21 @@ describe("DeploymentArchive", () => {
     expect(screen.queryByRole("button", { name: /Archive \/\/ 5 closed/ })).not.toBeInTheDocument();
   });
 
+  it("keeps the failure on screen and blocks a second Retry while the first is in flight", async () => {
+    const { onRetry } = setup({ count: 0, isError: true, isRetrying: true });
+
+    expect(screen.getByText("Couldn't load closed deployments.")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /Retry/ }), { pointerEventsCheck: 0 });
+
+    expect(onRetry).not.toHaveBeenCalled();
+  });
+
   function lastRenderedDeployments(DeploymentsCollection: Mock) {
     return DeploymentsCollection.mock.lastCall?.[0].deployments as NamedDeploymentDto[];
   }
 
-  function setup(input: { count: number; viewMode?: "grid" | "list"; isError?: boolean }) {
+  function setup(input: { count: number; viewMode?: "grid" | "list"; isError?: boolean; isRetrying?: boolean }) {
     const deployments = Array.from(
       { length: input.count },
       (_, index) => ({ dseq: `${100 + index}`, state: "closed", name: `archived-${index}` }) as NamedDeploymentDto
@@ -114,7 +124,8 @@ describe("DeploymentArchive", () => {
         deployments={deployments}
         providers={[]}
         viewMode={input.viewMode ?? "grid"}
-        isError={input.isError}
+        isError={input.isError ?? false}
+        isRetrying={input.isRetrying ?? false}
         onRetry={onRetry}
         dependencies={MockComponents(DEPENDENCIES, { DeploymentsCollection })}
       />
