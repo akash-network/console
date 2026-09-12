@@ -19,6 +19,7 @@
   "src/deployment/services/initial-deployment-funding/initial-deployment-funding-instrumentation.service.spec.ts",
   "src/deployment/services/top-up-managed-deployments/fund-draining-deployments-instrumentation.service.spec.ts",
   "src/gpu/services/gpu-price/gpu-price.service.spec.ts",
+  "src/middlewares/internal-token/internal-token.middleware.spec.ts",
   "src/middlewares/privateMiddleware.spec.ts",
   "src/secret/services/data-key-unwrapper/data-key-unwrapper.service.spec.ts",
   "src/services/db/networkRevenueService.spec.ts"
