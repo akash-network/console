@@ -4,7 +4,7 @@ import { cn } from "@akashnetwork/ui/utils";
 
 import type { LeaseDto } from "@src/types/deployment";
 import { isLeaseLive } from "@src/utils/leaseUtils";
-import { classifyLeaseCloseReason, getClosedLeaseLabel, isProviderReclaimed } from "@src/utils/reclamationUtils";
+import { classifyLeaseCloseReason, getClosedLeaseLabel, isProviderReclaimed, isReclaiming } from "@src/utils/reclamationUtils";
 
 export type StatusTone = "running" | "pending" | "loading" | "warning" | "closed";
 
@@ -46,12 +46,17 @@ export interface DeploymentStatusBadgeProps {
  * no lease is live, the badge speaks for the lease instead, reusing the same close-reason copy the
  * reclamation banner and deployment list show. A dead lease under a deployment that is still open reads as a
  * warning rather than destructive: the escrow is live and a redeploy brings the workload back, so the red
- * tone is kept for a deployment that is itself closed.
+ * tone is kept for a deployment that is itself closed. A lease inside its reclamation grace period is live
+ * but doomed, so it reads as "Reclaiming" rather than "Running".
  */
 export function getDeploymentStatus(state: string, leases?: LeaseDto[] | null): { label: string; tone: StatusTone } {
   const deploymentTone = STATUS_TONES[state] ?? "pending";
   const deadLease = leases?.length && !leases.some(isLeaseLive) ? selectLeaseToReportOn(leases) : undefined;
-  if (!deadLease) return { label: STATUS_LABELS[state] ?? state, tone: deploymentTone };
+
+  if (!deadLease) {
+    if (leases?.some(isReclaiming)) return { label: "Reclaiming", tone: "warning" };
+    return { label: STATUS_LABELS[state] ?? state, tone: deploymentTone };
+  }
 
   return { label: getClosedLeaseLabel(deadLease), tone: deploymentTone === "closed" ? "closed" : "warning" };
 }

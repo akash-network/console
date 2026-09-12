@@ -9,7 +9,7 @@ import { isUsableDeploymentDefinition, useDeploymentDefinition } from "@src/hook
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import type { LeaseDto } from "@src/types/deployment";
-import { getLeaseCloseReasonLabel, getReclamationDeadline, isReclaiming } from "@src/utils/reclamationUtils";
+import { getLeaseCloseReasonLabel, getNearestReclamationDeadline, isReclaiming } from "@src/utils/reclamationUtils";
 import { useCountdown } from "./useCountdown";
 
 export const DEPENDENCIES = { useDeploymentDefinition, useNewDeploymentUrl, useRedeploy };
@@ -33,11 +33,7 @@ export const ReclamationBanner: React.FunctionComponent<Props> = ({ leases, dseq
   const canRedeploy = definition.source === "resolving" || isUsableDeploymentDefinition(definition);
   const reclaimingLeases = useMemo(() => (leases ?? []).filter(isReclaiming), [leases]);
 
-  const nearestDeadline = useMemo(() => {
-    const deadlines = reclaimingLeases.map(getReclamationDeadline).filter((d): d is Date => d !== null);
-    if (deadlines.length === 0) return null;
-    return deadlines.reduce((earliest, current) => (current < earliest ? current : earliest));
-  }, [reclaimingLeases]);
+  const nearestDeadline = useMemo(() => getNearestReclamationDeadline(reclaimingLeases), [reclaimingLeases]);
 
   const countdown = useCountdown(nearestDeadline);
   const reasonLabel = getLeaseCloseReasonLabel(reclaimingLeases[0]?.reclamation?.reason ?? reclaimingLeases[0]?.reason);

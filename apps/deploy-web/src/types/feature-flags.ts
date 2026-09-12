@@ -11,4 +11,5 @@ export type FeatureFlag =
   | "deployment_runtime_limit"
   | "ui_sdl_proxy_http_options"
   | "ui_sdl_cpu_arch"
-  | "fair_use_policy_gate";
+  | "fair_use_policy_gate"
+  | "ui_deployments_list_redesign";
