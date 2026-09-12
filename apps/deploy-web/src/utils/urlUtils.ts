@@ -7,7 +7,6 @@ export type NewDeploymentParams = {
   dseq?: string | number;
   redeploy?: string | number;
   templateId?: string;
-  page?: "new-deployment" | "deploy-linux";
   gitProvider?: string;
   gitProviderCode?: string | null;
   repoUrl?: string;
@@ -57,8 +56,6 @@ export const UrlService = {
   home: () => "/",
   getStarted: () => "/get-started",
 
-  sdlBuilder: (id?: string) => `/sdl-builder${appendSearchParams({ id })}`,
-  plainLinux: () => `/deploy-linux`,
   priceCompare: () => "/price-compare",
   analytics: () => "/analytics",
   graph: (snapshot: string) => `/graph/${snapshot}`,
@@ -120,8 +117,7 @@ export const UrlService = {
       buildDirectory,
       nodeVersion
     } = params;
-    const page = params.page || "new-deployment";
-    return `/${page}${appendSearchParams({ dseq, step, templateId, redeploy, gitProvider, code: gitProviderCode, repoUrl, branch, buildCommand, startCommand, installCommand, buildDirectory, nodeVersion })}`;
+    return `/new-deployment${appendSearchParams({ dseq, step, templateId, redeploy, gitProvider, code: gitProviderCode, repoUrl, branch, buildCommand, startCommand, installCommand, buildDirectory, nodeVersion })}`;
   },
 
   configureDeployment: (params: ConfigureDeploymentParams = {}) => {
