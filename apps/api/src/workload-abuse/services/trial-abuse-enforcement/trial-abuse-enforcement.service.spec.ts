@@ -12,7 +12,7 @@ import type { DeploymentWriterService } from "@src/deployment/services/deploymen
 import type { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import type { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
-import { ABUSE_LOCK_REASON, TrialAbuseEnforcementService } from "./trial-abuse-enforcement.service";
+import { ABUSE_LOCK_REASON, BLOCKED_DOMAIN_LOCK_REASON, TrialAbuseEnforcementService } from "./trial-abuse-enforcement.service";
 
 import { createInitializedUserWallet } from "@test/seeders/user-wallet.seeder";
 
@@ -149,6 +149,28 @@ describe(TrialAbuseEnforcementService.name, () => {
     expect(deploymentWriterService.close).not.toHaveBeenCalled();
     expect(userWalletRepository.lockForAbuse).not.toHaveBeenCalled();
     expect(probeJobService.cancelForWallet).not.toHaveBeenCalled();
+  });
+
+  describe("wipeTrialWallet", () => {
+    it("locks the wallet with the reason it was given, without touching the detection ledger", async () => {
+      const { service, wallet, userWalletRepository, detectionRepository, instrumentation } = setup({ liveDseqs: ["11"] });
+
+      const outcome = await service.wipeTrialWallet(wallet, BLOCKED_DOMAIN_LOCK_REASON);
+
+      expect(userWalletRepository.lockForAbuse).toHaveBeenCalledWith(wallet.id, BLOCKED_DOMAIN_LOCK_REASON);
+      expect(outcome).toEqual({ depositGrantRevoked: true, feeGrantRevoked: true, closedDseqs: ["11"] });
+      expect(detectionRepository.updateById).not.toHaveBeenCalled();
+      expect(detectionRepository.markWalletEnforced).not.toHaveBeenCalled();
+      expect(instrumentation.recordEnforcement).not.toHaveBeenCalled();
+    });
+
+    it("leaves a wallet that paid under the row lock alone", async () => {
+      const { service, wallet, userWalletRepository } = setup({ liveDseqs: [], paidUnderLock: true });
+
+      await expect(service.wipeTrialWallet(wallet, BLOCKED_DOMAIN_LOCK_REASON)).resolves.toBeNull();
+
+      expect(userWalletRepository.lockForAbuse).not.toHaveBeenCalled();
+    });
   });
 
   function setup(input: { liveDseqs: string[]; hasDepositGrant?: boolean; hasFeeGrant?: boolean; paidUnderLock?: boolean }) {

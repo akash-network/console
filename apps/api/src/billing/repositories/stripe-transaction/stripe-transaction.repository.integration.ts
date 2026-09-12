@@ -270,6 +270,64 @@ describe(StripeTransactionRepository.name, () => {
     };
   }
 
+  describe("hasPaidUserWithEmailDomain", () => {
+    it.each([
+      { status: "succeeded" as const, expected: true },
+      { status: "refunded" as const, expected: true },
+      { status: "created" as const, expected: false },
+      { status: "failed" as const, expected: false }
+    ])("answers $expected for a payment_intent in $status", async ({ status, expected }) => {
+      const { stripeTransactionRepository, createUserOnDomain } = setup();
+      const domain = uniqueDomain();
+      const user = await createUserOnDomain(domain);
+      await stripeTransactionRepository.create({ userId: user.id, type: "payment_intent", status, amount: 1000, currency: "usd" });
+
+      await expect(stripeTransactionRepository.hasPaidUserWithEmailDomain(domain)).resolves.toBe(expected);
+    });
+
+    it.each([["manual_credit" as const], ["coupon_claim" as const]])("does not count a %s, so a granted credit cannot shield a domain", async type => {
+      const { stripeTransactionRepository, createUserOnDomain } = setup();
+      const domain = uniqueDomain();
+      const user = await createUserOnDomain(domain);
+      await stripeTransactionRepository.create({ userId: user.id, type, status: "succeeded", amount: 1000, currency: "usd" });
+
+      await expect(stripeTransactionRepository.hasPaidUserWithEmailDomain(domain)).resolves.toBe(false);
+    });
+
+    it("matches the domain part only, never a domain that merely contains it", async () => {
+      const { stripeTransactionRepository, createUserOnDomain } = setup();
+      const domain = uniqueDomain();
+      const lookalikes = [`x${domain}`, `${domain}.attacker.net`, `mail.${domain}`];
+      for (const lookalike of lookalikes) {
+        const user = await createUserOnDomain(lookalike);
+        await stripeTransactionRepository.create({ userId: user.id, type: "payment_intent", status: "succeeded", amount: 1000, currency: "usd" });
+      }
+
+      await expect(stripeTransactionRepository.hasPaidUserWithEmailDomain(domain)).resolves.toBe(false);
+    });
+
+    it("matches a stored address whatever its case", async () => {
+      const { stripeTransactionRepository, createUserOnDomain } = setup();
+      const domain = uniqueDomain();
+      const user = await createUserOnDomain(domain.toUpperCase());
+      await stripeTransactionRepository.create({ userId: user.id, type: "payment_intent", status: "succeeded", amount: 1000, currency: "usd" });
+
+      await expect(stripeTransactionRepository.hasPaidUserWithEmailDomain(domain)).resolves.toBe(true);
+    });
+
+    it("answers false for a domain nobody has paid from", async () => {
+      const { stripeTransactionRepository, createUserOnDomain } = setup();
+      const domain = uniqueDomain();
+      await createUserOnDomain(domain);
+
+      await expect(stripeTransactionRepository.hasPaidUserWithEmailDomain(domain)).resolves.toBe(false);
+    });
+  });
+
+  function uniqueDomain() {
+    return `${faker.string.alphanumeric(16).toLowerCase()}.com`;
+  }
+
   function setup() {
     const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
     const userRepository = container.resolve(UserRepository);
@@ -292,6 +350,12 @@ describe(StripeTransactionRepository.name, () => {
       return testUserId;
     }
 
+    async function createUserOnDomain(domain: string) {
+      const user = await userRepository.create({ userId: faker.string.uuid(), email: `${faker.string.alphanumeric(10)}@${domain}` });
+      createdUserIds.push(user.id);
+      return user;
+    }
+
     async function createTestTransaction(overrides: Partial<StripeTransactionInput> = {}) {
       return stripeTransactionRepository.create({
         userId: await getTestUserId(),
@@ -309,6 +373,6 @@ describe(StripeTransactionRepository.name, () => {
       return user;
     }
 
-    return { stripeTransactionRepository, userRepository, createTestTransaction, createTestUser };
+    return { stripeTransactionRepository, userRepository, createTestTransaction, createTestUser, createUserOnDomain };
   }
 });

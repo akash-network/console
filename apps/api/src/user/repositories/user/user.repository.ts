@@ -103,6 +103,20 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
       .where(and(eq(this.table.lastFingerprint, fingerprint), ne(this.table.id, excludeUserId)));
   }
 
+  /**
+   * Whether the domain has an account older than the window, which means it is somebody's real domain
+   * rather than one registered for this attack.
+   */
+  async hasEstablishedUserWithEmailDomain(domain: string, minAgeDays: number): Promise<boolean> {
+    const [match] = await this.pg
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(and(sql`lower(${this.table.email}) LIKE ${"%@"} || ${domain}`, lt(this.table.createdAt, sql`now() - make_interval(days => ${minAgeDays})`)))
+      .limit(1);
+
+    return !!match;
+  }
+
   private async findUserWithWallet(whereClause: SQL<unknown>) {
     const result = await this.cursor.query.Users.findFirst({
       where: this.whereAccessibleBy(whereClause),
