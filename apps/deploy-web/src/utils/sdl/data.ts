@@ -117,25 +117,6 @@ export const defaultServiceWithPlacement = (serviceOverrides?: Partial<ServiceTy
   };
 };
 
-const hasValidPricing = (service: Record<string, any>): boolean => typeof service.pricing?.amount === "number" && typeof service.pricing?.denom === "string";
-
-/**
- * Heals sdl-builder drafts persisted to storage before the uact pricing model
- * (or corrupted in storage): fills each service's missing/malformed pricing with
- * the current default, leaving the rest of the draft untouched. Idempotent and
- * safe on malformed input.
- */
-export const healSdlBuilderDraft = (values: Record<string, any>): Record<string, any> => {
-  if (!values || !Array.isArray(values.services)) return values;
-
-  return {
-    ...values,
-    services: values.services.map(service =>
-      service && typeof service === "object" && !hasValidPricing(service) ? { ...service, pricing: defaultPricing() } : service
-    )
-  };
-};
-
 export const defaultPersistentStorage = {
   size: 10,
   unit: "Gi",

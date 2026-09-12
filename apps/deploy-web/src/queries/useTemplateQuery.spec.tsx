@@ -164,8 +164,25 @@ describe("useTemplateQuery", () => {
       });
     });
 
-    function setup(input?: { services?: ServicesProviderProps["services"]; templateId?: string }) {
-      return setupQuery(() => useTemplate(input?.templateId || "template-1"), {
+    it("stays idle when no template id is given", async () => {
+      const consoleApiHttpClient = mock<AxiosInstance>();
+
+      const { result } = setup({
+        hasTemplateId: false,
+        services: {
+          consoleApiHttpClient: () => consoleApiHttpClient
+        }
+      });
+
+      await vi.waitFor(() => {
+        expect(result.current.fetchStatus).toBe("idle");
+      });
+      expect(consoleApiHttpClient.get).not.toHaveBeenCalled();
+    });
+
+    function setup(input?: { services?: ServicesProviderProps["services"]; templateId?: string; hasTemplateId?: boolean }) {
+      const templateId = input?.hasTemplateId === false ? undefined : input?.templateId || "template-1";
+      return setupQuery(() => useTemplate(templateId), {
         services: input?.services
       });
     }

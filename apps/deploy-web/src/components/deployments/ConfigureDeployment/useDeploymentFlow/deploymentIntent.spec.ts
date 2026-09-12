@@ -72,4 +72,28 @@ describe(parseDeploymentIntent.name, () => {
     expect(intent.sdlStrategy).toBe("edit");
     expect(intent.vm).toBe(true);
   });
+
+  it("reads a user template id", () => {
+    const intent = parseDeploymentIntent({ dseqSegment: undefined, searchParams: new URLSearchParams("userTemplateId=user-1") });
+    expect(intent.userTemplateId).toBe("user-1");
+    expect(intent.templateId).toBeUndefined();
+    expect(intent.sdlStrategy).toBe("edit");
+  });
+
+  it("treats an empty user template id as missing", () => {
+    const intent = parseDeploymentIntent({ dseqSegment: undefined, searchParams: new URLSearchParams("userTemplateId=") });
+    expect(intent.userTemplateId).toBeUndefined();
+  });
+
+  it("drops the user template id on a vm entry", () => {
+    const intent = parseDeploymentIntent({ dseqSegment: undefined, searchParams: new URLSearchParams("vm=true&userTemplateId=user-1") });
+    expect(intent.userTemplateId).toBeUndefined();
+    expect(intent.vm).toBe(true);
+  });
+
+  it("prefers a gallery template id over a user template id", () => {
+    const intent = parseDeploymentIntent({ dseqSegment: undefined, searchParams: new URLSearchParams("templateId=abc&userTemplateId=user-1") });
+    expect(intent.templateId).toBe("abc");
+    expect(intent.userTemplateId).toBeUndefined();
+  });
 });

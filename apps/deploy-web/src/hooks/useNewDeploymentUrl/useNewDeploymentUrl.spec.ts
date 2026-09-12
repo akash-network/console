@@ -27,11 +27,6 @@ describe(useNewDeploymentUrl.name, () => {
     expect(make({ redeploy: "42" })).toContain("/new-deployment?");
   });
 
-  it("maps the container-vm intent to the configure vm seed", () => {
-    const make = build();
-    expect(make({ step: RouteStep.editDeployment, page: "deploy-linux" })).toBe("/new-deployment/configure?vm=true");
-  });
-
   function build() {
     return renderHook(() => useNewDeploymentUrl(DEPENDENCIES)).result.current;
   }

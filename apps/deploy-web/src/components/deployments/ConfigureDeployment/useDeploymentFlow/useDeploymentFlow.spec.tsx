@@ -899,4 +899,18 @@ describe(buildConfigureUrl.name, () => {
 
     expect(url).not.toContain("vm=");
   });
+
+  it("preserves the user template id across rewrites", () => {
+    const url = buildConfigureUrl({ sdlStrategy: "edit", bidStrategy: "select", userTemplateId: "user-1", draftId: "draft-1", vm: false }, "999", "select");
+
+    expect(url).toContain("/new-deployment/configure/999");
+    expect(url).toContain("userTemplateId=user-1");
+    expect(url).toContain("draftId=draft-1");
+  });
+
+  it("omits the user template id when the intent carries none", () => {
+    const url = buildConfigureUrl({ sdlStrategy: "edit", bidStrategy: "select", vm: false }, undefined, "select");
+
+    expect(url).not.toContain("userTemplateId");
+  });
 });

@@ -3,6 +3,8 @@ export type BidStrategy = "auto" | "select";
 
 export interface DeploymentIntent {
   templateId?: string;
+  /** A user-authored template (`?userTemplateId=`), resolved against the private user-template API rather than the public gallery. */
+  userTemplateId?: string;
   sdlStrategy: SdlStrategy;
   bidStrategy: BidStrategy;
   dseq?: string;
@@ -23,15 +25,19 @@ interface ParseInput {
  * safe manual defaults (`edit`/`select`) on anything unrecognized, and `sdl-strategy` is only
  * honored alongside a `templateId` (it governs creating *from a template*). A `vm=true` entry
  * is a Container-VM seed, not a template build: it drops any `templateId` (and with it the
- * `default` strategy), so the manual form always opens.
+ * `default` strategy), so the manual form always opens. The two template sources are mutually
+ * exclusive and resolved here rather than downstream: a `vm` entry drops both, and a gallery
+ * `templateId` wins over a `userTemplateId`. A user template never carries a `sdl-strategy`, so
+ * it always opens the manual form rather than the auto-deploy flow.
  */
 export function parseDeploymentIntent({ dseqSegment, searchParams }: ParseInput): DeploymentIntent {
   const vm = searchParams.get("vm") === "true";
   const templateId = vm ? undefined : searchParams.get("templateId") ?? undefined;
+  const userTemplateId = vm || templateId ? undefined : searchParams.get("userTemplateId") || undefined;
   const sdlStrategy = templateId ? toSdlStrategy(searchParams.get("sdl-strategy")) : "edit";
   const bidStrategy = toBidStrategy(searchParams.get("bid-strategy"));
   const draftId = searchParams.get("draftId") || undefined;
-  return { templateId, sdlStrategy, bidStrategy, dseq: dseqSegment || undefined, draftId, vm };
+  return { templateId, userTemplateId, sdlStrategy, bidStrategy, dseq: dseqSegment || undefined, draftId, vm };
 }
 
 /** Narrows the raw `sdl-strategy` param to the union, defaulting to `edit`. */
