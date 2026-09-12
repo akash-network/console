@@ -404,14 +404,21 @@ describe(useDeploymentsListModel.name, () => {
     it("offers a retry rather than the onboarding state when the archive query failed", () => {
       const { result } = setup({ active: [], isArchiveError: true });
 
-      expect(result.current.showErrorState).toBe(true);
+      expect(result.current.showArchiveError).toBe(true);
       expect(result.current.hasSettledWithoutActiveDeployments).toBe(false);
     });
 
-    it("keeps the rows on screen when only the archive query failed", () => {
+    it("reports the archive failure even when the active page has rows of its own", () => {
       const { result } = setup({ active: [deployment("100")], isArchiveError: true });
 
+      expect(result.current.showArchiveError).toBe(true);
       expect(result.current.showErrorState).toBe(false);
+    });
+
+    it("holds the archive failure back while a retry is in flight", () => {
+      const { result } = setup({ active: [], isArchiveError: true, isArchiveFetching: true });
+
+      expect(result.current.showArchiveError).toBe(false);
     });
 
     it("withholds the no-results message while the archive that would have matched never loaded", async () => {
@@ -420,7 +427,15 @@ describe(useDeploymentsListModel.name, () => {
       await act(async () => result.current.changeSearch("nothing-matches-this"));
 
       expect(result.current.showNoSearchResults).toBe(false);
-      expect(result.current.showErrorState).toBe(true);
+      expect(result.current.showArchiveError).toBe(true);
+    });
+
+    it("withholds the no-results message until the archive that might match has loaded", async () => {
+      const { result } = setup({ active: [deployment("100")], isArchiveFetching: true });
+
+      await act(async () => result.current.changeSearch("nothing-matches-this"));
+
+      expect(result.current.showNoSearchResults).toBe(false);
     });
   });
 

@@ -2,7 +2,7 @@
 import type { FC } from "react";
 import { useState } from "react";
 import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
-import { NavArrowRight } from "iconoir-react";
+import { NavArrowRight, Refresh } from "iconoir-react";
 
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
 import type { NamedDeploymentDto } from "@src/types/deployment";
@@ -18,11 +18,25 @@ export interface DeploymentArchiveProps {
   deployments: NamedDeploymentDto[];
   providers: ApiProviderList[] | undefined;
   viewMode: DeploymentsViewMode;
+  isError?: boolean;
+  onRetry?: () => void;
   dependencies?: typeof DEPENDENCIES;
 }
 
-export const DeploymentArchive: FC<DeploymentArchiveProps> = ({ deployments, providers, viewMode, dependencies: d = DEPENDENCIES }) => {
+export const DeploymentArchive: FC<DeploymentArchiveProps> = ({ deployments, providers, viewMode, isError, onRetry, dependencies: d = DEPENDENCIES }) => {
   const [visibleCount, setVisibleCount] = useState(ARCHIVE_PAGE_SIZE);
+
+  if (isError) {
+    return (
+      <div className="flex flex-wrap items-center gap-3 py-8">
+        <p className="text-sm text-muted-foreground">Couldn&apos;t load closed deployments.</p>
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          <Refresh className="mr-2 h-4 w-4" />
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   if (deployments.length === 0) return null;
 

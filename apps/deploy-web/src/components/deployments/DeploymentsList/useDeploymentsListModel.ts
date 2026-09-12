@@ -140,8 +140,10 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     hasAnyDeployment: hasPageResults || pageIndex > 0 || archiveDeployments.length > 0,
     hasSettledWithoutActiveDeployments:
       !hasPageResults && pageIndex === 0 && !isLoadingDeployments && !isError && !isArchiveError && !isSearching && !archiveList.isFetching,
-    showErrorState: (isError || isArchiveError) && !hasPageResults && !isLoadingDeployments,
-    showNoSearchResults: isSearching && !isError && !isArchiveError && !isLoadingDeployments && !hasPageResults && archiveDeployments.length === 0,
+    showErrorState: isError && !hasPageResults && !isLoadingDeployments,
+    showArchiveError: isArchiveError && !archiveList.isFetching,
+    showNoSearchResults:
+      isSearching && !isError && !isArchiveError && !isLoadingDeployments && !archiveList.isFetching && !hasPageResults && archiveDeployments.length === 0,
     pageIndex,
     pageSize,
     changePageSize,
