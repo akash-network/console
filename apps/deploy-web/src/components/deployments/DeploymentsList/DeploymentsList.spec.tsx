@@ -148,7 +148,10 @@ describe("DeploymentsList", () => {
   it("hands a failed archive query to the archive section to report on", () => {
     const { DeploymentArchive, refetchDeployments } = setup({ showArchiveError: true, hasPageResults: true });
 
-    expect(DeploymentArchive).toHaveBeenCalledWith(expect.objectContaining({ isError: true, onRetry: refetchDeployments }), expect.anything());
+    expect(DeploymentArchive).toHaveBeenCalledWith(
+      expect.objectContaining({ isError: true, isRetrying: false, onRetry: refetchDeployments }),
+      expect.anything()
+    );
   });
 
   it("offers the onboarding empty state to an account with nothing deployed", () => {
@@ -305,6 +308,7 @@ describe("DeploymentsList", () => {
       hasSettledWithoutActiveDeployments: false,
       showErrorState: false,
       showArchiveError: false,
+      isRetryingArchive: false,
       showNoSearchResults: false,
       pageIndex: 0,
       pageSize: 12,
