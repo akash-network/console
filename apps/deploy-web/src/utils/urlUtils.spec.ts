@@ -38,4 +38,8 @@ describe(UrlService.configureDeployment.name, () => {
   it("keeps the draft id alongside the dseq path segment", () => {
     expect(UrlService.configureDeployment({ dseq: "12345", draftId: "draft-1" })).toBe("/new-deployment/configure/12345?draftId=draft-1");
   });
+
+  it("builds a user template path", () => {
+    expect(UrlService.configureDeployment({ userTemplateId: "user-1" })).toBe("/new-deployment/configure?userTemplateId=user-1");
+  });
 });

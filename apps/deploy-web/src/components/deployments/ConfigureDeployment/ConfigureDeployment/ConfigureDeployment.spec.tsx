@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import sdlStore from "@src/store/sdlStore";
-import type { TemplateCreation } from "@src/types";
+import type { ITemplate, TemplateCreation } from "@src/types";
 import { helloWorldTemplate } from "@src/utils/templates";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./ConfigureDeployment";
@@ -141,6 +141,62 @@ describe(ConfigureDeployment.name, () => {
     expect(AutoDeployFlow).toHaveBeenCalledWith(expect.objectContaining({ sdl: helloWorldTemplate.content, flow: expect.anything() }), expect.anything());
   });
 
+  it("hydrates the form from the fetched user template's SDL and title", () => {
+    const { ConfigureDeploymentForm, useUserTemplate } = setup({
+      userTemplateId: "user-1",
+      userTemplate: { isLoading: false, isSuccess: true, data: mock<ITemplate>({ sdl: "user: sdl", title: "My Saved Template" }) }
+    });
+
+    expect(useUserTemplate).toHaveBeenCalledWith("user-1");
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(
+      expect.objectContaining({ initialSdl: "user: sdl", initialName: "My Saved Template" }),
+      expect.anything()
+    );
+  });
+
+  it("shows a loading state while the user template is being fetched", () => {
+    const { ConfigureDeploymentForm } = setup({ userTemplateId: "user-1", userTemplate: { isLoading: true } });
+
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(ConfigureDeploymentForm).not.toHaveBeenCalled();
+  });
+
+  it("surfaces an error and falls back to a default when the user template can't be loaded", () => {
+    const { ConfigureDeploymentForm, enqueueSnackbar } = setup({ userTemplateId: "user-1", userTemplate: { isLoading: false, isError: true } });
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" }));
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialSdl: undefined }), expect.anything());
+  });
+
+  it("surfaces an error when the user template isn't visible to the viewer", () => {
+    const { ConfigureDeploymentForm, enqueueSnackbar } = setup({
+      userTemplateId: "user-1",
+      userTemplate: { isLoading: false, isSuccess: true, data: null }
+    });
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" }));
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialSdl: undefined }), expect.anything());
+  });
+
+  it("restores the draft's persisted SDL and skips the user template fetch", () => {
+    const { ConfigureDeploymentForm, useUserTemplate } = setup({ userTemplateId: "user-1", persistedSdl: "restored: sdl" });
+
+    expect(useUserTemplate).toHaveBeenCalledWith(undefined);
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(expect.objectContaining({ initialSdl: "restored: sdl" }), expect.anything());
+  });
+
+  it("forwards the user template id into the form's intent", () => {
+    const { ConfigureDeploymentForm } = setup({
+      userTemplateId: "user-1",
+      userTemplate: { isLoading: false, isSuccess: true, data: mock<ITemplate>({ sdl: "user: sdl" }) }
+    });
+
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(
+      expect.objectContaining({ intent: expect.objectContaining({ userTemplateId: "user-1" }) }),
+      expect.anything()
+    );
+  });
+
   function setup(input: {
     templateId?: string | null;
     sdlStrategy?: string;
@@ -149,6 +205,8 @@ describe(ConfigureDeployment.name, () => {
     persistedSdl?: string;
     persistedName?: string;
     template?: { isLoading?: boolean; isError?: boolean; data?: TemplateOutput };
+    userTemplateId?: string;
+    userTemplate?: { isLoading?: boolean; isError?: boolean; isSuccess?: boolean; data?: ITemplate | null };
     deploySdl?: TemplateCreation | null;
     vm?: boolean;
   }) {
@@ -157,6 +215,7 @@ describe(ConfigureDeployment.name, () => {
     const DeploymentFlowProvider = vi.fn(({ children }) => <>{children({ flow: mock<DeploymentFlow>() })}</>);
     const enqueueSnackbar = vi.fn();
     const usePublicTemplate = vi.fn(() => mock<ReturnType<typeof DEPENDENCIES.usePublicTemplate>>(input.template as never));
+    const useUserTemplate = vi.fn(() => mock<ReturnType<typeof DEPENDENCIES.useUserTemplate>>(input.userTemplate as never));
     const save = vi.fn();
     const clear = vi.fn();
     const useConfigureDraft = vi.fn(() =>
@@ -171,6 +230,7 @@ describe(ConfigureDeployment.name, () => {
 
     const query: Record<string, string> = {};
     if (input.templateId) query.templateId = input.templateId;
+    if (input.userTemplateId) query.userTemplateId = input.userTemplateId;
     if (input.sdlStrategy) query["sdl-strategy"] = input.sdlStrategy;
     if (input.bidStrategy) query["bid-strategy"] = input.bidStrategy;
     if (input.vm) query.vm = "true";
@@ -184,6 +244,7 @@ describe(ConfigureDeployment.name, () => {
       DeploymentFlowProvider: DeploymentFlowProvider as never,
       ResumeDeploymentGuard: vi.fn(({ children }) => <>{children({ activeLeases: [] })}</>) as never,
       usePublicTemplate: usePublicTemplate as never,
+      useUserTemplate: useUserTemplate as never,
       useConfigureDraft: useConfigureDraft as never,
       useSearchParams: () => params as unknown as ReadonlyURLSearchParams,
       useParams: (() => ({})) as never,
@@ -200,6 +261,6 @@ describe(ConfigureDeployment.name, () => {
       </JotaiStoreProvider>
     );
 
-    return { ConfigureDeploymentForm, AutoDeployFlow, DeploymentFlowProvider, usePublicTemplate, useConfigureDraft, enqueueSnackbar };
+    return { ConfigureDeploymentForm, AutoDeployFlow, DeploymentFlowProvider, usePublicTemplate, useUserTemplate, useConfigureDraft, enqueueSnackbar };
   }
 });

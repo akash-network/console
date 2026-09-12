@@ -490,11 +490,12 @@ function deploymentResourcesFromSdl(sdl: string): { gpuAmount: number; cpuAmount
   }
 }
 
-/** Builds the canonical configure URL preserving templateId/sdl-strategy/draftId/vm and the current dseq + bid-strategy. */
+/** Builds the canonical configure URL preserving both template ids, sdl-strategy, draftId and vm alongside the current dseq + bid-strategy. */
 export function buildConfigureUrl(intent: DeploymentIntent, dseq: string | undefined, bidStrategy: BidStrategy): string {
   return UrlService.configureDeployment({
     dseq,
     templateId: intent.templateId,
+    userTemplateId: intent.userTemplateId,
     sdlStrategy: intent.templateId ? intent.sdlStrategy : undefined,
     bidStrategy,
     draftId: intent.draftId,

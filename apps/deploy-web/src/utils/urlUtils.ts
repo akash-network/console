@@ -22,6 +22,7 @@ export type NewDeploymentParams = {
 export type ConfigureDeploymentParams = {
   dseq?: string | number;
   templateId?: string;
+  userTemplateId?: string;
   sdlStrategy?: "default" | "edit";
   bidStrategy?: "auto" | "select";
   draftId?: string;
@@ -124,9 +125,9 @@ export const UrlService = {
   },
 
   configureDeployment: (params: ConfigureDeploymentParams = {}) => {
-    const { dseq, templateId, sdlStrategy, bidStrategy, draftId, vm } = params;
+    const { dseq, templateId, userTemplateId, sdlStrategy, bidStrategy, draftId, vm } = params;
     const base = dseq ? `/new-deployment/configure/${dseq}` : "/new-deployment/configure";
-    return `${base}${appendSearchParams({ templateId, "sdl-strategy": sdlStrategy, "bid-strategy": bidStrategy, draftId, vm })}`;
+    return `${base}${appendSearchParams({ templateId, userTemplateId, "sdl-strategy": sdlStrategy, "bid-strategy": bidStrategy, draftId, vm })}`;
   }
 };
 

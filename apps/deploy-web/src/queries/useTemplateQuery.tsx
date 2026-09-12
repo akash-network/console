@@ -30,12 +30,17 @@ export function useUserFavoriteTemplates(options?: Omit<UseQueryOptions<Partial<
   });
 }
 
-export function useTemplate(id: string, options?: Omit<UseQueryOptions<ITemplate, Error, any, QueryKey>, "queryKey" | "queryFn">) {
+/**
+ * Fetches a user-authored template by id. The API answers with a null body rather than an error when the
+ * template is neither public nor owned by the caller, so an empty result means "not visible to you".
+ */
+export function useTemplate(id: string | undefined, options?: Omit<UseQueryOptions<ITemplate, Error, any, QueryKey>, "queryKey" | "queryFn">) {
   const { consoleApiHttpClient } = useServices();
 
   return useQuery<ITemplate, Error>({
-    queryKey: QueryKeys.getTemplateKey(id),
+    queryKey: QueryKeys.getTemplateKey(id ?? ""),
     queryFn: () => consoleApiHttpClient.get<ITemplate>(`/v1/user/template/${id}`).then(response => response.data),
+    enabled: !!id,
     ...options
   });
 }
