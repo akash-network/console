@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import subDays from "date-fns/subDays";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -140,6 +141,53 @@ describe(UserRepository.name, () => {
       emailVerified: false,
       subscribedToNewsletter: false
     };
+  }
+
+  describe("hasEstablishedUserWithEmailDomain", () => {
+    it("answers true for a domain with an account older than the window", async () => {
+      const { userRepository, domain, createUserOnDomain } = setupDomain();
+      await createUserOnDomain({ createdAt: subDays(new Date(), 45) });
+
+      await expect(userRepository.hasEstablishedUserWithEmailDomain(domain, 30)).resolves.toBe(true);
+    });
+
+    it("answers false when every account on the domain is newer than the window", async () => {
+      const { userRepository, domain, createUserOnDomain } = setupDomain();
+      await createUserOnDomain({ createdAt: subDays(new Date(), 5) });
+
+      await expect(userRepository.hasEstablishedUserWithEmailDomain(domain, 30)).resolves.toBe(false);
+    });
+
+    it("matches the domain part only, never a domain that merely contains it", async () => {
+      const { userRepository, domain, createUserOnDomain } = setupDomain();
+      await createUserOnDomain({ createdAt: subDays(new Date(), 45) }, `x${domain}`);
+      await createUserOnDomain({ createdAt: subDays(new Date(), 45) }, `${domain}.attacker.net`);
+      await createUserOnDomain({ createdAt: subDays(new Date(), 45) }, `mail.${domain}`);
+
+      await expect(userRepository.hasEstablishedUserWithEmailDomain(domain, 30)).resolves.toBe(false);
+    });
+
+    it("matches a stored address whatever its case", async () => {
+      const { userRepository, domain, createUserOnDomain } = setupDomain();
+      await createUserOnDomain({ createdAt: subDays(new Date(), 45) }, domain.toUpperCase());
+
+      await expect(userRepository.hasEstablishedUserWithEmailDomain(domain, 30)).resolves.toBe(true);
+    });
+  });
+
+  function setupDomain() {
+    const userRepository = container.resolve(UserRepository);
+    const domain = `${faker.string.alphanumeric(16).toLowerCase()}.com`;
+
+    async function createUserOnDomain(overrides: { createdAt: Date }, onDomain = domain) {
+      return await userRepository.create({
+        userId: faker.string.uuid(),
+        email: `${faker.string.alphanumeric(10)}@${onDomain}`,
+        ...overrides
+      });
+    }
+
+    return { userRepository, domain, createUserOnDomain };
   }
 
   function setup() {

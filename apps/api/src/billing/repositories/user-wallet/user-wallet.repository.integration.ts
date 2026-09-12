@@ -4,6 +4,7 @@ import subMinutes from "date-fns/subMinutes";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
+import { StripeTransactionRepository } from "@src/billing/repositories/stripe-transaction/stripe-transaction.repository";
 import { UserRepository } from "@src/user/repositories";
 import { UserWalletRepository } from "./user-wallet.repository";
 
@@ -232,6 +233,101 @@ describe(UserWalletRepository.name, () => {
       expect(ids).not.toContain(lockedWallet.id);
     });
   });
+
+  describe("findLockableTrialWalletsByEmailDomain", () => {
+    it("returns the trialing, unlocked, never-paid wallets on the domain", async () => {
+      const { domain, createWalletOnDomain, userWalletRepository } = await setupDomain();
+      const target = await createWalletOnDomain({});
+      const trigger = await createWalletOnDomain({});
+
+      const lockable = await userWalletRepository.findLockableTrialWalletsByEmailDomain(domain, { excludeWalletId: trigger.id, limit: 10 });
+
+      expect(lockable).toEqual([{ walletId: target.id, userId: target.userId }]);
+    });
+
+    it.each([
+      { label: "already locked", overrides: { abuseLockedAt: new Date(), abuseLockedReason: "workload_abuse" } },
+      { label: "no longer trialing", overrides: { isTrialing: false } }
+    ])("excludes a wallet that is $label", async ({ overrides }) => {
+      const { domain, createWalletOnDomain, userWalletRepository } = await setupDomain();
+      await createWalletOnDomain(overrides);
+      const trigger = await createWalletOnDomain({});
+
+      const lockable = await userWalletRepository.findLockableTrialWalletsByEmailDomain(domain, { excludeWalletId: trigger.id, limit: 10 });
+
+      expect(lockable).toEqual([]);
+    });
+
+    it("excludes a wallet whose owner has ever paid", async () => {
+      const { domain, createWalletOnDomain, userWalletRepository, stripeTransactionRepository } = await setupDomain();
+      const paid = await createWalletOnDomain({});
+      await stripeTransactionRepository.create({ userId: paid.userId, type: "payment_intent", status: "succeeded", amount: 1000, currency: "usd" });
+      const trigger = await createWalletOnDomain({});
+
+      const lockable = await userWalletRepository.findLockableTrialWalletsByEmailDomain(domain, { excludeWalletId: trigger.id, limit: 10 });
+
+      expect(lockable).toEqual([]);
+    });
+
+    it("still returns a wallet whose owner only ever received a manual credit", async () => {
+      const { domain, createWalletOnDomain, userWalletRepository, stripeTransactionRepository } = await setupDomain();
+      const comped = await createWalletOnDomain({});
+      await stripeTransactionRepository.create({ userId: comped.userId, type: "manual_credit", status: "succeeded", amount: 1000, currency: "usd" });
+      const trigger = await createWalletOnDomain({});
+
+      const lockable = await userWalletRepository.findLockableTrialWalletsByEmailDomain(domain, { excludeWalletId: trigger.id, limit: 10 });
+
+      expect(lockable).toEqual([{ walletId: comped.id, userId: comped.userId }]);
+    });
+
+    it("excludes the wallet that triggered the block", async () => {
+      const { domain, createWalletOnDomain, userWalletRepository } = await setupDomain();
+      const trigger = await createWalletOnDomain({});
+
+      const lockable = await userWalletRepository.findLockableTrialWalletsByEmailDomain(domain, { excludeWalletId: trigger.id, limit: 10 });
+
+      expect(lockable).toEqual([]);
+    });
+
+    it("matches the domain part only, never a domain that merely contains it", async () => {
+      const { domain, createWalletOnDomain, userWalletRepository } = await setupDomain();
+      await createWalletOnDomain({}, `x${domain}`);
+      await createWalletOnDomain({}, `${domain}.attacker.net`);
+      await createWalletOnDomain({}, `mail.${domain}`);
+      const trigger = await createWalletOnDomain({});
+
+      const lockable = await userWalletRepository.findLockableTrialWalletsByEmailDomain(domain, { excludeWalletId: trigger.id, limit: 10 });
+
+      expect(lockable).toEqual([]);
+    });
+
+    it("returns no more wallets than the limit allows", async () => {
+      const { domain, createWalletOnDomain, userWalletRepository } = await setupDomain();
+      await createWalletOnDomain({});
+      await createWalletOnDomain({});
+      await createWalletOnDomain({});
+      const trigger = await createWalletOnDomain({});
+
+      const lockable = await userWalletRepository.findLockableTrialWalletsByEmailDomain(domain, { excludeWalletId: trigger.id, limit: 2 });
+
+      expect(lockable).toHaveLength(2);
+    });
+  });
+
+  async function setupDomain() {
+    const userRepository = container.resolve(UserRepository);
+    const userWalletRepository = container.resolve(UserWalletRepository);
+    const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
+    const domain = `${faker.string.alphanumeric(16).toLowerCase()}.com`;
+
+    async function createWalletOnDomain(overrides: Parameters<UserWalletRepository["updateById"]>[1], onDomain = domain) {
+      const user = await userRepository.create({ userId: faker.string.uuid(), email: `${faker.string.alphanumeric(10)}@${onDomain}` });
+      const created = await userWalletRepository.create({ userId: user.id, address: createAkashAddress() });
+      return await userWalletRepository.updateById(created.id, { isTrialing: true, abuseLockedAt: null, ...overrides }, { returning: true });
+    }
+
+    return { domain, createWalletOnDomain, userRepository, userWalletRepository, stripeTransactionRepository };
+  }
 
   async function setup(input: { creditsLowNotifiedAt?: Date; creditsSufficientSince?: Date; creditsLowSince?: Date } = {}) {
     const userRepository = container.resolve(UserRepository);
