@@ -180,6 +180,37 @@ describe(useDeploymentReachability.name, () => {
       }
     });
 
+    it("starts waiting when the leases land, not when the card mounts", () => {
+      vi.useFakeTimers();
+      try {
+        const { result, rerenderWith } = setup({ leases: [], isLoadingLeases: true, isStatusPending: true });
+
+        act(() => vi.advanceTimersByTime(15_000));
+        rerenderWith({ leases: [lease({ state: "active" })], statuses: [null], isLoadingLeases: false });
+
+        expect(result.current.isLoadingEndpoints).toBe(true);
+        expect(result.current.unreachableReason).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("gives up on a provider that stays silent for the whole wait after its lease landed", () => {
+      vi.useFakeTimers();
+      try {
+        const { result, rerenderWith } = setup({ leases: [], isLoadingLeases: true, isStatusPending: true });
+
+        act(() => vi.advanceTimersByTime(15_000));
+        rerenderWith({ leases: [lease({ state: "active" })], statuses: [null], isLoadingLeases: false });
+        act(() => vi.advanceTimersByTime(15_000));
+
+        expect(result.current.isLoadingEndpoints).toBe(false);
+        expect(result.current.unreachableReason).toBe("provider-unreachable");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("drops its timer when the card leaves the screen", () => {
       vi.useFakeTimers();
       try {

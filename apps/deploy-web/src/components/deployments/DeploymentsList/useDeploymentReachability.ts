@@ -56,7 +56,7 @@ export function useDeploymentReachability(params: {
   const statuses = d.useLeaseStatuses(liveLeaseItems, { refetchInterval: 30_000 });
   const endpoints = useMemo(() => statuses.flatMap(status => collectVisitEndpoints(status.data)), [statuses]);
 
-  const hasWaitExpired = useHasWaitExpired(ENDPOINT_WAIT_MS);
+  const hasWaitExpired = useHasWaitExpired(ENDPOINT_WAIT_MS, liveLeaseItems.length);
   const isLoadingEndpoints = isLoadingLeases || (!hasWaitExpired && endpoints.length === 0 && statuses.some(status => status.isPending));
 
   return {
@@ -79,15 +79,17 @@ function resolveUnreachableReason(input: {
   return input.statuses.every(status => !status.data) ? "provider-unreachable" : "no-public-endpoint";
 }
 
-function useHasWaitExpired(waitMs: number): boolean {
+/** Restarts on `restartOn` so leases the chain is slow to hand over can't eat the wait before a status request goes out. */
+function useHasWaitExpired(waitMs: number, restartOn: unknown): boolean {
   const [hasExpired, setHasExpired] = useState(false);
 
   useEffect(
     function stopWaitingEventually() {
+      setHasExpired(false);
       const timer = setTimeout(() => setHasExpired(true), waitMs);
       return () => clearTimeout(timer);
     },
-    [waitMs]
+    [waitMs, restartOn]
   );
 
   return hasExpired;
