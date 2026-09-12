@@ -1,11 +1,13 @@
 import { Trace } from "@akashnetwork/instrumentation";
 import subDays from "date-fns/subDays";
-import { and, count, eq, gt, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { and, count, eq, gt, inArray, isNotNull, isNull, lte, ne, notExists, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
+import { StripeTransactions } from "@src/billing/model-schemas";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
+import { Users } from "@src/user/model-schemas";
 
 export type DbCreateUserWalletInput = ApiPgTables["UserWallets"]["$inferInsert"];
 export type DbUserWalletInput = Partial<DbCreateUserWalletInput>;
@@ -164,6 +166,42 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
         )
       })
     );
+  }
+
+  /**
+   * Trial wallets on a domain that are still worth wiping. The paid check is redundant while a domain is
+   * auto-blocked — the guardrail already proved nobody paid — but keeps the sweep correct when it runs
+   * for a domain an operator blocked by hand. The limit bounds the damage of a match that is too broad.
+   */
+  async findLockableTrialWalletsByEmailDomain(
+    domain: string,
+    options: { excludeWalletId: number; limit: number }
+  ): Promise<Array<{ walletId: number; userId: string }>> {
+    return await this.cursor
+      .select({ walletId: this.table.id, userId: this.table.userId })
+      .from(this.table)
+      .innerJoin(Users, eq(Users.id, this.table.userId))
+      .where(
+        and(
+          sql`lower(${Users.email}) LIKE ${"%@"} || ${domain}`,
+          eq(this.table.isTrialing, true),
+          isNull(this.table.abuseLockedAt),
+          ne(this.table.id, options.excludeWalletId),
+          notExists(
+            this.cursor
+              .select({ id: StripeTransactions.id })
+              .from(StripeTransactions)
+              .where(
+                and(
+                  eq(StripeTransactions.userId, Users.id),
+                  eq(StripeTransactions.type, "payment_intent"),
+                  inArray(StripeTransactions.status, ["succeeded", "refunded"])
+                )
+              )
+          )
+        )
+      )
+      .limit(options.limit);
   }
 
   /** One write, so a wallet is never left with zeroed allowances but no lock or the other way round. */
