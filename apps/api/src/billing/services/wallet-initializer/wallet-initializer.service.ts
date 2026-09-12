@@ -11,7 +11,11 @@ import { DomainEventsService } from "@src/core/services/domain-events/domain-eve
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { UserOutput, UserRepository } from "@src/user/repositories";
+import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
+
+/** Names the domain, unlike the registration refusal: only a verified account holder sees it, and support needs to be able to act on it. */
+export const TRIAL_BLOCKED_DOMAIN_MESSAGE = "Trial is not available for this email domain. Please contact support for assistance.";
 
 @singleton()
 export class WalletInitializerService {
@@ -24,7 +28,8 @@ export class WalletInitializerService {
     private readonly stripeService: StripeService,
     private readonly userRepository: UserRepository,
     private readonly trialActivationInstrumentation: TrialActivationInstrumentationService,
-    private readonly trialValidationService: TrialValidationService
+    private readonly trialValidationService: TrialValidationService,
+    private readonly blockedEmailDomainService: BlockedEmailDomainService
   ) {}
 
   async #assertNoDuplicateFingerprint(user: UserOutput): Promise<void> {
@@ -34,6 +39,11 @@ export class WalletInitializerService {
 
     const usersWithSameFingerprint = await this.userRepository.findTrialUsersByFingerprint(user.lastFingerprint, user.id);
     assert(usersWithSameFingerprint.length === 0, 400, "Unable to start trial. Please contact support for assistance.");
+  }
+
+  async #assertEmailDomainNotBlocked(user: UserOutput): Promise<void> {
+    const blocked = await this.blockedEmailDomainService.isBlockedEmail(user.email);
+    assert(!blocked, 400, TRIAL_BLOCKED_DOMAIN_MESSAGE);
   }
 
   /**
@@ -55,6 +65,8 @@ export class WalletInitializerService {
 
     const userWallet = await this.ensureWallet(userId);
     if (userWallet.activatedAt) return this.#toPublic(userWallet);
+
+    await this.#assertEmailDomainNotBlocked(user);
 
     const chainWallet = await this.walletManager.createAndAuthorizeTrialSpending(this.managedSignerService, { addressIndex: userWallet.id });
     const activatedWallet = await this.userWalletRepository.updateById(

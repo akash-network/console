@@ -1,7 +1,9 @@
 import assert from "http-assert";
+import createError from "http-errors";
 import randomInt from "lodash/random";
 import { inject, singleton } from "tsyringe";
 
+import { ACCOUNT_UNAVAILABLE_ERROR_CODE, ACCOUNT_UNAVAILABLE_MESSAGE } from "@src/auth/lib/account-unavailable/account-unavailable";
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
@@ -11,6 +13,7 @@ import { getPostgresError, isUniqueViolation } from "@src/core/repositories/base
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { DataKeyService } from "@src/secret/services/data-key/data-key.service";
+import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { UserInput, type UserOutput, UserRepository } from "../../repositories/user/user.repository";
 
 @singleton()
@@ -26,7 +29,8 @@ export class UserService {
     private readonly emailVerificationCodeService: EmailVerificationCodeService,
     private readonly walletInitializer: WalletInitializerService,
     private readonly trialActivationJobService: TrialActivationJobService,
-    private readonly dataKeyService: DataKeyService
+    private readonly dataKeyService: DataKeyService,
+    private readonly blockedEmailDomainService: BlockedEmailDomainService
   ) {
     this.logger = createLogger({ context: UserService.name });
   }
@@ -45,6 +49,8 @@ export class UserService {
     githubUsername: string | null;
     isNewUser: boolean;
   }> {
+    await this.assertDomainNotBlockedForNewUser(data);
+
     const userDetails = {
       userId: data.userId,
       email: data.email,
@@ -107,6 +113,20 @@ export class UserService {
       githubUsername,
       isNewUser: wasInserted
     } as Awaited<ReturnType<this["registerUser"]>>;
+  }
+
+  /**
+   * Refuses only an account that does not exist yet. This endpoint runs on every login, so refusing
+   * unconditionally would ban an established user whose domain was blocked for somebody else's abuse —
+   * and the Auth0 callback swallows this error, so they would get a session with no account behind it.
+   */
+  private async assertDomainNotBlockedForNewUser(data: RegisterUserInput): Promise<void> {
+    if (!(await this.blockedEmailDomainService.isBlockedEmail(data.email))) return;
+    if (await this.userRepository.findByUserId(data.userId)) return;
+
+    this.logger.warn({ event: "REGISTRATION_BLOCKED_EMAIL_DOMAIN", userId: data.userId });
+
+    throw createError(403, ACCOUNT_UNAVAILABLE_MESSAGE, { errorCode: ACCOUNT_UNAVAILABLE_ERROR_CODE });
   }
 
   /**
