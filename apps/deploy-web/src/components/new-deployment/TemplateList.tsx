@@ -20,7 +20,6 @@ import type { TemplateCreation } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { helloWorldTemplate } from "@src/utils/templates";
-import type { NewDeploymentParams } from "@src/utils/urlUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { TemplateBox } from "../templates/TemplateBox";
@@ -86,12 +85,22 @@ export const TemplateList: React.FunctionComponent<Props> = ({
     }
   }, [templates]);
 
-  function onSDLBuilderClick(page: NewDeploymentParams["page"] = "new-deployment") {
-    analyticsService.track(page === "deploy-linux" ? "launch_container_vm_btn_clk" : "run_custom_container_btn_clk", "Amplitude");
+  function startBlankDeployment() {
     setEditedManifest("");
     onTemplateSelected(null);
     setSdlEditMode("builder");
-    router.push(newDeploymentUrl({ step: RouteStep.editDeployment, page }));
+  }
+
+  function onRunCustomContainerClick() {
+    analyticsService.track("run_custom_container_btn_clk", "Amplitude");
+    startBlankDeployment();
+    router.push(newDeploymentUrl({ step: RouteStep.editDeployment }));
+  }
+
+  function onLaunchContainerVmClick() {
+    analyticsService.track("launch_container_vm_btn_clk", "Amplitude");
+    startBlankDeployment();
+    router.push(UrlService.configureDeployment({ vm: true }));
   }
 
   const onFileSelect = (file: File | null) => {
@@ -154,14 +163,14 @@ export const TemplateList: React.FunctionComponent<Props> = ({
             description="Deploy and work with a plain-linux vm-like container"
             topIcons={["/images/docker-logo.png", "/images/vm.png"]}
             bottomIcons={["/images/ubuntu.png", "/images/centos.png", "/images/debian.png", "/images/suse.png"]}
-            onClick={() => onSDLBuilderClick("deploy-linux")}
+            onClick={onLaunchContainerVmClick}
           />
 
           <DeployOptionBox
             title="Run Custom Container"
             description="Run your own docker container stored in a private or public container registry"
             topIcons={["/images/docker-logo.png"]}
-            onClick={() => onSDLBuilderClick()}
+            onClick={onRunCustomContainerClick}
           />
         </CardContent>
       </Card>

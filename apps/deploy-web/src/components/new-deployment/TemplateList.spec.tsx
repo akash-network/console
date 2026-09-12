@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
+import { RouteStep } from "@src/types/route-steps.type";
 import { UrlService } from "@src/utils/urlUtils";
 import type { DEPENDENCIES } from "./TemplateList";
 import { TemplateList } from "./TemplateList";
@@ -56,6 +57,26 @@ describe(TemplateList.name, () => {
     await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" })));
     expect(createConfigureDraft).not.toHaveBeenCalled();
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it("routes Launch Container-VM straight to a container-vm configure entry", async () => {
+    const { push, analyticsService, onTemplateSelected, setEditedManifest } = setup({});
+
+    await userEvent.click(screen.getByText("Launch Container-VM"));
+
+    expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ vm: true }));
+    expect(analyticsService.track).toHaveBeenCalledWith("launch_container_vm_btn_clk", "Amplitude");
+    expect(setEditedManifest).toHaveBeenCalledWith("");
+    expect(onTemplateSelected).toHaveBeenCalledWith(null);
+  });
+
+  it("routes Run Custom Container to the blank deployment editor", async () => {
+    const { push, analyticsService } = setup({});
+
+    await userEvent.click(screen.getByText("Run Custom Container"));
+
+    expect(push).toHaveBeenCalledWith(UrlService.newDeployment({ step: RouteStep.editDeployment }));
+    expect(analyticsService.track).toHaveBeenCalledWith("run_custom_container_btn_clk", "Amplitude");
   });
 
   /** A YAML File the mocked FileButton hands to the upload handler, standing in for the browser's file picker. */
