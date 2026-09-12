@@ -55,7 +55,7 @@ logged and counted as `sibling_limit_reached`, and means a human should look bef
 
 ## The Auth0 Action
 
-Auth0 stays the front door. The Action is not in this repo — it lives in the tenant — and it calls:
+Auth0 stays the front door. The Action lives in the `ovrclk/auth0-actions` repo, not here, and calls:
 
 ```
 POST /internal/auth/email-domain-check
@@ -65,44 +65,22 @@ x-console-internal-token: <INTERNAL_API_TOKEN>
 200 { "blocked": true }
 ```
 
-Two details decide whether this is safe.
+That repo already blocks domains from a hand-curated `BLACKLISTED_DOMAINS` list on two triggers:
+`domain-blacklist` on pre-user-registration and `domain-blacklist-on-login` on post-login. Both triggers
+are needed, because Auth0 never runs pre-user-registration for social connections. This endpoint gives
+those same two actions a second, automatic list, so the manual edits stop being the only way a domain
+gets blocked.
 
-**Use the `post-login` trigger.** `pre-user-registration` fires only for database connections, so a social
-signup would walk straight past it.
+Three things about the caller matter, and all three live in that repo:
 
-**Deny only on the first login.** Without the `logins_count` check the Action bans everyone on the domain,
-including customers who registered long before the attacker did — which is exactly what the API side goes out
-of its way not to do.
+**It asks only on a first login, on the post-login side.** That action runs on every login, so calling
+this endpoint each time would put the Console API in the critical path of every sign-in to Akash
+Console. The curated list is still checked on every login at no cost.
 
-**Fail open.** If this endpoint is unreachable the Action must allow the login. A blocklist that takes the
-whole tenant down when the API restarts is worse than the spam.
+**It fails open.** An unset secret, a timeout, a non-200, or a body that is not exactly
+`{"blocked": true}` all allow the request. A blocklist that stops everybody logging in when this API
+restarts is worse than the spam.
 
-```js
-exports.onExecutePostLogin = async (event, api) => {
-  if (event.stats.logins_count !== 1) return;
-
-  let blocked = false;
-
-  try {
-    const response = await fetch(`${event.secrets.CONSOLE_API_URL}/internal/auth/email-domain-check`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-console-internal-token": event.secrets.CONSOLE_INTERNAL_TOKEN
-      },
-      body: JSON.stringify({ email: event.user.email }),
-      signal: AbortSignal.timeout(1500)
-    });
-
-    if (!response.ok) return;
-
-    blocked = (await response.json()).blocked === true;
-  } catch {
-    return;
-  }
-
-  if (blocked) {
-    api.access.deny("Unable to sign in with this email address.");
-  }
-};
-```
+**It reuses the opaque denial messages.** Naming the domain told the last farm exactly what to rotate.
+The `domain_blocked_by_console` error code separates the two lists in the tenant logs without telling
+the user anything.
