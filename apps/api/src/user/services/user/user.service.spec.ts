@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { ACCOUNT_UNAVAILABLE_ERROR_CODE, ACCOUNT_UNAVAILABLE_MESSAGE } from "@src/auth/lib/account-unavailable/account-unavailable";
 import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import type { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
@@ -11,6 +12,7 @@ import type { AnalyticsService } from "@src/core/services/analytics/analytics.se
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { DataKeyService } from "@src/secret/services/data-key/data-key.service";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
+import type { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
 
@@ -20,6 +22,45 @@ import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(UserService.name, () => {
   describe("registerUser", () => {
+    describe("when the email domain is blocked", () => {
+      it("refuses an account that does not exist yet", async () => {
+        const { service, userRepository, blockedEmailDomainService } = setup();
+        blockedEmailDomainService.isBlockedEmail.mockResolvedValue(true);
+        userRepository.findByUserId.mockResolvedValue(undefined);
+
+        await expect(service.registerUser(createRegisterInput())).rejects.toMatchObject({
+          status: 403,
+          message: ACCOUNT_UNAVAILABLE_MESSAGE,
+          errorCode: ACCOUNT_UNAVAILABLE_ERROR_CODE
+        });
+        expect(userRepository.upsertOnExternalIdConflict).not.toHaveBeenCalled();
+      });
+
+      it("registers an account that already exists, so a later block never locks an established user out", async () => {
+        const user = createUser({ emailVerified: true });
+        const { service, userRepository, notificationService, blockedEmailDomainService } = setup();
+        blockedEmailDomainService.isBlockedEmail.mockResolvedValue(true);
+        userRepository.findByUserId.mockResolvedValue(user);
+        userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
+        notificationService.createDefaultChannel.mockResolvedValue(undefined);
+
+        const result = await service.registerUser(createRegisterInput({ emailVerified: true }));
+
+        expect(result.id).toBe(user.id);
+      });
+    });
+
+    it("registers without looking the user up when the email domain is not blocked", async () => {
+      const user = createUser({ emailVerified: true });
+      const { service, userRepository, notificationService } = setup();
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
+      notificationService.createDefaultChannel.mockResolvedValue(undefined);
+
+      await service.registerUser(createRegisterInput({ emailVerified: true }));
+
+      expect(userRepository.findByUserId).not.toHaveBeenCalled();
+    });
+
     it("sends verification code when email is not verified", async () => {
       const user = createUser({ emailVerified: false, email: "test@example.com" });
       const { service, emailVerificationCodeService, userRepository, notificationService } = setup();
@@ -180,6 +221,7 @@ describe(UserService.name, () => {
     });
     const trialActivationJobService = mock<TrialActivationJobService>({ schedule: vi.fn().mockResolvedValue(undefined) });
     const dataKeyService = mock<DataKeyService>({ ensureDataKey: vi.fn().mockResolvedValue(createDataKey()) });
+    const blockedEmailDomainService = mock<BlockedEmailDomainService>({ isBlockedEmail: vi.fn().mockResolvedValue(false) });
 
     const service = new UserService(
       userRepository,
@@ -190,10 +232,12 @@ describe(UserService.name, () => {
       emailVerificationCodeService,
       walletInitializerService,
       trialActivationJobService,
-      dataKeyService
+      dataKeyService,
+      blockedEmailDomainService
     );
 
     return {
+      blockedEmailDomainService,
       service,
       userRepository,
       analyticsService,

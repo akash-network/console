@@ -16,6 +16,7 @@ import type { NotificationService } from "@src/notifications/services/notificati
 import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
 import { DataKeyService } from "@src/secret/services/data-key/data-key.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
+import type { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
 
@@ -449,7 +450,11 @@ describe(UserService.name, () => {
     };
   }
 
-  function setup(input?: { createDefaultNotificationChannel?: NotificationService["createDefaultChannel"]; ensureDataKey?: DataKeyService["ensureDataKey"] }) {
+  function setup(input?: {
+    createDefaultNotificationChannel?: NotificationService["createDefaultChannel"];
+    ensureDataKey?: DataKeyService["ensureDataKey"];
+    isBlockedEmail?: boolean;
+  }) {
     const analyticsService = mock<AnalyticsService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger: CreateLogger = () => logger;
@@ -477,7 +482,8 @@ describe(UserService.name, () => {
       }),
       walletInitializerService,
       mock<TrialActivationJobService>({ schedule: vi.fn().mockResolvedValue(undefined) }),
-      input?.ensureDataKey ? mock<DataKeyService>({ ensureDataKey: input.ensureDataKey }) : dataKeyService
+      input?.ensureDataKey ? mock<DataKeyService>({ ensureDataKey: input.ensureDataKey }) : dataKeyService,
+      mock<BlockedEmailDomainService>({ isBlockedEmail: vi.fn().mockResolvedValue(input?.isBlockedEmail ?? false) })
     );
 
     return { service, analyticsService, logger, auth0Service, userRepository, walletInitializerService, dataKeyRepository };

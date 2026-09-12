@@ -379,6 +379,13 @@
       "when": 1789051951342,
       "tag": "0053_deployment_name",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1789221053185,
+      "tag": "0054_blocked_email_domains",
+      "breakpoints": true
     }
   ]
 }
