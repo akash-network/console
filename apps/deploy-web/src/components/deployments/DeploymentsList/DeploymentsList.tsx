@@ -177,7 +177,13 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
         </div>
       )}
 
-      <d.DeploymentArchive deployments={model.archiveDeployments} providers={model.providers} viewMode={model.viewMode} />
+      <d.DeploymentArchive
+        deployments={model.archiveDeployments}
+        providers={model.providers}
+        viewMode={model.viewMode}
+        isError={model.showArchiveError}
+        onRetry={model.refetchDeployments}
+      />
     </d.Layout>
   );
 };

@@ -80,26 +80,46 @@ describe("DeploymentArchive", () => {
     expect(screen.queryByRole("button", { name: /Archive/ })).not.toBeInTheDocument();
   });
 
+  it("owns up to a failed archive query rather than looking like an account with no history", async () => {
+    const { onRetry } = setup({ count: 0, isError: true });
+
+    expect(screen.getByText("Couldn't load closed deployments.")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /Retry/ }));
+
+    expect(onRetry).toHaveBeenCalled();
+  });
+
+  it("says the archive failed even when it still holds deployments from an earlier fetch", () => {
+    setup({ count: 5, isError: true });
+
+    expect(screen.getByText("Couldn't load closed deployments.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Archive \/\/ 5 closed/ })).not.toBeInTheDocument();
+  });
+
   function lastRenderedDeployments(DeploymentsCollection: Mock) {
     return DeploymentsCollection.mock.lastCall?.[0].deployments as NamedDeploymentDto[];
   }
 
-  function setup(input: { count: number; viewMode?: "grid" | "list" }) {
+  function setup(input: { count: number; viewMode?: "grid" | "list"; isError?: boolean }) {
     const deployments = Array.from(
       { length: input.count },
       (_, index) => ({ dseq: `${100 + index}`, state: "closed", name: `archived-${index}` }) as NamedDeploymentDto
     );
     const DeploymentsCollection = vi.fn(() => <div>collection</div>);
+    const onRetry = vi.fn();
 
     render(
       <DeploymentArchive
         deployments={deployments}
         providers={[]}
         viewMode={input.viewMode ?? "grid"}
+        isError={input.isError}
+        onRetry={onRetry}
         dependencies={MockComponents(DEPENDENCIES, { DeploymentsCollection })}
       />
     );
 
-    return { DeploymentsCollection };
+    return { DeploymentsCollection, onRetry };
   }
 });

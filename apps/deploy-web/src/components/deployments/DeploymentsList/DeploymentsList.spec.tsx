@@ -145,6 +145,12 @@ describe("DeploymentsList", () => {
     expect(screen.queryByText("Couldn't load deployments.")).not.toBeInTheDocument();
   });
 
+  it("hands a failed archive query to the archive section to report on", () => {
+    const { DeploymentArchive, refetchDeployments } = setup({ showArchiveError: true, hasPageResults: true });
+
+    expect(DeploymentArchive).toHaveBeenCalledWith(expect.objectContaining({ isError: true, onRetry: refetchDeployments }), expect.anything());
+  });
+
   it("offers the onboarding empty state to an account with nothing deployed", () => {
     const { NoDeploymentsState } = setup({ hasSettledWithoutActiveDeployments: true, archiveDeployments: [] });
 
@@ -298,6 +304,7 @@ describe("DeploymentsList", () => {
       hasAnyDeployment: true,
       hasSettledWithoutActiveDeployments: false,
       showErrorState: false,
+      showArchiveError: false,
       showNoSearchResults: false,
       pageIndex: 0,
       pageSize: 12,
