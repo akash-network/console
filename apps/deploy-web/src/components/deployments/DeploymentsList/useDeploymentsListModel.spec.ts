@@ -400,6 +400,28 @@ describe(useDeploymentsListModel.name, () => {
 
       expect(result.current.isLoadingDeployments).toBe(false);
     });
+
+    it("offers a retry rather than the onboarding state when the archive query failed", () => {
+      const { result } = setup({ active: [], isArchiveError: true });
+
+      expect(result.current.showErrorState).toBe(true);
+      expect(result.current.hasSettledWithoutActiveDeployments).toBe(false);
+    });
+
+    it("keeps the rows on screen when only the archive query failed", () => {
+      const { result } = setup({ active: [deployment("100")], isArchiveError: true });
+
+      expect(result.current.showErrorState).toBe(false);
+    });
+
+    it("withholds the no-results message while the archive that would have matched never loaded", async () => {
+      const { result } = setup({ active: [deployment("100")], isArchiveError: true });
+
+      await act(async () => result.current.changeSearch("nothing-matches-this"));
+
+      expect(result.current.showNoSearchResults).toBe(false);
+      expect(result.current.showErrorState).toBe(true);
+    });
   });
 
   it("clears any staged SDL when a new deployment is started", () => {
@@ -430,6 +452,7 @@ describe(useDeploymentsListModel.name, () => {
     isListError?: boolean;
     isListFetching?: boolean;
     isArchiveFetching?: boolean;
+    isArchiveError?: boolean;
     isCloseConfirmed?: boolean;
     broadcastResponse?: boolean;
     names?: Record<string, string>;
@@ -460,7 +483,7 @@ describe(useDeploymentsListModel.name, () => {
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentList>>(), {
         data: state === "closed" ? current.archived ?? [] : current.active ?? [],
         isFetching: state === "closed" ? current.isArchiveFetching ?? false : current.isListFetching ?? false,
-        isError: state === "closed" ? false : current.isListError ?? false,
+        isError: state === "closed" ? current.isArchiveError ?? false : current.isListError ?? false,
         refetch: refetchList
       })
     );

@@ -6,7 +6,7 @@ import type { DeploymentsCollectionProps } from "./DeploymentsCollection";
 import { DEPENDENCIES, DeploymentsList } from "./DeploymentsList";
 import type { useDeploymentsListModel } from "./useDeploymentsListModel";
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
@@ -96,6 +96,15 @@ describe("DeploymentsList", () => {
     await userEvent.click(screen.getByRole("link", { name: /New deployment/ }));
 
     expect(startNewDeployment).toHaveBeenCalled();
+  });
+
+  it("keeps the staged SDL when the New deployment link is activated while the chain is down", () => {
+    const { startNewDeployment } = setup({ hasAnyDeployment: true }, { isBlockchainDown: true });
+
+    const isNavigating = fireEvent.click(screen.getByRole("link", { name: /New deployment/ }));
+
+    expect(startNewDeployment).not.toHaveBeenCalled();
+    expect(isNavigating).toBe(false);
   });
 
   it("offers the bulk close only while something is selected", () => {

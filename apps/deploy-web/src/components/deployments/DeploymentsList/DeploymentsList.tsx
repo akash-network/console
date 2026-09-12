@@ -1,5 +1,5 @@
 "use client";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, MouseEvent } from "react";
 import {
   Button,
   buttonVariants,
@@ -49,6 +49,15 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
 
   const changeSearch = (event: ChangeEvent<HTMLInputElement>) => model.changeSearch(event.target.value);
 
+  const startNewDeploymentUnlessChainIsDown = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (isBlockchainDown) {
+      event.preventDefault();
+      return;
+    }
+
+    model.startNewDeployment();
+  };
+
   return (
     <d.Layout isLoading={model.isLoadingDeployments || model.isLoadingProviders}>
       <NextSeo title="Deployments" />
@@ -94,9 +103,9 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
           {model.hasAnyDeployment && (
             <Link
               href={newDeploymentUrl()}
-              className={cn("space-x-2", buttonVariants({ variant: "default" }))}
+              className={cn("space-x-2", buttonVariants({ variant: "default" }), isBlockchainDown && "pointer-events-none opacity-50")}
               aria-disabled={isBlockchainDown}
-              onClick={model.startNewDeployment}
+              onClick={startNewDeploymentUnlessChainIsDown}
             >
               <span className="whitespace-nowrap">New deployment</span>
               <NavArrowRight className="h-4 w-4" />

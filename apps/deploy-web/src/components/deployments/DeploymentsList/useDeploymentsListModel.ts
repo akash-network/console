@@ -65,6 +65,7 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
 
   const isLoadingDeployments = isSearching ? activeList.isFetching : activePage.isFetching;
   const isError = isSearching ? activeList.isError : activePage.isError;
+  const isArchiveError = archiveList.isError;
 
   const refetchActive = isSearching ? activeList.refetch : activePage.refetch;
   const refetchArchive = archiveList.refetch;
@@ -137,9 +138,10 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     refetchDeployments,
     hasPageResults,
     hasAnyDeployment: hasPageResults || pageIndex > 0 || archiveDeployments.length > 0,
-    hasSettledWithoutActiveDeployments: !hasPageResults && pageIndex === 0 && !isLoadingDeployments && !isError && !isSearching && !archiveList.isFetching,
-    showErrorState: isError && !hasPageResults && !isLoadingDeployments,
-    showNoSearchResults: isSearching && !isError && !isLoadingDeployments && !hasPageResults && archiveDeployments.length === 0,
+    hasSettledWithoutActiveDeployments:
+      !hasPageResults && pageIndex === 0 && !isLoadingDeployments && !isError && !isArchiveError && !isSearching && !archiveList.isFetching,
+    showErrorState: (isError || isArchiveError) && !hasPageResults && !isLoadingDeployments,
+    showNoSearchResults: isSearching && !isError && !isArchiveError && !isLoadingDeployments && !hasPageResults && archiveDeployments.length === 0,
     pageIndex,
     pageSize,
     changePageSize,
