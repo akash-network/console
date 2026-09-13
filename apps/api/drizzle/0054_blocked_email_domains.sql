@@ -9,7 +9,7 @@ CREATE TABLE "blocked_email_domains" (
 	"triggered_by_user_id" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "blocked_email_domains_domain_normalized" CHECK ("blocked_email_domains"."domain" = lower("blocked_email_domains"."domain") AND "blocked_email_domains"."domain" NOT LIKE '%@%' AND "blocked_email_domains"."domain" LIKE '%.%' AND btrim("blocked_email_domains"."domain") = "blocked_email_domains"."domain")
+	CONSTRAINT "blocked_email_domains_domain_normalized" CHECK ("blocked_email_domains"."domain" ~ '^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$')
 );
 --> statement-breakpoint
 ALTER TABLE "blocked_email_domains" ADD CONSTRAINT "blocked_email_domains_triggered_by_user_id_userSetting_id_fk" FOREIGN KEY ("triggered_by_user_id") REFERENCES "public"."userSetting"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint

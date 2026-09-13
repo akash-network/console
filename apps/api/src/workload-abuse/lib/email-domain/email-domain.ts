@@ -1,7 +1,9 @@
-import { MAX_EMAIL_DOMAIN_LENGTH } from "@src/workload-abuse/model-schemas/blocked-email-domain/blocked-email-domain.schema";
-
 const DOMAIN_LABEL = "[a-z0-9](?:[a-z0-9-]*[a-z0-9])?";
-const DOMAIN_PATTERN = new RegExp(`^${DOMAIN_LABEL}(?:\\.${DOMAIN_LABEL})+$`);
+
+export const MAX_EMAIL_DOMAIN_LENGTH = 253;
+
+/** Shared with the `blocked_email_domains` CHECK constraint, whose POSIX matcher reads this same source, so both sides agree on what normalized means. */
+export const NORMALIZED_DOMAIN_PATTERN = new RegExp(`^${DOMAIN_LABEL}(?:\\.${DOMAIN_LABEL})+$`);
 
 /**
  * Returns the normalized domain of an email address, or null when there isn't one to act on. Every caller
@@ -25,7 +27,7 @@ export function normalizeEmailDomain(domain: string | null | undefined): string 
   const withoutRootLabel = domain.trim().toLowerCase().replace(/\.$/, "");
 
   if (withoutRootLabel.length > MAX_EMAIL_DOMAIN_LENGTH) return null;
-  if (!DOMAIN_PATTERN.test(withoutRootLabel)) return null;
+  if (!NORMALIZED_DOMAIN_PATTERN.test(withoutRootLabel)) return null;
 
   return withoutRootLabel;
 }

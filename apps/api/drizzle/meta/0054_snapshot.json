@@ -1,5 +1,5 @@
 {
-  "id": "42c76360-7c9c-403e-9bba-31c9e5e2c876",
+  "id": "97ec53d7-fad9-44d7-8b17-918444ad9d16",
   "prevId": "ac23eb43-aae2-4886-bc9e-754d7776ba29",
   "version": "7",
   "dialect": "postgresql",
@@ -1647,7 +1647,7 @@
       "checkConstraints": {
         "blocked_email_domains_domain_normalized": {
           "name": "blocked_email_domains_domain_normalized",
-          "value": "\"blocked_email_domains\".\"domain\" = lower(\"blocked_email_domains\".\"domain\") AND \"blocked_email_domains\".\"domain\" NOT LIKE '%@%' AND \"blocked_email_domains\".\"domain\" LIKE '%.%' AND btrim(\"blocked_email_domains\".\"domain\") = \"blocked_email_domains\".\"domain\""
+          "value": "\"blocked_email_domains\".\"domain\" ~ '^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$'"
         }
       },
       "isRLSEnabled": false
