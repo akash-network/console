@@ -30,7 +30,7 @@ export class BlockedEmailDomainRepository extends BaseRepository<Table, BlockedE
   }
 
   async findByDomain(domain: string): Promise<BlockedEmailDomainOutput | undefined> {
-    return await this.cursor.query.BlockedEmailDomains.findFirst({ where: eq(this.table.domain, domain) });
+    return await this.cursor.query.BlockedEmailDomains.findFirst({ where: this.whereAccessibleBy(eq(this.table.domain, domain)) });
   }
 
   /**
