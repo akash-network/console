@@ -13,6 +13,7 @@ import dynamic from "next/dynamic";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWhen } from "@src/hooks/useWhen";
 import { getInjectedConfig } from "@src/utils/getInjectedConfig/getInjectedConfig";
+import { CaptchaChallengeError } from "./CaptchaChallengeError";
 
 type TurnstileStatus = "uninitialized" | "solved" | "interactive" | "expired" | "error" | "dismissed";
 
@@ -56,7 +57,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
   const isVisible = useMemo(() => enabled && VISIBILITY_STATUSES.includes(status), [enabled, status]);
   const eventBus = useRef<EventTarget>(new EventTarget());
   const injectedConfig = getInjectedConfig();
-  const { errorHandler } = useServices();
+  const { errorHandler, analyticsService } = useServices();
 
   const hasReportedFailure = useRef(false);
   /** Cloudflare keeps retrying every 8s, so only the first anomaly of a run is reported: enough to diagnose, without one Sentry event per retry per stuck visitor. A run ends at the next success or the next challenge the caller asks for. */
@@ -68,6 +69,9 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
     },
     [errorHandler]
   );
+
+  /** Cloudflare stops calling back once a challenge turns interactive and waits on the visitor, so a deadline reached in that state is an abandoned challenge rather than a wedged one. */
+  const isAwaitingInteraction = useRef(false);
 
   const resetWidget = useCallback(() => {
     turnstileRef.current?.remove();
@@ -119,6 +123,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
 
         abandonPendingChallenge.current?.();
         hasReportedFailure.current = false;
+        isAwaitingInteraction.current = false;
         startChallenge();
         return new Promise((resolve, reject) => {
           const stopWaiting = () => {
@@ -135,19 +140,26 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
           };
           const errorListener = (event: Event) => {
             stopWaiting();
-            const details = (event as CustomEvent<{ reason: string; error?: string }>).detail;
-            reject({ status, ...details });
+            const { code } = (event as CustomEvent<{ code?: string }>).detail;
+            reject(new CaptchaChallengeError("error", code));
           };
 
           abandonPendingChallenge.current = () => {
             stopWaiting();
-            reject({ reason: "dismissed" });
+            reject(new CaptchaChallengeError("dismissed"));
           };
           stopWaitingForChallenge.current = stopWaiting;
           const deadline = setTimeout(() => {
             stopWaiting();
+
+            if (isAwaitingInteraction.current) {
+              analyticsService.track("captcha_abandoned");
+              reject(new CaptchaChallengeError("abandoned"));
+              return;
+            }
+
             reportChallengeFailure(new Error("Turnstile challenge never settled"), "TURNSTILE_CHALLENGE_WEDGED");
-            reject({ reason: "timeout" });
+            reject(new CaptchaChallengeError("timeout"));
           }, CHALLENGE_DEADLINE_MS);
 
           eventBus.current.addEventListener("success", successListener);
@@ -155,7 +167,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
         });
       }
     }),
-    [startChallenge, enabled, reportChallengeFailure]
+    [startChallenge, enabled, reportChallengeFailure, analyticsService]
   );
 
   if (!enabled) {
@@ -188,16 +200,23 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
               onError={error => {
                 setStatus("error");
                 reportChallengeFailure(new Error(`Turnstile challenge failed with code ${error}`), "TURNSTILE_CHALLENGE_FAILED");
-                eventBus.current.dispatchEvent(new CustomEvent("error", { detail: { error, reason: "error" } }));
+                eventBus.current.dispatchEvent(new CustomEvent("error", { detail: { code: error } }));
               }}
               onExpire={() => setStatus("expired")}
               onTimeout={() => reportChallengeFailure(new Error("Turnstile challenge timed out"), "TURNSTILE_CHALLENGE_TIMED_OUT")}
               onSuccess={token => {
                 setStatus("solved");
                 hasReportedFailure.current = false;
+                isAwaitingInteraction.current = false;
                 eventBus.current.dispatchEvent(new CustomEvent("success", { detail: { token } }));
               }}
-              onBeforeInteractive={() => setStatus("interactive")}
+              onBeforeInteractive={() => {
+                isAwaitingInteraction.current = true;
+                setStatus("interactive");
+              }}
+              onAfterInteractive={() => {
+                isAwaitingInteraction.current = false;
+              }}
               onWidgetLoad={() => {
                 isWidgetLoaded.current = true;
                 const startPendingChallenge = startChallengeOnWidgetLoad.current;

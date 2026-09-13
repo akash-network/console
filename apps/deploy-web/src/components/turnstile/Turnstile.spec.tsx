@@ -5,6 +5,7 @@ import { setTimeout as wait } from "node:timers/promises";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
 import type { TurnstileRef } from "./Turnstile";
 import { CHALLENGE_DEADLINE_MS, COMPONENTS, Turnstile } from "./Turnstile";
@@ -237,10 +238,7 @@ describe(Turnstile.name, () => {
       });
       await promise;
 
-      expect(rejection).toMatchObject({
-        reason: "error",
-        error: "test-error"
-      });
+      expect(rejection).toMatchObject({ reason: "error", code: "test-error" });
     });
 
     it("rejects the pending challenge when the widget is dismissed", async () => {
@@ -342,7 +340,7 @@ describe(Turnstile.name, () => {
       await expect(promise).resolves.toEqual({ token: "refreshed-token" });
     });
 
-    it("rejects a challenge that never settles instead of hanging the caller", async () => {
+    it("reports a wedge when cloudflare goes silent without ever prompting the visitor", async () => {
       const { turnstileRef, errorHandler } = await setup({ enabled: true });
       vi.useFakeTimers();
 
@@ -357,6 +355,77 @@ describe(Turnstile.name, () => {
         await promise;
 
         expect(rejection).toMatchObject({ reason: "timeout" });
+        expect(errorHandler.reportError).toHaveBeenCalledWith(expect.objectContaining({ tags: { event: "TURNSTILE_CHALLENGE_WEDGED" } }));
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("treats a challenge the visitor never solved as abandoned rather than wedged", async () => {
+      const { ReactTurnstile, latestProps } = createTurnstileMock();
+      const { turnstileRef, errorHandler, analyticsService } = await setup({ enabled: true, components: { ReactTurnstile } });
+      vi.useFakeTimers();
+
+      try {
+        let rejection: unknown;
+        const promise = turnstileRef.current!.renderAndWaitResponse().catch(error => {
+          rejection = error;
+        });
+        await act(async () => {
+          latestProps.current!.onBeforeInteractive?.();
+        });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(CHALLENGE_DEADLINE_MS);
+        });
+        await promise;
+
+        expect(rejection).toMatchObject({ reason: "abandoned" });
+        expect(errorHandler.reportError).not.toHaveBeenCalled();
+        expect(analyticsService.track).toHaveBeenCalledWith("captcha_abandoned");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("reports a wedge again once the challenge has left interactive mode", async () => {
+      const { ReactTurnstile, latestProps } = createTurnstileMock();
+      const { turnstileRef, errorHandler, analyticsService } = await setup({ enabled: true, components: { ReactTurnstile } });
+      vi.useFakeTimers();
+
+      try {
+        const promise = turnstileRef.current!.renderAndWaitResponse().catch(() => undefined);
+        await act(async () => {
+          latestProps.current!.onBeforeInteractive?.();
+          latestProps.current!.onAfterInteractive?.();
+        });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(CHALLENGE_DEADLINE_MS);
+        });
+        await promise;
+
+        expect(errorHandler.reportError).toHaveBeenCalledWith(expect.objectContaining({ tags: { event: "TURNSTILE_CHALLENGE_WEDGED" } }));
+        expect(analyticsService.track).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("does not carry a previous abandonment into the next challenge", async () => {
+      const { ReactTurnstile, latestProps } = createTurnstileMock();
+      const { turnstileRef, errorHandler } = await setup({ enabled: true, components: { ReactTurnstile } });
+      vi.useFakeTimers();
+
+      try {
+        const abandoned = turnstileRef.current!.renderAndWaitResponse().catch(() => undefined);
+        await act(async () => {
+          latestProps.current!.onBeforeInteractive?.();
+        });
+        const retried = turnstileRef.current!.renderAndWaitResponse().catch(() => undefined);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(CHALLENGE_DEADLINE_MS);
+        });
+        await Promise.all([abandoned, retried]);
+
         expect(errorHandler.reportError).toHaveBeenCalledWith(expect.objectContaining({ tags: { event: "TURNSTILE_CHALLENGE_WEDGED" } }));
       } finally {
         vi.useRealTimers();
@@ -414,9 +483,10 @@ describe(Turnstile.name, () => {
   async function setup(input?: { enabled?: boolean; siteKey?: string; onDismissed?: () => void; components?: Partial<typeof COMPONENTS> }) {
     const turnstileRef = { current: null as TurnstileRef | null };
     const errorHandler = mock<ErrorHandlerService>();
+    const analyticsService = mock<AnalyticsService>();
 
     const result = render(
-      <TestContainerProvider services={{ errorHandler: () => errorHandler }}>
+      <TestContainerProvider services={{ errorHandler: () => errorHandler, analyticsService: () => analyticsService }}>
         <Turnstile
           ref={turnstileRef}
           enabled={!!input?.enabled}
@@ -434,7 +504,7 @@ describe(Turnstile.name, () => {
     );
     await act(() => wait(0));
 
-    return { ...result, turnstileRef, errorHandler };
+    return { ...result, turnstileRef, errorHandler, analyticsService };
   }
 
   const ButtonMock = forwardRef<HTMLButtonElement, React.ComponentProps<typeof COMPONENTS.Button>>((props, ref) => (

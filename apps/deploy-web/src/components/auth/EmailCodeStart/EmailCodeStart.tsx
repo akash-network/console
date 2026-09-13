@@ -7,6 +7,7 @@ import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
 
 import { RemoteApiError } from "@src/components/shared/RemoteApiError/RemoteApiError";
+import { SKIP_REPORTING_CAPTCHA_OUTCOME } from "@src/components/turnstile/CaptchaChallengeError";
 import { useServices } from "@src/context/ServicesProvider";
 import { markCodeSent } from "../PasswordlessAuth/withPersistedPasswordlessFlow";
 
@@ -40,6 +41,7 @@ export function EmailCodeStart({ dependencies: d = DEPENDENCIES, ...props }: Pro
   const { authService, analyticsService } = useServices();
 
   const startMutation = d.useMutation({
+    meta: SKIP_REPORTING_CAPTCHA_OUTCOME,
     async mutationFn(input: { email: string }) {
       analyticsService.track("email_login_init");
       const captchaToken = await props.getCaptchaToken();
