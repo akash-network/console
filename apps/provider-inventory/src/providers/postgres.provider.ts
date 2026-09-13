@@ -34,9 +34,7 @@ container.register(PG_CLIENT, {
       connect_timeout: config.POSTGRES_CONNECT_TIMEOUT,
       idle_timeout: config.POSTGRES_IDLE_TIMEOUT,
       max_lifetime: config.POSTGRES_MAX_LIFETIME,
-      // Forwarded to Postgres in the startup message; a 0 value disables the bound. Without
-      // these, a lock-blocked or stuck query never rejects, wedging awaits that have no
-      // hang handling (e.g. the discovery tick loop and stream lifecycle finally blocks).
+      /** Server-side bounds (ms) sent in the startup message; a 0 value opts out, and without them a lock-blocked query never rejects. */
       connection: {
         statement_timeout: config.POSTGRES_STATEMENT_TIMEOUT,
         lock_timeout: config.POSTGRES_LOCK_TIMEOUT,
