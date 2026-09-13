@@ -19,11 +19,11 @@ import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(EmailDomainBlockService.name, () => {
-  describe("onTrialWalletLocked", () => {
+  describe("blockDomainOf", () => {
     it("blocks the domain of the wallet it was given", async () => {
       const { service, wallet, blockedEmailDomainRepository, instrumentation } = setup({ email: "miner@attacker.com" });
 
-      await service.onTrialWalletLocked(wallet);
+      await service.blockDomainOf(wallet);
 
       expect(blockedEmailDomainRepository.blockIfAbsent).toHaveBeenCalledWith({
         domain: "attacker.com",
@@ -36,7 +36,7 @@ describe(EmailDomainBlockService.name, () => {
     it("primes the lookup cache so the sweep does not wait out a stale negative", async () => {
       const { service, wallet, blockedEmailDomainService } = setup({ email: "miner@attacker.com" });
 
-      await service.onTrialWalletLocked(wallet);
+      await service.blockDomainOf(wallet);
 
       expect(blockedEmailDomainService.rememberBlocked).toHaveBeenCalledWith("attacker.com");
     });
@@ -44,7 +44,7 @@ describe(EmailDomainBlockService.name, () => {
     it("blocks the normalized domain of a mixed-case address", async () => {
       const { service, wallet, blockedEmailDomainRepository } = setup({ email: "Miner@Attacker.COM" });
 
-      await service.onTrialWalletLocked(wallet);
+      await service.blockDomainOf(wallet);
 
       expect(blockedEmailDomainRepository.blockIfAbsent).toHaveBeenCalledWith(expect.objectContaining({ domain: "attacker.com" }));
     });
@@ -59,7 +59,7 @@ describe(EmailDomainBlockService.name, () => {
       ])("skips with $reason and writes nothing", async ({ reason, input }) => {
         const { service, wallet, blockedEmailDomainRepository, instrumentation } = setup({ email: "miner@attacker.com", ...input });
 
-        await service.onTrialWalletLocked(wallet);
+        await service.blockDomainOf(wallet);
 
         expect(blockedEmailDomainRepository.blockIfAbsent).not.toHaveBeenCalled();
         expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("skipped", reason);
@@ -72,7 +72,7 @@ describe(EmailDomainBlockService.name, () => {
           siblings: [{ walletId: 7, userId: "user-7" }]
         });
 
-        await service.onTrialWalletLocked(wallet);
+        await service.blockDomainOf(wallet);
 
         expect(jobQueueService.enqueue).not.toHaveBeenCalled();
       });
@@ -84,7 +84,7 @@ describe(EmailDomainBlockService.name, () => {
           siblings: [{ walletId: 7, userId: "user-7" }]
         });
 
-        await service.onTrialWalletLocked(wallet);
+        await service.blockDomainOf(wallet);
 
         expect(blockedEmailDomainRepository.blockIfAbsent).not.toHaveBeenCalled();
         expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("skipped", "already_blocked");
@@ -96,7 +96,7 @@ describe(EmailDomainBlockService.name, () => {
       it("checks the paid guardrail before the age guardrail", async () => {
         const { service, wallet, userRepository } = setup({ email: "miner@attacker.com", hasPaidUser: true });
 
-        await service.onTrialWalletLocked(wallet);
+        await service.blockDomainOf(wallet);
 
         expect(userRepository.hasEstablishedUserWithEmailDomain).not.toHaveBeenCalled();
       });
@@ -104,7 +104,7 @@ describe(EmailDomainBlockService.name, () => {
       it("asks for established accounts using the configured window", async () => {
         const { service, wallet, userRepository } = setup({ email: "miner@attacker.com", minAccountAgeDays: 45 });
 
-        await service.onTrialWalletLocked(wallet);
+        await service.blockDomainOf(wallet);
 
         expect(userRepository.hasEstablishedUserWithEmailDomain).toHaveBeenCalledWith("attacker.com", 45);
       });
@@ -118,7 +118,7 @@ describe(EmailDomainBlockService.name, () => {
           siblings: [{ walletId: 7, userId: "user-7" }]
         });
 
-        await service.onTrialWalletLocked(wallet);
+        await service.blockDomainOf(wallet);
 
         expect(userRepository.hasEstablishedUserWithEmailDomain).toHaveBeenCalled();
         expect(blockedEmailDomainRepository.blockIfAbsent).not.toHaveBeenCalled();
@@ -137,7 +137,7 @@ describe(EmailDomainBlockService.name, () => {
           ]
         });
 
-        await service.onTrialWalletLocked(wallet);
+        await service.blockDomainOf(wallet);
 
         expect(jobQueueService.enqueue).toHaveBeenCalledWith(new LockBlockedDomainWallet({ walletId: 7, domain: "attacker.com" }), {
           singletonKey: "lockBlockedDomainWallet.7"
@@ -150,7 +150,7 @@ describe(EmailDomainBlockService.name, () => {
       it("excludes the wallet that triggered the block and bounds the query by the configured limit", async () => {
         const { service, wallet, userWalletRepository } = setup({ email: "miner@attacker.com", maxSiblings: 50 });
 
-        await service.onTrialWalletLocked(wallet);
+        await service.blockDomainOf(wallet);
 
         expect(userWalletRepository.findLockableTrialWalletsByEmailDomain).toHaveBeenCalledWith("attacker.com", {
           excludeWalletId: wallet.id,
@@ -165,7 +165,7 @@ describe(EmailDomainBlockService.name, () => {
           pendingKeys: ["lockBlockedDomainWallet.7"]
         });
 
-        await service.onTrialWalletLocked(wallet);
+        await service.blockDomainOf(wallet);
 
         expect(jobQueueService.enqueue).not.toHaveBeenCalled();
       });
@@ -180,7 +180,7 @@ describe(EmailDomainBlockService.name, () => {
         });
         jobQueueService.enqueue.mockRejectedValueOnce(new Error("queue unavailable"));
 
-        await service.onTrialWalletLocked(wallet);
+        await service.blockDomainOf(wallet);
 
         expect(jobQueueService.enqueue).toHaveBeenCalledTimes(2);
         expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "BLOCKED_DOMAIN_SIBLING_ENQUEUE_FAILED", walletId: 7 }));
@@ -196,7 +196,7 @@ describe(EmailDomainBlockService.name, () => {
           ]
         });
 
-        await service.onTrialWalletLocked(wallet);
+        await service.blockDomainOf(wallet);
 
         expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("sibling_limit_reached");
       });
@@ -204,31 +204,59 @@ describe(EmailDomainBlockService.name, () => {
       it("does not record the limit when fewer siblings came back than the limit allows", async () => {
         const { service, wallet, instrumentation } = setup({ email: "miner@attacker.com", maxSiblings: 2, siblings: [{ walletId: 7, userId: "user-7" }] });
 
-        await service.onTrialWalletLocked(wallet);
+        await service.blockDomainOf(wallet);
 
         expect(instrumentation.recordDomainBlock).not.toHaveBeenCalledWith("sibling_limit_reached");
       });
     });
 
-    describe("when another pod blocked the domain first", () => {
+    describe("when another pod wrote the row first", () => {
       it("still sweeps the siblings", async () => {
-        const { service, wallet, jobQueueService } = setup({ email: "miner@attacker.com", blockRaced: true, siblings: [{ walletId: 7, userId: "user-7" }] });
+        const { service, wallet, jobQueueService } = setup({
+          email: "miner@attacker.com",
+          raceWinner: "blocked",
+          siblings: [{ walletId: 7, userId: "user-7" }]
+        });
 
-        await service.onTrialWalletLocked(wallet);
+        await service.blockDomainOf(wallet);
 
         expect(jobQueueService.enqueue).toHaveBeenCalledWith(new LockBlockedDomainWallet({ walletId: 7, domain: "attacker.com" }), {
           singletonKey: "lockBlockedDomainWallet.7"
         });
       });
+
+      it("primes the lookup cache with the block that won, so signups on this pod stop waiting out a stale negative", async () => {
+        const { service, wallet, blockedEmailDomainService, instrumentation, logger } = setup({ email: "miner@attacker.com", raceWinner: "blocked" });
+
+        await service.blockDomainOf(wallet);
+
+        expect(blockedEmailDomainService.rememberBlocked).toHaveBeenCalledWith("attacker.com");
+        expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("raced");
+        expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "EMAIL_DOMAIN_AUTO_BLOCK_RACED", domain: "attacker.com" }));
+      });
+
+      it.each([{ raceWinner: "allowed" as const }, { raceWinner: "gone" as const }])(
+        "leaves the domain alone when the row that won is $raceWinner",
+        async ({ raceWinner }) => {
+          const { service, wallet, blockedEmailDomainService, jobQueueService, instrumentation } = setup({
+            email: "miner@attacker.com",
+            raceWinner,
+            siblings: [{ walletId: 7, userId: "user-7" }]
+          });
+
+          await service.blockDomainOf(wallet);
+
+          expect(blockedEmailDomainService.rememberBlocked).not.toHaveBeenCalled();
+          expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+          expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("skipped", "allowlisted");
+        }
+      );
     });
 
-    it("swallows and records a failure, so a wipe that already landed is never retried for this", async () => {
-      const { service, wallet, logger, instrumentation } = setup({ email: "miner@attacker.com", lookupError: new Error("connection terminated") });
+    it("lets a failure through, so the queue retries the block rather than losing it", async () => {
+      const { service, wallet } = setup({ email: "miner@attacker.com", lookupError: new Error("connection terminated") });
 
-      await expect(service.onTrialWalletLocked(wallet)).resolves.toBeUndefined();
-
-      expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("failed");
-      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "EMAIL_DOMAIN_AUTO_BLOCK_FAILED" }));
+      await expect(service.blockDomainOf(wallet)).rejects.toThrow("connection terminated");
     });
   });
 
@@ -242,9 +270,11 @@ describe(EmailDomainBlockService.name, () => {
     mode?: "detect" | "enforce";
     maxSiblings?: number;
     minAccountAgeDays?: number;
-    blockRaced?: boolean;
+    raceWinner?: "blocked" | "allowed" | "gone";
     lookupError?: Error;
   }) {
+    const raceWinner =
+      input?.raceWinner && input.raceWinner !== "gone" ? createBlockedEmailDomain({ domain: "attacker.com", status: input.raceWinner }) : undefined;
     const wallet = createUserWallet({ isTrialing: true }) as WalletInitialized;
     const user = createUser({ id: wallet.userId, email: input?.email === undefined ? "miner@attacker.com" : (input.email as string) });
 
@@ -259,8 +289,8 @@ describe(EmailDomainBlockService.name, () => {
       hasPaidUserWithEmailDomain: vi.fn().mockResolvedValue(input?.hasPaidUser ?? false)
     });
     const blockedEmailDomainRepository = mock<BlockedEmailDomainRepository>({
-      findByDomain: vi.fn().mockResolvedValue(input?.existing),
-      blockIfAbsent: vi.fn().mockResolvedValue(input?.blockRaced ? undefined : createBlockedEmailDomain())
+      findByDomain: vi.fn().mockResolvedValueOnce(input?.existing).mockResolvedValue(raceWinner),
+      blockIfAbsent: vi.fn().mockResolvedValue(input?.raceWinner ? undefined : createBlockedEmailDomain())
     });
     const blockedEmailDomainService = mock<BlockedEmailDomainService>();
     const jobQueueService = mock<JobQueueService>({

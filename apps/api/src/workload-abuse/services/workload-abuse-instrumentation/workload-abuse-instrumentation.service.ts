@@ -4,7 +4,7 @@ import { singleton } from "tsyringe";
 import { MetricsService } from "@src/core/services/metrics/metrics.service";
 import type { WorkloadVerdict } from "@src/workload-abuse/lib/evidence-scanner/evidence-scanner";
 
-export type DomainBlockResult = "blocked" | "skipped" | "dry_run" | "failed" | "sibling_limit_reached";
+export type DomainBlockResult = "blocked" | "raced" | "skipped" | "dry_run" | "failed" | "sibling_limit_reached";
 
 @singleton()
 export class WorkloadAbuseInstrumentationService {

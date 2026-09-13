@@ -10,6 +10,7 @@ import { DeleteUnbackedDeploymentSettingHandler } from "@src/deployment/services
 import { ReconcileManagedTxHandler } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx.handler";
 import { RecordDeploymentSettingHandler } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { NotificationHandler } from "@src/notifications/services/notification-handler/notification.handler";
+import { BlockEmailDomainOfWalletHandler } from "@src/workload-abuse/services/block-email-domain-of-wallet/block-email-domain-of-wallet.handler";
 import { EnforceTrialAbuseHandler } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
 import { LockBlockedDomainWalletHandler } from "@src/workload-abuse/services/lock-blocked-domain-wallet/lock-blocked-domain-wallet.handler";
 import { ProbeTrialDeploymentHandler } from "@src/workload-abuse/services/probe-trial-deployment/probe-trial-deployment.handler";
@@ -48,7 +49,8 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(ReconcileManagedTxHandler),
     container.resolve(ProbeTrialDeploymentHandler),
     container.resolve(EnforceTrialAbuseHandler),
-    container.resolve(LockBlockedDomainWalletHandler)
+    container.resolve(LockBlockedDomainWalletHandler),
+    container.resolve(BlockEmailDomainOfWalletHandler)
   ]);
 }
 

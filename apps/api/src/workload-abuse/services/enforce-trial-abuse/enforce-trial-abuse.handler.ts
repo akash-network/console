@@ -1,9 +1,12 @@
 import { inject, singleton } from "tsyringe";
 
 import { isWalletInitialized, UserWalletRepository } from "@src/billing/repositories";
-import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
-import { EmailDomainBlockService } from "@src/workload-abuse/services/email-domain-block/email-domain-block.service";
+import {
+  BlockEmailDomainOfWallet,
+  blockEmailDomainOfWalletKeyFor
+} from "@src/workload-abuse/services/block-email-domain-of-wallet/block-email-domain-of-wallet.handler";
 import { TrialAbuseEnforcementService } from "@src/workload-abuse/services/trial-abuse-enforcement/trial-abuse-enforcement.service";
 import { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
 
@@ -40,7 +43,7 @@ export class EnforceTrialAbuseHandler implements JobHandler<EnforceTrialAbuse> {
     private readonly userWalletRepository: UserWalletRepository,
     private readonly detectionRepository: WorkloadAbuseDetectionRepository,
     private readonly enforcementService: TrialAbuseEnforcementService,
-    private readonly emailDomainBlockService: EmailDomainBlockService,
+    private readonly jobQueueService: JobQueueService,
     private readonly instrumentation: WorkloadAbuseInstrumentationService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -66,6 +69,7 @@ export class EnforceTrialAbuseHandler implements JobHandler<EnforceTrialAbuse> {
       this.logger.info({ event: "TRIAL_WORKLOAD_ABUSE_ENFORCEMENT_SKIPPED", reason: "ALREADY_LOCKED", ...context, userId: wallet.userId });
       await this.detectionRepository.markWalletEnforced(walletId);
       this.instrumentation.recordEnforcement("skipped");
+      await this.#queueDomainBlock(walletId);
       return;
     }
 
@@ -78,7 +82,16 @@ export class EnforceTrialAbuseHandler implements JobHandler<EnforceTrialAbuse> {
     const outcome = await this.enforcementService.enforce({ wallet, detectionId });
 
     if (outcome) {
-      await this.emailDomainBlockService.onTrialWalletLocked(wallet);
+      await this.#queueDomainBlock(walletId);
     }
+  }
+
+  /**
+   * Queued rather than run inline, so a blip while the guardrails are read costs a retry instead of the block.
+   * Also queued from the already-locked branch, which is where a run interrupted between the wipe and this
+   * enqueue lands when the queue retries it.
+   */
+  async #queueDomainBlock(walletId: number): Promise<void> {
+    await this.jobQueueService.enqueue(new BlockEmailDomainOfWallet({ walletId }), { singletonKey: blockEmailDomainOfWalletKeyFor(walletId) });
   }
 }

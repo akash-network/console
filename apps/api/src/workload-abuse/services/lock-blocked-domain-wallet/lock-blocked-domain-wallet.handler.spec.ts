@@ -71,6 +71,18 @@ describe(LockBlockedDomainWalletHandler.name, () => {
     expect(blockedEmailDomainRepository.findByDomain).toHaveBeenCalledWith("attacker.com");
   });
 
+  it("records a failure and rethrows it when the wipe fails on the chain", async () => {
+    const { handler, enforcementService, instrumentation, logger } = setup({ wallet: createUserWallet({ isTrialing: true }) });
+    enforcementService.wipeTrialWallet.mockRejectedValue(new Error("escrow not settled"));
+
+    await expect(handler.handle(PAYLOAD)).rejects.toThrow("escrow not settled");
+
+    expect(instrumentation.recordEnforcement).toHaveBeenCalledWith("failed");
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "BLOCKED_DOMAIN_WALLET_LOCK_FAILED", walletId: PAYLOAD.walletId, domain: PAYLOAD.domain })
+    );
+  });
+
   it("records a skip when the wallet paid between the sweep and the wipe", async () => {
     const { handler, logger, instrumentation } = setup({ wallet: createUserWallet({ isTrialing: true }), enforcementOutcome: null });
 

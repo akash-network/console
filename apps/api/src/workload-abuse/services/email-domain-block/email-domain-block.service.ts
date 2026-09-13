@@ -43,20 +43,8 @@ export class EmailDomainBlockService {
     this.logger = createLogger({ context: EmailDomainBlockService.name });
   }
 
-  /**
-   * Never throws: it runs after a wipe has already revoked grants and closed deployments, and a thrown
-   * error there would mark the detection failed and re-queue a wipe that has nothing left to do.
-   */
-  async onTrialWalletLocked(wallet: WalletInitialized): Promise<void> {
-    try {
-      await this.#blockDomainOf(wallet);
-    } catch (error) {
-      this.instrumentation.recordDomainBlock("failed");
-      this.logger.error({ event: "EMAIL_DOMAIN_AUTO_BLOCK_FAILED", walletId: wallet.id, userId: wallet.userId, error });
-    }
-  }
-
-  async #blockDomainOf(wallet: WalletInitialized): Promise<void> {
+  /** Throws: it runs on the queue, where a transient failure is worth a retry rather than a lost block. */
+  async blockDomainOf(wallet: WalletInitialized): Promise<void> {
     const user = await this.userRepository.findById(wallet.userId);
     const domain = extractEmailDomain(user?.email);
 
@@ -97,11 +85,27 @@ export class EmailDomainBlockService {
       this.blockedEmailDomainService.rememberBlocked(domain);
       this.instrumentation.recordDomainBlock("blocked");
       this.logger.warn({ event: "EMAIL_DOMAIN_AUTO_BLOCKED", ...context });
-    } else {
-      this.logger.info({ event: "EMAIL_DOMAIN_AUTO_BLOCK_RACED", ...context });
+    } else if (!(await this.#adoptRacedBlock(domain, context))) {
+      return;
     }
 
     await this.#sweepSiblings(domain, wallet);
+  }
+
+  /** The insert lost to a row written since the read above, so the row that won says whether this is another pod's block to adopt or an operator's allow that outranks it. */
+  async #adoptRacedBlock(domain: string, context: Record<string, unknown>): Promise<boolean> {
+    const winner = await this.blockedEmailDomainRepository.findByDomain(domain);
+
+    if (winner?.status !== "blocked") {
+      this.#skip("allowlisted", context);
+      return false;
+    }
+
+    this.blockedEmailDomainService.rememberBlocked(domain);
+    this.instrumentation.recordDomainBlock("raced");
+    this.logger.info({ event: "EMAIL_DOMAIN_AUTO_BLOCK_RACED", ...context });
+
+    return true;
   }
 
   /**

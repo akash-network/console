@@ -1,9 +1,13 @@
 import { inject, singleton } from "tsyringe";
 
-import { isWalletInitialized, UserWalletRepository } from "@src/billing/repositories";
+import { isWalletInitialized, UserWalletRepository, type WalletInitialized } from "@src/billing/repositories";
 import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { BlockedEmailDomainRepository } from "@src/workload-abuse/repositories/blocked-email-domain/blocked-email-domain.repository";
-import { BLOCKED_DOMAIN_LOCK_REASON, TrialAbuseEnforcementService } from "@src/workload-abuse/services/trial-abuse-enforcement/trial-abuse-enforcement.service";
+import {
+  BLOCKED_DOMAIN_LOCK_REASON,
+  type EnforcementOutcome,
+  TrialAbuseEnforcementService
+} from "@src/workload-abuse/services/trial-abuse-enforcement/trial-abuse-enforcement.service";
 import { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
 
 export class LockBlockedDomainWallet implements Job {
@@ -74,7 +78,7 @@ export class LockBlockedDomainWalletHandler implements JobHandler<LockBlockedDom
       return;
     }
 
-    const outcome = await this.enforcementService.wipeTrialWallet(wallet, BLOCKED_DOMAIN_LOCK_REASON);
+    const outcome = await this.#wipe(wallet, { ...context, userId: wallet.userId });
 
     if (!outcome) {
       this.#skip("PAID_DURING_ENFORCEMENT", { ...context, userId: wallet.userId });
@@ -83,6 +87,17 @@ export class LockBlockedDomainWalletHandler implements JobHandler<LockBlockedDom
 
     this.instrumentation.recordEnforcement("enforced");
     this.logger.warn({ event: "BLOCKED_DOMAIN_WALLET_LOCKED", ...context, userId: wallet.userId, owner: wallet.address, ...outcome });
+  }
+
+  /** Counted and logged the way the detection path counts its own failures, so a sweep failing on the chain is as visible as a wipe the probe triggered. */
+  async #wipe(wallet: WalletInitialized, context: Record<string, unknown>): Promise<EnforcementOutcome | null> {
+    try {
+      return await this.enforcementService.wipeTrialWallet(wallet, BLOCKED_DOMAIN_LOCK_REASON);
+    } catch (error) {
+      this.instrumentation.recordEnforcement("failed");
+      this.logger.error({ event: "BLOCKED_DOMAIN_WALLET_LOCK_FAILED", ...context, owner: wallet.address, error });
+      throw error;
+    }
   }
 
   /** Reads the row rather than the cached verdict, so an operator un-blocking the domain mid-sweep stops the wipes still queued behind it. */
