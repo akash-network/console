@@ -21,32 +21,67 @@ describe(ProviderOutagesHttpService.name, () => {
 
   it("returns each unreachable provider with the host and the moment it went dark", async () => {
     const outage = anOutage({ provider: "akash1dark", hostUri: "https://dark:8443", startedAt: "2026-08-01T00:00:00.000Z" });
-    const { service } = setup({ outages: [outage] });
+    const { service, logger } = setup({ outages: [outage] });
 
     const found = await service.findOutagesOlderThanDays(3);
 
     expect(found).toEqual([{ provider: "akash1dark", hostUri: "https://dark:8443", startedAt: "2026-08-01T00:00:00.000Z" }]);
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it("logs under its own name", () => {
+    const { createLogger } = setup({ outages: [] });
+
+    expect(createLogger).toHaveBeenCalledWith({ context: ProviderOutagesHttpService.name });
   });
 
   it("skips an outage the inventory has not re-checked within the freshness window and keeps the fresh ones", async () => {
-    const fresh = anOutage({ provider: "akash1fresh" });
+    const fresh = anOutage({ provider: "akash1fresh", lastAttemptAt: hoursAgo(FRESHNESS_WINDOW_IN_H - 1) });
     const stale = anOutage({ provider: "akash1stale", lastAttemptAt: hoursAgo(FRESHNESS_WINDOW_IN_H + 1) });
     const { service, logger } = setup({ outages: [fresh, stale] });
 
     const found = await service.findOutagesOlderThanDays(3);
 
     expect(found.map(outage => outage.provider)).toEqual(["akash1fresh"]);
+    expect(logger.warn).toHaveBeenCalledTimes(1);
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ event: "PROVIDER_OUTAGES_STALE_SKIPPED", staleCount: 1, outageCount: 2, providers: ["akash1stale"] })
     );
   });
 
+  it("keeps an outage re-checked exactly at the edge of the freshness window", async () => {
+    vi.useFakeTimers({ now: new Date("2026-09-13T12:00:00.000Z") });
+    try {
+      const edge = anOutage({ provider: "akash1edge", lastAttemptAt: hoursAgo(FRESHNESS_WINDOW_IN_H) });
+      const { service } = setup({ outages: [edge] });
+
+      const found = await service.findOutagesOlderThanDays(3);
+
+      expect(found.map(outage => outage.provider)).toEqual(["akash1edge"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("refuses the whole answer when the inventory has not re-checked any of the outages within the freshness window", async () => {
     const stale = anOutage({ provider: "akash1stale", lastAttemptAt: hoursAgo(FRESHNESS_WINDOW_IN_H + 1) });
-    const { service, logger } = setup({ outages: [stale, anOutage({ provider: "akash1other", lastAttemptAt: hoursAgo(FRESHNESS_WINDOW_IN_H + 2) })] });
+    const other = anOutage({ provider: "akash1other", lastAttemptAt: hoursAgo(FRESHNESS_WINDOW_IN_H + 2) });
+    const { service, logger } = setup({ outages: [stale, other] });
 
-    await expect(service.findOutagesOlderThanDays(3)).rejects.toThrow(/cannot be acted on.*akash1stale/);
+    await expect(service.findOutagesOlderThanDays(3)).rejects.toThrow(
+      "Provider inventory last checked every one of 2 ongoing outages more than 3h ago, so its record cannot be acted on (akash1stale, akash1other)"
+    );
     expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it("names at most ten of the stale providers when refusing the answer", async () => {
+    const stale = Array.from({ length: 11 }, (_, index) => anOutage({ provider: `akash1stale${index}`, lastAttemptAt: hoursAgo(FRESHNESS_WINDOW_IN_H + 1) }));
+    const { service } = setup({ outages: stale });
+
+    const failure = await service.findOutagesOlderThanDays(3).catch((error: Error) => error.message);
+
+    expect(failure).toContain("akash1stale9");
+    expect(failure).not.toContain("akash1stale10");
   });
 
   it("returns an empty list without complaint when the inventory reports no ongoing outages", async () => {
@@ -78,7 +113,7 @@ describe(ProviderOutagesHttpService.name, () => {
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    return { service: new ProviderOutagesHttpService(config, createLogger), config, fetchMock, logger };
+    return { service: new ProviderOutagesHttpService(config, createLogger), config, fetchMock, logger, createLogger };
   }
 });
 
