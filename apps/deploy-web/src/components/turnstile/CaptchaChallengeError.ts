@@ -18,8 +18,5 @@ export class CaptchaChallengeError extends Error {
   }
 }
 
-/**
- * The widget reports its own anomalies with tags the global cache handler cannot know, and a challenge the visitor
- * simply never solved is not a fault at all, so neither shape should reach Sentry a second time from a mutation.
- */
+/** The widget already tags its own anomalies and an unsolved challenge is no fault at all, so neither should reach Sentry again by way of a mutation. */
 export const SKIP_REPORTING_CAPTCHA_OUTCOME = { skipErrorReporting: (error: unknown) => error instanceof CaptchaChallengeError };

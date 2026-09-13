@@ -432,6 +432,29 @@ describe(Turnstile.name, () => {
       }
     });
 
+    it("takes the overlay down when the deadline passes, so the caller's error is not left behind it", async () => {
+      const { ReactTurnstile, latestProps } = createTurnstileMock();
+      const { turnstileRef } = await setup({ enabled: true, components: { ReactTurnstile } });
+      vi.useFakeTimers();
+
+      try {
+        const promise = turnstileRef.current!.renderAndWaitResponse().catch(() => undefined);
+        await act(async () => {
+          latestProps.current!.onBeforeInteractive?.();
+        });
+        expect(getOverlay()).toHaveStyle({ pointerEvents: "auto" });
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(CHALLENGE_DEADLINE_MS);
+        });
+        await promise;
+
+        expect(getOverlay()).toHaveStyle({ pointerEvents: "none" });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("drops a pending challenge on unmount without reporting it wedged 2 minutes later", async () => {
       const { turnstileRef, errorHandler, unmount } = await setup({ enabled: true });
       vi.useFakeTimers();
@@ -505,6 +528,10 @@ describe(Turnstile.name, () => {
     await act(() => wait(0));
 
     return { ...result, turnstileRef, errorHandler, analyticsService };
+  }
+
+  function getOverlay() {
+    return screen.getByText(/we are verifying you are a human/i).closest<HTMLElement>("[style]");
   }
 
   const ButtonMock = forwardRef<HTMLButtonElement, React.ComponentProps<typeof COMPONENTS.Button>>((props, ref) => (

@@ -15,7 +15,7 @@ import { useWhen } from "@src/hooks/useWhen";
 import { getInjectedConfig } from "@src/utils/getInjectedConfig/getInjectedConfig";
 import { CaptchaChallengeError } from "./CaptchaChallengeError";
 
-type TurnstileStatus = "uninitialized" | "solved" | "interactive" | "expired" | "error" | "dismissed";
+type TurnstileStatus = "uninitialized" | "solved" | "interactive" | "expired" | "error" | "dismissed" | "timedout";
 
 const VISIBILITY_STATUSES: TurnstileStatus[] = ["interactive", "error"];
 
@@ -151,6 +151,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
           stopWaitingForChallenge.current = stopWaiting;
           const deadline = setTimeout(() => {
             stopWaiting();
+            setStatus("timedout");
 
             if (isAwaitingInteraction.current) {
               analyticsService.track("captcha_abandoned");
