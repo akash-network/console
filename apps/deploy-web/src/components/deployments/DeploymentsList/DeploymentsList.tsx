@@ -75,7 +75,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
                 placeholder="Search deployments"
                 className="w-full sm:w-64"
                 type="text"
-                startIcon={<Search className="text-xs text-muted-foreground" />}
+                startIcon={<Search className="ml-3 h-4 w-4 text-muted-foreground" />}
                 endIcon={
                   !!model.search && (
                     <Button size="icon" variant="text" aria-label="Clear search" onClick={() => model.changeSearch("")}>
