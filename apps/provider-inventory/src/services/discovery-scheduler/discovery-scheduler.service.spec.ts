@@ -189,6 +189,85 @@ describe(DiscoverySchedulerService.name, () => {
     expect(lifecycle.stopAndDelete).toHaveBeenCalledWith(["gone"]);
   });
 
+  it("stops and deletes an unwatched provider the inventory knows about once the poller stops returning it", async () => {
+    const stillOnChain = createProvider({ owner: "alive", hostUri: "https://alive:8443" });
+    const { lifecycle } = setup({ providers: [stillOnChain], knownOwners: ["alive", "gone"] });
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(lifecycle.stopAndDelete).toHaveBeenCalledWith(["gone"]);
+  });
+
+  it("keeps every known provider when the poll returns no providers at all", async () => {
+    const { lifecycle, logger } = setup({
+      providers: [],
+      knownOwners: ["alive", "gone"],
+      watched: new Map([["alive", { hostUri: "https://alive:8443" }]])
+    });
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(lifecycle.stopAndDelete).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DISCOVERY_STOP_SKIPPED_EMPTY_POLL" }));
+  });
+
+  it("stops and deletes gone providers when a tick runs without an abort signal", async () => {
+    const stillOnChain = createProvider({ owner: "alive", hostUri: "https://alive:8443" });
+    const { scheduler, lifecycle } = setup({ providers: [stillOnChain], knownOwners: ["alive", "gone"], autoStart: false });
+
+    await scheduler.discoverProviders();
+
+    expect(lifecycle.stopAndDelete).toHaveBeenCalledWith(["gone"]);
+  });
+
+  it("warns about an empty poll when a tick runs without an abort signal", async () => {
+    const { scheduler, lifecycle, logger } = setup({ providers: [], knownOwners: ["alive"], autoStart: false });
+
+    await scheduler.discoverProviders();
+
+    expect(lifecycle.stopAndDelete).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DISCOVERY_STOP_SKIPPED_EMPTY_POLL" }));
+  });
+
+  it("stays quiet about an empty poll when the tick itself was aborted", async () => {
+    const { scheduler, lifecycle, logger } = setup({ providers: [], knownOwners: ["alive"], autoStart: false });
+    const controller = new AbortController();
+    controller.abort();
+
+    await scheduler.discoverProviders(controller.signal);
+
+    expect(lifecycle.stopAndDelete).not.toHaveBeenCalled();
+    expect(logger.warn).not.toHaveBeenCalledWith(expect.objectContaining({ event: "DISCOVERY_STOP_SKIPPED_EMPTY_POLL" }));
+  });
+
+  it("stops deleting gone providers as soon as the tick is aborted", async () => {
+    const stillOnChain = createProvider({ owner: "alive", hostUri: "https://alive:8443" });
+    const goneOwners = Array.from({ length: 150 }, (_, index) => `gone-${index}`);
+    const { scheduler, lifecycle } = setup({ providers: [stillOnChain], knownOwners: ["alive", ...goneOwners], autoStart: false });
+    const controller = new AbortController();
+    lifecycle.stopAndDelete.mockImplementation(async () => {
+      controller.abort();
+    });
+
+    await scheduler.discoverProviders(controller.signal);
+
+    expect(lifecycle.stopAndDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports only the providers it managed to stop when the tick is aborted mid-cleanup", async () => {
+    const stillOnChain = createProvider({ owner: "alive", hostUri: "https://alive:8443" });
+    const goneOwners = Array.from({ length: 150 }, (_, index) => `gone-${index}`);
+    const { scheduler, logger, lifecycle } = setup({ providers: [stillOnChain], knownOwners: ["alive", ...goneOwners], autoStart: false });
+    const controller = new AbortController();
+    lifecycle.stopAndDelete.mockImplementation(async () => {
+      controller.abort();
+    });
+
+    await scheduler.discoverProviders(controller.signal);
+
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "DISCOVERY_TICK_COMPLETE", stoppedCount: 100 }));
+  });
+
   it("forwards the offline-since timestamp to lifecycle.restart when an observed provider changes hostUri", async () => {
     const updated = createProvider({ owner: "moving", hostUri: "https://new:8443" });
     const offlineSince = new Date(Date.now() - 60_000);
@@ -370,6 +449,7 @@ describe(DiscoverySchedulerService.name, () => {
     autoStart?: boolean;
     watched?: Map<string, { hostUri: string }>;
     openIncidents?: Map<string, OpenIncident>;
+    knownOwners?: string[];
   }) {
     const poller = mock<ChainProviderPollerService>();
     const writer = mock<ProviderInventoryRepository>();
@@ -379,6 +459,7 @@ describe(DiscoverySchedulerService.name, () => {
     lifecycle.stopAndDelete.mockResolvedValue();
     lifecycle.waitForPendingConnections.mockResolvedValue();
     writer.bulkUpsertProviders.mockResolvedValue([]);
+    writer.findAllOwners.mockResolvedValue(input?.knownOwners ?? []);
     incidentRepository.getOpenIncidents.mockResolvedValue(input?.openIncidents ?? new Map());
     incidentRepository.deleteEndedBefore.mockResolvedValue(0);
 

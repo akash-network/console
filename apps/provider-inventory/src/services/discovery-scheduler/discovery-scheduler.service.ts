@@ -99,7 +99,8 @@ export class DiscoverySchedulerService {
   async #runDiscoveryTick(signal?: AbortSignal): Promise<void> {
     try {
       const watchedProviders = this.#lifecycle.getRegistry();
-      const providersToStop = new Set(watchedProviders.keys());
+      const storedOwners = await this.#repository.findAllOwners();
+      const providersToStop = new Set([...watchedProviders.keys(), ...storedOwners]);
 
       this.#logger.info({ event: "DISCOVERY_TICK_START", watchedProviders: watchedProviders.size });
 
@@ -168,14 +169,11 @@ export class DiscoverySchedulerService {
         }
       }
 
-      for (const chunk of chunkify(providersToStop, 100)) {
-        if (signal?.aborted) break;
-        await this.#lifecycle.stopAndDelete(chunk as string[]);
-      }
+      const stoppedCount = await this.#stopProvidersGoneFromChain(providersToStop, totalProviders, signal);
 
       this.#logger.info({
         event: "DISCOVERY_TICK_COMPLETE",
-        stoppedCount: providersToStop.size,
+        stoppedCount,
         startedCount: startedProvidersCount,
         restartedCount: restartedProvidersCount,
         reverifiedCount: reverifiedProvidersCount,
@@ -192,7 +190,7 @@ export class DiscoverySchedulerService {
       this.#logger.info({
         event: "DISCOVERY_PROVIDERS_INVENTORY_CONNECTED",
         connectedCount: this.#lifecycle.getRegistry().size,
-        stoppedCount: providersToStop.size,
+        stoppedCount,
         startedCount: startedProvidersCount,
         restartedCount: restartedProvidersCount,
         reverifiedCount: reverifiedProvidersCount,
@@ -205,6 +203,25 @@ export class DiscoverySchedulerService {
     if (!signal?.aborted) {
       await this.#cleanupOldIncidents();
     }
+  }
+
+  /** An empty poll reads as a failed poll, not as every provider having left the chain. */
+  async #stopProvidersGoneFromChain(providersToStop: Set<string>, polledCount: number, signal?: AbortSignal): Promise<number> {
+    if (polledCount === 0) {
+      if (!signal?.aborted) {
+        this.#logger.warn({ event: "DISCOVERY_STOP_SKIPPED_EMPTY_POLL", knownProviderCount: providersToStop.size });
+      }
+      return 0;
+    }
+
+    let stoppedCount = 0;
+    for (const chunk of chunkify(providersToStop, 100)) {
+      if (signal?.aborted) break;
+      await this.#lifecycle.stopAndDelete(chunk as string[]);
+      stoppedCount += chunk.length;
+    }
+
+    return stoppedCount;
   }
 
   async #cleanupOldIncidents(): Promise<void> {

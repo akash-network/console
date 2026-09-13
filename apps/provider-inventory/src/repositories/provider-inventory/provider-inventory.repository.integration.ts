@@ -37,6 +37,18 @@ describe(ProviderInventoryRepository.name, () => {
     });
   });
 
+  describe("findAllOwners", () => {
+    it("returns the owner of every stored provider, online or not", async () => {
+      const { repository, db } = setup();
+      await seed(db, { owner: "akash1online", isOnline: true });
+      await seed(db, { owner: "akash1offline", isOnline: false, isOnlineSince: null });
+
+      const owners = await repository.findAllOwners();
+
+      expect(owners.toSorted()).toEqual(["akash1offline", "akash1online"]);
+    });
+  });
+
   describe("bulkUpsertProviders", () => {
     it("inserts a row for each provider with its attributes", async () => {
       const { repository, db } = setup();
