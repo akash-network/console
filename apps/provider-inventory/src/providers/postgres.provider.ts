@@ -34,7 +34,7 @@ container.register(PG_CLIENT, {
       connect_timeout: config.POSTGRES_CONNECT_TIMEOUT,
       idle_timeout: config.POSTGRES_IDLE_TIMEOUT,
       max_lifetime: config.POSTGRES_MAX_LIFETIME,
-      /** Server-side bounds (ms) sent in the startup message; a 0 value opts out, and without them a lock-blocked query never rejects. */
+      /** postgres.js sends only this sub-object as startup parameters, so a bound hoisted out of it is silently lost. */
       connection: {
         statement_timeout: config.POSTGRES_STATEMENT_TIMEOUT,
         lock_timeout: config.POSTGRES_LOCK_TIMEOUT,

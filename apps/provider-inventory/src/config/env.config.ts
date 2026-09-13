@@ -2,11 +2,11 @@ import { z } from "zod";
 
 const ONE_MINUTE = 60 * 1000;
 
-/** A blank env value must fall to the default, not coerce to 0 — a 0 timeout silently disables the bound. */
-const postgresTimeout = (defaultValue: number) =>
+/** postgres.js drops falsy startup parameters, so a blank value falls back to the default and a zero is refused outright. */
+const postgresTimeoutInMs = (defaultValue: number) =>
   z.preprocess(
     value => (typeof value === "string" && value.trim() === "" ? undefined : value),
-    z.number({ coerce: true }).int().nonnegative().default(defaultValue)
+    z.number({ coerce: true }).int().positive().default(defaultValue)
   );
 
 export const envSchema = z.object({
@@ -15,9 +15,9 @@ export const envSchema = z.object({
   POSTGRES_CONNECT_TIMEOUT: z.number({ coerce: true }).int().nonnegative().default(30),
   POSTGRES_IDLE_TIMEOUT: z.number({ coerce: true }).int().nonnegative().default(120),
   POSTGRES_MAX_LIFETIME: z.number({ coerce: true }).int().nonnegative().default(1800),
-  POSTGRES_STATEMENT_TIMEOUT: postgresTimeout(60_000),
-  POSTGRES_LOCK_TIMEOUT: postgresTimeout(10_000),
-  POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT: postgresTimeout(60_000),
+  POSTGRES_STATEMENT_TIMEOUT: postgresTimeoutInMs(60_000),
+  POSTGRES_LOCK_TIMEOUT: postgresTimeoutInMs(10_000),
+  POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT: postgresTimeoutInMs(60_000),
   DRIZZLE_MIGRATIONS_FOLDER: z.string().default("./drizzle"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   STD_OUT_LOG_FORMAT: z.enum(["json", "pretty"]).default("json"),
