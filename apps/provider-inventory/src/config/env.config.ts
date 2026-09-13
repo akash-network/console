@@ -8,6 +8,11 @@ export const envSchema = z.object({
   POSTGRES_CONNECT_TIMEOUT: z.number({ coerce: true }).int().nonnegative().default(30),
   POSTGRES_IDLE_TIMEOUT: z.number({ coerce: true }).int().nonnegative().default(120),
   POSTGRES_MAX_LIFETIME: z.number({ coerce: true }).int().nonnegative().default(1800),
+  // Server-side bounds, in milliseconds, forwarded as connection parameters so a query
+  // can never hang forever (statement_timeout does not cover lock waits, hence lock_timeout).
+  POSTGRES_STATEMENT_TIMEOUT: z.number({ coerce: true }).int().nonnegative().default(60_000),
+  POSTGRES_LOCK_TIMEOUT: z.number({ coerce: true }).int().nonnegative().default(10_000),
+  POSTGRES_IDLE_IN_TRANSACTION_SESSION_TIMEOUT: z.number({ coerce: true }).int().nonnegative().default(60_000),
   DRIZZLE_MIGRATIONS_FOLDER: z.string().default("./drizzle"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   STD_OUT_LOG_FORMAT: z.enum(["json", "pretty"]).default("json"),
