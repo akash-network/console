@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/router";
 
 import { RemoteApiError } from "@src/components/shared/RemoteApiError/RemoteApiError";
+import { SKIP_REPORTING_CAPTCHA_OUTCOME } from "@src/components/turnstile/CaptchaChallengeError";
 import type { TurnstileRef } from "@src/components/turnstile/Turnstile";
 import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
 import { useServices } from "@src/context/ServicesProvider";
@@ -53,6 +54,7 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const isAuthInFlight = useRef(false);
 
   const signInOrSignUp = useMutation({
+    meta: SKIP_REPORTING_CAPTCHA_OUTCOME,
     async mutationFn(input: Tagged<"signin", SignInFormValues> | Tagged<"signup", SignUpFormValues>) {
       analyticsService.track("password_auth_submit", { type: input.type });
       if (!turnstileRef.current) {
@@ -85,6 +87,7 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
   );
 
   const forgotPassword = useMutation({
+    meta: SKIP_REPORTING_CAPTCHA_OUTCOME,
     async mutationFn(input: { email: string }) {
       if (!turnstileRef.current) {
         throw new Error("Captcha has not been rendered");

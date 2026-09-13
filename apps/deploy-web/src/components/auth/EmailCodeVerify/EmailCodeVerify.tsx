@@ -5,6 +5,7 @@ import { Button, Spinner } from "@akashnetwork/ui/components";
 import { useMutation } from "@tanstack/react-query";
 
 import { RemoteApiError } from "@src/components/shared/RemoteApiError/RemoteApiError";
+import { SKIP_REPORTING_CAPTCHA_OUTCOME } from "@src/components/turnstile/CaptchaChallengeError";
 import { useServices } from "@src/context/ServicesProvider";
 import { markCodeSent, readCodeSentAt } from "../PasswordlessAuth/withPersistedPasswordlessFlow";
 import type { VerificationCodeInputRef } from "./VerificationCodeInput";
@@ -39,6 +40,7 @@ export function EmailCodeVerify({ dependencies: d = DEPENDENCIES, ...props }: Pr
   const [resendCooldownSec, setResendCooldownSec] = useState(() => remainingResendCooldownSec(d.readCodeSentAt()));
 
   const verifyMutation = d.useMutation({
+    meta: SKIP_REPORTING_CAPTCHA_OUTCOME,
     async mutationFn(input: { code: string }) {
       const captchaToken = await props.getCaptchaToken();
       await authService.verifyEmailCode({ email: props.email, code: input.code, captchaToken });
@@ -55,6 +57,7 @@ export function EmailCodeVerify({ dependencies: d = DEPENDENCIES, ...props }: Pr
   });
 
   const resendMutation = d.useMutation({
+    meta: SKIP_REPORTING_CAPTCHA_OUTCOME,
     async mutationFn() {
       const captchaToken = await props.getCaptchaToken();
       await authService.startEmailCode({ email: props.email, captchaToken });

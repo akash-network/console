@@ -38,6 +38,7 @@ export type AnalyticsEvent =
   | "wrong_email_clk"
   | "resend_code_clk"
   | "password_auth_submit"
+  | "captcha_abandoned"
   | "connect_wallet"
   | "connect_managed_wallet"
   | "disconnect_wallet"

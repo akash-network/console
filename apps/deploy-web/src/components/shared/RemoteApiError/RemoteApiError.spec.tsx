@@ -1,6 +1,7 @@
 import { AxiosError } from "axios";
 import { describe, expect, it } from "vitest";
 
+import { CaptchaChallengeError } from "@src/components/turnstile/CaptchaChallengeError";
 import { DEPENDENCIES, RemoteApiError } from "./RemoteApiError";
 
 import { render } from "@testing-library/react";
@@ -22,6 +23,11 @@ describe(RemoteApiError.name, () => {
     });
     const { getByText } = setup({ error });
     expect(getByText(/Error message from API/i)).toBeInTheDocument();
+  });
+
+  it("tells the visitor the captcha is what failed instead of blaming the request", () => {
+    const { getByText } = setup({ error: new CaptchaChallengeError("abandoned") });
+    expect(getByText(/verification wasn't completed/i)).toBeInTheDocument();
   });
 
   it("does not render anything when error is null or undefined", () => {
