@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
+import type { CreateLogger } from "@src/core";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { ProviderOutagesHttpService } from "./provider-outages-http.service";
 
@@ -26,11 +28,31 @@ describe(ProviderOutagesHttpService.name, () => {
     expect(found).toEqual([{ provider: "akash1dark", hostUri: "https://dark:8443", startedAt: "2026-08-01T00:00:00.000Z" }]);
   });
 
-  it("refuses the whole answer when the inventory has not re-checked an outage within the freshness window", async () => {
-    const stale = anOutage({ lastAttemptAt: hoursAgo(FRESHNESS_WINDOW_IN_H + 1) });
-    const { service } = setup({ outages: [anOutage({}), stale] });
+  it("skips an outage the inventory has not re-checked within the freshness window and keeps the fresh ones", async () => {
+    const fresh = anOutage({ provider: "akash1fresh" });
+    const stale = anOutage({ provider: "akash1stale", lastAttemptAt: hoursAgo(FRESHNESS_WINDOW_IN_H + 1) });
+    const { service, logger } = setup({ outages: [fresh, stale] });
 
-    await expect(service.findOutagesOlderThanDays(3)).rejects.toThrow(/cannot be acted on/);
+    const found = await service.findOutagesOlderThanDays(3);
+
+    expect(found.map(outage => outage.provider)).toEqual(["akash1fresh"]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "PROVIDER_OUTAGES_STALE_SKIPPED", staleCount: 1, outageCount: 2, providers: ["akash1stale"] })
+    );
+  });
+
+  it("refuses the whole answer when the inventory has not re-checked any of the outages within the freshness window", async () => {
+    const stale = anOutage({ provider: "akash1stale", lastAttemptAt: hoursAgo(FRESHNESS_WINDOW_IN_H + 1) });
+    const { service, logger } = setup({ outages: [stale, anOutage({ provider: "akash1other", lastAttemptAt: hoursAgo(FRESHNESS_WINDOW_IN_H + 2) })] });
+
+    await expect(service.findOutagesOlderThanDays(3)).rejects.toThrow(/cannot be acted on.*akash1stale/);
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it("returns an empty list without complaint when the inventory reports no ongoing outages", async () => {
+    const { service } = setup({ outages: [] });
+
+    await expect(service.findOutagesOlderThanDays(3)).resolves.toEqual([]);
   });
 
   it("refuses the answer when the inventory responds with an error", async () => {
@@ -53,8 +75,10 @@ describe(ProviderOutagesHttpService.name, () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(new Response(JSON.stringify(input.body ?? { outages: input.outages ?? [] }), { status: input.status ?? 200 }));
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    return { service: new ProviderOutagesHttpService(config), config, fetchMock };
+    return { service: new ProviderOutagesHttpService(config, createLogger), config, fetchMock, logger };
   }
 });
 

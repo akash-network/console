@@ -1,6 +1,7 @@
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 import { z } from "zod";
 
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 
 const ProviderOutagesResponseSchema = z.object({
@@ -14,16 +15,27 @@ const ProviderOutagesResponseSchema = z.object({
   )
 });
 
+type ProviderOutageRecord = z.infer<typeof ProviderOutagesResponseSchema>["outages"][number];
+
 export interface ProviderOutage {
   provider: string;
   hostUri: string;
   startedAt: string;
 }
 
+const MAX_REPORTED_STALE_PROVIDERS = 10;
+
 /** Every failure throws rather than resolving to an empty list, which callers cannot tell apart from every provider being healthy. */
 @singleton()
 export class ProviderOutagesHttpService {
-  constructor(private readonly config: DeploymentConfigService) {}
+  private readonly logger: ReturnType<CreateLogger>;
+
+  constructor(
+    private readonly config: DeploymentConfigService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.logger = createLogger({ context: ProviderOutagesHttpService.name });
+  }
 
   async findOutagesOlderThanDays(minAgeDays: number): Promise<ProviderOutage[]> {
     const url = new URL("/v1/provider-outages", this.config.get("PROVIDER_INVENTORY_API_URL"));
@@ -36,16 +48,36 @@ export class ProviderOutagesHttpService {
     }
 
     const { outages } = ProviderOutagesResponseSchema.parse(await response.json());
-    const staleBefore = Date.now() - this.config.get("PROVIDER_OUTAGE_FRESHNESS_WINDOW_IN_H") * 60 * 60 * 1000;
-    const stale = outages.filter(outage => new Date(outage.lastAttemptAt).getTime() < staleBefore);
+    const { fresh, stale } = this.partitionByFreshness(outages);
+    const staleProviders = stale.map(outage => outage.provider).slice(0, MAX_REPORTED_STALE_PROVIDERS);
 
-    if (stale.length > 0) {
+    if (outages.length > 0 && fresh.length === 0) {
       throw new Error(
-        `Provider inventory last checked ${stale.length} of ${outages.length} ongoing outages more than ` +
-          `${this.config.get("PROVIDER_OUTAGE_FRESHNESS_WINDOW_IN_H")}h ago, so its record cannot be acted on`
+        `Provider inventory last checked every one of ${outages.length} ongoing outages more than ` +
+          `${this.freshnessWindowInHours()}h ago, so its record cannot be acted on (${staleProviders.join(", ")})`
       );
     }
 
-    return outages.map(({ provider, hostUri, startedAt }) => ({ provider, hostUri, startedAt }));
+    if (stale.length > 0) {
+      this.logger.warn({ event: "PROVIDER_OUTAGES_STALE_SKIPPED", staleCount: stale.length, outageCount: outages.length, providers: staleProviders });
+    }
+
+    return fresh.map(({ provider, hostUri, startedAt }) => ({ provider, hostUri, startedAt }));
+  }
+
+  private partitionByFreshness(outages: ProviderOutageRecord[]) {
+    const staleBefore = Date.now() - this.freshnessWindowInHours() * 60 * 60 * 1000;
+    const fresh: ProviderOutageRecord[] = [];
+    const stale: ProviderOutageRecord[] = [];
+
+    for (const outage of outages) {
+      (new Date(outage.lastAttemptAt).getTime() < staleBefore ? stale : fresh).push(outage);
+    }
+
+    return { fresh, stale };
+  }
+
+  private freshnessWindowInHours(): number {
+    return this.config.get("PROVIDER_OUTAGE_FRESHNESS_WINDOW_IN_H");
   }
 }
