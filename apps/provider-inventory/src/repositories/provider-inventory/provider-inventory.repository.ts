@@ -46,6 +46,11 @@ export class ProviderInventoryRepository {
     }
   }
 
+  async findAllOwners(): Promise<string[]> {
+    const rows = await this.#driver.getDb().select({ owner: providerInventory.owner }).from(providerInventory);
+    return rows.map(row => row.owner);
+  }
+
   async deleteByOwner(owner: string | string[]): Promise<void> {
     const db = this.#driver.getDb();
     if (Array.isArray(owner)) {

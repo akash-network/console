@@ -49,8 +49,38 @@ describe("DiscoveryScheduler pipeline", () => {
   });
 
   it("deletes the row and aborts the stream when the provider is removed from chain", async () => {
+    const removed = createProvider({ owner: "a", hostUri: "https://a:8443" });
+    const remaining = createProvider({ owner: "b", hostUri: "https://b:8443" });
+    const { scheduler, getProviderFromDb: readRow, abortedHosts, lifecycle, setProviders } = setup({ providers: [removed, remaining] });
+
+    await scheduler.discoverProviders();
+    expect(await readRow("a")).toBeDefined();
+
+    setProviders([remaining]);
+    await scheduler.discoverProviders();
+    lifecycle.shutdown();
+
+    expect(await readRow("a")).toBeUndefined();
+    expect(await readRow("b")).toBeDefined();
+    expect(abortedHosts).toContain("https://a:8443");
+  });
+
+  it("deletes the stored row of a provider that left the chain while it was not being watched", async () => {
+    const stored = createProvider({ owner: "gone", hostUri: "https://gone:8443" });
+    const onChain = createProvider({ owner: "a", hostUri: "https://a:8443" });
+    const { scheduler, getProviderFromDb: readRow, storeProvider, lifecycle } = setup({ providers: [onChain] });
+    await storeProvider(stored);
+
+    await scheduler.discoverProviders();
+    lifecycle.shutdown();
+
+    expect(await readRow("gone")).toBeUndefined();
+    expect(await readRow("a")).toBeDefined();
+  });
+
+  it("keeps every stored row when the poll returns no providers", async () => {
     const provider = createProvider({ owner: "a", hostUri: "https://a:8443" });
-    const { scheduler, getProviderFromDb: readRow, abortedHosts, lifecycle, setProviders } = setup({ providers: [provider] });
+    const { scheduler, getProviderFromDb: readRow, lifecycle, setProviders } = setup({ providers: [provider] });
 
     await scheduler.discoverProviders();
     expect(await readRow("a")).toBeDefined();
@@ -59,8 +89,7 @@ describe("DiscoveryScheduler pipeline", () => {
     await scheduler.discoverProviders();
     lifecycle.shutdown();
 
-    expect(await readRow("a")).toBeUndefined();
-    expect(abortedHosts).toContain("https://a:8443");
+    expect(await readRow("a")).toBeDefined();
   });
 
   it("propagates inventory writes from stream messages into the database", async () => {
@@ -142,6 +171,7 @@ describe("DiscoveryScheduler pipeline", () => {
 
     const scheduler = testContainer.resolve(DiscoverySchedulerService);
     const lifecycle = testContainer.resolve(StreamLifecycleManagerService);
+    const repository = testContainer.resolve(ProviderInventoryRepository);
     const pg = testContainer.resolve(PG_CLIENT);
 
     return {
@@ -161,6 +191,9 @@ describe("DiscoveryScheduler pipeline", () => {
       },
       setProviders(next: ChainProvider[]) {
         providers = next;
+      },
+      async storeProvider(provider: ChainProvider) {
+        await repository.bulkUpsertProviders([provider]);
       }
     };
   }
@@ -170,6 +203,7 @@ function createProvider(overrides: Partial<ChainProvider> & Pick<ChainProvider, 
   return {
     selfAttributes: [],
     signedAttributes: [],
+    auditedBy: [],
     ...overrides
   };
 }

@@ -189,6 +189,28 @@ describe(DiscoverySchedulerService.name, () => {
     expect(lifecycle.stopAndDelete).toHaveBeenCalledWith(["gone"]);
   });
 
+  it("stops and deletes an unwatched provider the inventory knows about once the poller stops returning it", async () => {
+    const stillOnChain = createProvider({ owner: "alive", hostUri: "https://alive:8443" });
+    const { lifecycle } = setup({ providers: [stillOnChain], knownOwners: ["alive", "gone"] });
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(lifecycle.stopAndDelete).toHaveBeenCalledWith(["gone"]);
+  });
+
+  it("keeps every known provider when the poll returns no providers at all", async () => {
+    const { lifecycle, logger } = setup({
+      providers: [],
+      knownOwners: ["alive", "gone"],
+      watched: new Map([["alive", { hostUri: "https://alive:8443" }]])
+    });
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(lifecycle.stopAndDelete).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DISCOVERY_STOP_SKIPPED_EMPTY_POLL" }));
+  });
+
   it("forwards the offline-since timestamp to lifecycle.restart when an observed provider changes hostUri", async () => {
     const updated = createProvider({ owner: "moving", hostUri: "https://new:8443" });
     const offlineSince = new Date(Date.now() - 60_000);
@@ -370,6 +392,7 @@ describe(DiscoverySchedulerService.name, () => {
     autoStart?: boolean;
     watched?: Map<string, { hostUri: string }>;
     openIncidents?: Map<string, OpenIncident>;
+    knownOwners?: string[];
   }) {
     const poller = mock<ChainProviderPollerService>();
     const writer = mock<ProviderInventoryRepository>();
@@ -379,6 +402,7 @@ describe(DiscoverySchedulerService.name, () => {
     lifecycle.stopAndDelete.mockResolvedValue();
     lifecycle.waitForPendingConnections.mockResolvedValue();
     writer.bulkUpsertProviders.mockResolvedValue([]);
+    writer.findAllOwners.mockResolvedValue(input?.knownOwners ?? []);
     incidentRepository.getOpenIncidents.mockResolvedValue(input?.openIncidents ?? new Map());
     incidentRepository.deleteEndedBefore.mockResolvedValue(0);
 
