@@ -25,7 +25,7 @@ export interface ProviderOutage {
 
 const MAX_REPORTED_STALE_PROVIDERS = 10;
 
-/** Every failure throws rather than resolving to an empty list, which callers cannot tell apart from every provider being healthy. */
+/** A failed fetch or an all-stale answer throws, so an empty list always means every provider is healthy; a partially stale answer resolves with its fresh records and warns about the skipped ones. */
 @singleton()
 export class ProviderOutagesHttpService {
   private readonly logger: ReturnType<CreateLogger>;
