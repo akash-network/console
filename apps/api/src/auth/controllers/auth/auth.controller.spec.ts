@@ -1,6 +1,6 @@
 import { ManagementApiError, ResponseError } from "auth0";
 import { container as rootContainer } from "tsyringe";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "@src/auth/services/auth.service";
@@ -8,6 +8,7 @@ import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { AUTH0_DB_CONNECTION } from "@src/auth/services/auth0/auth0.service";
 import type { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import type { UserService } from "@src/user/services/user/user.service";
+import type { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { AuthController } from "./auth.controller";
 
 import { createUser } from "@test/seeders/user.seeder";
@@ -35,6 +36,16 @@ describe(AuthController.name, () => {
         password: "StrongPassword123!",
         connection: AUTH0_DB_CONNECTION
       });
+    });
+
+    it("refuses a blocked email domain with the same response as an existing account, without reaching auth0", async () => {
+      const { controller, auth0Service } = setup({ isBlockedEmail: true });
+
+      await expect(controller.signup({ email: "miner@attacker.com", password: "StrongPassword123!" })).rejects.toMatchObject({
+        status: 422,
+        message: "Unable to create account. Please try again or use a different email."
+      });
+      expect(auth0Service.createUser).not.toHaveBeenCalled();
     });
 
     it("converts 409 (user exists) to a 422 that does not confirm the email is registered", async () => {
@@ -132,6 +143,7 @@ describe(AuthController.name, () => {
   function setup(
     input: {
       user?: ReturnType<typeof createUser>;
+      isBlockedEmail?: boolean;
     } = {}
   ) {
     const user = input.user ?? createUser();
@@ -146,9 +158,16 @@ describe(AuthController.name, () => {
     const auth0Service = mock<Auth0Service>();
     const emailVerificationCodeService = mock<EmailVerificationCodeService>();
     const userService = mock<UserService>();
+    const blockedEmailDomainService = mock<BlockedEmailDomainService>({ isBlockedEmail: vi.fn().mockResolvedValue(input.isBlockedEmail ?? false) });
 
-    const controller = new AuthController(rootContainer.resolve(AuthService), auth0Service, userService, emailVerificationCodeService);
+    const controller = new AuthController(
+      rootContainer.resolve(AuthService),
+      auth0Service,
+      userService,
+      emailVerificationCodeService,
+      blockedEmailDomainService
+    );
 
-    return { controller, auth0Service, emailVerificationCodeService, userService };
+    return { controller, auth0Service, emailVerificationCodeService, userService, blockedEmailDomainService };
   }
 });

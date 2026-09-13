@@ -15,6 +15,7 @@ import createError from "http-errors";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { TRIAL_BLOCKED_DOMAIN_MESSAGE } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { MetricsService } from "@src/core";
 import { TrialActivationInstrumentationService } from "./trial-activation-instrumentation.service";
 
@@ -48,6 +49,7 @@ describe(TrialActivationInstrumentationService.name, () => {
       { error: createError(404, "wallet not found"), reason: "user_or_wallet_not_found" },
       { error: createError(400, "Email not verified"), reason: "email_not_verified" },
       { error: createError(400, "Unable to start trial for this user"), reason: "fingerprint_block" },
+      { error: createError(400, TRIAL_BLOCKED_DOMAIN_MESSAGE), reason: "blocked_domain" },
       { error: createError(400, "some other bad request"), reason: "grant_failed" },
       { error: new Error("chain grant reverted"), reason: "grant_failed" }
     ])("classifies a $reason failure", ({ error, reason }) => {

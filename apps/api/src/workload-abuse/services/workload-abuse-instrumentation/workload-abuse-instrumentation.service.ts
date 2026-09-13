@@ -10,6 +10,7 @@ export class WorkloadAbuseInstrumentationService {
   private readonly probes: Counter;
   private readonly detections: Counter;
   private readonly enforcements: Counter;
+  private readonly blockedDomainLookupFailures: Counter;
 
   constructor(metricsService: MetricsService) {
     this.meter = metricsService.getMeter("workload-abuse", "1.0.0");
@@ -21,6 +22,9 @@ export class WorkloadAbuseInstrumentationService {
     });
     this.enforcements = metricsService.createCounter(this.meter, "workload_abuse_enforcements_total", {
       description: "Trial abuse enforcement runs, by result"
+    });
+    this.blockedDomainLookupFailures = metricsService.createCounter(this.meter, "workload_abuse_blocked_domain_lookup_failures_total", {
+      description: "Blocked email domain lookups that failed and were answered as not blocked, so enforcement is off for as long as this climbs"
     });
   }
 
@@ -34,5 +38,9 @@ export class WorkloadAbuseInstrumentationService {
 
   recordEnforcement(result: "enforced" | "failed" | "skipped"): void {
     this.enforcements.add(1, { result });
+  }
+
+  recordBlockedDomainLookupFailure(): void {
+    this.blockedDomainLookupFailures.add(1);
   }
 }

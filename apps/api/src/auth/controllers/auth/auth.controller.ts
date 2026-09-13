@@ -3,6 +3,7 @@ import { singleton } from "tsyringe";
 
 import type { SendVerificationEmailRequestInput } from "@src/auth";
 import { VerifyEmailRequest } from "@src/auth/http-schemas/verify-email.schema";
+import { ACCOUNT_UNAVAILABLE_MESSAGE } from "@src/auth/lib/account-unavailable/account-unavailable";
 import type { SignupInput } from "@src/auth/routes/signup/signup.router";
 import type { VerifyEmailCodeRequest } from "@src/auth/routes/verify-email-code/verify-email-code.router";
 import { AuthService, Protected } from "@src/auth/services/auth.service";
@@ -10,9 +11,7 @@ import { AUTH0_DB_CONNECTION, Auth0Service } from "@src/auth/services/auth0/auth
 import { extractAuth0ErrorMessage, isAuth0ApiError } from "@src/auth/services/auth0/auth0-error";
 import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import { UserService } from "@src/user/services/user/user.service";
-
-/** Deliberately vague so a failed signup cannot be used to confirm whether an email is already registered. */
-const ACCOUNT_UNAVAILABLE_MESSAGE = "Unable to create account. Please try again or use a different email.";
+import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 
 /** Auth0 being down is not the caller's fault, and its internal message is not useful to them. */
 const AUTH_PROVIDER_UNAVAILABLE_MESSAGE = "Unable to create the account right now. Please try again.";
@@ -23,10 +22,15 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly auth0: Auth0Service,
     private readonly userService: UserService,
-    private readonly emailVerificationCodeService: EmailVerificationCodeService
+    private readonly emailVerificationCodeService: EmailVerificationCodeService,
+    private readonly blockedEmailDomainService: BlockedEmailDomainService
   ) {}
 
   async signup(input: SignupInput) {
+    if (await this.blockedEmailDomainService.isBlockedEmail(input.email)) {
+      throw createError(422, ACCOUNT_UNAVAILABLE_MESSAGE);
+    }
+
     try {
       await this.auth0.createUser({
         email: input.email,

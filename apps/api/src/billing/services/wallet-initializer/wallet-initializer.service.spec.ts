@@ -13,13 +13,14 @@ import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-fl
 import { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-token/provider-jwt-token.service";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
+import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { UserWalletRepository } from "../../repositories/user-wallet/user-wallet.repository";
 import { TrialActivationInstrumentationService } from "../activate-trial/trial-activation-instrumentation.service";
 import { ManagedSignerService } from "../managed-signer/managed-signer.service";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
 import { StripeService } from "../stripe/stripe.service";
 import { TrialValidationService } from "../trial-validation/trial-validation.service";
-import { WalletInitializerService } from "./wallet-initializer.service";
+import { TRIAL_BLOCKED_DOMAIN_MESSAGE, WalletInitializerService } from "./wallet-initializer.service";
 
 import { createChainWallet } from "@test/seeders/chain-wallet.seeder";
 import { createUser } from "@test/seeders/user.seeder";
@@ -39,6 +40,23 @@ describe(WalletInitializerService.name, () => {
       const di = setup({ user, isProduction: true, hasDuplicateFingerprint: true });
 
       await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)).rejects.toThrow(/Unable to start trial/i);
+    });
+
+    it("throws 400 when the email domain is blocked", async () => {
+      const user = createUser({ emailVerified: true });
+      const di = setup({ user, isBlockedEmailDomain: true, getOrCreateWallet: vi.fn().mockResolvedValue({ wallet: createUserWallet({ activatedAt: null }) }) });
+
+      await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)).rejects.toThrow(TRIAL_BLOCKED_DOMAIN_MESSAGE);
+    });
+
+    it("returns an already-activated wallet even when the email domain is blocked", async () => {
+      const user = createUser({ emailVerified: true });
+      const activatedWallet = createUserWallet({ userId: user.id, activatedAt: new Date() });
+      const di = setup({ user, isBlockedEmailDomain: true, getOrCreateWallet: vi.fn().mockResolvedValue({ wallet: activatedWallet, isNew: false }) });
+
+      const result = await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
+
+      expect(result.address).toBe(activatedWallet.address);
     });
 
     it("derives and saves the address when the wallet is missing one", async () => {
@@ -210,6 +228,7 @@ describe(WalletInitializerService.name, () => {
     user?: UserOutput;
     isProduction?: boolean;
     hasDuplicateFingerprint?: boolean;
+    isBlockedEmailDomain?: boolean;
   }) {
     const di = container.createChildContainer();
     di.registerInstance(TYPE_REGISTRY, new Registry());
@@ -268,6 +287,10 @@ describe(WalletInitializerService.name, () => {
     );
     di.registerInstance(TrialActivationInstrumentationService, mock<TrialActivationInstrumentationService>());
     di.registerInstance(TrialValidationService, mock<TrialValidationService>());
+    di.registerInstance(
+      BlockedEmailDomainService,
+      mock<BlockedEmailDomainService>({ isBlockedEmail: vi.fn().mockResolvedValue(input?.isBlockedEmailDomain ?? false) })
+    );
 
     container.clearInstances();
 

@@ -17,6 +17,7 @@ function classifyFailure(error: unknown): string {
     if (error.status === 404) return "user_or_wallet_not_found";
     if (error.status === 400 && /email not verified/i.test(error.message)) return "email_not_verified";
     if (error.status === 400 && /unable to start trial/i.test(error.message)) return "fingerprint_block";
+    if (error.status === 400 && /not available for this email domain/i.test(error.message)) return "blocked_domain";
   }
   return "grant_failed";
 }

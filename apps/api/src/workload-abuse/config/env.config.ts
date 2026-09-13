@@ -89,7 +89,15 @@ export const envSchema = z.object({
   /** Long enough for a shell round trip through the proxy, short enough that a leaked token is worthless minutes later. */
   WORKLOAD_ABUSE_PROVIDER_JWT_TTL_SECONDS: z.number({ coerce: true }).int().positive().default(120),
   /** How far back the reconcile sweep looks for live trial deployments without a pending probe. */
-  WORKLOAD_ABUSE_RECONCILE_MAX_AGE_HOURS: z.number({ coerce: true }).int().positive().default(26)
+  WORKLOAD_ABUSE_RECONCILE_MAX_AGE_HOURS: z.number({ coerce: true }).int().positive().default(26),
+  /** `detect` runs every guardrail and records the verdict without writing a block or wiping a sibling. */
+  WORKLOAD_ABUSE_DOMAIN_BLOCK_MODE: z.enum(["detect", "enforce"]).default("detect"),
+  /** The admin console writes the table out of band, so an operator un-blocking a domain waits at most this long. */
+  WORKLOAD_ABUSE_BLOCKED_DOMAIN_CACHE_TTL_SECONDS: z.number({ coerce: true }).int().positive().default(60),
+  /** Bounds the damage of a domain match that turns out to be too broad. */
+  WORKLOAD_ABUSE_DOMAIN_BLOCK_MAX_SIBLINGS: z.number({ coerce: true }).int().positive().default(200),
+  /** A domain with an account older than this predates the attack, so it is somebody's real domain. */
+  WORKLOAD_ABUSE_DOMAIN_BLOCK_MIN_ACCOUNT_AGE_DAYS: z.number({ coerce: true }).int().positive().default(30)
 });
 
 export type WorkloadAbuseConfig = z.infer<typeof envSchema>;
