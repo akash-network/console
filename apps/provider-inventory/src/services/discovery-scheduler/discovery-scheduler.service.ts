@@ -214,12 +214,14 @@ export class DiscoverySchedulerService {
       return 0;
     }
 
+    let stoppedCount = 0;
     for (const chunk of chunkify(providersToStop, 100)) {
       if (signal?.aborted) break;
       await this.#lifecycle.stopAndDelete(chunk as string[]);
+      stoppedCount += chunk.length;
     }
 
-    return providersToStop.size;
+    return stoppedCount;
   }
 
   async #cleanupOldIncidents(): Promise<void> {
