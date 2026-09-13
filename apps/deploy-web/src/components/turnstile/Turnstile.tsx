@@ -59,12 +59,12 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
   const injectedConfig = getInjectedConfig();
   const { errorHandler, analyticsService } = useServices();
 
-  const hasReportedFailure = useRef(false);
-  /** Cloudflare keeps retrying every 8s, so only the first anomaly of a run is reported: enough to diagnose, without one Sentry event per retry per stuck visitor. A run ends at the next success or the next challenge the caller asks for. */
+  /** Cloudflare keeps retrying every 8s and its own timeouts land after ours, so a run reports at most one anomaly and stops reporting altogether once it has been settled. */
+  const hasSettledRun = useRef(false);
   const reportChallengeFailure = useCallback(
     (error: unknown, event: string) => {
-      if (hasReportedFailure.current) return;
-      hasReportedFailure.current = true;
+      if (hasSettledRun.current) return;
+      hasSettledRun.current = true;
       errorHandler.reportError({ error, severity: "warning", tags: { event } });
     },
     [errorHandler]
@@ -122,7 +122,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
         }
 
         abandonPendingChallenge.current?.();
-        hasReportedFailure.current = false;
+        hasSettledRun.current = false;
         isAwaitingInteraction.current = false;
         startChallenge();
         return new Promise((resolve, reject) => {
@@ -154,6 +154,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
             setStatus("timedout");
 
             if (isAwaitingInteraction.current) {
+              hasSettledRun.current = true;
               analyticsService.track("captcha_abandoned");
               reject(new CaptchaChallengeError("abandoned"));
               return;
@@ -207,7 +208,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
               onTimeout={() => reportChallengeFailure(new Error("Turnstile challenge timed out"), "TURNSTILE_CHALLENGE_TIMED_OUT")}
               onSuccess={token => {
                 setStatus("solved");
-                hasReportedFailure.current = false;
+                hasSettledRun.current = false;
                 isAwaitingInteraction.current = false;
                 eventBus.current.dispatchEvent(new CustomEvent("success", { detail: { token } }));
               }}

@@ -455,6 +455,31 @@ describe(Turnstile.name, () => {
       }
     });
 
+    it("keeps cloudflare's own interactive timeout quiet once the challenge was abandoned", async () => {
+      const { ReactTurnstile, latestProps } = createTurnstileMock();
+      const { turnstileRef, errorHandler } = await setup({ enabled: true, components: { ReactTurnstile } });
+      vi.useFakeTimers();
+
+      try {
+        const promise = turnstileRef.current!.renderAndWaitResponse().catch(() => undefined);
+        await act(async () => {
+          latestProps.current!.onBeforeInteractive?.();
+        });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(CHALLENGE_DEADLINE_MS);
+        });
+        await promise;
+
+        await act(async () => {
+          latestProps.current!.onTimeout?.();
+        });
+
+        expect(errorHandler.reportError).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("drops a pending challenge on unmount without reporting it wedged 2 minutes later", async () => {
       const { turnstileRef, errorHandler, unmount } = await setup({ enabled: true });
       vi.useFakeTimers();
