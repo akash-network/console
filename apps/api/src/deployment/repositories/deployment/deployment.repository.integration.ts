@@ -12,6 +12,8 @@ import {
   createDeployment,
   createDeploymentGroup,
   createDeploymentGroupResource,
+  createLease,
+  createProvider,
   createTransaction
 } from "@test/seeders";
 
@@ -179,6 +181,76 @@ describe(DeploymentRepository.name, () => {
     });
   });
 
+  describe("findStaleDeployments", () => {
+    it("returns an open deployment that never had a lease", async () => {
+      const { repository, owner, base } = setup();
+      const deployment = await seedOpenDeployment(owner, { createdHeight: base - 1 });
+
+      const found = await repository.findStaleDeployments({ owner, staleBeforeHeight: base });
+
+      expect(found.map(stale => String(stale.dseq))).toEqual([deployment.dseq]);
+    });
+
+    it("returns an open deployment whose every lease closed before the cutoff", async () => {
+      const { repository, owner, base } = setup();
+      const deployment = await seedOpenDeployment(owner, { createdHeight: base - 1_000 });
+      await seedLease(deployment, { closedHeight: base - 1 });
+
+      const found = await repository.findStaleDeployments({ owner, staleBeforeHeight: base });
+
+      expect(found.map(stale => String(stale.dseq))).toEqual([deployment.dseq]);
+    });
+
+    it("leaves out a deployment whose last lease closed at or after the cutoff", async () => {
+      const { repository, owner, base } = setup();
+      const deployment = await seedOpenDeployment(owner, { createdHeight: base - 1_000 });
+      await seedLease(deployment, { gseq: 1, closedHeight: base - 500 });
+      await seedLease(deployment, { gseq: 2, closedHeight: base });
+
+      const found = await repository.findStaleDeployments({ owner, staleBeforeHeight: base });
+
+      expect(found).toEqual([]);
+    });
+
+    it("leaves out a deployment that still holds an active lease", async () => {
+      const { repository, owner, base } = setup();
+      const deployment = await seedOpenDeployment(owner, { createdHeight: base - 1_000 });
+      await seedLease(deployment, { gseq: 1, closedHeight: base - 500 });
+      await seedLease(deployment, { gseq: 2 });
+
+      const found = await repository.findStaleDeployments({ owner, staleBeforeHeight: base });
+
+      expect(found).toEqual([]);
+    });
+
+    it("leaves out a deployment created at or after the cutoff", async () => {
+      const { repository, owner, base } = setup();
+      await seedOpenDeployment(owner, { createdHeight: base });
+
+      const found = await repository.findStaleDeployments({ owner, staleBeforeHeight: base });
+
+      expect(found).toEqual([]);
+    });
+
+    it("leaves out a deployment that is already closed", async () => {
+      const { repository, owner, base } = setup();
+      await seedOpenDeployment(owner, { createdHeight: base - 1_000, closedHeight: base - 500 });
+
+      const found = await repository.findStaleDeployments({ owner, staleBeforeHeight: base });
+
+      expect(found).toEqual([]);
+    });
+
+    it("leaves out the deployments of other owners", async () => {
+      const { repository, owner, base } = setup();
+      await seedOpenDeployment(createAkashAddress(), { createdHeight: base - 1 });
+
+      const found = await repository.findStaleDeployments({ owner, staleBeforeHeight: base });
+
+      expect(found).toEqual([]);
+    });
+  });
+
   describe("countActiveByOwner", () => {
     const WINDOW = { startDate: "2025-03-01", endDate: "2025-03-31" };
 
@@ -294,6 +366,29 @@ describe(DeploymentRepository.name, () => {
     await createAkashBlock({ height, datetime: new Date(`${date}T12:00:00.000Z`) });
 
     return height;
+  }
+
+  async function seedOpenDeployment(owner: string, input: { createdHeight: number; closedHeight?: number }) {
+    const deployment = await createDeployment({ owner, dseq: faker.string.numeric(12), ...input });
+
+    return { id: deployment.id, owner: deployment.owner, dseq: deployment.dseq };
+  }
+
+  async function seedLease(deployment: { id: string; owner: string; dseq: string }, input: { gseq?: number; closedHeight?: number }) {
+    const gseq = input.gseq ?? 1;
+    const provider = await createProvider();
+    const group = await createDeploymentGroup({ deploymentId: deployment.id, owner: deployment.owner, dseq: deployment.dseq, gseq });
+
+    return await createLease({
+      deploymentId: deployment.id,
+      deploymentGroupId: group.id,
+      owner: deployment.owner,
+      dseq: deployment.dseq,
+      gseq,
+      oseq: 1,
+      providerAddress: provider.owner,
+      closedHeight: input.closedHeight
+    });
   }
 
   async function seedGpuDeployment(input: {

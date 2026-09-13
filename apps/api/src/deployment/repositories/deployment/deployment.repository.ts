@@ -7,7 +7,7 @@ import { inject, singleton } from "tsyringe";
 import { CHAIN_DB } from "@src/chain";
 
 export interface StaleDeploymentsOptions {
-  createdHeight: number;
+  staleBeforeHeight: number;
   owner: string;
 }
 
@@ -25,6 +25,14 @@ export interface DeploymentsBeforeCutoffOptions {
 export interface DeploymentActivityWindow {
   startDate: string;
   endDate: string;
+}
+
+/** Heights reach the query through a literal, so anything but a plain integer is refused before it can be interpolated. */
+function asHeight(value: number): number {
+  if (!Number.isSafeInteger(value)) {
+    throw new TypeError(`Expected a block height, received ${value}`);
+  }
+  return value;
 }
 
 function startOfDayAfter(date: string) {
@@ -118,12 +126,15 @@ export class DeploymentRepository {
       where: {
         owner: options.owner,
         createdHeight: {
-          [Op.lt]: options.createdHeight
+          [Op.lt]: options.staleBeforeHeight
         },
         closedHeight: null
       },
       group: ["deployment.dseq"],
-      having: literal(`COUNT("leases"."deploymentId") = 0`),
+      having: literal(
+        `COUNT("leases"."deploymentId") FILTER (WHERE "leases"."closedHeight" IS NULL) = 0 ` +
+          `AND COALESCE(MAX("leases"."closedHeight"), 0) < ${asHeight(options.staleBeforeHeight)}`
+      ),
       raw: true
     });
 

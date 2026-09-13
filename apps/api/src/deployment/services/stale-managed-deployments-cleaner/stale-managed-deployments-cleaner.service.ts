@@ -49,7 +49,7 @@ export class StaleManagedDeploymentsCleanerService {
             event: "DEPLOYMENT_CLEAN_UP_ERROR",
             context: StaleManagedDeploymentsCleanerService.name
           },
-          () => this.#closeLeaselessDeployments(wallet, staleBeforeHeight)
+          () => this.#closeDeploymentsWithoutActiveLease(wallet, staleBeforeHeight)
         );
       });
 
@@ -58,7 +58,7 @@ export class StaleManagedDeploymentsCleanerService {
   }
 
   async cleanUpForWallet(wallet: UserWalletOutput, maxLiveBlocks: number = this.MAX_LIVE_BLOCKS) {
-    await this.#closeLeaselessDeployments(wallet, await this.#resolveStaleBeforeHeight(maxLiveBlocks));
+    await this.#closeDeploymentsWithoutActiveLease(wallet, await this.#resolveStaleBeforeHeight(maxLiveBlocks));
   }
 
   /** Read once per sweep instead of per wallet: the tip is the same for every one of them, and the sweep walks the whole managed-wallet table. */
@@ -67,10 +67,10 @@ export class StaleManagedDeploymentsCleanerService {
   }
 
   /** Dropping a message and re-broadcasting is safe because both classified failures reject the tx whole: an estimate never lands, a non-zero code reverts. */
-  async #closeLeaselessDeployments(wallet: UserWalletOutput, staleBeforeHeight: number) {
+  async #closeDeploymentsWithoutActiveLease(wallet: UserWalletOutput, staleBeforeHeight: number) {
     let remaining = await this.deploymentRepository.findStaleDeployments({
       owner: wallet.address!,
-      createdHeight: staleBeforeHeight
+      staleBeforeHeight
     });
 
     if (!remaining.length) {
