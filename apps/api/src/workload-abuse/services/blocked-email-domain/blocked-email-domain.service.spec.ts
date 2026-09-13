@@ -7,6 +7,7 @@ import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { BlockedEmailDomainRepository } from "@src/workload-abuse/repositories/blocked-email-domain/blocked-email-domain.repository";
 import type { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
+import type { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
 import { BlockedEmailDomainService } from "./blocked-email-domain.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
@@ -102,10 +103,11 @@ describe(BlockedEmailDomainService.name, () => {
 
   describe("when the lookup fails", () => {
     it("allows the address and records the failure", async () => {
-      const { service, logger } = setup({ lookupError: new Error("connection terminated") });
+      const { service, logger, instrumentation } = setup({ lookupError: new Error("connection terminated") });
 
       await expect(service.isBlockedEmail("miner@attacker.com")).resolves.toBe(false);
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "BLOCKED_EMAIL_DOMAIN_LOOKUP_FAILED", domain: "attacker.com" }));
+      expect(instrumentation.recordBlockedDomainLookupFailure).toHaveBeenCalledTimes(1);
     });
 
     it("retries the next lookup rather than caching the failure", async () => {
@@ -147,11 +149,12 @@ describe(BlockedEmailDomainService.name, () => {
     const workloadAbuseConfigService = mockConfigService<WorkloadAbuseConfigService>({
       WORKLOAD_ABUSE_BLOCKED_DOMAIN_CACHE_TTL_SECONDS: input?.ttlSeconds ?? 60
     });
+    const instrumentation = mock<WorkloadAbuseInstrumentationService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    const service = new BlockedEmailDomainService(blockedEmailDomainRepository, featureFlagsService, workloadAbuseConfigService, createLogger);
+    const service = new BlockedEmailDomainService(blockedEmailDomainRepository, featureFlagsService, instrumentation, workloadAbuseConfigService, createLogger);
 
-    return { service, blockedEmailDomainRepository, featureFlagsService, workloadAbuseConfigService, logger, createLogger };
+    return { service, blockedEmailDomainRepository, featureFlagsService, instrumentation, workloadAbuseConfigService, logger, createLogger };
   }
 });

@@ -8,6 +8,7 @@ import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-fl
 import { extractEmailDomain, normalizeEmailDomain } from "@src/workload-abuse/lib/email-domain/email-domain";
 import { BlockedEmailDomainRepository } from "@src/workload-abuse/repositories/blocked-email-domain/blocked-email-domain.repository";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
+import { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
 
 const MAX_TRACKED_DOMAINS = 20_000;
 /** A boolean under a domain string, so the registry ranks this cache far below the ones holding response payloads. */
@@ -25,6 +26,7 @@ export class BlockedEmailDomainService {
   constructor(
     private readonly blockedEmailDomainRepository: BlockedEmailDomainRepository,
     private readonly featureFlagsService: FeatureFlagsService,
+    private readonly instrumentation: WorkloadAbuseInstrumentationService,
     workloadAbuseConfigService: WorkloadAbuseConfigService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -62,6 +64,7 @@ export class BlockedEmailDomainService {
       this.#verdicts.set(domain, blocked);
       return blocked;
     } catch (error) {
+      this.instrumentation.recordBlockedDomainLookupFailure();
       this.logger.error({ event: "BLOCKED_EMAIL_DOMAIN_LOOKUP_FAILED", domain, error });
       return false;
     }
