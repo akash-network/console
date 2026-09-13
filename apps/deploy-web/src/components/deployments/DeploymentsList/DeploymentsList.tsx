@@ -66,7 +66,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
         <div className="flex flex-wrap items-center gap-3 pb-6">
           <h1 className="mr-auto text-3xl font-bold tracking-tight">Deployments</h1>
 
-          {(model.hasAnyDeployment || model.isSearching) && (
+          {model.hasAnyDeployment && (
             <>
               <Input
                 value={model.search}

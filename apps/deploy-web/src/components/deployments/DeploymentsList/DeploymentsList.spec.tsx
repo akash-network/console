@@ -33,11 +33,11 @@ describe("DeploymentsList", () => {
     expect(screen.queryByRole("link", { name: /New deployment/ })).not.toBeInTheDocument();
   });
 
-  it("keeps search on screen while a search is active but matched nothing", () => {
-    setup({ hasAnyDeployment: false, isSearching: true, search: "acme" });
+  it("keeps search and the New deployment link on screen while a search matched nothing", () => {
+    setup({ hasAnyDeployment: true, isSearching: true, search: "acme", showNoSearchResults: true });
 
     expect(screen.getByRole("textbox", { name: "Search deployments" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /New deployment/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /New deployment/ })).toBeInTheDocument();
   });
 
   it("reports what the reader typed", async () => {

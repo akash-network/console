@@ -51,9 +51,11 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
   const activeList = d.useDeploymentList(address, { enabled: canQuery && isSearching }, "active");
   const archiveList = d.useDeploymentList(address, { enabled: canQuery }, "closed");
 
+  const fetchedActiveDeployments = isSearching ? activeList.data : activePage.data?.deployments;
+
   const activeDeployments = useMemo(
-    () => resolveDeployments(isSearching ? activeList.data : activePage.data?.deployments, getDeploymentName, search),
-    [isSearching, activeList.data, activePage.data?.deployments, getDeploymentName, search]
+    () => resolveDeployments(fetchedActiveDeployments, getDeploymentName, search),
+    [fetchedActiveDeployments, getDeploymentName, search]
   );
 
   const archiveDeployments = useMemo(() => resolveDeployments(archiveList.data, getDeploymentName, search), [archiveList.data, getDeploymentName, search]);
@@ -75,6 +77,8 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
   }, [refetchActive, refetchArchive]);
 
   const hasPageResults = pageDeployments.length > 0;
+  /** Reads the fetched lists rather than the filtered ones, so a search that matches nothing does not read as an empty account. */
+  const hasAnyDeployment = !!fetchedActiveDeployments?.length || pageIndex > 0 || !!archiveList.data?.length;
   const hasNextPage = isSearching ? (pageIndex + 1) * pageSize < activeDeployments.length : activePage.data?.hasNextPage ?? false;
 
   useEffect(
@@ -137,7 +141,7 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     isError,
     refetchDeployments,
     hasPageResults,
-    hasAnyDeployment: hasPageResults || pageIndex > 0 || archiveDeployments.length > 0,
+    hasAnyDeployment,
     hasSettledWithoutActiveDeployments:
       !hasPageResults && pageIndex === 0 && !isLoadingDeployments && !isError && !isArchiveError && !isSearching && !archiveList.isFetching,
     showErrorState: isError && !hasPageResults && !isLoadingDeployments,

@@ -354,6 +354,15 @@ describe(useDeploymentsListModel.name, () => {
       expect(result.current.hasSettledWithoutActiveDeployments).toBe(true);
     });
 
+    it("keeps counting the account as having deployments when a search matches nothing", async () => {
+      const { result } = setup({ active: [deployment("100")], names: { "100": "billing-worker" } });
+
+      await act(async () => result.current.changeSearch("no-such-deployment"));
+
+      expect(result.current.showNoSearchResults).toBe(true);
+      expect(result.current.hasAnyDeployment).toBe(true);
+    });
+
     it("withholds the empty state until the archive query has settled", () => {
       const { result } = setup({ active: [], archived: [], isArchiveFetching: true });
 
