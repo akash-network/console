@@ -8,6 +8,8 @@ export const blockedEmailDomainStatusEnum = pgEnum("blocked_email_domain_status"
 
 export const blockedEmailDomainSourceEnum = pgEnum("blocked_email_domain_source", ["auto", "manual"]);
 
+const NORMALIZED_DOMAIN_POSIX_PATTERN = sql.raw(`'${NORMALIZED_DOMAIN_PATTERN.source}'`);
+
 export const BlockedEmailDomains = pgTable(
   "blocked_email_domains",
   {
@@ -28,6 +30,6 @@ export const BlockedEmailDomains = pgTable(
   table => ({
     domainUnique: uniqueIndex("blocked_email_domains_domain_unique").on(table.domain),
     /** The admin console writes this table directly, and any row the normalizer would not have produced sits there unmatched: a blocklist that silently stops blocking. */
-    domainNormalized: check("blocked_email_domains_domain_normalized", sql`${table.domain} ~ ${sql.raw(`'${NORMALIZED_DOMAIN_PATTERN.source}'`)}`)
+    domainNormalized: check("blocked_email_domains_domain_normalized", sql`${table.domain} ~ ${NORMALIZED_DOMAIN_POSIX_PATTERN}`)
   })
 );
