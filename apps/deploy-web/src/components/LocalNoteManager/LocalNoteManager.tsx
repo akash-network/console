@@ -15,7 +15,7 @@ interface Props {
 }
 
 export function LocalNoteManager({ dependencies: d = DEPENDENCIES }: Props) {
-  const { selectedDeploymentDseq, selectDeployment } = d.useLocalNotes();
+  const { selectedDeploymentDseq, selectDeployment, deselectDeployment } = d.useLocalNotes();
   const initFavoriteProviders = d.useInitFavoriteProviders();
   const resetSelectedDeployment = () => selectDeployment(null);
 
@@ -25,6 +25,6 @@ export function LocalNoteManager({ dependencies: d = DEPENDENCIES }: Props) {
   }, []);
 
   return (
-    <d.DeploymentNameModal dseq={selectedDeploymentDseq} onClose={resetSelectedDeployment} onSaved={resetSelectedDeployment} />
+    <d.DeploymentNameModal dseq={selectedDeploymentDseq} onClose={resetSelectedDeployment} onSaved={deselectDeployment} />
   );
 }

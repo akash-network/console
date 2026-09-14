@@ -10,7 +10,7 @@ import { settingsIdAtom } from "@src/store/settingsStore";
 import type { DEPENDENCIES } from "./DeploymentNameModal";
 import { DeploymentNameModal } from "./DeploymentNameModal";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
@@ -44,8 +44,22 @@ describe("DeploymentNameModal", () => {
 
     await rename("my-app");
 
-    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith("12345"));
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "success" }));
+  });
+
+  it("reports the deployment it renamed, not the one the dialog has since moved on to", async () => {
+    let renameOptions: { onSuccess?: () => void } | undefined;
+    const patchMutate = vi.fn((_variables, options) => {
+      renameOptions = options;
+    });
+    const { onSaved, showDeployment } = setup({ dseq: "12345", resolvedName: "first-deployment", patchMutate });
+    await rename("renamed-first");
+    showDeployment({ dseq: "67890", resolvedName: "second-deployment" });
+
+    act(() => renameOptions?.onSuccess?.());
+
+    expect(onSaved).toHaveBeenCalledExactlyOnceWith("12345");
   });
 
   it("opens on the name the api holds, not only the one this browser recorded", async () => {

@@ -14,6 +14,7 @@ export type LocalNotesContextType = {
   updateFavoriteProviders: (newFavorites: string[]) => void;
   selectedDeploymentDseq: string | number | null;
   selectDeployment: (dseq: string | number | null) => void;
+  deselectDeployment: (dseq: string | number) => void;
 };
 
 export function useLocalNotes(): LocalNotesContextType {
@@ -37,6 +38,14 @@ export function useLocalNotes(): LocalNotesContextType {
     [selectDeployment]
   );
 
+  /** A rename that completes after the dialog moved on to another deployment must not close that one. */
+  const deselectDeployment = useCallback(
+    (dseq: string | number) => {
+      selectDeployment(current => (String(current) === String(dseq) ? null : current));
+    },
+    [selectDeployment]
+  );
+
   const updateFavoriteProviders = useCallback(
     (newFavorites: string[]) => {
       updateProviderLocalData({ favorites: newFavorites });
@@ -45,7 +54,7 @@ export function useLocalNotes(): LocalNotesContextType {
     [setFavoriteProviders]
   );
 
-  return { getDeploymentName, changeDeploymentName, favoriteProviders, updateFavoriteProviders, selectedDeploymentDseq, selectDeployment };
+  return { getDeploymentName, changeDeploymentName, favoriteProviders, updateFavoriteProviders, selectedDeploymentDseq, selectDeployment, deselectDeployment };
 }
 
 export function useInitFavoriteProviders() {

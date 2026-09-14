@@ -26,7 +26,7 @@ const formSchema = z.object({
 type Props = {
   dseq: string | number | null | undefined;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (dseq: string) => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -81,15 +81,16 @@ export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, d
 
   function onSubmit({ name }: z.infer<typeof formSchema>) {
     if (!dseq || renameDeployment.isPending) return;
+    const renamedDseq = String(dseq);
 
     renameDeployment.mutate(
-      { dseq: String(dseq), data: { name } },
+      { dseq: renamedDseq, data: { name } },
       {
         onSuccess: function recordRename() {
           recordNameInThisBrowser(name);
-          queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq: String(dseq) }) });
+          queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq: renamedDseq }) });
           enqueueSnackbar(<Snackbar title="Success!" iconVariant="success" />, { variant: "success", autoHideDuration: 1000 });
-          onSaved();
+          onSaved(renamedDseq);
         },
         onError: function reportRenameFailure() {
           enqueueSnackbar(<Snackbar title="Couldn't rename this deployment" iconVariant="error" />, { variant: "error" });
