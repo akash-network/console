@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { NamedDeploymentDto } from "@src/types/deployment";
+import type { VisitEndpoint } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
 import { DEPENDENCIES, DeploymentRow } from "./DeploymentRow";
 
 import { render, screen } from "@testing-library/react";
@@ -55,14 +56,73 @@ describe("DeploymentRow", () => {
     expect(screen.getByRole("checkbox", { name: "Select deployment acme" })).toBeChecked();
   });
 
-  function setup(input: { deployment: Partial<NamedDeploymentDto> & { dseq: string }; isSelectable?: boolean; isSelected?: boolean }) {
+  it("keeps the endpoints out of the row until they are asked for", () => {
+    const { DeploymentEndpointsPanel } = setup({ deployment: { dseq: "100" }, endpoints: [endpoint("api.acmecorp.com")] });
+
+    expect(DeploymentEndpointsPanel).not.toHaveBeenCalled();
+    expect(screen.getAllByRole("row")).toHaveLength(1);
+  });
+
+  it("opens the endpoints into a row of their own rather than the endpoint cell", async () => {
+    const endpoints = [endpoint("api.acmecorp.com"), endpoint("shop.acmecorp.com")];
+    const { DeploymentEndpointsPanel } = setup({ deployment: { dseq: "100" }, endpoints });
+
+    await userEvent.click(screen.getByRole("button", { name: "toggle endpoints" }));
+
+    expect(DeploymentEndpointsPanel).toHaveBeenCalledWith({ endpoints }, expect.anything());
+    expect(screen.getAllByRole("row")).toHaveLength(2);
+  });
+
+  it("spans the whole table with the endpoint panel, so a long host reads on one line", async () => {
+    setup({ deployment: { dseq: "100" }, endpoints: [endpoint("api.acmecorp.com")] });
+
+    await userEvent.click(screen.getByRole("button", { name: "toggle endpoints" }));
+
+    expect(screen.getAllByRole("cell").at(-1)).toHaveAttribute("colspan", "5");
+  });
+
+  it("closes the endpoint row again on demand", async () => {
+    setup({ deployment: { dseq: "100" }, endpoints: [endpoint("api.acmecorp.com")] });
+
+    await userEvent.click(screen.getByRole("button", { name: "toggle endpoints" }));
+    await userEvent.click(screen.getByRole("button", { name: "toggle endpoints" }));
+
+    expect(screen.getAllByRole("row")).toHaveLength(1);
+  });
+
+  it("reports the row as expanded to the endpoint toggle that drew it", async () => {
+    const { DeploymentEndpoints } = setup({ deployment: { dseq: "100" }, endpoints: [endpoint("api.acmecorp.com")] });
+
+    await userEvent.click(screen.getByRole("button", { name: "toggle endpoints" }));
+
+    expect(DeploymentEndpoints).toHaveBeenLastCalledWith(expect.objectContaining({ isExpanded: true }), expect.anything());
+  });
+
+  function endpoint(host: string): VisitEndpoint {
+    return { serviceName: "api", host, port: 443, href: `http://${host}:443` };
+  }
+
+  function setup(input: {
+    deployment: Partial<NamedDeploymentDto> & { dseq: string };
+    isSelectable?: boolean;
+    isSelected?: boolean;
+    endpoints?: VisitEndpoint[];
+  }) {
+    const endpoints = input.endpoints ?? [];
     const useDeploymentReachability = vi.fn<typeof DEPENDENCIES.useDeploymentReachability>(() => ({
       leases: [],
       isLoadingLeases: false,
-      endpoints: [],
+      endpoints,
       isLoadingEndpoints: false,
       unreachableReason: null
     }));
+
+    const DeploymentEndpoints = vi.fn<typeof DEPENDENCIES.DeploymentEndpoints>(({ onToggleExpanded }) => (
+      <button type="button" onClick={onToggleExpanded}>
+        toggle endpoints
+      </button>
+    ));
+    const DeploymentEndpointsPanel = vi.fn<typeof DEPENDENCIES.DeploymentEndpointsPanel>(() => <div>endpoints panel</div>);
 
     const providers: never[] = [];
     const onSelect = vi.fn();
@@ -77,12 +137,12 @@ describe("DeploymentRow", () => {
             isSelectable={input.isSelectable}
             isSelected={input.isSelected}
             onSelect={onSelect}
-            dependencies={MockComponents(DEPENDENCIES, { useDeploymentReachability })}
+            dependencies={MockComponents(DEPENDENCIES, { useDeploymentReachability, DeploymentEndpoints, DeploymentEndpointsPanel })}
           />
         </tbody>
       </table>
     );
 
-    return { ...input, onSelect, useDeploymentReachability, providers, deployment };
+    return { ...input, onSelect, useDeploymentReachability, providers, deployment, DeploymentEndpoints, DeploymentEndpointsPanel };
   }
 });

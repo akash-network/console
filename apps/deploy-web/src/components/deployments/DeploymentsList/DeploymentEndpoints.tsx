@@ -1,8 +1,8 @@
 "use client";
 import type { FC } from "react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger, Skeleton } from "@akashnetwork/ui/components";
+import { Skeleton } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { NavArrowDown } from "iconoir-react";
+import { ArrowUpRight, NavArrowDown } from "iconoir-react";
 
 import type { VisitEndpoint } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
 import type { UnreachableReason } from "./useDeploymentReachability";
@@ -17,10 +17,12 @@ export interface DeploymentEndpointsProps {
   endpoints: VisitEndpoint[];
   isLoading: boolean;
   unreachableReason: UnreachableReason | null;
+  isExpanded?: boolean;
+  onToggleExpanded?: () => void;
   className?: string;
 }
 
-export const DeploymentEndpoints: FC<DeploymentEndpointsProps> = ({ endpoints, isLoading, unreachableReason, className }) => {
+export const DeploymentEndpoints: FC<DeploymentEndpointsProps> = ({ endpoints, isLoading, unreachableReason, isExpanded, onToggleExpanded, className }) => {
   if (isLoading) {
     return <Skeleton className={cn("h-5 w-40", className)} data-testid="deployment-endpoints-skeleton" />;
   }
@@ -32,35 +34,52 @@ export const DeploymentEndpoints: FC<DeploymentEndpointsProps> = ({ endpoints, i
   }
 
   if (endpoints.length === 1) {
-    return <EndpointLink endpoint={endpoints[0]} className={className} />;
+    const endpoint = endpoints[0];
+    return (
+      <a
+        href={endpoint.href}
+        target="_blank"
+        rel="noreferrer"
+        onClick={event => event.stopPropagation()}
+        className={cn("group inline-flex max-w-full items-center gap-1 font-mono text-xs", className)}
+      >
+        <span className="truncate group-hover:underline">{endpoint.host}</span>
+        <ArrowUpRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+        <span className="sr-only">opens in a new tab</span>
+      </a>
+    );
   }
 
   return (
-    <Collapsible className={className}>
-      <CollapsibleTrigger className="group inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground">
-        {endpoints.length} endpoints
-        <NavArrowDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="mt-2 space-y-1.5">
-        {endpoints.map(endpoint => (
-          <EndpointLink key={endpoint.href} endpoint={endpoint} />
-        ))}
-      </CollapsibleContent>
-    </Collapsible>
+    <button
+      type="button"
+      aria-expanded={isExpanded}
+      onClick={onToggleExpanded}
+      className={cn("group inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground", className)}
+    >
+      {endpoints.length} endpoints
+      <NavArrowDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+    </button>
   );
 };
 
-const EndpointLink: FC<{ endpoint: VisitEndpoint; className?: string }> = ({ endpoint, className }) => (
-  <a
-    href={endpoint.href}
-    target="_blank"
-    rel="noreferrer"
-    onClick={event => event.stopPropagation()}
-    className={cn("group grid grid-cols-[minmax(0,4rem)_minmax(0,1fr)_auto] items-baseline gap-3 font-mono text-xs", className)}
-  >
-    <span className="truncate uppercase text-muted-foreground">{endpoint.serviceName}</span>
-    <span className="truncate group-hover:underline">{endpoint.host}</span>
-    <span className="text-muted-foreground">:{endpoint.port}</span>
-    <span className="sr-only">opens in a new tab</span>
-  </a>
+/** Spans the table rather than the endpoint column, so a long host reads on one line instead of wrapping inside a quarter of the row. */
+export const DeploymentEndpointsPanel: FC<{ endpoints: VisitEndpoint[] }> = ({ endpoints }) => (
+  <div className="space-y-1.5 rounded-md bg-muted/50 px-4 py-3">
+    {endpoints.map(endpoint => (
+      <a
+        key={endpoint.href}
+        href={endpoint.href}
+        target="_blank"
+        rel="noreferrer"
+        onClick={event => event.stopPropagation()}
+        className="group grid grid-cols-[minmax(0,6rem)_minmax(0,1fr)_auto] items-baseline gap-3 font-mono text-xs"
+      >
+        <span className="truncate uppercase text-muted-foreground">{endpoint.serviceName}</span>
+        <span className="truncate group-hover:underline">{endpoint.host}</span>
+        <span className="text-muted-foreground">:{endpoint.port}</span>
+        <span className="sr-only">opens in a new tab</span>
+      </a>
+    ))}
+  </div>
 );

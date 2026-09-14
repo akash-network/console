@@ -1,5 +1,6 @@
 "use client";
 import type { FC } from "react";
+import { useState } from "react";
 import { Card, Checkbox } from "@akashnetwork/ui/components";
 import Link from "next/link";
 
@@ -8,7 +9,7 @@ import type { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
 import { DeploymentStatusBadge } from "../DeploymentDetail/DeploymentStatusBadge";
 import { DeploymentActionsMenu } from "./DeploymentActionsMenu";
-import { DeploymentEndpoints } from "./DeploymentEndpoints";
+import { DeploymentEndpoints, DeploymentEndpointsPanel } from "./DeploymentEndpoints";
 import { DeploymentSpecSummary } from "./DeploymentSpecSummary";
 import { ReclamationCountdown } from "./ReclamationCountdown";
 import { useDeploymentReachability } from "./useDeploymentReachability";
@@ -17,6 +18,7 @@ export const DEPENDENCIES = {
   useDeploymentReachability,
   DeploymentStatusBadge,
   DeploymentEndpoints,
+  DeploymentEndpointsPanel,
   DeploymentSpecSummary,
   DeploymentActionsMenu,
   ReclamationCountdown
@@ -42,6 +44,8 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const { leases, endpoints, isLoadingEndpoints, unreachableReason } = d.useDeploymentReachability({ deployment, providers });
+  const [isShowingEndpoints, setIsShowingEndpoints] = useState(false);
+  const toggleEndpoints = () => setIsShowingEndpoints(current => !current);
 
   return (
     <Card className="flex flex-col overflow-hidden">
@@ -57,7 +61,15 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
           </div>
         </div>
 
-        <d.DeploymentEndpoints endpoints={endpoints} isLoading={isLoadingEndpoints} unreachableReason={unreachableReason} />
+        <d.DeploymentEndpoints
+          endpoints={endpoints}
+          isLoading={isLoadingEndpoints}
+          unreachableReason={unreachableReason}
+          isExpanded={isShowingEndpoints}
+          onToggleExpanded={toggleEndpoints}
+        />
+
+        {isShowingEndpoints && <d.DeploymentEndpointsPanel endpoints={endpoints} />}
       </div>
 
       <div className="flex items-center justify-between gap-3 border-t px-5 py-2">

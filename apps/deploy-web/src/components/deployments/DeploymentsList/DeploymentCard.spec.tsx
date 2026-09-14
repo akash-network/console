@@ -41,6 +41,29 @@ describe("DeploymentCard", () => {
     );
   });
 
+  it("keeps the endpoints out of the card until they are asked for", () => {
+    const { DeploymentEndpointsPanel } = setup({ deployment: { dseq: "100" } });
+
+    expect(DeploymentEndpointsPanel).not.toHaveBeenCalled();
+  });
+
+  it("opens the endpoints inside the card, which has no row to spill into", async () => {
+    const { DeploymentEndpointsPanel } = setup({ deployment: { dseq: "100" } });
+
+    await userEvent.click(screen.getByRole("button", { name: "toggle endpoints" }));
+
+    expect(DeploymentEndpointsPanel).toHaveBeenCalled();
+  });
+
+  it("closes the endpoints again on demand", async () => {
+    setup({ deployment: { dseq: "100" } });
+
+    await userEvent.click(screen.getByRole("button", { name: "toggle endpoints" }));
+    await userEvent.click(screen.getByRole("button", { name: "toggle endpoints" }));
+
+    expect(screen.queryByText("endpoints panel")).not.toBeInTheDocument();
+  });
+
   it("summarises what the deployment uses", () => {
     const { DeploymentSpecSummary } = setup({ deployment: { dseq: "100" } });
 
@@ -116,7 +139,12 @@ describe("DeploymentCard", () => {
     }));
 
     const DeploymentStatusBadge = vi.fn(() => <div>status</div>);
-    const DeploymentEndpoints = vi.fn(() => <div>endpoints</div>);
+    const DeploymentEndpoints = vi.fn<typeof DEPENDENCIES.DeploymentEndpoints>(({ onToggleExpanded }) => (
+      <button type="button" onClick={onToggleExpanded}>
+        toggle endpoints
+      </button>
+    ));
+    const DeploymentEndpointsPanel = vi.fn<typeof DEPENDENCIES.DeploymentEndpointsPanel>(() => <div>endpoints panel</div>);
     const DeploymentSpecSummary = vi.fn(() => <div>specs</div>);
     const ReclamationCountdown = vi.fn(() => <div>countdown</div>);
     const DeploymentActionsMenu = vi.fn(() => <div>actions</div>);
@@ -136,6 +164,7 @@ describe("DeploymentCard", () => {
           useDeploymentReachability,
           DeploymentStatusBadge,
           DeploymentEndpoints,
+          DeploymentEndpointsPanel,
           DeploymentSpecSummary,
           ReclamationCountdown,
           DeploymentActionsMenu
@@ -147,6 +176,7 @@ describe("DeploymentCard", () => {
       onSelect,
       DeploymentStatusBadge,
       DeploymentEndpoints,
+      DeploymentEndpointsPanel,
       DeploymentSpecSummary,
       ReclamationCountdown,
       DeploymentActionsMenu,
