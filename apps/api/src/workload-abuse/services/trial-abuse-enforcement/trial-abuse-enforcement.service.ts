@@ -16,6 +16,10 @@ import { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/service
 
 export const ABUSE_LOCK_REASON = "workload_abuse";
 
+export const BLOCKED_DOMAIN_LOCK_REASON = "blocked_domain";
+
+export type AbuseLockReason = typeof ABUSE_LOCK_REASON | typeof BLOCKED_DOMAIN_LOCK_REASON;
+
 export type EnforcementOutcome = {
   depositGrantRevoked: boolean;
   feeGrantRevoked: boolean;
@@ -59,7 +63,7 @@ export class TrialAbuseEnforcementService {
     let outcome: EnforcementOutcome | null;
 
     try {
-      outcome = await this.txService.transaction(() => this.#wipeUnlessPaid(wallet));
+      outcome = await this.wipeTrialWallet(wallet, ABUSE_LOCK_REASON);
     } catch (error) {
       this.instrumentation.recordEnforcement("failed");
       this.logger.error({
@@ -95,6 +99,11 @@ export class TrialAbuseEnforcementService {
     return outcome;
   }
 
+  /** The wipe without the detection bookkeeping, for a wallet caught by its email domain rather than by its own workload. */
+  async wipeTrialWallet(wallet: WalletInitialized, reason: AbuseLockReason): Promise<EnforcementOutcome | null> {
+    return await this.txService.transaction(() => this.#wipeUnlessPaid(wallet, reason));
+  }
+
   /** findStalledEnforcements re-queues a detection left in enforcing, so a record that cannot be written is worth a log rather than the failure it was recording. */
   async #recordEnforcementFailure(detectionId: string, error: unknown): Promise<void> {
     try {
@@ -109,21 +118,21 @@ export class TrialAbuseEnforcementService {
   }
 
   /** Holds the wallet row for the whole wipe, so a payment settling at the same time waits for it and then clears the lock instead of re-granting between the revokes. */
-  async #wipeUnlessPaid(wallet: WalletInitialized): Promise<EnforcementOutcome | null> {
+  async #wipeUnlessPaid(wallet: WalletInitialized, reason: AbuseLockReason): Promise<EnforcementOutcome | null> {
     const lockedWallet = await this.userWalletRepository.findOneByAndLock({ id: wallet.id });
 
     if (!lockedWallet?.isTrialing) return null;
 
-    return await this.#wipe(wallet);
+    return await this.#wipe(wallet, reason);
   }
 
   /** The lock and the probe cancellations ride the row-lock transaction, so a wipe that fails partway rolls them back and leaves the wallet unlocked and still monitored for the retry. */
-  async #wipe(wallet: WalletInitialized): Promise<EnforcementOutcome> {
+  async #wipe(wallet: WalletInitialized, reason: AbuseLockReason): Promise<EnforcementOutcome> {
     const granter = await this.txManagerService.getFundingWalletAddress();
     const depositGrantRevoked = await this.#revokeDepositGrant(granter, wallet.address);
     const closedDseqs = await this.#closeLiveDeployments(wallet);
     const feeGrantRevoked = await this.#revokeFeeGrant(granter, wallet.address);
-    await this.userWalletRepository.lockForAbuse(wallet.id, ABUSE_LOCK_REASON);
+    await this.userWalletRepository.lockForAbuse(wallet.id, reason);
     await this.probeJobService.cancelForWallet(wallet.id);
 
     return { depositGrantRevoked, feeGrantRevoked, closedDseqs };

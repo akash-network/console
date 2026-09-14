@@ -11,6 +11,11 @@ import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.se
 import { type ApiPgDatabase, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
+import {
+  BlockEmailDomainOfWallet,
+  BlockEmailDomainOfWalletHandler,
+  blockEmailDomainOfWalletKeyFor
+} from "@src/workload-abuse/services/block-email-domain-of-wallet/block-email-domain-of-wallet.handler";
 import { ProbeTrialDeploymentHandler } from "@src/workload-abuse/services/probe-trial-deployment/probe-trial-deployment.handler";
 import { ABUSE_LOCK_REASON } from "@src/workload-abuse/services/trial-abuse-enforcement/trial-abuse-enforcement.service";
 import { ProbeTrialDeployment, probeTrialDeploymentKeyFor } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
@@ -20,7 +25,11 @@ import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
-const jobWorkers = useJobWorkers(() => [container.resolve(EnforceTrialAbuseHandler), container.resolve(ProbeTrialDeploymentHandler)]);
+const jobWorkers = useJobWorkers(() => [
+  container.resolve(EnforceTrialAbuseHandler),
+  container.resolve(ProbeTrialDeploymentHandler),
+  container.resolve(BlockEmailDomainOfWalletHandler)
+]);
 
 describe(EnforceTrialAbuseHandler.name, () => {
   afterEach(() => {
@@ -63,6 +72,14 @@ describe(EnforceTrialAbuseHandler.name, () => {
     expect((await findWallet())?.deploymentAllowance).toBe(10_000_000);
     expect(close).not.toHaveBeenCalled();
     expect(executeFundingTx).not.toHaveBeenCalled();
+  });
+
+  it("queues the domain block of a wallet already locked, so a run interrupted before it resumes on the retry", async () => {
+    const { handler, wallet, detection, findDomainBlockJob } = await setup({ abuseLockedAt: new Date() });
+
+    await handler.handle({ walletId: wallet.id, detectionId: detection.id, version: 1 });
+
+    expect(await findDomainBlockJob()).toMatchObject({ data: { walletId: wallet.id, version: 1 } });
   });
 
   it("leaves a wallet that has since paid alone", async () => {
@@ -187,6 +204,11 @@ describe(EnforceTrialAbuseHandler.name, () => {
         enqueue(new EnforceTrialAbuse({ walletId: wallet.id, detectionId }), { singletonKey: enforceTrialAbuseKeyFor(wallet.id) }),
       findWallet: () => userWalletRepository.findById(wallet.id),
       findDetection: (id: string) => detectionRepository.findById(id),
+      findDomainBlockJob: async () => {
+        const [row] = await findJobRows(BlockEmailDomainOfWallet[JOB_NAME], { singletonKey: blockEmailDomainOfWalletKeyFor(wallet.id) });
+
+        return row;
+      },
       findProbeJob: async (dseq: string) => {
         const [row] = await findJobRows(ProbeTrialDeployment[JOB_NAME], { singletonKey: probeTrialDeploymentKeyFor({ walletId: wallet.id, dseq }) });
 

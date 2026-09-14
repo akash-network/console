@@ -1,9 +1,10 @@
-import { and, count, desc, eq, gte, inArray, lte, notInArray, SQL, sql } from "drizzle-orm";
+import { and, count, desc, eq, exists, gte, inArray, lte, notInArray, SQL, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
+import { Users } from "@src/user/model-schemas";
 
 type Table = ApiPgTables["StripeTransactions"];
 export type StripeTransactionInput = Table["$inferInsert"];
@@ -174,6 +175,31 @@ export class StripeTransactionRepository extends BaseRepository<Table, StripeTra
     });
 
     return !!item;
+  }
+
+  /**
+   * Whether any account on the domain has ever made a real purchase. Manual credits and coupon claims
+   * deliberately do not count: both are granted to trial users, so counting them would let a comped
+   * account shield a domain from being blocked.
+   */
+  async hasPaidUserWithEmailDomain(domain: string): Promise<boolean> {
+    const [match] = await this.cursor
+      .select({ id: Users.id })
+      .from(Users)
+      .where(
+        and(
+          sql`lower(${Users.email}) LIKE ${"%@"} || ${domain}`,
+          exists(
+            this.cursor
+              .select({ id: this.table.id })
+              .from(this.table)
+              .where(and(eq(this.table.userId, Users.id), eq(this.table.type, "payment_intent"), inArray(this.table.status, ["succeeded", "refunded"])))
+          )
+        )
+      )
+      .limit(1);
+
+    return !!match;
   }
 
   async countByUserId(userId: string, options?: { startDate?: Date; endDate?: Date }): Promise<number> {

@@ -4,6 +4,8 @@ import { singleton } from "tsyringe";
 import { MetricsService } from "@src/core/services/metrics/metrics.service";
 import type { WorkloadVerdict } from "@src/workload-abuse/lib/evidence-scanner/evidence-scanner";
 
+export type DomainBlockResult = "blocked" | "raced" | "skipped" | "dry_run" | "failed" | "sibling_limit_reached";
+
 @singleton()
 export class WorkloadAbuseInstrumentationService {
   private readonly meter: Meter;
@@ -11,6 +13,7 @@ export class WorkloadAbuseInstrumentationService {
   private readonly detections: Counter;
   private readonly enforcements: Counter;
   private readonly blockedDomainLookupFailures: Counter;
+  private readonly domainBlocks: Counter;
 
   constructor(metricsService: MetricsService) {
     this.meter = metricsService.getMeter("workload-abuse", "1.0.0");
@@ -25,6 +28,9 @@ export class WorkloadAbuseInstrumentationService {
     });
     this.blockedDomainLookupFailures = metricsService.createCounter(this.meter, "workload_abuse_blocked_domain_lookup_failures_total", {
       description: "Blocked email domain lookups that failed and were answered as not blocked, so enforcement is off for as long as this climbs"
+    });
+    this.domainBlocks = metricsService.createCounter(this.meter, "workload_abuse_domain_blocks_total", {
+      description: "Email domain auto-block outcomes, by result and (on a skip) reason"
     });
   }
 
@@ -42,5 +48,9 @@ export class WorkloadAbuseInstrumentationService {
 
   recordBlockedDomainLookupFailure(): void {
     this.blockedDomainLookupFailures.add(1);
+  }
+
+  recordDomainBlock(result: DomainBlockResult, reason?: string): void {
+    this.domainBlocks.add(1, reason ? { result, reason } : { result });
   }
 }
