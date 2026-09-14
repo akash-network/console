@@ -13,14 +13,26 @@ describe("DeploymentEndpoints", () => {
 
     const link = screen.getByRole("link");
     expect(link).toHaveAttribute("href", "http://acmecorp.com:443");
-    expect(screen.getByText("acmecorp.com")).toBeInTheDocument();
+    expect(link).toHaveTextContent("acmecorp.com");
   });
 
-  it("leaves the service name and port off a lone endpoint, which has nothing to be told apart from", () => {
+  it("leaves the service name off a lone endpoint, which has nothing to be told apart from", () => {
     setup({ endpoints: [endpoint({ serviceName: "site", host: "acmecorp.com", port: 443 })] });
 
     expect(screen.queryByText("site")).not.toBeInTheDocument();
-    expect(screen.queryByText(":443")).not.toBeInTheDocument();
+  });
+
+  it("drops the port of a lone endpoint that serves on 80, where it tells the reader nothing", () => {
+    setup({ endpoints: [endpoint({ host: "acmecorp.com", port: 80 })] });
+
+    expect(screen.getByRole("link")).toHaveTextContent("acmecorp.com");
+    expect(screen.getByRole("link")).not.toHaveTextContent(":80");
+  });
+
+  it("keeps the port of a lone endpoint that serves anywhere else, which the reader needs to reach it", () => {
+    setup({ endpoints: [endpoint({ host: "acmecorp.com", port: 8080 })] });
+
+    expect(screen.getByRole("link")).toHaveTextContent("acmecorp.com:8080");
   });
 
   it("offers a count rather than the endpoints themselves once there are several", () => {

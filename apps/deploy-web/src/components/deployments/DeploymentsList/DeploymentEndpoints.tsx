@@ -5,6 +5,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { ArrowUpRight, NavArrowDown } from "iconoir-react";
 
 import type { VisitEndpoint } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
+import { endpointLabel } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
 import type { UnreachableReason } from "./useDeploymentReachability";
 
 const UNREACHABLE_LABELS: Record<UnreachableReason, string> = {
@@ -43,7 +44,7 @@ export const DeploymentEndpoints: FC<DeploymentEndpointsProps> = ({ endpoints, i
         onClick={event => event.stopPropagation()}
         className={cn("group inline-flex max-w-full items-center gap-1 font-mono text-xs", className)}
       >
-        <span className="truncate group-hover:underline">{endpoint.host}</span>
+        <span className="truncate group-hover:underline">{endpointLabel(endpoint)}</span>
         <ArrowUpRight className="h-3 w-3 shrink-0 text-muted-foreground" />
         <span className="sr-only">opens in a new tab</span>
       </a>
