@@ -367,7 +367,7 @@ describe(AnalyticsService.name, () => {
       service.track("onboarding_deploy_click", { category: "onboarding" });
 
       expect(track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding" });
-      expect(setItem).not.toHaveBeenCalledWith("analytics_referrer", expect.anything());
+      expect(setItem).not.toHaveBeenCalled();
     });
 
     it("freezes the first referring domain and ignores the one from a later visit", () => {
@@ -389,13 +389,14 @@ describe(AnalyticsService.name, () => {
         category: "onboarding",
         first_touch_referring_domain: "news.ycombinator.com"
       });
-      expect(setItem).not.toHaveBeenCalledWith("analytics_referrer", expect.anything());
+      expect(setItem).not.toHaveBeenCalled();
     });
 
     it("stamps nothing when the visit carries no referrer", () => {
       const track = vi.fn();
+      const identify = vi.fn();
       const service = setup({
-        amplitude: { track },
+        amplitude: { track, identify },
         referrer: "",
         options: {
           amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
@@ -406,6 +407,7 @@ describe(AnalyticsService.name, () => {
       service.track("onboarding_deploy_click", { category: "onboarding" });
 
       expect(track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding" });
+      expect(identify).not.toHaveBeenCalled();
     });
   });
 

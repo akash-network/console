@@ -106,7 +106,7 @@ describe(PasswordAuth.name, () => {
   describe("when SignIn tab is open", () => {
     it("runs sign-in flow with captcha token, refreshes the session, and navigates back", async () => {
       const SignInFormMock = vi.fn(ComponentMock as typeof SignInForm);
-      const { authService, checkSession, navigateBack } = setup({
+      const { authService, analyticsService, checkSession, navigateBack } = setup({
         dependencies: { SignInForm: SignInFormMock }
       });
       const credentials: SignInFormValues = { email: "test@example.com", password: "password123" };
@@ -116,6 +116,7 @@ describe(PasswordAuth.name, () => {
       await vi.waitFor(() => {
         expect(authService.login).toHaveBeenCalledWith({ ...credentials, captchaToken: "test-captcha-token" });
       });
+      expect(analyticsService.track).toHaveBeenCalledWith("password_auth_submit", { type: "signin" });
       expect(authService.signup).not.toHaveBeenCalled();
       await vi.waitFor(() => {
         expect(checkSession).toHaveBeenCalled();
@@ -144,7 +145,7 @@ describe(PasswordAuth.name, () => {
   describe("when SignUp tab is open", () => {
     it("runs sign-up flow with captcha token, refreshes the session, and navigates back", async () => {
       const SignUpFormMock = vi.fn(ComponentMock as typeof SignUpForm);
-      const { authService, checkSession, navigateBack } = setup({
+      const { authService, analyticsService, checkSession, navigateBack } = setup({
         searchParams: { tab: "signup" },
         dependencies: { SignUpForm: SignUpFormMock }
       });
@@ -159,6 +160,7 @@ describe(PasswordAuth.name, () => {
       await vi.waitFor(() => {
         expect(authService.signup).toHaveBeenCalledWith({ ...credentials, captchaToken: "test-captcha-token" });
       });
+      expect(analyticsService.track).toHaveBeenCalledWith("password_auth_submit", { type: "signup" });
       expect(authService.login).not.toHaveBeenCalled();
       await vi.waitFor(() => {
         expect(checkSession).toHaveBeenCalled();
