@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { MIN_PAGE_SIZE } from "@akashnetwork/ui/components";
 import { useAtom } from "jotai";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
@@ -24,7 +25,8 @@ export const DEPENDENCIES = {
   useListSelection
 };
 
-export const DEFAULT_PAGE_SIZE = 12;
+/** Must stay one of the sizes PaginationSizeSelector offers, or the selector renders blank. */
+export const DEFAULT_PAGE_SIZE = MIN_PAGE_SIZE;
 
 /**
  * Active deployments are paged server-side, but a search has to span the whole account, so it swaps the paged
