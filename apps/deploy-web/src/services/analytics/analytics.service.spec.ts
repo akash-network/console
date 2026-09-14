@@ -44,6 +44,22 @@ describe(AnalyticsService.name, () => {
       expect(init).toHaveBeenCalled();
       expect(add).toHaveBeenCalledWith(expect.objectContaining({ name: "@amplitude/plugin-session-replay-browser" }));
     });
+
+    it("initializes Amplitude once however many events are tracked", () => {
+      const init = vi.fn();
+      const service = setup({
+        amplitude: { init },
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.track("onboarding_deploy_click");
+      service.track("onboarding_deploy_click");
+
+      expect(init).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("switch value caching", () => {
@@ -350,6 +366,20 @@ describe(AnalyticsService.name, () => {
       expect(identify).toHaveBeenCalled();
     });
 
+    it("records an external referring domain so a later visit reuses it", () => {
+      const setItem = vi.fn();
+      setup({
+        storage: { getItem: vi.fn(), setItem },
+        referrer: "https://news.ycombinator.com/item?id=1",
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      expect(setItem).toHaveBeenCalledWith("analytics_referrer", "news.ycombinator.com");
+    });
+
     it("ignores an internal navigation so it cannot overwrite the original source", () => {
       const track = vi.fn();
       const setItem = vi.fn();
@@ -358,6 +388,25 @@ describe(AnalyticsService.name, () => {
         storage: { getItem: vi.fn(), setItem },
         referrer: "https://console.akash.network/deploy",
         hostname: "console.akash.network",
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.track("onboarding_deploy_click", { category: "onboarding" });
+
+      expect(track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding" });
+      expect(setItem).not.toHaveBeenCalledWith("analytics_referrer", "console.akash.network");
+    });
+
+    it("keeps a direct visit direct when a social login bounces the user through an identity provider", () => {
+      const track = vi.fn();
+      const setItem = vi.fn();
+      const service = setup({
+        amplitude: { track },
+        storage: { getItem: key => (key === "analytics_referrer" ? "" : null), setItem },
+        referrer: "https://accounts.google.com/o/oauth2/auth",
         options: {
           amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
           ga: { enabled: false, measurementId: mockGaMeasurementId }
@@ -395,8 +444,10 @@ describe(AnalyticsService.name, () => {
     it("stamps nothing when the visit carries no referrer", () => {
       const track = vi.fn();
       const identify = vi.fn();
+      const setItem = vi.fn();
       const service = setup({
         amplitude: { track, identify },
+        storage: { getItem: vi.fn(), setItem },
         referrer: "",
         options: {
           amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
@@ -408,6 +459,7 @@ describe(AnalyticsService.name, () => {
 
       expect(track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding" });
       expect(identify).not.toHaveBeenCalled();
+      expect(setItem).toHaveBeenCalledWith("analytics_referrer", "");
     });
   });
 

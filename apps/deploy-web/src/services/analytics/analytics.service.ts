@@ -166,6 +166,9 @@ const UTM_PARAM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", 
 /** Amplitude's own attribution reads the referrer only when it initializes, which is later than the visit it should credit. */
 const FIRST_TOUCH_REFERRER_PROPERTY = "first_touch_referring_domain";
 
+/** A direct visit is recorded too, so the identity provider a social login bounces through cannot claim the first touch. */
+const DIRECT_VISIT_REFERRER = "";
+
 const isBrowser = typeof window !== "undefined";
 
 /**
@@ -275,17 +278,18 @@ export class AnalyticsService {
     }
 
     const storedDomain = this.storage?.getItem(this.REFERRER_STORAGE_KEY);
-    if (storedDomain) {
-      return { [FIRST_TOUCH_REFERRER_PROPERTY]: storedDomain };
+    if (storedDomain != null) {
+      return this.toReferrerProperties(storedDomain);
     }
 
-    const referringDomain = this.readExternalReferringDomain();
-    if (!referringDomain) {
-      return {};
-    }
-
+    const referringDomain = this.readExternalReferringDomain() ?? DIRECT_VISIT_REFERRER;
     this.storage?.setItem(this.REFERRER_STORAGE_KEY, referringDomain);
-    return { [FIRST_TOUCH_REFERRER_PROPERTY]: referringDomain };
+
+    return this.toReferrerProperties(referringDomain);
+  }
+
+  private toReferrerProperties(referringDomain: string): Record<string, string> {
+    return referringDomain ? { [FIRST_TOUCH_REFERRER_PROPERTY]: referringDomain } : {};
   }
 
   /** Our own host means an internal navigation, which would otherwise overwrite the source that actually brought the visitor in. */
