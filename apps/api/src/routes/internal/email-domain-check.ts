@@ -7,17 +7,16 @@ import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security"
 import { requireInternalToken } from "@src/middlewares/internal-token/internal-token.middleware";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 
-/** Unconstrained on purpose: an address we cannot parse is answered `blocked: false`, never rejected, so a caller can always act on the response. */
+/** Intentionally permissive: the caller needs a verdict for whatever it holds, not a validation error. */
 const EmailDomainCheckRequestSchema = z.object({
   email: z.string()
 });
 
-/** Only the verdict. Echoing the reason or the row would tell a leaked token what the blocklist contains. */
+/** The verdict only: this response must not disclose why. */
 const EmailDomainCheckResponseSchema = z.object({
   blocked: z.boolean()
 });
 
-/** Authenticated by requireInternalToken below rather than by a scheme, because the caller is a machine holding a shared secret. */
 const route = createRoute({
   method: "post",
   path: "/auth/email-domain-check",

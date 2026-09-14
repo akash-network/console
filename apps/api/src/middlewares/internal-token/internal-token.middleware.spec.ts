@@ -23,7 +23,7 @@ describe("requireInternalToken", () => {
     expect(await response.text()).toBe(GUARDED_BODY);
   });
 
-  it("ignores the same token in the query string, which would land in every access log", async () => {
+  it("ignores the same token in the query string", async () => {
     const { request } = setup({ configuredToken });
 
     const response = await request({ path: `${GUARDED_PATH}?token=${configuredToken}` });
