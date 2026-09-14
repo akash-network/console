@@ -4,7 +4,7 @@ import { container } from "tsyringe";
 
 import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import { privateMiddleware } from "@src/middlewares/privateMiddleware";
-import routes from "../routes/internal";
+import routes, { internalOpenApiHonoHandlers } from "../routes/internal";
 
 export const internalRouter = new OpenAPIHono();
 
@@ -25,3 +25,4 @@ internalRouter.get(`/swagger`, swaggerInstance);
 internalRouter.use("/financial", privateMiddleware);
 
 routes.forEach(route => internalRouter.route(`/`, route));
+internalOpenApiHonoHandlers.forEach(handler => internalRouter.route(`/`, handler));

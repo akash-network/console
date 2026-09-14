@@ -1,14 +1,15 @@
-import { OpenAPIHono, z } from "@hono/zod-openapi";
+import { z } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
+import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { requireInternalToken } from "@src/middlewares/internal-token/internal-token.middleware";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 
-/** Not `.email()`: an address we cannot parse is answered `blocked: false`, never rejected, so a caller can always act on the response. */
+/** Unconstrained on purpose: an address we cannot parse is answered `blocked: false`, never rejected, so a caller can always act on the response. */
 const EmailDomainCheckRequestSchema = z.object({
-  email: z.string().min(3).max(320)
+  email: z.string()
 });
 
 /** Only the verdict. Echoing the reason or the row would tell a leaked token what the blocklist contains. */
@@ -46,7 +47,7 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async function routePostValidateEmailDomain(c) {
+export default new OpenApiHonoHandler().openapi(route, async function routePostValidateEmailDomain(c) {
   const { email } = c.req.valid("json");
   const blocked = await container.resolve(BlockedEmailDomainService).isBlockedEmail(email);
 

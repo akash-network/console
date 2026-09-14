@@ -1,53 +1,65 @@
-import type { Context, Next } from "hono";
+import { faker } from "@faker-js/faker";
+import { Hono } from "hono";
 import { container } from "tsyringe";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { CoreConfig } from "@src/core/providers/config.provider";
 import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import { INTERNAL_TOKEN_HEADER, requireInternalToken } from "./internal-token.middleware";
 
+const GUARDED_PATH = "/guarded";
+const GUARDED_BODY = "reached the handler";
+
 describe("requireInternalToken", () => {
+  const configuredToken = generateToken();
+
   it("lets the request through when the header matches the configured token", async () => {
-    const { c, next } = setup({ configuredToken: "secret", providedToken: "secret" });
+    const { request } = setup({ configuredToken });
 
-    await requireInternalToken(c, next);
+    const response = await request({ headers: { [INTERNAL_TOKEN_HEADER]: configuredToken } });
 
-    expect(next).toHaveBeenCalledTimes(1);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe(GUARDED_BODY);
   });
 
-  it("reads the token from a header rather than the query string", async () => {
-    const { c, header } = setup({ configuredToken: "secret", providedToken: "secret" });
+  it("ignores the same token in the query string, which would land in every access log", async () => {
+    const { request } = setup({ configuredToken });
 
-    await requireInternalToken(c, vi.fn<Next>());
+    const response = await request({ path: `${GUARDED_PATH}?token=${configuredToken}` });
 
-    expect(header).toHaveBeenCalledWith(INTERNAL_TOKEN_HEADER);
+    expect(response.status).toBe(401);
   });
 
-  it.each([
-    { label: "a mismatched token", input: { configuredToken: "secret", providedToken: "wrong" } },
-    { label: "a token of a different length", input: { configuredToken: "secret", providedToken: "a-much-longer-wrong-token" } },
-    { label: "a missing header", input: { configuredToken: "secret", providedToken: undefined } },
-    { label: "an empty header", input: { configuredToken: "secret", providedToken: "" } },
-    { label: "an unconfigured token", input: { configuredToken: undefined, providedToken: "secret" } },
-    { label: "neither side configured", input: { configuredToken: undefined, providedToken: undefined } }
-  ])("rejects $label", async ({ input }) => {
-    const { c, next, text } = setup(input);
+  it.each<{ label: string; configured: boolean; headers: Record<string, string> }>([
+    { label: "a mismatched token", configured: true, headers: { [INTERNAL_TOKEN_HEADER]: generateToken() } },
+    { label: "a token of a different length", configured: true, headers: { [INTERNAL_TOKEN_HEADER]: `${generateToken()}${generateToken()}` } },
+    { label: "a missing header", configured: true, headers: {} },
+    { label: "an empty header", configured: true, headers: { [INTERNAL_TOKEN_HEADER]: "" } },
+    { label: "an unconfigured token", configured: false, headers: { [INTERNAL_TOKEN_HEADER]: generateToken() } },
+    { label: "neither side configured", configured: false, headers: {} }
+  ])("rejects $label", async ({ configured, headers }) => {
+    const { request } = setup({ configuredToken: configured ? configuredToken : undefined });
 
-    await requireInternalToken(c, next);
+    const response = await request({ headers });
 
-    expect(next).not.toHaveBeenCalled();
-    expect(text).toHaveBeenCalledWith("Unauthorized", 401);
+    expect(response.status).toBe(401);
+    expect(await response.text()).toBe("Unauthorized");
   });
+
+  function setup(input: { configuredToken?: string }) {
+    container.registerInstance(CORE_CONFIG, mock<CoreConfig>({ INTERNAL_API_TOKEN: input.configuredToken }));
+
+    const app = new Hono();
+    app.use(GUARDED_PATH, requireInternalToken);
+    app.get(GUARDED_PATH, c => c.text(GUARDED_BODY));
+
+    return {
+      request: (init: { path?: string; headers?: Record<string, string> } = {}) => app.request(init.path ?? GUARDED_PATH, { headers: init.headers ?? {} })
+    };
+  }
 });
 
-function setup(input: { configuredToken?: string; providedToken?: string }) {
-  container.registerInstance(CORE_CONFIG, mock<CoreConfig>({ INTERNAL_API_TOKEN: input.configuredToken }));
-
-  const text = vi.fn();
-  const header = vi.fn().mockReturnValue(input.providedToken);
-  const c = { req: { header }, text } as unknown as Context;
-  const next = vi.fn<Next>();
-
-  return { c, next, text, header };
+function generateToken() {
+  return faker.string.alphanumeric(32);
 }
