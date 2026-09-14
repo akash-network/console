@@ -283,9 +283,18 @@ export class AnalyticsService {
     }
 
     const referringDomain = this.readExternalReferringDomain() ?? DIRECT_VISIT_REFERRER;
-    this.storage?.setItem(this.REFERRER_STORAGE_KEY, referringDomain);
+    this.persistFirstTouchReferrer(referringDomain);
 
     return this.toReferrerProperties(referringDomain);
+  }
+
+  /** Every new session writes this one, so a full or blocked storage must cost the stored first touch rather than the constructor. */
+  private persistFirstTouchReferrer(referringDomain: string) {
+    try {
+      this.storage?.setItem(this.REFERRER_STORAGE_KEY, referringDomain);
+    } catch {
+      return;
+    }
   }
 
   private toReferrerProperties(referringDomain: string): Record<string, string> {

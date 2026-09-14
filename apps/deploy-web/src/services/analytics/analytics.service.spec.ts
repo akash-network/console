@@ -400,6 +400,31 @@ describe(AnalyticsService.name, () => {
       expect(setItem).not.toHaveBeenCalledWith("analytics_referrer", "console.akash.network");
     });
 
+    it("keeps stamping the referring domain when the browser refuses to store it", () => {
+      const track = vi.fn();
+      const service = setup({
+        amplitude: { track },
+        storage: {
+          getItem: vi.fn(),
+          setItem: () => {
+            throw new Error("QuotaExceededError");
+          }
+        },
+        referrer: "https://news.ycombinator.com/item?id=1",
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.track("onboarding_deploy_click", { category: "onboarding" });
+
+      expect(track).toHaveBeenCalledWith("onboarding_deploy_click", {
+        category: "onboarding",
+        first_touch_referring_domain: "news.ycombinator.com"
+      });
+    });
+
     it("keeps a direct visit direct when a social login bounces the user through an identity provider", () => {
       const track = vi.fn();
       const setItem = vi.fn();
