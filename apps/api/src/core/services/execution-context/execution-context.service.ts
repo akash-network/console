@@ -1,7 +1,8 @@
 import type { MongoAbility } from "@casl/ability";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import type { UserOutput } from "@src/user/repositories";
 import type { AppContext } from "../../types/app-context";
 
@@ -16,11 +17,18 @@ interface ExecutionStorage {
   ABILITY: MongoAbility;
   HTTP_CONTEXT: AppContext;
   HELD_DATA_KEYS: Map<string, Promise<HeldDataKey>>;
+  DATA_KEY_UNWRAP_COUNTS: Map<string, number>;
 }
 
 @singleton()
 export class ExecutionContextService {
   private readonly storage = new AsyncLocalStorage<Map<string, unknown>>();
+  private readonly contextEndCallbacks: Array<() => void> = [];
+  private readonly logger: ReturnType<CreateLogger>;
+
+  constructor(@inject(LOGGER_FACTORY) createLogger: CreateLogger) {
+    this.logger = createLogger({ context: ExecutionContextService.name });
+  }
 
   private get context() {
     const store = this.storage.getStore();
@@ -45,7 +53,29 @@ export class ExecutionContextService {
     return this.context.get(key) as ExecutionStorage[K] | undefined;
   }
 
+  /** Registered per process and run for every context, so a per-request measurement reaches the job and CLI entry points and not only the HTTP one. */
+  onContextEnd(callback: () => void) {
+    this.contextEndCallbacks.push(callback);
+  }
+
   async runWithContext<R>(cb: (...args: any[]) => Promise<R>): Promise<R> {
-    return this.storage.run(new Map(), cb);
+    return this.storage.run(new Map(), async () => {
+      try {
+        return await cb();
+      } finally {
+        this.endContext();
+      }
+    });
+  }
+
+  /** A callback throwing from that finally would replace the work's own result or error, so none of them is trusted to return. */
+  private endContext() {
+    for (const callback of this.contextEndCallbacks) {
+      try {
+        callback();
+      } catch (error) {
+        this.logger.error({ event: "EXECUTION_CONTEXT_END_CALLBACK_FAILED", error });
+      }
+    }
   }
 }
