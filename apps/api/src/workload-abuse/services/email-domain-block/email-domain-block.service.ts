@@ -114,11 +114,14 @@ export class EmailDomainBlockService {
     if (!this.#isEnforcing) return;
 
     const limit = this.config.get("WORKLOAD_ABUSE_DOMAIN_BLOCK_MAX_SIBLINGS");
-    const siblings = await this.userWalletRepository.findLockableTrialWalletsByEmailDomain(domain, { excludeWalletId: wallet.id, limit });
+    const overfetched = await this.userWalletRepository.findLockableTrialWalletsByEmailDomain(domain, { excludeWalletId: wallet.id, limit: limit + 1 });
 
-    if (siblings.length === 0) return;
+    if (overfetched.length === 0) return;
 
-    if (siblings.length === limit) {
+    const siblings = overfetched.slice(0, limit);
+    const moreThanTheLimitExist = overfetched.length > limit;
+
+    if (moreThanTheLimitExist) {
       this.instrumentation.recordDomainBlock("sibling_limit_reached");
       this.logger.warn({ event: "BLOCKED_DOMAIN_SIBLING_LIMIT_REACHED", domain, limit });
     }

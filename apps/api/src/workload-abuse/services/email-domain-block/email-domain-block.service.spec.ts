@@ -163,7 +163,7 @@ describe(EmailDomainBlockService.name, () => {
 
         expect(userWalletRepository.findLockableTrialWalletsByEmailDomain).toHaveBeenCalledWith("attacker.com", {
           excludeWalletId: wallet.id,
-          limit: 50
+          limit: 51
         });
       });
 
@@ -200,7 +200,25 @@ describe(EmailDomainBlockService.name, () => {
       });
 
       it("records reaching the sibling limit, because a match that broad needs a human", async () => {
-        const { service, wallet, instrumentation } = setup({
+        const { service, wallet, instrumentation, jobQueueService } = setup({
+          email: "miner@attacker.com",
+          maxSiblings: 2,
+          siblings: [
+            { walletId: 7, userId: "user-7" },
+            { walletId: 9, userId: "user-9" },
+            { walletId: 11, userId: "user-11" }
+          ]
+        });
+
+        await service.blockDomainOf(wallet);
+
+        expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("sibling_limit_reached");
+        expect(jobQueueService.enqueue).toHaveBeenCalledTimes(2);
+        expect(jobQueueService.enqueue).not.toHaveBeenCalledWith(new LockBlockedDomainWallet({ walletId: 11, domain: "attacker.com" }), expect.anything());
+      });
+
+      it("leaves the limit unrecorded for a domain holding exactly as many siblings as the limit allows", async () => {
+        const { service, wallet, instrumentation, jobQueueService } = setup({
           email: "miner@attacker.com",
           maxSiblings: 2,
           siblings: [
@@ -211,7 +229,8 @@ describe(EmailDomainBlockService.name, () => {
 
         await service.blockDomainOf(wallet);
 
-        expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("sibling_limit_reached");
+        expect(instrumentation.recordDomainBlock).not.toHaveBeenCalledWith("sibling_limit_reached");
+        expect(jobQueueService.enqueue).toHaveBeenCalledTimes(2);
       });
 
       it("does not record the limit when fewer siblings came back than the limit allows", async () => {
