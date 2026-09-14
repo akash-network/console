@@ -163,7 +163,7 @@ const STATIC_DEPLOYMENT_PATH = "/deployments/[dseq]";
 
 const UTM_PARAM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"] as const;
 
-/** Amplitude's own attribution reads the referrer only when it initializes, which is later than the visit the user should be attributed to. */
+/** Amplitude's own attribution reads the referrer only when it initializes, which is later than the visit it should credit. */
 const FIRST_TOUCH_REFERRER_PROPERTY = "first_touch_referring_domain";
 
 const isBrowser = typeof window !== "undefined";
@@ -344,7 +344,7 @@ export class AnalyticsService {
     }
   }
 
-  /** Initializing mints a billed tracked user and starts session replay, so nothing on the unauthenticated login page may reach Amplitude before a captcha is solved. */
+  /** Initializing mints a billed tracked user and starts a session replay. */
   private initAmplitude() {
     if (this.amplitudeInitialized) {
       return;
