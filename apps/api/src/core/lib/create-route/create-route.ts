@@ -3,6 +3,7 @@ import type { RouteConfig } from "@hono/zod-openapi";
 import { createRoute as createOpenApiRoute } from "@hono/zod-openapi";
 import type { MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import type { PathItemObject, PathsObject } from "openapi3-ts/oas30";
 
 import { DEFAULT_BODY_LIMIT_BYTES } from "@src/core/config/body-limit.config";
 import { type CacheConfig, cacheControlMiddleware } from "@src/middlewares/cacheControlMiddleware/cacheControlMiddleware";
@@ -24,11 +25,7 @@ export interface ExtendedRouteConfig<R extends RouteConfig> {
 
 const NO_CACHE = cacheControlMiddleware({ maxAge: 0 });
 
-/**
- * OpenAPI vendor extension used to mark a route as hidden from generated
- * documentation. Operations carrying this extension are stripped by
- * `OpenApiDocsService.generateDocs` before the spec is returned.
- */
+/** Operation ids of routes declared with `hiddenInOpenApiDocs`, stripped by `stripHiddenOperations` before any spec is served. */
 export const HIDDEN_ROUTES = new Set<string>();
 
 /** Request-body properties, per operation, that are validated as normal but left out of every generated document. */
@@ -98,4 +95,30 @@ export function createRoute<
   }
 
   return createOpenApiRoute(openApiConfig as Omit<R, "cache" | "hiddenInOpenApiDocs">);
+}
+
+/** Every generated spec has to run its paths through this, or `hiddenInOpenApiDocs` silently documents the route it was meant to hide. */
+export function stripHiddenOperations(paths: PathsObject | undefined): PathsObject {
+  if (!paths) return {};
+  const result: PathsObject = {};
+
+  for (const [path, pathItem] of Object.entries(paths)) {
+    if (!pathItem || typeof pathItem !== "object") continue;
+
+    let filteredItem: PathItemObject | null = null;
+    Object.keys(pathItem).forEach(key => {
+      const route = pathItem[key as keyof PathItemObject];
+      if (typeof route !== "object" || route === null) return;
+
+      const operationId = route.operationId ?? `${key.toUpperCase()} ${path}`;
+      if (!HIDDEN_ROUTES.has(operationId)) {
+        filteredItem ??= {};
+        filteredItem[key as keyof PathItemObject] = pathItem[key as keyof PathItemObject];
+      }
+    });
+    if (filteredItem) {
+      result[path] = filteredItem;
+    }
+  }
+  return result;
 }

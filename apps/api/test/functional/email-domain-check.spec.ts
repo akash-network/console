@@ -73,6 +73,13 @@ describe("POST /internal/auth/email-domain-check", () => {
     expect(await response.json()).toMatchObject({ error: "BadRequestError", code: "validation_error" });
   });
 
+  it("stays out of the unauthenticated internal openapi document", async () => {
+    const response = await app.request("/internal/doc");
+
+    expect(response.status).toBe(200);
+    expect(JSON.stringify(await response.json())).not.toContain("validateEmailDomain");
+  });
+
   function uniqueDomain() {
     return `${faker.string.alphanumeric(16).toLowerCase()}.com`;
   }

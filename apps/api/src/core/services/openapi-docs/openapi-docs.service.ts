@@ -1,10 +1,10 @@
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { readFile } from "node:fs/promises";
-import type { ComponentsObject, OpenAPIObject, PathItemObject, PathsObject, ReferenceObject } from "openapi3-ts/oas30";
+import type { ComponentsObject, OpenAPIObject, PathsObject, ReferenceObject } from "openapi3-ts/oas30";
 import { inject, singleton } from "tsyringe";
 
 import { memoizeAsync } from "@src/caching/helpers";
-import { HIDDEN_ROUTES, UNDOCUMENTED_REQUEST_FIELDS } from "@src/core/lib/create-route/create-route";
+import { stripHiddenOperations, UNDOCUMENTED_REQUEST_FIELDS } from "@src/core/lib/create-route/create-route";
 import type { CoreConfig } from "@src/core/providers/config.provider";
 import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import type { NotificationsConfig } from "@src/notifications/config/env.config";
@@ -74,7 +74,7 @@ export class OpenApiDocsService {
           // The committed openapi.json (SDK input) is generated with includeHidden:true so internal
           // routes (e.g. Stripe) are typed and addressable via api.v1.*; the served /v1/doc keeps
           // stripping them so the public Swagger surface stays clean.
-          const paths = options.includeHidden ? handlerDocs.paths : this.#stripHiddenOperations(handlerDocs.paths);
+          const paths = options.includeHidden ? handlerDocs.paths : stripHiddenOperations(handlerDocs.paths);
           Object.assign(docs.paths, this.#stripUndocumentedRequestFields(paths));
         } catch (error) {
           logger.error({
@@ -179,36 +179,6 @@ export class OpenApiDocsService {
         }
       }
     }
-  }
-
-  /**
-   * Removes operations marked with the `OPENAPI_HIDDEN_EXTENSION` vendor extension from a paths
-   * object. Routes opt in via `createRoute({ hiddenInOpenApiDocs: true, ... })` — e.g. webhook
-   * endpoints whose path is a shared secret and must not appear in public docs.
-   */
-  #stripHiddenOperations(paths: PathsObject | undefined): PathsObject {
-    if (!paths) return {};
-    const result: PathsObject = {};
-
-    for (const [path, pathItem] of Object.entries(paths)) {
-      if (!pathItem || typeof pathItem !== "object") continue;
-
-      let filteredItem: PathItemObject | null = null;
-      Object.keys(pathItem).forEach(key => {
-        const route = pathItem[key as keyof PathItemObject];
-        if (typeof route !== "object" || route === null) return;
-
-        const operationId = route.operationId ?? `${key.toUpperCase()} ${path}`;
-        if (!HIDDEN_ROUTES.has(operationId)) {
-          filteredItem ??= {};
-          filteredItem[key as keyof PathItemObject] = pathItem[key as keyof PathItemObject];
-        }
-      });
-      if (filteredItem) {
-        result[path] = filteredItem;
-      }
-    }
-    return result;
   }
 
   /**
