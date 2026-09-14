@@ -174,7 +174,7 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
                 prefetch={false}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() => analyticsService.track("terms_link_clk")}
+                onClick={() => analyticsService.track("terms_link_clk", "GA")}
                 className="font-medium text-neutral-950 underline dark:text-neutral-50"
               >
                 Terms
@@ -185,7 +185,7 @@ export function PasswordlessAuth({ dependencies: d = DEPENDENCIES, ...props }: P
                 prefetch={false}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() => analyticsService.track("privacy_policy_link_clk")}
+                onClick={() => analyticsService.track("privacy_policy_link_clk", "GA")}
                 className="font-medium text-neutral-950 underline dark:text-neutral-50"
               >
                 Privacy Policy

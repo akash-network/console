@@ -209,7 +209,7 @@ describe(PasswordlessAuth.name, () => {
 
     await userEvent.click(screen.getByRole("link", { name: "Terms" }));
 
-    expect(analyticsService.track).toHaveBeenCalledWith("terms_link_clk");
+    expect(analyticsService.track).toHaveBeenCalledWith("terms_link_clk", "GA");
   });
 
   it("tracks privacy_policy_link_clk when the Privacy Policy link is clicked", async () => {
@@ -217,7 +217,7 @@ describe(PasswordlessAuth.name, () => {
 
     await userEvent.click(screen.getByRole("link", { name: "Privacy Policy" }));
 
-    expect(analyticsService.track).toHaveBeenCalledWith("privacy_policy_link_clk");
+    expect(analyticsService.track).toHaveBeenCalledWith("privacy_policy_link_clk", "GA");
   });
 
   function setup(

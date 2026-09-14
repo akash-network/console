@@ -381,7 +381,7 @@ describe(Turnstile.name, () => {
 
         expect(rejection).toMatchObject({ reason: "abandoned" });
         expect(errorHandler.reportError).not.toHaveBeenCalled();
-        expect(analyticsService.track).toHaveBeenCalledWith("captcha_abandoned");
+        expect(analyticsService.track).toHaveBeenCalledWith("captcha_abandoned", "GA");
       } finally {
         vi.useRealTimers();
       }

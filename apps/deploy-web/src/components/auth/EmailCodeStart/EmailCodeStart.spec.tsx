@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { CaptchaChallengeError } from "@src/components/turnstile/CaptchaChallengeError";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { AuthService } from "@src/services/auth/auth/auth.service";
 import { DEPENDENCIES, EmailCodeStart } from "./EmailCodeStart";
@@ -46,6 +47,20 @@ describe(EmailCodeStart.name, () => {
     });
   });
 
+  it("does not track email_login_init when the captcha is never solved", async () => {
+    const getCaptchaToken = vi.fn().mockRejectedValue(new CaptchaChallengeError("abandoned"));
+    const { authService, analyticsService } = setup({ getCaptchaToken });
+
+    await userEvent.type(screen.getByLabelText("Email"), "alice@example.com");
+    await userEvent.click(screen.getByRole("button", { name: /continue with email/i }));
+
+    await vi.waitFor(() => {
+      expect(getCaptchaToken).toHaveBeenCalled();
+    });
+    expect(analyticsService.track).not.toHaveBeenCalled();
+    expect(authService.startEmailCode).not.toHaveBeenCalled();
+  });
+
   it("keeps the label visible and shows a loading indicator while the code is being sent", async () => {
     const { authService } = setup();
     authService.startEmailCode.mockReturnValue(new Promise<void>(() => {}));
@@ -71,7 +86,9 @@ describe(EmailCodeStart.name, () => {
     });
   });
 
-  function setup(input: { defaultEmail?: string; onStarted?: (email: string) => void; getCaptchaToken?: () => Promise<string>; markCodeSent?: () => void } = {}) {
+  function setup(
+    input: { defaultEmail?: string; onStarted?: (email: string) => void; getCaptchaToken?: () => Promise<string>; markCodeSent?: () => void } = {}
+  ) {
     const authService = mock<AuthService>();
     const analyticsService = mock<AnalyticsService>();
     const onStarted = input.onStarted ?? vi.fn();

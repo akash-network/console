@@ -25,7 +25,7 @@ export function OAuthRow({ dependencies: d = DEPENDENCIES }: Props = {}) {
 
   const redirectToSocialLogin = useCallback(
     async function redirectToSocialLogin(provider: "github" | "google-oauth2") {
-      analyticsService.track("social_login_init", { provider });
+      analyticsService.track("social_login_init", { provider }, "GA");
       await authService.loginViaOauth({ returnTo, connection: provider });
     },
     [analyticsService, authService, returnTo]

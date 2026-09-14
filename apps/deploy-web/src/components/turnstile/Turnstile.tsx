@@ -155,7 +155,7 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
 
             if (isAwaitingInteraction.current) {
               hasSettledRun.current = true;
-              analyticsService.track("captcha_abandoned");
+              analyticsService.track("captcha_abandoned", "GA");
               reject(new CaptchaChallengeError("abandoned"));
               return;
             }
