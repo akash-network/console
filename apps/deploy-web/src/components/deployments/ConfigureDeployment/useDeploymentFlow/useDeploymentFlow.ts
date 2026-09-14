@@ -42,9 +42,9 @@ export interface DeploymentFlowState {
 }
 
 export interface DeploymentFlowActions {
-  /** Creates the deployment from the given SDL. The caller passes the SDL generated from the just-submitted
+  /** Creates the deployment from the given SDL and name. The caller passes the SDL generated from the just-submitted
    * form values so the request can never lag behind an in-flight edit. */
-  requestQuotes: (sdl: string) => void;
+  requestQuotes: (sdl: string, name?: string) => void;
   cancelAndEdit: () => void;
   setBidStrategy: (strategy: BidStrategy) => void;
   refreshQuotes: () => void;
@@ -252,7 +252,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
    * deployment is still open (a prior close failed), it is closed first so the single-open-deployment invariant holds.
    */
   const requestQuotes = useCallback(
-    function requestQuotes(sdl: string) {
+    function requestQuotes(sdl: string, name?: string) {
       const attempt = ++createAttemptRef.current;
       providersEverBidRef.current = false;
       bidsReceivedTrackedRef.current = false;
@@ -262,7 +262,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         if (attempt !== createAttemptRef.current) return;
         setPhase("creating");
         createDeployment.mutate(
-          { data: { sdl, deposit: DEFAULT_DEPOSIT } },
+          { data: { sdl, ...namePayload(name), deposit: DEFAULT_DEPOSIT } },
           {
             onSuccess: function onCreated(result: { data: { dseq: string; manifest: string } }) {
               if (attempt !== createAttemptRef.current) {
@@ -456,6 +456,12 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     error,
     actions: { requestQuotes, cancelAndEdit, setBidStrategy, refreshQuotes, retry, selectProvider, clearSelection, deploy }
   };
+}
+
+/** The api refuses a blank name rather than reading it as "unnamed", so a name the user left empty is left out of the request entirely. */
+function namePayload(name: string | undefined): { name?: string } {
+  const trimmed = name?.trim();
+  return trimmed ? { name: trimmed } : {};
 }
 
 /** Best-effort cache under owner + dseq (the key the detail page reads); failures are swallowed so storage issues never block deploy. */

@@ -1,6 +1,8 @@
 import type { FC } from "react";
 import { Input } from "@akashnetwork/ui/components";
 
+import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/config/deploy.config";
+
 type Props = {
   value: string;
   onChange: (value: string) => void;
@@ -15,6 +17,7 @@ export const DeploymentNameField: FC<Props> = ({ value, onChange, disabled }) =>
       inputClassName="h-9"
       aria-label="Deployment name"
       placeholder="Name your deployment"
+      maxLength={MAX_DEPLOYMENT_NAME_LENGTH}
       value={value}
       disabled={disabled}
       onChange={event => onChange(event.target.value)}

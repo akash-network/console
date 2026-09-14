@@ -3,6 +3,7 @@ import { ApiError } from "@akashnetwork/openapi-sdk";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useResolvedDeploymentName } from "@src/hooks/useResolvedDeploymentName/useResolvedDeploymentName";
 import { isStoredSdlSelfContained } from "@src/utils/sdl/storedDefinition";
 
 /** `absent` still carries the API's copy when it held one it could not stand behind, so the shape is visible even though the values are not. */
@@ -21,7 +22,7 @@ export function isUsableDeploymentDefinition(definition: DeploymentDefinition): 
   return !!definition.sdl && USABLE_SOURCES.includes(definition.source);
 }
 
-export const DEPENDENCIES = { useServices, useWallet };
+export const DEPENDENCIES = { useServices, useWallet, useResolvedDeploymentName };
 
 /** A deployment's SDL, from the console API when that copy is the one the chain is running, and from this browser otherwise. */
 export function useDeploymentDefinition(dseq: string | undefined | null, dependencies = DEPENDENCIES): DeploymentDefinition {
@@ -51,9 +52,8 @@ export function useDeploymentDefinition(dseq: string | undefined | null, depende
    * and serving it would present a superseded document as authoritative and re-ship it on the next update.
    */
   const isApiCopyOnChain = !!consoleSettings?.manifestVersion && consoleSettings.manifestVersion === query.data?.deployment?.hash;
-  const stored = deploymentLocalStorage.get(address, dseq);
-  const localSdl = stored?.manifest;
-  const name = stored?.name;
+  const localSdl = deploymentLocalStorage.get(address, dseq)?.manifest;
+  const name = dependencies.useResolvedDeploymentName(dseq);
 
   return useMemo(() => {
     if (isResolving) return { sdl: undefined, name, source: "resolving" };

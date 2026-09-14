@@ -4,6 +4,7 @@ import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { useResolvedDeploymentName } from "@src/hooks/useResolvedDeploymentName/useResolvedDeploymentName";
 import type { DeploymentStorageService } from "@src/services/deployment-storage/deployment-storage.service";
 import type { DEPENDENCIES } from "./useDeploymentDefinition";
 import { isUsableDeploymentDefinition, useDeploymentDefinition } from "./useDeploymentDefinition";
@@ -34,14 +35,21 @@ describe(useDeploymentDefinition.name, () => {
     expect(result.current.sdl).toBeUndefined();
   });
 
-  it("carries the deployment name while the sdl is still resolving, since the name is never the api's to answer", () => {
+  it("carries the name from this browser while the api's answer is still resolving", () => {
     const { result } = setup({ apiSdl: API_SDL, localName: "my-deployment" });
 
     expect(result.current.source).toBe("resolving");
     expect(result.current.name).toBe("my-deployment");
   });
 
-  it("carries the deployment name from this browser even when the sdl comes from the api", async () => {
+  it("prefers the name the api holds over the one this browser recorded", async () => {
+    const { result } = setup({ apiSdl: API_SDL, apiName: "renamed-elsewhere", localSdl: LOCAL_SDL, localName: "my-deployment" });
+
+    await vi.waitFor(() => expect(result.current.name).toBe("renamed-elsewhere"));
+    expect(result.current.source).toBe("api");
+  });
+
+  it("carries the name from this browser when the api holds none", async () => {
     const { result } = setup({ apiSdl: API_SDL, localSdl: LOCAL_SDL, localName: "my-deployment" });
 
     await vi.waitFor(() => expect(result.current.source).toBe("api"));
@@ -131,6 +139,7 @@ describe(useDeploymentDefinition.name, () => {
   function setup(input: {
     dseq?: string | null;
     apiSdl?: string | null;
+    apiName?: string;
     apiError?: Error;
     chainManifestVersion?: string;
     recordedManifestVersion?: string;
@@ -144,6 +153,7 @@ describe(useDeploymentDefinition.name, () => {
       return Promise.resolve({
         data: {
           deployment: { hash: chainManifestVersion },
+          name: input.apiName ?? null,
           consoleSettings: input.apiSdl ? { sdl: input.apiSdl, manifestVersion: recordedManifestVersion } : null
         }
       });
@@ -165,9 +175,14 @@ describe(useDeploymentDefinition.name, () => {
     const services = { api, deploymentLocalStorage } satisfies Partial<ReturnType<typeof DEPENDENCIES.useServices>>;
     const useServices: typeof DEPENDENCIES.useServices = () => services as unknown as ReturnType<typeof DEPENDENCIES.useServices>;
 
-    const { result } = setupQuery(() => useDeploymentDefinition(input.dseq === undefined ? "123" : input.dseq, { useServices, useWallet }), {
-      services: { api: () => api, deploymentLocalStorage: () => deploymentLocalStorage, queryClient: () => queryClient }
-    });
+    const useResolvedName: typeof DEPENDENCIES.useResolvedDeploymentName = dseq => useResolvedDeploymentName(dseq, { useServices });
+
+    const { result } = setupQuery(
+      () => useDeploymentDefinition(input.dseq === undefined ? "123" : input.dseq, { useServices, useWallet, useResolvedDeploymentName: useResolvedName }),
+      {
+        services: { api: () => api, deploymentLocalStorage: () => deploymentLocalStorage, queryClient: () => queryClient }
+      }
+    );
 
     return { result, getDeployment, deploymentLocalStorage, onQueryError };
   }
