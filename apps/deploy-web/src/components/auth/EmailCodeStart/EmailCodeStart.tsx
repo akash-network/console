@@ -43,8 +43,8 @@ export function EmailCodeStart({ dependencies: d = DEPENDENCIES, ...props }: Pro
   const startMutation = d.useMutation({
     meta: SKIP_REPORTING_CAPTCHA_OUTCOME,
     async mutationFn(input: { email: string }) {
-      analyticsService.track("email_login_init");
       const captchaToken = await props.getCaptchaToken();
+      analyticsService.track("email_login_init");
       await authService.startEmailCode({ email: input.email, captchaToken });
     },
     onSuccess(_data, variables) {

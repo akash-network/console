@@ -20,7 +20,7 @@ describe(OAuthRow.name, () => {
     });
 
     expect(authService.loginViaOauth).toHaveBeenCalledWith({ connection: "google-oauth2", returnTo: "/dashboard" });
-    expect(analyticsService.track).toHaveBeenCalledWith("social_login_init", { provider: "google-oauth2" });
+    expect(analyticsService.track).toHaveBeenCalledWith("social_login_init", { provider: "google-oauth2" }, "GA");
   });
 
   it("redirects to GitHub OAuth with the resolved returnTo", async () => {
@@ -33,7 +33,7 @@ describe(OAuthRow.name, () => {
     });
 
     expect(authService.loginViaOauth).toHaveBeenCalledWith({ connection: "github", returnTo: "/dashboard" });
-    expect(analyticsService.track).toHaveBeenCalledWith("social_login_init", { provider: "github" });
+    expect(analyticsService.track).toHaveBeenCalledWith("social_login_init", { provider: "github" }, "GA");
   });
 
   function setup(input: { returnTo?: string; dependencies?: Partial<typeof DEPENDENCIES> } = {}) {

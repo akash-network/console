@@ -56,12 +56,12 @@ export function PasswordAuth({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const signInOrSignUp = useMutation({
     meta: SKIP_REPORTING_CAPTCHA_OUTCOME,
     async mutationFn(input: Tagged<"signin", SignInFormValues> | Tagged<"signup", SignUpFormValues>) {
-      analyticsService.track("password_auth_submit", { type: input.type });
       if (!turnstileRef.current) {
         throw new Error("Captcha has not been rendered");
       }
 
       const { token: captchaToken } = await turnstileRef.current.renderAndWaitResponse();
+      analyticsService.track("password_auth_submit", { type: input.type });
 
       if (input.type === "signin") {
         await authService.login({ ...input.value, captchaToken });

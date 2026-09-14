@@ -52,11 +52,7 @@ describe(AnalyticsService.name, () => {
           track
         },
         storage: {
-          getItem: vi.fn().mockReturnValue(
-            JSON.stringify({
-              connect_wallet: "none"
-            })
-          ),
+          getItem: key => (key === "analytics_values_cache" ? JSON.stringify({ connect_wallet: "none" }) : null),
           setItem: vi.fn()
         },
         options: {
@@ -213,6 +209,25 @@ describe(AnalyticsService.name, () => {
       expect(track).not.toHaveBeenCalled();
       expect(dataLayer).toContainEqual({ event: "connect_wallet", ...properties });
     });
+
+    it("does not initialize amplitude when the event targets GA only", () => {
+      const init = vi.fn();
+      const add = vi.fn();
+      const track = vi.fn();
+      const service = setup({
+        amplitude: { init, add, track },
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: true, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.track("captcha_abandoned", "GA");
+
+      expect(init).not.toHaveBeenCalled();
+      expect(add).not.toHaveBeenCalled();
+      expect(track).not.toHaveBeenCalled();
+    });
   });
 
   describe("utm attribution", () => {
@@ -277,6 +292,101 @@ describe(AnalyticsService.name, () => {
       const service = setup({
         amplitude: { track },
         locationSearch: "",
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.track("onboarding_deploy_click", { category: "onboarding" });
+
+      expect(track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding" });
+    });
+  });
+
+  describe("first-touch referrer", () => {
+    it("stamps the referring domain onto tracked events", () => {
+      const track = vi.fn();
+      const service = setup({
+        amplitude: { track },
+        referrer: "https://news.ycombinator.com/item?id=1",
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.track("onboarding_deploy_click", { category: "onboarding" });
+
+      expect(track).toHaveBeenCalledWith("onboarding_deploy_click", {
+        category: "onboarding",
+        first_touch_referring_domain: "news.ycombinator.com"
+      });
+    });
+
+    it("sets the referring domain as a user property so new users can be grouped by it", () => {
+      const identify = vi.fn();
+      const service = setup({
+        amplitude: { identify },
+        referrer: "https://news.ycombinator.com/item?id=1",
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.track("onboarding_deploy_click");
+
+      expect(identify).toHaveBeenCalled();
+    });
+
+    it("ignores an internal navigation so it cannot overwrite the original source", () => {
+      const track = vi.fn();
+      const setItem = vi.fn();
+      const service = setup({
+        amplitude: { track },
+        storage: { getItem: vi.fn(), setItem },
+        referrer: "https://console.akash.network/deploy",
+        hostname: "console.akash.network",
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.track("onboarding_deploy_click", { category: "onboarding" });
+
+      expect(track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding" });
+      expect(setItem).not.toHaveBeenCalledWith("analytics_referrer", expect.anything());
+    });
+
+    it("freezes the first referring domain and ignores the one from a later visit", () => {
+      const track = vi.fn();
+      const setItem = vi.fn();
+      const service = setup({
+        amplitude: { track },
+        storage: { getItem: key => (key === "analytics_referrer" ? "news.ycombinator.com" : null), setItem },
+        referrer: "https://www.google.com/search",
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.track("onboarding_deploy_click", { category: "onboarding" });
+
+      expect(track).toHaveBeenCalledWith("onboarding_deploy_click", {
+        category: "onboarding",
+        first_touch_referring_domain: "news.ycombinator.com"
+      });
+      expect(setItem).not.toHaveBeenCalledWith("analytics_referrer", expect.anything());
+    });
+
+    it("stamps nothing when the visit carries no referrer", () => {
+      const track = vi.fn();
+      const service = setup({
+        amplitude: { track },
+        referrer: "",
         options: {
           amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
           ga: { enabled: false, measurementId: mockGaMeasurementId }
@@ -497,6 +607,7 @@ describe(AnalyticsService.name, () => {
     storage?: Pick<Storage, "getItem" | "setItem">;
     locationSearch?: string;
     hostname?: string;
+    referrer?: string;
   }) {
     const amplitude = {
       init: vi.fn(),
@@ -525,7 +636,8 @@ describe(AnalyticsService.name, () => {
       () => dataLayer,
       storage,
       () => params.locationSearch ?? "",
-      () => params.hostname ?? "console.akash.network"
+      () => params.hostname ?? "console.akash.network",
+      () => params.referrer ?? ""
     );
   }
 });

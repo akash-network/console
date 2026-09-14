@@ -163,6 +163,9 @@ const STATIC_DEPLOYMENT_PATH = "/deployments/[dseq]";
 
 const UTM_PARAM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"] as const;
 
+/** Amplitude's own attribution reads the referrer only when it initializes, which is later than the visit the user should be attributed to. */
+const FIRST_TOUCH_REFERRER_PROPERTY = "first_touch_referring_domain";
+
 const isBrowser = typeof window !== "undefined";
 
 /**
@@ -187,6 +190,7 @@ export type Amplitude = Pick<typeof amplitude, "init" | "Identify" | "identify" 
 export class AnalyticsService {
   private readonly STORAGE_KEY = "analytics_values_cache";
   private readonly UTM_STORAGE_KEY = "analytics_utm";
+  private readonly REFERRER_STORAGE_KEY = "analytics_referrer";
 
   private readonly valuesCache: Map<string, string> = this.loadSwitchValuesFromStorage();
 
@@ -196,16 +200,21 @@ export class AnalyticsService {
   /** First-touch UTM params, stamped onto every tracked event so acquisition funnels can be attributed to a campaign. */
   private readonly utmProperties: Record<string, string>;
 
+  /** First-touch referring domain, stamped onto every tracked event so acquisition source outlives Amplitude initializing after the visit that earned it. */
+  private readonly referrerProperties: Record<string, string>;
+
   constructor(
     private readonly options: AnalyticsOptions,
     private readonly amplitudeClient: Amplitude = amplitude,
     private readonly getDataLayer: () => Record<string, unknown>[] | undefined = () => (isBrowser ? window.dataLayer : undefined),
     private readonly storage: Pick<Storage, "getItem" | "setItem"> | undefined = isBrowser ? window.localStorage : undefined,
     private readonly getLocationSearch: () => string = () => (isBrowser ? window.location.search : ""),
-    private readonly getHostname: () => string = () => (isBrowser ? window.location.hostname : "")
+    private readonly getHostname: () => string = () => (isBrowser ? window.location.hostname : ""),
+    private readonly getReferrer: () => string = () => (isBrowser ? document.referrer : "")
   ) {
     this.isAmplitudeEnabled = this.options.amplitude.enabled && isTrackableHostname(this.getHostname());
     this.utmProperties = this.captureFirstTouchUtm();
+    this.referrerProperties = this.captureFirstTouchReferrer();
   }
 
   /**
@@ -260,6 +269,40 @@ export class AnalyticsService {
     return utm;
   }
 
+  private captureFirstTouchReferrer(): Record<string, string> {
+    if (!isBrowser) {
+      return {};
+    }
+
+    const storedDomain = this.storage?.getItem(this.REFERRER_STORAGE_KEY);
+    if (storedDomain) {
+      return { [FIRST_TOUCH_REFERRER_PROPERTY]: storedDomain };
+    }
+
+    const referringDomain = this.readExternalReferringDomain();
+    if (!referringDomain) {
+      return {};
+    }
+
+    this.storage?.setItem(this.REFERRER_STORAGE_KEY, referringDomain);
+    return { [FIRST_TOUCH_REFERRER_PROPERTY]: referringDomain };
+  }
+
+  /** Our own host means an internal navigation, which would otherwise overwrite the source that actually brought the visitor in. */
+  private readExternalReferringDomain(): string | undefined {
+    const referrer = this.getReferrer();
+    if (!referrer) {
+      return undefined;
+    }
+
+    try {
+      const { hostname } = new URL(referrer);
+      return hostname && hostname !== this.getHostname() ? hostname : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   private loadSwitchValuesFromStorage() {
     if (typeof window !== "undefined") {
       const stored = this.storage?.getItem(this.STORAGE_KEY);
@@ -301,6 +344,7 @@ export class AnalyticsService {
     }
   }
 
+  /** Initializing mints a billed tracked user and starts session replay, so nothing on the unauthenticated login page may reach Amplitude before a captcha is solved. */
   private initAmplitude() {
     if (this.amplitudeInitialized) {
       return;
@@ -315,6 +359,18 @@ export class AnalyticsService {
 
     this.amplitudeClient.init(this.options.amplitude.apiKey, undefined, initOptions);
     this.amplitudeInitialized = true;
+    this.setFirstTouchReferrerUserProperty();
+  }
+
+  private setFirstTouchReferrerUserProperty() {
+    const referringDomain = this.referrerProperties[FIRST_TOUCH_REFERRER_PROPERTY];
+    if (!referringDomain) {
+      return;
+    }
+
+    const event = new this.amplitudeClient.Identify();
+    event.set(FIRST_TOUCH_REFERRER_PROPERTY, referringDomain);
+    this.amplitudeClient.identify(event);
   }
 
   trackSwitch(eventName: "connect_wallet", value: "managed", target?: AnalyticsTarget): void;
@@ -347,7 +403,7 @@ export class AnalyticsService {
 
     const analyticsTarget = typeof eventPropertiesOrTarget === "string" ? eventPropertiesOrTarget : target;
     const eventProperties = typeof eventPropertiesOrTarget === "object" ? eventPropertiesOrTarget : {};
-    const enrichedProperties = { ...this.utmProperties, ...eventProperties };
+    const enrichedProperties = { ...this.utmProperties, ...this.referrerProperties, ...eventProperties };
 
     if (this.isAmplitudeEnabled && (!analyticsTarget || analyticsTarget === "Amplitude")) {
       this.initAmplitude();

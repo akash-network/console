@@ -5,6 +5,7 @@ import type { NextRouter } from "next/router";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { CaptchaChallengeError } from "@src/components/turnstile/CaptchaChallengeError";
 import type { TurnstileRef } from "@src/components/turnstile/Turnstile";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { AuthService } from "@src/services/auth/auth/auth.service";
@@ -83,6 +84,22 @@ describe(PasswordAuth.name, () => {
     await act(async () => TabsMock.mock.lastCall![0].onValueChange?.("signup"));
     await act(async () => solvePendingCaptcha({ token: "test-captcha-token" }));
 
+    expect(authService.login).not.toHaveBeenCalled();
+  });
+
+  it("does not track password_auth_submit when the captcha is never solved", async () => {
+    const SignInFormMock = vi.fn(ComponentMock as typeof SignInForm);
+    const { authService, analyticsService, renderAndWaitResponse } = setup({
+      dependencies: { SignInForm: SignInFormMock }
+    });
+    renderAndWaitResponse.mockRejectedValue(new CaptchaChallengeError("abandoned"));
+
+    await act(async () => SignInFormMock.mock.lastCall![0].onSubmit({ email: "test@example.com", password: "password123" }));
+
+    await vi.waitFor(() => {
+      expect(renderAndWaitResponse).toHaveBeenCalled();
+    });
+    expect(analyticsService.track).not.toHaveBeenCalled();
     expect(authService.login).not.toHaveBeenCalled();
   });
 
