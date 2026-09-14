@@ -17,7 +17,7 @@ export const DeploymentSpecSummary: FC<DeploymentSpecSummaryProps> = ({ deployme
   const hasGpu = !!deployment.gpuAmount;
 
   return (
-    <div className={cn("flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground", className)}>
+    <div className={cn("flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground", className)}>
       {hasGpu && <Spec label="GPU" icon={<MdDeveloperBoard />} value={formatGpuLabel(deployment.gpuAmount ?? 0, getDeploymentGpuModels(deployment.groups))} />}
       <Spec label="vCPU" icon={<MdSpeed />} value={roundDecimal(deployment.cpuAmount, 2)} />
       <Spec label="Memory" icon={<MdMemory />} value={formatByteSize(deployment.memoryAmount)} />
@@ -28,7 +28,7 @@ export const DeploymentSpecSummary: FC<DeploymentSpecSummaryProps> = ({ deployme
 
 const Spec: FC<{ label: string; icon: ReactNode; value: ReactNode }> = ({ label, icon, value }) => (
   <span className="inline-flex items-center gap-1.5 whitespace-nowrap" title={label}>
-    <span className="text-base" aria-hidden="true">
+    <span className="text-sm" aria-hidden="true">
       {icon}
     </span>
     <span aria-label={label}>{value}</span>

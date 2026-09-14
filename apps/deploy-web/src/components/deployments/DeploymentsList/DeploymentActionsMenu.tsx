@@ -55,7 +55,7 @@ export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({ deployme
     <DropdownMenu modal={false} open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
         <Button aria-label={`Actions for deployment ${deployment.dseq}`} size="icon" variant="ghost" className="rounded-full">
-          <MoreHoriz />
+          <MoreHoriz className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" onClick={event => event.stopPropagation()}>

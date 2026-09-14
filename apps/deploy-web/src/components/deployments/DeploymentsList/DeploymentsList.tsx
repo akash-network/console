@@ -64,7 +64,18 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
 
       {model.hasWallet && (
         <div className="flex flex-wrap items-center gap-3 pb-6">
-          <h1 className="mr-auto text-3xl font-bold tracking-tight">Deployments</h1>
+          <div className="mr-auto flex items-center gap-6">
+            <h1 className="text-3xl font-bold tracking-tight">Deployments</h1>
+
+            {model.selectedItemIds.length > 0 && (
+              <>
+                <Button onClick={model.closeSelectedDeployments} color="secondary" size="sm">
+                  Close selected ({model.selectedItemIds.length})
+                </Button>
+                <LinkTo onClick={model.clearSelection}>Clear</LinkTo>
+              </>
+            )}
+          </div>
 
           {model.hasAnyDeployment && (
             <>
@@ -111,15 +122,6 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
               <NavArrowRight className="h-4 w-4" />
             </Link>
           )}
-        </div>
-      )}
-
-      {model.selectedItemIds.length > 0 && (
-        <div className="flex items-center gap-4 pb-6">
-          <Button onClick={model.closeSelectedDeployments} color="secondary" size="sm">
-            Close selected ({model.selectedItemIds.length})
-          </Button>
-          <LinkTo onClick={model.clearSelection}>Clear</LinkTo>
         </div>
       )}
 
