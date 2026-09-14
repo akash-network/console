@@ -55,6 +55,17 @@ export class DataKeyRepository extends BaseRepository<Table, DataKeyInput, DataK
     return { dataKey: winner, isNew: false };
   }
 
+  /** Guards the write on the wrapping the caller opened, so a row another writer moved in between is left to that writer. */
+  async rewrapIfStillWrappedUnder(
+    id: DataKeyOutput["id"],
+    wrappedByKid: DataKeyOutput["wrappedByKid"],
+    rewrapped: Pick<DataKeyInput, "wrappedKey" | "wrappedByKid">
+  ): Promise<boolean> {
+    const row = await this.updateBy({ id, wrappedByKid }, rewrapped, { returning: true });
+
+    return row !== undefined;
+  }
+
   /** Answers whether a KMS key version may still be destroyed without making stored data keys unrecoverable. */
   async countWrappedUnder(wrappedByKid: DataKeyOutput["wrappedByKid"]): Promise<number> {
     return this.count({ wrappedByKid });

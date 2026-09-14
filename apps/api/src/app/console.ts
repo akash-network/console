@@ -126,7 +126,7 @@ program
 program
   .command("rewrap-data-keys")
   .description("Re-wrap every user's data key onto a KMS key version, so the versions it leaves behind can be disabled")
-  .requiredOption("-t, --target-version <string>", "KMS key version every data key is wrapped under", value => z.string().min(1).parse(value))
+  .requiredOption("-t, --target-version <string>", "KMS key version to move every data key onto, which must be the one this console is configured to wrap under", value => z.string().min(1).parse(value))
   .option("-b, --batch-size <number>", "How many data keys are re-wrapped per transaction", value => z.number({ coerce: true }).int().positive().parse(value))
   .option("-d, --dry-run", "Report the census and what would be re-wrapped without writing anything", false)
   .action(async (options, command) => {
