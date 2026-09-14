@@ -103,11 +103,7 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
       .where(and(eq(this.table.lastFingerprint, fingerprint), ne(this.table.id, excludeUserId)));
   }
 
-  /**
-   * Whether the domain has an account older than the window, which means it is somebody's real domain
-   * rather than one registered for this attack. The triggering account never counts as that evidence,
-   * or aging one signup past the window would keep its own domain out of reach for good.
-   */
+  /** The triggering account never counts as evidence that its own domain predates the attack, or aging one signup past the window would put that domain permanently out of reach. */
   async hasEstablishedUserWithEmailDomain(domain: string, minAgeDays: number, excludeUserId: string): Promise<boolean> {
     const [match] = await this.pg
       .select({ id: this.table.id })

@@ -109,13 +109,7 @@ export class EmailDomainBlockService {
     return true;
   }
 
-  /**
-   * Fans out one job per wallet rather than wiping in a loop, so a wallet whose escrow will not settle
-   * retries on its own budget instead of stalling the rest of the domain. Detect mode stops here, which
-   * is what keeps a domain an operator blocked by hand from wiping anything before the rollout is armed.
-   * Every sibling is attempted before the first enqueue failure is rethrown, because nothing else requeues
-   * a sibling this sweep dropped and the retry re-reads the wallets still worth queueing.
-   */
+  /** Nothing else requeues a sibling this sweep drops, so every sibling is attempted and the first enqueue failure is rethrown onto the job's retry budget. */
   async #sweepSiblings(domain: string, wallet: WalletInitialized): Promise<void> {
     if (!this.#isEnforcing) return;
 
