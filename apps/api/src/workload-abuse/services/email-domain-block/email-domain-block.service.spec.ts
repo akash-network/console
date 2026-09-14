@@ -106,7 +106,16 @@ describe(EmailDomainBlockService.name, () => {
 
         await service.blockDomainOf(wallet);
 
-        expect(userRepository.hasEstablishedUserWithEmailDomain).toHaveBeenCalledWith("attacker.com", 45);
+        expect(userRepository.hasEstablishedUserWithEmailDomain).toHaveBeenCalledWith("attacker.com", 45, wallet.userId);
+      });
+
+      it("does not let the caught account vouch for its own domain", async () => {
+        const { service, wallet, userRepository, blockedEmailDomainRepository } = setup({ email: "miner@attacker.com", hasEstablishedUser: false });
+
+        await service.blockDomainOf(wallet);
+
+        expect(userRepository.hasEstablishedUserWithEmailDomain).toHaveBeenCalledWith("attacker.com", expect.any(Number), wallet.userId);
+        expect(blockedEmailDomainRepository.blockIfAbsent).toHaveBeenCalled();
       });
     });
 
@@ -170,7 +179,7 @@ describe(EmailDomainBlockService.name, () => {
         expect(jobQueueService.enqueue).not.toHaveBeenCalled();
       });
 
-      it("keeps enqueuing the rest when one sibling fails", async () => {
+      it("keeps enqueuing the rest when one sibling fails, then rethrows so the sweep is retried", async () => {
         const { service, wallet, jobQueueService, logger } = setup({
           email: "miner@attacker.com",
           siblings: [
@@ -180,10 +189,14 @@ describe(EmailDomainBlockService.name, () => {
         });
         jobQueueService.enqueue.mockRejectedValueOnce(new Error("queue unavailable"));
 
-        await service.blockDomainOf(wallet);
+        await expect(service.blockDomainOf(wallet)).rejects.toThrow("queue unavailable");
 
         expect(jobQueueService.enqueue).toHaveBeenCalledTimes(2);
+        expect(jobQueueService.enqueue).toHaveBeenCalledWith(new LockBlockedDomainWallet({ walletId: 9, domain: "attacker.com" }), {
+          singletonKey: "lockBlockedDomainWallet.9"
+        });
         expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "BLOCKED_DOMAIN_SIBLING_ENQUEUE_FAILED", walletId: 7 }));
+        expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "BLOCKED_DOMAIN_SIBLINGS_SWEPT", enqueued: 1, failed: 1 }));
       });
 
       it("records reaching the sibling limit, because a match that broad needs a human", async () => {

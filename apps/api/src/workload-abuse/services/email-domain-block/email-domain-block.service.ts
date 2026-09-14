@@ -67,7 +67,8 @@ export class EmailDomainBlockService {
     if (await this.stripeTransactionRepository.hasPaidUserWithEmailDomain(domain)) return this.#skip("domain_has_paid_user", context);
 
     const minAccountAgeDays = this.config.get("WORKLOAD_ABUSE_DOMAIN_BLOCK_MIN_ACCOUNT_AGE_DAYS");
-    if (await this.userRepository.hasEstablishedUserWithEmailDomain(domain, minAccountAgeDays)) return this.#skip("domain_predates_attack", context);
+    if (await this.userRepository.hasEstablishedUserWithEmailDomain(domain, minAccountAgeDays, wallet.userId))
+      return this.#skip("domain_predates_attack", context);
 
     if (!this.#isEnforcing) {
       this.instrumentation.recordDomainBlock("dry_run");
@@ -112,6 +113,8 @@ export class EmailDomainBlockService {
    * Fans out one job per wallet rather than wiping in a loop, so a wallet whose escrow will not settle
    * retries on its own budget instead of stalling the rest of the domain. Detect mode stops here, which
    * is what keeps a domain an operator blocked by hand from wiping anything before the rollout is armed.
+   * Every sibling is attempted before the first enqueue failure is rethrown, because nothing else requeues
+   * a sibling this sweep dropped and the retry re-reads the wallets still worth queueing.
    */
   async #sweepSiblings(domain: string, wallet: WalletInitialized): Promise<void> {
     if (!this.#isEnforcing) return;
@@ -130,6 +133,7 @@ export class EmailDomainBlockService {
     let enqueued = 0;
     let alreadyQueued = 0;
     let failed = 0;
+    let firstError: unknown;
 
     for (const { walletId } of siblings) {
       const singletonKey = lockBlockedDomainWalletKeyFor(walletId);
@@ -146,10 +150,13 @@ export class EmailDomainBlockService {
       } catch (error) {
         this.logger.error({ event: "BLOCKED_DOMAIN_SIBLING_ENQUEUE_FAILED", domain, walletId, error });
         failed++;
+        firstError ??= error;
       }
     }
 
     this.logger.info({ event: "BLOCKED_DOMAIN_SIBLINGS_SWEPT", domain, found: siblings.length, enqueued, alreadyQueued, failed });
+
+    if (firstError) throw firstError;
   }
 
   get #isEnforcing(): boolean {

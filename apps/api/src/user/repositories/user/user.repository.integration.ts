@@ -145,33 +145,48 @@ describe(UserRepository.name, () => {
 
   describe("hasEstablishedUserWithEmailDomain", () => {
     it("answers true for a domain with an account older than the window", async () => {
-      const { userRepository, domain, createUserOnDomain } = setupDomain();
+      const { userRepository, domain, createUserOnDomain, someoneElse } = setupDomain();
       await createUserOnDomain({ createdAt: subDays(new Date(), 45) });
 
-      await expect(userRepository.hasEstablishedUserWithEmailDomain(domain, 30)).resolves.toBe(true);
+      await expect(userRepository.hasEstablishedUserWithEmailDomain(domain, 30, someoneElse)).resolves.toBe(true);
     });
 
     it("answers false when every account on the domain is newer than the window", async () => {
-      const { userRepository, domain, createUserOnDomain } = setupDomain();
+      const { userRepository, domain, createUserOnDomain, someoneElse } = setupDomain();
       await createUserOnDomain({ createdAt: subDays(new Date(), 5) });
 
-      await expect(userRepository.hasEstablishedUserWithEmailDomain(domain, 30)).resolves.toBe(false);
+      await expect(userRepository.hasEstablishedUserWithEmailDomain(domain, 30, someoneElse)).resolves.toBe(false);
+    });
+
+    it("ignores the excluded account, so aging one signup cannot vouch for its own domain", async () => {
+      const { userRepository, domain, createUserOnDomain } = setupDomain();
+      const attacker = await createUserOnDomain({ createdAt: subDays(new Date(), 45) });
+
+      await expect(userRepository.hasEstablishedUserWithEmailDomain(domain, 30, attacker.id)).resolves.toBe(false);
+    });
+
+    it("still answers true when another account on the domain predates the window", async () => {
+      const { userRepository, domain, createUserOnDomain } = setupDomain();
+      const attacker = await createUserOnDomain({ createdAt: subDays(new Date(), 45) });
+      await createUserOnDomain({ createdAt: subDays(new Date(), 45) });
+
+      await expect(userRepository.hasEstablishedUserWithEmailDomain(domain, 30, attacker.id)).resolves.toBe(true);
     });
 
     it("matches the domain part only, never a domain that merely contains it", async () => {
-      const { userRepository, domain, createUserOnDomain } = setupDomain();
+      const { userRepository, domain, createUserOnDomain, someoneElse } = setupDomain();
       await createUserOnDomain({ createdAt: subDays(new Date(), 45) }, `x${domain}`);
       await createUserOnDomain({ createdAt: subDays(new Date(), 45) }, `${domain}.attacker.net`);
       await createUserOnDomain({ createdAt: subDays(new Date(), 45) }, `mail.${domain}`);
 
-      await expect(userRepository.hasEstablishedUserWithEmailDomain(domain, 30)).resolves.toBe(false);
+      await expect(userRepository.hasEstablishedUserWithEmailDomain(domain, 30, someoneElse)).resolves.toBe(false);
     });
 
     it("matches a stored address whatever its case", async () => {
-      const { userRepository, domain, createUserOnDomain } = setupDomain();
+      const { userRepository, domain, createUserOnDomain, someoneElse } = setupDomain();
       await createUserOnDomain({ createdAt: subDays(new Date(), 45) }, domain.toUpperCase());
 
-      await expect(userRepository.hasEstablishedUserWithEmailDomain(domain, 30)).resolves.toBe(true);
+      await expect(userRepository.hasEstablishedUserWithEmailDomain(domain, 30, someoneElse)).resolves.toBe(true);
     });
   });
 
@@ -187,7 +202,7 @@ describe(UserRepository.name, () => {
       });
     }
 
-    return { userRepository, domain, createUserOnDomain };
+    return { userRepository, domain, createUserOnDomain, someoneElse: faker.string.uuid() };
   }
 
   function setup() {

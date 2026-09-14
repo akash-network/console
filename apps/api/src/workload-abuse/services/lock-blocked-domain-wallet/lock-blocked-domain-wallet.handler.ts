@@ -2,6 +2,8 @@ import { inject, singleton } from "tsyringe";
 
 import { isWalletInitialized, UserWalletRepository, type WalletInitialized } from "@src/billing/repositories";
 import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
+import { UserRepository } from "@src/user/repositories";
+import { extractEmailDomain } from "@src/workload-abuse/lib/email-domain/email-domain";
 import { BlockedEmailDomainRepository } from "@src/workload-abuse/repositories/blocked-email-domain/blocked-email-domain.repository";
 import {
   BLOCKED_DOMAIN_LOCK_REASON,
@@ -41,6 +43,7 @@ export class LockBlockedDomainWalletHandler implements JobHandler<LockBlockedDom
 
   constructor(
     private readonly userWalletRepository: UserWalletRepository,
+    private readonly userRepository: UserRepository,
     private readonly blockedEmailDomainRepository: BlockedEmailDomainRepository,
     private readonly enforcementService: TrialAbuseEnforcementService,
     private readonly instrumentation: WorkloadAbuseInstrumentationService,
@@ -78,6 +81,11 @@ export class LockBlockedDomainWalletHandler implements JobHandler<LockBlockedDom
       return;
     }
 
+    if (!(await this.#isWalletStillOnDomain(wallet.userId, domain))) {
+      this.#skip("DOMAIN_CHANGED", { ...context, userId: wallet.userId });
+      return;
+    }
+
     const outcome = await this.#wipe(wallet, { ...context, userId: wallet.userId });
 
     if (!outcome) {
@@ -103,6 +111,13 @@ export class LockBlockedDomainWalletHandler implements JobHandler<LockBlockedDom
   /** Reads the row rather than the cached verdict, so an operator un-blocking the domain mid-sweep stops the wipes still queued behind it. */
   async #isDomainStillBlocked(domain: string): Promise<boolean> {
     return (await this.blockedEmailDomainRepository.findByDomain(domain))?.status === "blocked";
+  }
+
+  /** The sweep picked this wallet off its owner's email, which every login rewrites, so the domain is re-read rather than trusted from the payload. */
+  async #isWalletStillOnDomain(userId: string, domain: string): Promise<boolean> {
+    const user = await this.userRepository.findById(userId);
+
+    return extractEmailDomain(user?.email) === domain;
   }
 
   #skip(reason: string, context: Record<string, unknown>): void {

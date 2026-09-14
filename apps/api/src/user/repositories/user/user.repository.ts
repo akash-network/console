@@ -105,13 +105,20 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
 
   /**
    * Whether the domain has an account older than the window, which means it is somebody's real domain
-   * rather than one registered for this attack.
+   * rather than one registered for this attack. The triggering account never counts as that evidence,
+   * or aging one signup past the window would keep its own domain out of reach for good.
    */
-  async hasEstablishedUserWithEmailDomain(domain: string, minAgeDays: number): Promise<boolean> {
+  async hasEstablishedUserWithEmailDomain(domain: string, minAgeDays: number, excludeUserId: string): Promise<boolean> {
     const [match] = await this.pg
       .select({ id: this.table.id })
       .from(this.table)
-      .where(and(sql`lower(${this.table.email}) LIKE ${"%@"} || ${domain}`, lt(this.table.createdAt, sql`now() - make_interval(days => ${minAgeDays})`)))
+      .where(
+        and(
+          sql`lower(${this.table.email}) LIKE ${"%@"} || ${domain}`,
+          lt(this.table.createdAt, sql`now() - make_interval(days => ${minAgeDays})`),
+          ne(this.table.id, excludeUserId)
+        )
+      )
       .limit(1);
 
     return !!match;

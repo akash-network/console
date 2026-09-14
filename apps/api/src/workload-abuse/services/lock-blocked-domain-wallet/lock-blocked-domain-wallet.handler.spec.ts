@@ -3,12 +3,14 @@ import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { CreateLogger } from "@src/core";
+import type { UserRepository } from "@src/user/repositories";
 import type { BlockedEmailDomainRepository } from "@src/workload-abuse/repositories/blocked-email-domain/blocked-email-domain.repository";
 import type { EnforcementOutcome, TrialAbuseEnforcementService } from "@src/workload-abuse/services/trial-abuse-enforcement/trial-abuse-enforcement.service";
 import type { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
 import { LockBlockedDomainWalletHandler, lockBlockedDomainWalletKeyFor } from "./lock-blocked-domain-wallet.handler";
 
 import { createBlockedEmailDomain } from "@test/seeders/blocked-email-domain.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 const PAYLOAD = { walletId: 42, domain: "attacker.com", version: 1 as const };
@@ -40,7 +42,9 @@ describe(LockBlockedDomainWalletHandler.name, () => {
     { reason: "WALLET_NOT_FOUND", input: { wallet: null } },
     { reason: "ALREADY_LOCKED", input: { wallet: createUserWallet({ isTrialing: true, abuseLockedAt: new Date() }) } },
     { reason: "NOT_TRIALING", input: { wallet: createUserWallet({ isTrialing: false }) } },
-    { reason: "DOMAIN_NOT_BLOCKED", input: { wallet: createUserWallet({ isTrialing: true }), blockedDomain: null } }
+    { reason: "DOMAIN_NOT_BLOCKED", input: { wallet: createUserWallet({ isTrialing: true }), blockedDomain: null } },
+    { reason: "DOMAIN_CHANGED", input: { wallet: createUserWallet({ isTrialing: true }), ownerEmail: "someone@elsewhere.com" } },
+    { reason: "DOMAIN_CHANGED", input: { wallet: createUserWallet({ isTrialing: true }), ownerEmail: null } }
   ])("skips with $reason without wiping", async ({ reason, input }) => {
     const { handler, enforcementService, instrumentation, logger } = setup(input);
 
@@ -102,9 +106,13 @@ describe(LockBlockedDomainWalletHandler.name, () => {
     wallet: ReturnType<typeof createUserWallet> | null;
     blockedDomain?: ReturnType<typeof createBlockedEmailDomain> | null;
     enforcementOutcome?: EnforcementOutcome | null;
+    ownerEmail?: string | null;
   }) {
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findById.mockResolvedValue(input.wallet ?? undefined);
+    const userRepository = mock<UserRepository>({
+      findById: vi.fn().mockResolvedValue(createUser({ email: input.ownerEmail === undefined ? `owner@${PAYLOAD.domain}` : input.ownerEmail }))
+    });
     const blockedEmailDomainRepository = mock<BlockedEmailDomainRepository>({
       findByDomain: vi
         .fn()
@@ -119,8 +127,15 @@ describe(LockBlockedDomainWalletHandler.name, () => {
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    const handler = new LockBlockedDomainWalletHandler(userWalletRepository, blockedEmailDomainRepository, enforcementService, instrumentation, createLogger);
+    const handler = new LockBlockedDomainWalletHandler(
+      userWalletRepository,
+      userRepository,
+      blockedEmailDomainRepository,
+      enforcementService,
+      instrumentation,
+      createLogger
+    );
 
-    return { handler, wallet: input.wallet!, userWalletRepository, blockedEmailDomainRepository, enforcementService, instrumentation, logger };
+    return { handler, wallet: input.wallet!, userWalletRepository, userRepository, blockedEmailDomainRepository, enforcementService, instrumentation, logger };
   }
 });
