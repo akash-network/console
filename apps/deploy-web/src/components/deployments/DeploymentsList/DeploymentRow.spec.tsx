@@ -74,7 +74,7 @@ describe("DeploymentRow", () => {
   });
 
   it("spans the whole table with the endpoint panel, so a long host reads on one line", async () => {
-    setup({ deployment: { dseq: "100" }, endpoints: [endpoint("api.acmecorp.com")] });
+    setup({ deployment: { dseq: "100" }, endpoints: [endpoint("api.acmecorp.com"), endpoint("shop.acmecorp.com")] });
 
     await userEvent.click(screen.getByRole("button", { name: "toggle endpoints" }));
 
@@ -82,7 +82,7 @@ describe("DeploymentRow", () => {
   });
 
   it("closes the endpoint row again on demand", async () => {
-    setup({ deployment: { dseq: "100" }, endpoints: [endpoint("api.acmecorp.com")] });
+    setup({ deployment: { dseq: "100" }, endpoints: [endpoint("api.acmecorp.com"), endpoint("shop.acmecorp.com")] });
 
     await userEvent.click(screen.getByRole("button", { name: "toggle endpoints" }));
     await userEvent.click(screen.getByRole("button", { name: "toggle endpoints" }));
@@ -91,11 +91,22 @@ describe("DeploymentRow", () => {
   });
 
   it("reports the row as expanded to the endpoint toggle that drew it", async () => {
-    const { DeploymentEndpoints } = setup({ deployment: { dseq: "100" }, endpoints: [endpoint("api.acmecorp.com")] });
+    const { DeploymentEndpoints } = setup({ deployment: { dseq: "100" }, endpoints: [endpoint("api.acmecorp.com"), endpoint("shop.acmecorp.com")] });
 
     await userEvent.click(screen.getByRole("button", { name: "toggle endpoints" }));
 
     expect(DeploymentEndpoints).toHaveBeenLastCalledWith(expect.objectContaining({ isExpanded: true }), expect.anything());
+  });
+
+  it("closes an open endpoint panel when a poll drops the row below two endpoints", async () => {
+    const { rerenderWith } = setup({ deployment: { dseq: "100" }, endpoints: [endpoint("api.acmecorp.com"), endpoint("shop.acmecorp.com")] });
+
+    await userEvent.click(screen.getByRole("button", { name: "toggle endpoints" }));
+    expect(screen.getAllByRole("row")).toHaveLength(2);
+
+    rerenderWith([endpoint("api.acmecorp.com")]);
+
+    expect(screen.getAllByRole("row")).toHaveLength(1);
   });
 
   function endpoint(host: string): VisitEndpoint {
@@ -108,7 +119,7 @@ describe("DeploymentRow", () => {
     isSelected?: boolean;
     endpoints?: VisitEndpoint[];
   }) {
-    const endpoints = input.endpoints ?? [];
+    let endpoints = input.endpoints ?? [];
     const useDeploymentReachability = vi.fn<typeof DEPENDENCIES.useDeploymentReachability>(() => ({
       leases: [],
       isLoadingLeases: false,
@@ -128,7 +139,7 @@ describe("DeploymentRow", () => {
     const onSelect = vi.fn();
     const deployment = { state: "active", ...input.deployment } as NamedDeploymentDto;
 
-    render(
+    const renderRow = () => (
       <table>
         <tbody>
           <DeploymentRow
@@ -143,6 +154,20 @@ describe("DeploymentRow", () => {
       </table>
     );
 
-    return { ...input, onSelect, useDeploymentReachability, providers, deployment, DeploymentEndpoints, DeploymentEndpointsPanel };
+    const { rerender } = render(renderRow());
+
+    return {
+      ...input,
+      onSelect,
+      useDeploymentReachability,
+      providers,
+      deployment,
+      DeploymentEndpoints,
+      DeploymentEndpointsPanel,
+      rerenderWith(next: VisitEndpoint[]) {
+        endpoints = next;
+        rerender(renderRow());
+      }
+    };
   }
 });

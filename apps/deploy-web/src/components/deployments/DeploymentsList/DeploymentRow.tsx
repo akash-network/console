@@ -52,10 +52,12 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
   const { leases, endpoints, isLoadingEndpoints, unreachableReason } = d.useDeploymentReachability({ deployment, providers });
   const [isShowingEndpoints, setIsShowingEndpoints] = useState(false);
   const toggleEndpoints = () => setIsShowingEndpoints(current => !current);
+  /** Endpoints can drop below the count that draws the toggle while the panel is open, which would strand it with nothing left to close it. */
+  const isShowingEndpointPanel = isShowingEndpoints && endpoints.length > 1;
 
   return (
     <>
-      <TableRow className={cn(isShowingEndpoints && "border-b-0")}>
+      <TableRow className={cn(isShowingEndpointPanel && "border-b-0")}>
         <TableCell>
           <div className="flex flex-col items-start gap-1">
             <d.DeploymentStatusBadge state={deployment.state} leases={leases} />
@@ -72,7 +74,7 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
             endpoints={endpoints}
             isLoading={isLoadingEndpoints}
             unreachableReason={unreachableReason}
-            isExpanded={isShowingEndpoints}
+            isExpanded={isShowingEndpointPanel}
             onToggleExpanded={toggleEndpoints}
           />
         </TableCell>
@@ -95,7 +97,7 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
         </TableCell>
       </TableRow>
 
-      {isShowingEndpoints && (
+      {isShowingEndpointPanel && (
         <TableRow className="hover:bg-transparent">
           <TableCell colSpan={COLUMN_COUNT} className="px-4 pb-4 pt-0">
             <d.DeploymentEndpointsPanel endpoints={endpoints} />

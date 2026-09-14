@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { LeaseDto, NamedDeploymentDto } from "@src/types/deployment";
+import type { VisitEndpoint } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
 import { DEPENDENCIES, DeploymentCard } from "./DeploymentCard";
 import type { DeploymentReachability } from "./useDeploymentReachability";
 
@@ -48,7 +49,10 @@ describe("DeploymentCard", () => {
   });
 
   it("opens the endpoints inside the card, which has no row to spill into", async () => {
-    const { DeploymentEndpointsPanel } = setup({ deployment: { dseq: "100" } });
+    const { DeploymentEndpointsPanel } = setup({
+      deployment: { dseq: "100" },
+      reachability: { endpoints: [endpoint("one.example.com"), endpoint("two.example.com")] }
+    });
 
     await userEvent.click(screen.getByRole("button", { name: "toggle endpoints" }));
 
@@ -56,13 +60,28 @@ describe("DeploymentCard", () => {
   });
 
   it("closes the endpoints again on demand", async () => {
-    setup({ deployment: { dseq: "100" } });
+    setup({ deployment: { dseq: "100" }, reachability: { endpoints: [endpoint("one.example.com"), endpoint("two.example.com")] } });
 
     await userEvent.click(screen.getByRole("button", { name: "toggle endpoints" }));
     await userEvent.click(screen.getByRole("button", { name: "toggle endpoints" }));
 
     expect(screen.queryByText("endpoints panel")).not.toBeInTheDocument();
   });
+
+  it("closes an open endpoint panel when a poll drops the card below two endpoints", async () => {
+    const { rerenderWith } = setup({ deployment: { dseq: "100" }, reachability: { endpoints: [endpoint("one.example.com"), endpoint("two.example.com")] } });
+
+    await userEvent.click(screen.getByRole("button", { name: "toggle endpoints" }));
+    expect(screen.getByText("endpoints panel")).toBeInTheDocument();
+
+    rerenderWith([endpoint("one.example.com")]);
+
+    expect(screen.queryByText("endpoints panel")).not.toBeInTheDocument();
+  });
+
+  function endpoint(host: string): VisitEndpoint {
+    return { serviceName: "web", host, port: 80, href: `http://${host}:80` };
+  }
 
   it("summarises what the deployment uses", () => {
     const { DeploymentSpecSummary } = setup({ deployment: { dseq: "100" } });
@@ -129,13 +148,14 @@ describe("DeploymentCard", () => {
     onDeploymentClosed?: () => void;
   }) {
     const leases = input.leases ?? [];
+    let endpoints = input.reachability?.endpoints ?? [];
     const useDeploymentReachability = vi.fn<typeof DEPENDENCIES.useDeploymentReachability>(() => ({
       leases,
       isLoadingLeases: false,
-      endpoints: [],
       isLoadingEndpoints: false,
       unreachableReason: null,
-      ...input.reachability
+      ...input.reachability,
+      endpoints
     }));
 
     const DeploymentStatusBadge = vi.fn(() => <div>status</div>);
@@ -152,7 +172,7 @@ describe("DeploymentCard", () => {
     const onSelect = vi.fn();
     const deployment = { state: "active", cpuAmount: 1, memoryAmount: 1, storageAmount: 1, ...input.deployment } as NamedDeploymentDto;
 
-    render(
+    const renderCard = () => (
       <DeploymentCard
         deployment={deployment}
         providers={providers}
@@ -172,8 +192,14 @@ describe("DeploymentCard", () => {
       />
     );
 
+    const { rerender } = render(renderCard());
+
     return {
       onSelect,
+      rerenderWith(next: VisitEndpoint[]) {
+        endpoints = next;
+        rerender(renderCard());
+      },
       DeploymentStatusBadge,
       DeploymentEndpoints,
       DeploymentEndpointsPanel,

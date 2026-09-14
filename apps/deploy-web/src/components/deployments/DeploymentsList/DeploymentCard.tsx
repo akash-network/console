@@ -46,6 +46,8 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
   const { leases, endpoints, isLoadingEndpoints, unreachableReason } = d.useDeploymentReachability({ deployment, providers });
   const [isShowingEndpoints, setIsShowingEndpoints] = useState(false);
   const toggleEndpoints = () => setIsShowingEndpoints(current => !current);
+  /** Endpoints can drop below the count that draws the toggle while the panel is open, which would strand it with nothing left to close it. */
+  const isShowingEndpointPanel = isShowingEndpoints && endpoints.length > 1;
 
   return (
     <Card className="flex flex-col overflow-hidden">
@@ -65,11 +67,11 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
           endpoints={endpoints}
           isLoading={isLoadingEndpoints}
           unreachableReason={unreachableReason}
-          isExpanded={isShowingEndpoints}
+          isExpanded={isShowingEndpointPanel}
           onToggleExpanded={toggleEndpoints}
         />
 
-        {isShowingEndpoints && <d.DeploymentEndpointsPanel endpoints={endpoints} />}
+        {isShowingEndpointPanel && <d.DeploymentEndpointsPanel endpoints={endpoints} />}
       </div>
 
       <div className="flex items-center justify-between gap-3 border-t px-5 py-2">
