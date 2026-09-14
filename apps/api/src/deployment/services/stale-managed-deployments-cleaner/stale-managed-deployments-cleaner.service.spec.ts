@@ -33,7 +33,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
 
       await service.cleanUpForWallet(wallet);
 
-      const cutoff = deploymentRepository.findStaleDeployments.mock.calls[0][0].createdHeight;
+      const cutoff = deploymentRepository.findStaleDeployments.mock.calls[0][0].staleBeforeHeight;
       expect(cutoff).toBeLessThan(1_000_000);
     });
 
@@ -42,7 +42,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
 
       await service.cleanUpForWallet(wallet, 0);
 
-      expect(deploymentRepository.findStaleDeployments).toHaveBeenCalledWith({ owner: wallet.address, createdHeight: 1_000_000 });
+      expect(deploymentRepository.findStaleDeployments).toHaveBeenCalledWith({ owner: wallet.address, staleBeforeHeight: 1_000_000 });
     });
 
     it("reads the chain height itself when called for a single wallet", async () => {
@@ -255,7 +255,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
 
       await service.cleanup({ concurrency: 2 });
 
-      const cutoffs = new Set(deploymentRepository.findStaleDeployments.mock.calls.map(([{ createdHeight }]) => createdHeight));
+      const cutoffs = new Set(deploymentRepository.findStaleDeployments.mock.calls.map(([{ staleBeforeHeight }]) => staleBeforeHeight));
       expect(cutoffs.size).toBe(1);
       expect([...cutoffs][0]).toBeLessThan(1_000_000);
     });
