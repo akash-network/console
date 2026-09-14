@@ -5,15 +5,49 @@ import createError from "http-errors";
 import { CompactEncrypt } from "jose";
 import { constants, generateKeyPairSync, privateDecrypt, randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
+import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 
 import type { SdlSecretsKmsClient } from "@src/deployment/providers/kms.provider";
 import { KmsWrappedJweError, KmsWrappedJweService } from "./kms-wrapped-jwe.service";
+import type { KmsWrappedJweInstrumentationService } from "./kms-wrapped-jwe-instrumentation.service";
 
 import { createTestSdlSecretsKmsTarget, sdlSecretsVersionPath } from "@test/mocks/sdl-secrets-kms.mock";
 
 const KID = "sdl-secrets.v1";
 const VERSION_NAME = sdlSecretsVersionPath("1");
+
+const KEY_SERVICE_FAILURES = [
+  {
+    failure: "KEY_SERVICE_UNREACHABLE",
+    breakKeyService: (kmsClient: MockProxy<SdlSecretsKmsClient>) =>
+      kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("14 UNAVAILABLE"), { code: grpc.status.UNAVAILABLE }))
+  },
+  {
+    failure: "ENCRYPTED_KEY_REJECTED",
+    breakKeyService: (kmsClient: MockProxy<SdlSecretsKmsClient>) =>
+      kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("3 INVALID_ARGUMENT"), { code: grpc.status.INVALID_ARGUMENT }))
+  },
+  {
+    failure: "WRAPPING_VERSION_UNUSABLE",
+    breakKeyService: (kmsClient: MockProxy<SdlSecretsKmsClient>) =>
+      kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("5 NOT_FOUND"), { code: grpc.status.NOT_FOUND }))
+  },
+  {
+    failure: "KEY_SERVICE_REQUEST_CORRUPTED",
+    breakKeyService: (kmsClient: MockProxy<SdlSecretsKmsClient>) =>
+      kmsClient.asymmetricDecrypt.mockResolvedValue([{ plaintext: Buffer.alloc(32), verifiedCiphertextCrc32c: false }])
+  },
+  {
+    failure: "KEY_SERVICE_PLAINTEXT_MISSING",
+    breakKeyService: (kmsClient: MockProxy<SdlSecretsKmsClient>) => kmsClient.asymmetricDecrypt.mockResolvedValue([{ verifiedCiphertextCrc32c: true }])
+  },
+  {
+    failure: "KEY_SERVICE_RESPONSE_CORRUPTED",
+    breakKeyService: (kmsClient: MockProxy<SdlSecretsKmsClient>) =>
+      kmsClient.asymmetricDecrypt.mockResolvedValue([{ plaintext: Buffer.alloc(32), plaintextCrc32c: { value: "1" }, verifiedCiphertextCrc32c: true }])
+  }
+] as const;
 
 async function expectFailure(open: Promise<unknown>, failure: string) {
   await expect(open).rejects.toMatchObject({ failure });
@@ -243,6 +277,94 @@ describe(KmsWrappedJweService.name, () => {
     await expectFailure(service.open(service.parse(await wrap(randomBytes(32))), VERSION_NAME), "AUTHENTICATION_FAILED");
   });
 
+  it("times one key service call per open, recording how long the call took and not when it happened", async () => {
+    const { service, wrap, instrumentationService } = setup();
+    const parsed = service.parse(await wrap(randomBytes(32)));
+
+    const startedAt = Date.now();
+    await service.open(parsed, VERSION_NAME);
+    const wholeOpenDurationMs = Date.now() - startedAt;
+
+    expect(instrumentationService.recordCallSucceeded).toHaveBeenCalledExactlyOnceWith(expect.any(Number));
+    expect(instrumentationService.recordCallFailed).not.toHaveBeenCalled();
+
+    const [recordedDurationMs] = instrumentationService.recordCallSucceeded.mock.calls[0];
+    expect(recordedDurationMs).toBeGreaterThanOrEqual(0);
+    expect(recordedDurationMs).toBeLessThanOrEqual(wholeOpenDurationMs);
+  });
+
+  it("counts one unwrap the key service served per open", async () => {
+    const { service, wrap, instrumentationService } = setup();
+
+    await service.open(service.parse(await wrap(randomBytes(32))), VERSION_NAME);
+
+    expect(instrumentationService.recordUnwrapSucceeded).toHaveBeenCalledOnce();
+    expect(instrumentationService.recordUnwrapFailed).not.toHaveBeenCalled();
+  });
+
+  it("measures nothing for a serialization that never reaches the key service", async () => {
+    const { service, instrumentationService } = setup();
+
+    parseFailure(service, "not.a.jwe");
+
+    expect(instrumentationService.recordCallSucceeded).not.toHaveBeenCalled();
+    expect(instrumentationService.recordCallFailed).not.toHaveBeenCalled();
+    expect(instrumentationService.recordUnwrapSucceeded).not.toHaveBeenCalled();
+    expect(instrumentationService.recordUnwrapFailed).not.toHaveBeenCalled();
+  });
+
+  it("times a call the key service never answered as a failed call, recording how long it waited and not when it gave up", async () => {
+    const { service, wrap, kmsClient, instrumentationService } = setup();
+    const parsed = service.parse(await wrap(randomBytes(32)));
+    kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("14 UNAVAILABLE"), { code: grpc.status.UNAVAILABLE }));
+
+    const startedAt = Date.now();
+    await expectFailure(service.open(parsed, VERSION_NAME), "KEY_SERVICE_UNREACHABLE");
+    const wholeOpenDurationMs = Date.now() - startedAt;
+
+    expect(instrumentationService.recordCallFailed).toHaveBeenCalledExactlyOnceWith(expect.any(Number));
+    expect(instrumentationService.recordCallSucceeded).not.toHaveBeenCalled();
+
+    const [recordedDurationMs] = instrumentationService.recordCallFailed.mock.calls[0];
+    expect(recordedDurationMs).toBeGreaterThanOrEqual(0);
+    expect(recordedDurationMs).toBeLessThanOrEqual(wholeOpenDurationMs);
+  });
+
+  it("times a call the key service answered unusably as a successful call, because the latency was the key service's own", async () => {
+    const { service, wrap, kmsClient, instrumentationService } = setup();
+    kmsClient.asymmetricDecrypt.mockResolvedValue([{ plaintext: Buffer.alloc(32), plaintextCrc32c: { value: "1" }, verifiedCiphertextCrc32c: true }]);
+
+    await expectFailure(service.open(service.parse(await wrap(randomBytes(32))), VERSION_NAME), "KEY_SERVICE_RESPONSE_CORRUPTED");
+
+    expect(instrumentationService.recordCallSucceeded).toHaveBeenCalledExactlyOnceWith(expect.any(Number));
+    expect(instrumentationService.recordCallFailed).not.toHaveBeenCalled();
+  });
+
+  it.each(KEY_SERVICE_FAILURES)(
+    "counts $failure against the key service, including the ones it reports with a healthy response",
+    async ({ failure, breakKeyService }) => {
+      const { service, wrap, kmsClient, instrumentationService } = setup();
+      breakKeyService(kmsClient);
+
+      await expectFailure(service.open(service.parse(await wrap(randomBytes(32))), VERSION_NAME), failure);
+
+      expect(instrumentationService.recordUnwrapFailed).toHaveBeenCalledExactlyOnceWith(failure);
+      expect(instrumentationService.recordUnwrapSucceeded).not.toHaveBeenCalled();
+    }
+  );
+
+  it("counts content that fails its own authentication as a served unwrap, so corruption at rest stays out of the key service error rate", async () => {
+    const { service, wrap, instrumentationService } = setup();
+    const parts = (await wrap(randomBytes(32))).split(".");
+    parts[3] = Buffer.from("tampered").toString("base64url");
+
+    await expectFailure(service.open(service.parse(parts.join(".")), VERSION_NAME), "AUTHENTICATION_FAILED");
+
+    expect(instrumentationService.recordCallSucceeded).toHaveBeenCalledExactlyOnceWith(expect.any(Number));
+    expect(instrumentationService.recordUnwrapSucceeded).toHaveBeenCalledOnce();
+    expect(instrumentationService.recordUnwrapFailed).not.toHaveBeenCalled();
+  });
+
   function setup() {
     const { publicKey, privateKey } = WRAPPING_KEY_PAIR;
 
@@ -262,8 +384,9 @@ describe(KmsWrappedJweService.name, () => {
       ];
     });
 
-    const service = new KmsWrappedJweService(createTestSdlSecretsKmsTarget({ client: kmsClient }));
+    const instrumentationService = mock<KmsWrappedJweInstrumentationService>();
+    const service = new KmsWrappedJweService(createTestSdlSecretsKmsTarget({ client: kmsClient }), instrumentationService);
 
-    return { service, wrap, kmsClient, privateKey };
+    return { service, wrap, kmsClient, instrumentationService, privateKey };
   }
 });

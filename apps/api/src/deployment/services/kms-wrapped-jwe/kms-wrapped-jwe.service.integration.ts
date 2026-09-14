@@ -17,6 +17,7 @@ import { DataKeyUnwrapperService } from "@src/secret/services/data-key-unwrapper
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
 import { KmsWrappedJweService } from "./kms-wrapped-jwe.service";
+import type { KmsWrappedJweInstrumentationService } from "./kms-wrapped-jwe-instrumentation.service";
 
 const PROJECT = "console-dev-mock";
 const LOCATION = "global";
@@ -173,7 +174,7 @@ describe(`${KmsWrappedJweService.name} against Cloud KMS`, () => {
 
     const consoleAt = (version: string) => {
       const target = createSdlSecretsKmsTarget({ client: kmsClient, versionPath, key: KEY, version });
-      const wrappedJwe = new KmsWrappedJweService(target);
+      const wrappedJwe = new KmsWrappedJweService(target, mock<KmsWrappedJweInstrumentationService>());
       const sealingKeyService = new SdlSecretsSealingKeyService(target, createLogger);
       const dataKeyService = new DataKeyService(dataKeyRepository, sealingKeyService, createLogger);
       const unwrapper = new DataKeyUnwrapperService(dataKeyService, executionContextService, wrappedJwe, target, createLogger);
