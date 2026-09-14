@@ -199,6 +199,31 @@ describe(DataKeyRepository.name, () => {
     });
   });
 
+  describe("rewrapIfStillWrappedUnder", () => {
+    it("re-wraps a row still wrapped under the version it was opened under, and stamps it as updated", async () => {
+      const { dataKeyRepository, versionOf, seedDataKey } = setup();
+      const row = await seedDataKey(versionOf(1));
+
+      const rewrapped = await dataKeyRepository.rewrapIfStillWrappedUnder(row.id, versionOf(1), { wrappedKey: "rewrapped-blob", wrappedByKid: versionOf(2) });
+
+      expect(rewrapped).toBe(true);
+      const after = await dataKeyRepository.findById(row.id);
+      expect(after).toMatchObject({ wrappedKey: "rewrapped-blob", wrappedByKid: versionOf(2) });
+      expect(after!.updatedAt.getTime()).toBeGreaterThan(row.updatedAt.getTime());
+    });
+
+    it("leaves a row another writer has since moved untouched", async () => {
+      const { dataKeyRepository, versionOf, seedDataKey } = setup();
+      const row = await seedDataKey(versionOf(1));
+      await dataKeyRepository.updateById(row.id, { wrappedKey: "moved-blob", wrappedByKid: versionOf(3) });
+
+      const rewrapped = await dataKeyRepository.rewrapIfStillWrappedUnder(row.id, versionOf(1), { wrappedKey: "rewrapped-blob", wrappedByKid: versionOf(2) });
+
+      expect(rewrapped).toBe(false);
+      expect(await dataKeyRepository.findById(row.id)).toMatchObject({ wrappedKey: "moved-blob", wrappedByKid: versionOf(3) });
+    });
+  });
+
   describe("user deletion", () => {
     it("deletes the data key when its user is deleted", async () => {
       const { dataKeyRepository, userRepository, createTestUser } = setup();

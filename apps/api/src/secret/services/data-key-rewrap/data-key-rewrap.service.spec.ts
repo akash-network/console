@@ -42,7 +42,7 @@ describe(DataKeyRewrapService.name, () => {
 
       await expect(service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: false })).rejects.toThrow();
 
-      expect(dataKeyRepository.updateById).not.toHaveBeenCalled();
+      expect(dataKeyRepository.rewrapIfStillWrappedUnder).not.toHaveBeenCalled();
       expect(dataKeyRepository.findWrappedUnderOtherVersionsIteratively).not.toHaveBeenCalled();
     });
 
@@ -57,7 +57,17 @@ describe(DataKeyRewrapService.name, () => {
 
       await expect(service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: false })).rejects.toThrow();
 
-      expect(dataKeyRepository.updateById).not.toHaveBeenCalled();
+      expect(dataKeyRepository.rewrapIfStillWrappedUnder).not.toHaveBeenCalled();
+    });
+
+    it("refuses a version other than the one this console is configured to wrap under, before reading a row", async () => {
+      const { service, dataKeyRepository, deploymentSettingRepository, logger } = setup({ rows: [aRow({})], configuredVersion: "2" });
+
+      await expect(service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: false })).rejects.toThrow(`${KEY}.v2`);
+
+      expect(deploymentSettingRepository.findStoredSecretsIteratively).not.toHaveBeenCalled();
+      expect(dataKeyRepository.findWrappedUnderOtherVersionsIteratively).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith({ event: "DATA_KEY_REWRAP_TARGET_VERSION_MISMATCH", requested: TARGET_KID, configured: `${KEY}.v2` });
     });
 
     it("asks the key service about the target version by name", async () => {
@@ -81,7 +91,7 @@ describe(DataKeyRewrapService.name, () => {
 
       await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, batchSize: 1, dryRun: false });
 
-      expect(dataKeyRepository.updateById).toHaveBeenCalledTimes(2);
+      expect(dataKeyRepository.rewrapIfStillWrappedUnder).toHaveBeenCalledTimes(2);
       expect(txService.transaction).toHaveBeenCalledTimes(2);
     });
   });
@@ -92,9 +102,12 @@ describe(DataKeyRewrapService.name, () => {
 
       await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: false });
 
-      expect(dataKeyRepository.updateById).toHaveBeenCalledTimes(2);
+      expect(dataKeyRepository.rewrapIfStillWrappedUnder).toHaveBeenCalledTimes(2);
       for (const row of rows) {
-        expect(dataKeyRepository.updateById).toHaveBeenCalledWith(row.id, { wrappedKey: expect.any(String), wrappedByKid: TARGET_KID });
+        expect(dataKeyRepository.rewrapIfStillWrappedUnder).toHaveBeenCalledWith(row.id, row.wrappedByKid, {
+          wrappedKey: expect.any(String),
+          wrappedByKid: TARGET_KID
+        });
       }
     });
 
@@ -152,6 +165,40 @@ describe(DataKeyRewrapService.name, () => {
     });
   });
 
+  describe("a row another writer moved first", () => {
+    it("is written only while still wrapped the way it was opened, so the other writer is never clobbered", async () => {
+      const row = aRow({ wrappedByKid: SOURCE_KID });
+      const { service, dataKeyRepository } = setup({ rows: [row] });
+
+      await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: false });
+
+      expect(dataKeyRepository.rewrapIfStillWrappedUnder).toHaveBeenCalledExactlyOnceWith(row.id, SOURCE_KID, {
+        wrappedKey: expect.any(String),
+        wrappedByKid: TARGET_KID
+      });
+    });
+
+    it("is left alone, counted in the report and named in an event, and the run still reports clean", async () => {
+      const moved = aRow({ wrappedByKid: SOURCE_KID });
+      const { service, dataKeyRepository, logger, report } = setup({ rows: [moved, aRow({ wrappedByKid: SOURCE_KID })] });
+      dataKeyRepository.rewrapIfStillWrappedUnder.mockResolvedValueOnce(false);
+
+      const summary = report(await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: false }));
+
+      expect(summary).toMatchObject({ dataKeysRewrapped: 1, dataKeysMovedByAnotherWriter: 1, dataKeysFailed: 0 });
+      expect(logger.warn).toHaveBeenCalledWith({ event: "DATA_KEY_REWRAP_ROW_MOVED_BY_ANOTHER_WRITER", dataKeyId: moved.id, wrappedByKid: SOURCE_KID });
+    });
+
+    it("counts only the bytes it wrote", async () => {
+      const { service, dataKeyRepository, report, writtenKeys } = setup({ rows: [aRow({ wrappedByKid: SOURCE_KID }), aRow({ wrappedByKid: SOURCE_KID })] });
+      dataKeyRepository.rewrapIfStillWrappedUnder.mockResolvedValueOnce(false);
+
+      const summary = report(await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: false }));
+
+      expect(summary.bytesRewritten).toBe(Buffer.byteLength(writtenKeys()[1]));
+    });
+  });
+
   describe("a row that cannot be opened", () => {
     it("records it, re-wraps the rest of its batch and reports the run as failed", async () => {
       const unopenable = aRow({ wrappedByKid: SOURCE_KID });
@@ -160,8 +207,8 @@ describe(DataKeyRewrapService.name, () => {
       const result = await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: false });
 
       expect(result.err).toBe(true);
-      expect(dataKeyRepository.updateById).toHaveBeenCalledTimes(1);
-      expect(dataKeyRepository.updateById).not.toHaveBeenCalledWith(unopenable.id, expect.anything());
+      expect(dataKeyRepository.rewrapIfStillWrappedUnder).toHaveBeenCalledTimes(1);
+      expect(dataKeyRepository.rewrapIfStillWrappedUnder).not.toHaveBeenCalledWith(unopenable.id, expect.anything(), expect.anything());
     });
 
     it("names it in an event so the operator knows which row blocks the version", async () => {
@@ -182,7 +229,7 @@ describe(DataKeyRewrapService.name, () => {
       const result = await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: false });
 
       expect(result.err).toBe(true);
-      expect(dataKeyRepository.updateById).not.toHaveBeenCalled();
+      expect(dataKeyRepository.rewrapIfStillWrappedUnder).not.toHaveBeenCalled();
     });
   });
 
@@ -209,6 +256,7 @@ describe(DataKeyRewrapService.name, () => {
         census: { [SOURCE_KID]: 2, [TARGET_KID]: 1 },
         dataKeysRewrapped: 2,
         dataKeysFailed: 0,
+        dataKeysMovedByAnotherWriter: 0,
         secretsDrift: { corruptedIds: [], changedConcurrently: 0, added: 0, removed: 0 },
         bytesRewritten: writtenKeys().reduce((total, key) => total + Buffer.byteLength(key), 0),
         fingerprint: {
@@ -273,7 +321,7 @@ describe(DataKeyRewrapService.name, () => {
 
       const summary = report(await service.rewrapDataKeys({ targetVersion: TARGET_VERSION, dryRun: true }));
 
-      expect(dataKeyRepository.updateById).not.toHaveBeenCalled();
+      expect(dataKeyRepository.rewrapIfStillWrappedUnder).not.toHaveBeenCalled();
       expect(txService.transaction).not.toHaveBeenCalled();
       expect(wrappedJweService.open).not.toHaveBeenCalled();
       expect(summary).toMatchObject({ dryRun: true, dataKeysRewrapped: 2, dataKeysFailed: 0, census: { [SOURCE_KID]: 2, [TARGET_KID]: 1 } });
@@ -403,6 +451,7 @@ describe(DataKeyRewrapService.name, () => {
     unopenableIds?: string[];
     unparseableIds?: string[];
     versionState?: protos.google.cloud.kms.v1.ICryptoKeyVersion["state"];
+    configuredVersion?: string;
   }) {
     const rows = input.rows ?? [];
     const client = mock<SdlSecretsKmsClient>();
@@ -441,6 +490,7 @@ describe(DataKeyRewrapService.name, () => {
     });
 
     const dataKeyRepository = mock<DataKeyRepository>();
+    dataKeyRepository.rewrapIfStillWrappedUnder.mockResolvedValue(true);
     dataKeyRepository.countByWrappingVersion.mockResolvedValue(input.census ?? [{ wrappedByKid: SOURCE_KID, count: rows.length }]);
     dataKeyRepository.findWrappedUnderOtherVersionsIteratively.mockImplementation(async function* ({ batchSize }) {
       for (let offset = 0; offset < rows.length; offset += batchSize) {
@@ -462,7 +512,15 @@ describe(DataKeyRewrapService.name, () => {
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    const service = new DataKeyRewrapService(dataKeyRepository, deploymentSettingRepository, wrappedJweService, txService, createKmsTarget, createLogger);
+    const service = new DataKeyRewrapService(
+      dataKeyRepository,
+      deploymentSettingRepository,
+      wrappedJweService,
+      txService,
+      createKmsTarget,
+      createKmsTarget(input.configuredVersion ?? TARGET_VERSION),
+      createLogger
+    );
 
     return {
       service,
@@ -474,7 +532,7 @@ describe(DataKeyRewrapService.name, () => {
       client,
       logger,
       rows,
-      writtenKeys: () => dataKeyRepository.updateById.mock.calls.map(([, payload]) => payload.wrappedKey as string),
+      writtenKeys: () => dataKeyRepository.rewrapIfStillWrappedUnder.mock.calls.map(([, , rewrapped]) => rewrapped.wrappedKey),
       report: (result: Awaited<ReturnType<typeof service.rewrapDataKeys>>) => result.unwrap()
     };
   }

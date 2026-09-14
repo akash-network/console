@@ -183,6 +183,49 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
     );
   });
 
+  it("refuses a target version this console is not configured to wrap under, before reading a row", async () => {
+    const { oldVersion, newVersion } = await enabledRotationPair();
+    const { seedUser, attemptRewrapOnto, readDataKeys, logger } = setup();
+    await seedUser(oldVersion, "alpha-plaintext");
+    const before = await readDataKeys();
+
+    await expect(attemptRewrapOnto(newVersion, { configuredVersion: oldVersion })).rejects.toThrow(`${KEY}.v${oldVersion}`);
+
+    expect(await readDataKeys()).toEqual(before);
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "DATA_KEY_REWRAP_TARGET_VERSION_MISMATCH", requested: `${KEY}.v${newVersion}`, configured: `${KEY}.v${oldVersion}` })
+    );
+    expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "DATA_KEY_REWRAP_START" }));
+  });
+
+  it("serves a read of the same data key while it is being re-wrapped", async () => {
+    const { oldVersion, newVersion } = await enabledRotationPair();
+    const { seedUser, rewrapOnto, consoleAt, readDataKeys } = setup();
+    const alpha = await seedUser(oldVersion, "alpha-plaintext");
+
+    const [report, readConcurrently] = await Promise.all([rewrapOnto(newVersion), consoleAt(oldVersion).unwrapFor(alpha.userId)]);
+
+    expect(report.dataKeysRewrapped).toBe(1);
+    expect((await consoleAt(newVersion).unwrapFor(alpha.userId)).equals(readConcurrently)).toBe(true);
+    expect((await readDataKeys())[0].wrappedByKid).toBe(`${KEY}.v${newVersion}`);
+  });
+
+  it("leaves a row another writer moved between its read and its write, and counts it instead of clobbering it", async () => {
+    const { oldVersion, newVersion } = await enabledRotationPair();
+    const { seedUser, rewrapOnto, readDataKeys, moveRowBeforeItsWrite } = setup();
+    await seedUser(oldVersion, "alpha-plaintext");
+    await seedUser(oldVersion, "bravo-plaintext");
+    const [movedRow] = await readDataKeys();
+    moveRowBeforeItsWrite(movedRow.id, `${KEY}.v${newVersion}`);
+
+    const report = await rewrapOnto(newVersion);
+
+    expect(report).toMatchObject({ dataKeysRewrapped: 1, dataKeysMovedByAnotherWriter: 1, dataKeysFailed: 0 });
+    const [rowAfter, otherRow] = await readDataKeys();
+    expect(rowAfter).toEqual({ ...movedRow, wrappedByKid: `${KEY}.v${newVersion}` });
+    expect(decodeProtectedHeader(otherRow.wrappedKey).kid).toBe(`${KEY}.v${newVersion}`);
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -243,13 +286,14 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
       return { userId: user.id, dseq };
     }
 
-    async function attemptRewrapOnto(targetVersion: string, options: { batchSize?: number; dryRun?: boolean } = {}) {
+    async function attemptRewrapOnto(targetVersion: string, options: { batchSize?: number; dryRun?: boolean; configuredVersion?: string } = {}) {
       const service = new DataKeyRewrapService(
         dataKeyRepository,
         deploymentSettingRepository,
         new KmsWrappedJweService(createKmsTarget(targetVersion)),
         txService,
         createKmsTarget,
+        createKmsTarget(options.configuredVersion ?? targetVersion),
         createLogger
       );
 
@@ -297,14 +341,26 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
     }
 
     function failWriteOf(dataKeyId: string) {
-      const updateById = dataKeyRepository.updateById.bind(dataKeyRepository);
+      const rewrapIfStillWrappedUnder = dataKeyRepository.rewrapIfStillWrappedUnder.bind(dataKeyRepository);
 
-      vi.spyOn(dataKeyRepository, "updateById").mockImplementation(async (id, payload) => {
+      vi.spyOn(dataKeyRepository, "rewrapIfStillWrappedUnder").mockImplementation(async (id, wrappedByKid, rewrapped) => {
         if (id === dataKeyId) {
           throw new Error(`write of ${dataKeyId} failed`);
         }
 
-        await updateById(id, payload);
+        return await rewrapIfStillWrappedUnder(id, wrappedByKid, rewrapped);
+      });
+    }
+
+    function moveRowBeforeItsWrite(dataKeyId: string, toKid: string) {
+      const rewrapIfStillWrappedUnder = dataKeyRepository.rewrapIfStillWrappedUnder.bind(dataKeyRepository);
+
+      vi.spyOn(dataKeyRepository, "rewrapIfStillWrappedUnder").mockImplementation(async (id, wrappedByKid, rewrapped) => {
+        if (id === dataKeyId) {
+          await dataKeyRepository.updateManyById([dataKeyId], { wrappedByKid: toKid });
+        }
+
+        return await rewrapIfStillWrappedUnder(id, wrappedByKid, rewrapped);
       });
     }
 
@@ -319,6 +375,7 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
       countDataKeys,
       readStoredSecrets,
       failWriteOf,
+      moveRowBeforeItsWrite,
       logger
     };
   }

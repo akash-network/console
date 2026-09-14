@@ -8,7 +8,7 @@ import { assertBatchSize } from "@src/core/lib/batch-size/batch-size";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { TxService } from "@src/core/services";
 import type { SdlSecretsKmsTarget, SdlSecretsKmsTargetFactory } from "@src/deployment/providers/kms.provider";
-import { SDL_SECRETS_KMS_TARGET_FACTORY } from "@src/deployment/providers/kms.provider";
+import { SDL_SECRETS_KMS_TARGET, SDL_SECRETS_KMS_TARGET_FACTORY } from "@src/deployment/providers/kms.provider";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { ParsedKmsWrappedJwe } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe.service";
 import { KmsWrappedJweService } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe.service";
@@ -32,6 +32,12 @@ export interface DataKeyRewrapOptions {
   dryRun: boolean;
 }
 
+interface Rewrapping {
+  id: string;
+  wrappedByKid: string;
+  wrappedKey: string;
+}
+
 export interface DataKeyRewrapReport {
   dryRun: boolean;
   toVersion: string;
@@ -39,6 +45,7 @@ export interface DataKeyRewrapReport {
   census: Record<string, number>;
   dataKeysRewrapped: number;
   dataKeysFailed: number;
+  dataKeysMovedByAnotherWriter: number;
   secretsDrift?: StoredSecretsDrift;
   bytesRewritten: number;
   elapsedMs: number;
@@ -56,6 +63,7 @@ export class DataKeyRewrapService {
     private readonly wrappedJweService: KmsWrappedJweService,
     private readonly txService: TxService,
     @inject(SDL_SECRETS_KMS_TARGET_FACTORY) private readonly createKmsTarget: SdlSecretsKmsTargetFactory,
+    @inject(SDL_SECRETS_KMS_TARGET) private readonly configuredTarget: SdlSecretsKmsTarget,
     @inject(LOGGER_FACTORY) private readonly createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: DataKeyRewrapService.name });
@@ -65,6 +73,7 @@ export class DataKeyRewrapService {
     const startedAt = Date.now();
     const pageSize = assertBatchSize(batchSize ?? DEFAULT_BATCH_SIZE);
     const target = this.createKmsTarget(targetVersion);
+    this.#assertConfiguredTarget(target);
     const sealingKey = await this.#assertUsableTarget(target);
 
     this.logger.info({ event: "DATA_KEY_REWRAP_START", toVersion: target.kid, batchSize: pageSize, dryRun });
@@ -73,6 +82,7 @@ export class DataKeyRewrapService {
     const census = await this.#censusByVersion();
     const errors: unknown[] = [];
     let rewrapped = 0;
+    let movedByAnotherWriter = 0;
     let bytesRewritten = 0;
 
     for await (const batch of this.dataKeyRepository.findWrappedUnderOtherVersionsIteratively({ targetKid: target.kid, batchSize: pageSize })) {
@@ -80,18 +90,14 @@ export class DataKeyRewrapService {
         rewrapped += this.#auditBatch(batch, target, errors);
       } else {
         const wrappings = await this.#rewrapBatch(batch, target, sealingKey, errors);
+        const written = await this.txService.transaction(async () => await this.#writeWhereStillWrappedAsOpened(wrappings, target));
 
-        await this.txService.transaction(async () => {
-          for (const { id, wrappedKey } of wrappings) {
-            await this.dataKeyRepository.updateById(id, { wrappedKey, wrappedByKid: target.kid });
-          }
-        });
-
-        rewrapped += wrappings.length;
-        bytesRewritten += wrappings.reduce((total, { wrappedKey }) => total + Buffer.byteLength(wrappedKey), 0);
+        rewrapped += written.length;
+        movedByAnotherWriter += wrappings.length - written.length;
+        bytesRewritten += written.reduce((total, { wrappedKey }) => total + Buffer.byteLength(wrappedKey), 0);
       }
 
-      this.logger.info({ event: "DATA_KEY_REWRAP_BATCH", rewrapped, failed: errors.length, bytesRewritten });
+      this.logger.info({ event: "DATA_KEY_REWRAP_BATCH", rewrapped, failed: errors.length, movedByAnotherWriter, bytesRewritten });
     }
 
     const after = dryRun ? undefined : await this.#fingerprintStoredSecrets(pageSize);
@@ -102,6 +108,7 @@ export class DataKeyRewrapService {
       census,
       dataKeysRewrapped: rewrapped,
       dataKeysFailed: errors.length,
+      dataKeysMovedByAnotherWriter: movedByAnotherWriter,
       secretsDrift: after?.driftFrom(before),
       bytesRewritten,
       elapsedMs: Date.now() - startedAt,
@@ -112,6 +119,17 @@ export class DataKeyRewrapService {
     this.logger.info({ event: "DATA_KEY_REWRAP_END", report });
 
     return errors.length > 0 ? Err(errors) : Ok(report);
+  }
+
+  /** Moving the fleet onto a version new wraps do not land on would keep the retiring version alive, so the run refuses rather than half-serving. */
+  #assertConfiguredTarget(target: SdlSecretsKmsTarget) {
+    if (target.kid === this.configuredTarget.kid) {
+      return;
+    }
+
+    this.logger.error({ event: "DATA_KEY_REWRAP_TARGET_VERSION_MISMATCH", requested: target.kid, configured: this.configuredTarget.kid });
+
+    throw new Error(`Key version ${target.kid} is not the one this console wraps under, ${this.configuredTarget.kid}`);
   }
 
   /** The public key alone cannot answer this: Cloud KMS refuses a disabled version's key, but the emulator serves it. */
@@ -167,18 +185,38 @@ export class DataKeyRewrapService {
     target: SdlSecretsKmsTarget,
     sealingKey: SdlSecretsSealingKey,
     errors: unknown[]
-  ): Promise<Array<{ id: string; wrappedKey: string }>> {
-    const wrappings: Array<{ id: string; wrappedKey: string }> = [];
+  ): Promise<Rewrapping[]> {
+    const wrappings: Rewrapping[] = [];
 
     for (const row of batch) {
       try {
-        wrappings.push({ id: row.id, wrappedKey: await this.#rewrap(row, target, sealingKey) });
+        wrappings.push({ id: row.id, wrappedByKid: row.wrappedByKid, wrappedKey: await this.#rewrap(row, target, sealingKey) });
       } catch (error) {
         this.#recordRowFailure(row, error, errors);
       }
     }
 
     return wrappings;
+  }
+
+  /** A row whose wrapping moved between the read and this write belongs to whoever moved it; a re-run selects it again if it still needs to move. */
+  async #writeWhereStillWrappedAsOpened(wrappings: Rewrapping[], target: SdlSecretsKmsTarget): Promise<Rewrapping[]> {
+    const written: Rewrapping[] = [];
+
+    for (const wrapping of wrappings) {
+      const rewrapped = await this.dataKeyRepository.rewrapIfStillWrappedUnder(wrapping.id, wrapping.wrappedByKid, {
+        wrappedKey: wrapping.wrappedKey,
+        wrappedByKid: target.kid
+      });
+
+      if (rewrapped) {
+        written.push(wrapping);
+      } else {
+        this.logger.warn({ event: "DATA_KEY_REWRAP_ROW_MOVED_BY_ANOTHER_WRITER", dataKeyId: wrapping.id, wrappedByKid: wrapping.wrappedByKid });
+      }
+    }
+
+    return written;
   }
 
   #recordRowFailure(row: DataKeyOutput, error: unknown, errors: unknown[]) {
