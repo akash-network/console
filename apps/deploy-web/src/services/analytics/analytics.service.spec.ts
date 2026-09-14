@@ -8,6 +8,8 @@ type Mocked<T> = {
   [K in keyof T]?: Mock;
 };
 
+type MockedAmplitude = Omit<Mocked<Amplitude>, "Identify"> & { Identify?: Amplitude["Identify"] };
+
 describe(AnalyticsService.name, () => {
   const mockAmplitudeApiKey = faker.string.uuid();
   const mockGaMeasurementId = faker.string.uuid();
@@ -324,10 +326,17 @@ describe(AnalyticsService.name, () => {
       });
     });
 
-    it("sets the referring domain as a user property so new users can be grouped by it", () => {
+    it("writes the referring domain as a first-write-wins user property so a later device cannot overwrite it", () => {
       const identify = vi.fn();
+      const setOnce = vi.fn();
       const service = setup({
-        amplitude: { identify },
+        amplitude: {
+          identify,
+          Identify: class {
+            set = vi.fn();
+            setOnce = setOnce;
+          } as unknown as Amplitude["Identify"]
+        },
         referrer: "https://news.ycombinator.com/item?id=1",
         options: {
           amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
@@ -337,6 +346,7 @@ describe(AnalyticsService.name, () => {
 
       service.track("onboarding_deploy_click");
 
+      expect(setOnce).toHaveBeenCalledWith("first_touch_referring_domain", "news.ycombinator.com");
       expect(identify).toHaveBeenCalled();
     });
 
@@ -601,7 +611,7 @@ describe(AnalyticsService.name, () => {
   });
 
   function setup(params: {
-    amplitude?: Mocked<Amplitude>;
+    amplitude?: MockedAmplitude;
     dataLayer?: Record<string, unknown>[];
     options?: AnalyticsOptions;
     storage?: Pick<Storage, "getItem" | "setItem">;
@@ -613,6 +623,7 @@ describe(AnalyticsService.name, () => {
       init: vi.fn(),
       Identify: class {
         set = vi.fn();
+        setOnce = vi.fn();
       } as unknown as Amplitude["Identify"],
       identify: vi.fn(),
       track: vi.fn(),

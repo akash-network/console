@@ -369,7 +369,7 @@ export class AnalyticsService {
     }
 
     const event = new this.amplitudeClient.Identify();
-    event.set(FIRST_TOUCH_REFERRER_PROPERTY, referringDomain);
+    event.setOnce(FIRST_TOUCH_REFERRER_PROPERTY, referringDomain);
     this.amplitudeClient.identify(event);
   }
 
