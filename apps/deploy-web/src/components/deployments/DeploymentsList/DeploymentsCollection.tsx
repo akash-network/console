@@ -55,12 +55,11 @@ export const DeploymentsCollection: FC<DeploymentsCollectionProps> = ({
       <Table>
         <TableHeader>
           <TableRow>
-            {isSelectable && <TableHead className="w-10" />}
-            <TableHead>Status</TableHead>
-            <TableHead>Deployment</TableHead>
-            <TableHead>Endpoint</TableHead>
-            <TableHead>Hardware</TableHead>
-            <TableHead className="w-12" />
+            <TableHead className="w-[14%]">Status</TableHead>
+            <TableHead className="w-[24%]">Deployment</TableHead>
+            <TableHead className="w-[32%]">Endpoint</TableHead>
+            <TableHead className="w-[24%]">Hardware</TableHead>
+            <TableHead />
           </TableRow>
         </TableHeader>
         <TableBody>

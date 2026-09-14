@@ -20,11 +20,11 @@ describe("DeploymentRow", () => {
     expect(screen.getAllByRole("cell")).toHaveLength(5);
   });
 
-  it("adds a selection cell only when the collection can be acted on in bulk", () => {
+  it("offers selection from the controls cell rather than a column of its own", () => {
     setup({ deployment: { dseq: "100", name: "acme" }, isSelectable: true });
 
     expect(screen.getByRole("checkbox", { name: "Select deployment acme" })).toBeInTheDocument();
-    expect(screen.getAllByRole("cell")).toHaveLength(6);
+    expect(screen.getAllByRole("cell")).toHaveLength(5);
   });
 
   it("resolves reachability for this deployment against the provider list", () => {

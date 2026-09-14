@@ -43,9 +43,9 @@ describe("DeploymentsCollection", () => {
     expect(DeploymentCard).toHaveBeenCalledWith(expect.objectContaining({ isSelected: false }), expect.anything());
   });
 
-  it("adds a selection column to the table only when the collection is selectable", () => {
+  it("keeps the same columns whether or not the collection is selectable", () => {
     setup({ viewMode: "list", dseqs: ["100"], isSelectable: true });
-    expect(screen.getAllByRole("columnheader")).toHaveLength(6);
+    expect(screen.getAllByRole("columnheader")).toHaveLength(5);
 
     cleanup();
 

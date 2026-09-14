@@ -1,7 +1,6 @@
 "use client";
 import type { FC } from "react";
 import { Checkbox, TableCell, TableRow } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
 import Link from "next/link";
 
 import type { NamedDeploymentDto } from "@src/types/deployment";
@@ -23,13 +22,8 @@ export const DEPENDENCIES = {
   ReclamationCountdown
 };
 
-/**
- * Selection and the actions menu are secondary to reading the card, so they stay out of the way until the card
- * is hovered. Where hover does not exist (touch) they stay visible, keyboard focus reveals them everywhere, and
- * a ticked checkbox stays visible so a selection is never hidden by moving the pointer away.
- */
-const HOVER_REVEALED =
-  "transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 data-[state=checked]:opacity-100";
+/** TableCell zeroes its right padding for any cell holding a checkbox, which would pin these controls to the table's edge. */
+const CONTROLS_CELL = "w-px pl-0 [&:has([role=checkbox])]:pr-4";
 
 export interface DeploymentRowProps {
   deployment: NamedDeploymentDto;
@@ -53,37 +47,35 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
   const { leases, endpoints, isLoadingEndpoints, unreachableReason } = d.useDeploymentReachability({ deployment, providers });
 
   return (
-    <TableRow className="group">
-      {isSelectable && (
-        <TableCell className="w-10">
-          <Checkbox
-            aria-label={`Select deployment ${deployment.name || deployment.dseq}`}
-            checked={isSelected}
-            expandedTouchTarget
-            className={HOVER_REVEALED}
-            onClick={event => onSelect?.({ id: deployment.dseq, isShiftPressed: event.shiftKey })}
-          />
-        </TableCell>
-      )}
-      <TableCell className="w-44 align-top">
+    <TableRow>
+      <TableCell>
         <div className="flex flex-col items-start gap-1">
           <d.DeploymentStatusBadge state={deployment.state} leases={leases} />
           <d.ReclamationCountdown leases={leases} />
         </div>
       </TableCell>
-      <TableCell className="max-w-0 align-top">
+      <TableCell className="max-w-0">
         <Link href={UrlService.deploymentDetails(deployment.dseq)} className="block truncate font-semibold hover:underline">
           {deployment.name || `Deployment #${deployment.dseq}`}
         </Link>
       </TableCell>
-      <TableCell className="max-w-0 align-top">
+      <TableCell className="max-w-0">
         <d.DeploymentEndpoints endpoints={endpoints} isLoading={isLoadingEndpoints} unreachableReason={unreachableReason} />
       </TableCell>
-      <TableCell className="align-top">
+      <TableCell>
         <d.DeploymentSpecSummary deployment={deployment} />
       </TableCell>
-      <TableCell className="w-12 align-top">
-        <div className={cn("flex justify-end", HOVER_REVEALED)}>
+      <TableCell className={CONTROLS_CELL}>
+        <div className="flex items-center justify-end gap-1">
+          {isSelectable && (
+            <Checkbox
+              aria-label={`Select deployment ${deployment.name || deployment.dseq}`}
+              checked={isSelected}
+              expandedTouchTarget
+              className="shrink-0"
+              onClick={event => onSelect?.({ id: deployment.dseq, isShiftPressed: event.shiftKey })}
+            />
+          )}
           <d.DeploymentActionsMenu deployment={deployment} onDeploymentClosed={onDeploymentClosed} />
         </div>
       </TableCell>
