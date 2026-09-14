@@ -30,7 +30,18 @@ describe("DeploymentsList", () => {
 
     expect(screen.queryByRole("textbox", { name: "Search deployments" })).not.toBeInTheDocument();
     expect(screen.queryByRole("radio", { name: "Grid view" })).not.toBeInTheDocument();
+  });
+
+  it("leaves the New deployment link to the empty state, which offers a button of its own", () => {
+    setup({ showNewDeploymentLink: false, hasSettledWithoutActiveDeployments: true });
+
     expect(screen.queryByRole("link", { name: /New deployment/ })).not.toBeInTheDocument();
+  });
+
+  it("keeps the New deployment link on screen for an account the empty state will not cover", () => {
+    setup({ hasAnyDeployment: false, showNewDeploymentLink: true, showArchiveError: true });
+
+    expect(screen.getByRole("link", { name: /New deployment/ })).toBeInTheDocument();
   });
 
   it("keeps search and the New deployment link on screen while a search matched nothing", () => {
@@ -238,33 +249,40 @@ describe("DeploymentsList", () => {
   });
 
   it("keeps the pager off screen when everything fits on one page", () => {
-    setup({ hasPageResults: true, isPaginated: false, pageIndex: 0, hasNextPage: false });
+    setup({ hasPageResults: true, isPaginated: false, showPageSizeSelector: false, pageIndex: 0, hasNextPage: false });
 
     expect(screen.queryByRole("link", { name: "Go to next page" })).not.toBeInTheDocument();
     expect(screen.queryByText("Rows per page")).not.toBeInTheDocument();
   });
 
+  it("keeps the rows-per-page selector on screen once the page size has outgrown the pager", () => {
+    setup({ hasPageResults: true, isPaginated: false, showPageSizeSelector: true, pageIndex: 0, hasNextPage: false });
+
+    expect(screen.getByText("Rows per page")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Go to next page" })).not.toBeInTheDocument();
+  });
+
   it("disables Previous on the first page of a run", () => {
-    setup({ hasPageResults: true, isPaginated: true, pageIndex: 0, hasNextPage: true });
+    setup({ hasPageResults: true, isPaginated: true, showPageSizeSelector: true, pageIndex: 0, hasNextPage: true });
 
     expect(screen.getByRole("link", { name: "Go to previous page" })).toHaveAttribute("aria-disabled", "true");
   });
 
   it("disables Next on the last page of a run", () => {
-    setup({ hasPageResults: true, isPaginated: true, pageIndex: 1, hasNextPage: false });
+    setup({ hasPageResults: true, isPaginated: true, showPageSizeSelector: true, pageIndex: 1, hasNextPage: false });
 
     expect(screen.getByRole("link", { name: "Go to next page" })).toHaveAttribute("aria-disabled", "true");
   });
 
   it("enables both directions in the middle of a run of pages", () => {
-    setup({ hasPageResults: true, isPaginated: true, pageIndex: 1, hasNextPage: true });
+    setup({ hasPageResults: true, isPaginated: true, showPageSizeSelector: true, pageIndex: 1, hasNextPage: true });
 
     expect(screen.getByRole("link", { name: "Go to previous page" })).not.toHaveAttribute("aria-disabled", "true");
     expect(screen.getByRole("link", { name: "Go to next page" })).not.toHaveAttribute("aria-disabled", "true");
   });
 
   it("pages forward and back on demand", async () => {
-    const { goToNextPage, goToPreviousPage } = setup({ hasPageResults: true, isPaginated: true, pageIndex: 1, hasNextPage: true });
+    const { goToNextPage, goToPreviousPage } = setup({ hasPageResults: true, isPaginated: true, showPageSizeSelector: true, pageIndex: 1, hasNextPage: true });
 
     await userEvent.click(screen.getByRole("link", { name: "Go to next page" }));
     await userEvent.click(screen.getByRole("link", { name: "Go to previous page" }));
@@ -325,6 +343,7 @@ describe("DeploymentsList", () => {
       hasPageResults: false,
       hasAnyDeployment: true,
       hasSettledWithoutActiveDeployments: false,
+      showNewDeploymentLink: true,
       showErrorState: false,
       showArchiveError: false,
       isRetryingArchive: false,
@@ -336,6 +355,7 @@ describe("DeploymentsList", () => {
       goToNextPage,
       hasNextPage: false,
       isPaginated: false,
+      showPageSizeSelector: false,
       isInitialLoad: false,
       selectedItemIds: [],
       selectItem,

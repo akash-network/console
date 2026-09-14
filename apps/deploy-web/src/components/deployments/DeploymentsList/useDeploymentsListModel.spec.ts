@@ -434,6 +434,30 @@ describe(useDeploymentsListModel.name, () => {
       expect(result.current.isPaginated).toBe(true);
     });
 
+    it("hides the rows-per-page selector while the page size is the default one everything fits under", () => {
+      const { result } = setup({ active: [deployment("100")], hasNextPage: false });
+
+      expect(result.current.isPaginated).toBe(false);
+      expect(result.current.showPageSizeSelector).toBe(false);
+    });
+
+    it("keeps the rows-per-page selector reachable after a larger page size swallowed the pager", async () => {
+      const { result } = setup({ active: [deployment("100")], hasNextPage: false });
+
+      await act(async () => result.current.changePageSize(50));
+
+      expect(result.current.isPaginated).toBe(false);
+      expect(result.current.showPageSizeSelector).toBe(true);
+    });
+
+    it("hides the rows-per-page selector when there are no rows to size", async () => {
+      const { result } = setup({ active: [], archived: [] });
+
+      await act(async () => result.current.changePageSize(50));
+
+      expect(result.current.showPageSizeSelector).toBe(false);
+    });
+
     it("keeps reporting paging on the last page, where there is nowhere further to go", async () => {
       const { result } = setup({ activeByPage: { 0: [deployment("100")], 1: [deployment("101")] }, hasNextPage: false });
 
@@ -450,6 +474,46 @@ describe(useDeploymentsListModel.name, () => {
 
       expect(result.current.showNoSearchResults).toBe(true);
       expect(result.current.hasAnyDeployment).toBe(true);
+    });
+
+    it("keeps counting the account as having deployments through the first keystroke, before the full list has fetched", async () => {
+      const { result } = setup({ active: [deployment("100")], archived: [], isListUnresolved: true });
+
+      await act(async () => result.current.changeSearch("a"));
+
+      expect(result.current.pageDeployments).toEqual([]);
+      expect(result.current.hasAnyDeployment).toBe(true);
+    });
+
+    it("offers the New deployment link to an account whose archive failed and so gets no empty state", () => {
+      const { result } = setup({ active: [], isArchiveError: true });
+
+      expect(result.current.hasSettledWithoutActiveDeployments).toBe(false);
+      expect(result.current.showNewDeploymentLink).toBe(true);
+    });
+
+    it("offers the New deployment link when the active query failed", () => {
+      const { result } = setup({ active: [], isError: true });
+
+      expect(result.current.showNewDeploymentLink).toBe(true);
+    });
+
+    it("leaves the New deployment link to the empty state for an account with nothing at all", () => {
+      const { result } = setup({ active: [], archived: [] });
+
+      expect(result.current.showNewDeploymentLink).toBe(false);
+    });
+
+    it("withholds the New deployment link until the first page has resolved", () => {
+      const { result } = setup({ isUnresolved: true, isFetching: true });
+
+      expect(result.current.showNewDeploymentLink).toBe(false);
+    });
+
+    it("offers the New deployment link to an account that has deployments", () => {
+      const { result } = setup({ active: [deployment("100")] });
+
+      expect(result.current.showNewDeploymentLink).toBe(true);
     });
 
     it("withholds the empty state until the archive query has settled", () => {
@@ -572,6 +636,7 @@ describe(useDeploymentsListModel.name, () => {
   type Input = {
     active?: DeploymentDto[];
     isUnresolved?: boolean;
+    isListUnresolved?: boolean;
     isArchiveUnresolved?: boolean;
     activeByPage?: Record<number, DeploymentDto[]>;
     archived?: DeploymentDto[];
@@ -613,7 +678,8 @@ describe(useDeploymentsListModel.name, () => {
 
     const useDeploymentList = vi.fn<typeof DEPENDENCIES.useDeploymentList>((_address, _options, state) =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentList>>(), {
-        data: state === "closed" ? (current.isArchiveUnresolved ? undefined : current.archived ?? []) : current.active ?? [],
+        data:
+          state === "closed" ? (current.isArchiveUnresolved ? undefined : current.archived ?? []) : current.isListUnresolved ? undefined : current.active ?? [],
         isFetching: state === "closed" ? current.isArchiveFetching ?? false : current.isListFetching ?? false,
         isError: state === "closed" ? current.isArchiveError ?? false : current.isListError ?? false,
         refetch: refetchList

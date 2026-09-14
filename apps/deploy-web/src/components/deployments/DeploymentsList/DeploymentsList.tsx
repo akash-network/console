@@ -110,7 +110,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
             </>
           )}
 
-          {model.hasAnyDeployment && (
+          {model.showNewDeploymentLink && (
             <Link
               href={newDeploymentUrl()}
               className={cn("space-x-2", buttonVariants({ variant: "default" }), isBlockchainDown && "pointer-events-none opacity-50")}
@@ -157,19 +157,21 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
 
       {model.showNoSearchResults && <p className="py-6">No deployment found.</p>}
 
-      {model.hasPageResults && model.isPaginated && (
+      {model.showPageSizeSelector && (
         <div className="flex flex-col items-center justify-between px-2 py-8 md:flex-row md:space-x-4">
           <PaginationSizeSelector pageSize={model.pageSize} setPageSize={model.changePageSize} />
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious onClick={model.goToPreviousPage} disabled={model.pageIndex === 0} />
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationNext onClick={model.goToNextPage} disabled={!model.hasNextPage} />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+          {model.isPaginated && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious onClick={model.goToPreviousPage} disabled={model.pageIndex === 0} />
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext onClick={model.goToNextPage} disabled={!model.hasNextPage} />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </div>
       )}
 
