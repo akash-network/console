@@ -161,7 +161,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
 
       {model.showNoSearchResults && <p className="py-6">No deployment found.</p>}
 
-      {model.hasPageResults && (
+      {model.hasPageResults && model.isPaginated && (
         <div className="flex flex-col items-center justify-between px-2 py-8 md:flex-row md:space-x-4">
           <PaginationSizeSelector pageSize={model.pageSize} setPageSize={model.changePageSize} />
           <Pagination>

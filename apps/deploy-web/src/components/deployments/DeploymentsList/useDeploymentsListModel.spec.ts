@@ -354,6 +354,27 @@ describe(useDeploymentsListModel.name, () => {
       expect(result.current.hasSettledWithoutActiveDeployments).toBe(true);
     });
 
+    it("reports no paging when every deployment fits on the first page", () => {
+      const { result } = setup({ active: [deployment("100")], hasNextPage: false });
+
+      expect(result.current.isPaginated).toBe(false);
+    });
+
+    it("reports paging once there is a page to move to", () => {
+      const { result } = setup({ active: [deployment("100")], hasNextPage: true });
+
+      expect(result.current.isPaginated).toBe(true);
+    });
+
+    it("keeps reporting paging on the last page, where there is nowhere further to go", async () => {
+      const { result } = setup({ activeByPage: { 0: [deployment("100")], 1: [deployment("101")] }, hasNextPage: false });
+
+      await act(async () => result.current.goToNextPage());
+
+      expect(result.current.hasNextPage).toBe(false);
+      expect(result.current.isPaginated).toBe(true);
+    });
+
     it("keeps counting the account as having deployments when a search matches nothing", async () => {
       const { result } = setup({ active: [deployment("100")], names: { "100": "billing-worker" } });
 

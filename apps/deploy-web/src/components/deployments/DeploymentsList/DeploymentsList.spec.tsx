@@ -230,22 +230,34 @@ describe("DeploymentsList", () => {
     expect(screen.queryByRole("link", { name: "Go to next page" })).not.toBeInTheDocument();
   });
 
-  it("disables Previous on the first page and Next on the last", () => {
-    setup({ hasPageResults: true, pageIndex: 0, hasNextPage: false });
+  it("keeps the pager off screen when everything fits on one page", () => {
+    setup({ hasPageResults: true, isPaginated: false, pageIndex: 0, hasNextPage: false });
+
+    expect(screen.queryByRole("link", { name: "Go to next page" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Rows per page")).not.toBeInTheDocument();
+  });
+
+  it("disables Previous on the first page of a run", () => {
+    setup({ hasPageResults: true, isPaginated: true, pageIndex: 0, hasNextPage: true });
 
     expect(screen.getByRole("link", { name: "Go to previous page" })).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("disables Next on the last page of a run", () => {
+    setup({ hasPageResults: true, isPaginated: true, pageIndex: 1, hasNextPage: false });
+
     expect(screen.getByRole("link", { name: "Go to next page" })).toHaveAttribute("aria-disabled", "true");
   });
 
   it("enables both directions in the middle of a run of pages", () => {
-    setup({ hasPageResults: true, pageIndex: 1, hasNextPage: true });
+    setup({ hasPageResults: true, isPaginated: true, pageIndex: 1, hasNextPage: true });
 
     expect(screen.getByRole("link", { name: "Go to previous page" })).not.toHaveAttribute("aria-disabled", "true");
     expect(screen.getByRole("link", { name: "Go to next page" })).not.toHaveAttribute("aria-disabled", "true");
   });
 
   it("pages forward and back on demand", async () => {
-    const { goToNextPage, goToPreviousPage } = setup({ hasPageResults: true, pageIndex: 1, hasNextPage: true });
+    const { goToNextPage, goToPreviousPage } = setup({ hasPageResults: true, isPaginated: true, pageIndex: 1, hasNextPage: true });
 
     await userEvent.click(screen.getByRole("link", { name: "Go to next page" }));
     await userEvent.click(screen.getByRole("link", { name: "Go to previous page" }));
@@ -316,6 +328,7 @@ describe("DeploymentsList", () => {
       goToPreviousPage,
       goToNextPage,
       hasNextPage: false,
+      isPaginated: false,
       selectedItemIds: [],
       selectItem,
       clearSelection,
