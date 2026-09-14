@@ -24,6 +24,21 @@ describe("DeploymentsCollection", () => {
     expect(screen.getByRole("columnheader", { name: "Hardware" })).toBeInTheDocument();
   });
 
+  it("stands in placeholder cards while the grid is loading", () => {
+    const { DeploymentCard } = setup({ viewMode: "grid", dseqs: [], isLoading: true });
+
+    expect(screen.getAllByTestId("deployment-placeholder").length).toBeGreaterThan(0);
+    expect(DeploymentCard).not.toHaveBeenCalled();
+  });
+
+  it("stands in placeholder rows under the real headers while the list is loading", () => {
+    const { DeploymentRow } = setup({ viewMode: "list", dseqs: [], isLoading: true });
+
+    expect(screen.getAllByTestId("deployment-placeholder").length).toBeGreaterThan(0);
+    expect(screen.getByRole("columnheader", { name: "Hardware" })).toBeInTheDocument();
+    expect(DeploymentRow).not.toHaveBeenCalled();
+  });
+
   it("marks the deployments the caller has selected", () => {
     const { DeploymentCard } = setup({ viewMode: "grid", dseqs: ["100", "101"], selectedIds: ["101"] });
 
@@ -60,7 +75,14 @@ describe("DeploymentsCollection", () => {
     expect(DeploymentCard).toHaveBeenCalledWith(expect.objectContaining({ onDeploymentClosed }), expect.anything());
   });
 
-  function setup(input: { viewMode: DeploymentsViewMode; dseqs: string[]; selectedIds?: string[]; isSelectable?: boolean; onDeploymentClosed?: () => void }) {
+  function setup(input: {
+    viewMode: DeploymentsViewMode;
+    dseqs: string[];
+    isLoading?: boolean;
+    selectedIds?: string[];
+    isSelectable?: boolean;
+    onDeploymentClosed?: () => void;
+  }) {
     const DeploymentCard = vi.fn(() => <div>card</div>);
     const DeploymentRow = vi.fn(() => <tr />);
 
@@ -69,6 +91,7 @@ describe("DeploymentsCollection", () => {
         deployments={input.dseqs.map(dseq => ({ dseq, state: "active" }) as NamedDeploymentDto)}
         providers={[]}
         viewMode={input.viewMode}
+        isLoading={input.isLoading}
         isSelectable={input.isSelectable ?? true}
         selectedIds={input.selectedIds}
         onDeploymentClosed={input.onDeploymentClosed}

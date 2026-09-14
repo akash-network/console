@@ -10,7 +10,6 @@ import {
   PaginationNext,
   PaginationPrevious,
   PaginationSizeSelector,
-  Spinner,
   ToggleGroup,
   ToggleGroupItem
 } from "@akashnetwork/ui/components";
@@ -22,10 +21,10 @@ import { NextSeo } from "next-seo";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { useBlockchainStatus } from "@src/context/BlockchainStatusProvider";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
-import { NoDeploymentsState } from "../../home/NoDeploymentsState";
 import Layout from "../../layout/Layout";
 import { DeploymentArchive } from "./DeploymentArchive";
 import { DeploymentsCollection } from "./DeploymentsCollection";
+import { DeploymentsEmptyState } from "./DeploymentsEmptyState";
 import { useDeploymentsListModel } from "./useDeploymentsListModel";
 
 export const DEPENDENCIES = {
@@ -33,7 +32,7 @@ export const DEPENDENCIES = {
   useBlockchainStatus,
   useNewDeploymentUrl,
   Layout,
-  NoDeploymentsState,
+  DeploymentsEmptyState,
   DeploymentsCollection,
   DeploymentArchive
 };
@@ -136,24 +135,19 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
       )}
 
       {model.hasSettledWithoutActiveDeployments && (
-        <d.NoDeploymentsState
+        <d.DeploymentsEmptyState
           onDeployClick={model.startNewDeployment}
           hasDeployments={model.archiveDeployments.length > 0}
           showTemplatesButton={model.archiveDeployments.length === 0}
         />
       )}
 
-      {!model.hasPageResults && model.isLoadingDeployments && (
-        <div className="flex items-center justify-center p-8">
-          <Spinner size="large" />
-        </div>
-      )}
-
-      {model.hasPageResults && (
+      {(model.hasPageResults || model.isInitialLoad) && (
         <d.DeploymentsCollection
           deployments={model.pageDeployments}
           providers={model.providers}
           viewMode={model.viewMode}
+          isLoading={model.isInitialLoad}
           isSelectable
           selectedIds={model.selectedItemIds}
           onSelect={model.selectItem}

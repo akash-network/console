@@ -83,6 +83,9 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
   const hasAnyDeployment = !!fetchedActiveDeployments?.length || pageIndex > 0 || !!archiveList.data?.length;
   const hasNextPage = isSearching ? (pageIndex + 1) * pageSize < activeDeployments.length : activePage.data?.hasNextPage ?? false;
   const isPaginated = hasNextPage || pageIndex > 0;
+  /** Both queries feed the choice between rows and the empty state, so neither can be decided until both have data. */
+  const hasResolvedActiveAndArchive = activePage.data !== undefined && archiveList.data !== undefined;
+  const isInitialLoad = canQuery && !hasPageResults && !isError && !isArchiveError && !hasResolvedActiveAndArchive;
 
   useEffect(
     function goBackFromEmptyPage() {
@@ -145,8 +148,7 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     refetchDeployments,
     hasPageResults,
     hasAnyDeployment,
-    hasSettledWithoutActiveDeployments:
-      !hasPageResults && pageIndex === 0 && !isLoadingDeployments && !isError && !isArchiveError && !isSearching && !archiveList.isFetching,
+    hasSettledWithoutActiveDeployments: !hasPageResults && pageIndex === 0 && !isError && !isArchiveError && !isSearching && hasResolvedActiveAndArchive,
     showErrorState: isError && !hasPageResults && !isLoadingDeployments,
     showArchiveError: isArchiveError,
     isRetryingArchive: isArchiveError && archiveList.isFetching,
@@ -159,6 +161,7 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     goToNextPage,
     hasNextPage,
     isPaginated,
+    isInitialLoad,
     selectedItemIds,
     selectItem,
     clearSelection,

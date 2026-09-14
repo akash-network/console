@@ -354,6 +354,74 @@ describe(useDeploymentsListModel.name, () => {
       expect(result.current.hasSettledWithoutActiveDeployments).toBe(true);
     });
 
+    it("reports an initial load until the first page resolves", () => {
+      const { result } = setup({ isUnresolved: true, isFetching: true });
+
+      expect(result.current.isInitialLoad).toBe(true);
+    });
+
+    it("holds placeholders through the archive fetch that the empty state waits on", () => {
+      const { result } = setup({ active: [], isArchiveUnresolved: true, isArchiveFetching: true });
+
+      expect(result.current.hasPageResults).toBe(false);
+      expect(result.current.hasSettledWithoutActiveDeployments).toBe(false);
+      expect(result.current.isInitialLoad).toBe(true);
+    });
+
+    it("shows the rows as soon as they resolve rather than waiting on the archive", () => {
+      const { result } = setup({ active: [deployment("100")], isArchiveUnresolved: true, isArchiveFetching: true });
+
+      expect(result.current.hasPageResults).toBe(true);
+      expect(result.current.isInitialLoad).toBe(false);
+    });
+
+    it("gives up on placeholders when the archive fails rather than holding them forever", () => {
+      const { result } = setup({ active: [], isArchiveUnresolved: true, isArchiveError: true });
+
+      expect(result.current.isInitialLoad).toBe(false);
+    });
+
+    it("shows no placeholders over a page that is already cached", () => {
+      const { result } = setup({ active: [], isFetching: true });
+
+      expect(result.current.isLoadingDeployments).toBe(true);
+      expect(result.current.isInitialLoad).toBe(false);
+    });
+
+    it("reports an initial load even before the query reports itself as fetching", () => {
+      const { result } = setup({ isUnresolved: true, isFetching: false });
+
+      expect(result.current.isInitialLoad).toBe(true);
+    });
+
+    it("reports no initial load before there is an account to query", () => {
+      const { result } = setup({ isUnresolved: true, isFetching: true, address: "" });
+
+      expect(result.current.isInitialLoad).toBe(false);
+    });
+
+    it("stops reporting an initial load once a page has resolved", () => {
+      const { result } = setup({ active: [deployment("100")] });
+
+      expect(result.current.isInitialLoad).toBe(false);
+    });
+
+    it("leaves a search to the progress bar rather than a second round of placeholders", async () => {
+      const { result, rerenderWith } = setup({ active: [deployment("100")] });
+
+      await act(async () => result.current.changeSearch("acme"));
+      rerenderWith({ active: [deployment("100")], isListFetching: true });
+
+      expect(result.current.isLoadingDeployments).toBe(true);
+      expect(result.current.isInitialLoad).toBe(false);
+    });
+
+    it("stops reporting an initial load when the first page fails instead of resolving", () => {
+      const { result } = setup({ isUnresolved: true, isError: true });
+
+      expect(result.current.isInitialLoad).toBe(false);
+    });
+
     it("reports no paging when every deployment fits on the first page", () => {
       const { result } = setup({ active: [deployment("100")], hasNextPage: false });
 
@@ -385,15 +453,23 @@ describe(useDeploymentsListModel.name, () => {
     });
 
     it("withholds the empty state until the archive query has settled", () => {
-      const { result } = setup({ active: [], archived: [], isArchiveFetching: true });
+      const { result } = setup({ active: [], isArchiveUnresolved: true, isArchiveFetching: true });
 
       expect(result.current.hasSettledWithoutActiveDeployments).toBe(false);
     });
 
     it("withholds the empty state while the active query is still loading", () => {
-      const { result } = setup({ active: [], isFetching: true });
+      const { result } = setup({ isUnresolved: true, isFetching: true });
 
       expect(result.current.hasSettledWithoutActiveDeployments).toBe(false);
+    });
+
+    it("keeps the empty state on screen through a refresh rather than retracting it", () => {
+      const { result } = setup({ active: [], archived: [], isFetching: true, isArchiveFetching: true });
+
+      expect(result.current.isLoadingDeployments).toBe(true);
+      expect(result.current.hasSettledWithoutActiveDeployments).toBe(true);
+      expect(result.current.isInitialLoad).toBe(false);
     });
 
     it("shows the error state rather than the empty state when the query failed", () => {
@@ -495,6 +571,8 @@ describe(useDeploymentsListModel.name, () => {
 
   type Input = {
     active?: DeploymentDto[];
+    isUnresolved?: boolean;
+    isArchiveUnresolved?: boolean;
     activeByPage?: Record<number, DeploymentDto[]>;
     archived?: DeploymentDto[];
     address?: string;
@@ -521,10 +599,12 @@ describe(useDeploymentsListModel.name, () => {
 
     const useDeploymentsPage = vi.fn<typeof DEPENDENCIES.useDeploymentsPage>((_address, params) =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentsPage>>(), {
-        data: {
-          deployments: current.activeByPage ? current.activeByPage[params.skip / params.limit] ?? [] : current.active ?? [],
-          hasNextPage: current.hasNextPage ?? false
-        } satisfies DeploymentsPage,
+        data: current.isUnresolved
+          ? undefined
+          : ({
+              deployments: current.activeByPage ? current.activeByPage[params.skip / params.limit] ?? [] : current.active ?? [],
+              hasNextPage: current.hasNextPage ?? false
+            } satisfies DeploymentsPage),
         isFetching: current.isFetching ?? false,
         isError: current.isError ?? false,
         refetch: refetchPage
@@ -533,7 +613,7 @@ describe(useDeploymentsListModel.name, () => {
 
     const useDeploymentList = vi.fn<typeof DEPENDENCIES.useDeploymentList>((_address, _options, state) =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentList>>(), {
-        data: state === "closed" ? current.archived ?? [] : current.active ?? [],
+        data: state === "closed" ? (current.isArchiveUnresolved ? undefined : current.archived ?? []) : current.active ?? [],
         isFetching: state === "closed" ? current.isArchiveFetching ?? false : current.isListFetching ?? false,
         isError: state === "closed" ? current.isArchiveError ?? false : current.isListError ?? false,
         refetch: refetchList

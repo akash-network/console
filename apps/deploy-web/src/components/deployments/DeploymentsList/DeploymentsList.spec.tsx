@@ -155,33 +155,40 @@ describe("DeploymentsList", () => {
   });
 
   it("offers the onboarding empty state to an account with nothing deployed", () => {
-    const { NoDeploymentsState } = setup({ hasSettledWithoutActiveDeployments: true, archiveDeployments: [] });
+    const { DeploymentsEmptyState } = setup({ hasSettledWithoutActiveDeployments: true, archiveDeployments: [] });
 
-    expect(NoDeploymentsState).toHaveBeenCalledWith(expect.objectContaining({ hasDeployments: false, showTemplatesButton: true }), expect.anything());
+    expect(DeploymentsEmptyState).toHaveBeenCalledWith(expect.objectContaining({ hasDeployments: false, showTemplatesButton: true }), expect.anything());
   });
 
   it("tells an account whose deployments are all closed that none are active", () => {
-    const { NoDeploymentsState } = setup({ hasSettledWithoutActiveDeployments: true, archiveDeployments: [namedDeployment("200")] });
+    const { DeploymentsEmptyState } = setup({ hasSettledWithoutActiveDeployments: true, archiveDeployments: [namedDeployment("200")] });
 
-    expect(NoDeploymentsState).toHaveBeenCalledWith(expect.objectContaining({ hasDeployments: true, showTemplatesButton: false }), expect.anything());
+    expect(DeploymentsEmptyState).toHaveBeenCalledWith(expect.objectContaining({ hasDeployments: true, showTemplatesButton: false }), expect.anything());
   });
 
   it("renders no empty state while the model is still resolving", () => {
-    const { NoDeploymentsState } = setup({ hasSettledWithoutActiveDeployments: false });
+    const { DeploymentsEmptyState } = setup({ hasSettledWithoutActiveDeployments: false });
 
-    expect(NoDeploymentsState).not.toHaveBeenCalled();
+    expect(DeploymentsEmptyState).not.toHaveBeenCalled();
   });
 
-  it("spins while the first page is loading", () => {
-    setup({ hasPageResults: false, isLoadingDeployments: true });
+  it("asks the collection for placeholders on the very first load", () => {
+    const { DeploymentsCollection } = setup({ hasPageResults: false, isInitialLoad: true, isLoadingDeployments: true });
 
-    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(DeploymentsCollection).toHaveBeenCalledWith(expect.objectContaining({ isLoading: true }), expect.anything());
   });
 
-  it("keeps the rows on screen instead of a spinner while a later page loads", () => {
-    setup({ hasPageResults: true, isLoadingDeployments: true });
+  it("leaves a later fetch to the progress bar rather than showing placeholders again", () => {
+    setup({ hasPageResults: false, isInitialLoad: false, isLoadingDeployments: true });
 
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("deployment-placeholder")).not.toBeInTheDocument();
+    expect(screen.queryByText("collection")).not.toBeInTheDocument();
+  });
+
+  it("keeps the rows on screen rather than placeholders while a later page loads", () => {
+    const { DeploymentsCollection } = setup({ hasPageResults: true, isInitialLoad: false, isLoadingDeployments: true });
+
+    expect(DeploymentsCollection).toHaveBeenCalledWith(expect.objectContaining({ isLoading: false }), expect.anything());
   });
 
   it("hands the collection everything it needs to render and act on a page", () => {
@@ -329,6 +336,7 @@ describe("DeploymentsList", () => {
       goToNextPage,
       hasNextPage: false,
       isPaginated: false,
+      isInitialLoad: false,
       selectedItemIds: [],
       selectItem,
       clearSelection,
@@ -343,7 +351,7 @@ describe("DeploymentsList", () => {
     const useNewDeploymentUrl: typeof DEPENDENCIES.useNewDeploymentUrl = () => () => "/new-deployment";
 
     const Layout = vi.fn(({ children }: { children?: React.ReactNode; isLoading?: boolean }) => <div>{children}</div>);
-    const NoDeploymentsState = vi.fn(() => <div>onboarding empty state</div>);
+    const DeploymentsEmptyState = vi.fn(() => <div>empty state</div>);
     const DeploymentsCollection = vi.fn((_props: DeploymentsCollectionProps) => <div>collection</div>);
     const DeploymentArchive = vi.fn(() => <div>archive</div>);
 
@@ -354,7 +362,7 @@ describe("DeploymentsList", () => {
           useBlockchainStatus,
           useNewDeploymentUrl,
           Layout,
-          NoDeploymentsState,
+          DeploymentsEmptyState,
           DeploymentsCollection,
           DeploymentArchive
         })}
@@ -373,7 +381,7 @@ describe("DeploymentsList", () => {
       goToPreviousPage,
       goToNextPage,
       Layout,
-      NoDeploymentsState,
+      DeploymentsEmptyState,
       DeploymentsCollection,
       DeploymentArchive
     };
