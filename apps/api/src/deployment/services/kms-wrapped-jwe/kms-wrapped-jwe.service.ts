@@ -6,6 +6,7 @@ import { inject, singleton } from "tsyringe";
 import { SDL_SECRETS_WRAPPED_KEY_BYTES } from "@src/deployment/config/sdl-secrets.config";
 import type { SdlSecretsKmsTarget } from "@src/deployment/providers/kms.provider";
 import { SDL_SECRETS_KMS_TARGET } from "@src/deployment/providers/kms.provider";
+import { KmsWrappedJweInstrumentationService } from "./kms-wrapped-jwe-instrumentation.service";
 
 export type KmsWrappedJweFailure =
   | "MALFORMED"
@@ -79,7 +80,10 @@ const UNUSABLE_VERSION_STATUSES: ReadonlySet<unknown> = new Set([grpc.status.NOT
 /** Validates nothing in the header, because what a header must say differs by caller and a wrapped data key carries none of a transport seal's claims — including which version to open under, which the caller resolves and passes in. */
 @singleton()
 export class KmsWrappedJweService {
-  constructor(@inject(SDL_SECRETS_KMS_TARGET) private readonly kmsTarget: SdlSecretsKmsTarget) {}
+  constructor(
+    @inject(SDL_SECRETS_KMS_TARGET) private readonly kmsTarget: SdlSecretsKmsTarget,
+    private readonly instrumentationService: KmsWrappedJweInstrumentationService
+  ) {}
 
   /** Everything here is free and nothing in `open` is, so a serialization whose own segments cannot be used never spends an unwrap. */
   parse(serialized: string): ParsedKmsWrappedJwe {
@@ -153,8 +157,24 @@ export class KmsWrappedJweService {
     }
   }
 
-  /** `jose` cannot delegate key unwrapping to a remote service, which is why the encrypted key is handed to Cloud KMS here rather than opened by a stock library. */
+  /** The error rate is counted at this boundary rather than around the call, because three of the key service's failures arrive on a response the call itself reported as fine. */
   async #unwrapContentEncryptionKey(encryptedKey: string, versionName: string): Promise<Buffer> {
+    try {
+      const contentEncryptionKey = await this.#decryptContentEncryptionKey(encryptedKey, versionName);
+      this.instrumentationService.recordUnwrapSucceeded();
+
+      return contentEncryptionKey;
+    } catch (error) {
+      if (error instanceof KmsWrappedJweError) {
+        this.instrumentationService.recordUnwrapFailed(error.failure);
+      }
+
+      throw error;
+    }
+  }
+
+  /** `jose` cannot delegate key unwrapping to a remote service, which is why the encrypted key is handed to Cloud KMS here rather than opened by a stock library. */
+  async #decryptContentEncryptionKey(encryptedKey: string, versionName: string): Promise<Buffer> {
     const response = await this.#asymmetricDecrypt(Buffer.from(encryptedKey, "base64url"), versionName);
 
     if (!response.verifiedCiphertextCrc32c) {
@@ -175,15 +195,20 @@ export class KmsWrappedJweService {
   }
 
   async #asymmetricDecrypt(ciphertext: Buffer, versionName: string) {
+    const startTime = Date.now();
+
     try {
       const [response] = await this.kmsTarget.client.asymmetricDecrypt({
         name: versionName,
         ciphertext,
         ciphertextCrc32c: { value: crc32c.calculate(ciphertext) }
       });
+      this.instrumentationService.recordCallSucceeded(Date.now() - startTime);
 
       return response;
     } catch (error) {
+      this.instrumentationService.recordCallFailed(Date.now() - startTime);
+
       const status = getGrpcStatus(error);
 
       if (status === grpc.status.INVALID_ARGUMENT) {

@@ -11,6 +11,7 @@ import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { SdlSecretsKmsClient } from "@src/deployment/providers/kms.provider";
 import { KmsWrappedJweService } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe.service";
+import type { KmsWrappedJweInstrumentationService } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe-instrumentation.service";
 import type { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
 import { SdlSecretsUnsealerService } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
@@ -232,7 +233,7 @@ describe(SecretCipherService.name, () => {
 
     const createLogger: CreateLogger = () => mock<ReturnType<CreateLogger>>();
     const kmsTarget = createTestSdlSecretsKmsTarget({ client: kmsClient });
-    const wrappedJweService = new KmsWrappedJweService(kmsTarget);
+    const wrappedJweService = new KmsWrappedJweService(kmsTarget, mock<KmsWrappedJweInstrumentationService>());
     const dataKeyRepository = container.resolve(DataKeyRepository);
     const userRepository = container.resolve(UserRepository);
     const executionContextService = container.resolve(ExecutionContextService);
