@@ -16,6 +16,7 @@ import type { KmsWrappedJweInstrumentationService } from "@src/deployment/servic
 import { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
 import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
 import { DataKeyService } from "@src/secret/services/data-key/data-key.service";
+import type { DataKeyUnwrapInstrumentationService } from "@src/secret/services/data-key-unwrapper/data-key-unwrap-instrumentation.service";
 import { DataKeyUnwrapperService } from "@src/secret/services/data-key-unwrapper/data-key-unwrapper.service";
 import { SecretCipherService } from "@src/secret/services/secret-cipher/secret-cipher.service";
 import { UserRepository } from "@src/user/repositories";
@@ -254,7 +255,14 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
       const wrappedJwe = new KmsWrappedJweService(target, mock<KmsWrappedJweInstrumentationService>());
       const sealingKeyService = new SdlSecretsSealingKeyService(target, createLogger);
       const dataKeyService = new DataKeyService(dataKeyRepository, sealingKeyService, createLogger);
-      const unwrapper = new DataKeyUnwrapperService(dataKeyService, executionContextService, wrappedJwe, target, createLogger);
+      const unwrapper = new DataKeyUnwrapperService(
+        dataKeyService,
+        executionContextService,
+        wrappedJwe,
+        mock<DataKeyUnwrapInstrumentationService>(),
+        target,
+        createLogger
+      );
       const cipher = new SecretCipherService(unwrapper, createLogger);
 
       return {
