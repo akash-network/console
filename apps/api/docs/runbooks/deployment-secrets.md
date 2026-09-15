@@ -209,7 +209,7 @@ The key service records administrative activity on a key by itself. The decrypt 
 
    Retention chosen: 400 days. Rationale: a year of trail plus the slack to notice a problem at the end of it. Change the number here if it changes there.
 
-3. Confirm the console's runtime identity can neither delete entries nor reconfigure logging. It needs only KMS roles: `roles/cloudkms.publicKeyViewer` to fetch the public half, `roles/cloudkms.cryptoKeyDecrypter` to unwrap, and `roles/cloudkms.viewer` to read a version's state.
+3. Confirm the console's runtime identity can neither delete entries, reconfigure logging, nor rewrite the project policy that holds the audit configuration. It needs only KMS roles: `roles/cloudkms.publicKeyViewer` to fetch the public half, `roles/cloudkms.cryptoKeyDecrypter` to unwrap, and `roles/cloudkms.viewer` to read a version's state.
 
    ```sh
    gcloud projects get-iam-policy "$PROJECT" --flatten="bindings[].members" --format="table(bindings.role)" --filter="bindings.members:serviceAccount:<console service account>"
@@ -220,12 +220,12 @@ The key service records administrative activity on a key by itself. The decrypt 
    That reads the project policy alone. A binding inherited from the folder or the organization grants the same access without appearing there, so also ask for the effective answer on the permissions that matter, which walks the whole hierarchy:
 
    ```sh
-   for permission in logging.buckets.update logging.buckets.delete logging.sinks.update logging.sinks.delete logging.logEntries.delete; do
+   for permission in logging.buckets.update logging.buckets.delete logging.sinks.update logging.sinks.delete logging.logs.delete resourcemanager.projects.setIamPolicy; do
      gcloud policy-troubleshoot iam "//cloudresourcemanager.googleapis.com/projects/$PROJECT" --principal-email="<console service account>" --permission="$permission"
    done
    ```
 
-   Every answer must be that access is not granted.
+   Every answer must be that access is not granted. The last permission is the one that matters most: whoever holds it can edit `auditConfigs` and switch the trail off, whatever the logging permissions say.
 
 4. Verify a successful decrypt appears with its caller, key version, operation and outcome. Deploy once with a secret on that environment, then:
 
