@@ -38,7 +38,7 @@ export const UserProfile: React.FunctionComponent<Props> = ({ username, user }) 
               {username === _user?.username && (
                 <Link
                   className={cn(buttonVariants({ variant: "default", size: "sm" }), "mt-4")}
-                  href={urlService.sdlBuilder()}
+                  href={urlService.configureDeployment()}
                   onClick={() => {
                     analyticsService.track("create_sdl_template_link", {
                       category: "profile",

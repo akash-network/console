@@ -114,7 +114,7 @@ export const useReturnTo = <TDefaultReturnTo extends string | null | undefined =
     const path = returnTo.split("?")[0];
     const lowerPath = path.toLowerCase();
 
-    if (lowerPath.startsWith("/new-deployment") || lowerPath.startsWith("/deploy-linux") || lowerPath.startsWith("/deployments/")) {
+    if (lowerPath.startsWith("/new-deployment") || lowerPath.startsWith("/deployments/")) {
       return "deployment";
     }
     if (lowerPath.startsWith("/signup") || lowerPath.startsWith("/onboarding")) {

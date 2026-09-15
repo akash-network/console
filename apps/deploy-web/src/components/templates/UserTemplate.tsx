@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { Button, buttonVariants, Card, CardContent, Popup } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { Bin, Edit, Rocket } from "iconoir-react";
-import { useAtom } from "jotai";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -11,14 +10,11 @@ import { EditDescriptionForm } from "@src/components/sdl/EditDescriptionForm";
 import { LeaseSpecDetail } from "@src/components/shared/LeaseSpecDetail";
 import { Title } from "@src/components/shared/Title";
 import { UserFavoriteButton } from "@src/components/shared/UserFavoriteButton";
-import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { getShortText } from "@src/hooks/useShortText";
 import { useDeleteTemplate } from "@src/queries/useTemplateQuery";
-import sdlStore from "@src/store/sdlStore";
 import type { ITemplate } from "@src/types";
-import { RouteStep } from "@src/types/route-steps.type";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
@@ -41,7 +37,6 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
   const _ram = bytesToShrink(template.ram);
   const _storage = bytesToShrink(template.storage);
   const router = useRouter();
-  const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
 
   useEffect(() => {
     const desc = template.description || "";
@@ -129,15 +124,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
               label: "Deploy SDL from template detail"
             });
 
-            setDeploySdl({
-              title: "",
-              category: "",
-              code: USER_TEMPLATE_CODE,
-              description: "",
-              content: template.sdl
-            });
-
-            router.push(UrlService.newDeployment({ step: RouteStep.editDeployment }));
+            router.push(UrlService.configureDeployment({ userTemplateId: template.id }));
           }}
           size="sm"
           className="space-x-2"
@@ -147,7 +134,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
         </Button>
 
         <Link
-          href={UrlService.sdlBuilder(template.id)}
+          href={UrlService.configureDeployment({ userTemplateId: template.id })}
           className={cn(buttonVariants({ variant: "text", size: "sm" }))}
           onClick={() => {
             analyticsService.track("click_edit_sdl_template", {
