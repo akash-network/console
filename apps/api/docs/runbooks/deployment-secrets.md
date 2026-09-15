@@ -87,7 +87,7 @@ The re-key gives one user a new data key and re-seals every stored secret of the
    node --require ./dist/instrumentation.js ./dist/console.js rekey-user-data-key --user-id <uuid> --dry-run
    ```
 
-   `deploymentsResealed` is how many deployments a real run would re-seal. Nothing is retired or written.
+   `deploymentsResealed` and `secretsResealed` are what a real run would re-seal. The rehearsal opens every one of those values, so one that would not open fails here rather than during the real run. Nothing is retired or written.
 
 2. Run it:
 
