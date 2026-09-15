@@ -14,12 +14,14 @@ export class AppNav {
       .click();
   }
 
+  /** The deployments list labels its deploy entry "Deploy", or "New deployment" under ui_deployments_list_redesign. */
+  deployLink() {
+    return this.page.getByRole("link", { name: /^(deploy|create deployment|new deployment)$/i }).first();
+  }
+
   async openDeploy() {
     await this.openDeployments();
-    await this.page
-      .getByRole("link", { name: /^(deploy|create deployment)$/i })
-      .first()
-      .click();
+    await this.deployLink().click();
   }
 
   async openAlerts() {
