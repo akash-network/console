@@ -1,7 +1,7 @@
 import escape from "lodash/escape";
 
-const LOGO_LIGHT_URL = "https://console-cdn.akash.network/akashconsole-logo.png";
-const LOGO_DARK_URL = "https://console-cdn.akash.network/akashconsole-logo-dark.png";
+/** Gmail ignores prefers-color-scheme and inverts the card itself, so one mid-grey wordmark has to read on both. */
+const LOGO_URL = "https://console-cdn.akash.network/akashconsole.png";
 const BUTTON_PADDING = "12px 24px";
 
 export interface EmailAction {
@@ -80,7 +80,6 @@ export function renderEmailLayout({ subject, content, actions, code }: { subject
   <style>
     body { margin: 0; padding: 0; background-color: #f0f0f1; }
     a { color: #52525b; }
-    .logo-dark { display: none; }
     @media (max-width: 480px) {
       .btn-row { width: 100% !important; }
       .btn-cell { display: block !important; width: 100% !important; padding: 0 0 12px 0 !important; }
@@ -96,8 +95,6 @@ export function renderEmailLayout({ subject, content, actions, code }: { subject
       .body-text { color: #d4d4d8 !important; }
       .body-text strong { color: #fafafa !important; }
       .muted, .footer-text { color: #a1a1aa !important; }
-      .logo-light { display: none !important; }
-      .logo-dark { display: inline-block !important; }
       .btn-primary { background-color: #e5e5e5 !important; }
       .btn-primary-text { color: #171717 !important; }
       .btn-secondary { background-color: transparent !important; border-color: #e5e5e5 !important; }
@@ -112,8 +109,7 @@ export function renderEmailLayout({ subject, content, actions, code }: { subject
     <tr><td align="center" style="padding:40px 16px;">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" class="card" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e4e4e7;border-radius:12px;overflow:hidden;">
         <tr><td class="header-border" style="padding:24px 40px;border-bottom:1px solid #f0f0f1;">
-          <img src="${LOGO_LIGHT_URL}" alt="Akash Console" width="173" height="19" class="logo-light" style="display:inline-block;border:0;" />
-          <img src="${LOGO_DARK_URL}" alt="Akash Console" width="173" height="19" class="logo-dark" style="display:none;border:0;" />
+          <img src="${LOGO_URL}" alt="Akash Console" width="173" height="19" style="display:inline-block;border:0;" />
         </td></tr>
         <tr><td style="padding:36px 40px;">
           <h1 class="heading" style="margin:0 0 24px 0;font-size:24px;line-height:1.3;font-weight:700;color:#18181b;">${escapedSubject}</h1>

@@ -10,12 +10,18 @@ describe(renderEmailLayout.name, () => {
     expect(html).toContain("</html>");
   });
 
-  it("renders both logo variants for light and dark mode", () => {
+  it("renders one logo that reads in both colour schemes", () => {
     const { html } = setup({});
-    expect(html).toContain("https://console-cdn.akash.network/akashconsole-logo.png");
-    expect(html).toContain("https://console-cdn.akash.network/akashconsole-logo-dark.png");
-    expect(html).toContain("@media (prefers-color-scheme: dark)");
+    expect(html).toContain("https://console-cdn.akash.network/akashconsole.png");
+    expect(html).not.toContain("logo-light");
+    expect(html).not.toContain("logo-dark");
     expect(html).not.toContain(".svg");
+  });
+
+  it("styles the card for clients that honour the dark colour scheme", () => {
+    const { html } = setup({});
+    expect(html).toContain("@media (prefers-color-scheme: dark)");
+    expect(html).toContain(".card { background-color: #141414");
   });
 
   it("renders the subject as the title and headline", () => {
