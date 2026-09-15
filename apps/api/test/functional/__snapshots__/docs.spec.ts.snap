@@ -7357,6 +7357,42 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "nullable": true,
                                 "type": "string",
                               },
+                              "settings": {
+                                "description": "What the console holds about this deployment, or null when it holds nothing.",
+                                "nullable": true,
+                                "properties": {
+                                  "autoTopUpEnabled": {
+                                    "type": "boolean",
+                                  },
+                                  "closed": {
+                                    "description": "The console's own bookkeeping, which can trail the chain. \`deployment.state\` is what the chain says.",
+                                    "type": "boolean",
+                                  },
+                                  "name": {
+                                    "description": "The name this deployment carries, or null for one created before the console recorded names.",
+                                    "nullable": true,
+                                    "type": "string",
+                                  },
+                                  "runtimeEndsAt": {
+                                    "description": "When the runtime limit expires, or null for a limit no lease has anchored yet.",
+                                    "format": "date-time",
+                                    "nullable": true,
+                                    "type": "string",
+                                  },
+                                  "runtimeLimitHours": {
+                                    "nullable": true,
+                                    "type": "integer",
+                                  },
+                                },
+                                "required": [
+                                  "name",
+                                  "autoTopUpEnabled",
+                                  "runtimeLimitHours",
+                                  "runtimeEndsAt",
+                                  "closed",
+                                ],
+                                "type": "object",
+                              },
                             },
                             "required": [
                               "deployment",
@@ -7364,6 +7400,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "escrow_account",
                               "name",
                               "groups",
+                              "settings",
                             ],
                             "type": "object",
                           },
