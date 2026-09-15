@@ -5,12 +5,22 @@ import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { SDL_SECRETS_CONTENT_ENCRYPTION, SDL_SECRETS_SEAL_ALGORITHM, SDL_SECRETS_UNAVAILABLE_ERROR_MESSAGE } from "@src/deployment/config/sdl-secrets.config";
+import type { SdlSecretsSealingKey } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
 import { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
 import type { DataKeyInput, DataKeyOutput } from "@src/secret/repositories/data-key/data-key.repository";
 import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
 
 /** AES-256 content encryption, so the data encryption key is 256 bits. */
 const DATA_ENCRYPTION_KEY_BYTES = 32;
+
+/** A fresh key wrapped under the sealing key's public half, so minting one spends no key-service call. */
+export async function wrapDataKey({ kid, publicKey }: SdlSecretsSealingKey): Promise<Pick<DataKeyInput, "wrappedKey" | "wrappedByKid">> {
+  const wrappedKey = await new CompactEncrypt(randomBytes(DATA_ENCRYPTION_KEY_BYTES))
+    .setProtectedHeader({ alg: SDL_SECRETS_SEAL_ALGORITHM, enc: SDL_SECRETS_CONTENT_ENCRYPTION, kid })
+    .encrypt(publicKey);
+
+  return { wrappedKey, wrappedByKid: kid };
+}
 
 /**
  * Hands out a user's data encryption key, creating it on first need. Wrapping uses only the public
@@ -58,11 +68,6 @@ export class DataKeyService {
       throw createError(503, SDL_SECRETS_UNAVAILABLE_ERROR_MESSAGE);
     }
 
-    const { kid, publicKey } = sealingKey;
-    const wrappedKey = await new CompactEncrypt(randomBytes(DATA_ENCRYPTION_KEY_BYTES))
-      .setProtectedHeader({ alg: SDL_SECRETS_SEAL_ALGORITHM, enc: SDL_SECRETS_CONTENT_ENCRYPTION, kid })
-      .encrypt(publicKey);
-
-    return { userId, wrappedKey, wrappedByKid: kid };
+    return { userId, ...(await wrapDataKey(sealingKey)) };
   }
 }
