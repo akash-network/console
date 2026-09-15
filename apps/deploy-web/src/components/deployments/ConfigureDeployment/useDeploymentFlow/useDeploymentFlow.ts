@@ -18,8 +18,8 @@ import type { BidStrategy, DeploymentIntent } from "./deploymentIntent";
 
 export type DeploymentFlowPhase = "configuring" | "creating" | "quoting" | "closing" | "deploying" | "error";
 
-/** Which toast the form shows. A close failure reads differently from a failed quote request, and a refused deposit needs an Add Funds action rather than an apology. */
-export type FlowErrorKind = "create" | "close" | "no-providers" | "insufficient-balance";
+/** Which toast the form shows. A close failure reads differently from a failed quote request, and a refusal the user can pay their way out of needs an Add Funds action rather than an apology. */
+export type FlowErrorKind = "create" | "close" | "no-providers" | "needs-funds";
 
 /** The live bids the flow polls while quoting (react-query-backed). Element shape derived from the shared `listBids` query. */
 export type DeploymentBids = NonNullable<ReturnType<typeof useListBids>["data"]>["data"];
@@ -294,7 +294,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
                 extractApiErrorCode(cause) === WALLET_PROVISIONING_ERROR_CODE
                   ? WALLET_PROVISIONING_TIMEOUT_MESSAGE
                   : extractApiErrorMessage(cause) ?? undefined;
-              setError({ message, kind: isInsufficientBalance(cause) ? "insufficient-balance" : "create" });
+              setError({ message, kind: isPaymentRequired(cause) ? "needs-funds" : "create" });
               setPhase("error");
             }
           }
@@ -466,8 +466,12 @@ function namePayload(name: string | undefined): { name?: string } {
   return trimmed ? { name: trimmed } : {};
 }
 
-/** A create the API refused for want of funds, which the form answers with an Add Funds action instead of the generic failure toast. */
-function isInsufficientBalance(cause: unknown): boolean {
+/**
+ * A create the API refused until the user pays: too little deposit, no fee allowance, or a trial-blocked GPU. The
+ * status is the only signal, since every one of them is reported as `payment_required`, and it is enough because
+ * adding funds is the remedy for all of them; the server's own message says which applies.
+ */
+function isPaymentRequired(cause: unknown): boolean {
   return isApiError(cause) && cause.status === HTTP_PAYMENT_REQUIRED;
 }
 

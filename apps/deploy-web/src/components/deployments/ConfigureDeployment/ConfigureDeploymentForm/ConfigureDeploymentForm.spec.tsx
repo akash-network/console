@@ -336,20 +336,29 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(toast.props.title).toBe("Couldn't get provider quotes");
   });
 
-  it("offers to add credits rather than apologising when the deposit was refused for want of funds", () => {
+  it("offers to add credits rather than apologising when the create was refused until the user pays", () => {
     const message = "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue.";
-    const { enqueueSnackbar } = setup({ initialSdl: undefined, flowError: { message, kind: "insufficient-balance" } });
+    const { enqueueSnackbar } = setup({ initialSdl: undefined, flowError: { message, kind: "needs-funds" } });
 
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "warning" }));
-    const toast = insufficientBalanceToastOf(enqueueSnackbar);
-    expect(toast.props.title).toBe("Not enough balance");
-    expect(toast.props.subTitle.props).toMatchObject({ message, context: "configure_quotes_insufficient_balance" });
+    const toast = needsFundsToastOf(enqueueSnackbar);
+    expect(toast.props.title).toBe("Add funds to continue");
+    expect(toast.props.subTitle.props).toMatchObject({ message, context: "configure_quotes_needs_funds" });
   });
 
-  it("dismisses the insufficient balance toast once the add credits sheet is open", () => {
-    const { enqueueSnackbar, closeSnackbar } = setup({ initialSdl: undefined, flowError: { message: "Not enough balance", kind: "insufficient-balance" } });
+  it("titles the toast for the remedy rather than the cause, so a trial gpu refusal reads correctly too", () => {
+    const message = "GPU interconnect not available on free trial: Add funds to unlock GPU interconnect";
+    const { enqueueSnackbar } = setup({ initialSdl: undefined, flowError: { message, kind: "needs-funds" } });
 
-    insufficientBalanceToastOf(enqueueSnackbar).props.subTitle.props.onAction?.();
+    const toast = needsFundsToastOf(enqueueSnackbar);
+    expect(toast.props.title).toBe("Add funds to continue");
+    expect(toast.props.subTitle.props).toMatchObject({ message });
+  });
+
+  it("dismisses the add funds toast once the add credits sheet is open", () => {
+    const { enqueueSnackbar, closeSnackbar } = setup({ initialSdl: undefined, flowError: { message: "Not enough balance", kind: "needs-funds" } });
+
+    needsFundsToastOf(enqueueSnackbar).props.subTitle.props.onAction?.();
 
     expect(closeSnackbar).toHaveBeenCalled();
   });
@@ -600,7 +609,7 @@ describe(ConfigureDeploymentForm.name, () => {
   }
 });
 
-function insufficientBalanceToastOf(enqueueSnackbar: Mock) {
+function needsFundsToastOf(enqueueSnackbar: Mock) {
   return enqueueSnackbar.mock.calls[0][0] as { props: { title: string; subTitle: { props: { message?: string; context?: string; onAction?: () => void } } } };
 }
 

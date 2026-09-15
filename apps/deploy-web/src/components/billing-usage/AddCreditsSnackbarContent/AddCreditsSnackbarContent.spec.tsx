@@ -35,11 +35,11 @@ describe("AddCreditsSnackbarContent", () => {
   });
 
   it("attributes the request to the call site that raised the snackbar", () => {
-    const { store } = setup({ context: "configure_quotes_insufficient_balance" });
+    const { store } = setup({ context: "configure_quotes_needs_funds" });
 
     fireEvent.click(screen.getByRole("button", { name: "Add Funds" }));
 
-    expect(store.get(addCreditsRequestAtom)).toMatchObject({ context: "configure_quotes_insufficient_balance" });
+    expect(store.get(addCreditsRequestAtom)).toMatchObject({ context: "configure_quotes_needs_funds" });
   });
 
   it("tracks analytics and calls onAction when the button is clicked", () => {

@@ -49,8 +49,8 @@ export const DEPENDENCIES = {
   Snackbar
 };
 
-/** Long enough to read the shortfall and click Add Funds; the default duration dismisses before either. */
-const INSUFFICIENT_BALANCE_TOAST_DURATION_MS = 10000;
+/** Long enough to read the reason and click Add Funds; the default duration dismisses before either. */
+const NEEDS_FUNDS_TOAST_DURATION_MS = 10000;
 
 /** Delay between a form edit and updating the debounced SDL preview. */
 const SDL_SYNC_DEBOUNCE_MS = 300;
@@ -176,16 +176,16 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   useEffect(
     function toastFlowError() {
       if (flow.error && flow.error !== lastToastedFlowError.current) {
-        if (flow.error.kind === "insufficient-balance") {
+        if (flow.error.kind === "needs-funds") {
           const key = enqueueSnackbar(
             <d.Snackbar
-              title="Not enough balance"
+              title="Add funds to continue"
               subTitle={
-                <d.AddCreditsSnackbarContent message={flow.error.message} context="configure_quotes_insufficient_balance" onAction={() => closeSnackbar(key)} />
+                <d.AddCreditsSnackbarContent message={flow.error.message} context="configure_quotes_needs_funds" onAction={() => closeSnackbar(key)} />
               }
               iconVariant="warning"
             />,
-            { variant: "warning", autoHideDuration: INSUFFICIENT_BALANCE_TOAST_DURATION_MS }
+            { variant: "warning", autoHideDuration: NEEDS_FUNDS_TOAST_DURATION_MS }
           );
         } else {
           const { title, fallback } = flowErrorToastCopy(flow.error.kind);
