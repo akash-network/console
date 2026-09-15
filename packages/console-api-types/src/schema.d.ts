@@ -2065,6 +2065,23 @@ export interface paths {
     patch: operations["patchDeployment"];
     trace?: never;
   };
+  "/v1/deployment-names": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get the names of several deployments at once */
+    get: operations["listDeploymentNames"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/deployments": {
     parameters: {
       query?: never;
@@ -8408,6 +8425,8 @@ export interface operations {
                   }[];
                 };
               };
+              /** @description The name this deployment carries, or null for one created before the console recorded names. */
+              name: string | null;
               /** @description Base64 manifest version this patch recorded and committed on chain. Absent for a rename, which records none. */
               manifestVersion?: string;
             };
@@ -8472,6 +8491,47 @@ export interface operations {
       };
       /** @description The key management service is temporarily unreachable. Transient and worth retrying, unlike the 500 above */
       503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+    };
+  };
+  listDeploymentNames: {
+    parameters: {
+      query: {
+        dseq: string[];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns the name the console holds for each deployment asked about, or null where it holds none */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** @description Keyed by the dseqs asked about. Null for a deployment the console holds no name for, whether it recorded nothing or recorded it unnamed. */
+            data: {
+              [key: string]: string | null;
+            };
+          };
+        };
+      };
+      /** @description No `dseq` was given, more than the request limit were, or one is not a deployment sequence number */
+      400: {
         headers: {
           [name: string]: unknown;
         };

@@ -347,6 +347,24 @@ export const ListDeploymentsResponseSchema = z.object({
 
 export const deploymentListMaxLimit = 100;
 
+/** One page of any list that shows names is at most this long, so a lookup never asks for more than a screen shows. */
+export const MAX_DEPLOYMENT_NAMES_PER_REQUEST = 100;
+
+/** Hono hands a query key given once as a string and a repeated one as an array, and both spell one lookup. */
+const RepeatedDseqSchema = z.preprocess(value => (Array.isArray(value) ? value : [value]), z.array(DseqSchema).min(1).max(MAX_DEPLOYMENT_NAMES_PER_REQUEST));
+
+export const GetDeploymentNamesQuerySchema = z.object({
+  dseq: RepeatedDseqSchema.openapi({
+    description: `Deployment sequence numbers to resolve names for, repeated once per deployment, at most ${MAX_DEPLOYMENT_NAMES_PER_REQUEST} per request.`
+  })
+});
+
+export const GetDeploymentNamesResponseSchema = z.object({
+  data: z.record(z.string(), DeploymentNameResponseSchema).openapi({
+    description: "Keyed by the dseqs asked about. Null for a deployment the console holds no name for, whether it recorded nothing or recorded it unnamed."
+  })
+});
+
 export const ListWithResourcesParamsSchema = z.object({
   address: AkashAddressSchema.openapi({
     description: "Wallet Address",
@@ -484,5 +502,6 @@ export type ListWithResourcesParams = z.infer<typeof ListWithResourcesParamsSche
 export type ListWithResourcesQuery = z.infer<typeof ListWithResourcesQuerySchema>;
 export type ListWithResourcesResponse = z.infer<typeof ListWithResourcesResponseSchema>;
 export type ListDeploymentsItem = z.infer<typeof DeploymentLeaseListItemSchema>;
+export type GetDeploymentNamesResponse = z.infer<typeof GetDeploymentNamesResponseSchema>;
 export type GetDeploymentByOwnerDseqResponse = z.infer<typeof GetDeploymentByOwnerDseqResponseSchema>;
 export type GetWeeklyDeploymentCostResponse = z.infer<typeof GetWeeklyDeploymentCostResponseSchema>;
