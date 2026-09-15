@@ -17,6 +17,9 @@ export type DeploymentSettingsOutput = Omit<DeploymentSettingsDbOutput, "created
 };
 
 /** A won auto-funding claim: the deployment setting id and the exact marker the claim wrote. */
+/** What a deployment list shows about a deployment, as distinct from the fuller row a single settings read answers with. */
+export type ListedDeploymentSetting = Pick<DeploymentSettingsDbOutput, "name" | "autoTopUpEnabled" | "closed" | "runtimeLimitHours" | "runtimeEndsAt">;
+
 export type FundingClaim = {
   id: string;
   claimedAt: string;
@@ -128,6 +131,31 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs))));
 
     return new Map(rows.map(row => [row.dseq, row.name]));
+  }
+
+  /**
+   * What the console holds about one page of deployments, keyed by dseq and absent for a dseq with no row,
+   * under the same double scoping as {@link findNamesByDseqs}. The name is read off the same row, so a list
+   * joining these needs no separate name lookup.
+   */
+  async findListedSettings({ userId, dseqs }: { userId: string; dseqs: string[] }): Promise<Map<string, ListedDeploymentSetting>> {
+    if (dseqs.length === 0) {
+      return new Map();
+    }
+
+    const rows = await this.cursor
+      .select({
+        dseq: this.table.dseq,
+        name: this.table.name,
+        autoTopUpEnabled: this.table.autoTopUpEnabled,
+        closed: this.table.closed,
+        runtimeLimitHours: this.table.runtimeLimitHours,
+        runtimeEndsAt: this.table.runtimeEndsAt
+      })
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs))));
+
+    return new Map(rows.map(({ dseq, ...setting }) => [dseq, setting]));
   }
 
   /** Reads every owner in one query, because the per-owner lookup this used to repeat selects from the same tables under the same filters. */

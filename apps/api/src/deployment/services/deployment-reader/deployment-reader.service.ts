@@ -31,7 +31,7 @@ import {
   ListDeploymentsItem
 } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
-import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { DeploymentSettingRepository, type ListedDeploymentSetting } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderList } from "@src/types/provider";
@@ -100,6 +100,15 @@ export class DeploymentReaderService {
     }
 
     return await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findNamesByDseqs({ userId, dseqs });
+  }
+
+  /** As {@link findNamesFor}, for the fuller record a list shows. The name rides the same row, so a list joining these needs no second lookup. */
+  private async findSettingsFor(userId: string, dseqs: string[]): Promise<Map<string, ListedDeploymentSetting>> {
+    if (dseqs.length === 0) {
+      return new Map();
+    }
+
+    return await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findListedSettings({ userId, dseqs });
   }
 
   /** Answers every dseq asked about, with null where the console holds no name, so a caller never has to tell a missing row from an unnamed one. */
@@ -193,7 +202,7 @@ export class DeploymentReaderService {
     ]);
     const deployments = deploymentReponse.deployments;
 
-    const [{ results: leaseResults }, names] = await Promise.all([
+    const [{ results: leaseResults }, settings] = await Promise.all([
       PromisePool.withConcurrency(100)
         .for(deployments)
         .useCorrespondingResults()
@@ -201,19 +210,24 @@ export class DeploymentReaderService {
           throw error;
         })
         .process(async deployment => this.getLeaseList({ owner, dseq: deployment.deployment.id.dseq })),
-      this.findNamesFor(
+      this.findSettingsFor(
         query.userId,
         deployments.map(deployment => deployment.deployment.id.dseq)
       )
     ]);
 
-    const deploymentsWithLeases = deployments.map((deployment, index) => ({
-      deployment: deployment.deployment,
-      groups: deployment.groups,
-      leases: this.#fetchedLeasesAt(leaseResults, index).map(({ lease }) => lease),
-      escrow_account: deployment.escrow_account,
-      name: names.get(deployment.deployment.id.dseq) ?? null
-    }));
+    const deploymentsWithLeases = deployments.map((deployment, index) => {
+      const recorded = settings.get(deployment.deployment.id.dseq);
+
+      return {
+        deployment: deployment.deployment,
+        groups: deployment.groups,
+        leases: this.#fetchedLeasesAt(leaseResults, index).map(({ lease }) => lease),
+        escrow_account: deployment.escrow_account,
+        name: recorded?.name ?? null,
+        settings: recorded ? toListedSettings(recorded) : null
+      };
+    });
     return {
       deployments: deploymentsWithLeases,
       total,
@@ -489,4 +503,8 @@ export class DeploymentReaderService {
 
     return false;
   }
+}
+
+function toListedSettings(setting: ListedDeploymentSetting) {
+  return { ...setting, runtimeEndsAt: setting.runtimeEndsAt?.toISOString() ?? null };
 }
