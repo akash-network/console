@@ -49,7 +49,7 @@ export const DeploymentEndpoints: FC<DeploymentEndpointsProps> = ({ endpoints, i
         target="_blank"
         rel="noreferrer"
         onClick={event => event.stopPropagation()}
-        className={cn("group inline-flex max-w-full items-center gap-2 font-mono text-xs", className)}
+        className={cn("group inline-flex max-w-full items-center gap-1 font-mono text-xs", className)}
       >
         <EndpointParts endpoint={endpoint} />
         <ArrowUpRight className="h-3 w-3 shrink-0 text-muted-foreground" />
