@@ -115,6 +115,15 @@ describe("reclamationUtils", () => {
       expect(getClosedLeaseSummaryLabel(createClosedLease({ reason: undefined }))).toBe("Closed");
     });
 
+    it("never claims more than the full label does for a reason with no copy of its own", () => {
+      expect(getClosedLeaseSummaryLabel(createClosedLease({ reason: "9999" }))).toBe(getClosedLeaseLabel(createClosedLease({ reason: "9999" })));
+      expect(getClosedLeaseSummaryLabel(createClosedLease({ reason: "29999" }))).toBe(getClosedLeaseLabel(createClosedLease({ reason: "29999" })));
+    });
+
+    it("reads a lease that carries no reclamation at all", () => {
+      expect(getClosedLeaseSummaryLabel({ state: "closed", reason: "lease_closed_owner" })).toBe("Closed by you");
+    });
+
     function createClosedLease(overrides: { reason?: string; groupState?: string }) {
       return mock<LeaseDto>({
         state: "closed",

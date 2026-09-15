@@ -20,7 +20,7 @@ const LOADING_PLACEHOLDERS = ["first", "second", "third"];
  */
 const TABLE_LAYOUT = "min-w-[68rem] table-fixed";
 
-/** Holds the hardware summary's fixed columns, and the controls column the checkbox the archive omits. */
+/** Wide enough for the hardware summary's own fixed columns, and for the checkbox the archive's rows leave out. */
 const HARDWARE_COLUMN = "w-[24.5rem]";
 const CONTROLS_COLUMN = "w-[6.25rem]";
 

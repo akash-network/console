@@ -57,15 +57,15 @@ export function getLeaseCloseReasonLabel(reason?: string): string {
  * second line; the full label stays on the badge's tooltip and on the deployment detail page.
  */
 export function getClosedLeaseSummaryLabel(lease: ReclaimableLease): string {
-  switch (classifyLeaseCloseReason(lease.reason ?? lease.reclamation?.reason)) {
-    case "tenant":
-      return "Closed by you";
-    case "provider":
+  switch (toNumericCloseReason(lease.reason ?? lease.reclamation?.reason)) {
+    case LeaseClosedReason.lease_closed_reason_unstable:
+    case LeaseClosedReason.lease_closed_reason_decommission:
+    case LeaseClosedReason.lease_closed_reason_manifest_timeout:
       return "Closed by provider";
-    case "network":
+    case LeaseClosedReason.lease_closed_reason_insufficient_funds:
       return "Out of funds";
     default:
-      return isProviderReclaimed(lease) ? "Closed by provider" : "Closed";
+      return getClosedLeaseLabel(lease);
   }
 }
 

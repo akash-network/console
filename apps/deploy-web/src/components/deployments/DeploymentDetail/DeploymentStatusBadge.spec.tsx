@@ -83,6 +83,12 @@ describe("DeploymentStatusBadge", () => {
       expect(screen.getByText("Running")).toBeInTheDocument();
       expect(screen.queryByTitle("Running")).not.toBeInTheDocument();
     });
+
+    it("still names a lease being reclaimed", () => {
+      setup({ state: "active", leases: [mock<LeaseDto>({ state: "reclaiming" })], isSummarized: true });
+
+      expect(screen.getByText("Reclaiming")).toBeInTheDocument();
+    });
   });
 
   describe(getDeploymentStatus.name, () => {

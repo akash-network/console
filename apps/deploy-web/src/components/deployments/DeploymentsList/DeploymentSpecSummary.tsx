@@ -10,8 +10,8 @@ import { formatGpuLabel, getDeploymentGpuModels } from "../DeploymentDetail/Depl
 
 /** Column widths fit the widest value each spec can hold at this font size, so every row's specs land on the same x-positions. */
 const LAYOUT_CLASSES = {
-  inline: "flex flex-wrap items-center gap-x-4 gap-y-1.5",
-  columns: "grid grid-cols-[3.5rem_5.5rem_5.5rem_5.75rem] items-center gap-x-3"
+  inline: { container: "flex flex-wrap items-center gap-x-4 gap-y-1.5", spec: "whitespace-nowrap" },
+  columns: { container: "grid grid-cols-[3.5rem_5.5rem_5.5rem_5.75rem] items-center gap-x-3", spec: "min-w-0" }
 } as const;
 
 export type DeploymentSpecLayout = keyof typeof LAYOUT_CLASSES;
@@ -24,20 +24,19 @@ export interface DeploymentSpecSummaryProps {
 
 export const DeploymentSpecSummary: FC<DeploymentSpecSummaryProps> = ({ deployment, layout = "inline", className }) => {
   const hasGpu = !!deployment.gpuAmount;
-  const isAlignedInColumns = layout === "columns";
-  const specClassName = isAlignedInColumns ? "min-w-0" : "whitespace-nowrap";
+  const layoutClasses = LAYOUT_CLASSES[layout];
 
   return (
-    <div className={cn("text-xs text-muted-foreground", LAYOUT_CLASSES[layout], className)}>
-      <Spec label="vCPU" icon={<MdSpeed />} value={roundDecimal(deployment.cpuAmount, 2)} className={specClassName} />
-      <Spec label="Memory" icon={<MdMemory />} value={formatByteSize(deployment.memoryAmount)} className={specClassName} />
-      <Spec label="Storage" icon={<MdStorage />} value={formatByteSize(deployment.storageAmount)} className={specClassName} />
+    <div className={cn("text-xs text-muted-foreground", layoutClasses.container, className)}>
+      <Spec label="vCPU" icon={<MdSpeed />} value={roundDecimal(deployment.cpuAmount, 2)} className={layoutClasses.spec} />
+      <Spec label="Memory" icon={<MdMemory />} value={formatByteSize(deployment.memoryAmount)} className={layoutClasses.spec} />
+      <Spec label="Storage" icon={<MdStorage />} value={formatByteSize(deployment.storageAmount)} className={layoutClasses.spec} />
       {hasGpu && (
         <Spec
           label="GPU"
           icon={<MdDeveloperBoard />}
           value={formatGpuLabel(deployment.gpuAmount ?? 0, getDeploymentGpuModels(deployment.groups))}
-          className={specClassName}
+          className={layoutClasses.spec}
         />
       )}
     </div>

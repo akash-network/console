@@ -256,6 +256,15 @@ describe(useDeploymentsListModel.name, () => {
       expect(result.current.isArchivePaginated).toBe(false);
     });
 
+    it("keeps the pager on the last page, where there is nowhere further to go", async () => {
+      const { result } = setup({ archived: closedDeployments(DEFAULT_PAGE_SIZE + 2) });
+
+      await act(async () => result.current.goToNextArchivePage());
+
+      expect(result.current.hasNextArchivePage).toBe(false);
+      expect(result.current.isArchivePaginated).toBe(true);
+    });
+
     it("hands out the next slice once the reader pages forward", async () => {
       const { result } = setup({ archived: closedDeployments(DEFAULT_PAGE_SIZE + 2) });
 
@@ -274,34 +283,47 @@ describe(useDeploymentsListModel.name, () => {
       expect(result.current.archivePageIndex).toBe(0);
     });
 
-    it("repages the archive from the top when the page size changes", async () => {
-      const { result } = setup({ archived: closedDeployments(DEFAULT_PAGE_SIZE + 5) });
+    it("steps back one page at a time", async () => {
+      const { result } = setup({ archived: closedDeployments(DEFAULT_PAGE_SIZE * 3) });
+
+      await act(async () => result.current.goToNextArchivePage());
+      await act(async () => result.current.goToNextArchivePage());
+      await act(async () => result.current.goToPreviousArchivePage());
+
+      expect(result.current.archivePageIndex).toBe(1);
+    });
+
+    it("repages the archive from the top when the page size changes, even where the current page would still have rows", async () => {
+      const { result } = setup({ archived: closedDeployments(60) });
 
       await act(async () => result.current.goToNextArchivePage());
       await act(async () => result.current.changePageSize(50));
 
       expect(result.current.archivePageIndex).toBe(0);
-      expect(result.current.archivePageDeployments).toHaveLength(DEFAULT_PAGE_SIZE + 5);
+      expect(result.current.archivePageDeployments).toHaveLength(50);
     });
 
-    it("returns the archive to its first page when the search changes", async () => {
+    it("returns the archive to its first page when the search changes, even where the page still matches", async () => {
       const { result } = setup({ active: [deployment("100")], archived: closedDeployments(DEFAULT_PAGE_SIZE + 1) });
 
       await act(async () => result.current.goToNextArchivePage());
-      await act(async () => result.current.changeSearch("closed"));
+      await act(async () => result.current.changeSearch("2"));
 
+      expect(result.current.archiveDeployments).toHaveLength(DEFAULT_PAGE_SIZE + 1);
       expect(result.current.archivePageIndex).toBe(0);
     });
 
-    it("falls back a page when the archive page has emptied out", async () => {
-      const { result, rerenderWith } = setup({ archived: closedDeployments(DEFAULT_PAGE_SIZE + 1) });
+    it("falls back to the last page that still has rows rather than all the way to the first", async () => {
+      const { result, rerenderWith } = setup({ archived: closedDeployments(DEFAULT_PAGE_SIZE * 3) });
 
       await act(async () => result.current.goToNextArchivePage());
-      expect(result.current.archivePageIndex).toBe(1);
+      await act(async () => result.current.goToNextArchivePage());
+      expect(result.current.archivePageIndex).toBe(2);
 
-      rerenderWith({ archived: closedDeployments(DEFAULT_PAGE_SIZE) });
+      rerenderWith({ archived: closedDeployments(DEFAULT_PAGE_SIZE + 5) });
 
-      await waitFor(() => expect(result.current.archivePageIndex).toBe(0));
+      await waitFor(() => expect(result.current.archivePageIndex).toBe(1));
+      expect(result.current.archivePageDeployments).toHaveLength(5);
     });
 
     it("stays put on an empty archive page while the query is still loading", async () => {
@@ -530,6 +552,23 @@ describe(useDeploymentsListModel.name, () => {
       await act(async () => result.current.changePageSize(50));
 
       expect(result.current.showPageSizeSelector).toBe(false);
+    });
+
+    it("offers the rows-per-page selector to an account whose only paged rows are closed ones", () => {
+      const { result } = setup({ active: [], archived: closedDeployments(DEFAULT_PAGE_SIZE + 1) });
+
+      expect(result.current.hasPageResults).toBe(false);
+      expect(result.current.isArchivePaginated).toBe(true);
+      expect(result.current.showPageSizeSelector).toBe(true);
+    });
+
+    it("keeps that selector reachable once a larger size has swallowed the archive's pager", async () => {
+      const { result } = setup({ active: [], archived: closedDeployments(DEFAULT_PAGE_SIZE + 1) });
+
+      await act(async () => result.current.changePageSize(50));
+
+      expect(result.current.isArchivePaginated).toBe(false);
+      expect(result.current.showPageSizeSelector).toBe(true);
     });
 
     it("keeps reporting paging on the last page, where there is nowhere further to go", async () => {

@@ -37,7 +37,7 @@ describe("DeploymentArchive", () => {
   });
 
   it("pages through the archive on demand", async () => {
-    const { onNextPage, onPreviousPage } = setup({ count: 10, totalCount: 38, isPaginated: true, hasNextPage: true });
+    const { onNextPage, onPreviousPage } = setup({ count: 10, totalCount: 38, isPaginated: true, hasNextPage: true, pageIndex: 1 });
 
     await userEvent.click(screen.getByRole("button", { name: /Archive/ }));
     await userEvent.click(screen.getByRole("link", { name: "Go to next page" }));
@@ -45,6 +45,14 @@ describe("DeploymentArchive", () => {
 
     expect(onNextPage).toHaveBeenCalled();
     expect(onPreviousPage).toHaveBeenCalled();
+  });
+
+  it("opens the way back once there is a page to go back to", async () => {
+    setup({ count: 10, totalCount: 38, isPaginated: true, hasNextPage: true, pageIndex: 1 });
+
+    await userEvent.click(screen.getByRole("button", { name: /Archive/ }));
+
+    expect(screen.getByRole("link", { name: "Go to previous page" })).not.toHaveAttribute("aria-disabled", "true");
   });
 
   it("offers no pagination when the archive fits on a single page", async () => {
