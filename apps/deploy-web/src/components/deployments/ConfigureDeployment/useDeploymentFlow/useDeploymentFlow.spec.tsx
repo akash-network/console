@@ -301,6 +301,20 @@ describe(useDeploymentFlow.name, () => {
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: QueryKeys.getDeploymentListKey("akash1owner") });
   });
 
+  it("refreshes every page of deployments the api has answered with, so the new one shows on the list", () => {
+    const createDeployment = mockMutation();
+    createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
+    const createLease = mockMutation();
+    createLease.mutate.mockImplementation((_i, o) => o.onSuccess(deployedResult("akash1owner")));
+    const { result, queryClient, services } = renderFlow({ createDeployment, createLease });
+
+    act(() => result.current.actions.requestQuotes("sdl"));
+    act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+    act(() => result.current.actions.deploy("sdl"));
+
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: services.api.v1.listDeployments.getKey() });
+  });
+
   it("persists the deployment SDL keyed by the owner the lease response carries so the detail page can read it", () => {
     vi.useFakeTimers();
     try {
@@ -865,7 +879,7 @@ describe(useDeploymentFlow.name, () => {
       deploymentResourcesFromSdl: input?.deploymentResourcesFromSdl ?? (() => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 }))
     };
     const utils = renderDeploymentFlow(intent, dependencies);
-    return { ...utils, router, queryClient, deploymentLocalStorage: services.deploymentLocalStorage, analyticsService: services.analyticsService };
+    return { ...utils, router, queryClient, services, deploymentLocalStorage: services.deploymentLocalStorage, analyticsService: services.analyticsService };
   }
 
   function mockMutation(mutate: ReturnType<typeof vi.fn> = vi.fn()) {

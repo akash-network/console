@@ -11,13 +11,12 @@ import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
 import { deploymentsViewModeAtom } from "@src/store/deploymentsViewStore";
 import sdlStore from "@src/store/sdlStore";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { useChainDeploymentsListSource } from "./useDeploymentsListSource";
+import type { DeploymentsListSourceHook } from "./useDeploymentsListSource";
 
 export const DEPENDENCIES = {
   useWallet,
   useProviderList,
   useManagedDeploymentConfirm,
-  useDeploymentsListSource: useChainDeploymentsListSource,
   useListSelection
 };
 
@@ -25,7 +24,10 @@ export const DEPENDENCIES = {
 export const DEFAULT_PAGE_SIZE = MIN_PAGE_SIZE;
 
 /** Owns what the page does with a list of deployments. Where that list comes from is the source's business. */
-export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
+export function useDeploymentsListModel(
+  { useDeploymentsListSource }: { useDeploymentsListSource: DeploymentsListSourceHook },
+  dependencies: typeof DEPENDENCIES = DEPENDENCIES
+) {
   const d = dependencies;
   const { address, signAndBroadcastTx, hasWallet } = d.useWallet();
   const { data: providers, isFetching: isLoadingProviders } = d.useProviderList();
@@ -40,7 +42,7 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
 
   const isSearching = search.trim().length > 0;
 
-  const { active, archive, refetch: refetchDeployments } = d.useDeploymentsListSource({ search, pageIndex, pageSize, archivePageIndex });
+  const { active, archive, refetch: refetchDeployments } = useDeploymentsListSource({ search, pageIndex, pageSize, archivePageIndex });
 
   const pageDeployments = active.deployments;
   const archivePageDeployments = archive.deployments;

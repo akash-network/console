@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentLeaseList, useLeaseStatuses } from "@src/queries/useLeaseQuery";
-import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
+import type { DeploymentDto, LeaseDto, ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { isLeaseLive } from "@src/utils/leaseUtils";
 import type { VisitEndpoint } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
@@ -36,13 +36,17 @@ const ENDPOINT_WAIT_MS = 15_000;
  * leases expose, and — when there are none — which of the three reasons applies.
  */
 export function useDeploymentReachability(params: {
-  deployment: Pick<DeploymentDto, "dseq" | "groups" | "state">;
+  deployment: Pick<DeploymentDto, "dseq" | "groups" | "state"> & Pick<ListedDeploymentDto, "leases">;
   providers: ApiProviderList[] | undefined;
   dependencies?: typeof DEPENDENCIES;
 }): DeploymentReachability {
   const { deployment, providers, dependencies: d = DEPENDENCIES } = params;
   const { address } = d.useWallet();
-  const { data: leases, isLoading: isLoadingLeases } = d.useDeploymentLeaseList(address, deployment, { enabled: !!address });
+  /** A list served by the console API answers with each deployment's leases, so only a chain-served one fetches its own. */
+  const hasInlineLeases = deployment.leases !== undefined;
+  const fetched = d.useDeploymentLeaseList(address, deployment, { enabled: !!address && !hasInlineLeases });
+  const leases = deployment.leases ?? fetched.data;
+  const isLoadingLeases = !hasInlineLeases && fetched.isLoading;
 
   const liveLeaseItems = useMemo(
     () =>

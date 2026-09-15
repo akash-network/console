@@ -26,6 +26,7 @@ import { DeploymentArchive } from "./DeploymentArchive";
 import { DeploymentsCollection } from "./DeploymentsCollection";
 import { DeploymentsEmptyState } from "./DeploymentsEmptyState";
 import { useDeploymentsListModel } from "./useDeploymentsListModel";
+import type { DeploymentsListSourceHook } from "./useDeploymentsListSource";
 
 export const DEPENDENCIES = {
   useDeploymentsListModel,
@@ -38,11 +39,12 @@ export const DEPENDENCIES = {
 };
 
 interface Props {
+  useDeploymentsListSource: DeploymentsListSourceHook;
   dependencies?: typeof DEPENDENCIES;
 }
 
-export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: d = DEPENDENCIES }) => {
-  const model = d.useDeploymentsListModel();
+export const DeploymentsList: React.FunctionComponent<Props> = ({ useDeploymentsListSource, dependencies: d = DEPENDENCIES }) => {
+  const model = d.useDeploymentsListModel({ useDeploymentsListSource });
   const { isBlockchainDown } = d.useBlockchainStatus();
   const newDeploymentUrl = d.useNewDeploymentUrl();
 

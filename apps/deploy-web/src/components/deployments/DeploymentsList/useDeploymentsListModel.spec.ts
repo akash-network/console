@@ -836,19 +836,18 @@ describe(useDeploymentsListModel.name, () => {
     const useManagedDeploymentConfirm: typeof DEPENDENCIES.useManagedDeploymentConfirm = () =>
       mock<ReturnType<typeof DEPENDENCIES.useManagedDeploymentConfirm>>({ closeDeploymentConfirm });
 
-    const useDeploymentsListSource: typeof DEPENDENCIES.useDeploymentsListSource = sourceInput =>
+    const useDeploymentsListSource = (sourceInput: Parameters<typeof useChainDeploymentsListSource>[0]) =>
       useChainDeploymentsListSource(sourceInput, { useWallet, useDeploymentNames, useDeploymentsPage, useDeploymentList });
 
     const dependencies = {
       useWallet,
       useProviderList,
       useManagedDeploymentConfirm,
-      useDeploymentsListSource,
       useListSelection: DEPENDENCIES.useListSelection
     };
 
     const store = createStore();
-    const hook = renderHook(() => useDeploymentsListModel(dependencies), {
+    const hook = renderHook(() => useDeploymentsListModel({ useDeploymentsListSource }, dependencies), {
       wrapper: ({ children }) => createElement(Provider, { store }, children)
     });
 

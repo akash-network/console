@@ -1,7 +1,7 @@
 import type { Mock } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 
-import type { NamedDeploymentDto } from "@src/types/deployment";
+import type { ListedDeploymentDto } from "@src/types/deployment";
 import { DEPENDENCIES, DeploymentArchive } from "./DeploymentArchive";
 
 import { render, screen } from "@testing-library/react";
@@ -125,7 +125,7 @@ describe("DeploymentArchive", () => {
   });
 
   function lastRenderedDeployments(DeploymentsCollection: Mock) {
-    return DeploymentsCollection.mock.lastCall?.[0].deployments as NamedDeploymentDto[];
+    return DeploymentsCollection.mock.lastCall?.[0].deployments as ListedDeploymentDto[];
   }
 
   function setup(input: {
@@ -140,7 +140,7 @@ describe("DeploymentArchive", () => {
   }) {
     const deployments = Array.from(
       { length: input.count },
-      (_, index) => ({ dseq: `${100 + index}`, state: "closed", name: `archived-${index}` }) as NamedDeploymentDto
+      (_, index) => ({ dseq: `${100 + index}`, state: "closed", name: `archived-${index}` }) as ListedDeploymentDto
     );
     const DeploymentsCollection = vi.fn(() => <div>collection</div>);
     const onRetry = vi.fn();
