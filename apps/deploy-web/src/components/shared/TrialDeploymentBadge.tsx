@@ -2,7 +2,6 @@
 import * as React from "react";
 import { Badge, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Info } from "lucide-react";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useTrialDeploymentTimeRemaining } from "@src/hooks/useTrialDeploymentTimeRemaining";
@@ -42,7 +41,6 @@ export function TrialDeploymentBadge({ createdHeight, trialDurationHours, averag
       <div className="inline-flex items-center gap-1">
         <d.Badge variant={isExpired ? "destructive" : "info"} className={cn("inline-flex cursor-help items-center gap-1", className)}>
           <span>Trial</span>
-          <Info className="h-3 w-3" />
         </d.Badge>
       </div>
     </d.CustomTooltip>

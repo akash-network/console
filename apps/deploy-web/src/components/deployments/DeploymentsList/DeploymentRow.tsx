@@ -13,7 +13,6 @@ import { DeploymentActionsMenu } from "./DeploymentActionsMenu";
 import { DeploymentBadges } from "./DeploymentBadges";
 import { DeploymentEndpoints, DeploymentEndpointsPanel } from "./DeploymentEndpoints";
 import { DeploymentSpecSummary } from "./DeploymentSpecSummary";
-import { ReclamationCountdown } from "./ReclamationCountdown";
 import { useDeploymentReachability } from "./useDeploymentReachability";
 
 export const DEPENDENCIES = {
@@ -23,8 +22,7 @@ export const DEPENDENCIES = {
   DeploymentEndpoints,
   DeploymentEndpointsPanel,
   DeploymentSpecSummary,
-  DeploymentActionsMenu,
-  ReclamationCountdown
+  DeploymentActionsMenu
 };
 
 /** TableCell zeroes its right padding for any cell holding a checkbox, which would pin these controls to the table's edge. */
@@ -61,12 +59,9 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
     <>
       <TableRow className={cn(isShowingEndpointPanel && "border-b-0")}>
         <TableCell>
-          <div className="flex flex-col items-start gap-1">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized />
-              <d.DeploymentBadges deployment={deployment} />
-            </div>
-            <d.ReclamationCountdown leases={leases} />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized />
+            <d.DeploymentBadges deployment={deployment} />
           </div>
         </TableCell>
         <TableCell>

@@ -2,7 +2,6 @@
 import * as React from "react";
 import { Badge, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Info } from "lucide-react";
 
 import type { TeeType } from "@src/utils/confidentialCompute";
 import { formatTeeTypeLabel } from "@src/utils/confidentialCompute";
@@ -39,7 +38,6 @@ export function ConfidentialComputeBadge({ teeTypes, className, dependencies: d 
       <div className="inline-flex items-center gap-1">
         <d.Badge variant="secondary" className={cn("inline-flex cursor-help items-center gap-1", className)}>
           <span>{label}</span>
-          <Info className="h-3 w-3" />
         </d.Badge>
       </div>
     </d.CustomTooltip>

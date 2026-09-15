@@ -11,16 +11,12 @@ export interface ReclamationCountdownProps {
   leases: LeaseDto[] | null | undefined;
 }
 
-/** How long a reclaimed workload has left, alongside the "Reclaiming" status the badge already reports. */
+/** How long a reclaimed workload has left, detailing the "Reclaiming" status inside the badge's tooltip. */
 export const ReclamationCountdown: FC<ReclamationCountdownProps> = ({ leases }) => {
   const deadline = useMemo(() => getNearestReclamationDeadline(leases), [leases]);
   const timeLeft = useCountdown(deadline);
 
   if (!leases?.some(isReclaiming)) return null;
 
-  return (
-    <span className="whitespace-nowrap text-xs text-warning">
-      {deadline === null ? "reclamation pending" : timeLeft === null ? "closing now…" : `reclaims in ${formatDistanceToNowStrict(deadline)}`}
-    </span>
-  );
+  return <p>{deadline === null ? "Reclamation pending." : timeLeft === null ? "Closing now…" : `Closes in ${formatDistanceToNowStrict(deadline)}.`}</p>;
 };
