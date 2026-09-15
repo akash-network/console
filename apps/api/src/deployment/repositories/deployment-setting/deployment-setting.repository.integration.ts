@@ -676,6 +676,62 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("findListedSettings", () => {
+    it("reads the settings of a whole page in one query, keyed by dseq", async () => {
+      const { deploymentSettingRepository, user, abilityFor, createLimitedSetting } = await setup();
+      const limited = await createLimitedSetting(5, { autoTopUpEnabled: true });
+      await deploymentSettingRepository.upsertName({ userId: user.id, dseq: limited.dseq, name: "web" });
+
+      const settings = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findListedSettings({ userId: user.id, dseqs: [limited.dseq] });
+
+      expect(settings.get(limited.dseq)).toEqual({
+        name: "web",
+        autoTopUpEnabled: true,
+        closed: false,
+        runtimeLimitHours: 5,
+        runtimeEndsAt: null
+      });
+    });
+
+    it("leaves a dseq the console has no row for out of the result entirely", async () => {
+      const { deploymentSettingRepository, user, abilityFor } = await setup();
+      const unrecorded = newDseq();
+
+      const settings = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findListedSettings({ userId: user.id, dseqs: [unrecorded] });
+
+      expect(settings.has(unrecorded)).toBe(false);
+    });
+
+    it("refuses to read settings belonging to another user holding the same dseq", async () => {
+      const { deploymentSettingRepository, user, trialUser, abilityFor } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BAUG", name: "web" });
+      await deploymentSettingRepository.upsertDefinition({ userId: trialUser.id, dseq, sdl: SDL, manifestVersion: "BAUG", name: "someone else's" });
+
+      const settings = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findListedSettings({ userId: user.id, dseqs: [dseq] });
+
+      expect(settings.get(dseq)?.name).toBe("web");
+    });
+
+    it("reads nothing for a deployment the caller's ability excludes", async () => {
+      const { deploymentSettingRepository, user, trialUser, abilityFor } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BAUG", name: "web" });
+
+      const settings = await deploymentSettingRepository.accessibleBy(abilityFor(trialUser), "read").findListedSettings({ userId: user.id, dseqs: [dseq] });
+
+      expect(settings.size).toBe(0);
+    });
+
+    it("issues no query at all for a page with no deployments on it", async () => {
+      const { deploymentSettingRepository, user, abilityFor } = await setup();
+
+      const settings = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findListedSettings({ userId: user.id, dseqs: [] });
+
+      expect(settings.size).toBe(0);
+    });
+  });
+
   describe("findNamesByDseqs", () => {
     it("reads the names of a whole page in one query, keyed by dseq", async () => {
       const { deploymentSettingRepository, user, abilityFor } = await setup();
@@ -875,9 +931,7 @@ describe(DeploymentSettingRepository.name, () => {
     it("refuses a batch size of zero, which would read as a fleet holding no secrets", async () => {
       const { deploymentSettingRepository } = await setup();
 
-      await expect(deploymentSettingRepository.findStoredSecretsIteratively({ batchSize: 0 }).next()).rejects.toThrow(
-        "Batch size must be a positive integer"
-      );
+      await expect(deploymentSettingRepository.findStoredSecretsIteratively({ batchSize: 0 }).next()).rejects.toThrow("Batch size must be a positive integer");
     });
 
     it("yields a deployment's token under the id that holds it", async () => {
@@ -901,11 +955,7 @@ describe(DeploymentSettingRepository.name, () => {
 
     it("pages every token-holding deployment exactly once when the batch is smaller than the set", async () => {
       const { sealedToken, otherSealedToken, createSettingWithSecrets, findStoredSecrets } = await setup();
-      const ids = [
-        await createSettingWithSecrets(sealedToken),
-        await createSettingWithSecrets(otherSealedToken),
-        await createSettingWithSecrets(sealedToken)
-      ];
+      const ids = [await createSettingWithSecrets(sealedToken), await createSettingWithSecrets(otherSealedToken), await createSettingWithSecrets(sealedToken)];
 
       const oneAtATime = await findStoredSecrets(ids, 1);
       const allAtOnce = await findStoredSecrets(ids, 1000);
@@ -916,11 +966,7 @@ describe(DeploymentSettingRepository.name, () => {
 
     it("yields rows in id order, so each batch stays an index scan on the primary key", async () => {
       const { sealedToken, createSettingWithSecrets, findStoredSecrets } = await setup();
-      const ids = [
-        await createSettingWithSecrets(sealedToken),
-        await createSettingWithSecrets(sealedToken),
-        await createSettingWithSecrets(sealedToken)
-      ];
+      const ids = [await createSettingWithSecrets(sealedToken), await createSettingWithSecrets(sealedToken), await createSettingWithSecrets(sealedToken)];
 
       const stored = await findStoredSecrets(ids, 2);
 

@@ -704,6 +704,84 @@ describe("Deployments API", () => {
       expect(result.data.deployments[0].groups).toEqual(groups);
     });
 
+    it("returns what the console holds about each listed deployment", async () => {
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const deployments = setupDeploymentListMock(wallets, 1);
+      const dseq = (deployments as DeploymentInfo[])[0].deployment.id.dseq;
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 5 });
+      await deploymentSettingRepository.upsertName({ userId: user.id, dseq, name: "web" });
+
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .persist()
+        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
+        .reply(200, { deployments, pagination: { total: "1", next_key: null } });
+
+      const response = await app.request("/v1/deployments", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: { deployments: { name: string | null; settings: unknown }[] } };
+      expect(result.data.deployments[0].settings).toEqual({
+        name: "web",
+        autoTopUpEnabled: true,
+        runtimeLimitHours: 5,
+        runtimeEndsAt: null,
+        closed: false
+      });
+      expect(result.data.deployments[0].name).toBe("web");
+    });
+
+    it("returns no settings for a listed deployment the console holds no row for", async () => {
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
+      const deployments = setupDeploymentListMock(wallets, 1);
+
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .persist()
+        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
+        .reply(200, { deployments, pagination: { total: "1", next_key: null } });
+
+      const response = await app.request("/v1/deployments", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: { deployments: { settings: unknown }[] } };
+      expect(result.data.deployments[0].settings).toBeNull();
+    });
+
+    it("hands back none of the settings another user holds for the same dseq", async () => {
+      const owner = await mockPersistedUser();
+      const reader = await mockPersistedUser();
+      const deployments = setupDeploymentListMock(reader.wallets, 1);
+      const dseq = (deployments as DeploymentInfo[])[0].deployment.id.dseq;
+      await container.resolve(DeploymentSettingRepository).upsertDefinition({
+        userId: owner.user.id,
+        dseq,
+        sdl: "version: '2.0'",
+        manifestVersion: "BAUG",
+        name: "someone else's"
+      });
+
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .persist()
+        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
+        .reply(200, { deployments, pagination: { total: "1", next_key: null } });
+
+      const response = await app.request("/v1/deployments", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": reader.userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect((body as { data: { deployments: { settings: unknown }[] } }).data.deployments[0].settings).toBeNull();
+      expect(JSON.stringify(body)).not.toContain("someone else's");
+    });
+
     it("returns 400 for a state the chain does not hold deployments in", async () => {
       const { userApiKeySecret } = await mockUser();
 
