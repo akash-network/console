@@ -10,6 +10,7 @@ import type { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
 import { DeploymentStatusBadge } from "../DeploymentDetail/DeploymentStatusBadge";
 import { DeploymentActionsMenu } from "./DeploymentActionsMenu";
+import { DeploymentBadges } from "./DeploymentBadges";
 import { DeploymentEndpoints, DeploymentEndpointsPanel } from "./DeploymentEndpoints";
 import { DeploymentSpecSummary } from "./DeploymentSpecSummary";
 import { ReclamationCountdown } from "./ReclamationCountdown";
@@ -18,6 +19,7 @@ import { useDeploymentReachability } from "./useDeploymentReachability";
 export const DEPENDENCIES = {
   useDeploymentReachability,
   DeploymentStatusBadge,
+  DeploymentBadges,
   DeploymentEndpoints,
   DeploymentEndpointsPanel,
   DeploymentSpecSummary,
@@ -60,7 +62,10 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
       <TableRow className={cn(isShowingEndpointPanel && "border-b-0")}>
         <TableCell>
           <div className="flex flex-col items-start gap-1">
-            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized />
+            <div className="flex flex-wrap items-center gap-1.5">
+              <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized />
+              <d.DeploymentBadges deployment={deployment} />
+            </div>
             <d.ReclamationCountdown leases={leases} />
           </div>
         </TableCell>

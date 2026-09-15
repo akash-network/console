@@ -113,6 +113,19 @@ describe("DeploymentRow", () => {
     return { serviceName: "api", host, port: 443, href: `http://${host}:443` };
   }
 
+  it("keeps the trial and interconnect badges in the status cell, so a badge cannot deepen the row", () => {
+    const { DeploymentBadges, deployment } = setup({ deployment: { dseq: "100", name: "acme" } });
+
+    expect(screen.getAllByRole("cell")[0]).toContainElement(screen.getByText("badges"));
+    expect(DeploymentBadges.mock.calls[0][0]).toEqual(expect.objectContaining({ deployment }));
+  });
+
+  it("leaves the deployment cell to the name alone, so its column keeps its declared width", () => {
+    setup({ deployment: { dseq: "100", name: "acme" } });
+
+    expect(screen.getAllByRole("cell")[1]).not.toContainElement(screen.getByText("badges"));
+  });
+
   function setup(input: {
     deployment: Partial<NamedDeploymentDto> & { dseq: string };
     isSelectable?: boolean;
@@ -134,6 +147,7 @@ describe("DeploymentRow", () => {
       </button>
     ));
     const DeploymentEndpointsPanel = vi.fn<typeof DEPENDENCIES.DeploymentEndpointsPanel>(() => <div>endpoints panel</div>);
+    const DeploymentBadges = vi.fn<typeof DEPENDENCIES.DeploymentBadges>(() => <div>badges</div>);
 
     const providers: never[] = [];
     const onSelect = vi.fn();
@@ -148,7 +162,7 @@ describe("DeploymentRow", () => {
             isSelectable={input.isSelectable}
             isSelected={input.isSelected}
             onSelect={onSelect}
-            dependencies={MockComponents(DEPENDENCIES, { useDeploymentReachability, DeploymentEndpoints, DeploymentEndpointsPanel })}
+            dependencies={MockComponents(DEPENDENCIES, { useDeploymentReachability, DeploymentEndpoints, DeploymentEndpointsPanel, DeploymentBadges })}
           />
         </tbody>
       </table>
@@ -164,6 +178,7 @@ describe("DeploymentRow", () => {
       deployment,
       DeploymentEndpoints,
       DeploymentEndpointsPanel,
+      DeploymentBadges,
       rerenderWith(next: VisitEndpoint[]) {
         endpoints = next;
         rerender(renderRow());
