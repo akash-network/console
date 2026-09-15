@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { NextSeo } from "next-seo";
 import { useSnackbar } from "notistack";
 
+import { AddCreditsSnackbarContent } from "@src/components/billing-usage/AddCreditsSnackbarContent/AddCreditsSnackbarContent";
 import Layout from "@src/components/layout/Layout";
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import { useServices } from "@src/context/ServicesProvider";
@@ -31,6 +32,7 @@ import type { DeploymentFlow, FlowErrorKind } from "../useDeploymentFlow/useDepl
 import { useDeploymentName } from "../useDeploymentName/useDeploymentName";
 
 export const DEPENDENCIES = {
+  AddCreditsSnackbarContent,
   Layout,
   NextSeo,
   ConfigureDeploymentBackButton,
@@ -46,6 +48,9 @@ export const DEPENDENCIES = {
   useSnackbar,
   Snackbar
 };
+
+/** Long enough to read the shortfall and click Add Funds; the default duration dismisses before either. */
+const INSUFFICIENT_BALANCE_TOAST_DURATION_MS = 10000;
 
 /** Delay between a form edit and updating the debounced SDL preview. */
 const SDL_SYNC_DEBOUNCE_MS = 300;
@@ -70,7 +75,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
    * restore that service if it survived, instead of jumping to the first one.
    */
   const lastSelectedServiceId = useRef(selectedServiceId);
-  const { enqueueSnackbar } = d.useSnackbar();
+  const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const { analyticsService } = d.useServices();
   const draft = d.useConfigureDraft(intent);
   const { name: deploymentName, typedName: typedDeploymentName, setName: setDeploymentName } = d.useDeploymentName({ initialName, dseq: flow.dseq });
@@ -171,12 +176,25 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   useEffect(
     function toastFlowError() {
       if (flow.error && flow.error !== lastToastedFlowError.current) {
-        const { title, fallback } = flowErrorToastCopy(flow.error.kind);
-        enqueueSnackbar(<d.Snackbar title={title} subTitle={flow.error.message ?? fallback} iconVariant="error" />, { variant: "error" });
+        if (flow.error.kind === "insufficient-balance") {
+          const key = enqueueSnackbar(
+            <d.Snackbar
+              title="Not enough balance"
+              subTitle={
+                <d.AddCreditsSnackbarContent message={flow.error.message} context="configure_quotes_insufficient_balance" onAction={() => closeSnackbar(key)} />
+              }
+              iconVariant="warning"
+            />,
+            { variant: "warning", autoHideDuration: INSUFFICIENT_BALANCE_TOAST_DURATION_MS }
+          );
+        } else {
+          const { title, fallback } = flowErrorToastCopy(flow.error.kind);
+          enqueueSnackbar(<d.Snackbar title={title} subTitle={flow.error.message ?? fallback} iconVariant="error" />, { variant: "error" });
+        }
       }
       lastToastedFlowError.current = flow.error;
     },
-    [flow.error, enqueueSnackbar, d]
+    [flow.error, enqueueSnackbar, closeSnackbar, d]
   );
 
   useEffect(

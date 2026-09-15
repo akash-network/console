@@ -4,7 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import { addCreditsRequestAtom } from "@src/store/addCreditsStore";
-import { AddCreditsSnackbarContent } from "./useSignAndBroadcast";
+import { AddCreditsSnackbarContent } from "./AddCreditsSnackbarContent";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
@@ -34,6 +34,14 @@ describe("AddCreditsSnackbarContent", () => {
     });
   });
 
+  it("attributes the request to the call site that raised the snackbar", () => {
+    const { store } = setup({ context: "configure_quotes_insufficient_balance" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Funds" }));
+
+    expect(store.get(addCreditsRequestAtom)).toMatchObject({ context: "configure_quotes_insufficient_balance" });
+  });
+
   it("tracks analytics and calls onAction when the button is clicked", () => {
     const onAction = vi.fn();
     const { analyticsService } = setup({ onAction });
@@ -44,13 +52,13 @@ describe("AddCreditsSnackbarContent", () => {
     expect(onAction).toHaveBeenCalledTimes(1);
   });
 
-  function setup(input?: { message?: string; onAction?: () => void }) {
+  function setup(input?: { message?: string; context?: string; onAction?: () => void }) {
     const analyticsService = mock<AnalyticsService>();
     const store = createStore();
     render(
       <JotaiProvider store={store}>
         <TestContainerProvider services={{ analyticsService: () => analyticsService }}>
-          <AddCreditsSnackbarContent message={input?.message} onAction={input?.onAction} />
+          <AddCreditsSnackbarContent message={input?.message} context={input?.context} onAction={input?.onAction} />
         </TestContainerProvider>
       </JotaiProvider>
     );

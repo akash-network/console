@@ -18,8 +18,8 @@ import type { BidStrategy, DeploymentIntent } from "./deploymentIntent";
 
 export type DeploymentFlowPhase = "configuring" | "creating" | "quoting" | "closing" | "deploying" | "error";
 
-/** Which step failed, so the form can title the error toast correctly. A close failure reads differently from a failed quote request. */
-export type FlowErrorKind = "create" | "close" | "no-providers";
+/** Which toast the form shows. A close failure reads differently from a failed quote request, and a refused deposit needs an Add Funds action rather than an apology. */
+export type FlowErrorKind = "create" | "close" | "no-providers" | "insufficient-balance";
 
 /** The live bids the flow polls while quoting (react-query-backed). Element shape derived from the shared `listBids` query. */
 export type DeploymentBids = NonNullable<ReturnType<typeof useListBids>["data"]>["data"];
@@ -64,6 +64,8 @@ interface UseDeploymentFlowInput {
 
 /** Default escrow deposit in USD (ACT maps 1:1 to USD). Matches `DEFAULT_DEPOSIT_USD` in the phased flow so a trial grant covers it. */
 const DEFAULT_DEPOSIT = 0.5;
+
+const HTTP_PAYMENT_REQUIRED = 402;
 
 /** Hold after a successful lease so the deploy overlay's progress bar can fill to 100% and its final step turn green before redirecting. */
 const DEPLOY_SUCCESS_DWELL_MS = 1200;
@@ -292,7 +294,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
                 extractApiErrorCode(cause) === WALLET_PROVISIONING_ERROR_CODE
                   ? WALLET_PROVISIONING_TIMEOUT_MESSAGE
                   : extractApiErrorMessage(cause) ?? undefined;
-              setError({ message, kind: "create" });
+              setError({ message, kind: isInsufficientBalance(cause) ? "insufficient-balance" : "create" });
               setPhase("error");
             }
           }
@@ -462,6 +464,11 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 function namePayload(name: string | undefined): { name?: string } {
   const trimmed = name?.trim();
   return trimmed ? { name: trimmed } : {};
+}
+
+/** A create the API refused for want of funds, which the form answers with an Add Funds action instead of the generic failure toast. */
+function isInsufficientBalance(cause: unknown): boolean {
+  return isApiError(cause) && cause.status === HTTP_PAYMENT_REQUIRED;
 }
 
 /** Best-effort cache under owner + dseq (the key the detail page reads); failures are swallowed so storage issues never block deploy. */
