@@ -4,7 +4,7 @@ import { cn } from "@akashnetwork/ui/utils";
 
 import type { LeaseDto } from "@src/types/deployment";
 import { isLeaseLive } from "@src/utils/leaseUtils";
-import { classifyLeaseCloseReason, getClosedLeaseLabel, isProviderReclaimed, isReclaiming } from "@src/utils/reclamationUtils";
+import { classifyLeaseCloseReason, getClosedLeaseLabel, getClosedLeaseSummaryLabel, isProviderReclaimed, isReclaiming } from "@src/utils/reclamationUtils";
 
 export type StatusTone = "running" | "pending" | "loading" | "warning" | "closed";
 
@@ -37,6 +37,7 @@ const DOT_TONE_CLASS: Record<StatusTone, string> = {
 export interface DeploymentStatusBadgeProps {
   state: string;
   leases?: LeaseDto[] | null;
+  isSummarized?: boolean;
   className?: string;
 }
 
@@ -49,16 +50,21 @@ export interface DeploymentStatusBadgeProps {
  * tone is kept for a deployment that is itself closed. A lease inside its reclamation grace period is live
  * but doomed, so it reads as "Reclaiming" rather than "Running".
  */
-export function getDeploymentStatus(state: string, leases?: LeaseDto[] | null): { label: string; tone: StatusTone } {
+export function getDeploymentStatus(state: string, leases?: LeaseDto[] | null): { label: string; summaryLabel: string; tone: StatusTone } {
   const deploymentTone = STATUS_TONES[state] ?? "pending";
   const deadLease = leases?.length && !leases.some(isLeaseLive) ? selectLeaseToReportOn(leases) : undefined;
 
   if (!deadLease) {
-    if (leases?.some(isReclaiming)) return { label: "Reclaiming", tone: "warning" };
-    return { label: STATUS_LABELS[state] ?? state, tone: deploymentTone };
+    if (leases?.some(isReclaiming)) return { label: "Reclaiming", summaryLabel: "Reclaiming", tone: "warning" };
+    const label = STATUS_LABELS[state] ?? state;
+    return { label, summaryLabel: label, tone: deploymentTone };
   }
 
-  return { label: getClosedLeaseLabel(deadLease), tone: deploymentTone === "closed" ? "closed" : "warning" };
+  return {
+    label: getClosedLeaseLabel(deadLease),
+    summaryLabel: getClosedLeaseSummaryLabel(deadLease),
+    tone: deploymentTone === "closed" ? "closed" : "warning"
+  };
 }
 
 /**
@@ -76,11 +82,15 @@ function selectLeaseToReportOn(leases: LeaseDto[]): LeaseDto {
 export interface StatusBadgeProps {
   label: string;
   tone: StatusTone;
+  title?: string;
   className?: string;
 }
 
-export const StatusBadge: FC<StatusBadgeProps> = ({ label, tone, className }) => (
-  <span className={cn("inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium", BADGE_TONE_CLASS[tone], className)}>
+export const StatusBadge: FC<StatusBadgeProps> = ({ label, tone, title, className }) => (
+  <span
+    title={title}
+    className={cn("inline-flex items-center gap-2 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium", BADGE_TONE_CLASS[tone], className)}
+  >
     {tone === "loading" ? (
       <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden="true" />
     ) : (
@@ -93,8 +103,9 @@ export const StatusBadge: FC<StatusBadgeProps> = ({ label, tone, className }) =>
   </span>
 );
 
-export const DeploymentStatusBadge: FC<DeploymentStatusBadgeProps> = ({ state, leases, className }) => {
-  const { label, tone } = getDeploymentStatus(state, leases);
+export const DeploymentStatusBadge: FC<DeploymentStatusBadgeProps> = ({ state, leases, isSummarized, className }) => {
+  const { label, summaryLabel, tone } = getDeploymentStatus(state, leases);
+  const isShortened = !!isSummarized && summaryLabel !== label;
 
-  return <StatusBadge label={label} tone={tone} className={className} />;
+  return <StatusBadge label={isShortened ? summaryLabel : label} title={isShortened ? label : undefined} tone={tone} className={className} />;
 };

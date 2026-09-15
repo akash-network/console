@@ -12,6 +12,18 @@ export const DEPENDENCIES = { DeploymentCard, DeploymentRow };
 
 const LOADING_PLACEHOLDERS = ["first", "second", "third"];
 
+/**
+ * The archive renders a second table below this one, and only a fixed layout keeps the two reading as one grid:
+ * an auto layout sizes each table to its own rows, which differ by the archive's missing checkbox and its much
+ * shorter endpoint text. Under a fixed layout only the header row's widths count, so the columns are declared
+ * there and the body cells carry none.
+ */
+const TABLE_LAYOUT = "min-w-[68rem] table-fixed";
+
+/** Holds the hardware summary's fixed columns, and the controls column the checkbox the archive omits. */
+const HARDWARE_COLUMN = "w-[24.5rem]";
+const CONTROLS_COLUMN = "w-[6.25rem]";
+
 export interface DeploymentsCollectionProps {
   deployments: NamedDeploymentDto[];
   providers: ApiProviderList[] | undefined;
@@ -56,14 +68,14 @@ export const DeploymentsCollection: FC<DeploymentsCollectionProps> = ({
 
   return (
     <div className="overflow-x-auto rounded-md border">
-      <Table>
+      <Table className={TABLE_LAYOUT}>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[14%]">Status</TableHead>
-            <TableHead className="w-[24%]">Deployment</TableHead>
-            <TableHead className="w-[32%]">Endpoint</TableHead>
-            <TableHead className="w-[24%]">Hardware</TableHead>
-            <TableHead />
+            <TableHead className="w-52">Status</TableHead>
+            <TableHead>Deployment</TableHead>
+            <TableHead>Endpoint</TableHead>
+            <TableHead className={HARDWARE_COLUMN}>Hardware</TableHead>
+            <TableHead className={CONTROLS_COLUMN} />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -97,16 +109,16 @@ const RowPlaceholder: FC = () => (
     <TableCell>
       <Skeleton className="h-6 w-20 rounded-full" />
     </TableCell>
-    <TableCell className="max-w-0">
+    <TableCell>
       <Skeleton className="h-4 w-32" />
     </TableCell>
-    <TableCell className="max-w-0">
+    <TableCell>
       <Skeleton className="h-4 w-40" />
     </TableCell>
     <TableCell>
       <Skeleton className="h-4 w-36" />
     </TableCell>
-    <TableCell className="w-px pl-0">
+    <TableCell className="pl-0">
       <Skeleton className="ml-auto h-10 w-10 rounded-full" />
     </TableCell>
   </TableRow>

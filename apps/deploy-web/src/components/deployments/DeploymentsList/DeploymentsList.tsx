@@ -68,10 +68,12 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
 
             {model.selectedItemIds.length > 0 && (
               <>
-                <Button onClick={model.closeSelectedDeployments} color="secondary" size="sm">
+                <Button onClick={model.closeSelectedDeployments} variant="outline" size="sm">
                   Close selected ({model.selectedItemIds.length})
                 </Button>
-                <LinkTo onClick={model.clearSelection}>Clear</LinkTo>
+                <LinkTo className="text-sm" onClick={model.clearSelection}>
+                  Clear
+                </LinkTo>
               </>
             )}
           </div>
@@ -176,12 +178,18 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
       )}
 
       <d.DeploymentArchive
-        deployments={model.archiveDeployments}
+        deployments={model.archivePageDeployments}
+        totalCount={model.archiveDeployments.length}
         providers={model.providers}
         viewMode={model.viewMode}
         isError={model.showArchiveError}
         isRetrying={model.isRetryingArchive}
         onRetry={model.refetchDeployments}
+        pageIndex={model.archivePageIndex}
+        hasNextPage={model.hasNextArchivePage}
+        isPaginated={model.isArchivePaginated}
+        onPreviousPage={model.goToPreviousArchivePage}
+        onNextPage={model.goToNextArchivePage}
       />
     </d.Layout>
   );

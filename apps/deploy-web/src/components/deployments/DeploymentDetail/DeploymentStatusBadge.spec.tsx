@@ -63,6 +63,28 @@ describe("DeploymentStatusBadge", () => {
     expect(screen.getByText("Running")).toBeInTheDocument();
   });
 
+  describe("when summarised", () => {
+    it("shortens a provider reason to who closed the lease, keeping the full reason on hover", () => {
+      setup({ state: "active", leases: [mock<LeaseDto>({ state: "closed", reason: "lease_closed_reason_decommission" })], isSummarized: true });
+
+      expect(screen.getByText("Closed by provider")).toBeInTheDocument();
+      expect(screen.getByTitle("Closed by provider (decommissioned)")).toBeInTheDocument();
+    });
+
+    it("shortens an insufficient funds close to 'Out of funds'", () => {
+      setup({ state: "closed", leases: [mock<LeaseDto>({ state: "closed", reason: "lease_closed_reason_insufficient_funds" })], isSummarized: true });
+
+      expect(screen.getByText("Out of funds")).toBeInTheDocument();
+    });
+
+    it("leaves a label that needs no shortening without a redundant tooltip", () => {
+      setup({ state: "active", leases: [mock<LeaseDto>({ state: "active" })], isSummarized: true });
+
+      expect(screen.getByText("Running")).toBeInTheDocument();
+      expect(screen.queryByTitle("Running")).not.toBeInTheDocument();
+    });
+  });
+
   describe(getDeploymentStatus.name, () => {
     it("warns instead of alarming when the lease is closed but the deployment is still open", () => {
       const status = getDeploymentStatus("active", [mock<LeaseDto>({ state: "closed", reason: "lease_closed_reason_decommission" })]);
@@ -98,8 +120,8 @@ describe("DeploymentStatusBadge", () => {
     });
   });
 
-  function setup(input: { state: string; leases?: LeaseDto[] }) {
-    render(<DeploymentStatusBadge state={input.state} leases={input.leases} />);
+  function setup(input: { state: string; leases?: LeaseDto[]; isSummarized?: boolean }) {
+    render(<DeploymentStatusBadge state={input.state} leases={input.leases} isSummarized={input.isSummarized} />);
 
     return input;
   }

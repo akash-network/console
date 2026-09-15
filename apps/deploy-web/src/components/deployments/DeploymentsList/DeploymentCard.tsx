@@ -50,7 +50,7 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
   const isShowingEndpointPanel = isShowingEndpoints && endpoints.length > 1;
 
   return (
-    <Card className="flex flex-col overflow-hidden">
+    <Card className="flex flex-col overflow-hidden transition-[box-shadow,border-color] duration-200 hover:border-zinc-400 hover:shadow-md dark:hover:border-zinc-600">
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div className="flex items-start justify-between gap-3">
           <Link href={UrlService.deploymentDetails(deployment.dseq)} className="truncate font-semibold hover:underline">
@@ -58,7 +58,7 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
           </Link>
 
           <div className="flex shrink-0 flex-col items-end gap-1">
-            <d.DeploymentStatusBadge state={deployment.state} leases={leases} />
+            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized />
             <d.ReclamationCountdown leases={leases} />
           </div>
         </div>

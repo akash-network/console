@@ -240,6 +240,80 @@ describe(useDeploymentsListModel.name, () => {
     });
   });
 
+  describe("archive paging", () => {
+    it("pages the archive at the size the active list is using", () => {
+      const { result } = setup({ archived: closedDeployments(DEFAULT_PAGE_SIZE + 3) });
+
+      expect(result.current.archivePageDeployments).toHaveLength(DEFAULT_PAGE_SIZE);
+      expect(result.current.archiveDeployments).toHaveLength(DEFAULT_PAGE_SIZE + 3);
+      expect(result.current.hasNextArchivePage).toBe(true);
+    });
+
+    it("leaves an archive that fits on one page unpaged", () => {
+      const { result } = setup({ archived: closedDeployments(DEFAULT_PAGE_SIZE) });
+
+      expect(result.current.hasNextArchivePage).toBe(false);
+      expect(result.current.isArchivePaginated).toBe(false);
+    });
+
+    it("hands out the next slice once the reader pages forward", async () => {
+      const { result } = setup({ archived: closedDeployments(DEFAULT_PAGE_SIZE + 2) });
+
+      await act(async () => result.current.goToNextArchivePage());
+
+      expect(result.current.archivePageIndex).toBe(1);
+      expect(result.current.archivePageDeployments).toHaveLength(2);
+      expect(result.current.hasNextArchivePage).toBe(false);
+    });
+
+    it("never pages back past the first page", async () => {
+      const { result } = setup({ archived: closedDeployments(3) });
+
+      await act(async () => result.current.goToPreviousArchivePage());
+
+      expect(result.current.archivePageIndex).toBe(0);
+    });
+
+    it("repages the archive from the top when the page size changes", async () => {
+      const { result } = setup({ archived: closedDeployments(DEFAULT_PAGE_SIZE + 5) });
+
+      await act(async () => result.current.goToNextArchivePage());
+      await act(async () => result.current.changePageSize(50));
+
+      expect(result.current.archivePageIndex).toBe(0);
+      expect(result.current.archivePageDeployments).toHaveLength(DEFAULT_PAGE_SIZE + 5);
+    });
+
+    it("returns the archive to its first page when the search changes", async () => {
+      const { result } = setup({ active: [deployment("100")], archived: closedDeployments(DEFAULT_PAGE_SIZE + 1) });
+
+      await act(async () => result.current.goToNextArchivePage());
+      await act(async () => result.current.changeSearch("closed"));
+
+      expect(result.current.archivePageIndex).toBe(0);
+    });
+
+    it("falls back a page when the archive page has emptied out", async () => {
+      const { result, rerenderWith } = setup({ archived: closedDeployments(DEFAULT_PAGE_SIZE + 1) });
+
+      await act(async () => result.current.goToNextArchivePage());
+      expect(result.current.archivePageIndex).toBe(1);
+
+      rerenderWith({ archived: closedDeployments(DEFAULT_PAGE_SIZE) });
+
+      await waitFor(() => expect(result.current.archivePageIndex).toBe(0));
+    });
+
+    it("stays put on an empty archive page while the query is still loading", async () => {
+      const { result, rerenderWith } = setup({ archived: closedDeployments(DEFAULT_PAGE_SIZE + 1) });
+
+      await act(async () => result.current.goToNextArchivePage());
+      rerenderWith({ archived: [], isArchiveFetching: true });
+
+      expect(result.current.archivePageIndex).toBe(1);
+    });
+  });
+
   describe("refreshing", () => {
     it("refreshes the paged query and the archive together", () => {
       const { result, refetchPage, refetchList } = setup({ active: [deployment("100")] });
@@ -652,6 +726,10 @@ describe(useDeploymentsListModel.name, () => {
     broadcastResponse?: boolean;
     names?: Record<string, string>;
   };
+
+  function closedDeployments(count: number) {
+    return Array.from({ length: count }, (_, index) => deployment(`${200 + index}`, "closed"));
+  }
 
   function setup(input: Input) {
     localStorage.clear();

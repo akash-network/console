@@ -26,7 +26,7 @@ export const DEPENDENCIES = {
 };
 
 /** TableCell zeroes its right padding for any cell holding a checkbox, which would pin these controls to the table's edge. */
-const CONTROLS_CELL = "w-px pl-0 [&:has([role=checkbox])]:pr-4";
+const CONTROLS_CELL = "pl-0 [&:has([role=checkbox])]:pr-4";
 
 const COLUMN_COUNT = 5;
 
@@ -60,16 +60,16 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
       <TableRow className={cn(isShowingEndpointPanel && "border-b-0")}>
         <TableCell>
           <div className="flex flex-col items-start gap-1">
-            <d.DeploymentStatusBadge state={deployment.state} leases={leases} />
+            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized />
             <d.ReclamationCountdown leases={leases} />
           </div>
         </TableCell>
-        <TableCell className="max-w-0">
+        <TableCell>
           <Link href={UrlService.deploymentDetails(deployment.dseq)} className="block truncate font-semibold hover:underline">
             {deployment.name || `Deployment #${deployment.dseq}`}
           </Link>
         </TableCell>
-        <TableCell className="max-w-0">
+        <TableCell>
           <d.DeploymentEndpoints
             endpoints={endpoints}
             isLoading={isLoadingEndpoints}
@@ -79,7 +79,7 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
           />
         </TableCell>
         <TableCell>
-          <d.DeploymentSpecSummary deployment={deployment} />
+          <d.DeploymentSpecSummary deployment={deployment} layout="columns" />
         </TableCell>
         <TableCell className={CONTROLS_CELL}>
           <div className="flex items-center justify-end gap-1">
