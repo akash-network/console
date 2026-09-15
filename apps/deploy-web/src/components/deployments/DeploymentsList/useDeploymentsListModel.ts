@@ -4,35 +4,27 @@ import { MIN_PAGE_SIZE } from "@akashnetwork/ui/components";
 import { useAtom } from "jotai";
 
 import { useWallet } from "@src/context/WalletProvider";
-import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
-import { useDeploymentList, useDeploymentsPage } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
 import { deploymentsViewModeAtom } from "@src/store/deploymentsViewStore";
 import sdlStore from "@src/store/sdlStore";
-import type { DeploymentDto, NamedDeploymentDto } from "@src/types/deployment";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
+import { useChainDeploymentsListSource } from "./useDeploymentsListSource";
 
 export const DEPENDENCIES = {
   useWallet,
   useProviderList,
-  useDeploymentNames,
   useManagedDeploymentConfirm,
-  useDeploymentsPage,
-  useDeploymentList,
+  useDeploymentsListSource: useChainDeploymentsListSource,
   useListSelection
 };
 
 /** Must stay one of the sizes PaginationSizeSelector offers, or the selector renders blank. */
 export const DEFAULT_PAGE_SIZE = MIN_PAGE_SIZE;
 
-/**
- * Active deployments are paged server-side, but a search has to span the whole account, so it swaps the paged
- * query for the full list and pages that in memory. The archive is always fetched whole: the chain API reports
- * no total, and the collapsed Archive section has to show a count before anyone opens it.
- */
+/** Owns what the page does with a list of deployments. Where that list comes from is the source's business. */
 export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
   const d = dependencies;
   const { address, signAndBroadcastTx, hasWallet } = d.useWallet();
@@ -47,53 +39,27 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
   const [search, setSearch] = useState("");
 
   const isSearching = search.trim().length > 0;
-  const canQuery = !!address;
 
-  const activePage = d.useDeploymentsPage(address, { state: "active", skip: pageIndex * pageSize, limit: pageSize }, { enabled: canQuery && !isSearching });
-  const activeList = d.useDeploymentList(address, { enabled: canQuery && isSearching }, "active");
-  const archiveList = d.useDeploymentList(address, { enabled: canQuery }, "closed");
+  const { active, archive, refetch: refetchDeployments } = d.useDeploymentsListSource({ search, pageIndex, pageSize, archivePageIndex });
 
-  const fetchedActiveDeployments = isSearching ? activeList.data : activePage.data?.deployments;
-  const { getDeploymentName } = d.useDeploymentNames([...(fetchedActiveDeployments ?? []), ...(archiveList.data ?? [])].map(deployment => deployment.dseq));
+  const pageDeployments = active.deployments;
+  const archivePageDeployments = archive.deployments;
+  const archiveTotal = archive.total;
 
-  const activeDeployments = useMemo(
-    () => resolveDeployments(fetchedActiveDeployments, getDeploymentName, search),
-    [fetchedActiveDeployments, getDeploymentName, search]
-  );
-
-  const archiveDeployments = useMemo(() => resolveDeployments(archiveList.data, getDeploymentName, search), [archiveList.data, getDeploymentName, search]);
-
-  const pageDeployments = useMemo(
-    () => (isSearching ? activeDeployments.slice(pageIndex * pageSize, pageIndex * pageSize + pageSize) : activeDeployments),
-    [activeDeployments, isSearching, pageIndex, pageSize]
-  );
-
-  const archivePageDeployments = useMemo(
-    () => archiveDeployments.slice(archivePageIndex * pageSize, archivePageIndex * pageSize + pageSize),
-    [archiveDeployments, archivePageIndex, pageSize]
-  );
-
-  const isLoadingDeployments = isSearching ? activeList.isFetching : activePage.isFetching;
-  const isError = isSearching ? activeList.isError : activePage.isError;
-  const isArchiveError = archiveList.isError;
-
-  const refetchActive = isSearching ? activeList.refetch : activePage.refetch;
-  const refetchArchive = archiveList.refetch;
-  const refetchDeployments = useCallback(() => {
-    refetchActive();
-    refetchArchive();
-  }, [refetchActive, refetchArchive]);
+  const isLoadingDeployments = active.isFetching;
+  const isError = active.isError;
+  const isArchiveError = archive.isError;
 
   const hasPageResults = pageDeployments.length > 0;
-  /** Reads every fetched list rather than the filtered or currently selected one, so neither a search that matches nothing nor the switch into one reads as an empty account. */
-  const hasAnyDeployment = !!activePage.data?.deployments.length || !!activeList.data?.length || pageIndex > 0 || !!archiveList.data?.length;
-  const hasNextPage = isSearching ? (pageIndex + 1) * pageSize < activeDeployments.length : activePage.data?.hasNextPage ?? false;
+  /** A search is only reachable from a list that already had rows, so it stands in for the unfiltered counts the source no longer holds. */
+  const hasAnyDeployment = isSearching || pageIndex > 0 || hasPageResults || archiveTotal > 0;
+  const hasNextPage = active.hasNextPage;
   const isPaginated = hasNextPage || pageIndex > 0;
-  const hasNextArchivePage = (archivePageIndex + 1) * pageSize < archiveDeployments.length;
+  const hasNextArchivePage = archive.hasNextPage;
   const isArchivePaginated = hasNextArchivePage || archivePageIndex > 0;
   /** Both queries feed the choice between rows and the empty state, so neither can be decided until both have data. */
-  const hasResolvedActiveAndArchive = activePage.data !== undefined && archiveList.data !== undefined;
-  const isInitialLoad = canQuery && !hasPageResults && !isError && !isArchiveError && !hasResolvedActiveAndArchive;
+  const hasResolvedActiveAndArchive = active.isResolved && archive.isResolved;
+  const isInitialLoad = !!address && !hasPageResults && !isError && !isArchiveError && !hasResolvedActiveAndArchive;
   const hasSettledWithoutActiveDeployments = !hasPageResults && pageIndex === 0 && !isError && !isArchiveError && !isSearching && hasResolvedActiveAndArchive;
 
   useEffect(
@@ -107,11 +73,11 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
 
   useEffect(
     function goBackFromEmptyArchivePage() {
-      if (archivePageIndex > 0 && !archiveList.isFetching && archivePageDeployments.length === 0) {
+      if (archivePageIndex > 0 && !archive.isFetching && archivePageDeployments.length === 0) {
         setArchivePageIndex(current => Math.max(current - 1, 0));
       }
     },
-    [archiveList.isFetching, archivePageIndex, archivePageDeployments.length]
+    [archive.isFetching, archivePageIndex, archivePageDeployments.length]
   );
 
   const dseqs = useMemo(() => pageDeployments.map(deployment => deployment.dseq), [pageDeployments]);
@@ -163,7 +129,7 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     isSearching,
     changeSearch,
     pageDeployments,
-    archiveDeployments,
+    archiveTotal,
     archivePageDeployments,
     isLoadingDeployments,
     isLoadingProviders,
@@ -176,9 +142,8 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     showNewDeploymentLink: !isInitialLoad && !hasSettledWithoutActiveDeployments,
     showErrorState: isError && !hasPageResults && !isLoadingDeployments,
     showArchiveError: isArchiveError,
-    isRetryingArchive: isArchiveError && archiveList.isFetching,
-    showNoSearchResults:
-      isSearching && !isError && !isArchiveError && !isLoadingDeployments && !archiveList.isFetching && !hasPageResults && archiveDeployments.length === 0,
+    isRetryingArchive: isArchiveError && archive.isFetching,
+    showNoSearchResults: isSearching && !isError && !isArchiveError && !isLoadingDeployments && !archive.isFetching && !hasPageResults && archiveTotal === 0,
     pageIndex,
     pageSize,
     changePageSize,
@@ -192,7 +157,7 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     goToPreviousArchivePage,
     goToNextArchivePage,
     /** Survives the page size growing past the last page, so the selector that did it stays on screen to undo it. */
-    showPageSizeSelector: (hasPageResults || archiveDeployments.length > 0) && (isPaginated || isArchivePaginated || pageSize !== DEFAULT_PAGE_SIZE),
+    showPageSizeSelector: (hasPageResults || archiveTotal > 0) && (isPaginated || isArchivePaginated || pageSize !== DEFAULT_PAGE_SIZE),
     isInitialLoad,
     selectedItemIds,
     selectItem,
@@ -204,17 +169,4 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
 
 function isViewMode(value: string): value is DeploymentsViewMode {
   return value === "grid" || value === "list";
-}
-
-/** Names come from the console rather than the chain, so search can only run once they are attached. */
-function resolveDeployments(
-  deployments: DeploymentDto[] | null | undefined,
-  getDeploymentName: (dseq: string | number | null) => string | null,
-  search: string
-): NamedDeploymentDto[] {
-  const named = (deployments ?? []).map(deployment => ({ ...deployment, name: getDeploymentName(deployment.dseq) }) as NamedDeploymentDto);
-  const query = search.trim().toLowerCase();
-  if (!query) return named;
-
-  return named.filter(deployment => deployment.name?.toLowerCase().includes(query) || deployment.dseq?.toLowerCase().includes(query));
 }

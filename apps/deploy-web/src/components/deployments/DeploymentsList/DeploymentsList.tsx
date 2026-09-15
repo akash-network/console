@@ -139,8 +139,8 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
       {model.hasSettledWithoutActiveDeployments && (
         <d.DeploymentsEmptyState
           onDeployClick={model.startNewDeployment}
-          hasDeployments={model.archiveDeployments.length > 0}
-          showTemplatesButton={model.archiveDeployments.length === 0}
+          hasDeployments={model.archiveTotal > 0}
+          showTemplatesButton={model.archiveTotal === 0}
         />
       )}
 
@@ -179,7 +179,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
 
       <d.DeploymentArchive
         deployments={model.archivePageDeployments}
-        totalCount={model.archiveDeployments.length}
+        totalCount={model.archiveTotal}
         providers={model.providers}
         viewMode={model.viewMode}
         isError={model.showArchiveError}
