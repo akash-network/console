@@ -16,7 +16,7 @@ interface ExecutionStorage {
   CURRENT_USER: UserOutput;
   ABILITY: MongoAbility;
   HTTP_CONTEXT: AppContext;
-  HELD_DATA_KEYS: Map<string, Promise<HeldDataKey>>;
+  HELD_DATA_KEYS: Map<string, Promise<HeldDataKey | undefined>>;
   DATA_KEY_UNWRAP_COUNTS: Map<string, number>;
 }
 

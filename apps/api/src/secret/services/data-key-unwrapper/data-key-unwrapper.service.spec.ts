@@ -206,6 +206,32 @@ describe(DataKeyUnwrapperService.name, () => {
       expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(1);
     });
 
+    it("reads the retired row once for two concurrent asks in the same request", async () => {
+      const { service, inRequest, seedRetiredKey, dataKeyService, kmsClient } = setup();
+      const retired = await seedRetiredKey(USER_A);
+
+      await inRequest(
+        async () =>
+          await Promise.all(
+            [service.getDataKeyById(USER_A, retired.row.id), service.getDataKeyById(USER_A, retired.row.id)].map(async held => await (await held)!.unwrap())
+          )
+      );
+
+      expect(dataKeyService.findDataKeyById).toHaveBeenCalledTimes(1);
+      expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(1);
+    });
+
+    it("asks again for a key the user did not own the first time", async () => {
+      const { service, inRequest, dataKeyService } = setup();
+
+      await inRequest(async () => {
+        await service.getDataKeyById(USER_A, "6f2c0a2e-0000-4000-8000-000000000000");
+        await service.getDataKeyById(USER_A, "6f2c0a2e-0000-4000-8000-000000000000");
+      });
+
+      expect(dataKeyService.findDataKeyById).toHaveBeenCalledTimes(2);
+    });
+
     it("keeps the active key and a retired key of the same user apart in one request", async () => {
       const { service, inRequest, seedRetiredKey, keyFor, kmsClient } = setup();
       const retired = await seedRetiredKey(USER_A);
