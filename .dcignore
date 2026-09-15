@@ -15,3 +15,5 @@
 **/*.test.jsx
 **/*.test.ts
 **/*.test.tsx
+**/*.integration.ts
+**/*.integration.tsx
