@@ -14,7 +14,7 @@ import {
 import { PromisePool } from "@supercharge/promise-pool";
 import { AxiosError } from "axios";
 import assert from "http-assert";
-import { InternalServerError } from "http-errors";
+import { InternalServerError, UnprocessableEntity as UnprocessableEntityError } from "http-errors";
 import { Op } from "sequelize";
 import { inject, singleton } from "tsyringe";
 
@@ -39,6 +39,21 @@ import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import { averageBlockCountInAMonth } from "@src/utils/constants";
 import { FallbackDeploymentReaderService } from "../fallback-deployment-reader/fallback-deployment-reader.service";
 import { MessageService } from "../message-service/message.service";
+
+/** One page of the key-paged sweep a search makes, matching the default the chain client uses for an unpaginated read. */
+const SEARCH_PAGE_SIZE = 1000;
+
+/** Above this a search would sweep more of the chain than it is worth, so it is refused rather than served slowly. */
+export const MAX_SEARCHABLE_DEPLOYMENTS = 5000;
+
+interface PageQuery {
+  owner: string;
+  userId: string;
+  state: DeploymentListState;
+  skip: number;
+  limit: number;
+  reverse: boolean;
+}
 
 @singleton()
 export class DeploymentReaderService {
@@ -111,6 +126,11 @@ export class DeploymentReaderService {
     return await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findListedSettings({ userId, dseqs });
   }
 
+  /** Every record the caller holds, for a search that has to know each deployment's name before it can tell which page the matches fall on. */
+  private async findEverySettingFor(userId: string): Promise<Map<string, ListedDeploymentSetting>> {
+    return await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findListedSettings({ userId });
+  }
+
   /** Answers every dseq asked about, with null where the console holds no name, so a caller never has to tell a missing row from an unnamed one. */
   public async findNames(userId: string, dseqs: string[]): Promise<Record<string, string | null>> {
     const names = await this.findNamesFor(userId, dseqs);
@@ -179,44 +199,40 @@ export class DeploymentReaderService {
   /**
    * `total` is counted from the console's own chain index rather than from the chain's answer, which reports the size
    * of the page it just returned whenever an owner filter and an offset are combined. `hasMore` follows the cursor
-   * for the same reason.
+   * for the same reason. A search reports both from the matches instead, since neither the index nor the cursor
+   * knows what the caller was looking for.
    */
   public async list({
     query,
     state = "active",
     skip,
     limit,
-    reverse = false
+    reverse = false,
+    search
   }: {
     query: { userId: string };
     state?: DeploymentListState;
     skip: number;
     limit: number;
     reverse?: boolean;
+    search?: string;
   }): Promise<{ deployments: ListDeploymentsItem[]; total: number; hasMore: boolean }> {
     const wallet = await this.walletReaderService.getWalletByUserId(query.userId);
     const { address: owner } = wallet;
-    const [deploymentReponse, total] = await Promise.all([
-      this.getDeploymentsList({ owner, state, pagination: { offset: skip, limit, reverse } }),
-      this.deploymentRepository.countByOwnerAndState(owner, state)
-    ]);
-    const deployments = deploymentReponse.deployments;
 
-    const [{ results: leaseResults }, settings] = await Promise.all([
-      PromisePool.withConcurrency(100)
-        .for(deployments)
-        .useCorrespondingResults()
-        .handleError(async error => {
-          throw error;
-        })
-        .process(async deployment => this.getLeaseList({ owner, dseq: deployment.deployment.id.dseq })),
-      this.findSettingsFor(
-        query.userId,
-        deployments.map(deployment => deployment.deployment.id.dseq)
-      )
-    ]);
+    const { page, settings, total, hasMore } = search
+      ? await this.#findMatchingPage({ owner, userId: query.userId, state, skip, limit, reverse, search })
+      : await this.#findPage({ owner, userId: query.userId, state, skip, limit, reverse });
 
-    const deploymentsWithLeases = deployments.map((deployment, index) => {
+    const { results: leaseResults } = await PromisePool.withConcurrency(100)
+      .for(page)
+      .useCorrespondingResults()
+      .handleError(async error => {
+        throw error;
+      })
+      .process(async deployment => this.getLeaseList({ owner, dseq: deployment.deployment.id.dseq }));
+
+    const deployments = page.map((deployment, index) => {
       const recorded = settings.get(deployment.deployment.id.dseq);
 
       return {
@@ -228,11 +244,67 @@ export class DeploymentReaderService {
         settings: recorded ? toListedSettings(recorded) : null
       };
     });
+
+    return { deployments, total, hasMore };
+  }
+
+  async #findPage({ owner, userId, state, skip, limit, reverse }: PageQuery) {
+    const [response, total] = await Promise.all([
+      this.getDeploymentsList({ owner, state, pagination: { offset: skip, limit, reverse } }),
+      this.deploymentRepository.countByOwnerAndState(owner, state)
+    ]);
+    const page = response.deployments;
+
     return {
-      deployments: deploymentsWithLeases,
+      page,
+      settings: await this.findSettingsFor(
+        userId,
+        page.map(deployment => deployment.deployment.id.dseq)
+      ),
       total,
-      hasMore: !!deploymentReponse.pagination.next_key
+      hasMore: !!response.pagination.next_key
     };
+  }
+
+  /**
+   * A name lives in the console's database and a deployment on chain, so neither side can filter on both: the whole
+   * of the requested state is loaded, matched, and only then paged. Leases are still fetched for the page alone.
+   */
+  async #findMatchingPage({ owner, userId, state, skip, limit, reverse, search }: PageQuery & { search: string }) {
+    const [everyDeployment, settings] = await Promise.all([this.#loadEveryDeployment(owner, state), this.findEverySettingFor(userId)]);
+
+    const needle = search.toLowerCase();
+    const matches = everyDeployment.filter(({ deployment }) => {
+      const name = settings.get(deployment.id.dseq)?.name;
+      return deployment.id.dseq.includes(needle) || !!name?.toLowerCase().includes(needle);
+    });
+
+    if (reverse) {
+      matches.sort((one, other) => (BigInt(other.deployment.id.dseq) > BigInt(one.deployment.id.dseq) ? 1 : -1));
+    }
+
+    return { page: matches.slice(skip, skip + limit), settings, total: matches.length, hasMore: skip + limit < matches.length };
+  }
+
+  async #loadEveryDeployment(owner: string, state: DeploymentListState): Promise<DeploymentInfo[]> {
+    const deployments: DeploymentInfo[] = [];
+    let key: string | undefined;
+
+    do {
+      const response = await this.getDeploymentsList({ owner, state, pagination: { key, limit: SEARCH_PAGE_SIZE, countTotal: false } });
+      deployments.push(...response.deployments);
+
+      if (deployments.length > MAX_SEARCHABLE_DEPLOYMENTS) {
+        this.logger.warn({ event: "DEPLOYMENT_SEARCH_TOO_LARGE", owner, state, loaded: deployments.length });
+        throw new UnprocessableEntityError(
+          `More than ${MAX_SEARCHABLE_DEPLOYMENTS} deployments to search through. Page through them without a search instead.`
+        );
+      }
+
+      key = response.pagination.next_key ?? undefined;
+    } while (key);
+
+    return deployments;
   }
 
   #fetchedLeasesAt(leaseResults: Array<RestAkashLeaseListResponse | symbol>, index: number): RestAkashLeaseListResponse["leases"] {

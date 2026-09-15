@@ -6745,6 +6745,16 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           },
           {
             "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "description": "Case-insensitive substring matched against each deployment's console name and its dseq. It spans every deployment in \`state\` before paging, so \`total\` and \`hasMore\` describe the matches rather than the state.",
+              "maxLength": 256,
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
             "name": "skip",
             "required": false,
             "schema": {
@@ -7476,7 +7486,37 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "\`state\` names neither \`active\` nor \`closed\`, \`reverse\` names neither \`true\` nor \`false\`, \`skip\` is below zero, or \`limit\` is not a whole number between 1 and the page cap",
+            "description": "\`state\` names neither \`active\` nor \`closed\`, \`reverse\` names neither \`true\` nor \`false\`, \`skip\` is below zero, \`limit\` is not a whole number between 1 and the page cap, or \`search\` is longer than a deployment name may be",
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The owner holds more deployments than a search spans. Page through them without a \`search\` instead",
           },
         },
         "security": [

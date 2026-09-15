@@ -137,7 +137,7 @@ export const operations = {
       method: "get",
       operationId: "listDeployments",
       pathParams: [],
-      queryParams: ["state", "reverse", "skip", "limit"],
+      queryParams: ["state", "reverse", "search", "skip", "limit"],
       hasBody: false
     },
     depositDeployment: { path: "/v1/deposit-deployment", method: "post", operationId: "depositDeployment", pathParams: [], queryParams: [], hasBody: true },
