@@ -42,6 +42,7 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
   const [viewMode, setViewMode] = useAtom(deploymentsViewModeAtom);
 
   const [pageIndex, setPageIndex] = useState(0);
+  const [archivePageIndex, setArchivePageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [search, setSearch] = useState("");
 
@@ -67,6 +68,11 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     [activeDeployments, isSearching, pageIndex, pageSize]
   );
 
+  const archivePageDeployments = useMemo(
+    () => archiveDeployments.slice(archivePageIndex * pageSize, archivePageIndex * pageSize + pageSize),
+    [archiveDeployments, archivePageIndex, pageSize]
+  );
+
   const isLoadingDeployments = isSearching ? activeList.isFetching : activePage.isFetching;
   const isError = isSearching ? activeList.isError : activePage.isError;
   const isArchiveError = archiveList.isError;
@@ -83,6 +89,8 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
   const hasAnyDeployment = !!activePage.data?.deployments.length || !!activeList.data?.length || pageIndex > 0 || !!archiveList.data?.length;
   const hasNextPage = isSearching ? (pageIndex + 1) * pageSize < activeDeployments.length : activePage.data?.hasNextPage ?? false;
   const isPaginated = hasNextPage || pageIndex > 0;
+  const hasNextArchivePage = (archivePageIndex + 1) * pageSize < archiveDeployments.length;
+  const isArchivePaginated = hasNextArchivePage || archivePageIndex > 0;
   /** Both queries feed the choice between rows and the empty state, so neither can be decided until both have data. */
   const hasResolvedActiveAndArchive = activePage.data !== undefined && archiveList.data !== undefined;
   const isInitialLoad = canQuery && !hasPageResults && !isError && !isArchiveError && !hasResolvedActiveAndArchive;
@@ -97,21 +105,34 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     [isLoadingDeployments, isError, pageIndex, pageDeployments.length]
   );
 
+  useEffect(
+    function goBackFromEmptyArchivePage() {
+      if (archivePageIndex > 0 && !archiveList.isFetching && archivePageDeployments.length === 0) {
+        setArchivePageIndex(current => Math.max(current - 1, 0));
+      }
+    },
+    [archiveList.isFetching, archivePageIndex, archivePageDeployments.length]
+  );
+
   const dseqs = useMemo(() => pageDeployments.map(deployment => deployment.dseq), [pageDeployments]);
   const { selectedItemIds, selectItem, clearSelection } = d.useListSelection<string>({ ids: dseqs });
 
   const changeSearch = useCallback((value: string) => {
     setSearch(value);
     setPageIndex(0);
+    setArchivePageIndex(0);
   }, []);
 
   const changePageSize = useCallback((value: number) => {
     setPageSize(value);
     setPageIndex(0);
+    setArchivePageIndex(0);
   }, []);
 
   const goToPreviousPage = useCallback(() => setPageIndex(current => Math.max(current - 1, 0)), []);
   const goToNextPage = useCallback(() => setPageIndex(current => current + 1), []);
+  const goToPreviousArchivePage = useCallback(() => setArchivePageIndex(current => Math.max(current - 1, 0)), []);
+  const goToNextArchivePage = useCallback(() => setArchivePageIndex(current => current + 1), []);
 
   const changeViewMode = useCallback(
     (value: string) => {
@@ -143,6 +164,7 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     changeSearch,
     pageDeployments,
     archiveDeployments,
+    archivePageDeployments,
     isLoadingDeployments,
     isLoadingProviders,
     isError,
@@ -164,8 +186,13 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     goToNextPage,
     hasNextPage,
     isPaginated,
+    archivePageIndex,
+    hasNextArchivePage,
+    isArchivePaginated,
+    goToPreviousArchivePage,
+    goToNextArchivePage,
     /** Survives the page size growing past the last page, so the selector that did it stays on screen to undo it. */
-    showPageSizeSelector: hasPageResults && (isPaginated || pageSize !== DEFAULT_PAGE_SIZE),
+    showPageSizeSelector: (hasPageResults || archiveDeployments.length > 0) && (isPaginated || isArchivePaginated || pageSize !== DEFAULT_PAGE_SIZE),
     isInitialLoad,
     selectedItemIds,
     selectItem,

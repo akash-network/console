@@ -27,32 +27,49 @@ describe("DeploymentArchive", () => {
     );
   });
 
-  it("reveals a page at a time so a long archive does not mount every deployment at once", async () => {
-    const { DeploymentsCollection } = setup({ count: 20 });
+  it("lists only the page it was given, counting the whole archive in the header", async () => {
+    const { DeploymentsCollection } = setup({ count: 10, totalCount: 38 });
 
     await userEvent.click(screen.getByRole("button", { name: /Archive/ }));
 
-    expect(lastRenderedDeployments(DeploymentsCollection)).toHaveLength(12);
-
-    await userEvent.click(screen.getByRole("button", { name: "Show more" }));
-
-    expect(lastRenderedDeployments(DeploymentsCollection)).toHaveLength(20);
+    expect(screen.getByRole("button", { name: /Archive \/\/ 38 closed/ })).toBeInTheDocument();
+    expect(lastRenderedDeployments(DeploymentsCollection)).toHaveLength(10);
   });
 
-  it("offers no Show more when the archive fits in a single reveal", async () => {
-    setup({ count: 12 });
+  it("pages through the archive on demand", async () => {
+    const { onNextPage, onPreviousPage } = setup({ count: 10, totalCount: 38, isPaginated: true, hasNextPage: true, pageIndex: 1 });
 
     await userEvent.click(screen.getByRole("button", { name: /Archive/ }));
+    await userEvent.click(screen.getByRole("link", { name: "Go to next page" }));
+    await userEvent.click(screen.getByRole("link", { name: "Go to previous page" }));
 
-    expect(screen.queryByRole("button", { name: "Show more" })).not.toBeInTheDocument();
+    expect(onNextPage).toHaveBeenCalled();
+    expect(onPreviousPage).toHaveBeenCalled();
   });
 
-  it("offers Show more as soon as one deployment falls outside the first reveal", async () => {
-    setup({ count: 13 });
+  it("opens the way back once there is a page to go back to", async () => {
+    setup({ count: 10, totalCount: 38, isPaginated: true, hasNextPage: true, pageIndex: 1 });
 
     await userEvent.click(screen.getByRole("button", { name: /Archive/ }));
 
-    expect(screen.getByRole("button", { name: "Show more" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to previous page" })).not.toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("offers no pagination when the archive fits on a single page", async () => {
+    setup({ count: 5, totalCount: 5 });
+
+    await userEvent.click(screen.getByRole("button", { name: /Archive/ }));
+
+    expect(screen.queryByRole("link", { name: "Go to next page" })).not.toBeInTheDocument();
+  });
+
+  it("blocks the way back from the first page and the way on from the last", async () => {
+    setup({ count: 10, totalCount: 38, isPaginated: true, hasNextPage: false });
+
+    await userEvent.click(screen.getByRole("button", { name: /Archive/ }));
+
+    expect(screen.getByRole("link", { name: "Go to previous page" })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("link", { name: "Go to next page" })).toHaveAttribute("aria-disabled", "true");
   });
 
   it("collapses again on demand", async () => {
@@ -111,26 +128,43 @@ describe("DeploymentArchive", () => {
     return DeploymentsCollection.mock.lastCall?.[0].deployments as NamedDeploymentDto[];
   }
 
-  function setup(input: { count: number; viewMode?: "grid" | "list"; isError?: boolean; isRetrying?: boolean }) {
+  function setup(input: {
+    count: number;
+    totalCount?: number;
+    viewMode?: "grid" | "list";
+    isError?: boolean;
+    isRetrying?: boolean;
+    pageIndex?: number;
+    isPaginated?: boolean;
+    hasNextPage?: boolean;
+  }) {
     const deployments = Array.from(
       { length: input.count },
       (_, index) => ({ dseq: `${100 + index}`, state: "closed", name: `archived-${index}` }) as NamedDeploymentDto
     );
     const DeploymentsCollection = vi.fn(() => <div>collection</div>);
     const onRetry = vi.fn();
+    const onPreviousPage = vi.fn();
+    const onNextPage = vi.fn();
 
     render(
       <DeploymentArchive
         deployments={deployments}
+        totalCount={input.totalCount ?? input.count}
         providers={[]}
         viewMode={input.viewMode ?? "grid"}
         isError={input.isError ?? false}
         isRetrying={input.isRetrying ?? false}
         onRetry={onRetry}
+        pageIndex={input.pageIndex ?? 0}
+        hasNextPage={input.hasNextPage ?? false}
+        isPaginated={input.isPaginated ?? false}
+        onPreviousPage={onPreviousPage}
+        onNextPage={onNextPage}
         dependencies={MockComponents(DEPENDENCIES, { DeploymentsCollection })}
       />
     );
 
-    return { DeploymentsCollection, onRetry };
+    return { DeploymentsCollection, onRetry, onPreviousPage, onNextPage };
   }
 });

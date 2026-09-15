@@ -1,7 +1,16 @@
 "use client";
 import type { FC } from "react";
-import { useState } from "react";
-import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, LoadingButton } from "@akashnetwork/ui/components";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  LoadingButton,
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious
+} from "@akashnetwork/ui/components";
 import { NavArrowRight, Refresh } from "iconoir-react";
 
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
@@ -11,30 +20,38 @@ import { DeploymentsCollection } from "./DeploymentsCollection";
 
 export const DEPENDENCIES = { DeploymentsCollection };
 
-/** The archive is unbounded, so it reveals a page at a time rather than mounting a lease query per closed deployment. */
-const ARCHIVE_PAGE_SIZE = 12;
-
+/** The archive is unbounded, so it lists a page at a time rather than mounting a lease query per closed deployment. */
 export interface DeploymentArchiveProps {
   deployments: NamedDeploymentDto[];
+  totalCount: number;
   providers: ApiProviderList[] | undefined;
   viewMode: DeploymentsViewMode;
   isError: boolean;
   isRetrying: boolean;
   onRetry: () => void;
+  pageIndex: number;
+  hasNextPage: boolean;
+  isPaginated: boolean;
+  onPreviousPage: () => void;
+  onNextPage: () => void;
   dependencies?: typeof DEPENDENCIES;
 }
 
 export const DeploymentArchive: FC<DeploymentArchiveProps> = ({
   deployments,
+  totalCount,
   providers,
   viewMode,
   isError,
   isRetrying,
   onRetry,
+  pageIndex,
+  hasNextPage,
+  isPaginated,
+  onPreviousPage,
+  onNextPage,
   dependencies: d = DEPENDENCIES
 }) => {
-  const [visibleCount, setVisibleCount] = useState(ARCHIVE_PAGE_SIZE);
-
   if (isError) {
     return (
       <div className="flex flex-wrap items-center gap-3 py-8">
@@ -47,21 +64,28 @@ export const DeploymentArchive: FC<DeploymentArchiveProps> = ({
     );
   }
 
-  if (deployments.length === 0) return null;
+  if (totalCount === 0) return null;
 
   return (
     <Collapsible className="py-8">
       <CollapsibleTrigger className="group inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground">
         <NavArrowRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
-        Archive // {deployments.length} closed
+        Archive // {totalCount} closed
       </CollapsibleTrigger>
       <CollapsibleContent className="pt-4">
-        <d.DeploymentsCollection deployments={deployments.slice(0, visibleCount)} providers={providers} viewMode={viewMode} />
-        {deployments.length > visibleCount && (
-          <div className="flex justify-center pt-4">
-            <Button variant="outline" size="sm" onClick={() => setVisibleCount(current => current + ARCHIVE_PAGE_SIZE)}>
-              Show more
-            </Button>
+        <d.DeploymentsCollection deployments={deployments} providers={providers} viewMode={viewMode} />
+        {isPaginated && (
+          <div className="flex justify-end px-2 pt-4">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious onClick={onPreviousPage} disabled={pageIndex === 0} />
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext onClick={onNextPage} disabled={!hasNextPage} />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
           </div>
         )}
       </CollapsibleContent>

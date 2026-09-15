@@ -5,6 +5,7 @@ import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import {
   classifyLeaseCloseReason,
   getClosedLeaseLabel,
+  getClosedLeaseSummaryLabel,
   getLeaseCloseReasonLabel,
   getNearestReclamationDeadline,
   getReclamationDeadline,
@@ -81,6 +82,46 @@ describe("reclamationUtils", () => {
 
     it("returns a generic label for an unknown reason with no reclamation evidence", () => {
       expect(getClosedLeaseLabel(createClosedLease({ reason: undefined }))).toBe("Closed");
+    });
+
+    function createClosedLease(overrides: { reason?: string; groupState?: string }) {
+      return mock<LeaseDto>({
+        state: "closed",
+        reason: overrides.reason,
+        group: mock<DeploymentGroup>({ state: overrides.groupState ?? "open" })
+      });
+    }
+  });
+
+  describe("getClosedLeaseSummaryLabel", () => {
+    it("drops the parenthetical detail from a provider reason", () => {
+      expect(getClosedLeaseSummaryLabel(createClosedLease({ reason: "lease_closed_reason_unstable" }))).toBe("Closed by provider");
+      expect(getClosedLeaseSummaryLabel(createClosedLease({ reason: "lease_closed_reason_decommission" }))).toBe("Closed by provider");
+    });
+
+    it("summarises an insufficient funds close as 'Out of funds'", () => {
+      expect(getClosedLeaseSummaryLabel(createClosedLease({ reason: "lease_closed_reason_insufficient_funds" }))).toBe("Out of funds");
+    });
+
+    it("returns tenant copy for a self-closed lease", () => {
+      expect(getClosedLeaseSummaryLabel(createClosedLease({ reason: "lease_closed_owner" }))).toBe("Closed by you");
+    });
+
+    it("returns 'Closed by provider' for a reclaimed (paused) lease whose reason did not classify", () => {
+      expect(getClosedLeaseSummaryLabel(createClosedLease({ reason: undefined, groupState: "paused" }))).toBe("Closed by provider");
+    });
+
+    it("returns a generic label for an unknown reason with no reclamation evidence", () => {
+      expect(getClosedLeaseSummaryLabel(createClosedLease({ reason: undefined }))).toBe("Closed");
+    });
+
+    it("never claims more than the full label does for a reason with no copy of its own", () => {
+      expect(getClosedLeaseSummaryLabel(createClosedLease({ reason: "9999" }))).toBe(getClosedLeaseLabel(createClosedLease({ reason: "9999" })));
+      expect(getClosedLeaseSummaryLabel(createClosedLease({ reason: "29999" }))).toBe(getClosedLeaseLabel(createClosedLease({ reason: "29999" })));
+    });
+
+    it("reads a lease that carries no reclamation at all", () => {
+      expect(getClosedLeaseSummaryLabel({ state: "closed", reason: "lease_closed_owner" })).toBe("Closed by you");
     });
 
     function createClosedLease(overrides: { reason?: string; groupState?: string }) {

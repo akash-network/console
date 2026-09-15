@@ -292,10 +292,19 @@ describe("DeploymentsList", () => {
   });
 
   it("always offers the archive, whatever the active list is doing", () => {
-    const archiveDeployments = [namedDeployment("200")];
-    const { DeploymentArchive } = setup({ hasPageResults: false, archiveDeployments, viewMode: "grid" });
+    const archivePageDeployments = [namedDeployment("200")];
+    const { DeploymentArchive } = setup({ hasPageResults: false, archivePageDeployments, viewMode: "grid" });
 
-    expect(DeploymentArchive).toHaveBeenCalledWith(expect.objectContaining({ deployments: archiveDeployments, viewMode: "grid" }), expect.anything());
+    expect(DeploymentArchive).toHaveBeenCalledWith(expect.objectContaining({ deployments: archivePageDeployments, viewMode: "grid" }), expect.anything());
+  });
+
+  it("hands the archive its page alongside the count of everything closed", () => {
+    const { DeploymentArchive } = setup({
+      archivePageDeployments: [namedDeployment("200")],
+      archiveDeployments: [namedDeployment("200"), namedDeployment("201"), namedDeployment("202")]
+    });
+
+    expect(DeploymentArchive).toHaveBeenCalledWith(expect.objectContaining({ totalCount: 3 }), expect.anything());
   });
 
   it("blocks the layout while either deployments or providers are loading", () => {
@@ -325,6 +334,8 @@ describe("DeploymentsList", () => {
     const changePageSize = vi.fn();
     const goToPreviousPage = vi.fn();
     const goToNextPage = vi.fn();
+    const goToPreviousArchivePage = vi.fn();
+    const goToNextArchivePage = vi.fn();
 
     const model: Model = {
       hasWallet: true,
@@ -336,6 +347,7 @@ describe("DeploymentsList", () => {
       changeSearch,
       pageDeployments: [],
       archiveDeployments: [],
+      archivePageDeployments: [],
       isLoadingDeployments: false,
       isLoadingProviders: false,
       isError: false,
@@ -355,6 +367,11 @@ describe("DeploymentsList", () => {
       goToNextPage,
       hasNextPage: false,
       isPaginated: false,
+      archivePageIndex: 0,
+      hasNextArchivePage: false,
+      isArchivePaginated: false,
+      goToPreviousArchivePage,
+      goToNextArchivePage,
       showPageSizeSelector: false,
       isInitialLoad: false,
       selectedItemIds: [],

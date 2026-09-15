@@ -53,6 +53,23 @@ export function getLeaseCloseReasonLabel(reason?: string): string {
 }
 
 /**
+ * The same close reason at list density, where a parenthetical detail would wrap the status badge onto a
+ * second line; the full label stays on the badge's tooltip and on the deployment detail page.
+ */
+export function getClosedLeaseSummaryLabel(lease: ReclaimableLease): string {
+  switch (toNumericCloseReason(lease.reason ?? lease.reclamation?.reason)) {
+    case LeaseClosedReason.lease_closed_reason_unstable:
+    case LeaseClosedReason.lease_closed_reason_decommission:
+    case LeaseClosedReason.lease_closed_reason_manifest_timeout:
+      return "Closed by provider";
+    case LeaseClosedReason.lease_closed_reason_insufficient_funds:
+      return "Out of funds";
+    default:
+      return getClosedLeaseLabel(lease);
+  }
+}
+
+/**
  * How a closed lease reads to its owner: who closed it and, where the chain says so, why. A reclaimed lease
  * whose reason didn't classify (e.g. only the group is paused) still reads as provider-closed.
  */
