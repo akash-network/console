@@ -139,6 +139,13 @@ describe("DeploymentCard", () => {
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 
+  it("shows the deployment's own trial and interconnect badges under its name", () => {
+    const { DeploymentBadges, deployment } = setup({ deployment: { dseq: "100", name: "acme" } });
+
+    expect(screen.getByText("badges")).toBeInTheDocument();
+    expect(DeploymentBadges.mock.calls[0][0]).toEqual(expect.objectContaining({ deployment }));
+  });
+
   function setup(input: {
     deployment: Partial<NamedDeploymentDto> & { dseq: string };
     leases?: LeaseDto[];
@@ -168,6 +175,7 @@ describe("DeploymentCard", () => {
     const DeploymentSpecSummary = vi.fn(() => <div>specs</div>);
     const ReclamationCountdown = vi.fn(() => <div>countdown</div>);
     const DeploymentActionsMenu = vi.fn(() => <div>actions</div>);
+    const DeploymentBadges = vi.fn<typeof DEPENDENCIES.DeploymentBadges>(() => <div>badges</div>);
     const providers: never[] = [];
     const onSelect = vi.fn();
     const deployment = { state: "active", cpuAmount: 1, memoryAmount: 1, storageAmount: 1, ...input.deployment } as NamedDeploymentDto;
@@ -187,7 +195,8 @@ describe("DeploymentCard", () => {
           DeploymentEndpointsPanel,
           DeploymentSpecSummary,
           ReclamationCountdown,
-          DeploymentActionsMenu
+          DeploymentActionsMenu,
+          DeploymentBadges
         })}
       />
     );
@@ -206,6 +215,7 @@ describe("DeploymentCard", () => {
       DeploymentSpecSummary,
       ReclamationCountdown,
       DeploymentActionsMenu,
+      DeploymentBadges,
       useDeploymentReachability,
       providers,
       deployment

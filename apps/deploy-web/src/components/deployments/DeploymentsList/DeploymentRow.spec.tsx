@@ -113,6 +113,13 @@ describe("DeploymentRow", () => {
     return { serviceName: "api", host, port: 443, href: `http://${host}:443` };
   }
 
+  it("shows the deployment's own trial and interconnect badges under its name", () => {
+    const { DeploymentBadges, deployment } = setup({ deployment: { dseq: "100", name: "acme" } });
+
+    expect(screen.getByText("badges")).toBeInTheDocument();
+    expect(DeploymentBadges.mock.calls[0][0]).toEqual(expect.objectContaining({ deployment }));
+  });
+
   function setup(input: {
     deployment: Partial<NamedDeploymentDto> & { dseq: string };
     isSelectable?: boolean;
@@ -134,6 +141,7 @@ describe("DeploymentRow", () => {
       </button>
     ));
     const DeploymentEndpointsPanel = vi.fn<typeof DEPENDENCIES.DeploymentEndpointsPanel>(() => <div>endpoints panel</div>);
+    const DeploymentBadges = vi.fn<typeof DEPENDENCIES.DeploymentBadges>(() => <div>badges</div>);
 
     const providers: never[] = [];
     const onSelect = vi.fn();
@@ -148,7 +156,7 @@ describe("DeploymentRow", () => {
             isSelectable={input.isSelectable}
             isSelected={input.isSelected}
             onSelect={onSelect}
-            dependencies={MockComponents(DEPENDENCIES, { useDeploymentReachability, DeploymentEndpoints, DeploymentEndpointsPanel })}
+            dependencies={MockComponents(DEPENDENCIES, { useDeploymentReachability, DeploymentEndpoints, DeploymentEndpointsPanel, DeploymentBadges })}
           />
         </tbody>
       </table>
@@ -164,6 +172,7 @@ describe("DeploymentRow", () => {
       deployment,
       DeploymentEndpoints,
       DeploymentEndpointsPanel,
+      DeploymentBadges,
       rerenderWith(next: VisitEndpoint[]) {
         endpoints = next;
         rerender(renderRow());

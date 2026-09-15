@@ -10,6 +10,7 @@ import type { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
 import { DeploymentStatusBadge } from "../DeploymentDetail/DeploymentStatusBadge";
 import { DeploymentActionsMenu } from "./DeploymentActionsMenu";
+import { DeploymentBadges } from "./DeploymentBadges";
 import { DeploymentEndpoints, DeploymentEndpointsPanel } from "./DeploymentEndpoints";
 import { DeploymentSpecSummary } from "./DeploymentSpecSummary";
 import { ReclamationCountdown } from "./ReclamationCountdown";
@@ -18,6 +19,7 @@ import { useDeploymentReachability } from "./useDeploymentReachability";
 export const DEPENDENCIES = {
   useDeploymentReachability,
   DeploymentStatusBadge,
+  DeploymentBadges,
   DeploymentEndpoints,
   DeploymentEndpointsPanel,
   DeploymentSpecSummary,
@@ -65,9 +67,12 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
           </div>
         </TableCell>
         <TableCell>
-          <Link href={UrlService.deploymentDetails(deployment.dseq)} className="block truncate font-semibold hover:underline">
-            {deployment.name || `Deployment #${deployment.dseq}`}
-          </Link>
+          <div className="flex flex-col gap-1">
+            <Link href={UrlService.deploymentDetails(deployment.dseq)} className="block truncate font-semibold hover:underline">
+              {deployment.name || `Deployment #${deployment.dseq}`}
+            </Link>
+            <d.DeploymentBadges deployment={deployment} />
+          </div>
         </TableCell>
         <TableCell>
           <d.DeploymentEndpoints

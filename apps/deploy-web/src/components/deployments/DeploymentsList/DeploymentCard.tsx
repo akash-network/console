@@ -9,6 +9,7 @@ import type { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
 import { DeploymentStatusBadge } from "../DeploymentDetail/DeploymentStatusBadge";
 import { DeploymentActionsMenu } from "./DeploymentActionsMenu";
+import { DeploymentBadges } from "./DeploymentBadges";
 import { DeploymentEndpoints, DeploymentEndpointsPanel } from "./DeploymentEndpoints";
 import { DeploymentSpecSummary } from "./DeploymentSpecSummary";
 import { ReclamationCountdown } from "./ReclamationCountdown";
@@ -17,6 +18,7 @@ import { useDeploymentReachability } from "./useDeploymentReachability";
 export const DEPENDENCIES = {
   useDeploymentReachability,
   DeploymentStatusBadge,
+  DeploymentBadges,
   DeploymentEndpoints,
   DeploymentEndpointsPanel,
   DeploymentSpecSummary,
@@ -53,9 +55,12 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
     <Card className="flex flex-col overflow-hidden transition-[box-shadow,border-color] duration-200 hover:border-zinc-400 hover:shadow-md dark:hover:border-zinc-600">
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div className="flex items-start justify-between gap-3">
-          <Link href={UrlService.deploymentDetails(deployment.dseq)} className="truncate font-semibold hover:underline">
-            {deployment.name || `Deployment #${deployment.dseq}`}
-          </Link>
+          <div className="flex min-w-0 flex-col gap-1">
+            <Link href={UrlService.deploymentDetails(deployment.dseq)} className="truncate font-semibold hover:underline">
+              {deployment.name || `Deployment #${deployment.dseq}`}
+            </Link>
+            <d.DeploymentBadges deployment={deployment} />
+          </div>
 
           <div className="flex shrink-0 flex-col items-end gap-1">
             <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized />
