@@ -66,11 +66,7 @@ function kidOf(sealedSecrets: string): unknown {
   }
 }
 
-/**
- * Replaces one user's data encryption key and re-seals every stored secret under the new one, which is what
- * contains a leaked data key: re-wrapping under a new KMS version leaves the key itself unchanged. Both keys
- * stay openable until the pass completes, and the retired one is deleted only once nothing names it.
- */
+/** Re-wrapping under a new KMS version leaves a leaked data key itself unchanged, so containing the leak means a new key with every stored secret re-sealed under it while both stay openable. */
 @singleton()
 export class DataKeyRekeyService {
   private readonly logger: ReturnType<CreateLogger>;
@@ -204,7 +200,7 @@ export class DataKeyRekeyService {
   async #resealDeployment(userId: string, row: DeploymentStoredSecretsOfUser, keys: RekeyKeys, pass: ResealPass, dryRun: boolean) {
     const kid = kidOf(row.sealedSecrets);
 
-    if (kid === keys.targetId) {
+    if (kid !== undefined && kid === keys.targetId) {
       pass.deploymentsAlreadyUnderActiveKey += 1;
 
       return;

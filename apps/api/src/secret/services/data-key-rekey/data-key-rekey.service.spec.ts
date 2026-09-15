@@ -220,6 +220,21 @@ describe(DataKeyRekeyService.name, () => {
       expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
     });
 
+    it("names a deployment whose token has no readable data key instead of counting it as already moved", async () => {
+      const unreadable: DeploymentStoredSecretsOfUser = { id: randomUUID(), dseq: "555", sealedSecrets: "not-a-token", updatedAt: new Date() };
+      const { service, logger } = setup({ deployments: [unreadable, deploymentSealedUnder(ACTIVE_KEY_ID)] });
+
+      const result = await service.rekeyUser({ userId: USER_ID, dryRun: true });
+
+      expect(result.err).toBe(true);
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "DATA_KEY_REKEY_END",
+          report: expect.objectContaining({ deploymentsUnderUnknownKey: ["555"], deploymentsAlreadyUnderActiveKey: 0, deploymentsResealed: 1 })
+        })
+      );
+    });
+
     it("deletes nothing on a resumed dry run, however old the retired key is", async () => {
       const { service, dataKeyRepository } = setup({ retired: [retiredKey(twoMinutesAgo())], deployments: [deploymentSealedUnder(ACTIVE_KEY_ID)] });
 
