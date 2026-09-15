@@ -8,6 +8,8 @@ import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
 import type { DeploymentDto } from "@src/types/deployment";
 import { DEFAULT_PAGE_SIZE, DEPENDENCIES, useDeploymentsListModel } from "./useDeploymentsListModel";
+import type { DEPENDENCIES as SOURCE_DEPENDENCIES } from "./useDeploymentsListSource";
+import { useChainDeploymentsListSource } from "./useDeploymentsListSource";
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 
@@ -94,7 +96,7 @@ describe(useDeploymentsListModel.name, () => {
 
       await act(async () => result.current.changeSearch("acme"));
 
-      expect(result.current.archiveDeployments.map(d => d.dseq)).toEqual(["200"]);
+      expect(result.current.archivePageDeployments.map(d => d.dseq)).toEqual(["200"]);
     });
 
     it("pages the full list in memory once the server-side paging is out of play", async () => {
@@ -251,7 +253,7 @@ describe(useDeploymentsListModel.name, () => {
       const { result } = setup({ archived: closedDeployments(DEFAULT_PAGE_SIZE + 3) });
 
       expect(result.current.archivePageDeployments).toHaveLength(DEFAULT_PAGE_SIZE);
-      expect(result.current.archiveDeployments).toHaveLength(DEFAULT_PAGE_SIZE + 3);
+      expect(result.current.archiveTotal).toBe(DEFAULT_PAGE_SIZE + 3);
       expect(result.current.hasNextArchivePage).toBe(true);
     });
 
@@ -315,7 +317,7 @@ describe(useDeploymentsListModel.name, () => {
       await act(async () => result.current.goToNextArchivePage());
       await act(async () => result.current.changeSearch("2"));
 
-      expect(result.current.archiveDeployments).toHaveLength(DEFAULT_PAGE_SIZE + 1);
+      expect(result.current.archiveTotal).toBe(DEFAULT_PAGE_SIZE + 1);
       expect(result.current.archivePageIndex).toBe(0);
     });
 
@@ -797,8 +799,8 @@ describe(useDeploymentsListModel.name, () => {
     const closeDeploymentConfirm = vi.fn(async () => current.isCloseConfirmed ?? true);
     const signAndBroadcastTx = vi.fn(async () => ("broadcastResponse" in current ? (current.broadcastResponse as boolean) : true));
 
-    const useDeploymentsPage = vi.fn<typeof DEPENDENCIES.useDeploymentsPage>((_address, params) =>
-      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentsPage>>(), {
+    const useDeploymentsPage = vi.fn<typeof SOURCE_DEPENDENCIES.useDeploymentsPage>((_address, params) =>
+      Object.assign(mock<ReturnType<typeof SOURCE_DEPENDENCIES.useDeploymentsPage>>(), {
         data: current.isUnresolved
           ? undefined
           : ({
@@ -811,8 +813,8 @@ describe(useDeploymentsListModel.name, () => {
       })
     );
 
-    const useDeploymentList = vi.fn<typeof DEPENDENCIES.useDeploymentList>((_address, _options, state) =>
-      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentList>>(), {
+    const useDeploymentList = vi.fn<typeof SOURCE_DEPENDENCIES.useDeploymentList>((_address, _options, state) =>
+      Object.assign(mock<ReturnType<typeof SOURCE_DEPENDENCIES.useDeploymentList>>(), {
         data:
           state === "closed" ? (current.isArchiveUnresolved ? undefined : current.archived ?? []) : current.isListUnresolved ? undefined : current.active ?? [],
         isFetching: state === "closed" ? current.isArchiveFetching ?? false : current.isListFetching ?? false,
@@ -828,17 +830,20 @@ describe(useDeploymentsListModel.name, () => {
         signAndBroadcastTx
       });
     const useProviderList: typeof DEPENDENCIES.useProviderList = () => mock<ReturnType<typeof DEPENDENCIES.useProviderList>>({ data: [], isFetching: false });
-    const useDeploymentNames = vi.fn<typeof DEPENDENCIES.useDeploymentNames>(() => ({ getDeploymentName: dseq => current.names?.[String(dseq)] ?? null }));
+    const useDeploymentNames = vi.fn<typeof SOURCE_DEPENDENCIES.useDeploymentNames>(() => ({
+      getDeploymentName: dseq => current.names?.[String(dseq)] ?? null
+    }));
     const useManagedDeploymentConfirm: typeof DEPENDENCIES.useManagedDeploymentConfirm = () =>
       mock<ReturnType<typeof DEPENDENCIES.useManagedDeploymentConfirm>>({ closeDeploymentConfirm });
+
+    const useDeploymentsListSource: typeof DEPENDENCIES.useDeploymentsListSource = sourceInput =>
+      useChainDeploymentsListSource(sourceInput, { useWallet, useDeploymentNames, useDeploymentsPage, useDeploymentList });
 
     const dependencies = {
       useWallet,
       useProviderList,
-      useDeploymentNames,
       useManagedDeploymentConfirm,
-      useDeploymentsPage,
-      useDeploymentList,
+      useDeploymentsListSource,
       useListSelection: DEPENDENCIES.useListSelection
     };
 
