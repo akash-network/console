@@ -3,8 +3,8 @@ import { useMemo } from "react";
 import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
 
 import { useAutoReloadMode } from "@src/components/billing-usage/useAutoReloadMode";
-import { useLocalNotes } from "@src/components/LocalNoteManager/useLocalNotes";
 import { useWallet } from "@src/context/WalletProvider";
+import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import type { LiveEscrowInput } from "@src/hooks/useWalletBalance";
 import { computeWalletBalance } from "@src/hooks/useWalletBalance";
@@ -23,7 +23,7 @@ export const DEPENDENCIES = {
   useAllLeases,
   useBlock,
   useWalletSettingsQuery,
-  useLocalNotes
+  useDeploymentNames
 };
 
 export type EscrowedDeployment = {
@@ -59,7 +59,7 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
   /** Gated on the wallet holding an escrow: an account with nothing running shouldn't poll the chain every 30 seconds. */
   const { data: latestBlock } = d.useBlock("latest", { refetchInterval: 30000, enabled: hasActiveDeployments });
   const { data: walletSettings } = d.useWalletSettingsQuery();
-  const { getDeploymentName } = d.useLocalNotes();
+  const { getDeploymentName } = d.useDeploymentNames(balances?.activeDeployments.map(deployment => deployment.dseq) ?? []);
   const { showsThresholdRule } = d.useAutoReloadMode();
 
   const liveEscrow = useMemo<LiveEscrowInput>(

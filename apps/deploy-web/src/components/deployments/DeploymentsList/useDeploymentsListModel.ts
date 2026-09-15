@@ -3,8 +3,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { MIN_PAGE_SIZE } from "@akashnetwork/ui/components";
 import { useAtom } from "jotai";
 
-import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useWallet } from "@src/context/WalletProvider";
+import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useDeploymentList, useDeploymentsPage } from "@src/queries/useDeploymentQuery";
@@ -18,7 +18,7 @@ import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 export const DEPENDENCIES = {
   useWallet,
   useProviderList,
-  useLocalNotes,
+  useDeploymentNames,
   useManagedDeploymentConfirm,
   useDeploymentsPage,
   useDeploymentList,
@@ -37,7 +37,6 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
   const d = dependencies;
   const { address, signAndBroadcastTx, hasWallet } = d.useWallet();
   const { data: providers, isFetching: isLoadingProviders } = d.useProviderList();
-  const { getDeploymentName } = d.useLocalNotes();
   const { closeDeploymentConfirm } = d.useManagedDeploymentConfirm();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const [viewMode, setViewMode] = useAtom(deploymentsViewModeAtom);
@@ -54,6 +53,7 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
   const archiveList = d.useDeploymentList(address, { enabled: canQuery }, "closed");
 
   const fetchedActiveDeployments = isSearching ? activeList.data : activePage.data?.deployments;
+  const { getDeploymentName } = d.useDeploymentNames([...(fetchedActiveDeployments ?? []), ...(archiveList.data ?? [])].map(deployment => deployment.dseq));
 
   const activeDeployments = useMemo(
     () => resolveDeployments(fetchedActiveDeployments, getDeploymentName, search),
@@ -179,7 +179,7 @@ function isViewMode(value: string): value is DeploymentsViewMode {
   return value === "grid" || value === "list";
 }
 
-/** Names come from this browser rather than the chain, so search can only run once they are attached. */
+/** Names come from the console rather than the chain, so search can only run once they are attached. */
 function resolveDeployments(
   deployments: DeploymentDto[] | null | undefined,
   getDeploymentName: (dseq: string | number | null) => string | null,

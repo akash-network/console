@@ -80,18 +80,15 @@ describe(LocalNoteManager.name, () => {
     dseq?: string | number | null;
     selectDeployment?: (dseq: string | number | null) => void;
     deselectDeployment?: (dseq: string | number) => void;
-    getDeploymentName?: (dseq: string | number | null) => string | null;
     initFavoriteProviders?: () => void;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const dseq = input?.dseq ?? null;
     const selectDeployment = input?.selectDeployment ?? vi.fn();
     const deselectDeployment = input?.deselectDeployment ?? vi.fn();
-    const getDeploymentName = input?.getDeploymentName ?? vi.fn().mockReturnValue(null);
     const initFavoriteProviders = input?.initFavoriteProviders ?? vi.fn();
 
     const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () => ({
-      getDeploymentName,
       changeDeploymentName: vi.fn(),
       favoriteProviders: [],
       updateFavoriteProviders: vi.fn(),
@@ -112,6 +109,6 @@ describe(LocalNoteManager.name, () => {
       />
     );
 
-    return { selectDeployment, deselectDeployment, getDeploymentName, initFavoriteProviders };
+    return { selectDeployment, deselectDeployment, initFavoriteProviders };
   }
 });

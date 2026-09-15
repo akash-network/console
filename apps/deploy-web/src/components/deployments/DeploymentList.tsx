@@ -26,10 +26,10 @@ import { useAtom } from "jotai";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 
-import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { useBlockchainStatus } from "@src/context/BlockchainStatusProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
@@ -47,7 +47,7 @@ export const DEPENDENCIES = {
   useWallet,
   useProviderList,
   useBlockchainStatus,
-  useLocalNotes,
+  useDeploymentNames,
   useManagedDeploymentConfirm,
   useNewDeploymentUrl,
   useDeploymentsPage,
@@ -66,7 +66,7 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
     useWallet,
     useProviderList,
     useBlockchainStatus,
-    useLocalNotes,
+    useDeploymentNames,
     useManagedDeploymentConfirm,
     useNewDeploymentUrl,
     useDeploymentsPage,
@@ -78,7 +78,6 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
   const { address, signAndBroadcastTx, hasWallet } = useWallet();
   const { data: providers, isFetching: isLoadingProviders } = useProviderList();
   const { isBlockchainDown } = useBlockchainStatus();
-  const { getDeploymentName } = useLocalNotes();
   const [deploymentStatus, setDeploymentStatus] = useState<DeploymentStatus>("active");
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
@@ -108,13 +107,15 @@ export const DeploymentList: React.FunctionComponent<Props> = ({ dependencies = 
   const isError = isSearching ? isListError : isPageError;
   const getDeployments = isSearching ? refetchList : refetchPage;
 
+  const fetchedDeployments = useMemo(() => (isSearching ? listData ?? [] : pageData?.deployments ?? []), [isSearching, listData, pageData?.deployments]);
+  const { getDeploymentName } = useDeploymentNames(fetchedDeployments.map(d => d.dseq));
+
   const filteredDeployments = useMemo(() => {
-    const source = isSearching ? listData ?? [] : pageData?.deployments ?? [];
-    const named = source.map(d => ({ ...d, name: getDeploymentName(d.dseq) })) as NamedDeploymentDto[];
+    const named = fetchedDeployments.map(d => ({ ...d, name: getDeploymentName(d.dseq) })) as NamedDeploymentDto[];
     if (!isSearching) return named;
     const query = search.trim().toLowerCase();
     return named.filter(d => d.name?.toLowerCase().includes(query) || d.dseq?.toLowerCase().includes(query));
-  }, [isSearching, listData, pageData?.deployments, search, getDeploymentName]);
+  }, [fetchedDeployments, isSearching, search, getDeploymentName]);
 
   const pageDeployments = useMemo(() => {
     if (!isSearching) return filteredDeployments;

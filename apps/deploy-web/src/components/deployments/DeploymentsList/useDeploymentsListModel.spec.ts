@@ -35,10 +35,16 @@ describe(useDeploymentsListModel.name, () => {
     expect(useDeploymentList).toHaveBeenCalledWith("akash1owner", expect.objectContaining({ enabled: true }), "closed");
   });
 
-  it("attaches the local name to each deployment", () => {
+  it("attaches the console's name to each deployment", () => {
     const { result } = setup({ active: [deployment("100")], names: { "100": "acme-storefront" } });
 
     expect(result.current.pageDeployments[0].name).toBe("acme-storefront");
+  });
+
+  it("asks for the names of the active and the archived deployments together", () => {
+    const { useDeploymentNames } = setup({ active: [deployment("100")], archived: [deployment("900")] });
+
+    expect(useDeploymentNames).toHaveBeenLastCalledWith(["100", "900"]);
   });
 
   describe("searching", () => {
@@ -60,7 +66,7 @@ describe(useDeploymentsListModel.name, () => {
       expect(lastListCallFor(useDeploymentList, "active")).toEqual(["akash1owner", expect.objectContaining({ enabled: false }), "active"]);
     });
 
-    it("matches on the local name, case insensitively", async () => {
+    it("matches on the name, case insensitively", async () => {
       const { result } = setup({
         active: [deployment("100"), deployment("101")],
         names: { "100": "Acme-Storefront", "101": "billing-worker" }
@@ -616,6 +622,18 @@ describe(useDeploymentsListModel.name, () => {
     });
   });
 
+  it("asks only for the archived deployments' names while the active page has not loaded", () => {
+    const { useDeploymentNames } = setup({ isUnresolved: true, archived: [deployment("900", "closed")] });
+
+    expect(useDeploymentNames).toHaveBeenLastCalledWith(["900"]);
+  });
+
+  it("asks only for the active deployments' names while the archive has not loaded", () => {
+    const { useDeploymentNames } = setup({ active: [deployment("100")], isArchiveUnresolved: true });
+
+    expect(useDeploymentNames).toHaveBeenLastCalledWith(["100"]);
+  });
+
   it("clears any staged SDL when a new deployment is started", () => {
     const { result, store } = setup({ active: [deployment("100")] });
     store.set(sdlStore.deploySdl, mock<TemplateCreation>());
@@ -693,15 +711,14 @@ describe(useDeploymentsListModel.name, () => {
         signAndBroadcastTx
       });
     const useProviderList: typeof DEPENDENCIES.useProviderList = () => mock<ReturnType<typeof DEPENDENCIES.useProviderList>>({ data: [], isFetching: false });
-    const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>({ getDeploymentName: dseq => current.names?.[String(dseq)] ?? null });
+    const useDeploymentNames = vi.fn<typeof DEPENDENCIES.useDeploymentNames>(() => ({ getDeploymentName: dseq => current.names?.[String(dseq)] ?? null }));
     const useManagedDeploymentConfirm: typeof DEPENDENCIES.useManagedDeploymentConfirm = () =>
       mock<ReturnType<typeof DEPENDENCIES.useManagedDeploymentConfirm>>({ closeDeploymentConfirm });
 
     const dependencies = {
       useWallet,
       useProviderList,
-      useLocalNotes,
+      useDeploymentNames,
       useManagedDeploymentConfirm,
       useDeploymentsPage,
       useDeploymentList,
@@ -725,7 +742,8 @@ describe(useDeploymentsListModel.name, () => {
       closeDeploymentConfirm,
       signAndBroadcastTx,
       useDeploymentsPage,
-      useDeploymentList
+      useDeploymentList,
+      useDeploymentNames
     };
   }
 });

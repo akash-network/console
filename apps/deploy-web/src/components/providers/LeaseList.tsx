@@ -16,16 +16,21 @@ import {
 } from "@akashnetwork/ui/components";
 import isEqual from "lodash/isEqual";
 
+import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import type { LeaseDto } from "@src/types/deployment";
 import { isLeaseLive } from "@src/utils/leaseUtils";
+import type { LeaseRowProps } from "./LeaseRow";
 import { LeaseRow } from "./LeaseRow";
+
+export const DEPENDENCIES: { useDeploymentNames: typeof useDeploymentNames; LeaseRow: React.ComponentType<LeaseRowProps> } = { useDeploymentNames, LeaseRow };
 
 type Props = {
   leases: LeaseDto[] | null;
   isLoadingLeases: boolean;
+  dependencies?: typeof DEPENDENCIES;
 };
 
-const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases }) => {
+const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases, dependencies: d = DEPENDENCIES }) => {
   const [pageIndex, setPageIndex] = useState(0);
   const [filteredLeases, setFilteredLeases] = useState(leases || []);
   const [isFilteringActive, setIsFilteringActive] = useState(false);
@@ -34,6 +39,7 @@ const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases
   const end = start + pageSize;
   const currentPageLeases = filteredLeases.slice(start, end);
   const pageCount = Math.ceil(filteredLeases.length / pageSize);
+  const { getDeploymentName } = d.useDeploymentNames(currentPageLeases.map(lease => lease.dseq));
 
   useEffect(() => {
     if (leases) {
@@ -87,7 +93,7 @@ const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases
 
               <TableBody>
                 {currentPageLeases.map(lease => (
-                  <LeaseRow key={lease.id} lease={lease} />
+                  <d.LeaseRow key={lease.id} lease={lease} deploymentName={getDeploymentName(lease.dseq)} />
                 ))}
               </TableBody>
             </Table>

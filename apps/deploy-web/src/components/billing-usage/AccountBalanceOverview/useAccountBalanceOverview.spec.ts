@@ -247,6 +247,23 @@ describe(useAccountBalanceOverview.name, () => {
     expect(useBlock).toHaveBeenCalledWith("latest", expect.objectContaining({ enabled: true }));
   });
 
+  it("asks the console for the names of the deployments the account holds escrow on", () => {
+    const { useDeploymentNames } = setup({
+      deployments: [
+        { dseq: "1", fundsUsd: 50 },
+        { dseq: "2", fundsUsd: 100 }
+      ]
+    });
+
+    expect(useDeploymentNames).toHaveBeenLastCalledWith(["1", "2"]);
+  });
+
+  it("asks for no names until the account's balances arrive", () => {
+    const { useDeploymentNames } = setup({ balancesMissing: true });
+
+    expect(useDeploymentNames).toHaveBeenLastCalledWith([]);
+  });
+
   function setup(input: {
     totalUsd?: number;
     escrowUsd?: number;
@@ -335,8 +352,8 @@ describe(useAccountBalanceOverview.name, () => {
     });
     const useWalletSettingsQuery: typeof DEPENDENCIES.useWalletSettingsQuery = () => walletSettingsQuery;
 
-    const getDeploymentName = (dseq: string | number | null) => input.names?.[String(dseq)] ?? null;
-    const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>(), { getDeploymentName });
+    const getDeploymentName = (dseq: string | number | null | undefined) => input.names?.[String(dseq)] ?? null;
+    const useDeploymentNames = vi.fn<typeof DEPENDENCIES.useDeploymentNames>(() => ({ getDeploymentName }));
 
     const dependencies: typeof DEPENDENCIES = {
       useWallet,
@@ -346,9 +363,9 @@ describe(useAccountBalanceOverview.name, () => {
       useAllLeases,
       useBlock,
       useWalletSettingsQuery,
-      useLocalNotes
+      useDeploymentNames
     };
 
-    return { ...renderHook(() => useAccountBalanceOverview({ dependencies })), useAllLeases, useBlock };
+    return { ...renderHook(() => useAccountBalanceOverview({ dependencies })), useAllLeases, useBlock, useDeploymentNames };
   }
 });

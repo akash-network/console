@@ -46,29 +46,31 @@ function createRecursiveProxyImpl<T extends Record<string, any>>(
           };
           const useQueryImpl = proxyOptions?.useQuery ?? useQuery;
           const useMutationImpl = proxyOptions?.useMutation ?? useMutation;
+          const queryOptions = (input: any, options?: ProxyQueryOptions<any, any, any>) => {
+            let queryKey = getKey(input);
+            if (options?.queryKey) {
+              queryKey = queryKey.concat(options.queryKey as PropertyKey[]);
+            }
+            const { catchError, ...restOptions } = options ?? {};
+            const callSdk = () => (target as any)[prop](input);
+            return {
+              ...restOptions,
+              queryKey,
+              queryFn: catchError
+                ? async () => {
+                    try {
+                      return await callSdk();
+                    } catch (error) {
+                      return catchError(error as Error);
+                    }
+                  }
+                : callSdk
+            };
+          };
           valueByPath[key] ??= {
             getKey,
-            useQuery: (input, options) => {
-              let queryKey = getKey(input);
-              if (options?.queryKey) {
-                queryKey = queryKey.concat(options.queryKey as PropertyKey[]);
-              }
-              const { catchError, ...restOptions } = options ?? {};
-              const callSdk = () => (target as any)[prop](input);
-              return useQueryImpl({
-                ...restOptions,
-                queryKey,
-                queryFn: catchError
-                  ? async () => {
-                      try {
-                        return await callSdk();
-                      } catch (error) {
-                        return catchError(error as Error);
-                      }
-                    }
-                  : callSdk
-              });
-            },
+            queryOptions,
+            useQuery: (input, options) => useQueryImpl(queryOptions(input, options)),
             useMutation: options => {
               let mutationKey = fullPropPath;
               if (options?.mutationKey) {
@@ -129,9 +131,19 @@ export type ProxyQueryOptions<TQueryFnData, TData, TRecovered> = Omit<
   select?: (data: TQueryFnData | TRecovered) => TData;
 };
 
+/** The options `useQuery` would be given, key and function filled in, for `useQueries` and prefetching where the proxy's own hook cannot be called. */
+export type ProxyQueryDefinition<TQueryFnData, TData> = Omit<UseQueryOptions<TQueryFnData, Error, TData, QueryKey>, "queryKey" | "queryFn"> & {
+  queryKey: QueryKey;
+  queryFn: () => Promise<TQueryFnData>;
+};
+
 type HooksProxy<T extends (...args: any[]) => any> = undefined extends Parameters<T>[0]
   ? {
       getKey: (input?: NonNullable<Parameters<T>[0]>) => PropertyKey[];
+      queryOptions: <TRecovered = never, TData = Awaited<ReturnType<T>> | TRecovered>(
+        input?: NonNullable<Parameters<T>[0]>,
+        options?: ProxyQueryOptions<Awaited<ReturnType<T>>, TData, TRecovered>
+      ) => ProxyQueryDefinition<Awaited<ReturnType<T>> | TRecovered, TData>;
       useQuery: <TRecovered = never, TData = Awaited<ReturnType<T>> | TRecovered>(
         input?: NonNullable<Parameters<T>[0]>,
         options?: ProxyQueryOptions<Awaited<ReturnType<T>>, TData, TRecovered>
@@ -141,7 +153,12 @@ type HooksProxy<T extends (...args: any[]) => any> = undefined extends Parameter
       ) => UseMutationResult<Awaited<ReturnType<T>>, Error, OptionalMutationVariables<T>, any>;
     }
   : {
-      getKey: (input: Parameters<T>[0]) => PropertyKey[];
+      /** Without an input the key names every call of the operation, which is what invalidating them all takes. */
+      getKey: (input?: Parameters<T>[0]) => PropertyKey[];
+      queryOptions: <TRecovered = never, TData = Awaited<ReturnType<T>> | TRecovered>(
+        input: Parameters<T>[0],
+        options?: ProxyQueryOptions<Awaited<ReturnType<T>>, TData, TRecovered>
+      ) => ProxyQueryDefinition<Awaited<ReturnType<T>> | TRecovered, TData>;
       useQuery: <TRecovered = never, TData = Awaited<ReturnType<T>> | TRecovered>(
         input: Parameters<T>[0],
         options?: ProxyQueryOptions<Awaited<ReturnType<T>>, TData, TRecovered>
