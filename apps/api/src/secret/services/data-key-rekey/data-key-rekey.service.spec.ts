@@ -140,6 +140,27 @@ describe(DataKeyRekeyService.name, () => {
       expect(report.retiredDataKeyDeleted).toBe(true);
     });
 
+    it("deletes the retired key when the fresh scan finds only deployments already under the replacement", async () => {
+      const { service, dataKeyRepository } = setup({
+        retired: [retiredKey(twoMinutesAgo())],
+        deployments: [deploymentSealedUnder(RETIRED_KEY_ID)],
+        deploymentsAfter: [deploymentSealedUnder(ACTIVE_KEY_ID), deploymentSealedUnder(ACTIVE_KEY_ID)]
+      });
+
+      const report = (await service.rekeyUser({ userId: USER_ID, dryRun: false })).unwrap();
+
+      expect(report).toMatchObject({ deploymentsResealed: 1, retiredDataKeyDeleted: true });
+      expect(dataKeyRepository.deleteRetired).toHaveBeenCalledExactlyOnceWith(RETIRED_KEY_ID);
+    });
+
+    it("walks the user's deployments in batches of the size it was given", async () => {
+      const { service, deploymentSettingRepository } = setup({ retired: [retiredKey(twoMinutesAgo())], deployments: [deploymentSealedUnder(RETIRED_KEY_ID)] });
+
+      await service.rekeyUser({ userId: USER_ID, dryRun: false, batchSize: 7 });
+
+      expect(deploymentSettingRepository.findStoredSecretsByUserIteratively).toHaveBeenCalledWith({ userId: USER_ID, batchSize: 7 });
+    });
+
     it("keeps the retired key while a fresh scan still finds a deployment sealed under it", async () => {
       const { service, dataKeyRepository, logger } = setup({
         retired: [retiredKey(twoMinutesAgo())],
