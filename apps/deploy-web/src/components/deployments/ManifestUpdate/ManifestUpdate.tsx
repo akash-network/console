@@ -7,13 +7,13 @@ import { InfoCircle, Upload, WarningCircle } from "iconoir-react";
 import yaml from "js-yaml";
 import { useSnackbar as useSnackbarOriginal } from "notistack";
 
+import { AddCreditsSnackbarContent } from "@src/components/billing-usage/AddCreditsSnackbarContent/AddCreditsSnackbarContent";
 import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { ViewPanel } from "@src/components/shared/ViewPanel";
 import { useBlockchainStatus as useBlockchainStatusOriginal } from "@src/context/BlockchainStatusProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet as useWalletOriginal } from "@src/context/WalletProvider";
-import { AddCreditsSnackbarContent } from "@src/context/WalletProvider/useSignAndBroadcast";
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useDeploymentDefinition as useDeploymentDefinitionOriginal } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useBalances as useBalancesOriginal } from "@src/queries/useBalancesQuery";

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useController, useFormContext, useWatch } from "react-hook-form";
+import type { Mock } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -335,6 +336,33 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(toast.props.title).toBe("Couldn't get provider quotes");
   });
 
+  it("offers to add credits rather than apologising when the create was refused until the user pays", () => {
+    const message = "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue.";
+    const { enqueueSnackbar } = setup({ initialSdl: undefined, flowError: { message, kind: "needs-funds" } });
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "warning" }));
+    const toast = needsFundsToastOf(enqueueSnackbar);
+    expect(toast.props.title).toBe("Add funds to continue");
+    expect(toast.props.subTitle.props).toMatchObject({ message, context: "configure_quotes_needs_funds" });
+  });
+
+  it("titles the toast for the remedy rather than the cause, so a trial gpu refusal reads correctly too", () => {
+    const message = "GPU interconnect not available on free trial: Add funds to unlock GPU interconnect";
+    const { enqueueSnackbar } = setup({ initialSdl: undefined, flowError: { message, kind: "needs-funds" } });
+
+    const toast = needsFundsToastOf(enqueueSnackbar);
+    expect(toast.props.title).toBe("Add funds to continue");
+    expect(toast.props.subTitle.props).toMatchObject({ message });
+  });
+
+  it("dismisses the add funds toast once the add credits sheet is open", () => {
+    const { enqueueSnackbar, closeSnackbar } = setup({ initialSdl: undefined, flowError: { message: "Not enough balance", kind: "needs-funds" } });
+
+    needsFundsToastOf(enqueueSnackbar).props.subTitle.props.onAction?.();
+
+    expect(closeSnackbar).toHaveBeenCalled();
+  });
+
   it("closes the review modal when it is dismissed via Back", async () => {
     setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes });
 
@@ -493,7 +521,9 @@ describe(ConfigureDeploymentForm.name, () => {
     const ConfigureDeploymentHeader = vi.fn(() => <div data-testid="header-mock" />);
     const SdlImportExport = vi.fn(() => null);
     const enqueueSnackbar = vi.fn();
+    const closeSnackbar = vi.fn();
     const Snackbar = vi.fn(() => null);
+    const AddCreditsSnackbarContent = vi.fn((_props: { message?: string; context?: string; onAction?: () => void }) => null);
     const save = vi.fn<(sdl: string, name?: string, runtimeLimitHours?: number) => void>();
     const clear = vi.fn<() => void>();
     const requestQuotes = vi.fn();
@@ -536,6 +566,7 @@ describe(ConfigureDeploymentForm.name, () => {
     });
     const analyticsService = mock<AnalyticsService>();
     const dependencies: typeof DEPENDENCIES = {
+      AddCreditsSnackbarContent: AddCreditsSnackbarContent as never,
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
       ConfigureDeploymentBackButton: vi.fn(() => <div data-testid="back-button-mock" />),
@@ -543,7 +574,7 @@ describe(ConfigureDeploymentForm.name, () => {
       ConfigureDeploymentPanes: ConfigureDeploymentPanes as never,
       useConfigureDraft: useConfigureDraft as never,
       useDeploymentName,
-      useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
+      useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar, closeSnackbar }),
       useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService }),
       Snackbar: Snackbar as never,
       ReviewAndDeployModal: ReviewAndDeployModal as never,
@@ -569,6 +600,7 @@ describe(ConfigureDeploymentForm.name, () => {
       SdlImportExport,
       flow,
       enqueueSnackbar,
+      closeSnackbar,
       save,
       clear,
       requestQuotes,
@@ -576,6 +608,10 @@ describe(ConfigureDeploymentForm.name, () => {
     };
   }
 });
+
+function needsFundsToastOf(enqueueSnackbar: Mock) {
+  return enqueueSnackbar.mock.calls[0][0] as { props: { title: string; subTitle: { props: { message?: string; context?: string; onAction?: () => void } } } };
+}
 
 describe(nextUndoneServiceId.name, () => {
   it("falls back to the first undone placement's service when none have bids yet", () => {

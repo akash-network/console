@@ -80,6 +80,37 @@ describe(useDeploymentFlow.name, () => {
     const { result } = setup({ createMutate });
     act(() => result.current.actions.requestQuotes("sdl-content"));
     await waitFor(() => expect(result.current.phase).toBe("error"));
+    expect(result.current.error?.kind).toBe("create");
+  });
+
+  it("marks a create the api refused for want of funds so the form can offer to add credits", async () => {
+    const message = "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue.";
+    const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(402, { message, code: "payment_required" }, "POST /v1/deployments → 402")));
+    const { result } = setup({ createMutate });
+
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+
+    await waitFor(() => expect(result.current.phase).toBe("error"));
+    expect(result.current.error).toEqual({ kind: "needs-funds", message });
+  });
+
+  it("treats a trial gpu refusal the same way, since adding funds is what unlocks it too", async () => {
+    const message = "GPU interconnect not available on free trial: Add funds to unlock GPU interconnect";
+    const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(402, { message, code: "payment_required" }, "POST /v1/deployments → 402")));
+    const { result } = setup({ createMutate });
+
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+
+    await waitFor(() => expect(result.current.error).toEqual({ kind: "needs-funds", message }));
+  });
+
+  it("leaves any other api failure on the generic create error", async () => {
+    const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(400, { message: "Invalid SDL" }, "POST /v1/deployments → 400")));
+    const { result } = setup({ createMutate });
+
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+
+    await waitFor(() => expect(result.current.error).toEqual({ kind: "create", message: "Invalid SDL" }));
   });
 
   it("halts in error without closing the deployment when no providers bid in the auto flow", () => {
