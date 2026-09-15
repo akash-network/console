@@ -132,7 +132,14 @@ export const operations = {
       hasBody: false
     },
     createDeployment: { path: "/v1/deployments", method: "post", operationId: "createDeployment", pathParams: [], queryParams: [], hasBody: true },
-    listDeployments: { path: "/v1/deployments", method: "get", operationId: "listDeployments", pathParams: [], queryParams: ["skip", "limit"], hasBody: false },
+    listDeployments: {
+      path: "/v1/deployments",
+      method: "get",
+      operationId: "listDeployments",
+      pathParams: [],
+      queryParams: ["state", "reverse", "skip", "limit"],
+      hasBody: false
+    },
     depositDeployment: { path: "/v1/deposit-deployment", method: "post", operationId: "depositDeployment", pathParams: [], queryParams: [], hasBody: true },
     getSDLSecretsContext: {
       path: "/v1/sdl-secrets-context",

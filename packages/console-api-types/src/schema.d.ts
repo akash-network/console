@@ -8041,6 +8041,13 @@ export interface operations {
                 created_at: string;
                 closed_on: string;
                 reason?: string;
+                /** @description Present only on a lease its provider has flagged for reclamation. `deadline` is unix seconds; `reason` is a `lease_closed_reason_*` enum name. */
+                reclamation?: {
+                  window?: string;
+                  started_at?: string;
+                  deadline?: string;
+                  reason?: string;
+                };
                 status: {
                   forwarded_ports: {
                     [key: string]: {
@@ -8172,6 +8179,13 @@ export interface operations {
                 created_at: string;
                 closed_on: string;
                 reason?: string;
+                /** @description Present only on a lease its provider has flagged for reclamation. `deadline` is unix seconds; `reason` is a `lease_closed_reason_*` enum name. */
+                reclamation?: {
+                  window?: string;
+                  started_at?: string;
+                  deadline?: string;
+                  reason?: string;
+                };
                 status: {
                   forwarded_ports: {
                     [key: string]: {
@@ -8365,6 +8379,13 @@ export interface operations {
                 created_at: string;
                 closed_on: string;
                 reason?: string;
+                /** @description Present only on a lease its provider has flagged for reclamation. `deadline` is unix seconds; `reason` is a `lease_closed_reason_*` enum name. */
+                reclamation?: {
+                  window?: string;
+                  started_at?: string;
+                  deadline?: string;
+                  reason?: string;
+                };
                 status: {
                   forwarded_ports: {
                     [key: string]: {
@@ -8549,6 +8570,8 @@ export interface operations {
   listDeployments: {
     parameters: {
       query?: {
+        state?: "active" | "closed";
+        reverse?: "true" | "false";
         skip?: number | null;
         limit?: number;
       };
@@ -8593,6 +8616,13 @@ export interface operations {
                   created_at: string;
                   closed_on: string;
                   reason?: string;
+                  /** @description Present only on a lease its provider has flagged for reclamation. `deadline` is unix seconds; `reason` is a `lease_closed_reason_*` enum name. */
+                  reclamation?: {
+                    window?: string;
+                    started_at?: string;
+                    deadline?: string;
+                    reason?: string;
+                  };
                 }[];
                 escrow_account: {
                   id: {
@@ -8624,6 +8654,80 @@ export interface operations {
                 };
                 /** @description The name this deployment carries, or null for one created before the console recorded names. */
                 name: string | null;
+                /** @description The resource groups the deployment declares on chain, as the chain describes them. */
+                groups: {
+                  id: {
+                    owner: string;
+                    dseq: string;
+                    gseq: number;
+                  };
+                  state: string;
+                  group_spec: {
+                    name: string;
+                    requirements: {
+                      signed_by: {
+                        all_of: string[];
+                        any_of: string[];
+                      };
+                      attributes: {
+                        key: string;
+                        value: string;
+                      }[];
+                    };
+                    resources: {
+                      resource: {
+                        id: number;
+                        cpu: {
+                          units: {
+                            val: string;
+                          };
+                          attributes: {
+                            key: string;
+                            value: string;
+                          }[];
+                        };
+                        memory: {
+                          quantity: {
+                            val: string;
+                          };
+                          attributes: {
+                            key: string;
+                            value: string;
+                          }[];
+                        };
+                        storage: {
+                          name: string;
+                          quantity: {
+                            val: string;
+                          };
+                          attributes: {
+                            key: string;
+                            value: string;
+                          }[];
+                        }[];
+                        gpu: {
+                          units: {
+                            val: string;
+                          };
+                          attributes: {
+                            key: string;
+                            value: string;
+                          }[];
+                        };
+                        endpoints: {
+                          kind: string;
+                          sequence_number: number;
+                        }[];
+                      };
+                      count: number;
+                      price: {
+                        denom: string;
+                        amount: string;
+                      };
+                    }[];
+                  };
+                  created_at: string;
+                }[];
               }[];
               pagination: {
                 /** @description Deployments the owner holds in this state, counted from the console's chain index, so it can trail the chain by a block. */
@@ -8634,6 +8738,20 @@ export interface operations {
                 hasMore: boolean;
               };
             };
+          };
+        };
+      };
+      /** @description `state` names neither `active` nor `closed`, `reverse` names neither `true` nor `false`, `skip` is below zero, or `limit` is not a whole number between 1 and the page cap */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
           };
         };
       };
@@ -8814,6 +8932,13 @@ export interface operations {
                 created_at: string;
                 closed_on: string;
                 reason?: string;
+                /** @description Present only on a lease its provider has flagged for reclamation. `deadline` is unix seconds; `reason` is a `lease_closed_reason_*` enum name. */
+                reclamation?: {
+                  window?: string;
+                  started_at?: string;
+                  deadline?: string;
+                  reason?: string;
+                };
                 status: {
                   forwarded_ports: {
                     [key: string]: {
@@ -8987,6 +9112,13 @@ export interface operations {
                 created_at: string;
                 closed_on: string;
                 reason?: string;
+                /** @description Present only on a lease its provider has flagged for reclamation. `deadline` is unix seconds; `reason` is a `lease_closed_reason_*` enum name. */
+                reclamation?: {
+                  window?: string;
+                  started_at?: string;
+                  deadline?: string;
+                  reason?: string;
+                };
                 status: {
                   forwarded_ports: {
                     [key: string]: {

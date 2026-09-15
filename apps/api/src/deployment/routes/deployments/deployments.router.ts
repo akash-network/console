@@ -389,12 +389,21 @@ const listRoute = createRoute({
           schema: ListDeploymentsResponseSchema
         }
       }
+    },
+    400: {
+      description:
+        "`state` names neither `active` nor `closed`, `reverse` names neither `true` nor `false`, `skip` is below zero, or `limit` is not a whole number between 1 and the page cap",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
     }
   }
 });
 deploymentsRouter.openapi(listRoute, async function routeListDeployments(c) {
-  const { skip, limit } = c.req.valid("query");
-  const result = await container.resolve(DeploymentController).list({ skip, limit });
+  const query = c.req.valid("query");
+  const result = await container.resolve(DeploymentController).list(query);
   return c.json(result, 200);
 });
 

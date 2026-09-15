@@ -38,7 +38,7 @@ import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mock
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createApiKey } from "@test/seeders/api-key.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
-import { createDeploymentInfoErrorSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
+import { createDeploymentInfoErrorSeed, createDeploymentInfoGroupSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createManyLeaseApiResponses } from "@test/seeders/lease-api-response.seeder";
 import { createLeaseStatus } from "@test/seeders/lease-status.seeder";
 import { createUser } from "@test/seeders/user.seeder";
@@ -652,6 +652,67 @@ describe("Deployments API", () => {
       expect(new URL(requestedUris[0], "http://chain").searchParams.get("pagination.limit")).toBe(String(deploymentListMaxLimit));
       const result = (await response.json()) as { data: { pagination: { limit: number; skip: number } } };
       expect(result.data.pagination).toMatchObject({ limit: deploymentListMaxLimit, skip: 0 });
+    });
+
+    it("asks the chain for closed deployments, newest first, when the caller says so", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      const deployments = setupDeploymentListMock(wallets, 1, "closed");
+      const requestedUris: string[] = [];
+
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .persist()
+        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
+        .reply(200, function replyToDeploymentList(uri) {
+          requestedUris.push(uri);
+          return { deployments, pagination: { total: String(deployments.length), next_key: null } };
+        });
+
+      const response = await app.request("/v1/deployments?state=closed&reverse=true", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const requested = new URL(requestedUris[0], "http://chain").searchParams;
+      expect(requested.get("filters.state")).toBe("closed");
+      expect(requested.get("pagination.reverse")).toBe("true");
+    });
+
+    it("returns each listed deployment's resource groups", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      const address = wallets[0].address!;
+      const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
+      const groups = [createDeploymentInfoGroupSeed({ owner: address, dseq })];
+      const deployments = [createDeploymentInfoSeed({ owner: address, dseq, groups })];
+
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .persist()
+        .get(/\/akash\/market\/v1beta5\/leases\/list\?.*/)
+        .reply(200, { leases: [], pagination: { next_key: null, total: "0" } });
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .persist()
+        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
+        .reply(200, { deployments, pagination: { total: "1", next_key: null } });
+
+      const response = await app.request("/v1/deployments", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: { deployments: { groups: unknown }[] } };
+      expect(result.data.deployments[0].groups).toEqual(groups);
+    });
+
+    it("returns 400 for a state the chain does not hold deployments in", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request("/v1/deployments?state=paused", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
     });
 
     it("returns 400 for a page larger than the cap", async () => {

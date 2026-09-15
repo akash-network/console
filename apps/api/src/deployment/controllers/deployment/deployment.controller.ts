@@ -4,6 +4,7 @@ import { singleton } from "tsyringe";
 import { z } from "zod";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
+import type { ListDeploymentsQuery } from "@src/deployment/http-schemas/deployment.schema";
 import {
   CloseDeploymentResponse,
   CreateDeploymentRequest,
@@ -83,11 +84,13 @@ export class DeploymentController {
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
-  async list({ skip, limit }: { skip: number; limit: number }): Promise<z.infer<typeof ListDeploymentsResponseSchema>> {
+  async list({ state, reverse, skip, limit }: ListDeploymentsQuery): Promise<z.infer<typeof ListDeploymentsResponseSchema>> {
     const { deployments, total, hasMore } = await this.deploymentReaderService.list({
       query: {
         userId: this.authService.currentUser.id
       },
+      state,
+      reverse,
       skip,
       limit
     });
