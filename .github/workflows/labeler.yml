@@ -64,6 +64,7 @@ jobs:
             const generatedApiArtifacts = new Set([
               "apps/api/swagger/openapi.json",
               "packages/console-api-types/src/schema.d.ts",
+              "apps/api/test/functional/__snapshots__/docs.spec.ts.snap",
             ]);
             const totalChangedLines = files.reduce((total, file) => {
               const path = file.filename ?? "";
