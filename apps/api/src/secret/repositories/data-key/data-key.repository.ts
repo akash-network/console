@@ -1,4 +1,4 @@
-import { and, asc, gt, ne, sql } from "drizzle-orm";
+import { and, asc, gt, isNull, ne, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { assertBatchSize } from "@src/core/lib/batch-size/batch-size";
@@ -7,6 +7,8 @@ import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.
 import { TxService } from "@src/core/services";
 
 type Table = ApiPgTables["DataKeys"];
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export type DataKeyInput = Table["$inferInsert"];
 export type DataKeyOutput = Table["$inferSelect"];
 
@@ -30,17 +32,29 @@ export class DataKeyRepository extends BaseRepository<Table, DataKeyInput, DataK
     return new DataKeyRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
+  /** The key new values are sealed under; a retired key is reached only through the id a stored value names. */
   async findByUserId(userId: DataKeyOutput["userId"]): Promise<DataKeyOutput | undefined> {
-    return this.findOneBy({ userId });
+    return this.findOneBy({ userId, retiredAt: null });
+  }
+
+  /** Any of the user's keys, retired or not, so a value sealed before a re-key still opens; a header is untrusted input, so an id that is not a uuid is a miss rather than a query error. */
+  async findOwnedById(userId: DataKeyOutput["userId"], id: DataKeyOutput["id"]): Promise<DataKeyOutput | undefined> {
+    if (!UUID_PATTERN.test(id)) return undefined;
+
+    return this.findOneBy({ id, userId });
   }
 
   /**
-   * Claims the user's single data key slot. The unique constraint decides the winner, and the loser
+   * Claims the user's single active data key slot. The partial unique index decides the winner, and the loser
    * discards its own wrapped key to re-read the winner's row — retrying its insert would leave the
-   * user with two keys and half their values unreadable under each.
+   * user with two active keys and half their values unreadable under each.
    */
   async createUnlessExists(input: Pick<DataKeyInput, "userId" | "wrappedKey" | "wrappedByKid">): Promise<{ dataKey: DataKeyOutput; isNew: boolean }> {
-    const [created] = await this.cursor.insert(this.table).values(input).onConflictDoNothing({ target: [this.table.userId] }).returning();
+    const [created] = await this.cursor
+      .insert(this.table)
+      .values(input)
+      .onConflictDoNothing({ target: [this.table.userId], where: isNull(this.table.retiredAt) })
+      .returning();
 
     if (created) {
       return { dataKey: this.toOutput(created), isNew: true };

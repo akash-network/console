@@ -438,6 +438,7 @@ describe(DataKeyRewrapService.name, () => {
       userId: overrides.userId ?? randomUUID(),
       wrappedKey: overrides.wrappedKey ?? `wrapped-${id}`,
       wrappedByKid: overrides.wrappedByKid ?? SOURCE_KID,
+      retiredAt: null,
       createdAt: new Date(),
       updatedAt: new Date()
     };

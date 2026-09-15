@@ -13,6 +13,7 @@ import type { DataKeyOutput, DataKeyRepository } from "@src/secret/repositories/
 import { DataKeyService } from "./data-key.service";
 
 import { createTestSdlSecretsKmsTarget, sdlSecretsVersionPath } from "@test/mocks/sdl-secrets-kms.mock";
+import { createDataKey } from "@test/seeders/data-key.seeder";
 
 const WRAPPING_KEY_PAIR = generateKeyPairSync("rsa", { modulusLength: 3072 });
 const FOREIGN_KEY_PAIR = generateKeyPairSync("rsa", { modulusLength: 3072 });
@@ -118,6 +119,26 @@ describe(DataKeyService.name, () => {
     });
   });
 
+  describe("findDataKeyById", () => {
+    it("answers with the key the user owns under that id, retired or not", async () => {
+      const { service, dataKeyRepository } = setup();
+      const retired = createDataKey({ retiredAt: new Date() });
+      dataKeyRepository.findOwnedById.mockResolvedValue(retired);
+
+      const found = await service.findDataKeyById(retired.userId, retired.id);
+
+      expect(found).toBe(retired);
+      expect(dataKeyRepository.findOwnedById).toHaveBeenCalledWith(retired.userId, retired.id);
+    });
+
+    it("answers with nothing for a key the user does not own", async () => {
+      const { service, dataKeyRepository } = setup();
+      dataKeyRepository.findOwnedById.mockResolvedValue(undefined);
+
+      await expect(service.findDataKeyById(faker.string.uuid(), faker.string.uuid())).resolves.toBeUndefined();
+    });
+  });
+
   it("creates the logger with the service context", () => {
     const { createDataKeyLogger } = setup();
 
@@ -144,7 +165,7 @@ describe(DataKeyService.name, () => {
 
       if (existing) return { dataKey: existing, isNew: false };
 
-      const dataKey: DataKeyOutput = { id: faker.string.uuid(), createdAt: new Date(), updatedAt: new Date(), ...record };
+      const dataKey: DataKeyOutput = { id: faker.string.uuid(), retiredAt: null, createdAt: new Date(), updatedAt: new Date(), ...record };
       storedByUserId.set(record.userId, dataKey);
 
       return { dataKey, isNew: true };

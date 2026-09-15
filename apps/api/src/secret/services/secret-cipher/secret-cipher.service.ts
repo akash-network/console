@@ -3,6 +3,7 @@ import { compactDecrypt, CompactEncrypt, decodeProtectedHeader } from "jose";
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
+import type { HeldDataKey } from "@src/core/services/execution-context/execution-context.service";
 import {
   SECRET_AT_REST_CONTENT_ENCRYPTION,
   SECRET_AT_REST_KEY_MANAGEMENT,
@@ -46,13 +47,24 @@ export class SecretCipherService {
   /** The header decides whether the value belongs here before it costs a data key lookup or a key-service call. */
   async decrypt(userId: string, encrypted: string, binding: SecretBinding): Promise<string> {
     const { kid } = this.#readBoundHeader(encrypted, userId, binding);
-    const dataKey = await this.dataKeyUnwrapperService.getDataKey(userId);
-
-    if (kid !== dataKey.id) {
-      throw this.#rejectUnreadable("SECRET_VALUE_DATA_KEY_MISMATCH", { userId, received: kid, expected: dataKey.id });
-    }
+    const dataKey = await this.#dataKeyNamedBy(kid, userId);
 
     return textDecoder.decode(await this.#open(encrypted, await dataKey.unwrap(), userId));
+  }
+
+  /** The active key is asked for first, so the common case still costs one lookup; a value naming another key of the user's, retired mid re-key, opens under that one. */
+  async #dataKeyNamedBy(kid: unknown, userId: string): Promise<HeldDataKey> {
+    const active = await this.dataKeyUnwrapperService.getDataKey(userId);
+
+    if (kid === active.id) return active;
+
+    const named = typeof kid === "string" ? await this.dataKeyUnwrapperService.getDataKeyById(userId, kid) : undefined;
+
+    if (!named) {
+      throw this.#rejectUnreadable("SECRET_VALUE_DATA_KEY_MISMATCH", { userId, received: kid, expected: active.id });
+    }
+
+    return named;
   }
 
   /** The claim sets have to match exactly, because accepting a subset would let a caller drop a binding by omission. */

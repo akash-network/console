@@ -197,6 +197,19 @@ describe(SecretCipherService.name, () => {
     expect(decodeProtectedHeader(token)).toEqual({ sub: user.id, dseq, alg: "dir", enc: "A256GCM", kid: dataKey!.id });
   });
 
+  it("refuses to open one user's value under their retired key for another user", async () => {
+    const { cipher, createTestUser, inRequest, dataKeyRepository } = setup();
+    const [owner, other] = await Promise.all([createTestUser(), createTestUser()]);
+    const dseq = newDseq();
+    const sealedForOwner = await inRequest(owner, async () => await cipher.encrypt(owner.id, "owner-only", bindingFor(owner, dseq)));
+    const ownersKey = (await dataKeyRepository.findByUserId(owner.id))!;
+    await dataKeyRepository.updateById(ownersKey.id, { retiredAt: new Date() });
+
+    await expect(inRequest(other, async () => await cipher.decrypt(other.id, sealedForOwner, bindingFor(other, dseq)))).rejects.toMatchObject({
+      status: 500
+    });
+  });
+
   it("creates the data key row on first use for a user that never had one", async () => {
     const { cipher, createTestUser, inRequest, dataKeyRepository } = setup();
     const user = await createTestUser();

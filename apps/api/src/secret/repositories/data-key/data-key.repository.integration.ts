@@ -1,14 +1,17 @@
 import { faker } from "@faker-js/faker";
+import { eq, sql } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { ApiPgDatabase } from "@src/core";
+import { POSTGRES_DB, resolveTable } from "@src/core";
 import { UserRepository } from "@src/user/repositories";
 import type { DataKeyOutput } from "./data-key.repository";
 import { DataKeyRepository } from "./data-key.repository";
 
 describe(DataKeyRepository.name, () => {
   describe("one data key per user", () => {
-    it("rejects a second data key for the same user", async () => {
+    it("rejects a second active data key for the same user", async () => {
       const { dataKeyRepository, createTestUser } = setup();
       const user = await createTestUser();
       await dataKeyRepository.create({ userId: user.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
@@ -73,6 +76,34 @@ describe(DataKeyRepository.name, () => {
       expect(await dataKeyRepository.count({ userId: user.id })).toBe(1);
       expect(first.dataKey.wrappedKey).toBe(second.dataKey.wrappedKey);
       expect(["blob-from-first-writer", "blob-from-second-writer"]).toContain(first.dataKey.wrappedKey);
+    });
+  });
+
+  describe("findOwnedById", () => {
+    it("returns the user's retired key, which a value sealed before a re-key still names", async () => {
+      const { dataKeyRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const retired = await dataKeyRepository.create({ userId: user.id, wrappedKey: "retired-blob", wrappedByKid: keyVersionAlias() });
+      await dataKeyRepository.updateById(retired.id, { retiredAt: new Date() });
+
+      expect(await dataKeyRepository.findByUserId(user.id)).toBeUndefined();
+      expect(await dataKeyRepository.findOwnedById(user.id, retired.id)).toMatchObject({ id: retired.id, wrappedKey: "retired-blob" });
+    });
+
+    it("returns nothing for a key another user owns", async () => {
+      const { dataKeyRepository, createTestUser } = setup();
+      const owner = await createTestUser();
+      const other = await createTestUser();
+      const ownersKey = await dataKeyRepository.create({ userId: owner.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+
+      expect(await dataKeyRepository.findOwnedById(other.id, ownersKey.id)).toBeUndefined();
+    });
+
+    it("returns nothing for an id that is not a uuid, rather than failing the query", async () => {
+      const { dataKeyRepository, createTestUser } = setup();
+      const user = await createTestUser();
+
+      expect(await dataKeyRepository.findOwnedById(user.id, "not-a-uuid")).toBeUndefined();
     });
   });
 
@@ -147,9 +178,7 @@ describe(DataKeyRepository.name, () => {
 
       const candidates = await findRewrapCandidates(versionOf(2));
 
-      expect(candidates).toEqual([
-        expect.objectContaining({ id: stale.id, userId: stale.userId, wrappedKey: stale.wrappedKey, wrappedByKid: versionOf(1) })
-      ]);
+      expect(candidates).toEqual([expect.objectContaining({ id: stale.id, userId: stale.userId, wrappedKey: stale.wrappedKey, wrappedByKid: versionOf(1) })]);
     });
 
     it("yields nothing once every row is at the target", async () => {
@@ -201,15 +230,17 @@ describe(DataKeyRepository.name, () => {
 
   describe("rewrapIfStillWrappedUnder", () => {
     it("re-wraps a row still wrapped under the version it was opened under, and stamps it as updated", async () => {
-      const { dataKeyRepository, versionOf, seedDataKey } = setup();
+      const { dataKeyRepository, versionOf, seedDataKey, backdateUpdatedAt } = setup();
       const row = await seedDataKey(versionOf(1));
+      await backdateUpdatedAt(row.id);
+      const before = (await dataKeyRepository.findById(row.id))!;
 
       const rewrapped = await dataKeyRepository.rewrapIfStillWrappedUnder(row.id, versionOf(1), { wrappedKey: "rewrapped-blob", wrappedByKid: versionOf(2) });
 
       expect(rewrapped).toBe(true);
       const after = await dataKeyRepository.findById(row.id);
       expect(after).toMatchObject({ wrappedKey: "rewrapped-blob", wrappedByKid: versionOf(2) });
-      expect(after!.updatedAt.getTime()).toBeGreaterThan(row.updatedAt.getTime());
+      expect(after!.updatedAt.getTime()).toBeGreaterThan(before.updatedAt.getTime());
     });
 
     it("leaves a row another writer has since moved untouched", async () => {
@@ -253,6 +284,8 @@ describe(DataKeyRepository.name, () => {
   function setup() {
     const dataKeyRepository = container.resolve(DataKeyRepository);
     const userRepository = container.resolve(UserRepository);
+    const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+    const dataKeysTable = resolveTable("DataKeys");
     const createdUserIds: string[] = [];
     const keyName = faker.string.alphanumeric(10);
 
@@ -288,6 +321,14 @@ describe(DataKeyRepository.name, () => {
       return census.filter(entry => isOwnKey(entry.wrappedByKid));
     }
 
+    /** Both timestamps then come from Postgres, so the comparison is immune to the offset node applies when it reads a timestamp without time zone. */
+    async function backdateUpdatedAt(id: string) {
+      await db
+        .update(dataKeysTable)
+        .set({ updatedAt: sql`now() - interval '1 minute'` })
+        .where(eq(dataKeysTable.id, id));
+    }
+
     async function findRewrapCandidates(targetKid: string, batchSize = 1000) {
       const candidates: DataKeyOutput[] = [];
 
@@ -298,6 +339,6 @@ describe(DataKeyRepository.name, () => {
       return candidates;
     }
 
-    return { dataKeyRepository, userRepository, createTestUser, versionOf, seedDataKey, censusOfOwnKey, findRewrapCandidates };
+    return { dataKeyRepository, userRepository, createTestUser, versionOf, seedDataKey, censusOfOwnKey, findRewrapCandidates, backdateUpdatedAt };
   }
 });
