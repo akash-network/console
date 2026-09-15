@@ -64,8 +64,11 @@ function getReturnPath(request: NextRequest) {
   try {
     const returnParam = request.nextUrl.searchParams.get("return");
     const returnPath = returnParam ? decodeURIComponent(returnParam) : "/";
+    const requestUrl = new URL(request.url);
+    const returnUrl = new URL(returnPath, requestUrl);
+    const isSameOrigin = returnUrl.origin === requestUrl.origin;
 
-    return returnPath;
+    return isSameOrigin ? `${returnUrl.pathname}${returnUrl.search}${returnUrl.hash}` : "/";
   } catch (error) {
     logger.error({ message: "Failed to get return path", error });
     return "/";
