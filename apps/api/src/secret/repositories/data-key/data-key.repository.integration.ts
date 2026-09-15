@@ -7,8 +7,20 @@ import type { DataKeyOutput } from "./data-key.repository";
 import { DataKeyRepository } from "./data-key.repository";
 
 describe(DataKeyRepository.name, () => {
-  describe("one data key per user", () => {
-    it("rejects a second data key for the same user", async () => {
+  describe("one active data key per user", () => {
+    it("lets a replacement key be created once the user's key is retired", async () => {
+      const { dataKeyRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const retired = await dataKeyRepository.create({ userId: user.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+      await dataKeyRepository.updateById(retired.id, { retiredAt: new Date() });
+
+      const replacement = await dataKeyRepository.create({ userId: user.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+
+      expect(await dataKeyRepository.count({ userId: user.id })).toBe(2);
+      expect(await dataKeyRepository.findByUserId(user.id)).toMatchObject({ id: replacement.id });
+    });
+
+    it("rejects a second active data key for the same user", async () => {
       const { dataKeyRepository, createTestUser } = setup();
       const user = await createTestUser();
       await dataKeyRepository.create({ userId: user.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
@@ -46,6 +58,19 @@ describe(DataKeyRepository.name, () => {
       expect(await dataKeyRepository.findByUserId(user.id)).toMatchObject({ id: result.dataKey.id, wrappedKey });
     });
 
+    it("claims the active slot for a user whose only key is retired", async () => {
+      const { dataKeyRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const retired = await dataKeyRepository.create({ userId: user.id, wrappedKey: "retired-blob", wrappedByKid: "sdl-secrets.v1" });
+      await dataKeyRepository.updateById(retired.id, { retiredAt: new Date() });
+
+      const result = await dataKeyRepository.createUnlessExists({ userId: user.id, wrappedKey: "replacement-blob", wrappedByKid: "sdl-secrets.v2" });
+
+      expect(result.isNew).toBe(true);
+      expect(result.dataKey.id).not.toBe(retired.id);
+      expect(await dataKeyRepository.findByUserId(user.id)).toMatchObject({ id: result.dataKey.id, wrappedKey: "replacement-blob" });
+    });
+
     it("returns the existing record when one already exists", async () => {
       const { dataKeyRepository, createTestUser } = setup();
       const user = await createTestUser();
@@ -73,6 +98,34 @@ describe(DataKeyRepository.name, () => {
       expect(await dataKeyRepository.count({ userId: user.id })).toBe(1);
       expect(first.dataKey.wrappedKey).toBe(second.dataKey.wrappedKey);
       expect(["blob-from-first-writer", "blob-from-second-writer"]).toContain(first.dataKey.wrappedKey);
+    });
+  });
+
+  describe("findOwnedById", () => {
+    it("returns the user's retired key, which a value sealed before a re-key still names", async () => {
+      const { dataKeyRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const retired = await dataKeyRepository.create({ userId: user.id, wrappedKey: "retired-blob", wrappedByKid: keyVersionAlias() });
+      await dataKeyRepository.updateById(retired.id, { retiredAt: new Date() });
+      await dataKeyRepository.create({ userId: user.id, wrappedKey: "replacement-blob", wrappedByKid: keyVersionAlias() });
+
+      expect(await dataKeyRepository.findOwnedById(user.id, retired.id)).toMatchObject({ id: retired.id, wrappedKey: "retired-blob" });
+    });
+
+    it("returns nothing for a key another user owns", async () => {
+      const { dataKeyRepository, createTestUser } = setup();
+      const owner = await createTestUser();
+      const other = await createTestUser();
+      const ownersKey = await dataKeyRepository.create({ userId: owner.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+
+      expect(await dataKeyRepository.findOwnedById(other.id, ownersKey.id)).toBeUndefined();
+    });
+
+    it("returns nothing for an id that is not a uuid, rather than failing the query", async () => {
+      const { dataKeyRepository, createTestUser } = setup();
+      const user = await createTestUser();
+
+      expect(await dataKeyRepository.findOwnedById(user.id, "not-a-uuid")).toBeUndefined();
     });
   });
 
@@ -147,9 +200,7 @@ describe(DataKeyRepository.name, () => {
 
       const candidates = await findRewrapCandidates(versionOf(2));
 
-      expect(candidates).toEqual([
-        expect.objectContaining({ id: stale.id, userId: stale.userId, wrappedKey: stale.wrappedKey, wrappedByKid: versionOf(1) })
-      ]);
+      expect(candidates).toEqual([expect.objectContaining({ id: stale.id, userId: stale.userId, wrappedKey: stale.wrappedKey, wrappedByKid: versionOf(1) })]);
     });
 
     it("yields nothing once every row is at the target", async () => {

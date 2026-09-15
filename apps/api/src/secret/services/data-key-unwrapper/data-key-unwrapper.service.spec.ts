@@ -173,6 +173,84 @@ describe(DataKeyUnwrapperService.name, () => {
     expect(heldInNextRequest).toBeUndefined();
   });
 
+  describe("getDataKeyById", () => {
+    it("returns the key a retired row of the user's wraps", async () => {
+      const { service, inRequest, seedRetiredKey } = setup();
+      const retired = await seedRetiredKey(USER_A);
+
+      const key = await inRequest(async () => await (await service.getDataKeyById(USER_A, retired.row.id))!.unwrap());
+
+      expect(key.equals(retired.key)).toBe(true);
+    });
+
+    it("returns nothing for a key the user does not own", async () => {
+      const { service, inRequest, seedRetiredKey, kmsClient } = setup();
+      const retired = await seedRetiredKey(USER_B);
+
+      const held = await inRequest(async () => await service.getDataKeyById(USER_A, retired.row.id));
+
+      expect(held).toBeUndefined();
+      expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
+    });
+
+    it("reads the retired row once and unwraps it once for two asks in the same request", async () => {
+      const { service, inRequest, seedRetiredKey, dataKeyService, kmsClient } = setup();
+      const retired = await seedRetiredKey(USER_A);
+
+      await inRequest(async () => {
+        await (await service.getDataKeyById(USER_A, retired.row.id))!.unwrap();
+        await (await service.getDataKeyById(USER_A, retired.row.id))!.unwrap();
+      });
+
+      expect(dataKeyService.findDataKeyById).toHaveBeenCalledTimes(1);
+      expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the active key and a retired key of the same user apart in one request", async () => {
+      const { service, inRequest, seedRetiredKey, keyFor, kmsClient } = setup();
+      const retired = await seedRetiredKey(USER_A);
+
+      const [active, retiredKey] = await inRequest(async () => [
+        await (await service.getDataKey(USER_A)).unwrap(),
+        await (await service.getDataKeyById(USER_A, retired.row.id))!.unwrap()
+      ]);
+
+      expect(active.equals(keyFor(USER_A))).toBe(true);
+      expect(retiredKey.equals(retired.key)).toBe(true);
+      expect(active.equals(retiredKey)).toBe(false);
+      expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(2);
+    });
+
+    it("records the retired row it unwrapped", async () => {
+      const { service, inRequest, seedRetiredKey, logger } = setup();
+      const retired = await seedRetiredKey(USER_A);
+
+      await inRequest(async () => await (await service.getDataKeyById(USER_A, retired.row.id))!.unwrap());
+
+      expect(logger.info).toHaveBeenCalledWith({ event: "USER_DATA_KEY_UNWRAPPED", userId: USER_A, dataKeyId: retired.row.id, kid: KID });
+    });
+
+    it("measures both unwraps against the user when a request opens the active and a retired key", async () => {
+      const { service, inRequest, seedRetiredKey, unwrapsPerRequest } = setup();
+      const retired = await seedRetiredKey(USER_A);
+
+      await inRequest(async () => {
+        await (await service.getDataKey(USER_A)).unwrap();
+        await (await service.getDataKeyById(USER_A, retired.row.id))!.unwrap();
+      });
+
+      expect(unwrapsPerRequest.record).toHaveBeenCalledExactlyOnceWith(2);
+    });
+
+    it("refuses to hand out a key by id outside any request at all", async () => {
+      const { service, seedRetiredKey, logger } = setup();
+      const retired = await seedRetiredKey(USER_A);
+
+      await expect(service.getDataKeyById(USER_A, retired.row.id)).rejects.toMatchObject({ status: 500, message: SECRET_UNREADABLE_ERROR_MESSAGE });
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "USER_DATA_KEY_OUTSIDE_REQUEST" }));
+    });
+  });
+
   it("refuses to hand out a data key outside any request at all", async () => {
     const { service, kmsClient, logger } = setup();
 
@@ -448,6 +526,22 @@ describe(DataKeyUnwrapperService.name, () => {
       return row;
     });
 
+    const retiredRows = new Map<string, { row: DataKeyOutput; key: Buffer }>();
+    dataKeyService.findDataKeyById.mockImplementation(async (userId, id) => {
+      const retired = retiredRows.get(id);
+
+      return retired?.row.userId === userId ? retired.row : undefined;
+    });
+
+    const seedRetiredKey = async (userId: string) => {
+      const key = randomBytes(32);
+      const wrapped = await new CompactEncrypt(key).setProtectedHeader({ alg: "RSA-OAEP-256", enc: "A256GCM", kid: wrappedKid }).encrypt(publicKey);
+      const row = createDataKey({ userId, wrappedKey: wrapped, wrappedByKid: wrappedKid, retiredAt: new Date() });
+      retiredRows.set(row.id, { row, key });
+
+      return { row, key };
+    };
+
     const kmsClient = mock<SdlSecretsKmsClient>();
     kmsClient.asymmetricDecrypt.mockImplementation(async request => {
       if (input?.keyServiceStatus !== undefined) {
@@ -525,6 +619,7 @@ describe(DataKeyUnwrapperService.name, () => {
       inRequest,
       keyFor,
       rowFor,
+      seedRetiredKey,
       unwrappedUserIds,
       expectNoKeyMaterialLogged
     };

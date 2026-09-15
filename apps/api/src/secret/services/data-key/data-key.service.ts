@@ -44,6 +44,11 @@ export class DataKeyService {
     return dataKey;
   }
 
+  /** A key of the user's other than the active one: retired while its values are re-sealed, or made active after the caller read the row. */
+  async findDataKeyById(userId: string, id: string): Promise<DataKeyOutput | undefined> {
+    return await this.dataKeyRepository.findOwnedById(userId, id);
+  }
+
   private async wrapNewDataKey(userId: string): Promise<Pick<DataKeyInput, "userId" | "wrappedKey" | "wrappedByKid">> {
     const sealingKey = this.sealingKeyService.peekSealingKey();
 

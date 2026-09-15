@@ -25,6 +25,11 @@ const KEY_SERVICE_FAILURES: ReadonlySet<KmsWrappedJweFailure> = new Set([
   "KEY_SERVICE_RESPONSE_CORRUPTED"
 ]);
 
+/** The active key is held under the user alone and any other key under the user and its id, so a request never confuses the two. */
+function heldKeyFor(userId: string, dataKeyId: string) {
+  return `${userId}/${dataKeyId}`;
+}
+
 /** Never holds an unwrapped key on this instance, because a resolution-scoped field would be pinned for the process lifetime by the first singleton to inject it. */
 @singleton()
 export class DataKeyUnwrapperService {
@@ -43,17 +48,38 @@ export class DataKeyUnwrapperService {
 
   async getDataKey(userId: string): Promise<HeldDataKey> {
     const heldThisRequest = this.#heldDataKeys(userId);
-    const held = heldThisRequest.get(userId);
+
+    return await this.#holdOnce(userId, userId, async () => await this.dataKeyService.ensureDataKey(userId), heldThisRequest);
+  }
+
+  /** Serves a value sealed under a key other than the active one, such as one retired while its values are re-sealed; undefined when the user owns no such key. */
+  async getDataKeyById(userId: string, dataKeyId: string): Promise<HeldDataKey | undefined> {
+    const heldThisRequest = this.#heldDataKeys(userId);
+    const heldAs = heldKeyFor(userId, dataKeyId);
+    const held = heldThisRequest.get(heldAs);
 
     if (held) return await held;
 
-    const holding = this.#holdDataKey(userId, heldThisRequest).catch(error => {
-      heldThisRequest.delete(userId);
+    const dataKey = await this.dataKeyService.findDataKeyById(userId, dataKeyId);
+
+    if (!dataKey) return undefined;
+
+    return await this.#holdOnce(userId, heldAs, async () => dataKey, heldThisRequest);
+  }
+
+  /** Two callers racing for the same key share one holding, so the row is read and the key unwrapped once for the request. */
+  async #holdOnce(userId: string, heldAs: string, readDataKey: () => Promise<DataKeyOutput>, heldThisRequest: Map<string, Promise<HeldDataKey>>) {
+    const held = heldThisRequest.get(heldAs);
+
+    if (held) return await held;
+
+    const holding = this.#holdDataKey(userId, readDataKey, heldThisRequest).catch(error => {
+      heldThisRequest.delete(heldAs);
 
       throw error;
     });
 
-    heldThisRequest.set(userId, holding);
+    heldThisRequest.set(heldAs, holding);
 
     return await holding;
   }
@@ -78,8 +104,8 @@ export class DataKeyUnwrapperService {
   }
 
   /** Neither a failed nor a refused unwrap is remembered: the first lets a recovered key service serve the next value, the second drops the only reference this process holds to the plaintext key. */
-  async #holdDataKey(userId: string, heldThisRequest: Map<string, Promise<HeldDataKey>>): Promise<HeldDataKey> {
-    const dataKey = await this.dataKeyService.ensureDataKey(userId);
+  async #holdDataKey(userId: string, readDataKey: () => Promise<DataKeyOutput>, heldThisRequest: Map<string, Promise<HeldDataKey>>): Promise<HeldDataKey> {
+    const dataKey = await readDataKey();
     this.unwrapInstrumentationService.beginCountingUnwraps(userId);
     let unwrapping: Promise<Buffer> | undefined;
 

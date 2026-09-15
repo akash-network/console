@@ -249,6 +249,41 @@ describe(SecretCipherService.name, () => {
     await expect(service.decrypt(USER_ID, encrypted, {})).resolves.toBe("value");
   });
 
+  it("opens a value recorded against a retired data key of the same owner", async () => {
+    const retiredKey = randomBytes(32);
+    const { service } = setup({ retired: { id: OTHER_DATA_KEY_ID, key: retiredKey } });
+    const encryptedUnderRetiredKey = await setup({ dataKeyId: OTHER_DATA_KEY_ID, key: retiredKey }).service.encrypt(USER_ID, "value", BINDING);
+
+    await expect(service.decrypt(USER_ID, encryptedUnderRetiredKey, BINDING)).resolves.toBe("value");
+  });
+
+  it("asks for the retired key by the record the value names, for the value's owner", async () => {
+    const retiredKey = randomBytes(32);
+    const { service, dataKeyUnwrapperService } = setup({ retired: { id: OTHER_DATA_KEY_ID, key: retiredKey } });
+    const encryptedUnderRetiredKey = await setup({ dataKeyId: OTHER_DATA_KEY_ID, key: retiredKey }).service.encrypt(USER_ID, "value", BINDING);
+
+    await service.decrypt(USER_ID, encryptedUnderRetiredKey, BINDING);
+
+    expect(dataKeyUnwrapperService.getDataKeyById).toHaveBeenCalledExactlyOnceWith(USER_ID, OTHER_DATA_KEY_ID);
+  });
+
+  it("asks for no key by id for a value recorded against the active key", async () => {
+    const { service, dataKeyUnwrapperService } = setup();
+    const encrypted = await service.encrypt(USER_ID, "value", BINDING);
+
+    await service.decrypt(USER_ID, encrypted, BINDING);
+
+    expect(dataKeyUnwrapperService.getDataKeyById).not.toHaveBeenCalled();
+  });
+
+  it("seals new values under the active key while a retired one still opens old ones", async () => {
+    const { service } = setup({ retired: { id: OTHER_DATA_KEY_ID, key: randomBytes(32) } });
+
+    const encrypted = await service.encrypt(USER_ID, "value", BINDING);
+
+    expect(decodeProtectedHeader(encrypted).kid).toBe(DATA_KEY_ID);
+  });
+
   it("asks for the owner's data key rather than a key of its own", async () => {
     const { service, dataKeyUnwrapperService } = setup();
 
@@ -257,11 +292,14 @@ describe(SecretCipherService.name, () => {
     expect(dataKeyUnwrapperService.getDataKey).toHaveBeenCalledWith(USER_ID);
   });
 
-  function setup(input?: { dataKeyId?: string; key?: Buffer }) {
+  function setup(input?: { dataKeyId?: string; key?: Buffer; retired?: { id: string; key: Buffer } }) {
     const key = input?.key ?? randomBytes(32);
     const unwrap = vi.fn(async () => key);
     const dataKeyUnwrapperService = mock<DataKeyUnwrapperService>();
     dataKeyUnwrapperService.getDataKey.mockResolvedValue({ id: input?.dataKeyId ?? DATA_KEY_ID, unwrap });
+    dataKeyUnwrapperService.getDataKeyById.mockImplementation(async (_userId, id) =>
+      input?.retired && id === input.retired.id ? { id, unwrap: async () => input.retired!.key } : undefined
+    );
     const logger = mock<ReturnType<CreateLogger>>();
     const service = new SecretCipherService(dataKeyUnwrapperService, () => logger);
 
