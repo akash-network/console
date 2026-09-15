@@ -1,5 +1,5 @@
 "use client";
-import type { FC, ReactNode } from "react";
+import type { FC } from "react";
 import { CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 
@@ -90,55 +90,42 @@ function selectLeaseToReportOn(leases: LeaseDto[]): LeaseDto {
 export interface StatusBadgeProps {
   label: string;
   tone: StatusTone;
-  tooltip?: ReactNode;
   className?: string;
-  dependencies?: Pick<typeof DEPENDENCIES, "CustomTooltip">;
 }
 
-export const StatusBadge: FC<StatusBadgeProps> = ({ label, tone, tooltip, className, dependencies: d = DEPENDENCIES }) => {
-  const badge = (
-    <span
-      className={cn(
-        "inline-flex items-center gap-2 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium",
-        BADGE_TONE_CLASS[tone],
-        tooltip && "cursor-help",
-        className
-      )}
-    >
-      {tone === "loading" ? (
-        <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden="true" />
-      ) : (
-        <span className="relative flex h-2 w-2">
-          {tone === "running" && <span className={cn("absolute inline-flex h-full w-full animate-ping rounded-full opacity-75", DOT_TONE_CLASS[tone])} />}
-          <span className={cn("relative inline-flex h-2 w-2 rounded-full", DOT_TONE_CLASS[tone])} />
-        </span>
-      )}
-      {label}
-    </span>
-  );
-
-  return tooltip ? <d.CustomTooltip title={tooltip}>{badge}</d.CustomTooltip> : badge;
-};
+export const StatusBadge: FC<StatusBadgeProps> = ({ label, tone, className }) => (
+  <span className={cn("inline-flex items-center gap-2 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium", BADGE_TONE_CLASS[tone], className)}>
+    {tone === "loading" ? (
+      <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden="true" />
+    ) : (
+      <span className="relative flex h-2 w-2">
+        {tone === "running" && <span className={cn("absolute inline-flex h-full w-full animate-ping rounded-full opacity-75", DOT_TONE_CLASS[tone])} />}
+        <span className={cn("relative inline-flex h-2 w-2 rounded-full", DOT_TONE_CLASS[tone])} />
+      </span>
+    )}
+    {label}
+  </span>
+);
 
 export const DeploymentStatusBadge: FC<DeploymentStatusBadgeProps> = ({ state, leases, isSummarized, className, dependencies: d = DEPENDENCIES }) => {
   const { label, summaryLabel, tone } = getDeploymentStatus(state, leases);
   const isShortened = !!isSummarized && summaryLabel !== label;
   const isBeingReclaimed = !!leases?.some(isReclaiming);
 
+  if (!isShortened && !isBeingReclaimed) return <StatusBadge label={label} tone={tone} className={className} />;
+
   return (
-    <StatusBadge
-      label={isShortened ? summaryLabel : label}
-      tone={tone}
-      className={className}
-      dependencies={d}
-      tooltip={
-        isShortened || isBeingReclaimed ? (
-          <div className="space-y-1">
-            {isShortened && <p>{label}</p>}
-            <d.ReclamationCountdown leases={leases} />
-          </div>
-        ) : undefined
+    <d.CustomTooltip
+      title={
+        <div className="space-y-1">
+          {isShortened && <p>{label}</p>}
+          <d.ReclamationCountdown leases={leases} />
+        </div>
       }
-    />
+    >
+      <div className="inline-flex">
+        <StatusBadge label={isShortened ? summaryLabel : label} tone={tone} className={cn("cursor-help", className)} />
+      </div>
+    </d.CustomTooltip>
   );
 };

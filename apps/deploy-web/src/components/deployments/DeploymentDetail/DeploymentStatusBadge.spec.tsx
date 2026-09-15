@@ -44,6 +44,16 @@ describe("DeploymentStatusBadge", () => {
     expect(screen.getByText("Reclaiming")).toBeInTheDocument();
   });
 
+  it("counts the whole deployment down when only one of several placements is being reclaimed", () => {
+    const deadlineInOneDay = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
+    setup({
+      state: "active",
+      leases: [mock<LeaseDto>({ state: "active" }), mock<LeaseDto>({ state: "reclaiming", reclamation: { deadline: deadlineInOneDay } })]
+    });
+
+    expect(screen.getByText("Closes in 24 hours.")).toBeInTheDocument();
+  });
+
   it("reports why the lease closed instead of 'Running' when the deployment is still active on chain", () => {
     setup({ state: "active", leases: [mock<LeaseDto>({ state: "closed", reason: "lease_closed_reason_decommission" })] });
 

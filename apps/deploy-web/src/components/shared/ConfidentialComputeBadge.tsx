@@ -36,7 +36,7 @@ export function ConfidentialComputeBadge({ teeTypes, className, dependencies: d 
       }
     >
       <div className="inline-flex items-center gap-1">
-        <d.Badge variant="secondary" className={cn("inline-flex cursor-help items-center", className)}>
+        <d.Badge variant="secondary" className={cn("inline-flex cursor-help items-center gap-1", className)}>
           <span>{label}</span>
         </d.Badge>
       </div>
