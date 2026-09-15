@@ -47,6 +47,29 @@ describe(useDeploymentReachability.name, () => {
     expect(result.current.unreachableReason).toBeNull();
   });
 
+  describe("when the list already carries the leases", () => {
+    it("reads the leases off the deployment rather than asking the chain for them again", () => {
+      const inlineLeases = [lease({ state: "active" })];
+      const { result, useDeploymentLeaseList } = setup({ leases: [], inlineLeases });
+
+      expect(result.current.leases).toBe(inlineLeases);
+      expect(useDeploymentLeaseList).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ enabled: false }));
+    });
+
+    it("reports nothing still loading, since there is nothing left to wait for", () => {
+      const { result } = setup({ leases: [], inlineLeases: [], isLoadingLeases: true });
+
+      expect(result.current.isLoadingLeases).toBe(false);
+    });
+
+    it("still asks the chain for a deployment that arrived without them", () => {
+      const { result, useDeploymentLeaseList } = setup({ leases: [lease({ state: "active" })] });
+
+      expect(result.current.leases).toHaveLength(1);
+      expect(useDeploymentLeaseList).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ enabled: true }));
+    });
+  });
+
   describe("choosing the provider to ask", () => {
     it("pairs each live lease with the provider that owns it", () => {
       const { useLeaseStatuses, provider } = setup({ leases: [lease({ state: "active", provider: "akash1provider" })], statuses: [null] });
@@ -231,6 +254,7 @@ describe(useDeploymentReachability.name, () => {
 
   type Input = {
     leases: LeaseDto[];
+    inlineLeases?: LeaseDto[];
     statuses?: (Partial<LeaseStatusDto> | null)[];
     isStatusPending?: boolean;
     isLoadingLeases?: boolean;
@@ -261,7 +285,7 @@ describe(useDeploymentReachability.name, () => {
       )
     );
 
-    const deployment = mock<DeploymentDto>({ dseq: "100", state: "active" });
+    const deployment = { ...mock<DeploymentDto>({ dseq: "100", state: "active" }), leases: current.inlineLeases };
     const resolveProviders = () => ("providers" in current ? (current.providers === "load" ? providerList : current.providers) : providerList);
 
     const hook = renderHook(() =>

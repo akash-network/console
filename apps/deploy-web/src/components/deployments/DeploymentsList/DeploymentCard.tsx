@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Card, Checkbox } from "@akashnetwork/ui/components";
 import Link from "next/link";
 
-import type { NamedDeploymentDto } from "@src/types/deployment";
+import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
 import { DeploymentStatusBadge } from "../DeploymentDetail/DeploymentStatusBadge";
@@ -25,7 +25,7 @@ export const DEPENDENCIES = {
 };
 
 export interface DeploymentCardProps {
-  deployment: NamedDeploymentDto;
+  deployment: ListedDeploymentDto;
   providers: ApiProviderList[] | undefined;
   isSelectable?: boolean;
   isSelected?: boolean;

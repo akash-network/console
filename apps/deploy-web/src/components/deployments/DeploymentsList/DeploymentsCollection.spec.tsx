@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
-import type { NamedDeploymentDto } from "@src/types/deployment";
+import type { ListedDeploymentDto } from "@src/types/deployment";
 import { DEPENDENCIES, DeploymentsCollection } from "./DeploymentsCollection";
 
 import { cleanup, render, screen } from "@testing-library/react";
@@ -88,7 +88,7 @@ describe("DeploymentsCollection", () => {
 
     render(
       <DeploymentsCollection
-        deployments={input.dseqs.map(dseq => ({ dseq, state: "active" }) as NamedDeploymentDto)}
+        deployments={input.dseqs.map(dseq => ({ dseq, state: "active" }) as ListedDeploymentDto)}
         providers={[]}
         viewMode={input.viewMode}
         isLoading={input.isLoading}

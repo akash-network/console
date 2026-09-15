@@ -4,7 +4,7 @@ import { useCallback, useMemo } from "react";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import { useDeploymentList, useDeploymentsPage } from "@src/queries/useDeploymentQuery";
-import type { DeploymentDto, NamedDeploymentDto } from "@src/types/deployment";
+import type { DeploymentDto, ListedDeploymentDto } from "@src/types/deployment";
 
 export const DEPENDENCIES = {
   useWallet,
@@ -21,7 +21,7 @@ export interface DeploymentsListSourceInput {
 }
 
 export interface DeploymentsListSlice {
-  deployments: NamedDeploymentDto[];
+  deployments: ListedDeploymentDto[];
   hasNextPage: boolean;
   /** Stays tied to the paged query, so opening a search does not retract what the placeholders wait on. */
   isResolved: boolean;
@@ -39,6 +39,9 @@ export interface DeploymentsListSource {
   archive: DeploymentsListArchiveSlice;
   refetch: () => void;
 }
+
+/** Which implementation a list reads through. Swapping it must remount the tree, since the two call different hooks. */
+export type DeploymentsListSourceHook = (input: DeploymentsListSourceInput) => DeploymentsListSource;
 
 /**
  * Active deployments are paged by the chain, but a search has to span the whole account, so it swaps the paged
@@ -111,8 +114,8 @@ function resolveDeployments(
   deployments: DeploymentDto[] | null | undefined,
   getDeploymentName: (dseq: string | number | null) => string | null,
   search: string
-): NamedDeploymentDto[] {
-  const named = (deployments ?? []).map(deployment => ({ ...deployment, name: getDeploymentName(deployment.dseq) }) as NamedDeploymentDto);
+): ListedDeploymentDto[] {
+  const named = (deployments ?? []).map(deployment => ({ ...deployment, name: getDeploymentName(deployment.dseq) }));
   const query = search.trim().toLowerCase();
   if (!query) return named;
 

@@ -14,7 +14,7 @@ import {
 import { NavArrowRight, Refresh } from "iconoir-react";
 
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
-import type { NamedDeploymentDto } from "@src/types/deployment";
+import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { DeploymentsCollection } from "./DeploymentsCollection";
 
@@ -22,7 +22,7 @@ export const DEPENDENCIES = { DeploymentsCollection };
 
 /** The archive is unbounded, so it lists a page at a time rather than mounting a lease query per closed deployment. */
 export interface DeploymentArchiveProps {
-  deployments: NamedDeploymentDto[];
+  deployments: ListedDeploymentDto[];
   totalCount: number;
   providers: ApiProviderList[] | undefined;
   viewMode: DeploymentsViewMode;

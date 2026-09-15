@@ -5,7 +5,7 @@ import { Checkbox, TableCell, TableRow } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import Link from "next/link";
 
-import type { NamedDeploymentDto } from "@src/types/deployment";
+import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
 import { DeploymentStatusBadge } from "../DeploymentDetail/DeploymentStatusBadge";
@@ -31,7 +31,7 @@ const CONTROLS_CELL = "pl-0 [&:has([role=checkbox])]:pr-4";
 const COLUMN_COUNT = 5;
 
 export interface DeploymentRowProps {
-  deployment: NamedDeploymentDto;
+  deployment: ListedDeploymentDto;
   providers: ApiProviderList[] | undefined;
   isSelectable?: boolean;
   isSelected?: boolean;
