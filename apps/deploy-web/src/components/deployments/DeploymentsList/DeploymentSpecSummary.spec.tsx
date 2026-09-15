@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentDto } from "@src/types/deployment";
-import type { DeploymentSpecLayout } from "./DeploymentSpecSummary";
+import type { DEPENDENCIES, DeploymentSpecLayout } from "./DeploymentSpecSummary";
 import { DeploymentSpecSummary } from "./DeploymentSpecSummary";
 
 import { render, screen } from "@testing-library/react";
@@ -43,7 +43,7 @@ describe("DeploymentSpecSummary", () => {
       layout: "columns"
     });
 
-    expect(screen.getByTitle("GPU: H100, A100")).toBeInTheDocument();
+    expect(screen.getByText("GPU: H100, A100")).toBeInTheDocument();
   });
 
   it("omits the GPU entry for a deployment without one", () => {
@@ -53,13 +53,21 @@ describe("DeploymentSpecSummary", () => {
   });
 
   function setup({ layout, ...deployment }: Partial<DeploymentDto> & { layout?: DeploymentSpecLayout }) {
+    const CustomTooltip = vi.fn<typeof DEPENDENCIES.CustomTooltip>(({ title, children }) => (
+      <>
+        <span>{title}</span>
+        {children}
+      </>
+    ));
+
     render(
       <DeploymentSpecSummary
         layout={layout}
         deployment={mock<DeploymentDto>({ cpuAmount: 1, memoryAmount: 1, storageAmount: 1, gpuAmount: 0, groups: [], ...deployment })}
+        dependencies={{ CustomTooltip }}
       />
     );
 
-    return deployment;
+    return { ...deployment, CustomTooltip };
   }
 });

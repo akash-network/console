@@ -11,20 +11,20 @@ describe("ReclamationCountdown", () => {
     const deadlineInOneDay = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
     setup([mock<LeaseDto>({ state: "reclaiming", reclamation: { deadline: deadlineInOneDay } })]);
 
-    expect(screen.getByText("reclaims in 24 hours")).toBeInTheDocument();
+    expect(screen.getByText("Closes in 24 hours.")).toBeInTheDocument();
   });
 
   it("says reclamation is pending when the chain has not published a deadline", () => {
     setup([mock<LeaseDto>({ state: "reclaiming", reclamation: { deadline: 0 } })]);
 
-    expect(screen.getByText("reclamation pending")).toBeInTheDocument();
+    expect(screen.getByText("Reclamation pending.")).toBeInTheDocument();
   });
 
   it("counts down even when only one of several placements is being reclaimed", () => {
     const deadlineInOneDay = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
     setup([mock<LeaseDto>({ state: "active" }), mock<LeaseDto>({ state: "reclaiming", reclamation: { deadline: deadlineInOneDay } })]);
 
-    expect(screen.getByText("reclaims in 24 hours")).toBeInTheDocument();
+    expect(screen.getByText("Closes in 24 hours.")).toBeInTheDocument();
   });
 
   it("counts down to the soonest deadline when several placements are being reclaimed", () => {
@@ -34,18 +34,18 @@ describe("ReclamationCountdown", () => {
       mock<LeaseDto>({ state: "reclaiming", reclamation: { deadline: now + 24 * 60 * 60 } })
     ]);
 
-    expect(screen.getByText("reclaims in 24 hours")).toBeInTheDocument();
+    expect(screen.getByText("Closes in 24 hours.")).toBeInTheDocument();
   });
 
   it("keeps counting down while the list is left open", () => {
     withClockAt("2026-09-12T00:00:00.000Z", now => {
       setup([reclaimingIn(now, 90)]);
 
-      expect(screen.getByText("reclaims in 2 minutes")).toBeInTheDocument();
+      expect(screen.getByText("Closes in 2 minutes.")).toBeInTheDocument();
 
       act(() => vi.advanceTimersByTime(60_000));
 
-      expect(screen.getByText("reclaims in 30 seconds")).toBeInTheDocument();
+      expect(screen.getByText("Closes in 30 seconds.")).toBeInTheDocument();
     });
   });
 
@@ -55,7 +55,7 @@ describe("ReclamationCountdown", () => {
 
       act(() => vi.advanceTimersByTime(11_000));
 
-      expect(screen.getByText("closing now…")).toBeInTheDocument();
+      expect(screen.getByText("Closing now…")).toBeInTheDocument();
     });
   });
 

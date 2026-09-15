@@ -105,13 +105,6 @@ describe("DeploymentCard", () => {
     expect(useDeploymentReachability).toHaveBeenCalledWith({ deployment, providers });
   });
 
-  it("shows the reclamation countdown for the deployment's own leases", () => {
-    const leases = [mock<LeaseDto>({ state: "reclaiming" })];
-    const { ReclamationCountdown } = setup({ deployment: { dseq: "100" }, leases });
-
-    expect(ReclamationCountdown).toHaveBeenCalledWith({ leases }, expect.anything());
-  });
-
   it("reports a plain click as a non-range selection", async () => {
     const { onSelect } = setup({ deployment: { dseq: "100", name: "acme" }, isSelectable: true });
 
@@ -139,10 +132,10 @@ describe("DeploymentCard", () => {
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 
-  it("shows the deployment's own trial and interconnect badges under its name", () => {
+  it("seats the deployment's own trial and interconnect badges beside the status", () => {
     const { DeploymentBadges, deployment } = setup({ deployment: { dseq: "100", name: "acme" } });
 
-    expect(screen.getByText("badges")).toBeInTheDocument();
+    expect(screen.getByText("badges").parentElement).toBe(screen.getByText("status").parentElement);
     expect(DeploymentBadges.mock.calls[0][0]).toEqual(expect.objectContaining({ deployment }));
   });
 
@@ -173,7 +166,6 @@ describe("DeploymentCard", () => {
     ));
     const DeploymentEndpointsPanel = vi.fn<typeof DEPENDENCIES.DeploymentEndpointsPanel>(() => <div>endpoints panel</div>);
     const DeploymentSpecSummary = vi.fn(() => <div>specs</div>);
-    const ReclamationCountdown = vi.fn(() => <div>countdown</div>);
     const DeploymentActionsMenu = vi.fn(() => <div>actions</div>);
     const DeploymentBadges = vi.fn<typeof DEPENDENCIES.DeploymentBadges>(() => <div>badges</div>);
     const providers: never[] = [];
@@ -194,7 +186,6 @@ describe("DeploymentCard", () => {
           DeploymentEndpoints,
           DeploymentEndpointsPanel,
           DeploymentSpecSummary,
-          ReclamationCountdown,
           DeploymentActionsMenu,
           DeploymentBadges
         })}
@@ -213,7 +204,6 @@ describe("DeploymentCard", () => {
       DeploymentEndpoints,
       DeploymentEndpointsPanel,
       DeploymentSpecSummary,
-      ReclamationCountdown,
       DeploymentActionsMenu,
       DeploymentBadges,
       useDeploymentReachability,

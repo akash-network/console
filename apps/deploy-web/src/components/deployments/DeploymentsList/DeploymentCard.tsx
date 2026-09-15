@@ -12,7 +12,6 @@ import { DeploymentActionsMenu } from "./DeploymentActionsMenu";
 import { DeploymentBadges } from "./DeploymentBadges";
 import { DeploymentEndpoints, DeploymentEndpointsPanel } from "./DeploymentEndpoints";
 import { DeploymentSpecSummary } from "./DeploymentSpecSummary";
-import { ReclamationCountdown } from "./ReclamationCountdown";
 import { useDeploymentReachability } from "./useDeploymentReachability";
 
 export const DEPENDENCIES = {
@@ -22,8 +21,7 @@ export const DEPENDENCIES = {
   DeploymentEndpoints,
   DeploymentEndpointsPanel,
   DeploymentSpecSummary,
-  DeploymentActionsMenu,
-  ReclamationCountdown
+  DeploymentActionsMenu
 };
 
 export interface DeploymentCardProps {
@@ -55,16 +53,13 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
     <Card className="flex flex-col overflow-hidden transition-[box-shadow,border-color] duration-200 hover:border-zinc-400 hover:shadow-md dark:hover:border-zinc-600">
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 flex-col gap-1">
-            <Link href={UrlService.deploymentDetails(deployment.dseq)} className="truncate font-semibold hover:underline">
-              {deployment.name || `Deployment #${deployment.dseq}`}
-            </Link>
-            <d.DeploymentBadges deployment={deployment} />
-          </div>
+          <Link href={UrlService.deploymentDetails(deployment.dseq)} className="min-w-0 truncate font-semibold hover:underline">
+            {deployment.name || `Deployment #${deployment.dseq}`}
+          </Link>
 
-          <div className="flex shrink-0 flex-col items-end gap-1">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
             <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized />
-            <d.ReclamationCountdown leases={leases} />
+            <d.DeploymentBadges deployment={deployment} />
           </div>
         </div>
 

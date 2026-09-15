@@ -2,7 +2,7 @@
 import * as React from "react";
 import { Badge, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Info, Waypoints } from "lucide-react";
+import { Waypoints } from "lucide-react";
 
 import type { DeclaredGpuInterconnect } from "@src/utils/gpuInterconnect";
 import { formatGpuInterconnectFabricLabel } from "@src/utils/gpuInterconnect";
@@ -56,10 +56,7 @@ export function GpuInterconnectBadge({ interconnect, compact = false, className,
               <span>Interconnect</span>
             </>
           ) : (
-            <>
-              <span>{fullLabel}</span>
-              <Info className="h-3 w-3" />
-            </>
+            <span>{fullLabel}</span>
           )}
         </d.Badge>
       </div>

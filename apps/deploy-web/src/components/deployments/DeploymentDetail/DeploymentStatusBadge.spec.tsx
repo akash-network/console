@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
-import { DeploymentStatusBadge, getDeploymentStatus } from "./DeploymentStatusBadge";
+import { DEPENDENCIES, DeploymentStatusBadge, getDeploymentStatus } from "./DeploymentStatusBadge";
 
 import { render, screen } from "@testing-library/react";
 
@@ -68,7 +68,7 @@ describe("DeploymentStatusBadge", () => {
       setup({ state: "active", leases: [mock<LeaseDto>({ state: "closed", reason: "lease_closed_reason_decommission" })], isSummarized: true });
 
       expect(screen.getByText("Closed by provider")).toBeInTheDocument();
-      expect(screen.getByTitle("Closed by provider (decommissioned)")).toBeInTheDocument();
+      expect(screen.getByText("Closed by provider (decommissioned)")).toBeInTheDocument();
     });
 
     it("shortens an insufficient funds close to 'Out of funds'", () => {
@@ -78,16 +78,24 @@ describe("DeploymentStatusBadge", () => {
     });
 
     it("leaves a label that needs no shortening without a redundant tooltip", () => {
-      setup({ state: "active", leases: [mock<LeaseDto>({ state: "active" })], isSummarized: true });
+      const { CustomTooltip } = setup({ state: "active", leases: [mock<LeaseDto>({ state: "active" })], isSummarized: true });
 
       expect(screen.getByText("Running")).toBeInTheDocument();
-      expect(screen.queryByTitle("Running")).not.toBeInTheDocument();
+      expect(CustomTooltip).not.toHaveBeenCalled();
     });
 
     it("still names a lease being reclaimed", () => {
       setup({ state: "active", leases: [mock<LeaseDto>({ state: "reclaiming" })], isSummarized: true });
 
       expect(screen.getByText("Reclaiming")).toBeInTheDocument();
+    });
+
+    it("moves how long a reclaimed workload has left onto the badge instead of a second line", () => {
+      const deadlineInOneDay = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
+      setup({ state: "active", leases: [mock<LeaseDto>({ state: "reclaiming", reclamation: { deadline: deadlineInOneDay } })], isSummarized: true });
+
+      expect(screen.getByText("Reclaiming")).toBeInTheDocument();
+      expect(screen.getByText("Closes in 24 hours.")).toBeInTheDocument();
     });
   });
 
@@ -127,8 +135,17 @@ describe("DeploymentStatusBadge", () => {
   });
 
   function setup(input: { state: string; leases?: LeaseDto[]; isSummarized?: boolean }) {
-    render(<DeploymentStatusBadge state={input.state} leases={input.leases} isSummarized={input.isSummarized} />);
+    const CustomTooltip = vi.fn<typeof DEPENDENCIES.CustomTooltip>(({ title, children }) => (
+      <>
+        {title}
+        {children}
+      </>
+    ));
 
-    return input;
+    render(
+      <DeploymentStatusBadge state={input.state} leases={input.leases} isSummarized={input.isSummarized} dependencies={{ ...DEPENDENCIES, CustomTooltip }} />
+    );
+
+    return { ...input, CustomTooltip };
   }
 });
