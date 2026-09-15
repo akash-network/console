@@ -335,8 +335,8 @@ describe(useAccountBalanceOverview.name, () => {
     });
     const useWalletSettingsQuery: typeof DEPENDENCIES.useWalletSettingsQuery = () => walletSettingsQuery;
 
-    const getDeploymentName = (dseq: string | number | null) => input.names?.[String(dseq)] ?? null;
-    const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>(), { getDeploymentName });
+    const getDeploymentName = (dseq: string | number | null | undefined) => input.names?.[String(dseq)] ?? null;
+    const useDeploymentNames: typeof DEPENDENCIES.useDeploymentNames = () => ({ getDeploymentName });
 
     const dependencies: typeof DEPENDENCIES = {
       useWallet,
@@ -346,7 +346,7 @@ describe(useAccountBalanceOverview.name, () => {
       useAllLeases,
       useBlock,
       useWalletSettingsQuery,
-      useLocalNotes
+      useDeploymentNames
     };
 
     return { ...renderHook(() => useAccountBalanceOverview({ dependencies })), useAllLeases, useBlock };

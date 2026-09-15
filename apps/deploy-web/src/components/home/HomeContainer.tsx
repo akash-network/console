@@ -1,10 +1,10 @@
 "use client";
 import React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 
-import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useWallet } from "@src/context/WalletProvider";
+import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
@@ -20,7 +20,7 @@ const YourAccount = dynamic(() => import("./YourAccount/YourAccount").then(m => 
 
 export const DEPENDENCIES = {
   useWallet,
-  useLocalNotes,
+  useDeploymentNames,
   useWalletBalance,
   useProviderList,
   useDeploymentList,
@@ -36,8 +36,6 @@ type Props = {
 
 export function HomeContainer({ dependencies: d = DEPENDENCIES }: Props) {
   const { address } = d.useWallet();
-  const [activeDeployments, setActiveDeployments] = useState<DeploymentDto[]>([]);
-  const { getDeploymentName } = d.useLocalNotes();
   const {
     data: deployments,
     isFetching: isLoadingDeployments,
@@ -49,11 +47,11 @@ export function HomeContainer({ dependencies: d = DEPENDENCIES }: Props) {
     },
     "active"
   );
-  useEffect(() => {
-    if (deployments) {
-      setActiveDeployments(deployments.map(d => ({ ...d, name: getDeploymentName(d.dseq) })));
-    }
-  }, [deployments, getDeploymentName]);
+  const { getDeploymentName } = d.useDeploymentNames(deployments?.map(deployment => deployment.dseq) ?? []);
+  const activeDeployments = useMemo<DeploymentDto[]>(
+    () => deployments?.map(deployment => ({ ...deployment, name: getDeploymentName(deployment.dseq) })) ?? [],
+    [deployments, getDeploymentName]
+  );
 
   const { balance: walletBalance, isLoading: isLoadingBalances } = d.useWalletBalance();
   const { data: providers, isFetching: isLoadingProviders } = d.useProviderList();

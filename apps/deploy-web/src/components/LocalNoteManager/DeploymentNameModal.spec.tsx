@@ -31,6 +31,14 @@ describe("DeploymentNameModal", () => {
     await waitFor(() => expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.getDeployment.getKey({ dseq: "12345" }) }));
   });
 
+  it("refreshes the names every list shows, so the renamed row updates there too", async () => {
+    const { queryClient, api } = setup({});
+
+    await rename("my-app");
+
+    await waitFor(() => expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.listDeploymentNames.getKey() }));
+  });
+
   it("records the new name in this browser too, which the deployments list still reads", async () => {
     const { deploymentLocalStorage } = setup({});
 
@@ -196,6 +204,7 @@ describe("DeploymentNameModal", () => {
 
     const api = mockDeep<AppDIContainer["api"]>();
     api.v1.getDeployment.getKey.mockImplementation(request => ["getDeployment", request?.dseq ?? ""]);
+    api.v1.listDeploymentNames.getKey.mockReturnValue(["listDeploymentNames"]);
     api.v1.patchDeployment.useMutation.mockReturnValue(
       mock<ReturnType<typeof api.v1.patchDeployment.useMutation>>({ mutate: patchMutate as never, isPending: input.isPending ?? false })
     );

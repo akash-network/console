@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { LeaseDto } from "@src/types/deployment";
+import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
 import { DEPENDENCIES, HomeContainer } from "./HomeContainer";
@@ -30,21 +30,31 @@ describe(HomeContainer.name, () => {
     expect(YourAccount).toHaveBeenCalledWith(expect.objectContaining({ leases, providers }), expect.anything());
   });
 
+  it("hands YourAccount the active deployments under the names the console holds", () => {
+    const { YourAccount } = setup({ address: "akash1owner", deployments: [mock<DeploymentDto>({ dseq: "100" })], names: { "100": "web" } });
+
+    expect(YourAccount).toHaveBeenCalledWith(
+      expect.objectContaining({ activeDeployments: [expect.objectContaining({ dseq: "100", name: "web" })] }),
+      expect.anything()
+    );
+  });
+
   it("does not render YourAccount when no wallet is connected", () => {
     const { YourAccount } = setup({ address: "" });
 
     expect(YourAccount).not.toHaveBeenCalled();
   });
 
-  function setup(input: { address?: string; leases?: LeaseDto[]; providers?: ApiProviderList[] } = {}) {
-    const getDeploymentName = () => null;
-
+  function setup(
+    input: { address?: string; leases?: LeaseDto[]; providers?: ApiProviderList[]; deployments?: DeploymentDto[]; names?: Record<string, string> } = {}
+  ) {
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: input.address ?? "" });
-    const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () => mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>({ getDeploymentName });
+    const getDeploymentName = (dseq: string | number | null | undefined) => input.names?.[String(dseq)] ?? null;
+    const useDeploymentNames: typeof DEPENDENCIES.useDeploymentNames = () => ({ getDeploymentName });
     const useWalletBalance: typeof DEPENDENCIES.useWalletBalance = () =>
       mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>({ balance: null, isLoading: false });
     const useProviderList = mockQueryHook<typeof DEPENDENCIES.useProviderList>(input.providers ?? []);
-    const useDeploymentList = mockQueryHook<typeof DEPENDENCIES.useDeploymentList>([]);
+    const useDeploymentList = mockQueryHook<typeof DEPENDENCIES.useDeploymentList>(input.deployments ?? []);
     const useAllLeases = mockQueryHook<typeof DEPENDENCIES.useAllLeases>(input.leases ?? []);
     const YourAccount = vi.fn(() => <div>your account</div>);
 
@@ -52,7 +62,7 @@ describe(HomeContainer.name, () => {
       <HomeContainer
         dependencies={MockComponents(DEPENDENCIES, {
           useWallet,
-          useLocalNotes,
+          useDeploymentNames,
           useWalletBalance,
           useProviderList,
           useDeploymentList,

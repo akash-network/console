@@ -7,9 +7,9 @@ import { useCallback, useState } from "react";
 import type { components } from "@akashnetwork/console-api-types/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import { useNotificator } from "@src/hooks/useNotificator";
 import { QueryKeys } from "@src/queries";
 
@@ -41,7 +41,7 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
   const { api } = useServices();
   const queryClient = useQueryClient();
   const { data, isError, isLoading, refetch } = api.v1.listAlerts.useQuery({ page, limit });
-  const { getDeploymentName } = useLocalNotes();
+  const { getDeploymentName } = useDeploymentNames(data?.data.map(item => (item.params && "dseq" in item.params ? item.params.dseq : null)) ?? []);
   const notificator = useNotificator();
   const deleteMutation = api.v1.deleteAlert.useMutation();
   const patchMutation = api.v1.updateAlert.useMutation();

@@ -4,7 +4,6 @@ import { TableCell, TableRow } from "@akashnetwork/ui/components";
 import isEqual from "lodash/isEqual";
 import Link from "next/link";
 
-import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { PriceEstimateTooltip } from "@src/components/shared/PriceEstimateTooltip";
 import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
 import { StatusPill } from "@src/components/shared/StatusPill";
@@ -12,14 +11,12 @@ import type { LeaseDto } from "@src/types/deployment";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { UrlService } from "@src/utils/urlUtils";
 
-type Props = {
+export type LeaseRowProps = {
   lease: LeaseDto;
+  deploymentName: string | null;
 };
 
-const MemoLeaseRow: React.FunctionComponent<Props> = ({ lease }) => {
-  const { getDeploymentName } = useLocalNotes();
-  const deploymentName = getDeploymentName(lease.dseq);
-
+const MemoLeaseRow: React.FunctionComponent<LeaseRowProps> = ({ lease, deploymentName }) => {
   return (
     <TableRow>
       <TableCell>

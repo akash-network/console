@@ -96,7 +96,15 @@ describe(DeploymentList.name, () => {
     expect(screen.queryByText("100")).not.toBeInTheDocument();
   });
 
-  it("matches a local deployment name from the full selected-state list", async () => {
+  it("asks for the names of the deployments on the page", () => {
+    const { useDeploymentNames } = setup({
+      data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" }), mock<DeploymentDto>({ dseq: "200", state: "active" })], hasNextPage: false }
+    });
+
+    expect(useDeploymentNames).toHaveBeenLastCalledWith(["100", "200"]);
+  });
+
+  it("matches a deployment name from the full selected-state list", async () => {
     setup({
       data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], hasNextPage: false },
       list: [mock<DeploymentDto>({ dseq: "100", state: "active" }), mock<DeploymentDto>({ dseq: "200", state: "active" })],
@@ -192,7 +200,7 @@ describe(DeploymentList.name, () => {
       isFetching?: boolean;
       isError?: boolean;
       isListError?: boolean;
-      getDeploymentName?: (dseq: string | number | null) => string | null;
+      getDeploymentName?: (dseq: string | number | null | undefined) => string | null;
     } = {}
   ) {
     const refetch = vi.fn();
@@ -213,10 +221,7 @@ describe(DeploymentList.name, () => {
     const useProviderList: typeof DEPENDENCIES.useProviderList = () => mock<ReturnType<typeof DEPENDENCIES.useProviderList>>({ data: [], isFetching: false });
     const useBlockchainStatus: typeof DEPENDENCIES.useBlockchainStatus = () =>
       mock<ReturnType<typeof DEPENDENCIES.useBlockchainStatus>>({ isBlockchainDown: false });
-    const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>({
-        getDeploymentName: input.getDeploymentName ?? (() => null)
-      });
+    const useDeploymentNames = vi.fn<typeof DEPENDENCIES.useDeploymentNames>(() => ({ getDeploymentName: input.getDeploymentName ?? (() => null) }));
     const useManagedDeploymentConfirm: typeof DEPENDENCIES.useManagedDeploymentConfirm = () =>
       mock<ReturnType<typeof DEPENDENCIES.useManagedDeploymentConfirm>>();
     const useNewDeploymentUrl: typeof DEPENDENCIES.useNewDeploymentUrl = () => () => "/new-deployment";
@@ -237,7 +242,7 @@ describe(DeploymentList.name, () => {
           useWallet,
           useProviderList,
           useBlockchainStatus,
-          useLocalNotes,
+          useDeploymentNames,
           useManagedDeploymentConfirm,
           useNewDeploymentUrl,
           NoDeploymentsState,
@@ -246,6 +251,6 @@ describe(DeploymentList.name, () => {
       />
     );
 
-    return { refetch, NoDeploymentsState, DeploymentListRow, useDeploymentsPage, useDeploymentList };
+    return { refetch, NoDeploymentsState, DeploymentListRow, useDeploymentsPage, useDeploymentList, useDeploymentNames };
   }
 });

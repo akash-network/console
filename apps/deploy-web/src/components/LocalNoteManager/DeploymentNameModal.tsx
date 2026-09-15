@@ -16,11 +16,7 @@ import { settingsIdAtom } from "@src/store/settingsStore";
 export const DEPENDENCIES = { useSnackbar, useQueryClient, useResolvedDeploymentName };
 
 const formSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, "Enter a name for this deployment")
-    .max(MAX_DEPLOYMENT_NAME_LENGTH, `Use at most ${MAX_DEPLOYMENT_NAME_LENGTH} characters`)
+  name: z.string().trim().min(1, "Enter a name for this deployment").max(MAX_DEPLOYMENT_NAME_LENGTH, `Use at most ${MAX_DEPLOYMENT_NAME_LENGTH} characters`)
 });
 
 type Props = {
@@ -70,7 +66,7 @@ export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, d
     formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
 
-  /** The deployments list still resolves names from this browser alone, so the record is kept in step until it reads the api too — and a full or blocked store must not strand a rename the api has already accepted. */
+  /** Kept in step until the browser stops recording names altogether, and a full or blocked store must not strand a rename the api has already accepted. */
   function recordNameInThisBrowser(name: string) {
     try {
       deploymentLocalStorage.update(address, dseq, { name });
@@ -89,6 +85,7 @@ export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, d
         onSuccess: function recordRename() {
           recordNameInThisBrowser(name);
           queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq: renamedDseq }) });
+          queryClient.invalidateQueries({ queryKey: api.v1.listDeploymentNames.getKey() });
           enqueueSnackbar(<Snackbar title="Success!" iconVariant="success" />, { variant: "success", autoHideDuration: 1000 });
           onSaved(renamedDseq);
         },

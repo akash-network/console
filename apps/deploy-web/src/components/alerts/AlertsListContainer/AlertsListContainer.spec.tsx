@@ -50,9 +50,20 @@ describe(AlertsListContainer.name, () => {
     });
   });
 
-  async function setup() {
+  it("shows the name the console holds for an alert's deployment", async () => {
+    const alert = buildAlert({ type: "DEPLOYMENT_BALANCE", params: { dseq: "4242", owner: "akash1owner" } });
+    const { childCapturer } = await setup({ alerts: [alert], names: { "4242": "web" } });
+
+    const child = await childCapturer.awaitChild(({ data }) => data[0]?.deploymentName === "web");
+
+    expect(child.data[0].deploymentName).toBe("web");
+  });
+
+  async function setup(input: { alerts?: ReturnType<typeof buildAlert>[]; names?: Record<string, string | null> } = {}) {
     const mockData = {
-      data: Array.from({ length: 11 }, () => buildAlert({ type: faker.helpers.arrayElement(["DEPLOYMENT_BALANCE", "CHAIN_MESSAGE"]), deploymentName: "NA" })),
+      data:
+        input.alerts ??
+        Array.from({ length: 11 }, () => buildAlert({ type: faker.helpers.arrayElement(["DEPLOYMENT_BALANCE", "CHAIN_MESSAGE"]), deploymentName: "NA" })),
       pagination: {
         page: 1,
         limit: 10,
@@ -60,7 +71,9 @@ describe(AlertsListContainer.name, () => {
         totalPages: 2
       }
     };
-    const mockFetch = vi.fn(() => Promise.resolve(jsonResponse(mockData)));
+    const mockFetch = vi.fn((url: RequestInfo | URL) =>
+      Promise.resolve(jsonResponse(String(url).includes("/v1/deployment-names") ? { data: input.names ?? {} } : mockData))
+    );
     const services = {
       queryClient: () => queryClient,
       api: () => createProxy(createApiSdk({ baseUrl: "", fetch: mockFetch }))
@@ -77,6 +90,6 @@ describe(AlertsListContainer.name, () => {
 
     const child = await childCapturer.awaitChild(({ data }) => !!data.length);
 
-    return { mockData, mockFetch, child };
+    return { mockData, mockFetch, child, childCapturer };
   }
 });
