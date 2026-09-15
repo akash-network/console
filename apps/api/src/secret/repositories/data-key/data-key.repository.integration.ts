@@ -6,6 +6,8 @@ import { UserRepository } from "@src/user/repositories";
 import type { DataKeyOutput } from "./data-key.repository";
 import { DataKeyRepository } from "./data-key.repository";
 
+const ONE_MINUTE_MS = 60_000;
+
 describe(DataKeyRepository.name, () => {
   describe("one data key per user", () => {
     it("rejects a second active data key for the same user", async () => {
@@ -229,13 +231,15 @@ describe(DataKeyRepository.name, () => {
     it("re-wraps a row still wrapped under the version it was opened under, and stamps it as updated", async () => {
       const { dataKeyRepository, versionOf, seedDataKey } = setup();
       const row = await seedDataKey(versionOf(1));
+      await dataKeyRepository.updateById(row.id, { updatedAt: new Date(Date.now() - ONE_MINUTE_MS) });
+      const before = (await dataKeyRepository.findById(row.id))!;
 
       const rewrapped = await dataKeyRepository.rewrapIfStillWrappedUnder(row.id, versionOf(1), { wrappedKey: "rewrapped-blob", wrappedByKid: versionOf(2) });
 
       expect(rewrapped).toBe(true);
       const after = await dataKeyRepository.findById(row.id);
       expect(after).toMatchObject({ wrappedKey: "rewrapped-blob", wrappedByKid: versionOf(2) });
-      expect(after!.updatedAt.getTime()).toBeGreaterThan(row.updatedAt.getTime());
+      expect(after!.updatedAt.getTime()).toBeGreaterThan(before.updatedAt.getTime());
     });
 
     it("leaves a row another writer has since moved untouched", async () => {
