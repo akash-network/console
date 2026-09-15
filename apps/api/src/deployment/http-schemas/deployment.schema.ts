@@ -328,24 +328,36 @@ export const PatchDeploymentResponseSchema = z.object({
   })
 });
 
+export const deploymentListMaxLimit = 100;
+
 export const ListDeploymentsQuerySchema = z.object({
-  skip: z.coerce.number().min(0).optional(),
-  limit: z.coerce.number().min(1).default(1000).optional()
+  skip: z.coerce.number().int().min(0).default(0).openapi({
+    description: "Deployments to skip before the page begins."
+  }),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(deploymentListMaxLimit)
+    .default(deploymentListMaxLimit)
+    .openapi({
+      description: `Deployments per page, at most ${deploymentListMaxLimit}. Omitting it pages from the start rather than returning every deployment, so page on while \`hasMore\` is true.`
+    })
 });
 
 export const ListDeploymentsResponseSchema = z.object({
   data: z.object({
     deployments: z.array(DeploymentLeaseListItemSchema),
     pagination: z.object({
-      total: z.number(),
+      total: z.number().openapi({
+        description: "Deployments the owner holds in this state, counted from the console's chain index, so it can trail the chain by a block."
+      }),
       skip: z.number(),
       limit: z.number(),
-      hasMore: z.boolean()
+      hasMore: z.boolean().openapi({ description: "Whether the chain offered a cursor to a further page." })
     })
   })
 });
-
-export const deploymentListMaxLimit = 100;
 
 /** One page of any list that shows names is at most this long, so a lookup never asks for more than a screen shows. */
 export const MAX_DEPLOYMENT_NAMES_PER_REQUEST = 100;
