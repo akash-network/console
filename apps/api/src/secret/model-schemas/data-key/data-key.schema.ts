@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { index, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { index, pgTable, text, timestamp, unique, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { Users } from "@src/user/model-schemas";
 
@@ -33,6 +33,8 @@ export const DataKeys = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull()
   },
   table => ({
+    /** Stays until every replica inserts against the partial index below, because a replica on older code names this constraint as its conflict arbiter; #3948 drops it. */
+    userIdUnique: unique("data_keys_user_id_unique").on(table.userId),
     activeUserIdUnique: uniqueIndex("data_keys_active_user_id_idx")
       .on(table.userId)
       .where(sql`${table.retiredAt} IS NULL`),
