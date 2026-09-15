@@ -1,4 +1,4 @@
-import { and, asc, gt, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, eq, gt, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { assertBatchSize } from "@src/core/lib/batch-size/batch-size";
@@ -42,6 +42,32 @@ export class DataKeyRepository extends BaseRepository<Table, DataKeyInput, DataK
     if (!UUID_PATTERN.test(id)) return undefined;
 
     return this.findOneBy({ id, userId });
+  }
+
+  /** The keys a re-key retired for the user and has not deleted yet, oldest first; more than one means two runs were each interrupted. */
+  async findRetiredByUserId(userId: DataKeyOutput["userId"]): Promise<DataKeyOutput[]> {
+    const rows = await this.cursor
+      .select()
+      .from(this.table)
+      .where(and(eq(this.table.userId, userId), isNotNull(this.table.retiredAt)))
+      .orderBy(asc(this.table.retiredAt));
+
+    return this.toOutputList(rows);
+  }
+
+  /** Guards on the row still being active, so two re-keys racing over one user retire it once and the loser learns it lost. */
+  async retireIfActive(id: DataKeyOutput["id"]): Promise<DataKeyOutput | undefined> {
+    return await this.updateBy({ id, retiredAt: null }, { retiredAt: new Date() }, { returning: true });
+  }
+
+  /** Deletes only a retired row, so no caller can remove the key new values are being sealed under. */
+  async deleteRetired(id: DataKeyOutput["id"]): Promise<boolean> {
+    const [deleted] = await this.cursor
+      .delete(this.table)
+      .where(and(eq(this.table.id, id), isNotNull(this.table.retiredAt)))
+      .returning({ id: this.table.id });
+
+    return deleted !== undefined;
   }
 
   /**

@@ -14,6 +14,7 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/top-up-deployments.controller";
 import { GpuBotController } from "@src/deployment/controllers/gpu-bot/gpu-bot.controller";
 import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
+import { DataKeyRekeyController } from "@src/secret/controllers/data-key-rekey/data-key-rekey.controller";
 import { DataKeyRewrapController } from "@src/secret/controllers/data-key-rewrap/data-key-rewrap.controller";
 import { WorkloadAbuseController } from "@src/workload-abuse/controllers/workload-abuse.controller";
 import { APP_INITIALIZER, ON_APP_START } from "../core/providers/app-initializer";
@@ -126,12 +127,30 @@ program
 program
   .command("rewrap-data-keys")
   .description("Re-wrap every user's data key onto a KMS key version, so the versions it leaves behind can be disabled")
-  .requiredOption("-t, --target-version <string>", "KMS key version to move every data key onto, which must be the one this console is configured to wrap under", value => z.string().min(1).parse(value))
+  .requiredOption(
+    "-t, --target-version <string>",
+    "KMS key version to move every data key onto, which must be the one this console is configured to wrap under",
+    value => z.string().min(1).parse(value)
+  )
   .option("-b, --batch-size <number>", "How many data keys are re-wrapped per transaction", value => z.number({ coerce: true }).int().positive().parse(value))
   .option("-d, --dry-run", "Report the census and what would be re-wrapped without writing anything", false)
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       return container.resolve(DataKeyRewrapController).rewrapDataKeys(options);
+    });
+  });
+
+program
+  .command("rekey-user-data-key")
+  .description("Give one user a new data encryption key and re-seal their stored secrets under it, which is what contains a leaked data key")
+  .requiredOption("-u, --user-id <uuid>", "The user to re-key", value => z.string().uuid().parse(value))
+  .option("-b, --batch-size <number>", "How many of the user's deployments are read per page", value =>
+    z.number({ coerce: true }).int().positive().parse(value)
+  )
+  .option("-d, --dry-run", "Open and count what would be re-sealed, without retiring the key or writing anything", false)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(DataKeyRekeyController).rekeyUser(options);
     });
   });
 

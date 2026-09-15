@@ -56,6 +56,9 @@ export type DeploymentStoredSecrets = {
   updatedAt: Date | null;
 };
 
+/** A user's stored secrets token with the deployment it is bound to, which re-sealing it under another key has to name. */
+export type DeploymentStoredSecretsOfUser = DeploymentStoredSecrets & { dseq: string };
+
 export type LiveTrialDeployment = {
   userId: string;
   dseq: string;
@@ -211,6 +214,45 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
 
       cursor = batch[batch.length - 1].id;
     }
+  }
+
+  /** One user's deployments that hold a secret, so a re-key is bounded by that user's own rows rather than the fleet. */
+  async *findStoredSecretsByUserIteratively({ userId, batchSize }: { userId: string; batchSize: number }): AsyncGenerator<DeploymentStoredSecretsOfUser[]> {
+    assertBatchSize(batchSize);
+
+    let cursor: string | undefined;
+
+    while (true) {
+      const batch = await this.pg
+        .select({ id: this.table.id, dseq: this.table.dseq, sealedSecrets: this.table.sealedSecrets, updatedAt: this.table.updatedAt })
+        .from(this.table)
+        .where(and(eq(this.table.userId, userId), isNotNull(this.table.sealedSecrets), ...(cursor ? [gt(this.table.id, cursor)] : [])))
+        .orderBy(asc(this.table.id))
+        .limit(batchSize);
+
+      if (!batch.length) {
+        return;
+      }
+
+      yield batch as DeploymentStoredSecretsOfUser[];
+
+      if (batch.length < batchSize) {
+        return;
+      }
+
+      cursor = batch[batch.length - 1].id;
+    }
+  }
+
+  /** Guards on the token as it was read, so a value the user replaced in between is left as the user wrote it; the timestamp moves because this is a legitimate secrets write. */
+  async resealIfUnchanged(id: string, sealedSecrets: string, resealed: string | null): Promise<boolean> {
+    const [row] = await this.cursor
+      .update(this.table)
+      .set({ sealedSecrets: resealed, updatedAt: sql`now()` })
+      .where(and(eq(this.table.id, id), eq(this.table.sealedSecrets, sealedSecrets)))
+      .returning({ id: this.table.id });
+
+    return row !== undefined;
   }
 
   async #findAutoTopUpDeployments(address?: string): Promise<AutoTopUpDeployment[]> {

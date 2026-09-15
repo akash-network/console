@@ -197,6 +197,27 @@ describe(SecretCipherService.name, () => {
     expect(decodeProtectedHeader(token)).toEqual({ sub: user.id, dseq, alg: "dir", enc: "A256GCM", kid: dataKey!.id });
   });
 
+  it("opens a value sealed under a key retired since, and seals new values under the replacement", async () => {
+    const { cipher, createTestUser, inRequest, dataKeyRepository, kmsClient } = setup();
+    const user = await createTestUser();
+    const binding = bindingFor(user, newDseq());
+    const sealedBeforeRekey = await inRequest(user, async () => await cipher.encrypt(user.id, "old-value", binding));
+    const retired = (await dataKeyRepository.findByUserId(user.id))!;
+    await dataKeyRepository.updateById(retired.id, { retiredAt: new Date() });
+    kmsClient.asymmetricDecrypt.mockClear();
+
+    const [opened, sealedAfterRekey] = await inRequest(user, async () => [
+      await cipher.decrypt(user.id, sealedBeforeRekey, binding),
+      await cipher.encrypt(user.id, "new-value", binding)
+    ]);
+
+    expect(opened).toBe("old-value");
+    const replacement = (await dataKeyRepository.findByUserId(user.id))!;
+    expect(replacement.id).not.toBe(retired.id);
+    expect(decodeProtectedHeader(sealedAfterRekey).kid).toBe(replacement.id);
+    expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(2);
+  });
+
   it("refuses to open one user's value under their retired key for another user", async () => {
     const { cipher, createTestUser, inRequest, dataKeyRepository } = setup();
     const [owner, other] = await Promise.all([createTestUser(), createTestUser()]);
