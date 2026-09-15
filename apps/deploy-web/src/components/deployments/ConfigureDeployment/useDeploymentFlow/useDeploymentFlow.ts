@@ -466,11 +466,7 @@ function namePayload(name: string | undefined): { name?: string } {
   return trimmed ? { name: trimmed } : {};
 }
 
-/**
- * A create the API refused until the user pays: too little deposit, no fee allowance, or a trial-blocked GPU. The
- * status is the only signal, since every one of them is reported as `payment_required`, and it is enough because
- * adding funds is the remedy for all of them; the server's own message says which applies.
- */
+/** Status is the only signal available: a refused deposit, an exhausted fee allowance and a trial-blocked GPU all report `payment_required`. */
 function isPaymentRequired(cause: unknown): boolean {
   return isApiError(cause) && cause.status === HTTP_PAYMENT_REQUIRED;
 }
