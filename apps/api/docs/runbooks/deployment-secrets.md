@@ -55,14 +55,19 @@ Run this on the schedule the team agrees on, and whenever a KMS version is suspe
 
    A version with rows still under it must stay enabled. Disabling it makes every unwrap of those rows fail with `WRAPPING_VERSION_UNUSABLE`, which surfaces to the user as a 503 on deploy and as `USER_DATA_KEY_WRAPPED_UNDER_UNKNOWN_KID` in the logs. Nothing looks wrong until someone deploys.
 
-6. Once the census reads zero for the old version, disable it and leave it disabled for at least a week before scheduling its destruction, so anything the census missed has time to surface as a 503 that a re-enable fixes:
+6. Once the census reads zero for the old version, disable it. Leave it disabled for at least a week, so anything the census missed surfaces as a 503 that a re-enable fixes:
 
    ```sh
    gcloud kms keys versions disable <old version> --location "$GCP_KMS_LOCATION" --keyring "$GCP_KMS_KEY_RING" --key "$GCP_KMS_KEY"
+   ```
+
+7. After that week, take a fresh census, confirm it still reads zero and that no `USER_DATA_KEY_WRAPPED_UNDER_UNKNOWN_KID` event named the version, and only then schedule its destruction:
+
+   ```sh
    gcloud kms keys versions destroy <old version> --location "$GCP_KMS_LOCATION" --keyring "$GCP_KMS_KEY_RING" --key "$GCP_KMS_KEY"
    ```
 
-   Destruction is scheduled by Cloud KMS and can be cancelled until it completes. After it completes, every data key still wrapped under that version is unrecoverable.
+   A version scheduled for destruction can no longer decrypt, so this is the step where a missed row becomes a 503. Cloud KMS holds the version for its scheduled-destruction period; `gcloud kms keys versions restore` cancels the destruction and returns the version to disabled, so re-enable it as well if something surfaced. After destruction completes, every data key still wrapped under that version is unrecoverable.
 
 ## 3. Emergency rotation and the per-user re-key
 
@@ -200,7 +205,7 @@ The key service records administrative activity on a key by itself. The decrypt 
    gcloud logging buckets update kms-audit --location=global --locked --project "$PROJECT"
    ```
 
-   Locking is irreversible and is the point: once locked, nobody, including a compromised console, can shorten the retention or delete the bucket.
+   Locking is irreversible and is the point: while the bucket holds entries within retention, nobody, including a compromised console, can shorten the retention or delete the bucket. Once every entry has aged past retention the bucket can be deleted, which is why the retention below is long.
 
    Retention chosen: 400 days. Rationale: a year of trail plus the slack to notice a problem at the end of it. Change the number here if it changes there.
 
@@ -211,6 +216,16 @@ The key service records administrative activity on a key by itself. The decrypt 
    ```
 
    No `roles/logging.*` role, no `roles/owner`, no `roles/editor` may appear.
+
+   That reads the project policy alone. A binding inherited from the folder or the organization grants the same access without appearing there, so also ask for the effective answer on the permissions that matter, which walks the whole hierarchy:
+
+   ```sh
+   for permission in logging.buckets.update logging.buckets.delete logging.sinks.update logging.sinks.delete logging.logEntries.delete; do
+     gcloud policy-troubleshoot iam "//cloudresourcemanager.googleapis.com/projects/$PROJECT" --principal-email="<console service account>" --permission="$permission"
+   done
+   ```
+
+   Every answer must be that access is not granted.
 
 4. Verify a successful decrypt appears with its caller, key version, operation and outcome. Deploy once with a secret on that environment, then:
 
@@ -234,9 +249,9 @@ What the trail cannot answer, so nobody builds an alert on data that is not ther
 
 ## 7. Deleting a data key deletes the secrets
 
-No copy of a stored token is readable without the data key row it names, and no data key is readable without the KMS version that wrapped it. Deleting a user therefore deletes their secrets everywhere at once, including in every database backup, with two conditions that any future change must keep:
+No copy of a stored token is readable without the data key row it names, and no data key is readable without the KMS version that wrapped it. Deleting a user therefore makes their secrets unreadable in the live database at once, without touching a token, and reaches the backups on a delay:
 
-- A backup taken while the `data_keys` row existed still holds the wrapped key, so restoring that backup restores readability for as long as the KMS version that wrapped it is enabled. The shred is complete for backups only once they age out of retention or that version is destroyed.
+- A backup taken while the `data_keys` row existed still holds the wrapped key, so restoring that backup restores readability for as long as the KMS version that wrapped it is enabled. For backups the shred completes only once they age out of retention or that version is destroyed, so backup retention is part of how long a deleted user's secrets survive.
 - Any feature that copies, exports or escrows a data key, or logs it, silently removes the property. There is deliberately no such feature.
 
 The same property is what makes section 2 step 5 load-bearing: destroying a KMS version with rows still under it deletes those users' secrets.
