@@ -6717,6 +6717,34 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         "parameters": [
           {
             "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "default": "active",
+              "description": "Which of the owner's deployments to list. \`closed\` serves the archive.",
+              "enum": [
+                "active",
+                "closed",
+              ],
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "reverse",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "description": "Newest deployment first when true, rather than the chain's own oldest-first order.",
+              "enum": [
+                "true",
+                "false",
+              ],
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
             "name": "skip",
             "required": false,
             "schema": {
@@ -6907,6 +6935,331 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 ],
                                 "type": "object",
                               },
+                              "groups": {
+                                "description": "The resource groups the deployment declares on chain, as the chain describes them.",
+                                "items": {
+                                  "properties": {
+                                    "created_at": {
+                                      "type": "string",
+                                    },
+                                    "group_spec": {
+                                      "properties": {
+                                        "name": {
+                                          "type": "string",
+                                        },
+                                        "requirements": {
+                                          "properties": {
+                                            "attributes": {
+                                              "items": {
+                                                "properties": {
+                                                  "key": {
+                                                    "type": "string",
+                                                  },
+                                                  "value": {
+                                                    "type": "string",
+                                                  },
+                                                },
+                                                "required": [
+                                                  "key",
+                                                  "value",
+                                                ],
+                                                "type": "object",
+                                              },
+                                              "type": "array",
+                                            },
+                                            "signed_by": {
+                                              "properties": {
+                                                "all_of": {
+                                                  "items": {
+                                                    "type": "string",
+                                                  },
+                                                  "type": "array",
+                                                },
+                                                "any_of": {
+                                                  "items": {
+                                                    "type": "string",
+                                                  },
+                                                  "type": "array",
+                                                },
+                                              },
+                                              "required": [
+                                                "all_of",
+                                                "any_of",
+                                              ],
+                                              "type": "object",
+                                            },
+                                          },
+                                          "required": [
+                                            "signed_by",
+                                            "attributes",
+                                          ],
+                                          "type": "object",
+                                        },
+                                        "resources": {
+                                          "items": {
+                                            "properties": {
+                                              "count": {
+                                                "type": "number",
+                                              },
+                                              "price": {
+                                                "properties": {
+                                                  "amount": {
+                                                    "type": "string",
+                                                  },
+                                                  "denom": {
+                                                    "type": "string",
+                                                  },
+                                                },
+                                                "required": [
+                                                  "denom",
+                                                  "amount",
+                                                ],
+                                                "type": "object",
+                                              },
+                                              "resource": {
+                                                "properties": {
+                                                  "cpu": {
+                                                    "properties": {
+                                                      "attributes": {
+                                                        "items": {
+                                                          "properties": {
+                                                            "key": {
+                                                              "type": "string",
+                                                            },
+                                                            "value": {
+                                                              "type": "string",
+                                                            },
+                                                          },
+                                                          "required": [
+                                                            "key",
+                                                            "value",
+                                                          ],
+                                                          "type": "object",
+                                                        },
+                                                        "type": "array",
+                                                      },
+                                                      "units": {
+                                                        "properties": {
+                                                          "val": {
+                                                            "type": "string",
+                                                          },
+                                                        },
+                                                        "required": [
+                                                          "val",
+                                                        ],
+                                                        "type": "object",
+                                                      },
+                                                    },
+                                                    "required": [
+                                                      "units",
+                                                      "attributes",
+                                                    ],
+                                                    "type": "object",
+                                                  },
+                                                  "endpoints": {
+                                                    "items": {
+                                                      "properties": {
+                                                        "kind": {
+                                                          "type": "string",
+                                                        },
+                                                        "sequence_number": {
+                                                          "type": "number",
+                                                        },
+                                                      },
+                                                      "required": [
+                                                        "kind",
+                                                        "sequence_number",
+                                                      ],
+                                                      "type": "object",
+                                                    },
+                                                    "type": "array",
+                                                  },
+                                                  "gpu": {
+                                                    "properties": {
+                                                      "attributes": {
+                                                        "items": {
+                                                          "properties": {
+                                                            "key": {
+                                                              "type": "string",
+                                                            },
+                                                            "value": {
+                                                              "type": "string",
+                                                            },
+                                                          },
+                                                          "required": [
+                                                            "key",
+                                                            "value",
+                                                          ],
+                                                          "type": "object",
+                                                        },
+                                                        "type": "array",
+                                                      },
+                                                      "units": {
+                                                        "properties": {
+                                                          "val": {
+                                                            "type": "string",
+                                                          },
+                                                        },
+                                                        "required": [
+                                                          "val",
+                                                        ],
+                                                        "type": "object",
+                                                      },
+                                                    },
+                                                    "required": [
+                                                      "units",
+                                                      "attributes",
+                                                    ],
+                                                    "type": "object",
+                                                  },
+                                                  "id": {
+                                                    "type": "number",
+                                                  },
+                                                  "memory": {
+                                                    "properties": {
+                                                      "attributes": {
+                                                        "items": {
+                                                          "properties": {
+                                                            "key": {
+                                                              "type": "string",
+                                                            },
+                                                            "value": {
+                                                              "type": "string",
+                                                            },
+                                                          },
+                                                          "required": [
+                                                            "key",
+                                                            "value",
+                                                          ],
+                                                          "type": "object",
+                                                        },
+                                                        "type": "array",
+                                                      },
+                                                      "quantity": {
+                                                        "properties": {
+                                                          "val": {
+                                                            "type": "string",
+                                                          },
+                                                        },
+                                                        "required": [
+                                                          "val",
+                                                        ],
+                                                        "type": "object",
+                                                      },
+                                                    },
+                                                    "required": [
+                                                      "quantity",
+                                                      "attributes",
+                                                    ],
+                                                    "type": "object",
+                                                  },
+                                                  "storage": {
+                                                    "items": {
+                                                      "properties": {
+                                                        "attributes": {
+                                                          "items": {
+                                                            "properties": {
+                                                              "key": {
+                                                                "type": "string",
+                                                              },
+                                                              "value": {
+                                                                "type": "string",
+                                                              },
+                                                            },
+                                                            "required": [
+                                                              "key",
+                                                              "value",
+                                                            ],
+                                                            "type": "object",
+                                                          },
+                                                          "type": "array",
+                                                        },
+                                                        "name": {
+                                                          "type": "string",
+                                                        },
+                                                        "quantity": {
+                                                          "properties": {
+                                                            "val": {
+                                                              "type": "string",
+                                                            },
+                                                          },
+                                                          "required": [
+                                                            "val",
+                                                          ],
+                                                          "type": "object",
+                                                        },
+                                                      },
+                                                      "required": [
+                                                        "name",
+                                                        "quantity",
+                                                        "attributes",
+                                                      ],
+                                                      "type": "object",
+                                                    },
+                                                    "type": "array",
+                                                  },
+                                                },
+                                                "required": [
+                                                  "id",
+                                                  "cpu",
+                                                  "memory",
+                                                  "storage",
+                                                  "gpu",
+                                                  "endpoints",
+                                                ],
+                                                "type": "object",
+                                              },
+                                            },
+                                            "required": [
+                                              "resource",
+                                              "count",
+                                              "price",
+                                            ],
+                                            "type": "object",
+                                          },
+                                          "type": "array",
+                                        },
+                                      },
+                                      "required": [
+                                        "name",
+                                        "requirements",
+                                        "resources",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "id": {
+                                      "properties": {
+                                        "dseq": {
+                                          "type": "string",
+                                        },
+                                        "gseq": {
+                                          "type": "number",
+                                        },
+                                        "owner": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "owner",
+                                        "dseq",
+                                        "gseq",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "state": {
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "id",
+                                    "state",
+                                    "group_spec",
+                                    "created_at",
+                                  ],
+                                  "type": "object",
+                                },
+                                "type": "array",
+                              },
                               "leases": {
                                 "items": {
                                   "properties": {
@@ -6966,6 +7319,24 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     "reason": {
                                       "type": "string",
                                     },
+                                    "reclamation": {
+                                      "description": "Present only on a lease its provider has flagged for reclamation. \`deadline\` is unix seconds; \`reason\` is a \`lease_closed_reason_*\` enum name.",
+                                      "properties": {
+                                        "deadline": {
+                                          "type": "string",
+                                        },
+                                        "reason": {
+                                          "type": "string",
+                                        },
+                                        "started_at": {
+                                          "type": "string",
+                                        },
+                                        "window": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "type": "object",
+                                    },
                                     "state": {
                                       "type": "string",
                                     },
@@ -6992,6 +7363,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "leases",
                               "escrow_account",
                               "name",
+                              "groups",
                             ],
                             "type": "object",
                           },
@@ -7039,6 +7411,36 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               },
             },
             "description": "Returns paginated list of deployments",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "\`state\` names neither \`active\` nor \`closed\`, \`reverse\` names neither \`true\` nor \`false\`, \`skip\` is below zero, or \`limit\` is not a whole number between 1 and the page cap",
           },
         },
         "security": [
@@ -7640,6 +8042,24 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "reason": {
                                 "type": "string",
                               },
+                              "reclamation": {
+                                "description": "Present only on a lease its provider has flagged for reclamation. \`deadline\` is unix seconds; \`reason\` is a \`lease_closed_reason_*\` enum name.",
+                                "properties": {
+                                  "deadline": {
+                                    "type": "string",
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                  },
+                                  "started_at": {
+                                    "type": "string",
+                                  },
+                                  "window": {
+                                    "type": "string",
+                                  },
+                                },
+                                "type": "object",
+                              },
                               "state": {
                                 "type": "string",
                               },
@@ -8221,6 +8641,24 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               },
                               "reason": {
                                 "type": "string",
+                              },
+                              "reclamation": {
+                                "description": "Present only on a lease its provider has flagged for reclamation. \`deadline\` is unix seconds; \`reason\` is a \`lease_closed_reason_*\` enum name.",
+                                "properties": {
+                                  "deadline": {
+                                    "type": "string",
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                  },
+                                  "started_at": {
+                                    "type": "string",
+                                  },
+                                  "window": {
+                                    "type": "string",
+                                  },
+                                },
+                                "type": "object",
                               },
                               "state": {
                                 "type": "string",
@@ -8817,6 +9255,24 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "reason": {
                                 "type": "string",
                               },
+                              "reclamation": {
+                                "description": "Present only on a lease its provider has flagged for reclamation. \`deadline\` is unix seconds; \`reason\` is a \`lease_closed_reason_*\` enum name.",
+                                "properties": {
+                                  "deadline": {
+                                    "type": "string",
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                  },
+                                  "started_at": {
+                                    "type": "string",
+                                  },
+                                  "window": {
+                                    "type": "string",
+                                  },
+                                },
+                                "type": "object",
+                              },
                               "state": {
                                 "type": "string",
                               },
@@ -9241,6 +9697,24 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               },
                               "reason": {
                                 "type": "string",
+                              },
+                              "reclamation": {
+                                "description": "Present only on a lease its provider has flagged for reclamation. \`deadline\` is unix seconds; \`reason\` is a \`lease_closed_reason_*\` enum name.",
+                                "properties": {
+                                  "deadline": {
+                                    "type": "string",
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                  },
+                                  "started_at": {
+                                    "type": "string",
+                                  },
+                                  "window": {
+                                    "type": "string",
+                                  },
+                                },
+                                "type": "object",
                               },
                               "state": {
                                 "type": "string",
@@ -10205,6 +10679,24 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               },
                               "reason": {
                                 "type": "string",
+                              },
+                              "reclamation": {
+                                "description": "Present only on a lease its provider has flagged for reclamation. \`deadline\` is unix seconds; \`reason\` is a \`lease_closed_reason_*\` enum name.",
+                                "properties": {
+                                  "deadline": {
+                                    "type": "string",
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                  },
+                                  "started_at": {
+                                    "type": "string",
+                                  },
+                                  "window": {
+                                    "type": "string",
+                                  },
+                                },
+                                "type": "object",
                               },
                               "state": {
                                 "type": "string",

@@ -15,7 +15,7 @@ import type { MessageService } from "@src/deployment/services/message-service/me
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import { DeploymentReaderService } from "./deployment-reader.service";
 
-import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
+import { createDeploymentInfoGroupSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
 import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
@@ -386,6 +386,53 @@ describe(DeploymentReaderService.name, () => {
       expect(total).toBeNull();
     });
 
+    it("asks the chain for the state the caller named", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentHttpService } = setup({ wallet, listedDseqs: ["100"] });
+
+      await service.list({ query: { userId: wallet.userId }, state: "closed", skip: 0, limit: 10 });
+
+      expect(deploymentHttpService.findAll).toHaveBeenCalledWith(expect.objectContaining({ owner: wallet.address, state: "closed" }));
+    });
+
+    it("counts the state the caller named rather than the default", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentRepository } = setup({ wallet, listedDseqs: ["100"] });
+
+      await service.list({ query: { userId: wallet.userId }, state: "closed", skip: 0, limit: 10 });
+
+      expect(deploymentRepository.countByOwnerAndState).toHaveBeenCalledWith(wallet.address, "closed");
+    });
+
+    it("asks the chain for the newest deployments first when the caller reverses the order", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentHttpService } = setup({ wallet, listedDseqs: ["100"] });
+
+      await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10, reverse: true });
+
+      expect(deploymentHttpService.findAll).toHaveBeenCalledWith(expect.objectContaining({ pagination: expect.objectContaining({ reverse: true }) }));
+    });
+
+    it("forwards the state and the order to the database it falls back to", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentHttpService, fallbackDeploymentReaderService } = setup({ wallet, listedDseqs: ["100"] });
+      deploymentHttpService.findAll.mockRejectedValue(createNetworkError("ECONNRESET"));
+
+      await service.list({ query: { userId: wallet.userId }, state: "closed", skip: 0, limit: 10, reverse: true });
+
+      expect(fallbackDeploymentReaderService.findAll).toHaveBeenCalledWith(expect.objectContaining({ state: "closed", reverse: true }));
+    });
+
+    it("returns the resource groups the chain described for each deployment", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const groups = [createDeploymentInfoGroupSeed({ owner: wallet.address, dseq: "100" })];
+      const { service } = setup({ wallet, listedDseqs: ["100"], listedGroups: groups });
+
+      const { deployments } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
+
+      expect(deployments[0].groups).toEqual(groups);
+    });
+
     it("forwards pagination as flat skip/limit when falling back to database", async () => {
       const deploymentList = createDeploymentListResponseSeed({}, 2);
       const wallet = createUserWallet() as WalletInitialized;
@@ -522,6 +569,7 @@ describe(DeploymentReaderService.name, () => {
       recorded?: (Pick<DeploymentSettingsOutput, "sdl" | "manifestVersion"> & { name?: string | null }) | null;
       listedDseqs?: string[];
       names?: Record<string, string | null>;
+      listedGroups?: ReturnType<typeof createDeploymentInfoGroupSeed>[];
       nextKey?: string | null;
       chainTotal?: string;
       deploymentCount?: number;
@@ -532,7 +580,7 @@ describe(DeploymentReaderService.name, () => {
     const defaultDeploymentInfo = createDeploymentInfoSeed();
     const defaultDeploymentList = input.listedDseqs
       ? {
-          deployments: input.listedDseqs.map(dseq => createDeploymentInfoSeed({ owner: wallet.address, dseq })),
+          deployments: input.listedDseqs.map(dseq => createDeploymentInfoSeed({ owner: wallet.address, dseq, groups: input.listedGroups })),
           pagination: { next_key: input.nextKey ?? null, total: input.chainTotal ?? String(input.listedDseqs.length) }
         }
       : createDeploymentListResponseSeed({}, 0);
