@@ -1,4 +1,14 @@
-import type { DeploymentDto, DeploymentGroup, DeploymentResource_V2, DeploymentResource_V3, LeaseDto, RpcDeployment, RpcLease } from "@src/types/deployment";
+import type {
+  DeploymentDto,
+  DeploymentGroup,
+  DeploymentResource_V2,
+  DeploymentResource_V3,
+  LeaseDto,
+  ListDeploymentsItem,
+  ListedDeploymentDto,
+  RpcDeployment,
+  RpcLease
+} from "@src/types/deployment";
 import { coinToUDenom } from "./priceUtils";
 
 export function deploymentResourceSum(deployment: RpcDeployment, resourceMapper: (resource: DeploymentResource_V2 | DeploymentResource_V3) => number): number {
@@ -53,6 +63,16 @@ export function deploymentToDto(d: RpcDeployment): DeploymentDto {
   };
 }
 
+/** The console API answers with the chain's own deployment shape plus what it records, so the chain half maps through `deploymentToDto` unchanged. */
+export function listedDeploymentToDto(item: ListDeploymentsItem): ListedDeploymentDto {
+  return {
+    ...deploymentToDto(item as RpcDeployment),
+    name: item.name,
+    leases: item.leases.map(lease => leaseToDto({ lease } as Pick<RpcLease, "lease">, item as Pick<RpcDeployment, "groups">)),
+    settings: item.settings
+  };
+}
+
 export function convertToArrayIfNeeded<T>(arrayOrItem: T | T[]) {
   return Array.isArray(arrayOrItem) ? arrayOrItem : [arrayOrItem];
 }
@@ -69,7 +89,7 @@ export const getStorageAmount = (resource: DeploymentResource_V2 | DeploymentRes
   return storage;
 };
 
-export function leaseToDto(lease: RpcLease, deployment: Pick<RpcDeployment, "groups">): LeaseDto {
+export function leaseToDto(lease: Pick<RpcLease, "lease">, deployment: Pick<RpcDeployment, "groups">): LeaseDto {
   const group = deployment ? deployment.groups.filter(g => g.id.gseq === lease.lease.id.gseq)[0] : ({} as DeploymentGroup);
   return {
     id: lease.lease.id.dseq + lease.lease.id.gseq + lease.lease.id.oseq,

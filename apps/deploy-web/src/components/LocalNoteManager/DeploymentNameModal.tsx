@@ -73,6 +73,7 @@ export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, d
         onSuccess: function reportRenameSaved() {
           queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq: renamedDseq }) });
           queryClient.invalidateQueries({ queryKey: api.v1.listDeploymentNames.getKey() });
+          queryClient.invalidateQueries({ queryKey: api.v1.listDeployments.getKey() });
           enqueueSnackbar(<Snackbar title="Success!" iconVariant="success" />, { variant: "success", autoHideDuration: 1000 });
           onSaved(renamedDseq);
         },

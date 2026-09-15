@@ -26,13 +26,34 @@ describe("DeploymentsListPage", () => {
     expect(useFlag).toHaveBeenCalledWith("ui_deployments_list_redesign");
   });
 
-  function setup(input: { isRedesignEnabled: boolean }) {
-    const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(() => input.isRedesignEnabled);
+  it("leaves the redesigned list on the chain while the api flag is off", () => {
+    const { DeploymentsList, useFlag, useChainDeploymentsListSource } = setup({ isRedesignEnabled: true, isApiListEnabled: false });
+
+    expect(useFlag).toHaveBeenCalledWith("ui_deployments_list_api");
+    expect(DeploymentsList).toHaveBeenCalledWith(expect.objectContaining({ useDeploymentsListSource: useChainDeploymentsListSource }), expect.anything());
+  });
+
+  it("points the redesigned list at the console api once its flag is on", () => {
+    const { DeploymentsList, useApiDeploymentsListSource } = setup({ isRedesignEnabled: true, isApiListEnabled: true });
+
+    expect(DeploymentsList).toHaveBeenCalledWith(expect.objectContaining({ useDeploymentsListSource: useApiDeploymentsListSource }), expect.anything());
+  });
+
+  function setup(input: { isRedesignEnabled: boolean; isApiListEnabled?: boolean }) {
+    const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(flag =>
+      flag === "ui_deployments_list_api" ? input.isApiListEnabled ?? false : input.isRedesignEnabled
+    );
     const DeploymentList = vi.fn(() => <div>current list</div>);
     const DeploymentsList = vi.fn(() => <div>redesigned list</div>);
+    const useChainDeploymentsListSource = vi.fn<typeof DEPENDENCIES.useChainDeploymentsListSource>();
+    const useApiDeploymentsListSource = vi.fn<typeof DEPENDENCIES.useApiDeploymentsListSource>();
 
-    render(<DeploymentsListPage dependencies={MockComponents(DEPENDENCIES, { useFlag, DeploymentList, DeploymentsList })} />);
+    render(
+      <DeploymentsListPage
+        dependencies={MockComponents(DEPENDENCIES, { useFlag, DeploymentList, DeploymentsList, useChainDeploymentsListSource, useApiDeploymentsListSource })}
+      />
+    );
 
-    return { useFlag };
+    return { useFlag, DeploymentsList, useChainDeploymentsListSource, useApiDeploymentsListSource };
   }
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { NamedDeploymentDto } from "@src/types/deployment";
+import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { DeploymentsCollectionProps } from "./DeploymentsCollection";
 import { DEPENDENCIES, DeploymentsList } from "./DeploymentsList";
 import type { useDeploymentsListModel } from "./useDeploymentsListModel";
@@ -320,7 +320,7 @@ describe("DeploymentsList", () => {
   });
 
   function namedDeployment(dseq: string) {
-    return mock<NamedDeploymentDto>({ dseq, state: "closed" });
+    return mock<ListedDeploymentDto>({ dseq, state: "closed" });
   }
 
   function setup(modelOverrides: Partial<Model>, options: { isBlockchainDown?: boolean } = {}) {
@@ -394,6 +394,7 @@ describe("DeploymentsList", () => {
 
     render(
       <DeploymentsList
+        useDeploymentsListSource={vi.fn()}
         dependencies={MockComponents(DEPENDENCIES, {
           useDeploymentsListModel,
           useBlockchainStatus,

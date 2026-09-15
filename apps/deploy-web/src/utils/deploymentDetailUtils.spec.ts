@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { RpcLease } from "@src/types/deployment";
-import { deploymentToDto, leaseToDto } from "./deploymentDetailUtils";
+import type { ListDeploymentsItem, RpcLease } from "@src/types/deployment";
+import { deploymentToDto, leaseToDto, listedDeploymentToDto } from "./deploymentDetailUtils";
 
 describe("deploymentDetailUtils", () => {
   describe("leaseToDto", () => {
@@ -111,6 +111,37 @@ describe("deploymentDetailUtils", () => {
         startedAt: "1700000000",
         window: "3600s"
       });
+    });
+  });
+
+  describe("listedDeploymentToDto", () => {
+    it("carries the name, the leases and the console's record the api answered with", () => {
+      const item = listedItem();
+
+      const listed = listedDeploymentToDto(item);
+
+      expect(listed.name).toBe("web");
+      expect(listed.leases?.map(lease => lease.dseq)).toEqual(["1234"]);
+      expect(listed.settings).toBe(item.settings);
+      expect(listed.dseq).toBe("1234");
+    });
+
+    it("reports no name for a deployment the console never named", () => {
+      const listed = listedDeploymentToDto({ ...listedItem(), name: null });
+
+      expect(listed.name).toBeNull();
+    });
+
+    it("reports no record for a deployment the console holds none of", () => {
+      const listed = listedDeploymentToDto({ ...listedItem(), settings: null });
+
+      expect(listed.settings).toBeNull();
+    });
+
+    it("sizes each lease from the group it belongs to", () => {
+      const listed = listedDeploymentToDto(listedItem());
+
+      expect(listed.leases?.[0].cpuAmount).toBe(1);
     });
   });
 
@@ -227,4 +258,57 @@ describe("deploymentDetailUtils", () => {
       });
     });
   });
+
+  function listedItem(): ListDeploymentsItem {
+    return {
+      deployment: { id: { owner: "akash1owner", dseq: "1234" }, state: "active", hash: "hash", created_at: "1" },
+      groups: [
+        {
+          id: { owner: "akash1owner", dseq: "1234", gseq: 1 },
+          state: "open",
+          group_spec: {
+            name: "web",
+            requirements: { signed_by: { all_of: [], any_of: [] }, attributes: [] },
+            resources: [
+              {
+                resource: {
+                  id: 1,
+                  cpu: { units: { val: "1000" }, attributes: [] },
+                  memory: { quantity: { val: "536870912" }, attributes: [] },
+                  storage: [{ name: "default", quantity: { val: "536870912" }, attributes: [] }],
+                  gpu: { units: { val: "0" }, attributes: [] },
+                  endpoints: [{ kind: "SHARED_HTTP", sequence_number: 0 }]
+                },
+                count: 1,
+                price: { denom: "uakt", amount: "100" }
+              }
+            ]
+          },
+          created_at: "1"
+        }
+      ],
+      leases: [
+        {
+          id: { owner: "akash1owner", dseq: "1234", gseq: 1, oseq: 1, provider: "akash1provider", bseq: 1 },
+          state: "active",
+          price: { denom: "uakt", amount: "100" },
+          created_at: "1",
+          closed_on: "0"
+        }
+      ],
+      escrow_account: {
+        id: { scope: "deployment", xid: "1234" },
+        state: {
+          owner: "akash1owner",
+          state: "open",
+          transferred: [{ denom: "uakt", amount: "0" }],
+          settled_at: "1",
+          funds: [{ denom: "uakt", amount: "5000000" }],
+          deposits: []
+        }
+      },
+      name: "web",
+      settings: { name: "web", autoTopUpEnabled: true, runtimeLimitHours: null, runtimeEndsAt: null, closed: false }
+    };
+  }
 });
