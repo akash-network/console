@@ -8,31 +8,20 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe("DeploymentEndpoints", () => {
-  it("renders a single endpoint as a link to the service", () => {
+  it("names a lone endpoint alongside its host and port, the way the panel names every other one", () => {
     setup({ endpoints: [endpoint({ serviceName: "site", host: "acmecorp.com", port: 443 })] });
 
     const link = screen.getByRole("link");
     expect(link).toHaveAttribute("href", "http://acmecorp.com:443");
+    expect(link).toHaveTextContent("site");
     expect(link).toHaveTextContent("acmecorp.com");
+    expect(link).toHaveTextContent(":443");
   });
 
-  it("leaves the service name off a lone endpoint, which has nothing to be told apart from", () => {
-    setup({ endpoints: [endpoint({ serviceName: "site", host: "acmecorp.com", port: 443 })] });
+  it("keeps the port of a lone endpoint that serves on 80, so every endpoint reads the same way", () => {
+    setup({ endpoints: [endpoint({ serviceName: "web", host: "acmecorp.com", port: 80 })] });
 
-    expect(screen.queryByText("site")).not.toBeInTheDocument();
-  });
-
-  it("drops the port of a lone endpoint that serves on 80, where it tells the reader nothing", () => {
-    setup({ endpoints: [endpoint({ host: "acmecorp.com", port: 80 })] });
-
-    expect(screen.getByRole("link")).toHaveTextContent("acmecorp.com");
-    expect(screen.getByRole("link")).not.toHaveTextContent(":80");
-  });
-
-  it("keeps the port of a lone endpoint that serves anywhere else, which the reader needs to reach it", () => {
-    setup({ endpoints: [endpoint({ host: "acmecorp.com", port: 8080 })] });
-
-    expect(screen.getByRole("link")).toHaveTextContent("acmecorp.com:8080");
+    expect(screen.getByRole("link")).toHaveTextContent(":80");
   });
 
   it("offers a count rather than the endpoints themselves once there are several", () => {

@@ -5,7 +5,6 @@ import { cn } from "@akashnetwork/ui/utils";
 import { ArrowUpRight, NavArrowDown } from "iconoir-react";
 
 import type { VisitEndpoint } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
-import { endpointLabel } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
 import type { UnreachableReason } from "./useDeploymentReachability";
 
 const UNREACHABLE_LABELS: Record<UnreachableReason, string> = {
@@ -13,6 +12,14 @@ const UNREACHABLE_LABELS: Record<UnreachableReason, string> = {
   "provider-unreachable": "endpoints unavailable · provider unreachable",
   "no-public-endpoint": "private · no public endpoint"
 };
+
+const EndpointParts: FC<{ endpoint: VisitEndpoint }> = ({ endpoint }) => (
+  <>
+    <span className="shrink-0 truncate uppercase text-muted-foreground">{endpoint.serviceName}</span>
+    <span className="truncate group-hover:underline">{endpoint.host}</span>
+    <span className="shrink-0 text-muted-foreground">:{endpoint.port}</span>
+  </>
+);
 
 export interface DeploymentEndpointsProps {
   endpoints: VisitEndpoint[];
@@ -42,9 +49,9 @@ export const DeploymentEndpoints: FC<DeploymentEndpointsProps> = ({ endpoints, i
         target="_blank"
         rel="noreferrer"
         onClick={event => event.stopPropagation()}
-        className={cn("group inline-flex max-w-full items-center gap-1 font-mono text-xs", className)}
+        className={cn("group inline-flex max-w-full items-center gap-2 font-mono text-xs", className)}
       >
-        <span className="truncate group-hover:underline">{endpointLabel(endpoint)}</span>
+        <EndpointParts endpoint={endpoint} />
         <ArrowUpRight className="h-3 w-3 shrink-0 text-muted-foreground" />
         <span className="sr-only">opens in a new tab</span>
       </a>
@@ -76,9 +83,7 @@ export const DeploymentEndpointsPanel: FC<{ endpoints: VisitEndpoint[] }> = ({ e
         onClick={event => event.stopPropagation()}
         className="group grid grid-cols-[minmax(0,6rem)_minmax(0,1fr)_auto] items-baseline gap-3 font-mono text-xs"
       >
-        <span className="truncate uppercase text-muted-foreground">{endpoint.serviceName}</span>
-        <span className="truncate group-hover:underline">{endpoint.host}</span>
-        <span className="text-muted-foreground">:{endpoint.port}</span>
+        <EndpointParts endpoint={endpoint} />
         <span className="sr-only">opens in a new tab</span>
       </a>
     ))}
