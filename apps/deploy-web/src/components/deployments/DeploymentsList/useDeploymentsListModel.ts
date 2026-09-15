@@ -191,11 +191,7 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     isArchivePaginated,
     goToPreviousArchivePage,
     goToNextArchivePage,
-    /**
-     * Reads the archive as well as the active list, since the size it sets pages both and an account whose
-     * deployments are all closed has only the archive. Survives the page size growing past the last page, so
-     * the selector that did it stays on screen to undo it.
-     */
+    /** Survives the page size growing past the last page, so the selector that did it stays on screen to undo it. */
     showPageSizeSelector: (hasPageResults || archiveDeployments.length > 0) && (isPaginated || isArchivePaginated || pageSize !== DEFAULT_PAGE_SIZE),
     isInitialLoad,
     selectedItemIds,
