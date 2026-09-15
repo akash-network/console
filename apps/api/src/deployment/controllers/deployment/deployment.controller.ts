@@ -83,7 +83,7 @@ export class DeploymentController {
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
-  async list({ skip, limit }: { skip?: number; limit?: number }): Promise<z.infer<typeof ListDeploymentsResponseSchema>> {
+  async list({ skip, limit }: { skip: number; limit: number }): Promise<z.infer<typeof ListDeploymentsResponseSchema>> {
     const { deployments, total, hasMore } = await this.deploymentReaderService.list({
       query: {
         userId: this.authService.currentUser.id
@@ -97,8 +97,8 @@ export class DeploymentController {
         deployments,
         pagination: {
           total,
-          skip: skip ?? 0,
-          limit: limit ?? total,
+          skip,
+          limit,
           hasMore
         }
       }

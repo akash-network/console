@@ -20,6 +20,7 @@ import { ManagedSignerService } from "@src/billing/services";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { CORE_CONFIG } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { deploymentListMaxLimit } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
@@ -399,7 +400,9 @@ describe("Deployments API", () => {
       const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
       const { userApiKeySecret, user, wallets } = await mockPersistedUser();
       await setupDeploymentInfoMock(wallets, dseq);
-      await container.resolve(DeploymentSettingRepository).upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG", name: "web" });
+      await container
+        .resolve(DeploymentSettingRepository)
+        .upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG", name: "web" });
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "GET",
@@ -505,7 +508,7 @@ describe("Deployments API", () => {
       expect(result.data.find(error => error.path.join(".") === "dseq")?.message).toContain("Expected bigint, received string");
     });
 
-    it("returns all deployments when skip and limit are not provided", async () => {
+    it("returns the first page of deployments when skip and limit are not provided", async () => {
       const { userApiKeySecret, wallets } = await mockUser();
       const deployments = setupDeploymentListMock(wallets, 2);
 
@@ -579,8 +582,8 @@ describe("Deployments API", () => {
         .reply(200, {
           deployments: deployments.slice(0, 1),
           pagination: {
-            total: deployments.length,
-            next_key: null
+            total: "1",
+            next_key: "cursor"
           }
         });
 
@@ -606,6 +609,60 @@ describe("Deployments API", () => {
           hasMore: true
         }
       });
+    });
+
+    it("reports no further page when the chain offers no cursor, however many it says there are", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      const deployments = setupDeploymentListMock(wallets, 2, "active");
+
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .persist()
+        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
+        .reply(200, { deployments: deployments.slice(0, 1), pagination: { total: "99", next_key: null } });
+
+      const response = await app.request("/v1/deployments?skip=0&limit=1", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: { pagination: { hasMore: boolean } } };
+      expect(result.data.pagination.hasMore).toBe(false);
+    });
+
+    it("asks the chain for a page no larger than the cap when the request names no limit", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      const deployments = setupDeploymentListMock(wallets, 1, "active");
+      const requestedUris: string[] = [];
+
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .persist()
+        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
+        .reply(200, function replyToDeploymentList(uri) {
+          requestedUris.push(uri);
+          return { deployments, pagination: { total: String(deployments.length), next_key: null } };
+        });
+
+      const response = await app.request("/v1/deployments", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      expect(new URL(requestedUris[0], "http://chain").searchParams.get("pagination.limit")).toBe(String(deploymentListMaxLimit));
+      const result = (await response.json()) as { data: { pagination: { limit: number; skip: number } } };
+      expect(result.data.pagination).toMatchObject({ limit: deploymentListMaxLimit, skip: 0 });
+    });
+
+    it("returns 400 for a page larger than the cap", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request(`/v1/deployments?limit=${deploymentListMaxLimit + 1}`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
     });
 
     it("returns 400 if skip is negative", async () => {

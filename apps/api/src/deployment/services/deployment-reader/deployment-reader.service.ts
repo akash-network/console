@@ -24,6 +24,7 @@ import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-
 import { Memoize } from "@src/caching/helpers";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { ConsoleSettings, DeploymentResponse, GetDeploymentResponse, ListDeploymentsItem } from "@src/deployment/http-schemas/deployment.schema";
+import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -46,6 +47,7 @@ export class DeploymentReaderService {
     private readonly messageService: MessageService,
     private readonly walletReaderService: WalletReaderService,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
+    private readonly deploymentRepository: DeploymentRepository,
     private readonly authService: AuthService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -159,24 +161,27 @@ export class DeploymentReaderService {
     }
   }
 
+  /**
+   * `total` is counted from the console's own chain index rather than from the chain's answer, which reports the size
+   * of the page it just returned whenever an owner filter and an offset are combined. `hasMore` follows the cursor
+   * for the same reason.
+   */
   public async list({
     query,
     skip,
     limit
   }: {
     query: { userId: string };
-    skip?: number;
-    limit?: number;
+    skip: number;
+    limit: number;
   }): Promise<{ deployments: ListDeploymentsItem[]; total: number; hasMore: boolean }> {
     const wallet = await this.walletReaderService.getWalletByUserId(query.userId);
     const { address: owner } = wallet;
-    const deploymentReponse = await this.getDeploymentsList(
-      skip !== undefined
-        ? { owner, state: "active", pagination: { offset: skip, limit } }
-        : { owner, state: "active", pagination: limit !== undefined ? { limit } : undefined }
-    );
+    const [deploymentReponse, total] = await Promise.all([
+      this.getDeploymentsList({ owner, state: "active", pagination: { offset: skip, limit } }),
+      this.deploymentRepository.countByOwnerAndState(owner, "active")
+    ]);
     const deployments = deploymentReponse.deployments;
-    const total = parseInt(deploymentReponse.pagination.total, 10);
 
     const [{ results: leaseResults }, names] = await Promise.all([
       PromisePool.withConcurrency(100)
@@ -201,7 +206,7 @@ export class DeploymentReaderService {
     return {
       deployments: deploymentsWithLeases,
       total,
-      hasMore: skip !== undefined && limit !== undefined ? total > skip + limit : false
+      hasMore: !!deploymentReponse.pagination.next_key
     };
   }
 

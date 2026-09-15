@@ -8626,9 +8626,11 @@ export interface operations {
                 name: string | null;
               }[];
               pagination: {
+                /** @description Deployments the owner holds in this state, counted from the console's chain index, so it can trail the chain by a block. */
                 total: number;
                 skip: number;
                 limit: number;
+                /** @description Whether the chain offered a cursor to a further page. */
                 hasMore: boolean;
               };
             };
