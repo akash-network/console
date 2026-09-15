@@ -350,12 +350,21 @@ export const deploymentListMaxLimit = 100;
 /** One page of any list that shows names is at most this long, so a lookup never asks for more than a screen shows. */
 export const MAX_DEPLOYMENT_NAMES_PER_REQUEST = 100;
 
+/** The answer is keyed by what was asked, so only the canonical spelling is accepted: a leading zero would come back under a key the caller never sent. */
+const CanonicalDseqSchema = z
+  .string()
+  .regex(/^[1-9]\d*$/)
+  .openapi({ pattern: "^[1-9]\\d*$" });
+
 /** Hono hands a query key given once as a string and a repeated one as an array, and both spell one lookup. */
-const RepeatedDseqSchema = z.preprocess(value => (Array.isArray(value) ? value : [value]), z.array(DseqSchema).min(1).max(MAX_DEPLOYMENT_NAMES_PER_REQUEST));
+const RepeatedDseqSchema = z.preprocess(
+  value => (Array.isArray(value) ? value : [value]),
+  z.array(CanonicalDseqSchema).min(1).max(MAX_DEPLOYMENT_NAMES_PER_REQUEST)
+);
 
 export const GetDeploymentNamesQuerySchema = z.object({
   dseq: RepeatedDseqSchema.openapi({
-    description: `Deployment sequence numbers to resolve names for, repeated once per deployment, at most ${MAX_DEPLOYMENT_NAMES_PER_REQUEST} per request.`
+    description: `Deployment sequence numbers to resolve names for, repeated once per deployment, at most ${MAX_DEPLOYMENT_NAMES_PER_REQUEST} per request. Written without leading zeros, as the chain reports them.`
   })
 });
 

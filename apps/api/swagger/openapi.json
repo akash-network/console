@@ -5609,11 +5609,11 @@
               "type": "array",
               "items": {
                 "type": "string",
-                "pattern": "^0*[1-9]\\d*$"
+                "pattern": "^[1-9]\\d*$"
               },
               "minItems": 1,
               "maxItems": 100,
-              "description": "Deployment sequence numbers to resolve names for, repeated once per deployment, at most 100 per request."
+              "description": "Deployment sequence numbers to resolve names for, repeated once per deployment, at most 100 per request. Written without leading zeros, as the chain reports them."
             },
             "required": true,
             "name": "dseq",

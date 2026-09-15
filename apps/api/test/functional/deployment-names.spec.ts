@@ -92,6 +92,15 @@ describe("GET /v1/deployment-names", () => {
     expect(Object.keys(((await response.json()) as { data: Record<string, unknown> }).data)).toHaveLength(new Set(dseqs).size);
   });
 
+  it("refuses a dseq spelled with a leading zero, so every answer is keyed by exactly what was asked", async () => {
+    const { apiKey, recordName } = await setup();
+    const named = await recordName("web");
+
+    const response = await getNames(apiKey, [`0${named}`]);
+
+    expect(response.status).toBe(400);
+  });
+
   it("refuses a dseq that is not a deployment sequence number", async () => {
     const { apiKey } = await setup();
 
@@ -105,7 +114,7 @@ describe("GET /v1/deployment-names", () => {
   }
 
   function getNames(apiKey: string | undefined, dseqs: string[]) {
-    const query = new URLSearchParams(dseqs.map(dseq => ["dseq", dseq]));
+    const query = new URLSearchParams(dseqs.map((dseq): [string, string] => ["dseq", dseq]));
     const headers = new Headers();
     if (apiKey) headers.set("x-api-key", apiKey);
 
