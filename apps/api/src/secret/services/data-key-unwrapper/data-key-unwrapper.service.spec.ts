@@ -247,6 +247,21 @@ describe(DataKeyUnwrapperService.name, () => {
       expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(2);
     });
 
+    it("keeps two retired keys of the same user apart in one request", async () => {
+      const { service, inRequest, seedRetiredKey, dataKeyService } = setup();
+      const first = await seedRetiredKey(USER_A);
+      const second = await seedRetiredKey(USER_A);
+
+      const [firstKey, secondKey] = await inRequest(async () => [
+        await (await service.getDataKeyById(USER_A, first.row.id))!.unwrap(),
+        await (await service.getDataKeyById(USER_A, second.row.id))!.unwrap()
+      ]);
+
+      expect(firstKey.equals(first.key)).toBe(true);
+      expect(secondKey.equals(second.key)).toBe(true);
+      expect(dataKeyService.findDataKeyById).toHaveBeenCalledTimes(2);
+    });
+
     it("records the retired row it unwrapped", async () => {
       const { service, inRequest, seedRetiredKey, logger } = setup();
       const retired = await seedRetiredKey(USER_A);
@@ -447,6 +462,20 @@ describe(DataKeyUnwrapperService.name, () => {
     dataKeyService.ensureDataKey.mockRejectedValue(new Error("no row"));
 
     await inRequest(async () => await expect(service.getDataKey(USER_A)).rejects.toThrow("no row"));
+  });
+
+  it("reads the row again after a read that failed earlier in the same request", async () => {
+    const { service, inRequest, dataKeyService, keyFor } = setup();
+    dataKeyService.ensureDataKey.mockRejectedValueOnce(new Error("no row"));
+
+    const key = await inRequest(async () => {
+      await expect(service.getDataKey(USER_A)).rejects.toThrow("no row");
+
+      return await (await service.getDataKey(USER_A)).unwrap();
+    });
+
+    expect(key.equals(keyFor(USER_A))).toBe(true);
+    expect(dataKeyService.ensureDataKey).toHaveBeenCalledTimes(2);
   });
 
   it("measures one unwrap for a request that unwrapped one user's key twice", async () => {

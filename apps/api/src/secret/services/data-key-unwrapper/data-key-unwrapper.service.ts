@@ -47,11 +47,7 @@ export class DataKeyUnwrapperService {
   }
 
   async getDataKey(userId: string): Promise<HeldDataKey> {
-    const held = await this.#holdOnce(userId, userId, async () => await this.dataKeyService.ensureDataKey(userId));
-
-    if (!held) throw this.#rejectUnreadable("USER_DATA_KEY_MISSING", { userId });
-
-    return held;
+    return await this.#holdOnce(userId, userId, async () => await this.dataKeyService.ensureDataKey(userId));
   }
 
   /** Serves a value sealed under a key other than the active one, such as one retired while its values are re-sealed; undefined when the user owns no such key. */
@@ -60,6 +56,8 @@ export class DataKeyUnwrapperService {
   }
 
   /** Callers racing for the same key share one holding from before the row is read, so the row is read and the key unwrapped once for the request; a miss is forgotten so the next ask reads again. */
+  #holdOnce(userId: string, heldAs: string, readDataKey: () => Promise<DataKeyOutput>): Promise<HeldDataKey>;
+  #holdOnce(userId: string, heldAs: string, readDataKey: () => Promise<DataKeyOutput | undefined>): Promise<HeldDataKey | undefined>;
   async #holdOnce(userId: string, heldAs: string, readDataKey: () => Promise<DataKeyOutput | undefined>): Promise<HeldDataKey | undefined> {
     const heldThisRequest = this.#heldDataKeys(userId);
     const held = heldThisRequest.get(heldAs);

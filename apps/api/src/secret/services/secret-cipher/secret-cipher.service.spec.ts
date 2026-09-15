@@ -75,10 +75,12 @@ describe(SecretCipherService.name, () => {
   });
 
   it("rejects a value recorded against a different data key record", async () => {
-    const { service, key } = setup();
+    const { service, key, logger } = setup();
     const encryptedForAnotherRecord = await setup({ dataKeyId: OTHER_DATA_KEY_ID, key }).service.encrypt(USER_ID, "value", BINDING);
 
     await expect(service.decrypt(USER_ID, encryptedForAnotherRecord, BINDING)).rejects.toMatchObject({ status: 500 });
+
+    expect(logger.error).toHaveBeenCalledWith({ event: "SECRET_VALUE_DATA_KEY_MISMATCH", userId: USER_ID, received: OTHER_DATA_KEY_ID, expected: DATA_KEY_ID });
   });
 
   it("spends no unwrap on a value recorded against a different data key record", async () => {
@@ -274,6 +276,16 @@ describe(SecretCipherService.name, () => {
     await service.decrypt(USER_ID, encrypted, BINDING);
 
     expect(dataKeyUnwrapperService.getDataKeyById).not.toHaveBeenCalled();
+  });
+
+  it("asks for no key by id for a value that names no data key record", async () => {
+    const { service, dataKeyUnwrapperService, key, logger } = setup();
+    const unnamed = await new CompactEncrypt(new TextEncoder().encode("value")).setProtectedHeader({ ...BINDING, alg: "dir", enc: "A256GCM" }).encrypt(key);
+
+    await expect(service.decrypt(USER_ID, unnamed, BINDING)).rejects.toMatchObject({ status: 500 });
+
+    expect(dataKeyUnwrapperService.getDataKeyById).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SECRET_VALUE_DATA_KEY_MISMATCH", expected: DATA_KEY_ID }));
   });
 
   it("seals new values under the active key while a retired one still opens old ones", async () => {
