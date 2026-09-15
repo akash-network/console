@@ -320,6 +320,16 @@ describe(useDeploymentFlow.name, () => {
     }
   });
 
+  it("records no name in this browser, because the create request is what carries it", () => {
+    const createDeployment = mockMutation();
+    createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
+    const { result, deploymentLocalStorage } = renderFlow({ createDeployment });
+
+    act(() => result.current.actions.requestQuotes("SDL_AT_CREATE", "my-app"));
+
+    expect(deploymentLocalStorage.update).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ name: expect.anything() }));
+  });
+
   it("caches the created SDL by the settings id and dseq at create time so an in-progress deployment can be resumed after a reload", () => {
     const createDeployment = mockMutation();
     createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
