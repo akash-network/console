@@ -84,13 +84,14 @@ export class DeploymentController {
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
-  async list({ state, reverse, skip, limit }: ListDeploymentsQuery): Promise<z.infer<typeof ListDeploymentsResponseSchema>> {
+  async list({ state, reverse, search, skip, limit }: ListDeploymentsQuery): Promise<z.infer<typeof ListDeploymentsResponseSchema>> {
     const { deployments, total, hasMore } = await this.deploymentReaderService.list({
       query: {
         userId: this.authService.currentUser.id
       },
       state,
       reverse,
+      search,
       skip,
       limit
     });

@@ -8572,6 +8572,7 @@ export interface operations {
       query?: {
         state?: "active" | "closed";
         reverse?: "true" | "false";
+        search?: string;
         skip?: number | null;
         limit?: number;
       };
@@ -8755,8 +8756,22 @@ export interface operations {
           };
         };
       };
-      /** @description `state` names neither `active` nor `closed`, `reverse` names neither `true` nor `false`, `skip` is below zero, or `limit` is not a whole number between 1 and the page cap */
+      /** @description `state` names neither `active` nor `closed`, `reverse` names neither `true` nor `false`, `skip` is below zero, `limit` is not a whole number between 1 and the page cap, or `search` is longer than a deployment name may be */
       400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description The owner holds more deployments than a search spans. Page through them without a `search` instead */
+      422: {
         headers: {
           [name: string]: unknown;
         };

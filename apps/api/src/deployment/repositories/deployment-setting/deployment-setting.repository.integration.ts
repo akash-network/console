@@ -701,6 +701,22 @@ describe(DeploymentSettingRepository.name, () => {
       expect(settings.has(unrecorded)).toBe(false);
     });
 
+    it("reads every row the caller holds when asked about no dseq in particular", async () => {
+      const { deploymentSettingRepository, user, trialUser, abilityFor } = await setup();
+      const mine = newDseq();
+      const alsoMine = newDseq();
+      const theirs = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: mine, sdl: SDL, manifestVersion: "BAUG", name: "web" });
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: alsoMine, sdl: SDL, manifestVersion: "BAUG", name: "db" });
+      await deploymentSettingRepository.upsertDefinition({ userId: trialUser.id, dseq: theirs, sdl: SDL, manifestVersion: "BAUG", name: "not mine" });
+
+      const settings = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findListedSettings({ userId: user.id });
+
+      expect(settings.get(mine)?.name).toBe("web");
+      expect(settings.get(alsoMine)?.name).toBe("db");
+      expect(settings.has(theirs)).toBe(false);
+    });
+
     it("refuses to read settings belonging to another user holding the same dseq", async () => {
       const { deploymentSettingRepository, user, trialUser, abilityFor } = await setup();
       const dseq = newDseq();
