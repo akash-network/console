@@ -62,17 +62,17 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
       <TableRow className={cn(isShowingEndpointPanel && "border-b-0")}>
         <TableCell>
           <div className="flex flex-col items-start gap-1">
-            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized />
+            <div className="flex flex-wrap items-center gap-1.5">
+              <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized />
+              <d.DeploymentBadges deployment={deployment} />
+            </div>
             <d.ReclamationCountdown leases={leases} />
           </div>
         </TableCell>
         <TableCell>
-          <div className="flex flex-col gap-1">
-            <Link href={UrlService.deploymentDetails(deployment.dseq)} className="block truncate font-semibold hover:underline">
-              {deployment.name || `Deployment #${deployment.dseq}`}
-            </Link>
-            <d.DeploymentBadges deployment={deployment} />
-          </div>
+          <Link href={UrlService.deploymentDetails(deployment.dseq)} className="block truncate font-semibold hover:underline">
+            {deployment.name || `Deployment #${deployment.dseq}`}
+          </Link>
         </TableCell>
         <TableCell>
           <d.DeploymentEndpoints

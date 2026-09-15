@@ -113,11 +113,17 @@ describe("DeploymentRow", () => {
     return { serviceName: "api", host, port: 443, href: `http://${host}:443` };
   }
 
-  it("shows the deployment's own trial and interconnect badges under its name", () => {
+  it("keeps the trial and interconnect badges in the status cell, so a badge cannot deepen the row", () => {
     const { DeploymentBadges, deployment } = setup({ deployment: { dseq: "100", name: "acme" } });
 
-    expect(screen.getByText("badges")).toBeInTheDocument();
+    expect(screen.getAllByRole("cell")[0]).toContainElement(screen.getByText("badges"));
     expect(DeploymentBadges.mock.calls[0][0]).toEqual(expect.objectContaining({ deployment }));
+  });
+
+  it("leaves the deployment cell to the name alone, so its column keeps its declared width", () => {
+    setup({ deployment: { dseq: "100", name: "acme" } });
+
+    expect(screen.getAllByRole("cell")[1]).not.toContainElement(screen.getByText("badges"));
   });
 
   function setup(input: {
