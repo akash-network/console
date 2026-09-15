@@ -10,7 +10,19 @@ import type { DataKeyOutput } from "./data-key.repository";
 import { DataKeyRepository } from "./data-key.repository";
 
 describe(DataKeyRepository.name, () => {
-  describe("one data key per user", () => {
+  describe("one active data key per user", () => {
+    it("lets a replacement key be created once the user's key is retired", async () => {
+      const { dataKeyRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const retired = await dataKeyRepository.create({ userId: user.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+      await dataKeyRepository.updateById(retired.id, { retiredAt: new Date() });
+
+      const replacement = await dataKeyRepository.create({ userId: user.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+
+      expect(await dataKeyRepository.count({ userId: user.id })).toBe(2);
+      expect(await dataKeyRepository.findByUserId(user.id)).toMatchObject({ id: replacement.id });
+    });
+
     it("rejects a second active data key for the same user", async () => {
       const { dataKeyRepository, createTestUser } = setup();
       const user = await createTestUser();
@@ -47,6 +59,19 @@ describe(DataKeyRepository.name, () => {
       expect(result.isNew).toBe(true);
       expect(result.dataKey).toMatchObject({ userId: user.id, wrappedKey, wrappedByKid });
       expect(await dataKeyRepository.findByUserId(user.id)).toMatchObject({ id: result.dataKey.id, wrappedKey });
+    });
+
+    it("claims the active slot for a user whose only key is retired", async () => {
+      const { dataKeyRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const retired = await dataKeyRepository.create({ userId: user.id, wrappedKey: "retired-blob", wrappedByKid: "sdl-secrets.v1" });
+      await dataKeyRepository.updateById(retired.id, { retiredAt: new Date() });
+
+      const result = await dataKeyRepository.createUnlessExists({ userId: user.id, wrappedKey: "replacement-blob", wrappedByKid: "sdl-secrets.v2" });
+
+      expect(result.isNew).toBe(true);
+      expect(result.dataKey.id).not.toBe(retired.id);
+      expect(await dataKeyRepository.findByUserId(user.id)).toMatchObject({ id: result.dataKey.id, wrappedKey: "replacement-blob" });
     });
 
     it("returns the existing record when one already exists", async () => {
