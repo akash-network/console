@@ -94,6 +94,13 @@ export class DeploymentReaderService {
     return await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findNamesByDseqs({ userId, dseqs });
   }
 
+  /** Answers every dseq asked about, with null where the console holds no name, so a caller never has to tell a missing row from an unnamed one. */
+  public async findNames(userId: string, dseqs: string[]): Promise<Record<string, string | null>> {
+    const names = await this.findNamesFor(userId, dseqs);
+
+    return Object.fromEntries(dseqs.map(dseq => [dseq, names.get(dseq) ?? null]));
+  }
+
   public async findByWalletAndDseq(wallet: WalletInitialized, dseq: string): Promise<DeploymentResponse> {
     const { address: owner } = wallet;
     const deploymentResponse = await this.getDeployment(owner, dseq);

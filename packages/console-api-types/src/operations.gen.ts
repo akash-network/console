@@ -123,6 +123,14 @@ export const operations = {
     },
     updateDeployment: { path: "/v1/deployments/{dseq}", method: "put", operationId: "updateDeployment", pathParams: ["dseq"], queryParams: [], hasBody: true },
     patchDeployment: { path: "/v1/deployments/{dseq}", method: "patch", operationId: "patchDeployment", pathParams: ["dseq"], queryParams: [], hasBody: true },
+    listDeploymentNames: {
+      path: "/v1/deployment-names",
+      method: "get",
+      operationId: "listDeploymentNames",
+      pathParams: [],
+      queryParams: ["dseq"],
+      hasBody: false
+    },
     createDeployment: { path: "/v1/deployments", method: "post", operationId: "createDeployment", pathParams: [], queryParams: [], hasBody: true },
     listDeployments: { path: "/v1/deployments", method: "get", operationId: "listDeployments", pathParams: [], queryParams: ["skip", "limit"], hasBody: false },
     depositDeployment: { path: "/v1/deposit-deployment", method: "post", operationId: "depositDeployment", pathParams: [], queryParams: [], hasBody: true },

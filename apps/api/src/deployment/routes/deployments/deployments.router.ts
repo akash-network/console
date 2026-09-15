@@ -15,6 +15,8 @@ import {
   DepositDeploymentResponseSchema,
   GetDeploymentByOwnerDseqParamsSchema,
   GetDeploymentByOwnerDseqResponseSchema,
+  GetDeploymentNamesQuerySchema,
+  GetDeploymentNamesResponseSchema,
   GetDeploymentParamsSchema,
   GetDeploymentResponseSchema,
   GetWeeklyDeploymentCostResponseSchema,
@@ -71,6 +73,41 @@ const getRoute = createRoute({
 deploymentsRouter.openapi(getRoute, async function routeGetDeployment(c) {
   const { dseq } = c.req.valid("param");
   const result = await container.resolve(DeploymentController).findByDseq(dseq);
+  return c.json(result, 200);
+});
+
+const listNamesRoute = createRoute({
+  method: "get",
+  path: "/v1/deployment-names",
+  summary: "Get the names of several deployments at once",
+  operationId: "listDeploymentNames",
+  tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  request: {
+    query: GetDeploymentNamesQuerySchema
+  },
+  responses: {
+    200: {
+      description: "Returns the name the console holds for each deployment asked about, or null where it holds none",
+      content: {
+        "application/json": {
+          schema: GetDeploymentNamesResponseSchema
+        }
+      }
+    },
+    400: {
+      description: "No `dseq` was given, more than the request limit were, or one is not a deployment sequence number",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    }
+  }
+});
+deploymentsRouter.openapi(listNamesRoute, async function routeListDeploymentNames(c) {
+  const { dseq } = c.req.valid("query");
+  const result = await container.resolve(DeploymentController).findNames(dseq);
   return c.json(result, 200);
 });
 

@@ -11,6 +11,7 @@ import {
   DepositDeploymentRequest,
   DepositDeploymentResponse,
   GetDeploymentByOwnerDseqResponse,
+  GetDeploymentNamesResponse,
   GetDeploymentResponse,
   GetWeeklyDeploymentCostResponse,
   ListDeploymentsResponseSchema,
@@ -39,6 +40,12 @@ export class DeploymentController {
   async findByDseq(dseq: string): Promise<GetDeploymentResponse> {
     const deployment = await this.deploymentReaderService.findByUserIdAndDseq(this.authService.currentUser.id, dseq);
     return { data: deployment };
+  }
+
+  @Protected([{ action: "read", subject: "UserWallet" }])
+  async findNames(dseqs: string[]): Promise<GetDeploymentNamesResponse> {
+    const names = await this.deploymentReaderService.findNames(this.authService.currentUser.id, dseqs);
+    return { data: names };
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])

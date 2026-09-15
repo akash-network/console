@@ -5410,6 +5410,11 @@
                             "state"
                           ]
                         },
+                        "name": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "The name this deployment carries, or null for one created before the console recorded names."
+                        },
                         "manifestVersion": {
                           "type": "string",
                           "description": "Base64 manifest version this patch recorded and committed on chain. Absent for a rename, which records none."
@@ -5418,7 +5423,8 @@
                       "required": [
                         "deployment",
                         "leases",
-                        "escrow_account"
+                        "escrow_account",
+                        "name"
                       ]
                     }
                   },
@@ -5551,6 +5557,96 @@
           },
           "503": {
             "description": "The key management service is temporarily unreachable. Transient and worth retrying, unlike the 500 above",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/deployment-names": {
+      "get": {
+        "summary": "Get the names of several deployments at once",
+        "operationId": "listDeploymentNames",
+        "tags": [
+          "Deployments"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[1-9]\\d*$"
+              },
+              "minItems": 1,
+              "maxItems": 100,
+              "description": "Deployment sequence numbers to resolve names for, repeated once per deployment, at most 100 per request. Written without leading zeros, as the chain reports them."
+            },
+            "required": true,
+            "name": "dseq",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns the name the console holds for each deployment asked about, or null where it holds none",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The name this deployment carries, or null for one created before the console recorded names."
+                      },
+                      "description": "Keyed by the dseqs asked about. Null for a deployment the console holds no name for, whether it recorded nothing or recorded it unnamed."
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No `dseq` was given, more than the request limit were, or one is not a deployment sequence number",
             "content": {
               "application/json": {
                 "schema": {

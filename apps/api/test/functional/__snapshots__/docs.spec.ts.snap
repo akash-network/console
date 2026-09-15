@@ -5495,6 +5495,96 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/deployment-names": {
+      "get": {
+        "operationId": "listDeploymentNames",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "dseq",
+            "required": true,
+            "schema": {
+              "description": "Deployment sequence numbers to resolve names for, repeated once per deployment, at most 100 per request. Written without leading zeros, as the chain reports them.",
+              "items": {
+                "pattern": "^[1-9]\\d*$",
+                "type": "string",
+              },
+              "maxItems": 100,
+              "minItems": 1,
+              "type": "array",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "additionalProperties": {
+                        "description": "The name this deployment carries, or null for one created before the console recorded names.",
+                        "nullable": true,
+                        "type": "string",
+                      },
+                      "description": "Keyed by the dseqs asked about. Null for a deployment the console holds no name for, whether it recorded nothing or recorded it unnamed.",
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns the name the console holds for each deployment asked about, or null where it holds none",
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "No \`dseq\` was given, more than the request limit were, or one is not a deployment sequence number",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Get the names of several deployments at once",
+        "tags": [
+          "Deployments",
+        ],
+      },
+    },
     "/v1/deployment-settings": {
       "post": {
         "requestBody": {

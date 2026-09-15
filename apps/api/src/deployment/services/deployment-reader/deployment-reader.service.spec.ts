@@ -339,6 +339,42 @@ describe(DeploymentReaderService.name, () => {
     });
   });
 
+  describe("findNames", () => {
+    it("answers every dseq asked about, with null for one the console never recorded", async () => {
+      const { service, wallet } = setup({ names: { "100": "web" } });
+
+      const names = await service.findNames(wallet.userId, ["100", "200"]);
+
+      expect(names).toEqual({ "100": "web", "200": null });
+    });
+
+    it("answers null for a deployment the console recorded unnamed", async () => {
+      const { service, wallet } = setup({ names: { "100": null } });
+
+      const names = await service.findNames(wallet.userId, ["100"]);
+
+      expect(names).toEqual({ "100": null });
+    });
+
+    it("looks the names up once, under the caller's own ability and user id", async () => {
+      const { service, wallet, deploymentSettingRepository, scopedDeploymentSettingRepository, authService } = setup({ names: { "100": "web" } });
+
+      await service.findNames(wallet.userId, ["100", "200"]);
+
+      expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
+      expect(scopedDeploymentSettingRepository.findNamesByDseqs).toHaveBeenCalledExactlyOnceWith({ userId: wallet.userId, dseqs: ["100", "200"] });
+    });
+
+    it("reads nothing when asked about no deployment", async () => {
+      const { service, wallet, scopedDeploymentSettingRepository } = setup();
+
+      const names = await service.findNames(wallet.userId, []);
+
+      expect(names).toEqual({});
+      expect(scopedDeploymentSettingRepository.findNamesByDseqs).not.toHaveBeenCalled();
+    });
+  });
+
   describe("listWithResources", () => {
     it("passes status as state with offset pagination when skip is provided", async () => {
       const address = "akash1abc";
