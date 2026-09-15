@@ -1,0 +1,1 @@
+CREATE INDEX "user_id_id_sealed_secrets_idx" ON "deployment_settings" USING btree ("user_id","id") WHERE "deployment_settings"."sealed_secrets" IS NOT NULL;

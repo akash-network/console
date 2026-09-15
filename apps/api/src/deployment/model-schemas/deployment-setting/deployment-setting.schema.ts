@@ -32,6 +32,10 @@ export const DeploymentSettings = pgTable(
   },
   table => ({
     dseqUserIdIdx: unique("dseq_user_id_idx").on(table.dseq, table.userId),
-    idAutoTopUpEnabledClosedIdx: index("id_auto_top_up_enabled_closed_idx").on(table.id, table.autoTopUpEnabled, table.closed)
+    idAutoTopUpEnabledClosedIdx: index("id_auto_top_up_enabled_closed_idx").on(table.id, table.autoTopUpEnabled, table.closed),
+    /** Backs the per-user walk of deployments holding a secret, so a re-key costs that user's rows and not the table. */
+    userIdIdSealedSecretsIdx: index("user_id_id_sealed_secrets_idx")
+      .on(table.userId, table.id)
+      .where(sql`${table.sealedSecrets} IS NOT NULL`)
   })
 );
