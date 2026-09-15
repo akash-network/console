@@ -137,9 +137,12 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
    * What the console holds about one page of deployments, keyed by dseq and absent for a dseq with no row,
    * under the same double scoping as {@link findNamesByDseqs}. The name is read off the same row, so a list
    * joining these needs no separate name lookup.
+   *
+   * Naming no dseq reads every row the caller holds, which is what a search over names costs: it has to know
+   * every name before it can tell which of them the caller's page falls on.
    */
-  async findListedSettings({ userId, dseqs }: { userId: string; dseqs: string[] }): Promise<Map<string, ListedDeploymentSetting>> {
-    if (dseqs.length === 0) {
+  async findListedSettings({ userId, dseqs }: { userId: string; dseqs?: string[] }): Promise<Map<string, ListedDeploymentSetting>> {
+    if (dseqs?.length === 0) {
       return new Map();
     }
 
@@ -153,7 +156,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         runtimeEndsAt: this.table.runtimeEndsAt
       })
       .from(this.table)
-      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs))));
+      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), dseqs ? inArray(this.table.dseq, dseqs) : undefined)));
 
     return new Map(rows.map(({ dseq, ...setting }) => [dseq, setting]));
   }

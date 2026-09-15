@@ -392,7 +392,15 @@ const listRoute = createRoute({
     },
     400: {
       description:
-        "`state` names neither `active` nor `closed`, `reverse` names neither `true` nor `false`, `skip` is below zero, or `limit` is not a whole number between 1 and the page cap",
+        "`state` names neither `active` nor `closed`, `reverse` names neither `true` nor `false`, `skip` is below zero, `limit` is not a whole number between 1 and the page cap, or `search` is longer than a deployment name may be",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    422: {
+      description: "The owner holds more deployments than a search spans. Page through them without a `search` instead",
       content: {
         "application/json": {
           schema: ErrorResponseSchema

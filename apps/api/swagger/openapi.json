@@ -6049,6 +6049,16 @@
           },
           {
             "schema": {
+              "type": "string",
+              "maxLength": 256,
+              "description": "Case-insensitive substring matched against each deployment's console name and its dseq. It spans every deployment in `state` before paging, so `total` and `hasMore` describe the matches rather than the state."
+            },
+            "required": false,
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
               "type": "integer",
               "nullable": true,
               "minimum": 0,
@@ -6753,7 +6763,37 @@
             }
           },
           "400": {
-            "description": "`state` names neither `active` nor `closed`, `reverse` names neither `true` nor `false`, `skip` is below zero, or `limit` is not a whole number between 1 and the page cap",
+            "description": "`state` names neither `active` nor `closed`, `reverse` names neither `true` nor `false`, `skip` is below zero, `limit` is not a whole number between 1 and the page cap, or `search` is longer than a deployment name may be",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The owner holds more deployments than a search spans. Page through them without a `search` instead",
             "content": {
               "application/json": {
                 "schema": {
