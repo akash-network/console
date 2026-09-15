@@ -22,7 +22,6 @@ import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { app } from "@src/rest-app";
 import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
-import { DataKeyService } from "@src/secret/services/data-key/data-key.service";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
 
@@ -83,7 +82,6 @@ describe("Deployment sealed secrets", () => {
   const signerService = container.resolve(ManagedSignerService);
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
   const dataKeyRepository = container.resolve(DataKeyRepository);
-  const dataKeyService = container.resolve(DataKeyService);
 
   let knownUsers: Record<string, UserOutput>;
   let knownApiKeys: Record<string, ReturnType<typeof createApiKey>>;
@@ -851,7 +849,7 @@ describe("Deployment sealed secrets", () => {
       const { apiKey, user } = await persistedUser();
       const source = await persistedSource(apiKey, user, { API_TOKEN: randomUUID() });
       const held = await dataKeyRepository.findByUserId(user.id);
-      vi.spyOn(dataKeyService, "ensureDataKey").mockResolvedValue({ ...held!, id: randomUUID() });
+      await dataKeyRepository.deleteById(held!.id);
 
       const response = await postDeployment(apiKey, source.sdl, undefined, undefined, { inheritSecretsFrom: source.setting.dseq });
 
@@ -864,7 +862,7 @@ describe("Deployment sealed secrets", () => {
       const { apiKey, user } = await persistedUser();
       const source = await persistedSource(apiKey, user, { API_TOKEN: randomUUID() });
       const held = await dataKeyRepository.findByUserId(user.id);
-      vi.spyOn(dataKeyService, "ensureDataKey").mockResolvedValue({ ...held!, id: randomUUID() });
+      await dataKeyRepository.deleteById(held!.id);
 
       const response = await postDeployment(apiKey, source.sdl, undefined, undefined, { inheritSecretsFrom: source.setting.dseq });
 
