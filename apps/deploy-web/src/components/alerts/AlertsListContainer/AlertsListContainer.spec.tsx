@@ -59,7 +59,28 @@ describe(AlertsListContainer.name, () => {
     expect(child.data[0].deploymentName).toBe("web");
   });
 
+  it("leaves an alert that names no deployment on the placeholder", async () => {
+    const withDseq = buildAlert({ type: "DEPLOYMENT_BALANCE", params: { dseq: "4242", owner: "akash1owner" } });
+    const withoutParams = buildAlert({ type: "CHAIN_MESSAGE", params: undefined });
+    const { childCapturer } = await setup({ alerts: [withDseq, withoutParams], names: { "4242": "web" } });
+
+    const child = await childCapturer.awaitChild(({ data }) => data[0]?.deploymentName === "web");
+
+    expect(child.data[1].deploymentName).toBe("NA");
+  });
+
+  it("asks the console only for the deployments the alerts actually name", async () => {
+    const alert = buildAlert({ type: "DEPLOYMENT_BALANCE", params: { dseq: "4242", owner: "akash1owner" } });
+    const { mockFetch, childCapturer } = await setup({ alerts: [alert], names: { "4242": "web" } });
+
+    await childCapturer.awaitChild(({ data }) => data[0]?.deploymentName === "web");
+
+    const namesRequests = mockFetch.mock.calls.map(([url]) => String(url)).filter(url => url.includes("/v1/deployment-names"));
+    expect(namesRequests).toEqual([expect.stringContaining("4242")]);
+  });
+
   async function setup(input: { alerts?: ReturnType<typeof buildAlert>[]; names?: Record<string, string | null> } = {}) {
+    queryClient.clear();
     const mockData = {
       data:
         input.alerts ??

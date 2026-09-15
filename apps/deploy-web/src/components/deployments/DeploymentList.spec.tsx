@@ -104,6 +104,20 @@ describe(DeploymentList.name, () => {
     expect(useDeploymentNames).toHaveBeenLastCalledWith(["100", "200"]);
   });
 
+  it("asks for no names while the page has not loaded", () => {
+    const { useDeploymentNames } = setup();
+
+    expect(useDeploymentNames).toHaveBeenLastCalledWith([]);
+  });
+
+  it("asks for no names while a search's full list has not loaded", async () => {
+    const { useDeploymentNames } = setup({ data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], hasNextPage: false } });
+
+    await userEvent.type(screen.getByRole("textbox"), "999");
+
+    expect(useDeploymentNames).toHaveBeenLastCalledWith([]);
+  });
+
   it("matches a deployment name from the full selected-state list", async () => {
     setup({
       data: { deployments: [mock<DeploymentDto>({ dseq: "100", state: "active" })], hasNextPage: false },

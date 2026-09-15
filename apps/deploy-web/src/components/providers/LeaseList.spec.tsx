@@ -30,6 +30,12 @@ describe("LeaseList", () => {
     expect(useDeploymentNames.mock.lastCall?.[0]).toHaveLength(10);
   });
 
+  it("asks for the names under the deployments the current page's leases belong to", () => {
+    const { useDeploymentNames } = setup({ leases: [lease("100"), lease("200")] });
+
+    expect(useDeploymentNames).toHaveBeenLastCalledWith(expect.arrayContaining(["100", "200"]));
+  });
+
   function lease(dseq: string) {
     return mock<LeaseDto>({ id: `lease-${dseq}`, dseq, state: "active" });
   }

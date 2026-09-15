@@ -622,6 +622,18 @@ describe(useDeploymentsListModel.name, () => {
     });
   });
 
+  it("asks only for the archived deployments' names while the active page has not loaded", () => {
+    const { useDeploymentNames } = setup({ isUnresolved: true, archived: [deployment("900", "closed")] });
+
+    expect(useDeploymentNames).toHaveBeenLastCalledWith(["900"]);
+  });
+
+  it("asks only for the active deployments' names while the archive has not loaded", () => {
+    const { useDeploymentNames } = setup({ active: [deployment("100")], isArchiveUnresolved: true });
+
+    expect(useDeploymentNames).toHaveBeenLastCalledWith(["100"]);
+  });
+
   it("clears any staged SDL when a new deployment is started", () => {
     const { result, store } = setup({ active: [deployment("100")] });
     store.set(sdlStore.deploySdl, mock<TemplateCreation>());

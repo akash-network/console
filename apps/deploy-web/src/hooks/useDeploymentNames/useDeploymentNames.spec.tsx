@@ -55,17 +55,35 @@ describe(useDeploymentNames.name, () => {
     expect(result.current.getDeploymentName("100")).toBeNull();
   });
 
-  it("resolves to null for no dseq at all", () => {
-    const { result } = setup({ dseqs: ["100"], apiNames: { "100": "api-name" } });
+  it("resolves to null for no dseq at all, without reading this browser's record", () => {
+    const { result, deploymentLocalStorage } = setup({ dseqs: ["100"], apiNames: { "100": "api-name" } });
 
     expect(result.current.getDeploymentName(null)).toBeNull();
     expect(result.current.getDeploymentName(undefined)).toBeNull();
+    expect(result.current.getDeploymentName("")).toBeNull();
+    expect(deploymentLocalStorage.get).not.toHaveBeenCalled();
   });
 
   it("asks the api for nothing when there is no deployment to name", () => {
     const { listDeploymentNames } = setup({ dseqs: [null, undefined, ""] });
 
     expect(listDeploymentNames).not.toHaveBeenCalled();
+  });
+
+  it("leaves a blank dseq out of a lookup that has deployments to name", async () => {
+    const { listDeploymentNames } = setup({ dseqs: ["100", ""] });
+
+    await vi.waitFor(() => expect(listDeploymentNames).toHaveBeenCalledExactlyOnceWith({ dseq: ["100"] }));
+  });
+
+  it("asks again once the surface holds a deployment it had not named yet", async () => {
+    const { listDeploymentNames, rerenderWith } = setup({ dseqs: ["100"] });
+
+    await vi.waitFor(() => expect(listDeploymentNames).toHaveBeenCalledExactlyOnceWith({ dseq: ["100"] }));
+
+    rerenderWith(["100", "200"]);
+
+    await vi.waitFor(() => expect(listDeploymentNames).toHaveBeenLastCalledWith({ dseq: ["100", "200"] }));
   });
 
   it("splits a list longer than one lookup may carry into several, each within the bound", async () => {
@@ -89,14 +107,25 @@ describe(useDeploymentNames.name, () => {
   });
 
   it.each([401, 403, 404])("recovers a %s into this browser's record instead of failing the lookup", async status => {
-    const { result, onQueryError } = setup({
+    const { result, onQueryError, settleLookups } = setup({
       dseqs: ["100"],
       apiError: new ApiError(status, {}, `GET /v1/deployment-names → ${status}`),
       localNames: { "100": "local-name" }
     });
 
-    await vi.waitFor(() => expect(result.current.getDeploymentName("100")).toBe("local-name"));
+    await settleLookups();
+
     expect(onQueryError).not.toHaveBeenCalled();
+    expect(result.current.getDeploymentName("100")).toBe("local-name");
+  });
+
+  it("recovers a browser that cannot reach the api at all into this browser's record", async () => {
+    const { result, onQueryError, settleLookups } = setup({ dseqs: ["100"], apiError: new TypeError("Failed to fetch"), localNames: { "100": "local-name" } });
+
+    await settleLookups();
+
+    expect(onQueryError).not.toHaveBeenCalled();
+    expect(result.current.getDeploymentName("100")).toBe("local-name");
   });
 
   it("reports a server error rather than silencing it, and still falls back", async () => {
@@ -144,11 +173,25 @@ describe(useDeploymentNames.name, () => {
     const store = createStore();
     store.set(settingsIdAtom, "akash1test");
 
-    const { result } = setupQuery(() => useDeploymentNames(input.dseqs, { useServices }), {
+    let dseqs = input.dseqs;
+    const { result, rerender } = setupQuery(() => useDeploymentNames(dseqs, { useServices }), {
       services: { api: () => api, deploymentLocalStorage: () => deploymentLocalStorage, queryClient: () => queryClient },
       wrapper: ({ children }) => <JotaiStoreProvider store={store}>{children}</JotaiStoreProvider>
     });
 
-    return { result, listDeploymentNames, deploymentLocalStorage, onQueryError };
+    return {
+      result,
+      listDeploymentNames,
+      deploymentLocalStorage,
+      onQueryError,
+      rerenderWith(next: Array<string | number | null | undefined>) {
+        dseqs = next;
+        rerender();
+      },
+      async settleLookups() {
+        await vi.waitFor(() => expect(listDeploymentNames).toHaveBeenCalled());
+        await vi.waitFor(() => expect(queryClient.isFetching()).toBe(0));
+      }
+    };
   }
 });
