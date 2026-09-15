@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentDto } from "@src/types/deployment";
+import type { DeploymentSpecLayout } from "./DeploymentSpecSummary";
 import { DeploymentSpecSummary } from "./DeploymentSpecSummary";
 
 import { render, screen } from "@testing-library/react";
@@ -26,15 +27,39 @@ describe("DeploymentSpecSummary", () => {
     expect(screen.getByLabelText("GPU")).toHaveTextContent("H100");
   });
 
+  it("keeps a truncated GPU model list readable on hover", () => {
+    setup({
+      gpuAmount: 2,
+      groups: [
+        {
+          group_spec: {
+            resources: [
+              { resource: { gpu: { attributes: [{ key: "vendor/nvidia/model/h100", value: "true" }] } } },
+              { resource: { gpu: { attributes: [{ key: "vendor/nvidia/model/a100", value: "true" }] } } }
+            ]
+          }
+        }
+      ] as DeploymentDto["groups"],
+      layout: "columns"
+    });
+
+    expect(screen.getByTitle("GPU: H100, A100")).toBeInTheDocument();
+  });
+
   it("omits the GPU entry for a deployment without one", () => {
     setup({ gpuAmount: 0 });
 
     expect(screen.queryByLabelText("GPU")).not.toBeInTheDocument();
   });
 
-  function setup(input: Partial<DeploymentDto>) {
-    render(<DeploymentSpecSummary deployment={mock<DeploymentDto>({ cpuAmount: 1, memoryAmount: 1, storageAmount: 1, gpuAmount: 0, groups: [], ...input })} />);
+  function setup({ layout, ...deployment }: Partial<DeploymentDto> & { layout?: DeploymentSpecLayout }) {
+    render(
+      <DeploymentSpecSummary
+        layout={layout}
+        deployment={mock<DeploymentDto>({ cpuAmount: 1, memoryAmount: 1, storageAmount: 1, gpuAmount: 0, groups: [], ...deployment })}
+      />
+    );
 
-    return input;
+    return deployment;
   }
 });

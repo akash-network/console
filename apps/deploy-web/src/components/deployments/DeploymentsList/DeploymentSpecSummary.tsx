@@ -43,8 +43,9 @@ export const DeploymentSpecSummary: FC<DeploymentSpecSummaryProps> = ({ deployme
   );
 };
 
-const Spec: FC<{ label: string; icon: ReactNode; value: ReactNode; className?: string }> = ({ label, icon, value, className }) => (
-  <span className={cn("inline-flex items-center gap-1.5", className)} title={label}>
+/** The title carries the value because the columns layout truncates it, and a long GPU model list is otherwise unrecoverable. */
+const Spec: FC<{ label: string; icon: ReactNode; value: string | number; className?: string }> = ({ label, icon, value, className }) => (
+  <span className={cn("inline-flex items-center gap-1.5", className)} title={`${label}: ${value}`}>
     <span className="shrink-0 text-sm" aria-hidden="true">
       {icon}
     </span>
