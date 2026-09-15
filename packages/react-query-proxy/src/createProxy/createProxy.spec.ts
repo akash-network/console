@@ -23,6 +23,12 @@ describe(createProxy.name, () => {
       const key = proxy.users.list.getKey(null as unknown as undefined);
       expect(key).toEqual(["users", "list"]);
     });
+
+    it("returns the path alone when a required input is left out, which names every call of the operation", () => {
+      const { proxy } = setup();
+      const key = proxy.users.getById.getKey();
+      expect(key).toEqual(["users", "getById"]);
+    });
   });
 
   describe("useQuery", () => {
@@ -228,6 +234,38 @@ describe(createProxy.name, () => {
       queryFn();
 
       expect(userService.getById).toHaveBeenCalledWith({ id: 1 });
+    });
+  });
+
+  describe("queryOptions", () => {
+    it("builds the key and the call useQuery would make, for a hook that runs several queries at once", async () => {
+      const { proxy, sdk } = setup();
+      vi.mocked(sdk.users.getById).mockResolvedValue({ id: 42 });
+
+      const options = proxy.users.getById.queryOptions({ id: 42 }, { staleTime: 5000 });
+
+      expect(options).toMatchObject({ queryKey: ["users", "getById", { id: 42 }], staleTime: 5000 });
+      await expect(options.queryFn()).resolves.toEqual({ id: 42 });
+      expect(sdk.users.getById).toHaveBeenCalledWith({ id: 42 });
+    });
+
+    it("recovers with the catchError value when the call rejects, and keeps catchError out of the options", async () => {
+      const { proxy, sdk } = setup();
+      vi.mocked(sdk.users.getById).mockRejectedValue(new Error("not found"));
+
+      const options = proxy.users.getById.queryOptions({ id: 1 }, { catchError: () => null });
+
+      await expect(options.queryFn()).resolves.toBeNull();
+      expect(options).not.toHaveProperty("catchError");
+    });
+
+    it("gives useQuery the key and options queryOptions builds", () => {
+      const { proxy, useQuery } = setup();
+
+      proxy.users.getById.useQuery({ id: 1 }, { staleTime: 5000 });
+
+      const built = proxy.users.getById.queryOptions({ id: 1 }, { staleTime: 5000 });
+      expect(useQuery.mock.calls[0][0]).toMatchObject({ queryKey: built.queryKey, staleTime: built.staleTime });
     });
   });
 
