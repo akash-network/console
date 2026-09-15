@@ -215,7 +215,7 @@ export class AnalyticsService {
     private readonly getHostname: () => string = () => (isBrowser ? window.location.hostname : ""),
     private readonly getReferrer: () => string = () => (isBrowser ? document.referrer : "")
   ) {
-    this.isAmplitudeEnabled = this.options.amplitude.enabled && isTrackableHostname(this.getHostname());
+    this.isAmplitudeEnabled = this.options.amplitude.enabled && !!this.options.amplitude.apiKey && isTrackableHostname(this.getHostname());
     this.utmProperties = this.captureFirstTouchUtm();
     this.referrerProperties = this.captureFirstTouchReferrer();
   }

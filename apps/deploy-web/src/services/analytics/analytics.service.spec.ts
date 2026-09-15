@@ -45,6 +45,22 @@ describe(AnalyticsService.name, () => {
       expect(add).toHaveBeenCalledWith(expect.objectContaining({ name: "@amplitude/plugin-session-replay-browser" }));
     });
 
+    it("does not initialize Amplitude when the api key is blank", () => {
+      const init = vi.fn();
+      const service = setup({
+        amplitude: { init },
+        options: {
+          amplitude: { enabled: true, apiKey: "" },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.track("onboarding_deploy_click");
+      service.identify({ id: faker.string.uuid() });
+
+      expect(init).not.toHaveBeenCalled();
+    });
+
     it("initializes Amplitude once however many events are tracked", () => {
       const init = vi.fn();
       const service = setup({
