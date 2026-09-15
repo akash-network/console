@@ -166,13 +166,13 @@ describe("DeploymentsList", () => {
   });
 
   it("offers the onboarding empty state to an account with nothing deployed", () => {
-    const { DeploymentsEmptyState } = setup({ hasSettledWithoutActiveDeployments: true, archiveDeployments: [] });
+    const { DeploymentsEmptyState } = setup({ hasSettledWithoutActiveDeployments: true, archiveTotal: 0 });
 
     expect(DeploymentsEmptyState).toHaveBeenCalledWith(expect.objectContaining({ hasDeployments: false, showTemplatesButton: true }), expect.anything());
   });
 
   it("tells an account whose deployments are all closed that none are active", () => {
-    const { DeploymentsEmptyState } = setup({ hasSettledWithoutActiveDeployments: true, archiveDeployments: [namedDeployment("200")] });
+    const { DeploymentsEmptyState } = setup({ hasSettledWithoutActiveDeployments: true, archiveTotal: 1 });
 
     expect(DeploymentsEmptyState).toHaveBeenCalledWith(expect.objectContaining({ hasDeployments: true, showTemplatesButton: false }), expect.anything());
   });
@@ -301,7 +301,7 @@ describe("DeploymentsList", () => {
   it("hands the archive its page alongside the count of everything closed", () => {
     const { DeploymentArchive } = setup({
       archivePageDeployments: [namedDeployment("200")],
-      archiveDeployments: [namedDeployment("200"), namedDeployment("201"), namedDeployment("202")]
+      archiveTotal: 3
     });
 
     expect(DeploymentArchive).toHaveBeenCalledWith(expect.objectContaining({ totalCount: 3 }), expect.anything());
@@ -346,7 +346,7 @@ describe("DeploymentsList", () => {
       isSearching: false,
       changeSearch,
       pageDeployments: [],
-      archiveDeployments: [],
+      archiveTotal: 0,
       archivePageDeployments: [],
       isLoadingDeployments: false,
       isLoadingProviders: false,
