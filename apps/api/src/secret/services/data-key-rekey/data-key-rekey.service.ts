@@ -10,6 +10,7 @@ import type { DeploymentStoredSecretsOfUser } from "@src/deployment/repositories
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
+import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import type { DataKeyOutput } from "@src/secret/repositories/data-key/data-key.repository";
 import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
 import { wrapDataKey } from "@src/secret/services/data-key/data-key.service";
@@ -214,14 +215,8 @@ export class DataKeyRekeyService {
       return;
     }
 
-    if (dryRun) {
-      pass.deploymentsResealed += 1;
-
-      return;
-    }
-
     try {
-      await this.#reseal(userId, row, pass);
+      await this.#reseal(userId, row, pass, dryRun);
     } catch (error) {
       pass.errors.push(error);
       this.logger.error({ event: "DATA_KEY_REKEY_DEPLOYMENT_FAILED", userId, dseq: row.dseq, error });
@@ -229,11 +224,10 @@ export class DataKeyRekeyService {
   }
 
   /** Opened and sealed through the same paths a deployment uses, so the new token carries exactly the owner and deployment claims the old one did. */
-  async #reseal(userId: string, row: DeploymentStoredSecretsOfUser, pass: ResealPass) {
+  async #reseal(userId: string, row: DeploymentStoredSecretsOfUser, pass: ResealPass, dryRun: boolean) {
     const secrets = await this.sdlSecretsService.openStored({ userId, dseq: row.dseq, sealedSecrets: row.sealedSecrets });
-    const resealed = await this.sdlSecretsService.sealForStorage({ userId, dseq: row.dseq, secrets });
 
-    if (await this.deploymentSettingRepository.resealIfUnchanged(row.id, row.sealedSecrets, resealed)) {
+    if (dryRun || (await this.#writeResealed(userId, row, secrets))) {
       pass.deploymentsResealed += 1;
       pass.secretsResealed += Object.keys(secrets).length;
 
@@ -242,6 +236,12 @@ export class DataKeyRekeyService {
 
     pass.deploymentsMovedByAnotherWriter += 1;
     this.logger.warn({ event: "DATA_KEY_REKEY_DEPLOYMENT_MOVED_BY_ANOTHER_WRITER", userId, dseq: row.dseq });
+  }
+
+  async #writeResealed(userId: string, row: DeploymentStoredSecretsOfUser, secrets: SdlSecrets): Promise<boolean> {
+    const resealed = await this.sdlSecretsService.sealForStorage({ userId, dseq: row.dseq, secrets });
+
+    return await this.deploymentSettingRepository.resealIfUnchanged(row.id, row.sealedSecrets, resealed);
   }
 
   /** The retired key goes only once a fresh scan finds nothing sealed under it and it has been retired long enough for any straggling write to have landed. */

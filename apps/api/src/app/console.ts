@@ -147,7 +147,7 @@ program
   .option("-b, --batch-size <number>", "How many of the user's deployments are read per page", value =>
     z.number({ coerce: true }).int().positive().parse(value)
   )
-  .option("-d, --dry-run", "Report what would be re-sealed without retiring the key or writing anything", false)
+  .option("-d, --dry-run", "Open and count what would be re-sealed, without retiring the key or writing anything", false)
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       return container.resolve(DataKeyRekeyController).rekeyUser(options);

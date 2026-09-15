@@ -231,6 +231,7 @@ describe(DataKeyRekeyService.name, () => {
       expect(report).toMatchObject({
         dryRun: true,
         deploymentsResealed: 2,
+        secretsResealed: 4,
         retiredDataKeyId: null,
         activeDataKeyId: ACTIVE_KEY_ID,
         retiredDataKeyDeleted: false
@@ -238,7 +239,23 @@ describe(DataKeyRekeyService.name, () => {
       expect(dataKeyRepository.retireIfActive).not.toHaveBeenCalled();
       expect(dataKeyRepository.create).not.toHaveBeenCalled();
       expect(deploymentSettingRepository.resealIfUnchanged).not.toHaveBeenCalled();
-      expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
+      expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+    });
+
+    it("opens every value it would re-seal, so one that would not open fails the preview", async () => {
+      const { service, logger, deploymentSettingRepository } = setup({
+        deployments: [deploymentSealedUnder(ACTIVE_KEY_ID, "300"), deploymentSealedUnder(ACTIVE_KEY_ID, "400")],
+        unopenableDseqs: ["300"]
+      });
+
+      const result = await service.rekeyUser({ userId: USER_ID, dryRun: true });
+
+      expect(result.err).toBe(true);
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "DATA_KEY_REKEY_DEPLOYMENT_FAILED", dseq: "300" }));
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "DATA_KEY_REKEY_END", report: expect.objectContaining({ deploymentsResealed: 1, secretsResealed: 2 }) })
+      );
+      expect(deploymentSettingRepository.resealIfUnchanged).not.toHaveBeenCalled();
     });
 
     it("names a deployment whose token has no readable data key instead of counting it as already moved", async () => {
