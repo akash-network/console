@@ -1,12 +1,13 @@
 import { faker } from "@faker-js/faker";
+import { eq, sql } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { ApiPgDatabase } from "@src/core";
+import { POSTGRES_DB, resolveTable } from "@src/core";
 import { UserRepository } from "@src/user/repositories";
 import type { DataKeyOutput } from "./data-key.repository";
 import { DataKeyRepository } from "./data-key.repository";
-
-const ONE_MINUTE_MS = 60_000;
 
 describe(DataKeyRepository.name, () => {
   describe("one data key per user", () => {
@@ -229,9 +230,9 @@ describe(DataKeyRepository.name, () => {
 
   describe("rewrapIfStillWrappedUnder", () => {
     it("re-wraps a row still wrapped under the version it was opened under, and stamps it as updated", async () => {
-      const { dataKeyRepository, versionOf, seedDataKey } = setup();
+      const { dataKeyRepository, versionOf, seedDataKey, backdateUpdatedAt } = setup();
       const row = await seedDataKey(versionOf(1));
-      await dataKeyRepository.updateById(row.id, { updatedAt: new Date(Date.now() - ONE_MINUTE_MS) });
+      await backdateUpdatedAt(row.id);
       const before = (await dataKeyRepository.findById(row.id))!;
 
       const rewrapped = await dataKeyRepository.rewrapIfStillWrappedUnder(row.id, versionOf(1), { wrappedKey: "rewrapped-blob", wrappedByKid: versionOf(2) });
@@ -283,6 +284,8 @@ describe(DataKeyRepository.name, () => {
   function setup() {
     const dataKeyRepository = container.resolve(DataKeyRepository);
     const userRepository = container.resolve(UserRepository);
+    const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+    const dataKeysTable = resolveTable("DataKeys");
     const createdUserIds: string[] = [];
     const keyName = faker.string.alphanumeric(10);
 
@@ -318,6 +321,14 @@ describe(DataKeyRepository.name, () => {
       return census.filter(entry => isOwnKey(entry.wrappedByKid));
     }
 
+    /** Both timestamps then come from Postgres, so the comparison is immune to the offset node applies when it reads a timestamp without time zone. */
+    async function backdateUpdatedAt(id: string) {
+      await db
+        .update(dataKeysTable)
+        .set({ updatedAt: sql`now() - interval '1 minute'` })
+        .where(eq(dataKeysTable.id, id));
+    }
+
     async function findRewrapCandidates(targetKid: string, batchSize = 1000) {
       const candidates: DataKeyOutput[] = [];
 
@@ -328,6 +339,6 @@ describe(DataKeyRepository.name, () => {
       return candidates;
     }
 
-    return { dataKeyRepository, userRepository, createTestUser, versionOf, seedDataKey, censusOfOwnKey, findRewrapCandidates };
+    return { dataKeyRepository, userRepository, createTestUser, versionOf, seedDataKey, censusOfOwnKey, findRewrapCandidates, backdateUpdatedAt };
   }
 });
