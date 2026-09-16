@@ -152,13 +152,13 @@ Both alerts read the console's own structured events in Loki. They exist because
 Every Loki query below uses the same pipeline, because the API's log lines are double-wrapped JSON:
 
 ```logql
-{namespace="prod", service_name="console-api-mainnet"} | json log=`log` | line_format "{{.log}}" | json
+{namespace="prod", service_name=~"console-api-mainnet.*"} | json log=`log` | line_format "{{.log}}" | json
 ```
 
 ### 5.1 A stored secret failed to open
 
 ```logql
-sum(count_over_time({namespace="prod", service_name="console-api-mainnet"} | json log=`log` | line_format "{{.log}}" | json | event="SECRET_DECRYPT_FAILED" [5m])) > 0
+sum(count_over_time({namespace="prod", service_name=~"console-api-mainnet.*"} | json log=`log` | line_format "{{.log}}" | json | event="SECRET_DECRYPT_FAILED" [5m])) > 0
 ```
 
 There is no threshold to tune: a healthy system produces none. The event is written only for a permanent failure; a key service that is merely unreachable answers 503 and is not counted.
@@ -170,33 +170,44 @@ What to look at first: the event carries `userId`, `dseq` and the token's header
 ### 5.2 Many distinct users unwrapped in a short window
 
 ```logql
-count(count by (userId) (count_over_time({namespace="prod", service_name="console-api-mainnet"} | json log=`log` | line_format "{{.log}}" | json | event="USER_DATA_KEY_UNWRAPPED" [5m]))) > 75
+count(count by (userId) (count_over_time({namespace="prod", service_name=~"console-api-mainnet.*"} | json log=`log` | line_format "{{.log}}" | json | event="USER_DATA_KEY_UNWRAPPED" [5m]))) > 40
 ```
 
 What it means: a normal deploy unwraps one user's key. Something opening many users' secrets inside minutes looks like nothing a user does.
 
-How the starting threshold was derived, so the next person can tighten it rather than guess. Console Prod in Amplitude, events `create_deployment` and `update_deployment` combined, counting distinct users:
+How the threshold was set, so the next person can tighten it rather than guess. It began at 75, estimated from Amplitude deploy counts while none of this was live yet. Production traffic has since made the real population measurable, by running the query above without its threshold:
 
-| Measure                    | Value                   | When                 |
-| -------------------------- | ----------------------- | -------------------- |
-| Busiest hour, last 7 days  | 73 distinct users       | 2026-09-12 08:00 UTC |
-| Ordinary hour, last 7 days | 1 to 20 distinct users  |                      |
-| Busiest day, last 90 days  | 246 distinct users      | 2026-09-12           |
-| Ordinary day, last 90 days | 10 to 60 distinct users |                      |
+| Measure, prod Loki                              | Value  | When       |
+| ----------------------------------------------- | ------ | ---------- |
+| Distinct users unwrapping per 5 min, 7-day max  | 20     | 2026-09-11 |
+| Distinct users unwrapping per 5 min, normal day | 5 to 8 |            |
+| Unwraps per 5 min, 24-hour max                  | 186    | 2026-09-16 |
+| `SDL_SECRETS_STORED_OPENED`, busiest hour       | 1877   | 2026-09-16 |
+| `SECRET_DECRYPT_FAILED`, 24 hours               | 0      | 2026-09-16 |
 
-Those events come from the web app, so they leave out API consumers deploying through an SDK, and only deployments carrying secrets unwrap at all. Web deploys therefore bound the unwrapping population from above for web traffic and understate it a little for the rest, which is one more reason to start loose. The threshold of 75 is the busiest hour's whole population arriving inside five minutes: nothing legitimate observed so far reaches it, and a sweep across hundreds of users clears it in seconds. Once the alert has run for a few weeks, graph the 5.2 query, without its `> 75`, over the last 30 days in Grafana Explore, read its maximum, and lower the threshold to about twice that. Tighten it when the measured peak stays well under the threshold for a month; raise it only after a legitimate spike, such as a hackathon, and record why here.
+Counting deployers ran about four times high, so 75 would have let a sweep of sixty accounts pass in silence. The threshold is 40, twice the observed peak, which still clears every normal day by a wide margin while a sweep across hundreds of users crosses it in seconds. Repeat the measurement every few months, in Grafana Explore over the last 30 days, and move the threshold back to about twice the maximum. Tighten it when the measured peak stays well under for a month; raise it only after a legitimate spike, such as a hackathon, and record the date and reason in the table above.
 
 What to look at first: the `userId` values behind the count, and whether they correspond to deploy traffic in Amplitude for the same minutes. Legitimate spikes come with `create_deployment` events from the web app; a sweep comes from an API consumer (`userAgent: "node"`, `referrer: "about:client"`) or from nothing at all. For a sweep: revoke the API keys involved, then re-key every user on the list (section 3), since their data keys were unwrapped by something that should not have.
 
 ### 5.3 Wiring them
 
-Grafana is the alerting engine. Each rule evaluates its LogQL every minute over the last five, fires after one evaluation, and notifies a contact point that reaches a person, not a channel nobody watches. The rule body follows the shape Grafana's provisioning API takes (`POST /api/v1/provisioning/alert-rules` with the header `X-Disable-Provenance: true`, which leaves the rule editable in the UI); set `notification_settings.receiver` to the paging contact point.
+Grafana is the alerting engine, and both rules are live in the production Grafana as of 2026-09-16:
 
-Prove each path once before trusting it:
+| Rule title                                               | UID              | Fires when                    |
+| -------------------------------------------------------- | ---------------- | ----------------------------- |
+| Deployment secret failed to decrypt                      | `efyg0cuoyiy9se` | 5.1 sees anything at all      |
+| Many distinct users' data keys unwrapped in five minutes | `afyg0cw74to8we` | 5.2 counts more than 40 users |
+
+Both live in the same folder and the same `1m` rule group as every other console alert. They evaluate every 60 seconds over the last five minutes, fire on the first evaluation that crosses (`for: 0s`), treat an empty result as OK rather than as a failure, and notify `Slack Console Alerts`. They were created through `POST /api/v1/provisioning/alert-rules` with the header `X-Disable-Provenance: true`, which leaves them editable in the UI; recreating them elsewhere means the same call with `notification_settings.receiver` set to that environment's contact point.
+
+`Slack Console Alerts` is a channel rather than a pager, and it is where all 30 console alert rules already go. Routing any of them to someone on call is a team-wide decision this runbook cannot settle on its own, so treat these two as no more reliable than the rest until that changes.
+
+Neither path has been proven end to end yet. Prove each once before trusting it:
 
 - 5.1: on a non-production environment, alter one character of a test deployment's `sealed_secrets` in the database, then redeploy that deployment. The deploy must fail, `SECRET_DECRYPT_FAILED` must appear, and the page must arrive. Restore the row afterwards.
 - 5.2: on a non-production environment, lower the threshold to 0, deploy once with a secret, confirm the page, restore the threshold.
-- Ordinary traffic: graph the 5.2 query, without its `> 75`, over the last 7 days and confirm its maximum stays under the threshold before enabling the rule in production.
+
+The third check, that ordinary traffic stays clear of the threshold, was done on 2026-09-16: the 5.2 query without its threshold peaked at 20 over the previous seven days. Repeat it whenever the threshold moves.
 
 ### 5.4 What these alerts cannot catch
 
