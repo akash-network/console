@@ -349,8 +349,9 @@ export const ListDeploymentsResponseSchema = z.object({
   data: z.object({
     deployments: z.array(DeploymentLeaseListItemSchema),
     pagination: z.object({
-      total: z.number().openapi({
-        description: "Deployments the owner holds in this state, counted from the console's chain index, so it can trail the chain by a block."
+      total: z.number().nullable().openapi({
+        description:
+          "Deployments the owner holds in this state, counted from the console's chain index, so it can trail the chain by a block. Null when that index cannot answer, which leaves the count unknown rather than understated; page on `hasMore` regardless."
       }),
       skip: z.number(),
       limit: z.number(),

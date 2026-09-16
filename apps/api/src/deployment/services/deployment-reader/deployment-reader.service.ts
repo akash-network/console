@@ -170,7 +170,7 @@ export class DeploymentReaderService {
     query: { userId: string };
     skip: number;
     limit: number;
-  }): Promise<{ deployments: ListDeploymentsItem[]; total: number; hasMore: boolean }> {
+  }): Promise<{ deployments: ListDeploymentsItem[]; total: number | null; hasMore: boolean }> {
     const wallet = await this.walletReaderService.getWalletByUserId(query.userId);
     const { address: owner } = wallet;
     const [deploymentReponse, countedTotal] = await Promise.all([
@@ -486,9 +486,11 @@ export class DeploymentReaderService {
   }
 }
 
-/** Only a page with rows on it proves the index is behind: an empty one past the end would otherwise report `skip` as the count. */
+/** An unanswered count stays unknown rather than being guessed at, and only a page with rows on it is evidence the index is behind. */
 function totalCovering({ countedTotal, skip, pageLength }: { countedTotal: number | null; skip: number; pageLength: number }) {
-  const counted = countedTotal ?? 0;
+  if (countedTotal === null) {
+    return null;
+  }
 
-  return pageLength ? Math.max(counted, skip + pageLength) : counted;
+  return pageLength ? Math.max(countedTotal, skip + pageLength) : countedTotal;
 }

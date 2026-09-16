@@ -369,11 +369,21 @@ describe(DeploymentReaderService.name, () => {
       const { service, deploymentRepository, logger } = setup({ wallet, listedDseqs: ["100", "200"] });
       deploymentRepository.countByOwnerAndState.mockRejectedValue(new Error("chain index unavailable"));
 
-      const { deployments, total } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
+      const { deployments, hasMore } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
 
       expect(deployments).toHaveLength(2);
-      expect(total).toBe(2);
+      expect(hasMore).toBe(false);
       expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_COUNT_FAILED" }));
+    });
+
+    it("reports the count as unknown rather than guessing when the console's index cannot be counted", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentRepository } = setup({ wallet, listedDseqs: ["100", "200"] });
+      deploymentRepository.countByOwnerAndState.mockRejectedValue(new Error("chain index unavailable"));
+
+      const { total } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
+
+      expect(total).toBeNull();
     });
 
     it("forwards pagination as flat skip/limit when falling back to database", async () => {

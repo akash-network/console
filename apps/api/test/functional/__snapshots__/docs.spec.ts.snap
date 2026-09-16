@@ -7010,7 +7010,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "type": "number",
                             },
                             "total": {
-                              "description": "Deployments the owner holds in this state, counted from the console's chain index, so it can trail the chain by a block.",
+                              "description": "Deployments the owner holds in this state, counted from the console's chain index, so it can trail the chain by a block. Null when that index cannot answer, which leaves the count unknown rather than understated; page on \`hasMore\` regardless.",
+                              "nullable": true,
                               "type": "number",
                             },
                           },

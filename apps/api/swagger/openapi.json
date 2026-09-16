@@ -6255,7 +6255,8 @@
                           "properties": {
                             "total": {
                               "type": "number",
-                              "description": "Deployments the owner holds in this state, counted from the console's chain index, so it can trail the chain by a block."
+                              "nullable": true,
+                              "description": "Deployments the owner holds in this state, counted from the console's chain index, so it can trail the chain by a block. Null when that index cannot answer, which leaves the count unknown rather than understated; page on `hasMore` regardless."
                             },
                             "skip": {
                               "type": "number"
