@@ -37,7 +37,7 @@ describe("middleware", () => {
     expect(response.headers.get("Content-Security-Policy-Report-Only")).toBeNull();
   });
 
-  it.each(["/sw.js", "/workbox-4754cb34.js", "/manifest.json"])("serves %s during maintenance instead of redirecting it", path => {
+  it.each(["/sw.js", "/workbox-4754cb34.js", "/manifest.json", "/api/healthz"])("serves %s during maintenance instead of redirecting it", path => {
     vi.stubEnv("MAINTENANCE_MODE", "true");
 
     const { response } = setup({ path });
