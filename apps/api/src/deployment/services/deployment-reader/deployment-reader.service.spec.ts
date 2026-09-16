@@ -7,6 +7,7 @@ import type { AuthService } from "@src/auth/services/auth.service";
 import type { WalletInitialized } from "@src/billing/repositories";
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
+import type { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { FallbackDeploymentReaderService } from "@src/deployment/services/fallback-deployment-reader/fallback-deployment-reader.service";
 import type { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
@@ -239,7 +240,7 @@ describe(DeploymentReaderService.name, () => {
       const wallet = createUserWallet() as WalletInitialized;
       const { service } = setup({ wallet, listedDseqs: ["100", "200"], names: { "100": "web" } });
 
-      const { deployments } = await service.list({ query: { userId: wallet.userId } });
+      const { deployments } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
 
       expect(deployments).toMatchObject([{ name: "web" }, { name: null }]);
     });
@@ -251,7 +252,7 @@ describe(DeploymentReaderService.name, () => {
         listedDseqs: ["100", "200"]
       });
 
-      await service.list({ query: { userId: wallet.userId } });
+      await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
 
       expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
       expect(scopedDeploymentSettingRepository.findNamesByDseqs).toHaveBeenCalledTimes(1);
@@ -262,7 +263,7 @@ describe(DeploymentReaderService.name, () => {
       const wallet = createUserWallet() as WalletInitialized;
       const { service, leaseHttpService } = setup({ wallet, listedDseqs: ["100", "200"] });
 
-      const { deployments } = await service.list({ query: { userId: wallet.userId } });
+      const { deployments } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
 
       expect(deployments.map(item => item.leases.map(lease => lease.id.dseq))).toEqual([["100"], ["200"]]);
       expect(leaseHttpService.list).toHaveBeenCalledWith({ owner: wallet.address, dseq: "100" });
@@ -274,7 +275,7 @@ describe(DeploymentReaderService.name, () => {
       const { service, leaseHttpService } = setup({ wallet, listedDseqs: ["100", "200"] });
       leaseHttpService.list.mockRejectedValue(createHttpError(400));
 
-      await expect(service.list({ query: { userId: wallet.userId } })).rejects.toThrow();
+      await expect(service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 })).rejects.toThrow();
     });
 
     it("falls back to database for lease data when blockchain node is unreachable", async () => {
@@ -286,7 +287,7 @@ describe(DeploymentReaderService.name, () => {
         pagination: { next_key: null, total: "1" }
       });
 
-      const { deployments } = await service.list({ query: { userId: wallet.userId } });
+      const { deployments } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
 
       expect(fallbackLeaseReaderService.list).toHaveBeenCalledWith({ owner: wallet.address, dseq: "100" });
       expect(deployments.map(item => item.leases.map(lease => lease.id.dseq))).toEqual([["100"]]);
@@ -296,7 +297,7 @@ describe(DeploymentReaderService.name, () => {
       const wallet = createUserWallet() as WalletInitialized;
       const { service, scopedDeploymentSettingRepository } = setup({ wallet, listedDseqs: [] });
 
-      const { deployments } = await service.list({ query: { userId: wallet.userId } });
+      const { deployments } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
 
       expect(deployments).toEqual([]);
       expect(scopedDeploymentSettingRepository.findNamesByDseqs).not.toHaveBeenCalled();
@@ -315,6 +316,74 @@ describe(DeploymentReaderService.name, () => {
 
       expect(deploymentHttpService.findAll).toHaveBeenCalled();
       expect(fallbackDeploymentReaderService.findAll).toHaveBeenCalled();
+    });
+
+    it("reports another page when the chain hands back a cursor to one", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service } = setup({ wallet, listedDseqs: ["100"], nextKey: "cursor" });
+
+      const { hasMore } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 1 });
+
+      expect(hasMore).toBe(true);
+    });
+
+    it("reports no further page when the chain hands back no cursor, whatever its total claims", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service } = setup({ wallet, listedDseqs: ["100"], chainTotal: "99" });
+
+      const { hasMore } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 1 });
+
+      expect(hasMore).toBe(false);
+    });
+
+    it("counts the owner's deployments in the requested state through the chain index", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentRepository } = setup({ wallet, listedDseqs: ["100"], deploymentCount: 42 });
+
+      const { total } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 1 });
+
+      expect(total).toBe(42);
+      expect(deploymentRepository.countByOwnerAndState).toHaveBeenCalledWith(wallet.address, "active");
+    });
+
+    it("never counts fewer deployments than the page it is answering with", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service } = setup({ wallet, listedDseqs: ["100", "200"], deploymentCount: 0 });
+
+      const { total } = await service.list({ query: { userId: wallet.userId }, skip: 10, limit: 10 });
+
+      expect(total).toBe(12);
+    });
+
+    it("does not let a page past the end inflate the count", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service } = setup({ wallet, listedDseqs: [], deploymentCount: 3 });
+
+      const { total } = await service.list({ query: { userId: wallet.userId }, skip: 1000000, limit: 10 });
+
+      expect(total).toBe(3);
+    });
+
+    it("answers with the page the chain gave when the console's index cannot be counted", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentRepository, logger } = setup({ wallet, listedDseqs: ["100", "200"] });
+      deploymentRepository.countByOwnerAndState.mockRejectedValue(new Error("chain index unavailable"));
+
+      const { deployments, hasMore } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
+
+      expect(deployments).toHaveLength(2);
+      expect(hasMore).toBe(false);
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_COUNT_FAILED" }));
+    });
+
+    it("reports the count as unknown rather than guessing when the console's index cannot be counted", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentRepository } = setup({ wallet, listedDseqs: ["100", "200"] });
+      deploymentRepository.countByOwnerAndState.mockRejectedValue(new Error("chain index unavailable"));
+
+      const { total } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
+
+      expect(total).toBeNull();
     });
 
     it("forwards pagination as flat skip/limit when falling back to database", async () => {
@@ -453,6 +522,9 @@ describe(DeploymentReaderService.name, () => {
       recorded?: (Pick<DeploymentSettingsOutput, "sdl" | "manifestVersion"> & { name?: string | null }) | null;
       listedDseqs?: string[];
       names?: Record<string, string | null>;
+      nextKey?: string | null;
+      chainTotal?: string;
+      deploymentCount?: number;
     } = {}
   ) {
     const defaultWallet = createUserWallet() as WalletInitialized;
@@ -461,7 +533,7 @@ describe(DeploymentReaderService.name, () => {
     const defaultDeploymentList = input.listedDseqs
       ? {
           deployments: input.listedDseqs.map(dseq => createDeploymentInfoSeed({ owner: wallet.address, dseq })),
-          pagination: { next_key: null, total: String(input.listedDseqs.length) }
+          pagination: { next_key: input.nextKey ?? null, total: input.chainTotal ?? String(input.listedDseqs.length) }
         }
       : createDeploymentListResponseSeed({}, 0);
 
@@ -507,6 +579,9 @@ describe(DeploymentReaderService.name, () => {
     const deploymentSettingRepository = mock<DeploymentSettingRepository>({
       accessibleBy: vi.fn().mockReturnValue(scopedDeploymentSettingRepository)
     });
+    const deploymentRepository = mock<DeploymentRepository>({
+      countByOwnerAndState: vi.fn().mockResolvedValue(input.deploymentCount ?? input.listedDseqs?.length ?? 0)
+    });
     const authService = mock<AuthService>({ ability: mock<AuthService["ability"]>() });
     const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
 
@@ -519,10 +594,11 @@ describe(DeploymentReaderService.name, () => {
       mocks.messageService,
       mocks.walletReaderService,
       deploymentSettingRepository,
+      deploymentRepository,
       authService,
       createLogger
     );
 
-    return { service, createLogger, ...mocks, wallet, deploymentSettingRepository, scopedDeploymentSettingRepository, authService };
+    return { service, createLogger, ...mocks, wallet, deploymentSettingRepository, scopedDeploymentSettingRepository, deploymentRepository, authService };
   }
 });

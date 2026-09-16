@@ -5967,9 +5967,11 @@
         "parameters": [
           {
             "schema": {
-              "type": "number",
+              "type": "integer",
               "nullable": true,
-              "minimum": 0
+              "minimum": 0,
+              "default": 0,
+              "description": "Deployments to skip before the page begins."
             },
             "required": false,
             "name": "skip",
@@ -5977,9 +5979,11 @@
           },
           {
             "schema": {
-              "type": "number",
+              "type": "integer",
               "minimum": 1,
-              "default": 1000
+              "maximum": 100,
+              "default": 100,
+              "description": "Deployments per page, at most 100. Omitting it pages from the start rather than returning every deployment, so page on while `hasMore` is true."
             },
             "required": false,
             "name": "limit",
@@ -6250,7 +6254,9 @@
                           "type": "object",
                           "properties": {
                             "total": {
-                              "type": "number"
+                              "type": "number",
+                              "nullable": true,
+                              "description": "Deployments the owner holds in this state, counted from the console's chain index, so it can trail the chain by a block. Null when that index cannot answer, which leaves the count unknown rather than understated; page on `hasMore` regardless."
                             },
                             "skip": {
                               "type": "number"
@@ -6259,7 +6265,8 @@
                               "type": "number"
                             },
                             "hasMore": {
-                              "type": "boolean"
+                              "type": "boolean",
+                              "description": "Whether the chain offered a cursor to a further page."
                             }
                           },
                           "required": [

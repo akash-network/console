@@ -6720,9 +6720,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "skip",
             "required": false,
             "schema": {
+              "default": 0,
+              "description": "Deployments to skip before the page begins.",
               "minimum": 0,
               "nullable": true,
-              "type": "number",
+              "type": "integer",
             },
           },
           {
@@ -6730,9 +6732,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "limit",
             "required": false,
             "schema": {
-              "default": 1000,
+              "default": 100,
+              "description": "Deployments per page, at most 100. Omitting it pages from the start rather than returning every deployment, so page on while \`hasMore\` is true.",
+              "maximum": 100,
               "minimum": 1,
-              "type": "number",
+              "type": "integer",
             },
           },
         ],
@@ -6996,6 +7000,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "pagination": {
                           "properties": {
                             "hasMore": {
+                              "description": "Whether the chain offered a cursor to a further page.",
                               "type": "boolean",
                             },
                             "limit": {
@@ -7005,6 +7010,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "type": "number",
                             },
                             "total": {
+                              "description": "Deployments the owner holds in this state, counted from the console's chain index, so it can trail the chain by a block. Null when that index cannot answer, which leaves the count unknown rather than understated; page on \`hasMore\` regardless.",
+                              "nullable": true,
                               "type": "number",
                             },
                           },

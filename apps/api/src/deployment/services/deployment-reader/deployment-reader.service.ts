@@ -24,6 +24,7 @@ import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-
 import { Memoize } from "@src/caching/helpers";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { ConsoleSettings, DeploymentResponse, GetDeploymentResponse, ListDeploymentsItem } from "@src/deployment/http-schemas/deployment.schema";
+import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -46,6 +47,7 @@ export class DeploymentReaderService {
     private readonly messageService: MessageService,
     private readonly walletReaderService: WalletReaderService,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
+    private readonly deploymentRepository: DeploymentRepository,
     private readonly authService: AuthService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -159,24 +161,23 @@ export class DeploymentReaderService {
     }
   }
 
+  /** The chain's `total` counts only the page it returned once an owner filter and an offset combine, so the count comes from the console's index. */
   public async list({
     query,
     skip,
     limit
   }: {
     query: { userId: string };
-    skip?: number;
-    limit?: number;
-  }): Promise<{ deployments: ListDeploymentsItem[]; total: number; hasMore: boolean }> {
+    skip: number;
+    limit: number;
+  }): Promise<{ deployments: ListDeploymentsItem[]; total: number | null; hasMore: boolean }> {
     const wallet = await this.walletReaderService.getWalletByUserId(query.userId);
     const { address: owner } = wallet;
-    const deploymentReponse = await this.getDeploymentsList(
-      skip !== undefined
-        ? { owner, state: "active", pagination: { offset: skip, limit } }
-        : { owner, state: "active", pagination: limit !== undefined ? { limit } : undefined }
-    );
+    const [deploymentReponse, countedTotal] = await Promise.all([
+      this.getDeploymentsList({ owner, state: "active", pagination: { offset: skip, limit } }),
+      this.#countDeployments(owner, "active")
+    ]);
     const deployments = deploymentReponse.deployments;
-    const total = parseInt(deploymentReponse.pagination.total, 10);
 
     const [{ results: leaseResults }, names] = await Promise.all([
       PromisePool.withConcurrency(100)
@@ -200,9 +201,19 @@ export class DeploymentReaderService {
     }));
     return {
       deployments: deploymentsWithLeases,
-      total,
-      hasMore: skip !== undefined && limit !== undefined ? total > skip + limit : false
+      total: totalCovering({ countedTotal, skip, pageLength: deployments.length }),
+      hasMore: !!deploymentReponse.pagination.next_key
     };
+  }
+
+  /** An index the console cannot count degrades `total` to what the page already proves, rather than failing a list the chain answered. */
+  async #countDeployments(owner: string, state: "active" | "closed"): Promise<number | null> {
+    try {
+      return await this.deploymentRepository.countByOwnerAndState(owner, state);
+    } catch (error) {
+      this.logger.warn({ event: "DEPLOYMENT_COUNT_FAILED", owner, state, error });
+      return null;
+    }
   }
 
   #fetchedLeasesAt(leaseResults: Array<RestAkashLeaseListResponse | symbol>, index: number): RestAkashLeaseListResponse["leases"] {
@@ -473,4 +484,13 @@ export class DeploymentReaderService {
 
     return false;
   }
+}
+
+/** An unanswered count stays unknown rather than being guessed at, and only a page with rows on it is evidence the index is behind. */
+function totalCovering({ countedTotal, skip, pageLength }: { countedTotal: number | null; skip: number; pageLength: number }) {
+  if (countedTotal === null) {
+    return null;
+  }
+
+  return pageLength ? Math.max(countedTotal, skip + pageLength) : countedTotal;
 }

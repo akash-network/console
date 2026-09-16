@@ -95,9 +95,13 @@ export class DeploymentRepository {
     });
   }
 
+  async countByOwnerAndState(owner: string, state: "active" | "closed"): Promise<number> {
+    return await Deployment.count({ where: { owner, closedHeight: state === "active" ? null : { [Op.ne]: null } } });
+  }
+
   async countActiveByOwner(owner: string, window?: DeploymentActivityWindow): Promise<number> {
     if (!window) {
-      return await Deployment.count({ where: { owner, closedHeight: null } });
+      return await this.countByOwnerAndState(owner, "active");
     }
 
     return await Deployment.count({
