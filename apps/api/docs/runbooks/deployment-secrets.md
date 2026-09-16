@@ -2,6 +2,8 @@
 
 An operator document for the keys that protect deployment secrets in the Console API. It is written to be followed step by step; the design it rests on lives in the code and in the Linear issues under CON-874.
 
+Every `./dist/console.js` command below runs from a console-api pod in the environment. The CLI starts the app's initializers first, and they reach the feature-flag service and the job queues inside the cluster, so the same command from a laptop dies on an unresolvable host before it does anything. The rehearsal script in section 3 starts no initializer and does run from a laptop.
+
 ## 1. What is protected, and by what
 
 Deployment secrets are sealed in three layers. Each layer is what the next one is wrapped under, and each operation in this document touches exactly one of them.
