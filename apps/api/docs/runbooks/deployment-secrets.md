@@ -2,6 +2,8 @@
 
 An operator document for the keys that protect deployment secrets in the Console API. It is written to be followed step by step; the design it rests on lives in the code and in the Linear issues under CON-874.
 
+Every `./dist/console.js` command below runs from a console-api pod in the environment. The CLI starts the app's initializers first, and they reach the feature-flag service and the job queues inside the cluster, so the same command from a laptop dies on an unresolvable host before it does anything. The rehearsal script in section 3 starts no initializer and does run from a laptop.
+
 ## 1. What is protected, and by what
 
 Deployment secrets are sealed in three layers. Each layer is what the next one is wrapped under, and each operation in this document touches exactly one of them.
@@ -81,6 +83,26 @@ Which situation calls for which:
 
 The re-key gives one user a new data key and re-seals every stored secret of theirs under it. It is deliberately per user: it touches that user's deployments, which no fleet-wide operation should.
 
+Before the first real use, walk the whole procedure on beta or staging against a throwaway account. Nothing in the console UI writes a secret yet, so `apps/api/scripts/rehearseDeploymentSecrets.ts` records deployments carrying sealed secrets for that account, stored the way a create stores them but marked closed, so no sweep funds, reconciles or deletes them. A deployment created through `POST /v1/deployments` whose SDL carries env values stores secrets as well, so a real deploy from the account works too. Run the script locally with the environment's configuration, for example through `doppler run`:
+
+```sh
+DEPLOYMENT_ENV=staging NETWORK=sandbox doppler run -p console-api -c staging-sandbox -- npm run rehearse:secrets -- seed --email <account email> --count 3 --confirm-database console-users-staging
+DEPLOYMENT_ENV=staging NETWORK=sandbox doppler run -p console-api -c staging-sandbox -- npm run rehearse:secrets -- inspect --email <account email>
+```
+
+Set both to what the chosen configuration stands for: `staging-sandbox` is `staging` on `sandbox`, and beta's `prod-sandbox` is `production` on `sandbox`. They are what `@akashnetwork/env-loader` reads to load `env/.env.<DEPLOYMENT_ENV>` and `env/.env.<NETWORK>`, which hold the settings Doppler does not carry, so leaving them out fails the deployment config on a missing value such as `DEPLOY_WEB_BASE_URL`. Doppler's values still win over the files, and these two select files only: the write is gated on `--confirm-database` alone.
+
+When the database answers only through a local proxy, rewrite the host the way the other operator commands do; the database name survives the rewrite, which is what the confirmation compares:
+
+```sh
+DEPLOYMENT_ENV=staging NETWORK=sandbox doppler run -p console-api -c staging-sandbox -- sh -c '
+  export POSTGRES_DB_URI="$(printf "%s" "${POSTGRES_DB_URI%%\?*}" | sed -E "s#@[^@/]+/#@localhost:6543/#")?sslmode=disable"
+  npm run rehearse:secrets -- seed --email <account email> --count 3 --confirm-database console-users-staging
+'
+```
+
+`seed` logs the account's user id for the commands below and creates the account's data key if it has none. `inspect` lists the account's data keys and, for every deployment holding a secret, which key seals it and whether it opens; run it between the steps below to watch the tokens move and the retired key disappear. Run `seed` again between the two real runs to see a value written under the new key open beside the ones it re-sealed. `cleanup` deletes what `seed` recorded and nothing else. Every command opens by logging `REHEARSAL_TARGET`, naming the database and host it reached. `seed` and `cleanup` refuse to write unless `--confirm-database` matches the database that environment's connection string actually names, so a configuration picked by mistake refuses rather than writing fixtures into it. The check is on the name because `DEPLOYMENT_ENV` and `NETWORK` are set by the chart at deploy time rather than by Doppler: a command run from a laptop reads them as `production` and `mainnet` whichever environment its configuration belongs to.
+
 1. Rehearse:
 
    ```sh
@@ -99,7 +121,15 @@ The re-key gives one user a new data key and re-seals every stored secret of the
 
 3. The first run always keeps the retired key and reports `retiredDataKeyDeleted: false`, because a request that read the old key just before it was retired may still be writing a value under it. Run the command again at or after `retiredDataKeyDeletableAfter`, a minute after the retirement. That run re-seals any straggler, checks that nothing is still sealed under the retired key, and deletes it. Only then is the leaked key useless.
 
-4. While the retired key exists, a request that opens an old token and seals a new one unwraps two keys for that user. The histogram `user_data_key_unwraps_per_request` reads 2 for that user during the window. That is the re-key, not the regression it otherwise flags.
+4. On a rehearsal, delete the fixtures once the second run reports the retired key gone:
+
+   ```sh
+   DEPLOYMENT_ENV=staging NETWORK=sandbox doppler run -p console-api -c staging-sandbox -- npm run rehearse:secrets -- cleanup --email <account email> --confirm-database console-users-staging
+   ```
+
+   It removes only the closed, definition-less rows the script recorded under its own name, and leaves the account's data key in place. Nothing to do after a real re-key, which writes no fixtures.
+
+5. While the retired key exists, a request that opens an old token and seals a new one unwraps two keys for that user. The histogram `user_data_key_unwraps_per_request` reads 2 for that user during the window. That is the re-key, not the regression it otherwise flags.
 
 ## 4. Interrupted runs, mismatches and states that need a hand
 
