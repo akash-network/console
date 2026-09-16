@@ -119,7 +119,15 @@ DEPLOYMENT_ENV=staging NETWORK=sandbox doppler run -p console-api -c staging-san
 
 3. The first run always keeps the retired key and reports `retiredDataKeyDeleted: false`, because a request that read the old key just before it was retired may still be writing a value under it. Run the command again at or after `retiredDataKeyDeletableAfter`, a minute after the retirement. That run re-seals any straggler, checks that nothing is still sealed under the retired key, and deletes it. Only then is the leaked key useless.
 
-4. While the retired key exists, a request that opens an old token and seals a new one unwraps two keys for that user. The histogram `user_data_key_unwraps_per_request` reads 2 for that user during the window. That is the re-key, not the regression it otherwise flags.
+4. On a rehearsal, delete the fixtures once the second run reports the retired key gone:
+
+   ```sh
+   DEPLOYMENT_ENV=staging NETWORK=sandbox doppler run -p console-api -c staging-sandbox -- npm run rehearse:secrets -- cleanup --email <account email> --confirm-database console-users-staging
+   ```
+
+   It removes only the closed, definition-less rows the script recorded under its own name, and leaves the account's data key in place. Nothing to do after a real re-key, which writes no fixtures.
+
+5. While the retired key exists, a request that opens an old token and seals a new one unwraps two keys for that user. The histogram `user_data_key_unwraps_per_request` reads 2 for that user during the window. That is the re-key, not the regression it otherwise flags.
 
 ## 4. Interrupted runs, mismatches and states that need a hand
 

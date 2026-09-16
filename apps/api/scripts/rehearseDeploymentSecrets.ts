@@ -3,7 +3,7 @@ import "@akashnetwork/env-loader";
 import "@src/app";
 
 import { createOtelLogger } from "@akashnetwork/logging/otel";
-import { Command } from "commander";
+import { Command, InvalidArgumentError } from "commander";
 import { decodeProtectedHeader } from "jose";
 import { randomBytes } from "node:crypto";
 import { container } from "tsyringe";
@@ -23,7 +23,6 @@ import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.re
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
 
-/** Every row this script records carries this name, and `cleanup` deletes only rows carrying it. */
 const REHEARSAL_DEPLOYMENT_NAME = "rekey-rehearsal";
 const DEFAULT_DEPLOYMENT_COUNT = 3;
 const DEFAULT_SECRETS_PER_DEPLOYMENT = 2;
@@ -67,8 +66,19 @@ program
 
 function withUserSelection(command: Command): Command {
   return command
-    .option("-u, --user-id <uuid>", "The user, by id", value => z.string().uuid().parse(value))
-    .option("-e, --email <email>", "The user, by the email on their account", value => z.string().email().parse(value));
+    .option("-u, --user-id <uuid>", "The user, by id", parsedWith(z.string().uuid()))
+    .option("-e, --email <email>", "The user, by the email on their account", parsedWith(z.string().email()));
+}
+
+/** Commander rethrows anything but its own error out of an option parser, past every handler, so a mistyped option would end the run in a stack trace rather than a refusal. */
+function parsedWith<T>(schema: z.ZodType<T>): (value: string) => T {
+  return value => {
+    const parsed = schema.safeParse(value);
+
+    if (parsed.success) return parsed.data;
+
+    throw new InvalidArgumentError(parsed.error.issues[0].message);
+  };
 }
 
 function withDatabaseConfirmation(command: Command): Command {
@@ -78,7 +88,7 @@ function withDatabaseConfirmation(command: Command): Command {
   );
 }
 
-const positiveInteger = (value: string) => z.coerce.number().int().positive().parse(value);
+const positiveInteger = parsedWith(z.coerce.number().int().positive());
 
 withDatabaseConfirmation(withUserSelection(program.command("seed")))
   .description("Records closed deployments carrying sealed secrets for the user, stored the way a create stores them, so a re-key has rows to walk")
@@ -168,12 +178,19 @@ async function cleanup(options: UserSelection & WriteTarget): Promise<void> {
   assertDatabaseIsConfirmed(options.confirmDatabase);
   const user = await resolveUser(options);
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
-  const recordedByThisScript = { userId: user.id, name: REHEARSAL_DEPLOYMENT_NAME };
-  const deploymentsDeleted = await deploymentSettingRepository.count(recordedByThisScript);
+  const recorded = await deploymentSettingRepository.find(recordedByThisScript(user.id), { select: ["id", "dseq"] });
 
-  await deploymentSettingRepository.deleteBy(recordedByThisScript);
+  await deploymentSettingRepository.deleteById(recorded.map(row => row.id));
 
-  logger.info({ event: "REHEARSAL_CLEANUP_END", userId: user.id, deploymentsDeleted });
+  logger.info({ event: "REHEARSAL_CLEANUP_END", userId: user.id, deployments: recorded.map(row => row.dseq) });
+}
+
+/**
+ * A deployment the user named this themselves still carries the manifest version its create wrote, and a row
+ * standing in for one that predates definition recording is not closed, so neither answers all three at once.
+ */
+function recordedByThisScript(userId: string) {
+  return { userId, name: REHEARSAL_DEPLOYMENT_NAME, closed: true, manifestVersion: null };
 }
 
 /** `DEPLOYMENT_ENV` and `NETWORK` are set by the chart at deploy time, not by Doppler, so a local run cannot read which console it reached and the operator names the database instead. */
