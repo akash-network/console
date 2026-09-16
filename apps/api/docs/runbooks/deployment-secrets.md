@@ -84,14 +84,16 @@ The re-key gives one user a new data key and re-seals every stored secret of the
 Before the first real use, walk the whole procedure on beta or staging against a throwaway account. Nothing in the console UI writes a secret yet, so `apps/api/scripts/rehearseDeploymentSecrets.ts` records deployments carrying sealed secrets for that account, stored the way a create stores them but marked closed, so no sweep funds, reconciles or deletes them. A deployment created through `POST /v1/deployments` whose SDL carries env values stores secrets as well, so a real deploy from the account works too. Run the script locally with the environment's configuration, for example through `doppler run`:
 
 ```sh
-doppler run -p console-api -c staging-sandbox -- npm run rehearse:secrets -- seed --email <account email> --count 3 --confirm-database console-users-staging
-doppler run -p console-api -c staging-sandbox -- npm run rehearse:secrets -- inspect --email <account email>
+DEPLOYMENT_ENV=staging NETWORK=sandbox doppler run -p console-api -c staging-sandbox -- npm run rehearse:secrets -- seed --email <account email> --count 3 --confirm-database console-users-staging
+DEPLOYMENT_ENV=staging NETWORK=sandbox doppler run -p console-api -c staging-sandbox -- npm run rehearse:secrets -- inspect --email <account email>
 ```
+
+Both variables name the environment's own values, `production` and the chain for beta. They are what `@akashnetwork/env-loader` reads to load `env/.env.<DEPLOYMENT_ENV>` and `env/.env.<NETWORK>`, which hold the settings Doppler does not carry, so leaving them out fails the deployment config on a missing value such as `DEPLOY_WEB_BASE_URL`. Doppler's values still win over the files, and these two select files only: the write is gated on `--confirm-database` alone.
 
 When the database answers only through a local proxy, rewrite the host the way the other operator commands do; the database name survives the rewrite, which is what the confirmation compares:
 
 ```sh
-doppler run -p console-api -c staging-sandbox -- sh -c '
+DEPLOYMENT_ENV=staging NETWORK=sandbox doppler run -p console-api -c staging-sandbox -- sh -c '
   export POSTGRES_DB_URI="$(printf "%s" "${POSTGRES_DB_URI%%\?*}" | sed -E "s#@[^@/]+/#@localhost:6543/#")?sslmode=disable"
   npm run rehearse:secrets -- seed --email <account email> --count 3 --confirm-database console-users-staging
 '
