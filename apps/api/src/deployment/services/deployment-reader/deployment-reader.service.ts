@@ -201,7 +201,7 @@ export class DeploymentReaderService {
     }));
     return {
       deployments: deploymentsWithLeases,
-      total: Math.max(countedTotal ?? 0, skip + deployments.length),
+      total: totalCovering({ countedTotal, skip, pageLength: deployments.length }),
       hasMore: !!deploymentReponse.pagination.next_key
     };
   }
@@ -484,4 +484,11 @@ export class DeploymentReaderService {
 
     return false;
   }
+}
+
+/** Only a page with rows on it proves the index is behind: an empty one past the end would otherwise report `skip` as the count. */
+function totalCovering({ countedTotal, skip, pageLength }: { countedTotal: number | null; skip: number; pageLength: number }) {
+  const counted = countedTotal ?? 0;
+
+  return pageLength ? Math.max(counted, skip + pageLength) : counted;
 }

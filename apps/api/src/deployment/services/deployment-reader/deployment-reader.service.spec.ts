@@ -355,6 +355,15 @@ describe(DeploymentReaderService.name, () => {
       expect(total).toBe(12);
     });
 
+    it("does not let a page past the end inflate the count", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service } = setup({ wallet, listedDseqs: [], deploymentCount: 3 });
+
+      const { total } = await service.list({ query: { userId: wallet.userId }, skip: 1000000, limit: 10 });
+
+      expect(total).toBe(3);
+    });
+
     it("answers with the page the chain gave when the console's index cannot be counted", async () => {
       const wallet = createUserWallet() as WalletInitialized;
       const { service, deploymentRepository, logger } = setup({ wallet, listedDseqs: ["100", "200"] });
