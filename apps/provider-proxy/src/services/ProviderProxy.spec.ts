@@ -56,6 +56,34 @@ describe(ProviderProxy.name, () => {
     expect(connectionTracker.recordUnreachable).toHaveBeenCalledWith("akash1provider|https://provider.example.com:8443", error, "ECONNRESET");
   });
 
+  it("flags a dial failure the tracker has already seen for that provider", async () => {
+    const { proxy } = setup({ repeatedFailure: true });
+    const request = stubDial();
+    const error = Object.assign(new Error("socket hang up"), { code: "ECONNRESET" });
+
+    const pending = proxy.connect("https://provider.example.com:8443/status", { method: "GET", providerAddress: "akash1provider" });
+    request.emit("error", error);
+
+    await expect(pending).resolves.toEqual({ ok: false, code: "connectionError", error, repeatedFailure: true });
+  });
+
+  it("leaves a dial killed by the proxy itself unflagged even for a failing provider", async () => {
+    const { proxy } = setup({ repeatedFailure: true });
+    const request = stubDial();
+    const abortController = new AbortController();
+
+    const pending = proxy.connect("https://provider.example.com:8443/status", {
+      method: "GET",
+      providerAddress: "akash1provider",
+      signal: abortController.signal
+    });
+    abortController.abort();
+    const error = Object.assign(new Error("socket hang up"), { code: "ECONNRESET" });
+    request.emit("error", error);
+
+    await expect(pending).resolves.toEqual({ ok: false, code: "connectionError", error });
+  });
+
   it("records nothing when its own per-attempt timeout kills the dial", async () => {
     const { proxy, connectionTracker } = setup();
     const request = stubDial();
@@ -163,10 +191,11 @@ describe(ProviderProxy.name, () => {
     });
   }
 
-  function setup(input: { shouldSkipDial?: boolean; lastError?: unknown } = {}) {
+  function setup(input: { shouldSkipDial?: boolean; lastError?: unknown; repeatedFailure?: boolean } = {}) {
     const connectionTracker = mock<ProviderConnectionTracker>({
       shouldSkipDial: vi.fn().mockReturnValue(input.shouldSkipDial ?? false),
-      getLastError: vi.fn().mockReturnValue(input.lastError)
+      getLastError: vi.fn().mockReturnValue(input.lastError),
+      isRepeatedFailure: vi.fn().mockReturnValue(input.repeatedFailure ?? false)
     });
     const certificateValidator = mock<CertificateValidator>();
     const proxy = new ProviderProxy(certificateValidator, undefined, connectionTracker);

@@ -19,6 +19,7 @@ export function toStateRetentionMs(cooldownMs: number): number {
 export interface ProviderConnectionTrackerOptions {
   failureThreshold: number;
   cooldownMs: number;
+  maxCooldownMs: number;
 }
 
 export interface ProviderConnectionTrackerInstrumentation {
@@ -43,7 +44,7 @@ export class ProviderConnectionTracker {
   ) {
     this.states = new LRUCache<string, ProviderConnectionState>({
       max: 10_000,
-      ttl: toStateRetentionMs(options.cooldownMs)
+      ttl: toStateRetentionMs(options.maxCooldownMs)
     });
   }
 
@@ -58,9 +59,14 @@ export class ProviderConnectionTracker {
 
     if (this.now() < state.cooldownUntil) return true;
 
-    state.cooldownUntil = this.now() + this.options.cooldownMs;
+    state.cooldownUntil = this.now() + this.cooldownMsAfter(state.consecutiveFailures);
     this.instrumentation?.onProbeAllowed?.(key, state.consecutiveFailures);
     return false;
+  }
+
+  /** Another dial now would only repeat the failure just recorded, so callers stop retrying instead. */
+  isRepeatedFailure(key: string): boolean {
+    return (this.states.get(key)?.consecutiveFailures ?? 0) > 1;
   }
 
   recordUnreachable(key: string, error: unknown, errno: string | undefined): void {
@@ -71,11 +77,20 @@ export class ProviderConnectionTracker {
     state.lastError = error;
 
     if (state.consecutiveFailures >= this.options.failureThreshold) {
-      state.cooldownUntil = this.now() + this.options.cooldownMs;
+      state.cooldownUntil = this.now() + this.cooldownMsAfter(state.consecutiveFailures);
       this.instrumentation?.onCooldownStarted?.(key, errno, state.cooldownUntil);
     }
 
     this.states.set(key, state);
+  }
+
+  /**
+   * Each window a provider stays dark doubles the next one, so a host that has been down for days is probed
+   * hourly rather than every minute, and every probe a user pays for buys proportionally more silence.
+   */
+  private cooldownMsAfter(consecutiveFailures: number): number {
+    const doublings = Math.max(0, consecutiveFailures - this.options.failureThreshold);
+    return Math.min(this.options.cooldownMs * 2 ** doublings, this.options.maxCooldownMs);
   }
 
   recordReachable(key: string): void {

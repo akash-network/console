@@ -12,7 +12,11 @@ export const appConfigSchema = z.object({
     .default("true")
     .transform(val => val === "true"),
   PROVIDER_UNREACHABLE_FAILURE_THRESHOLD: z.number({ coerce: true }).min(1).default(3),
-  PROVIDER_UNREACHABLE_COOLDOWN_MS: z.number({ coerce: true }).min(0).default(60_000)
+  PROVIDER_UNREACHABLE_COOLDOWN_MS: z.number({ coerce: true }).min(0).default(60_000),
+  PROVIDER_UNREACHABLE_MAX_COOLDOWN_MS: z
+    .number({ coerce: true })
+    .min(0)
+    .default(15 * 60_000)
 });
 
 export type AppConfig = z.infer<typeof appConfigSchema>;

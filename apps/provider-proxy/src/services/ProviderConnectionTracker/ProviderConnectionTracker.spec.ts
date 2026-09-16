@@ -56,6 +56,66 @@ describe(ProviderConnectionTracker.name, () => {
     expect(tracker.shouldSkipDial("provider-a")).toBe(true);
   });
 
+  it("lengthens each cooldown while the provider stays unreachable", () => {
+    const { tracker, fail, advance } = setup({ failureThreshold: 1, cooldownMs: 60_000 });
+
+    fail("provider-a");
+    advance(60_000);
+    tracker.shouldSkipDial("provider-a");
+    fail("provider-a");
+    advance(60_000);
+
+    expect(tracker.shouldSkipDial("provider-a")).toBe(true);
+
+    advance(60_000);
+
+    expect(tracker.shouldSkipDial("provider-a")).toBe(false);
+  });
+
+  it("caps how long a cooldown can grow", () => {
+    const { tracker, fail, advance } = setup({ failureThreshold: 1, cooldownMs: 60_000, maxCooldownMs: 120_000 });
+
+    for (let attempt = 0; attempt < 10; attempt++) fail("provider-a");
+    advance(119_999);
+
+    expect(tracker.shouldSkipDial("provider-a")).toBe(true);
+
+    advance(1);
+
+    expect(tracker.shouldSkipDial("provider-a")).toBe(false);
+  });
+
+  it("returns to the base cooldown once the provider answers", () => {
+    const { tracker, fail, advance } = setup({ failureThreshold: 1, cooldownMs: 60_000 });
+
+    fail("provider-a");
+    fail("provider-a");
+    fail("provider-a");
+    tracker.recordReachable("provider-a");
+    fail("provider-a");
+    advance(60_000);
+
+    expect(tracker.shouldSkipDial("provider-a")).toBe(false);
+  });
+
+  it("reports a failure that follows an earlier one as repeated", () => {
+    const { tracker, fail } = setup({ failureThreshold: 3 });
+
+    fail("provider-a");
+
+    expect(tracker.isRepeatedFailure("provider-a")).toBe(false);
+
+    fail("provider-a");
+
+    expect(tracker.isRepeatedFailure("provider-a")).toBe(true);
+  });
+
+  it("reports nothing as repeated for a provider it never saw fail", () => {
+    const { tracker } = setup();
+
+    expect(tracker.isRepeatedFailure("provider-a")).toBe(false);
+  });
+
   it("resumes dialing once the provider answers", () => {
     const { tracker, fail } = setup({ failureThreshold: 1 });
 
@@ -113,11 +173,22 @@ describe(ProviderConnectionTracker.name, () => {
     expect(toStateRetentionMs(15 * 60 * 1000)).toBeGreaterThan(15 * 60 * 1000);
   });
 
-  function setup(input: { failureThreshold?: number; cooldownMs?: number; instrumentation?: ProviderConnectionTrackerInstrumentation } = {}) {
+  function setup(
+    input: {
+      failureThreshold?: number;
+      cooldownMs?: number;
+      maxCooldownMs?: number;
+      instrumentation?: ProviderConnectionTrackerInstrumentation;
+    } = {}
+  ) {
     let clock = 1_000;
     const tracker = new ProviderConnectionTracker(
       () => clock,
-      { failureThreshold: input.failureThreshold ?? 3, cooldownMs: input.cooldownMs ?? 60_000 },
+      {
+        failureThreshold: input.failureThreshold ?? 3,
+        cooldownMs: input.cooldownMs ?? 60_000,
+        maxCooldownMs: input.maxCooldownMs ?? 15 * 60 * 1000
+      },
       input.instrumentation
     );
 
