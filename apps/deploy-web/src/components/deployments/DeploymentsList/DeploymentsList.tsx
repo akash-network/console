@@ -139,11 +139,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ useDeployments
       )}
 
       {model.hasSettledWithoutActiveDeployments && (
-        <d.DeploymentsEmptyState
-          onDeployClick={model.startNewDeployment}
-          hasDeployments={model.archiveTotal > 0}
-          showTemplatesButton={model.archiveTotal === 0}
-        />
+        <d.DeploymentsEmptyState onDeployClick={model.startNewDeployment} hasDeployments={model.hasAnyArchived} showTemplatesButton={!model.hasAnyArchived} />
       )}
 
       {(model.hasPageResults || model.isInitialLoad) && (

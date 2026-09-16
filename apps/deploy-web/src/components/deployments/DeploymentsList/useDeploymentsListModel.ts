@@ -53,8 +53,10 @@ export function useDeploymentsListModel(
   const isArchiveError = archive.isError;
 
   const hasPageResults = pageDeployments.length > 0;
+  /** The count is unknown when the api could not answer it, so the rows it did return stand in for it. */
+  const hasAnyArchived = archivePageDeployments.length > 0 || (archiveTotal ?? 0) > 0;
   /** A search is only reachable from a list that already had rows, so it stands in for the unfiltered counts the source no longer holds. */
-  const hasAnyDeployment = isSearching || pageIndex > 0 || hasPageResults || archiveTotal > 0;
+  const hasAnyDeployment = isSearching || pageIndex > 0 || hasPageResults || hasAnyArchived;
   const hasNextPage = active.hasNextPage;
   const isPaginated = hasNextPage || pageIndex > 0;
   const hasNextArchivePage = archive.hasNextPage;
@@ -132,6 +134,7 @@ export function useDeploymentsListModel(
     changeSearch,
     pageDeployments,
     archiveTotal,
+    hasAnyArchived,
     archivePageDeployments,
     isLoadingDeployments,
     isLoadingProviders,
@@ -145,7 +148,7 @@ export function useDeploymentsListModel(
     showErrorState: isError && !hasPageResults && !isLoadingDeployments,
     showArchiveError: isArchiveError,
     isRetryingArchive: isArchiveError && archive.isFetching,
-    showNoSearchResults: isSearching && !isError && !isArchiveError && !isLoadingDeployments && !archive.isFetching && !hasPageResults && archiveTotal === 0,
+    showNoSearchResults: isSearching && !isError && !isArchiveError && !isLoadingDeployments && !archive.isFetching && !hasPageResults && !hasAnyArchived,
     pageIndex,
     pageSize,
     changePageSize,
@@ -159,7 +162,7 @@ export function useDeploymentsListModel(
     goToPreviousArchivePage,
     goToNextArchivePage,
     /** Survives the page size growing past the last page, so the selector that did it stays on screen to undo it. */
-    showPageSizeSelector: (hasPageResults || archiveTotal > 0) && (isPaginated || isArchivePaginated || pageSize !== DEFAULT_PAGE_SIZE),
+    showPageSizeSelector: (hasPageResults || hasAnyArchived) && (isPaginated || isArchivePaginated || pageSize !== DEFAULT_PAGE_SIZE),
     isInitialLoad,
     selectedItemIds,
     selectItem,

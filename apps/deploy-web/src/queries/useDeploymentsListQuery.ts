@@ -7,8 +7,8 @@ import { listedDeploymentToDto } from "@src/utils/deploymentDetailUtils";
 
 export interface DeploymentsListPage {
   deployments: ListedDeploymentDto[];
-  /** Deployments in the requested state, or matching the search when there is one. */
-  total: number;
+  /** Deployments in the requested state, or matching the search when there is one. Null when the api could not count them. */
+  total: number | null;
   hasNextPage: boolean;
 }
 
@@ -41,7 +41,9 @@ function recoverMissingWalletAsEmptyPage(error: unknown) {
   throw error;
 }
 
-function toDeploymentsListPage(response: { data: { deployments: unknown[]; pagination: { total: number; hasMore: boolean } } } | null): DeploymentsListPage {
+function toDeploymentsListPage(
+  response: { data: { deployments: unknown[]; pagination: { total: number | null; hasMore: boolean } } } | null
+): DeploymentsListPage {
   if (!response) return EMPTY_PAGE;
 
   return {

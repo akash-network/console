@@ -451,6 +451,14 @@ describe(useDeploymentsListModel.name, () => {
       expect(result.current.hasAnyDeployment).toBe(true);
     });
 
+    it("counts an account with only closed deployments as having deployments when the count is unknown", () => {
+      const { result } = setup({ active: [], archived: [deployment("200", "closed")], unknownArchiveTotal: true });
+
+      expect(result.current.archiveTotal).toBeNull();
+      expect(result.current.hasAnyArchived).toBe(true);
+      expect(result.current.hasAnyDeployment).toBe(true);
+    });
+
     it("counts an account with only closed deployments as having deployments", () => {
       const { result } = setup({ active: [], archived: [deployment("200", "closed")] });
 
@@ -773,6 +781,7 @@ describe(useDeploymentsListModel.name, () => {
     isArchiveUnresolved?: boolean;
     activeByPage?: Record<number, DeploymentDto[]>;
     archived?: DeploymentDto[];
+    unknownArchiveTotal?: boolean;
     address?: string;
     hasNextPage?: boolean;
     isFetching?: boolean;
@@ -836,8 +845,11 @@ describe(useDeploymentsListModel.name, () => {
     const useManagedDeploymentConfirm: typeof DEPENDENCIES.useManagedDeploymentConfirm = () =>
       mock<ReturnType<typeof DEPENDENCIES.useManagedDeploymentConfirm>>({ closeDeploymentConfirm });
 
-    const useDeploymentsListSource = (sourceInput: Parameters<typeof useChainDeploymentsListSource>[0]) =>
-      useChainDeploymentsListSource(sourceInput, { useWallet, useDeploymentNames, useDeploymentsPage, useDeploymentList });
+    const useDeploymentsListSource = (sourceInput: Parameters<typeof useChainDeploymentsListSource>[0]) => {
+      const source = useChainDeploymentsListSource(sourceInput, { useWallet, useDeploymentNames, useDeploymentsPage, useDeploymentList });
+
+      return current.unknownArchiveTotal ? { ...source, archive: { ...source.archive, total: null } } : source;
+    };
 
     const dependencies = {
       useWallet,

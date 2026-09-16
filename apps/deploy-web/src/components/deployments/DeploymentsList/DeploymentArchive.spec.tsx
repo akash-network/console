@@ -91,6 +91,27 @@ describe("DeploymentArchive", () => {
     expect(DeploymentsCollection).toHaveBeenLastCalledWith(expect.objectContaining({ viewMode: "list" }), expect.anything());
   });
 
+  it("names the archive without a count when the api could not count it", () => {
+    setup({ count: 3, totalCount: null });
+
+    expect(screen.getByRole("button", { name: "Archive" })).toBeInTheDocument();
+    expect(screen.queryByText(/closed/)).not.toBeInTheDocument();
+  });
+
+  it("still lists the rows it has when the count is unknown", async () => {
+    const { DeploymentsCollection } = setup({ count: 3, totalCount: null });
+
+    await userEvent.click(screen.getByRole("button", { name: "Archive" }));
+
+    expect(lastRenderedDeployments(DeploymentsCollection)).toHaveLength(3);
+  });
+
+  it("renders nothing when the count is unknown and no rows came back", () => {
+    setup({ count: 0, totalCount: null });
+
+    expect(screen.queryByRole("button", { name: /Archive/ })).not.toBeInTheDocument();
+  });
+
   it("renders nothing when there is no archive to show", () => {
     setup({ count: 0 });
 
@@ -130,7 +151,7 @@ describe("DeploymentArchive", () => {
 
   function setup(input: {
     count: number;
-    totalCount?: number;
+    totalCount?: number | null;
     viewMode?: "grid" | "list";
     isError?: boolean;
     isRetrying?: boolean;
@@ -150,7 +171,7 @@ describe("DeploymentArchive", () => {
     render(
       <DeploymentArchive
         deployments={deployments}
-        totalCount={input.totalCount ?? input.count}
+        totalCount={input.totalCount === undefined ? input.count : input.totalCount}
         providers={[]}
         viewMode={input.viewMode ?? "grid"}
         isError={input.isError ?? false}

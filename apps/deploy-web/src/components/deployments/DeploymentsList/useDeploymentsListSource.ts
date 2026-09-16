@@ -30,8 +30,8 @@ export interface DeploymentsListSlice {
 }
 
 export interface DeploymentsListArchiveSlice extends DeploymentsListSlice {
-  /** Closed deployments matching the current search, or all of them when there is none. */
-  total: number;
+  /** Closed deployments matching the current search, or all of them when there is none; null leaves the Archive header without a count. */
+  total: number | null;
 }
 
 export interface DeploymentsListSource {

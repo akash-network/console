@@ -172,7 +172,7 @@ describe("DeploymentsList", () => {
   });
 
   it("tells an account whose deployments are all closed that none are active", () => {
-    const { DeploymentsEmptyState } = setup({ hasSettledWithoutActiveDeployments: true, archiveTotal: 1 });
+    const { DeploymentsEmptyState } = setup({ hasSettledWithoutActiveDeployments: true, archiveTotal: 1, hasAnyArchived: true });
 
     expect(DeploymentsEmptyState).toHaveBeenCalledWith(expect.objectContaining({ hasDeployments: true, showTemplatesButton: false }), expect.anything());
   });
@@ -347,6 +347,7 @@ describe("DeploymentsList", () => {
       changeSearch,
       pageDeployments: [],
       archiveTotal: 0,
+      hasAnyArchived: false,
       archivePageDeployments: [],
       isLoadingDeployments: false,
       isLoadingProviders: false,
