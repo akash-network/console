@@ -161,11 +161,7 @@ export class DeploymentReaderService {
     }
   }
 
-  /**
-   * `total` is counted from the console's own chain index rather than from the chain's answer, which reports the size
-   * of the page it just returned whenever an owner filter and an offset are combined. `hasMore` follows the cursor
-   * for the same reason.
-   */
+  /** The chain's `total` counts only the page it returned once an owner filter and an offset combine, so the count comes from the console's index. */
   public async list({
     query,
     skip,
@@ -177,9 +173,9 @@ export class DeploymentReaderService {
   }): Promise<{ deployments: ListDeploymentsItem[]; total: number; hasMore: boolean }> {
     const wallet = await this.walletReaderService.getWalletByUserId(query.userId);
     const { address: owner } = wallet;
-    const [deploymentReponse, total] = await Promise.all([
+    const [deploymentReponse, countedTotal] = await Promise.all([
       this.getDeploymentsList({ owner, state: "active", pagination: { offset: skip, limit } }),
-      this.deploymentRepository.countByOwnerAndState(owner, "active")
+      this.#countDeployments(owner, "active")
     ]);
     const deployments = deploymentReponse.deployments;
 
@@ -205,9 +201,19 @@ export class DeploymentReaderService {
     }));
     return {
       deployments: deploymentsWithLeases,
-      total,
+      total: Math.max(countedTotal ?? 0, skip + deployments.length),
       hasMore: !!deploymentReponse.pagination.next_key
     };
+  }
+
+  /** An index the console cannot count degrades `total` to what the page already proves, rather than failing a list the chain answered. */
+  async #countDeployments(owner: string, state: "active" | "closed"): Promise<number | null> {
+    try {
+      return await this.deploymentRepository.countByOwnerAndState(owner, state);
+    } catch (error) {
+      this.logger.warn({ event: "DEPLOYMENT_COUNT_FAILED", owner, state, error });
+      return null;
+    }
   }
 
   #fetchedLeasesAt(leaseResults: Array<RestAkashLeaseListResponse | symbol>, index: number): RestAkashLeaseListResponse["leases"] {

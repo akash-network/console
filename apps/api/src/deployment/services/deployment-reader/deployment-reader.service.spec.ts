@@ -346,6 +346,27 @@ describe(DeploymentReaderService.name, () => {
       expect(deploymentRepository.countByOwnerAndState).toHaveBeenCalledWith(wallet.address, "active");
     });
 
+    it("never counts fewer deployments than the page it is answering with", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service } = setup({ wallet, listedDseqs: ["100", "200"], deploymentCount: 0 });
+
+      const { total } = await service.list({ query: { userId: wallet.userId }, skip: 10, limit: 10 });
+
+      expect(total).toBe(12);
+    });
+
+    it("answers with the page the chain gave when the console's index cannot be counted", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentRepository, logger } = setup({ wallet, listedDseqs: ["100", "200"] });
+      deploymentRepository.countByOwnerAndState.mockRejectedValue(new Error("chain index unavailable"));
+
+      const { deployments, total } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
+
+      expect(deployments).toHaveLength(2);
+      expect(total).toBe(2);
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_COUNT_FAILED" }));
+    });
+
     it("forwards pagination as flat skip/limit when falling back to database", async () => {
       const deploymentList = createDeploymentListResponseSeed({}, 2);
       const wallet = createUserWallet() as WalletInitialized;
