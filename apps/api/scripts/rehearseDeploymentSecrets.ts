@@ -34,9 +34,18 @@ interface UserSelection {
   email?: string;
 }
 
-interface SeedOptions extends UserSelection {
+interface WriteTarget {
+  confirmDatabase: string;
+}
+
+interface SeedOptions extends UserSelection, WriteTarget {
   count: number;
   secrets: number;
+}
+
+interface DatabaseTarget {
+  host: string;
+  name: string;
 }
 
 interface InspectedDeployment {
@@ -52,7 +61,9 @@ const program = new Command();
 
 program
   .name("rehearse-deployment-secrets")
-  .description("Gives one user stored deployment secrets to rehearse rekey-user-data-key against, on any console other than production mainnet");
+  .description(
+    "Gives one user stored deployment secrets to rehearse rekey-user-data-key against, on an environment that is not the one real users deploy from"
+  );
 
 function withUserSelection(command: Command): Command {
   return command
@@ -60,9 +71,16 @@ function withUserSelection(command: Command): Command {
     .option("-e, --email <email>", "The user, by the email on their account", value => z.string().email().parse(value));
 }
 
+function withDatabaseConfirmation(command: Command): Command {
+  return command.requiredOption(
+    "--confirm-database <name>",
+    "The database this environment's connection string must name, which a write refuses to run without"
+  );
+}
+
 const positiveInteger = (value: string) => z.coerce.number().int().positive().parse(value);
 
-withUserSelection(program.command("seed"))
+withDatabaseConfirmation(withUserSelection(program.command("seed")))
   .description("Records closed deployments carrying sealed secrets for the user, stored the way a create stores them, so a re-key has rows to walk")
   .option("-c, --count <number>", "How many deployments to record", positiveInteger, DEFAULT_DEPLOYMENT_COUNT)
   .option("-s, --secrets <number>", "How many secrets each deployment carries", positiveInteger, DEFAULT_SECRETS_PER_DEPLOYMENT)
@@ -76,14 +94,14 @@ withUserSelection(program.command("inspect"))
     await runCommand("inspect", () => inspect(options));
   });
 
-withUserSelection(program.command("cleanup"))
+withDatabaseConfirmation(withUserSelection(program.command("cleanup")))
   .description("Deletes the deployments this script recorded for the user, and nothing else")
-  .action(async (options: UserSelection) => {
+  .action(async (options: UserSelection & WriteTarget) => {
     await runCommand("cleanup", () => cleanup(options));
   });
 
 async function seed(options: SeedOptions): Promise<void> {
-  refuseProductionConsole();
+  assertDatabaseIsConfirmed(options.confirmDatabase);
   const user = await resolveUser(options);
   await container.resolve(SdlSecretsSealingKeyService).getSealingKey();
 
@@ -146,8 +164,8 @@ async function inspect(options: UserSelection): Promise<void> {
   });
 }
 
-async function cleanup(options: UserSelection): Promise<void> {
-  refuseProductionConsole();
+async function cleanup(options: UserSelection & WriteTarget): Promise<void> {
+  assertDatabaseIsConfirmed(options.confirmDatabase);
   const user = await resolveUser(options);
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
   const recordedByThisScript = { userId: user.id, name: REHEARSAL_DEPLOYMENT_NAME };
@@ -158,36 +176,36 @@ async function cleanup(options: UserSelection): Promise<void> {
   logger.info({ event: "REHEARSAL_CLEANUP_END", userId: user.id, deploymentsDeleted });
 }
 
-/** Beta runs as `production` on the sandbox chain, so only the pair names the console real users deploy from; both halves also read this way when nothing sets them, so an unconfigured run refuses rather than reaching whichever database the connection string names. */
-function refuseProductionConsole(): void {
-  const config = container.resolve(CoreConfigService);
-  const deploymentEnv = config.get("DEPLOYMENT_ENV");
-  const network = config.get("NETWORK");
+/** `DEPLOYMENT_ENV` and `NETWORK` are set by the chart at deploy time, not by Doppler, so a local run cannot read which console it reached and the operator names the database instead. */
+function assertDatabaseIsConfirmed(confirmed: string): void {
+  const target = databaseOf(container.resolve(CoreConfigService).get("POSTGRES_DB_URI"));
 
-  if (deploymentEnv !== "production" || network !== "mainnet") return;
+  if (target?.name === confirmed) return;
 
-  throw new Error(`Refusing to write rehearsal rows to the production mainnet console (DEPLOYMENT_ENV=${deploymentEnv}, NETWORK=${network})`);
+  throw new Error(`Refusing to write: --confirm-database says "${confirmed}" and the connection string names "${target?.name ?? "nothing readable"}"`);
 }
 
-/** Says which console and which database the command reached, so an operator sees it is on beta before reading anything below. */
+/** Says which console and which database the command reached, so an operator sees where they are before reading anything below. */
 function logTarget(name: string): void {
   const config = container.resolve(CoreConfigService);
+  const target = databaseOf(config.get("POSTGRES_DB_URI"));
 
   logger.info({
     event: "REHEARSAL_TARGET",
     name,
     deploymentEnv: config.get("DEPLOYMENT_ENV"),
     network: config.get("NETWORK"),
-    database: databaseOf(config.get("POSTGRES_DB_URI"))
+    database: target?.name,
+    databaseHost: target?.host
   });
 }
 
 /** Host and database name only: the connection string also carries the password. */
-function databaseOf(uri: string): string | undefined {
+function databaseOf(uri: string): DatabaseTarget | undefined {
   try {
     const { hostname, port, pathname } = new URL(uri);
 
-    return `${hostname}${port ? `:${port}` : ""}/${pathname.slice(1)}`;
+    return { host: port ? `${hostname}:${port}` : hostname, name: pathname.slice(1) };
   } catch {
     return undefined;
   }

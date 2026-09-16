@@ -84,11 +84,20 @@ The re-key gives one user a new data key and re-seals every stored secret of the
 Before the first real use, walk the whole procedure on beta or staging against a throwaway account. Nothing in the console UI writes a secret yet, so `apps/api/scripts/rehearseDeploymentSecrets.ts` records deployments carrying sealed secrets for that account, stored the way a create stores them but marked closed, so no sweep funds, reconciles or deletes them. A deployment created through `POST /v1/deployments` whose SDL carries env values stores secrets as well, so a real deploy from the account works too. Run the script locally with the environment's configuration, for example through `doppler run`:
 
 ```sh
-doppler run --project <project> --config <config> -- npm run rehearse:secrets -- seed --email <account email> --count 3
-doppler run --project <project> --config <config> -- npm run rehearse:secrets -- inspect --email <account email>
+doppler run -p console-api -c staging-sandbox -- npm run rehearse:secrets -- seed --email <account email> --count 3 --confirm-database console-users-staging
+doppler run -p console-api -c staging-sandbox -- npm run rehearse:secrets -- inspect --email <account email>
 ```
 
-`seed` logs the account's user id for the commands below and creates the account's data key if it has none. `inspect` lists the account's data keys and, for every deployment holding a secret, which key seals it and whether it opens; run it between the steps below to watch the tokens move and the retired key disappear. Run `seed` again between the two real runs to see a value written under the new key open beside the ones it re-sealed. `cleanup` deletes what `seed` recorded and nothing else. Every command opens by logging `REHEARSAL_TARGET`, naming the console and the database it reached, and `seed` and `cleanup` refuse to write when that reads `DEPLOYMENT_ENV=production` with `NETWORK=mainnet`, which is both the console real users deploy from and what an unconfigured run reads as. Beta deploys as `production` on the sandbox chain, so it runs there.
+When the database answers only through a local proxy, rewrite the host the way the other operator commands do; the database name survives the rewrite, which is what the confirmation compares:
+
+```sh
+doppler run -p console-api -c staging-sandbox -- sh -c '
+  export POSTGRES_DB_URI="$(printf "%s" "${POSTGRES_DB_URI%%\?*}" | sed -E "s#@[^@/]+/#@localhost:6543/#")?sslmode=disable"
+  npm run rehearse:secrets -- seed --email <account email> --count 3 --confirm-database console-users-staging
+'
+```
+
+`seed` logs the account's user id for the commands below and creates the account's data key if it has none. `inspect` lists the account's data keys and, for every deployment holding a secret, which key seals it and whether it opens; run it between the steps below to watch the tokens move and the retired key disappear. Run `seed` again between the two real runs to see a value written under the new key open beside the ones it re-sealed. `cleanup` deletes what `seed` recorded and nothing else. Every command opens by logging `REHEARSAL_TARGET`, naming the database and host it reached. `seed` and `cleanup` refuse to write unless `--confirm-database` matches the database that environment's connection string actually names, so a configuration picked by mistake refuses rather than writing fixtures into it. The check is on the name because `DEPLOYMENT_ENV` and `NETWORK` are set by the chart at deploy time rather than by Doppler: a command run from a laptop reads them as `production` and `mainnet` whichever environment its configuration belongs to.
 
 1. Rehearse:
 
