@@ -875,9 +875,7 @@ describe(DeploymentSettingRepository.name, () => {
     it("refuses a batch size of zero, which would read as a fleet holding no secrets", async () => {
       const { deploymentSettingRepository } = await setup();
 
-      await expect(deploymentSettingRepository.findStoredSecretsIteratively({ batchSize: 0 }).next()).rejects.toThrow(
-        "Batch size must be a positive integer"
-      );
+      await expect(deploymentSettingRepository.findStoredSecretsIteratively({ batchSize: 0 }).next()).rejects.toThrow("Batch size must be a positive integer");
     });
 
     it("yields a deployment's token under the id that holds it", async () => {
@@ -901,11 +899,7 @@ describe(DeploymentSettingRepository.name, () => {
 
     it("pages every token-holding deployment exactly once when the batch is smaller than the set", async () => {
       const { sealedToken, otherSealedToken, createSettingWithSecrets, findStoredSecrets } = await setup();
-      const ids = [
-        await createSettingWithSecrets(sealedToken),
-        await createSettingWithSecrets(otherSealedToken),
-        await createSettingWithSecrets(sealedToken)
-      ];
+      const ids = [await createSettingWithSecrets(sealedToken), await createSettingWithSecrets(otherSealedToken), await createSettingWithSecrets(sealedToken)];
 
       const oneAtATime = await findStoredSecrets(ids, 1);
       const allAtOnce = await findStoredSecrets(ids, 1000);
@@ -916,11 +910,7 @@ describe(DeploymentSettingRepository.name, () => {
 
     it("yields rows in id order, so each batch stays an index scan on the primary key", async () => {
       const { sealedToken, createSettingWithSecrets, findStoredSecrets } = await setup();
-      const ids = [
-        await createSettingWithSecrets(sealedToken),
-        await createSettingWithSecrets(sealedToken),
-        await createSettingWithSecrets(sealedToken)
-      ];
+      const ids = [await createSettingWithSecrets(sealedToken), await createSettingWithSecrets(sealedToken), await createSettingWithSecrets(sealedToken)];
 
       const stored = await findStoredSecrets(ids, 2);
 
@@ -1359,6 +1349,82 @@ describe(DeploymentSettingRepository.name, () => {
       expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ name: "renamed" });
       expect(await deploymentSettingRepository.findOneBy({ userId: trialUser.id, dseq })).toMatchObject({ name: "not yours" });
     });
+  });
+
+  describe("re-sealing one user's stored secrets", () => {
+    it("pages only the user's deployments that hold a secret, with the deployment each token is bound to", async () => {
+      const { deploymentSettingRepository, seedSecretsOwner } = await setupSecretsOwners();
+      const owner = await seedSecretsOwner([
+        { dseq: "100", token: newSealedToken() },
+        { dseq: "200", token: newSealedToken() },
+        { dseq: "300", token: null }
+      ]);
+      await seedSecretsOwner([{ dseq: "900", token: newSealedToken() }]);
+      const paged: Array<{ dseq: string; sealedSecrets: string }> = [];
+
+      for await (const batch of deploymentSettingRepository.findStoredSecretsByUserIteratively({ userId: owner.id, batchSize: 1 })) {
+        expect(batch.length).toBeLessThanOrEqual(1);
+        paged.push(...batch);
+      }
+
+      expect(paged.map(row => row.dseq).sort()).toEqual(["100", "200"]);
+      expect(paged.every(row => typeof row.sealedSecrets === "string")).toBe(true);
+    });
+
+    it("re-seals a token it read unchanged and moves the row's timestamp", async () => {
+      const { deploymentSettingRepository, seedSecretsOwner, backdateUpdatedAt } = await setupSecretsOwners();
+      const token = newSealedToken();
+      const resealed = newSealedToken();
+      const owner = await seedSecretsOwner([{ dseq: "100", token }]);
+      const [row] = await deploymentSettingRepository.find({ userId: owner.id });
+      await backdateUpdatedAt(row.id);
+      const before = (await deploymentSettingRepository.findById(row.id))!;
+
+      expect(await deploymentSettingRepository.resealIfUnchanged(row.id, token, resealed)).toBe(true);
+
+      const after = (await deploymentSettingRepository.findById(row.id))!;
+      expect(after.sealedSecrets).toBe(resealed);
+      expect(new Date(after.updatedAt!).getTime()).toBeGreaterThan(new Date(before.updatedAt!).getTime());
+    });
+
+    it("leaves a row whose token the user replaced in between as the user wrote it", async () => {
+      const { deploymentSettingRepository, seedSecretsOwner } = await setupSecretsOwners();
+      const token = newSealedToken();
+      const owner = await seedSecretsOwner([{ dseq: "100", token }]);
+      const [row] = await deploymentSettingRepository.find({ userId: owner.id });
+      const userWrote = newSealedToken();
+      await deploymentSettingRepository.updateById(row.id, { sealedSecrets: userWrote });
+
+      expect(await deploymentSettingRepository.resealIfUnchanged(row.id, token, newSealedToken())).toBe(false);
+
+      expect((await deploymentSettingRepository.findById(row.id))!.sealedSecrets).toBe(userWrote);
+    });
+
+    async function setupSecretsOwners() {
+      const userRepository = container.resolve(UserRepository);
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+      const deploymentSettingsTable = resolveTable("DeploymentSettings");
+
+      async function seedSecretsOwner(deployments: Array<{ dseq: string; token: string | null }>) {
+        const owner = await userRepository.create({ userId: faker.string.uuid() });
+
+        for (const { dseq, token } of deployments) {
+          await deploymentSettingRepository.create({ userId: owner.id, dseq, autoTopUpEnabled: false, sealedSecrets: token });
+        }
+
+        return owner;
+      }
+
+      async function backdateUpdatedAt(id: string) {
+        await db
+          .update(deploymentSettingsTable)
+          .set({ updatedAt: sql`now() - interval '1 hour'` })
+          .where(eq(deploymentSettingsTable.id, id));
+      }
+
+      return { deploymentSettingRepository, seedSecretsOwner, backdateUpdatedAt };
+    }
   });
 
   async function setup() {

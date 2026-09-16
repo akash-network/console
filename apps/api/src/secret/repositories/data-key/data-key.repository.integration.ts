@@ -10,7 +10,19 @@ import type { DataKeyOutput } from "./data-key.repository";
 import { DataKeyRepository } from "./data-key.repository";
 
 describe(DataKeyRepository.name, () => {
-  describe("one data key per user", () => {
+  describe("one active data key per user", () => {
+    it("lets a replacement key be created once the user's key is retired", async () => {
+      const { dataKeyRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const retired = await dataKeyRepository.create({ userId: user.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+      await dataKeyRepository.updateById(retired.id, { retiredAt: new Date() });
+
+      const replacement = await dataKeyRepository.create({ userId: user.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+
+      expect(await dataKeyRepository.count({ userId: user.id })).toBe(2);
+      expect(await dataKeyRepository.findByUserId(user.id)).toMatchObject({ id: replacement.id });
+    });
+
     it("rejects a second active data key for the same user", async () => {
       const { dataKeyRepository, createTestUser } = setup();
       const user = await createTestUser();
@@ -47,6 +59,19 @@ describe(DataKeyRepository.name, () => {
       expect(result.isNew).toBe(true);
       expect(result.dataKey).toMatchObject({ userId: user.id, wrappedKey, wrappedByKid });
       expect(await dataKeyRepository.findByUserId(user.id)).toMatchObject({ id: result.dataKey.id, wrappedKey });
+    });
+
+    it("claims the active slot for a user whose only key is retired", async () => {
+      const { dataKeyRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const retired = await dataKeyRepository.create({ userId: user.id, wrappedKey: "retired-blob", wrappedByKid: "sdl-secrets.v1" });
+      await dataKeyRepository.updateById(retired.id, { retiredAt: new Date() });
+
+      const result = await dataKeyRepository.createUnlessExists({ userId: user.id, wrappedKey: "replacement-blob", wrappedByKid: "sdl-secrets.v2" });
+
+      expect(result.isNew).toBe(true);
+      expect(result.dataKey.id).not.toBe(retired.id);
+      expect(await dataKeyRepository.findByUserId(user.id)).toMatchObject({ id: result.dataKey.id, wrappedKey: "replacement-blob" });
     });
 
     it("returns the existing record when one already exists", async () => {
@@ -104,6 +129,52 @@ describe(DataKeyRepository.name, () => {
       const user = await createTestUser();
 
       expect(await dataKeyRepository.findOwnedById(user.id, "not-a-uuid")).toBeUndefined();
+    });
+  });
+
+  describe("retiring a key", () => {
+    it("retires an active key once, so a second re-key racing for it learns it lost", async () => {
+      const { dataKeyRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const key = await dataKeyRepository.create({ userId: user.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+
+      const retired = await dataKeyRepository.retireIfActive(key.id);
+      const retiredAgain = await dataKeyRepository.retireIfActive(key.id);
+
+      expect(retired).toMatchObject({ id: key.id, retiredAt: expect.any(Date) });
+      expect(retiredAgain).toBeUndefined();
+      expect(await dataKeyRepository.findByUserId(user.id)).toBeUndefined();
+    });
+
+    it("lists only the user's retired keys, oldest first", async () => {
+      const { dataKeyRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const other = await createTestUser();
+      const older = await dataKeyRepository.create({ userId: user.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+      await dataKeyRepository.updateById(older.id, { retiredAt: new Date("2026-01-01T00:00:00Z") });
+      const newer = await dataKeyRepository.create({ userId: user.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+      await dataKeyRepository.updateById(newer.id, { retiredAt: new Date("2026-02-01T00:00:00Z") });
+      await dataKeyRepository.create({ userId: user.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+      const othersKey = await dataKeyRepository.create({ userId: other.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+      await dataKeyRepository.updateById(othersKey.id, { retiredAt: new Date() });
+
+      const retired = await dataKeyRepository.findRetiredByUserId(user.id);
+
+      expect(retired.map(key => key.id)).toEqual([older.id, newer.id]);
+    });
+
+    it("deletes a retired key and refuses to delete an active one", async () => {
+      const { dataKeyRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const retired = await dataKeyRepository.create({ userId: user.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+      await dataKeyRepository.updateById(retired.id, { retiredAt: new Date() });
+      const active = await dataKeyRepository.create({ userId: user.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+
+      expect(await dataKeyRepository.deleteRetired(active.id)).toBe(false);
+      expect(await dataKeyRepository.deleteRetired(retired.id)).toBe(true);
+
+      expect(await dataKeyRepository.findById(active.id)).toBeDefined();
+      expect(await dataKeyRepository.findById(retired.id)).toBeUndefined();
     });
   });
 
