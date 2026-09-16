@@ -81,6 +81,15 @@ Which situation calls for which:
 
 The re-key gives one user a new data key and re-seals every stored secret of theirs under it. It is deliberately per user: it touches that user's deployments, which no fleet-wide operation should.
 
+Before the first real use, walk the whole procedure on beta or staging against a throwaway account. Nothing in the console UI writes a secret yet, so `apps/api/scripts/rehearseDeploymentSecrets.ts` records deployments carrying sealed secrets for that account, stored the way a create stores them but marked closed, so no sweep funds, reconciles or deletes them. A deployment created through `POST /v1/deployments` whose SDL carries env values stores secrets as well, so a real deploy from the account works too. Run the script locally with the environment's configuration, for example through `doppler run`:
+
+```sh
+doppler run --project <project> --config <config> -- npm run rehearse:secrets -- seed --email <account email> --count 3
+doppler run --project <project> --config <config> -- npm run rehearse:secrets -- inspect --email <account email>
+```
+
+`seed` logs the account's user id for the commands below and creates the account's data key if it has none. `inspect` lists the account's data keys and, for every deployment holding a secret, which key seals it and whether it opens; run it between the steps below to watch the tokens move and the retired key disappear. Run `seed` again between the two real runs to see a value written under the new key open beside the ones it re-sealed. `cleanup` deletes what `seed` recorded and nothing else. `seed` and `cleanup` refuse to run while `DEPLOYMENT_ENV` is `production`.
+
 1. Rehearse:
 
    ```sh
