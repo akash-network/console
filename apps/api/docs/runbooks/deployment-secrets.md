@@ -88,7 +88,7 @@ doppler run --project <project> --config <config> -- npm run rehearse:secrets --
 doppler run --project <project> --config <config> -- npm run rehearse:secrets -- inspect --email <account email>
 ```
 
-`seed` logs the account's user id for the commands below and creates the account's data key if it has none. `inspect` lists the account's data keys and, for every deployment holding a secret, which key seals it and whether it opens; run it between the steps below to watch the tokens move and the retired key disappear. Run `seed` again between the two real runs to see a value written under the new key open beside the ones it re-sealed. `cleanup` deletes what `seed` recorded and nothing else. `seed` and `cleanup` refuse to run while `DEPLOYMENT_ENV` is `production`.
+`seed` logs the account's user id for the commands below and creates the account's data key if it has none. `inspect` lists the account's data keys and, for every deployment holding a secret, which key seals it and whether it opens; run it between the steps below to watch the tokens move and the retired key disappear. Run `seed` again between the two real runs to see a value written under the new key open beside the ones it re-sealed. `cleanup` deletes what `seed` recorded and nothing else. Every command opens by logging `REHEARSAL_TARGET`, naming the console and the database it reached, and `seed` and `cleanup` refuse to write when that reads `DEPLOYMENT_ENV=production` with `NETWORK=mainnet`, which is both the console real users deploy from and what an unconfigured run reads as. Beta deploys as `production` on the sandbox chain, so it runs there.
 
 1. Rehearse:
 

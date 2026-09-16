@@ -52,7 +52,7 @@ const program = new Command();
 
 program
   .name("rehearse-deployment-secrets")
-  .description("Gives one user stored deployment secrets to rehearse rekey-user-data-key against, on an environment that is not production");
+  .description("Gives one user stored deployment secrets to rehearse rekey-user-data-key against, on any console other than production mainnet");
 
 function withUserSelection(command: Command): Command {
   return command
@@ -83,7 +83,7 @@ withUserSelection(program.command("cleanup"))
   });
 
 async function seed(options: SeedOptions): Promise<void> {
-  refuseProduction();
+  refuseProductionConsole();
   const user = await resolveUser(options);
   await container.resolve(SdlSecretsSealingKeyService).getSealingKey();
 
@@ -147,7 +147,7 @@ async function inspect(options: UserSelection): Promise<void> {
 }
 
 async function cleanup(options: UserSelection): Promise<void> {
-  refuseProduction();
+  refuseProductionConsole();
   const user = await resolveUser(options);
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
   const recordedByThisScript = { userId: user.id, name: REHEARSAL_DEPLOYMENT_NAME };
@@ -158,15 +158,39 @@ async function cleanup(options: UserSelection): Promise<void> {
   logger.info({ event: "REHEARSAL_CLEANUP_END", userId: user.id, deploymentsDeleted });
 }
 
-/** `DEPLOYMENT_ENV` is what the console falls back to when nothing sets it, so an unset value refuses too rather than reaching whichever database the connection string names. */
-function refuseProduction(): void {
-  const deploymentEnv = container.resolve(CoreConfigService).get("DEPLOYMENT_ENV");
+/** Beta runs as `production` on the sandbox chain, so only the pair names the console real users deploy from; both halves also read this way when nothing sets them, so an unconfigured run refuses rather than reaching whichever database the connection string names. */
+function refuseProductionConsole(): void {
+  const config = container.resolve(CoreConfigService);
+  const deploymentEnv = config.get("DEPLOYMENT_ENV");
+  const network = config.get("NETWORK");
 
-  if (deploymentEnv !== "production") return;
+  if (deploymentEnv !== "production" || network !== "mainnet") return;
 
-  throw new Error(
-    'Refusing to write rehearsal rows while DEPLOYMENT_ENV is "production", which is also its value when unset; set it to the environment\'s name'
-  );
+  throw new Error(`Refusing to write rehearsal rows to the production mainnet console (DEPLOYMENT_ENV=${deploymentEnv}, NETWORK=${network})`);
+}
+
+/** Says which console and which database the command reached, so an operator sees it is on beta before reading anything below. */
+function logTarget(name: string): void {
+  const config = container.resolve(CoreConfigService);
+
+  logger.info({
+    event: "REHEARSAL_TARGET",
+    name,
+    deploymentEnv: config.get("DEPLOYMENT_ENV"),
+    network: config.get("NETWORK"),
+    database: databaseOf(config.get("POSTGRES_DB_URI"))
+  });
+}
+
+/** Host and database name only: the connection string also carries the password. */
+function databaseOf(uri: string): string | undefined {
+  try {
+    const { hostname, port, pathname } = new URL(uri);
+
+    return `${hostname}${port ? `:${port}` : ""}/${pathname.slice(1)}`;
+  } catch {
+    return undefined;
+  }
 }
 
 async function resolveUser({ userId, email }: UserSelection): Promise<UserOutput> {
@@ -258,6 +282,7 @@ deployment:
 
 async function runCommand(name: string, handler: () => Promise<void>): Promise<void> {
   logger.info({ event: "REHEARSAL_COMMAND_START", name });
+  logTarget(name);
 
   try {
     await container.resolve(ExecutionContextService).runWithContext(handler);
