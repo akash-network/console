@@ -88,7 +88,7 @@ DEPLOYMENT_ENV=staging NETWORK=sandbox doppler run -p console-api -c staging-san
 DEPLOYMENT_ENV=staging NETWORK=sandbox doppler run -p console-api -c staging-sandbox -- npm run rehearse:secrets -- inspect --email <account email>
 ```
 
-Both variables name the environment's own values, `production` and the chain for beta. They are what `@akashnetwork/env-loader` reads to load `env/.env.<DEPLOYMENT_ENV>` and `env/.env.<NETWORK>`, which hold the settings Doppler does not carry, so leaving them out fails the deployment config on a missing value such as `DEPLOY_WEB_BASE_URL`. Doppler's values still win over the files, and these two select files only: the write is gated on `--confirm-database` alone.
+Set both to what the chosen configuration stands for: `staging-sandbox` is `staging` on `sandbox`, and beta's `prod-sandbox` is `production` on `sandbox`. They are what `@akashnetwork/env-loader` reads to load `env/.env.<DEPLOYMENT_ENV>` and `env/.env.<NETWORK>`, which hold the settings Doppler does not carry, so leaving them out fails the deployment config on a missing value such as `DEPLOY_WEB_BASE_URL`. Doppler's values still win over the files, and these two select files only: the write is gated on `--confirm-database` alone.
 
 When the database answers only through a local proxy, rewrite the host the way the other operator commands do; the database name survives the rewrite, which is what the confirmation compares:
 

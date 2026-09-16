@@ -178,16 +178,22 @@ async function cleanup(options: UserSelection & WriteTarget): Promise<void> {
   assertDatabaseIsConfirmed(options.confirmDatabase);
   const user = await resolveUser(options);
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
-  const recorded = await deploymentSettingRepository.find(recordedByThisScript(user.id), { select: ["id", "dseq"] });
+  const recorded = await deploymentSettingRepository.find(recordedByThisScript(user.id), { select: ["dseq"] });
+  const deleted: string[] = [];
 
-  await deploymentSettingRepository.deleteById(recorded.map(row => row.id));
+  for (const { dseq } of recorded) {
+    const row = await deploymentSettingRepository.deleteBy({ ...recordedByThisScript(user.id), dseq }, { returning: true });
 
-  logger.info({ event: "REHEARSAL_CLEANUP_END", userId: user.id, deployments: recorded.map(row => row.dseq) });
+    if (row) deleted.push(dseq);
+  }
+
+  logger.info({ event: "REHEARSAL_CLEANUP_END", userId: user.id, deployments: deleted });
 }
 
 /**
  * A deployment the user named this themselves still carries the manifest version its create wrote, and a row
- * standing in for one that predates definition recording is not closed, so neither answers all three at once.
+ * standing in for one that predates definition recording is not closed, so neither answers all three at once;
+ * each delete states them again, so a row a deploy turned real between the read and the delete is left alone.
  */
 function recordedByThisScript(userId: string) {
   return { userId, name: REHEARSAL_DEPLOYMENT_NAME, closed: true, manifestVersion: null };
@@ -317,9 +323,9 @@ deployment:
 
 async function runCommand(name: string, handler: () => Promise<void>): Promise<void> {
   logger.info({ event: "REHEARSAL_COMMAND_START", name });
-  logTarget(name);
 
   try {
+    logTarget(name);
     await container.resolve(ExecutionContextService).runWithContext(handler);
     logger.info({ event: "REHEARSAL_COMMAND_END", name });
   } catch (error) {
