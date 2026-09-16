@@ -33,7 +33,7 @@
       ]
     },
     "apps/api": {
-      "entry": ["scripts/buildAkashTemplatesCache.ts"],
+      "entry": ["scripts/buildAkashTemplatesCache.ts", "scripts/rehearseDeploymentSecrets.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"],
       "ignore": [
         "test/seeders/balance.seeder.ts"
