@@ -275,10 +275,7 @@ export type ListDeploymentsItem = paths["/v1/deployments"]["get"]["responses"][2
 /** What the console records about a deployment, as a list shows it. Absent for one the console holds no record of. */
 export type ListedDeploymentSettings = ListDeploymentsItem["settings"];
 
-/**
- * A deployment as a list row needs it. The name is nullable because a deployment created before the console
- * recorded names has none, and rows already fall back to the dseq.
- */
+/** The name is null for a deployment created before the console recorded names, which rows render as the dseq. */
 export interface ListedDeploymentDto extends DeploymentDto {
   name: string | null;
   /** Inline where the list came from the console API. The chain-backed list leaves each row to fetch its own. */

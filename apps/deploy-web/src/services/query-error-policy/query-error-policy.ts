@@ -6,10 +6,7 @@ const MAX_SERVER_ERROR_RETRIES = 3;
 /** The provider proxy answers 502 when it cannot reach the provider host and 503 when the provider itself failed. */
 const PROVIDER_UNAVAILABLE_STATUSES = [502, 503];
 
-/**
- * Server errors are usually transient, so they get a few attempts. Everything else fails on the first try.
- * The typed API client raises its own error rather than an axios one, so it is recognised separately.
- */
+/** Server errors are usually transient, so they get a few attempts. Everything else fails on the first try. */
 export function retryOnServerError(failureCount: number, error: unknown): boolean {
   return isServerError(error) && failureCount < MAX_SERVER_ERROR_RETRIES;
 }
