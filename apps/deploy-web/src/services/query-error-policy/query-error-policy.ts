@@ -19,6 +19,22 @@ export function isProviderUnavailableError(error: unknown): boolean {
 }
 
 /**
+ * Whether the proxy rejected the call's provider JWT. It validates the payload before it dials and answers 400
+ * with a zod issue on `auth.token`, so a caller holding a token the proxy considers expired can tell that apart
+ * from every other 400 and mint a fresh one.
+ */
+export function isProviderTokenRejection(error: unknown): boolean {
+  if (!isHttpError(error) || error.response?.status !== 400) return false;
+
+  const issues = (error.response.data as { error?: { issues?: unknown } } | undefined)?.error?.issues;
+  return Array.isArray(issues) && issues.some(issue => Array.isArray(issue?.path) && issue.path.join(".") === "auth.token");
+}
+
+function isClientError(error: unknown): boolean {
+  return isHttpError(error) && !!error.response && error.response.status >= 400 && error.response.status < 500;
+}
+
+/**
  * Queries and mutations opt out of error reporting by putting a predicate on React Query's `meta`, which is the
  * documented way to hand per-call policy to the global cache handlers.
  */
@@ -27,7 +43,13 @@ export function shouldReportError(error: unknown, meta: Record<string, unknown> 
   return typeof skipErrorReporting === "function" ? !skipErrorReporting(error) : true;
 }
 
-export const SKIP_REPORTING_PROVIDER_UNAVAILABLE = { skipErrorReporting: isProviderUnavailableError };
+/**
+ * Provider polls are best-effort and degrade in the UI on their own. A 4xx is the caller's or the provider's
+ * and a 502/503 is the provider being down, so neither is a Console fault error reporting can act on.
+ */
+export const SKIP_REPORTING_PROVIDER_POLL_FAILURE = {
+  skipErrorReporting: (error: unknown) => isProviderUnavailableError(error) || isClientError(error)
+};
 
 /** Opt out for call sites whose own onError reports the failure with tags the cache handler has no way to know. */
 export const SKIP_REPORTING_HANDLED_BY_CALLER = { skipErrorReporting: () => true };

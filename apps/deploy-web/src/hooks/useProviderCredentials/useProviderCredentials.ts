@@ -30,7 +30,7 @@ export type UseProviderCredentialsResult = {
     usable: boolean;
     error: Error | null;
   };
-  ensureToken: () => Promise<string>;
+  ensureToken: (options?: { force?: boolean }) => Promise<string>;
 };
 
 export type UseProviderCredentialsDependencies = {
@@ -39,7 +39,8 @@ export type UseProviderCredentialsDependencies = {
 
 export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UseProviderCredentialsDependencies = {}): UseProviderCredentialsResult {
   const { hasWallet, address } = d.useWallet();
-  const { accessToken, generateToken, isTokenExpired, isHydrated } = d.useProviderJwt();
+  const jwt = d.useProviderJwt();
+  const { accessToken, isTokenExpired, isHydrated } = jwt;
   const notificator = d.useNotificator();
 
   const isUsable = !!accessToken && !isTokenExpired;
@@ -50,39 +51,46 @@ export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UsePr
   const releaseInFlight = useSetAtom(providerCredentialsStore.releaseInFlightTokenRequest);
   const clearInFlightForOtherAddress = useSetAtom(providerCredentialsStore.clearInFlightTokenRequestForOtherAddress);
 
-  const stateRef = useRef({ accessToken, isTokenExpired, generateToken, notificator, address });
-  stateRef.current = { accessToken, isTokenExpired, generateToken, notificator, address };
+  /**
+   * Holds the jwt hook's result rather than its fields: `isTokenExpired` is a getter evaluated against the
+   * current time, and reading it off a snapshot taken at render would answer for whenever that render was.
+   */
+  const stateRef = useRef({ jwt, notificator, address });
+  stateRef.current = { jwt, notificator, address };
 
   useEffect(() => {
     setError(null);
     clearInFlightForOtherAddress(address);
   }, [address, clearInFlightForOtherAddress]);
 
-  const ensureToken = useCallback(async (): Promise<string> => {
-    const { accessToken, isTokenExpired, generateToken, notificator, address } = stateRef.current;
-    if (accessToken && !isTokenExpired) return accessToken;
+  const ensureToken = useCallback(
+    async (options?: { force?: boolean }): Promise<string> => {
+      const { jwt, notificator, address } = stateRef.current;
+      if (!options?.force && jwt.accessToken && !jwt.isTokenExpired) return jwt.accessToken;
 
-    return claimInFlight({
-      address,
-      createPromise: () => {
-        const createdPromise: Promise<string> = GENERATE_TOKEN_RETRY_POLICY.execute(() => generateToken())
-          .then(token => {
-            setError(null);
-            return token;
-          })
-          .catch((err: unknown) => {
-            const normalizedError = err instanceof Error ? err : new Error(String(err));
-            setError(normalizedError);
-            notificator.error(GENERATE_TOKEN_FAILURE_MESSAGE);
-            throw normalizedError;
-          })
-          .finally(() => {
-            releaseInFlight(createdPromise);
-          });
-        return createdPromise;
-      }
-    });
-  }, [claimInFlight, releaseInFlight]);
+      return claimInFlight({
+        address,
+        createPromise: () => {
+          const createdPromise: Promise<string> = GENERATE_TOKEN_RETRY_POLICY.execute(() => jwt.generateToken())
+            .then(token => {
+              setError(null);
+              return token;
+            })
+            .catch((err: unknown) => {
+              const normalizedError = err instanceof Error ? err : new Error(String(err));
+              setError(normalizedError);
+              notificator.error(GENERATE_TOKEN_FAILURE_MESSAGE);
+              throw normalizedError;
+            })
+            .finally(() => {
+              releaseInFlight(createdPromise);
+            });
+          return createdPromise;
+        }
+      });
+    },
+    [claimInFlight, releaseInFlight]
+  );
 
   useEffect(() => {
     if (!hasWallet || !isHydrated || isUsable || error) return;
