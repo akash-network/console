@@ -12,4 +12,5 @@ export type FeatureFlag =
   | "ui_sdl_proxy_http_options"
   | "ui_sdl_cpu_arch"
   | "fair_use_policy_gate"
-  | "ui_deployments_list_redesign";
+  | "ui_deployments_list_redesign"
+  | "ui_deployments_list_api";

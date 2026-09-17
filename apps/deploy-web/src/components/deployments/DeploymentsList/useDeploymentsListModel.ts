@@ -11,13 +11,12 @@ import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
 import { deploymentsViewModeAtom } from "@src/store/deploymentsViewStore";
 import sdlStore from "@src/store/sdlStore";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { useChainDeploymentsListSource } from "./useDeploymentsListSource";
+import type { DeploymentsListSourceHook } from "./useDeploymentsListSource";
 
 export const DEPENDENCIES = {
   useWallet,
   useProviderList,
   useManagedDeploymentConfirm,
-  useDeploymentsListSource: useChainDeploymentsListSource,
   useListSelection
 };
 
@@ -25,7 +24,10 @@ export const DEPENDENCIES = {
 export const DEFAULT_PAGE_SIZE = MIN_PAGE_SIZE;
 
 /** Owns what the page does with a list of deployments, never where that list comes from. */
-export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
+export function useDeploymentsListModel(
+  { useDeploymentsListSource }: { useDeploymentsListSource: DeploymentsListSourceHook },
+  dependencies: typeof DEPENDENCIES = DEPENDENCIES
+) {
   const d = dependencies;
   const { address, signAndBroadcastTx, hasWallet } = d.useWallet();
   const { data: providers, isFetching: isLoadingProviders } = d.useProviderList();
@@ -38,9 +40,10 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [search, setSearch] = useState("");
 
-  const isSearching = search.trim().length > 0;
+  const { appliedSearch, active, archive, refetch: refetchDeployments } = useDeploymentsListSource({ search, pageIndex, pageSize, archivePageIndex });
 
-  const { active, archive, refetch: refetchDeployments } = d.useDeploymentsListSource({ search, pageIndex, pageSize, archivePageIndex });
+  /** Reads the search the rows were fetched with rather than the box, so a paced source cannot report a search its rows have yet to reflect. */
+  const isSearching = appliedSearch.length > 0;
 
   const pageDeployments = active.deployments;
   const archivePageDeployments = archive.deployments;
@@ -49,10 +52,13 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
   const isLoadingDeployments = active.isFetching;
   const isError = active.isError;
   const isArchiveError = archive.isError;
+  const isSearchTooBroad = active.isSearchTooBroad || archive.isSearchTooBroad;
 
   const hasPageResults = pageDeployments.length > 0;
+  /** The count is unknown when the api could not answer it, so the rows it did return stand in for it. */
+  const hasAnyArchived = archivePageDeployments.length > 0 || (archiveTotal ?? 0) > 0;
   /** A search is only reachable from a list that already had rows, so it stands in for the unfiltered counts the source no longer holds. */
-  const hasAnyDeployment = isSearching || pageIndex > 0 || hasPageResults || archiveTotal > 0;
+  const hasAnyDeployment = isSearching || pageIndex > 0 || hasPageResults || hasAnyArchived;
   const hasNextPage = active.hasNextPage;
   const isPaginated = hasNextPage || pageIndex > 0;
   const hasNextArchivePage = archive.hasNextPage;
@@ -130,6 +136,7 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     changeSearch,
     pageDeployments,
     archiveTotal,
+    hasAnyArchived,
     archivePageDeployments,
     isLoadingDeployments,
     isLoadingProviders,
@@ -143,7 +150,10 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     showErrorState: isError && !hasPageResults && !isLoadingDeployments,
     showArchiveError: isArchiveError,
     isRetryingArchive: isArchiveError && archive.isFetching,
-    showNoSearchResults: isSearching && !isError && !isArchiveError && !isLoadingDeployments && !archive.isFetching && !hasPageResults && archiveTotal === 0,
+    showSearchTooBroad: active.isSearchTooBroad,
+    showArchiveSearchTooBroad: archive.isSearchTooBroad,
+    showNoSearchResults:
+      isSearching && !isSearchTooBroad && !isError && !isArchiveError && !isLoadingDeployments && !archive.isFetching && !hasPageResults && !hasAnyArchived,
     pageIndex,
     pageSize,
     changePageSize,
@@ -157,7 +167,7 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     goToPreviousArchivePage,
     goToNextArchivePage,
     /** Survives the page size growing past the last page, so the selector that did it stays on screen to undo it. */
-    showPageSizeSelector: (hasPageResults || archiveTotal > 0) && (isPaginated || isArchivePaginated || pageSize !== DEFAULT_PAGE_SIZE),
+    showPageSizeSelector: (hasPageResults || hasAnyArchived) && (isPaginated || isArchivePaginated || pageSize !== DEFAULT_PAGE_SIZE),
     isInitialLoad,
     selectedItemIds,
     selectItem,

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { NamedDeploymentDto } from "@src/types/deployment";
+import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { VisitEndpoint } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
 import { DEPENDENCIES, DeploymentRow } from "./DeploymentRow";
 
@@ -127,7 +127,7 @@ describe("DeploymentRow", () => {
   });
 
   function setup(input: {
-    deployment: Partial<NamedDeploymentDto> & { dseq: string };
+    deployment: Partial<ListedDeploymentDto> & { dseq: string };
     isSelectable?: boolean;
     isSelected?: boolean;
     endpoints?: VisitEndpoint[];
@@ -151,7 +151,7 @@ describe("DeploymentRow", () => {
 
     const providers: never[] = [];
     const onSelect = vi.fn();
-    const deployment = { state: "active", ...input.deployment } as NamedDeploymentDto;
+    const deployment = { state: "active", ...input.deployment } as ListedDeploymentDto;
 
     const renderRow = () => (
       <table>

@@ -423,6 +423,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         queryClient.invalidateQueries({ queryKey: QueryKeys.getAllLeasesKey(owner) });
         queryClient.invalidateQueries({ queryKey: QueryKeys.getDeploymentListKey(owner) });
         queryClient.invalidateQueries({ queryKey: QueryKeys.getDeploymentsPageKeyPrefix(owner) });
+        queryClient.invalidateQueries({ queryKey: api.v1.listDeployments.getKey() });
         setDeploySucceeded(true);
         redirectTimerRef.current = setTimeout(function redirectToDeployment() {
           router.replace(UrlService.deploymentDetails(activeDseq, "EVENTS", "events"));

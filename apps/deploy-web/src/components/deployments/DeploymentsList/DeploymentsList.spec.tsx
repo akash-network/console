@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { NamedDeploymentDto } from "@src/types/deployment";
+import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { DeploymentsCollectionProps } from "./DeploymentsCollection";
-import { DEPENDENCIES, DeploymentsList } from "./DeploymentsList";
+import { DEPENDENCIES, DeploymentsList, MAX_SEARCH_LENGTH } from "./DeploymentsList";
 import type { useDeploymentsListModel } from "./useDeploymentsListModel";
 
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -172,7 +172,7 @@ describe("DeploymentsList", () => {
   });
 
   it("tells an account whose deployments are all closed that none are active", () => {
-    const { DeploymentsEmptyState } = setup({ hasSettledWithoutActiveDeployments: true, archiveTotal: 1 });
+    const { DeploymentsEmptyState } = setup({ hasSettledWithoutActiveDeployments: true, archiveTotal: 1, hasAnyArchived: true });
 
     expect(DeploymentsEmptyState).toHaveBeenCalledWith(expect.objectContaining({ hasDeployments: true, showTemplatesButton: false }), expect.anything());
   });
@@ -320,8 +320,27 @@ describe("DeploymentsList", () => {
   });
 
   function namedDeployment(dseq: string) {
-    return mock<NamedDeploymentDto>({ dseq, state: "closed" });
+    return mock<ListedDeploymentDto>({ dseq, state: "closed" });
   }
+
+  it("stops a search longer than the api accepts from being entered at all", () => {
+    setup({ hasAnyDeployment: true });
+
+    expect(screen.getByRole("textbox", { name: "Search deployments" })).toHaveAttribute("maxlength", String(MAX_SEARCH_LENGTH));
+  });
+
+  it("tells the reader to narrow the list when the api refused to search it", () => {
+    setup({ hasAnyDeployment: true, isSearching: true, search: "acme", showSearchTooBroad: true });
+
+    expect(screen.getByText(/Too many deployments to search through/)).toBeInTheDocument();
+  });
+
+  it("hands a refused archive search to the archive rather than the active list", () => {
+    const { DeploymentArchive } = setup({ hasAnyDeployment: true, isSearching: true, search: "acme", showArchiveSearchTooBroad: true });
+
+    expect(DeploymentArchive).toHaveBeenCalledWith(expect.objectContaining({ isSearchTooBroad: true }), expect.anything());
+    expect(screen.queryByText(/Too many deployments to search through/)).not.toBeInTheDocument();
+  });
 
   function setup(modelOverrides: Partial<Model>, options: { isBlockchainDown?: boolean } = {}) {
     const changeSearch = vi.fn();
@@ -347,6 +366,7 @@ describe("DeploymentsList", () => {
       changeSearch,
       pageDeployments: [],
       archiveTotal: 0,
+      hasAnyArchived: false,
       archivePageDeployments: [],
       isLoadingDeployments: false,
       isLoadingProviders: false,
@@ -359,6 +379,8 @@ describe("DeploymentsList", () => {
       showErrorState: false,
       showArchiveError: false,
       isRetryingArchive: false,
+      showSearchTooBroad: false,
+      showArchiveSearchTooBroad: false,
       showNoSearchResults: false,
       pageIndex: 0,
       pageSize: 12,
@@ -394,6 +416,7 @@ describe("DeploymentsList", () => {
 
     render(
       <DeploymentsList
+        useDeploymentsListSource={vi.fn()}
         dependencies={MockComponents(DEPENDENCIES, {
           useDeploymentsListModel,
           useBlockchainStatus,

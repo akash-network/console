@@ -26,6 +26,10 @@ import { DeploymentArchive } from "./DeploymentArchive";
 import { DeploymentsCollection } from "./DeploymentsCollection";
 import { DeploymentsEmptyState } from "./DeploymentsEmptyState";
 import { useDeploymentsListModel } from "./useDeploymentsListModel";
+import type { DeploymentsListSourceHook } from "./useDeploymentsListSource";
+
+/** The api rejects a search longer than a deployment name may be, so the box stops one from being entered. */
+export const MAX_SEARCH_LENGTH = 256;
 
 export const DEPENDENCIES = {
   useDeploymentsListModel,
@@ -38,11 +42,12 @@ export const DEPENDENCIES = {
 };
 
 interface Props {
+  useDeploymentsListSource: DeploymentsListSourceHook;
   dependencies?: typeof DEPENDENCIES;
 }
 
-export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: d = DEPENDENCIES }) => {
-  const model = d.useDeploymentsListModel();
+export const DeploymentsList: React.FunctionComponent<Props> = ({ useDeploymentsListSource, dependencies: d = DEPENDENCIES }) => {
+  const model = d.useDeploymentsListModel({ useDeploymentsListSource });
   const { isBlockchainDown } = d.useBlockchainStatus();
   const newDeploymentUrl = d.useNewDeploymentUrl();
 
@@ -85,6 +90,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
                 onChange={changeSearch}
                 aria-label="Search deployments"
                 placeholder="Search deployments"
+                maxLength={MAX_SEARCH_LENGTH}
                 className="w-full sm:w-64"
                 type="text"
                 startIcon={<Search className="ml-3 h-4 w-4 text-muted-foreground" />}
@@ -137,11 +143,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
       )}
 
       {model.hasSettledWithoutActiveDeployments && (
-        <d.DeploymentsEmptyState
-          onDeployClick={model.startNewDeployment}
-          hasDeployments={model.archiveTotal > 0}
-          showTemplatesButton={model.archiveTotal === 0}
-        />
+        <d.DeploymentsEmptyState onDeployClick={model.startNewDeployment} hasDeployments={model.hasAnyArchived} showTemplatesButton={!model.hasAnyArchived} />
       )}
 
       {(model.hasPageResults || model.isInitialLoad) && (
@@ -158,6 +160,8 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
       )}
 
       {model.showNoSearchResults && <p className="py-6">No deployment found.</p>}
+
+      {model.showSearchTooBroad && <p className="py-6">Too many deployments to search through. Clear the search to page through them instead.</p>}
 
       {model.showPageSizeSelector && (
         <div className="flex flex-col items-center justify-between px-2 py-8 md:flex-row md:space-x-4">
@@ -183,6 +187,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
         providers={model.providers}
         viewMode={model.viewMode}
         isError={model.showArchiveError}
+        isSearchTooBroad={model.showArchiveSearchTooBroad}
         isRetrying={model.isRetryingArchive}
         onRetry={model.refetchDeployments}
         pageIndex={model.archivePageIndex}

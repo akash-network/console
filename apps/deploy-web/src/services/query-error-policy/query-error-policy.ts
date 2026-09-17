@@ -1,4 +1,5 @@
 import { isHttpError } from "@akashnetwork/http-sdk";
+import { ApiError } from "@akashnetwork/openapi-sdk";
 
 const MAX_SERVER_ERROR_RETRIES = 3;
 
@@ -7,7 +8,13 @@ const PROVIDER_UNAVAILABLE_STATUSES = [502, 503];
 
 /** Server errors are usually transient, so they get a few attempts. Everything else fails on the first try. */
 export function retryOnServerError(failureCount: number, error: unknown): boolean {
-  return isHttpError(error) && !!error.response && error.response.status >= 500 && failureCount < MAX_SERVER_ERROR_RETRIES;
+  return isServerError(error) && failureCount < MAX_SERVER_ERROR_RETRIES;
+}
+
+function isServerError(error: unknown): boolean {
+  if (error instanceof ApiError) return error.status >= 500;
+
+  return isHttpError(error) && !!error.response && error.response.status >= 500;
 }
 
 /**

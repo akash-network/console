@@ -1,7 +1,7 @@
 import type { Mock } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 
-import type { NamedDeploymentDto } from "@src/types/deployment";
+import type { ListedDeploymentDto } from "@src/types/deployment";
 import { DEPENDENCIES, DeploymentArchive } from "./DeploymentArchive";
 
 import { render, screen } from "@testing-library/react";
@@ -91,6 +91,27 @@ describe("DeploymentArchive", () => {
     expect(DeploymentsCollection).toHaveBeenLastCalledWith(expect.objectContaining({ viewMode: "list" }), expect.anything());
   });
 
+  it("names the archive without a count when the api could not count it", () => {
+    setup({ count: 3, totalCount: null });
+
+    expect(screen.getByRole("button", { name: "Archive" })).toBeInTheDocument();
+    expect(screen.queryByText(/closed/)).not.toBeInTheDocument();
+  });
+
+  it("still lists the rows it has when the count is unknown", async () => {
+    const { DeploymentsCollection } = setup({ count: 3, totalCount: null });
+
+    await userEvent.click(screen.getByRole("button", { name: "Archive" }));
+
+    expect(lastRenderedDeployments(DeploymentsCollection)).toHaveLength(3);
+  });
+
+  it("renders nothing when the count is unknown and no rows came back", () => {
+    setup({ count: 0, totalCount: null });
+
+    expect(screen.queryByRole("button", { name: /Archive/ })).not.toBeInTheDocument();
+  });
+
   it("renders nothing when there is no archive to show", () => {
     setup({ count: 0 });
 
@@ -125,14 +146,28 @@ describe("DeploymentArchive", () => {
   });
 
   function lastRenderedDeployments(DeploymentsCollection: Mock) {
-    return DeploymentsCollection.mock.lastCall?.[0].deployments as NamedDeploymentDto[];
+    return DeploymentsCollection.mock.lastCall?.[0].deployments as ListedDeploymentDto[];
   }
+
+  it("says the search was too broad rather than passing off a refused search as an empty archive", () => {
+    const { DeploymentsCollection } = setup({ count: 0, totalCount: null, isSearchTooBroad: true });
+
+    expect(screen.getByText(/Too many closed deployments to search through/)).toBeInTheDocument();
+    expect(DeploymentsCollection).not.toHaveBeenCalled();
+  });
+
+  it("offers no retry for a refused search, since repeating it would be refused again", () => {
+    setup({ count: 0, totalCount: null, isSearchTooBroad: true });
+
+    expect(screen.queryByRole("button", { name: /Retry/ })).not.toBeInTheDocument();
+  });
 
   function setup(input: {
     count: number;
-    totalCount?: number;
+    totalCount?: number | null;
     viewMode?: "grid" | "list";
     isError?: boolean;
+    isSearchTooBroad?: boolean;
     isRetrying?: boolean;
     pageIndex?: number;
     isPaginated?: boolean;
@@ -140,7 +175,7 @@ describe("DeploymentArchive", () => {
   }) {
     const deployments = Array.from(
       { length: input.count },
-      (_, index) => ({ dseq: `${100 + index}`, state: "closed", name: `archived-${index}` }) as NamedDeploymentDto
+      (_, index) => ({ dseq: `${100 + index}`, state: "closed", name: `archived-${index}` }) as ListedDeploymentDto
     );
     const DeploymentsCollection = vi.fn(() => <div>collection</div>);
     const onRetry = vi.fn();
@@ -150,10 +185,11 @@ describe("DeploymentArchive", () => {
     render(
       <DeploymentArchive
         deployments={deployments}
-        totalCount={input.totalCount ?? input.count}
+        totalCount={input.totalCount === undefined ? input.count : input.totalCount}
         providers={[]}
         viewMode={input.viewMode ?? "grid"}
         isError={input.isError ?? false}
+        isSearchTooBroad={input.isSearchTooBroad ?? false}
         isRetrying={input.isRetrying ?? false}
         onRetry={onRetry}
         pageIndex={input.pageIndex ?? 0}

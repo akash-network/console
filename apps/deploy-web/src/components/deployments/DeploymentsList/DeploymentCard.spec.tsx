@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { LeaseDto, NamedDeploymentDto } from "@src/types/deployment";
+import type { LeaseDto, ListedDeploymentDto } from "@src/types/deployment";
 import type { VisitEndpoint } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
 import { DEPENDENCIES, DeploymentCard } from "./DeploymentCard";
 import type { DeploymentReachability } from "./useDeploymentReachability";
@@ -140,7 +140,7 @@ describe("DeploymentCard", () => {
   });
 
   function setup(input: {
-    deployment: Partial<NamedDeploymentDto> & { dseq: string };
+    deployment: Partial<ListedDeploymentDto> & { dseq: string };
     leases?: LeaseDto[];
     reachability?: Partial<DeploymentReachability>;
     isSelectable?: boolean;
@@ -170,7 +170,7 @@ describe("DeploymentCard", () => {
     const DeploymentBadges = vi.fn<typeof DEPENDENCIES.DeploymentBadges>(() => <div>badges</div>);
     const providers: never[] = [];
     const onSelect = vi.fn();
-    const deployment = { state: "active", cpuAmount: 1, memoryAmount: 1, storageAmount: 1, ...input.deployment } as NamedDeploymentDto;
+    const deployment = { state: "active", cpuAmount: 1, memoryAmount: 1, storageAmount: 1, ...input.deployment } as ListedDeploymentDto;
 
     const renderCard = () => (
       <DeploymentCard

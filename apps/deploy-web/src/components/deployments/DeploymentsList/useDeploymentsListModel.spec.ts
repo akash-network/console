@@ -451,6 +451,14 @@ describe(useDeploymentsListModel.name, () => {
       expect(result.current.hasAnyDeployment).toBe(true);
     });
 
+    it("counts an account with only closed deployments as having deployments when the count is unknown", () => {
+      const { result } = setup({ active: [], archived: [deployment("200", "closed")], unknownArchiveTotal: true });
+
+      expect(result.current.archiveTotal).toBeNull();
+      expect(result.current.hasAnyArchived).toBe(true);
+      expect(result.current.hasAnyDeployment).toBe(true);
+    });
+
     it("counts an account with only closed deployments as having deployments", () => {
       const { result } = setup({ active: [], archived: [deployment("200", "closed")] });
 
@@ -773,6 +781,7 @@ describe(useDeploymentsListModel.name, () => {
     isArchiveUnresolved?: boolean;
     activeByPage?: Record<number, DeploymentDto[]>;
     archived?: DeploymentDto[];
+    unknownArchiveTotal?: boolean;
     address?: string;
     hasNextPage?: boolean;
     isFetching?: boolean;
@@ -784,7 +793,43 @@ describe(useDeploymentsListModel.name, () => {
     isCloseConfirmed?: boolean;
     broadcastResponse?: boolean;
     names?: Record<string, string>;
+    appliedSearch?: string;
+    isSearchTooBroad?: boolean;
+    isArchiveSearchTooBroad?: boolean;
   };
+
+  describe("when the source has yet to apply the search in the box", () => {
+    it("keeps the toolbar up rather than reading a cleared box as an account with nothing in it", () => {
+      const { result } = setup({ active: [], archived: [], appliedSearch: "no-such-deployment" });
+
+      expect(result.current.hasAnyDeployment).toBe(true);
+      expect(result.current.hasSettledWithoutActiveDeployments).toBe(false);
+    });
+
+    it("keeps reporting the applied search's empty result until the source catches up", () => {
+      const { result } = setup({ active: [], archived: [], appliedSearch: "no-such-deployment" });
+
+      expect(result.current.showNoSearchResults).toBe(true);
+    });
+  });
+
+  describe("when the api refuses a search as too broad", () => {
+    it("says so instead of leaving the list to report a generic failure", () => {
+      const { result } = setup({ active: [], archived: [], appliedSearch: "web", isSearchTooBroad: true });
+
+      expect(result.current.showSearchTooBroad).toBe(true);
+      expect(result.current.showErrorState).toBe(false);
+      expect(result.current.showNoSearchResults).toBe(false);
+    });
+
+    it("keeps a refusal that only the archive hit out of the active list's message", () => {
+      const { result } = setup({ active: [], archived: [], appliedSearch: "web", isArchiveSearchTooBroad: true });
+
+      expect(result.current.showArchiveSearchTooBroad).toBe(true);
+      expect(result.current.showSearchTooBroad).toBe(false);
+      expect(result.current.showNoSearchResults).toBe(false);
+    });
+  });
 
   function closedDeployments(count: number) {
     return Array.from({ length: count }, (_, index) => deployment(`${200 + index}`, "closed"));
@@ -836,19 +881,30 @@ describe(useDeploymentsListModel.name, () => {
     const useManagedDeploymentConfirm: typeof DEPENDENCIES.useManagedDeploymentConfirm = () =>
       mock<ReturnType<typeof DEPENDENCIES.useManagedDeploymentConfirm>>({ closeDeploymentConfirm });
 
-    const useDeploymentsListSource: typeof DEPENDENCIES.useDeploymentsListSource = sourceInput =>
-      useChainDeploymentsListSource(sourceInput, { useWallet, useDeploymentNames, useDeploymentsPage, useDeploymentList });
+    const useDeploymentsListSource = (sourceInput: Parameters<typeof useChainDeploymentsListSource>[0]) => {
+      const source = useChainDeploymentsListSource(sourceInput, { useWallet, useDeploymentNames, useDeploymentsPage, useDeploymentList });
+
+      return {
+        ...source,
+        appliedSearch: current.appliedSearch ?? source.appliedSearch,
+        active: { ...source.active, isSearchTooBroad: current.isSearchTooBroad ?? false },
+        archive: {
+          ...source.archive,
+          total: current.unknownArchiveTotal ? null : source.archive.total,
+          isSearchTooBroad: current.isArchiveSearchTooBroad ?? false
+        }
+      };
+    };
 
     const dependencies = {
       useWallet,
       useProviderList,
       useManagedDeploymentConfirm,
-      useDeploymentsListSource,
       useListSelection: DEPENDENCIES.useListSelection
     };
 
     const store = createStore();
-    const hook = renderHook(() => useDeploymentsListModel(dependencies), {
+    const hook = renderHook(() => useDeploymentsListModel({ useDeploymentsListSource }, dependencies), {
       wrapper: ({ children }) => createElement(Provider, { store }, children)
     });
 

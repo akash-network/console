@@ -14,7 +14,7 @@ import {
 import { NavArrowRight, Refresh } from "iconoir-react";
 
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
-import type { NamedDeploymentDto } from "@src/types/deployment";
+import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { DeploymentsCollection } from "./DeploymentsCollection";
 
@@ -22,11 +22,12 @@ export const DEPENDENCIES = { DeploymentsCollection };
 
 /** The archive is unbounded, so it lists a page at a time rather than mounting a lease query per closed deployment. */
 export interface DeploymentArchiveProps {
-  deployments: NamedDeploymentDto[];
-  totalCount: number;
+  deployments: ListedDeploymentDto[];
+  totalCount: number | null;
   providers: ApiProviderList[] | undefined;
   viewMode: DeploymentsViewMode;
   isError: boolean;
+  isSearchTooBroad: boolean;
   isRetrying: boolean;
   onRetry: () => void;
   pageIndex: number;
@@ -43,6 +44,7 @@ export const DeploymentArchive: FC<DeploymentArchiveProps> = ({
   providers,
   viewMode,
   isError,
+  isSearchTooBroad,
   isRetrying,
   onRetry,
   pageIndex,
@@ -64,13 +66,17 @@ export const DeploymentArchive: FC<DeploymentArchiveProps> = ({
     );
   }
 
-  if (totalCount === 0) return null;
+  if (isSearchTooBroad) {
+    return <p className="py-8 text-sm text-muted-foreground">Too many closed deployments to search through. Clear the search to page through them instead.</p>;
+  }
+
+  if (!totalCount && deployments.length === 0) return null;
 
   return (
     <Collapsible className="py-8">
       <CollapsibleTrigger className="group inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground">
         <NavArrowRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
-        Archive // {totalCount} closed
+        {totalCount === null ? "Archive" : `Archive // ${totalCount} closed`}
       </CollapsibleTrigger>
       <CollapsibleContent className="pt-4">
         <d.DeploymentsCollection deployments={deployments} providers={providers} viewMode={viewMode} />

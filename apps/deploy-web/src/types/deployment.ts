@@ -1,5 +1,6 @@
 import type { DeploymentReclamation } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import type { paths } from "@akashnetwork/console-api-types";
 import type { Bid, DeploymentResource } from "@akashnetwork/http-sdk";
 
 export type RpcBid = Bid;
@@ -267,6 +268,19 @@ export interface DeploymentDto {
 
 export interface NamedDeploymentDto extends DeploymentDto {
   name: string;
+}
+
+export type ListDeploymentsItem = paths["/v1/deployments"]["get"]["responses"][200]["content"]["application/json"]["data"]["deployments"][number];
+
+/** What the console records about a deployment, as a list shows it. Absent for one the console holds no record of. */
+export type ListedDeploymentSettings = ListDeploymentsItem["settings"];
+
+/** The name is null for a deployment created before the console recorded names, which rows render as the dseq. */
+export interface ListedDeploymentDto extends DeploymentDto {
+  name: string | null;
+  /** Inline where the list came from the console API. The chain-backed list leaves each row to fetch its own. */
+  leases?: LeaseDto[];
+  settings?: ListedDeploymentSettings;
 }
 
 export type DeploymentStatus = "active" | "closed";

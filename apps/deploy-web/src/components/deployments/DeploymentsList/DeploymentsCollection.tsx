@@ -3,7 +3,7 @@ import type { FC } from "react";
 import { Card, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
-import type { NamedDeploymentDto } from "@src/types/deployment";
+import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { DeploymentCard } from "./DeploymentCard";
 import { DeploymentRow } from "./DeploymentRow";
@@ -25,7 +25,7 @@ const HARDWARE_COLUMN = "w-[24.5rem]";
 const CONTROLS_COLUMN = "w-[6.25rem]";
 
 export interface DeploymentsCollectionProps {
-  deployments: NamedDeploymentDto[];
+  deployments: ListedDeploymentDto[];
   providers: ApiProviderList[] | undefined;
   viewMode: DeploymentsViewMode;
   isLoading?: boolean;
@@ -47,7 +47,7 @@ export const DeploymentsCollection: FC<DeploymentsCollectionProps> = ({
   onDeploymentClosed,
   dependencies: d = DEPENDENCIES
 }) => {
-  const itemProps = (deployment: NamedDeploymentDto) => ({
+  const itemProps = (deployment: ListedDeploymentDto) => ({
     deployment,
     providers,
     isSelectable,

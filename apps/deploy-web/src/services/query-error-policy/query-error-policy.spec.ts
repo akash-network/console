@@ -1,3 +1,4 @@
+import { ApiError } from "@akashnetwork/openapi-sdk";
 import { AxiosError } from "axios";
 import { describe, expect, it, vi } from "vitest";
 
@@ -72,6 +73,18 @@ describe("query-error-policy", () => {
 
     it("does not retry a client error", () => {
       expect(retryOnServerError(0, httpError(404))).toBe(false);
+    });
+
+    it("retries a server error the typed api client raised, which is not an axios one", () => {
+      expect(retryOnServerError(0, new ApiError(503, undefined, "GET /v1/deployments \u2192 503"))).toBe(true);
+    });
+
+    it("does not retry a client error the typed api client raised", () => {
+      expect(retryOnServerError(0, new ApiError(404, undefined, "GET /v1/deployments \u2192 404"))).toBe(false);
+    });
+
+    it("gives up on the typed api client after three attempts, like any other server error", () => {
+      expect(retryOnServerError(3, new ApiError(500, undefined, "GET /v1/deployments \u2192 500"))).toBe(false);
     });
 
     it("does not retry a non-http error", () => {
