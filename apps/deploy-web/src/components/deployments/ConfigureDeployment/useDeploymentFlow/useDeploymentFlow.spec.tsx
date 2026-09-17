@@ -613,6 +613,18 @@ describe(useDeploymentFlow.name, () => {
       expect(result.current.dseq).toBe("777");
     });
 
+    it("does not broadcast a second close when a retry lands while the first is still in flight", () => {
+      const closeMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate });
+
+      act(() => result.current.actions.closeAndFail("no match"));
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(closeMutate).toHaveBeenCalledTimes(1);
+      expect(result.current.phase).toBe("configuring");
+      expect(result.current.dseq).toBeNull();
+    });
+
     it("drops the dseq from the URL so a reload cannot resume the abandoned deployment", () => {
       const replace = vi.fn();
       const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777", templateId: "tpl" }, replace, closeMutate: vi.fn() });

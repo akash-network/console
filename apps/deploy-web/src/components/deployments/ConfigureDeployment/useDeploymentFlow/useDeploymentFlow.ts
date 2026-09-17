@@ -214,6 +214,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     [phase, hasOpenBids]
   );
 
+  /** The dseq `closeAndFail` already has a close in flight for, so a "Try again" in that window never broadcasts a second one. */
+  const pendingCloseDseqRef = useRef<string | null>(null);
+
   /** Everything tied to the deployment that just went away. The caller decides where the flow lands afterwards. */
   const clearDeploymentState = useCallback(function clearDeploymentState() {
     setDseq(null);
@@ -350,6 +353,10 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     function cancelAndEdit() {
       router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategy), undefined, { shallow: true });
       createAttemptRef.current += 1;
+      if (dseq && pendingCloseDseqRef.current === dseq) {
+        finishClose();
+        return;
+      }
       if (!dseq) {
         if (phase === "creating") analyticsService.track("cancel_during_create", { category: "deployments" });
         setError(undefined);
@@ -381,14 +388,17 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       if (!dseq) return;
 
       const abandonedDseq = dseq;
+      pendingCloseDseqRef.current = abandonedDseq;
       closeDeployment.mutate(
         { dseq: abandonedDseq },
         {
           onSuccess: function onAbandonedClosed() {
+            pendingCloseDseqRef.current = null;
             if (attempt !== createAttemptRef.current) return;
             clearDeploymentState();
           },
           onError: function onAbandonedCloseFailed(cause: unknown) {
+            pendingCloseDseqRef.current = null;
             verifyCloseOutcome(abandonedDseq, cause, attempt, clearDeploymentState);
           }
         }
