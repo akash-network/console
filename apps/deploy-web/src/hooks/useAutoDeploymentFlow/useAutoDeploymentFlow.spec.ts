@@ -487,7 +487,8 @@ describe(useAutoDeploymentFlow.name, () => {
     const useQuoteExpiry: typeof DEPENDENCIES.useQuoteExpiry = () => input?.quoteExpiry ?? null;
 
     const analyticsService = mock<ReturnType<typeof DEPENDENCIES.useServices>["analyticsService"]>();
-    const useServices: typeof DEPENDENCIES.useServices = (() => ({ analyticsService })) as never;
+    const logger = mock<ReturnType<typeof DEPENDENCIES.useServices>["logger"]>();
+    const useServices: typeof DEPENDENCIES.useServices = (() => ({ analyticsService, logger })) as never;
 
     const view = setupQuery(
       () => {

@@ -105,7 +105,7 @@ export const DEPENDENCIES = {
  * address. `flow.phase` is projected onto the three-step create → match → prepare progress UI.
  */
 export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options, dependencies: typeof DEPENDENCIES = DEPENDENCIES): Result {
-  const { analyticsService } = dependencies.useServices();
+  const { analyticsService, logger } = dependencies.useServices();
   const sdlRef = useRef(sdl);
   sdlRef.current = sdl;
 
@@ -252,20 +252,24 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
   // Read inside the deadline callback only, so their churn never re-arms it.
   const bidCountRef = useRef(0);
   bidCountRef.current = flow.bids.length;
-  const candidateCountRef = useRef(0);
-  candidateCountRef.current = candidateProviders.length;
+  const candidateOwnersRef = useRef<string[]>([]);
+  candidateOwnersRef.current = candidateProviders.map(provider => provider.owner);
 
   useEffect(
     function failWhenNoProviderIsMatched() {
       if (!isAutopilotPending || !hasBids) return;
       function giveUpOnMatching() {
+        const reason = quotesExpired ? "quote_expired" : "deadline";
+        // Logged here rather than per probe pass: a healthy match still takes several failing passes, and warning on
+        // each would bury a session's Sentry breadcrumbs long before anything actually went wrong.
+        logger.warn({ event: "AUTO_DEPLOY_MATCH_FAILED", reason, dseq, candidates: candidateOwnersRef.current });
         // The funnel goes dark between `bids_received` and `bid_selected`; this is the event that explains the gap.
         analyticsService.track("onboarding_match_failed", {
           category: "onboarding",
-          reason: quotesExpired ? "quote_expired" : "deadline",
+          reason,
           dseq,
           numberOfBids: bidCountRef.current,
-          numberOfCandidates: candidateCountRef.current
+          numberOfCandidates: candidateOwnersRef.current.length
         });
         closeAndFailRef.current(MATCH_FAILED_MESSAGE);
       }

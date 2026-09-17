@@ -71,26 +71,17 @@ export function useFirstReachableProvider(
   providers: ApiProviderList[] | undefined | null,
   options: Omit<UseQueryOptions<ApiProviderList | null>, "queryKey" | "queryFn"> = {}
 ): UseQueryResult<ApiProviderList | null> {
-  const { providerProxy, logger } = useServices();
+  const { providerProxy } = useServices();
   const providerList = providers ?? [];
   return useQuery({
     queryKey: QueryKeys.getFirstReachableProviderKey(placementKey ?? ""),
-    queryFn: async () => {
-      const reachable = await findFirstReachableProvider(providerList, provider =>
+    queryFn: () =>
+      findFirstReachableProvider(providerList, provider =>
         providerProxy.request<ProviderStatus>("/status", {
           providerIdentity: { owner: provider.owner, hostUri: provider.hostUri },
           timeout: PROVIDER_STATUS_PROBE_TIMEOUT_MS
         })
-      );
-      if (!reachable) {
-        logger.warn({
-          event: "NO_REACHABLE_PROVIDER",
-          placementKey,
-          candidates: providerList.map(provider => provider.owner)
-        });
-      }
-      return reachable;
-    },
+      ),
     ...options
   });
 }
