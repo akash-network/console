@@ -28,14 +28,13 @@ test.describe("Configure deployment — request quotes flow", () => {
       await expect(configure.marketplaceHeading()).toBeVisible();
     });
 
-    await test.step("cancel and edit closes the deployment and unlocks the pane", async () => {
+    await test.step("cancel and edit unlocks the pane at once while the deployment closes in the background", async () => {
       await configure.cancelAndEdit();
-      await expect(configure.cancellingButton()).toBeVisible();
 
-      await expect(configure.cancellingButton()).not.toBeVisible({ timeout: 15_000 });
       await expect(configure.lockBannerText()).toHaveCount(0);
       await expect(configure.cpuInput()).toBeEnabled();
       await expect(configure.requestQuotesButton()).toBeVisible();
+      await expect(page).not.toHaveURL(/\/new-deployment\/configure\/\d+/);
     });
   });
 
