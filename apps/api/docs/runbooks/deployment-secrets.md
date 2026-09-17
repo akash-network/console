@@ -239,7 +239,7 @@ The key service records administrative activity on a key by itself. The decrypt 
 
    The output must list `DATA_READ` and no `exemptedMembers`.
 
-2. Choose retention deliberately and write the number down here. Data Access logs land in the `_Default` bucket, which keeps them 30 days. An investigation that starts from a user report can begin months after the access, so route these entries to a bucket of their own with a locked retention of a year.
+2. Choose retention deliberately and write the number down here. Data Access logs land in the `_Default` bucket, which keeps them 30 days unless that project has raised it. An investigation that starts from a user report can begin months after the access, so route these entries to a bucket of their own with a locked retention of 400 days.
 
    Done in production on 2026-09-16: bucket `kms-audit` and sink `kms-audit-sink` exist in `console-441017` at 400 days, and entries were confirmed arriving. **The bucket is deliberately not locked yet.** Locking cannot be undone for the whole retention window, so the plan is to leave it a month, confirm the sink filter is catching what it should, then run the lock command below. Until then the trail is still deletable by anyone with logging admin, which is the property the lock exists to remove. Staging needs no separate bucket: its `_Default` already retains 400 days.
 
@@ -249,10 +249,15 @@ The key service records administrative activity on a key by itself. The decrypt 
    gcloud logging buckets create kms-audit --location=global --retention-days=400 --project "$PROJECT"
    gcloud logging sinks create kms-audit-sink logging.googleapis.com/projects/$PROJECT/locations/global/buckets/kms-audit \
      --log-filter='protoPayload.serviceName="cloudkms.googleapis.com"' --project "$PROJECT"
+   ```
+
+   Then, and only after a month of watching the sink land what it should, lock the bucket:
+
+   ```sh
    gcloud logging buckets update kms-audit --location=global --locked --project "$PROJECT"
    ```
 
-   Locking is irreversible and is the point: while the bucket holds entries within retention, nobody, including a compromised console, can shorten the retention or delete the bucket. Once every entry has aged past retention the bucket can be deleted, which is why the retention below is long.
+   Run that last command on its own, never in the same paste as the two above. Locking is irreversible and is the point: while the bucket holds entries within retention, nobody, including a compromised console, can shorten the retention or delete the bucket. A wrong sink filter locked in on day one is a wrong trail nobody can fix for 400 days. Once every entry has aged past retention the bucket can be deleted, which is why the retention below is long.
 
    Retention chosen: 400 days. Rationale: a year of trail plus the slack to notice a problem at the end of it. Change the number here if it changes there.
 
