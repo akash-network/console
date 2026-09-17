@@ -198,11 +198,13 @@ Grafana is the alerting engine, and both rules are live in the production Grafan
 | Deployment secret failed to decrypt                      | `efyg0cuoyiy9se` | 5.1 sees anything at all      |
 | Many distinct users' data keys unwrapped in five minutes | `afyg0cw74to8we` | 5.2 counts more than 40 users |
 
-Both live in the same folder and the same `1m` rule group as every other console alert. They evaluate every 60 seconds over the last five minutes, fire on the first evaluation that crosses (`for: 0s`), treat an empty result as OK rather than as a failure, and notify `Slack Console Alerts`. They were created through `POST /api/v1/provisioning/alert-rules` with the header `X-Disable-Provenance: true`, which leaves them editable in the UI; recreating them elsewhere means the same call with `notification_settings.receiver` set to that environment's contact point.
+Both live in the same folder and the same `1m` rule group as every other console alert. They evaluate every 60 seconds over the last five minutes, fire on the first evaluation that crosses (`for: 0s`), treat an empty result as OK rather than as a failure, and notify `Slack Console Alerts (mention here)`. They were created through `POST /api/v1/provisioning/alert-rules` with the header `X-Disable-Provenance: true`, which leaves them editable in the UI; recreating them elsewhere means the same call with `notification_settings.receiver` set to that environment's contact point.
 
-`Slack Console Alerts` is a channel rather than a pager, and it is where all 30 console alert rules already go. Routing any of them to someone on call is a team-wide decision this runbook cannot settle on its own, so treat these two as no more reliable than the rest until that changes.
+That receiver is a clone of `Slack Console Alerts` carrying `mentionChannel: here`, so these two alerts mention the channel and Slack pushes them to whoever is active. The other console rules keep the plain receiver and stay quiet. Delivery was proven on 2026-09-16 with the contact point's Test button: the message arrived and the mention rendered as a mention rather than as literal text.
 
-Neither path has been proven end to end yet. Prove each once before trusting it:
+It is still a channel and not a pager. Nothing here wakes a sleeping person, and giving these alerts a real paging destination is a team decision this runbook cannot settle on its own.
+
+The two signals in front of that notification have not been proven end to end. Prove each once before trusting it, and note that both must be triggered through the deployed API, since Loki only sees the cluster and an operator script logs to its own terminal:
 
 - 5.1: on a non-production environment, alter one character of a test deployment's `sealed_secrets` in the database, then redeploy that deployment. The deploy must fail, `SECRET_DECRYPT_FAILED` must appear, and the page must arrive. Restore the row afterwards.
 - 5.2: on a non-production environment, lower the threshold to 0, deploy once with a secret, confirm the page, restore the threshold.
@@ -237,16 +239,25 @@ The key service records administrative activity on a key by itself. The decrypt 
 
    The output must list `DATA_READ` and no `exemptedMembers`.
 
-2. Choose retention deliberately and write the number down here. Data Access logs land in the `_Default` bucket, which keeps them 30 days. An investigation that starts from a user report can begin months after the access, so route these entries to a bucket of their own with a locked retention of a year:
+2. Choose retention deliberately and write the number down here. Data Access logs land in the `_Default` bucket, which keeps them 30 days unless that project has raised it. An investigation that starts from a user report can begin months after the access, so route these entries to a bucket of their own with a locked retention of 400 days.
+
+   Done in production on 2026-09-16: bucket `kms-audit` and sink `kms-audit-sink` exist in `console-441017` at 400 days, and entries were confirmed arriving. **The bucket is deliberately not locked yet.** Locking cannot be undone for the whole retention window, so the plan is to leave it a month, confirm the sink filter is catching what it should, then run the lock command below. Until then the trail is still deletable by anyone with logging admin, which is the property the lock exists to remove. Staging needs no separate bucket: its `_Default` already retains 400 days.
+
+   The commands, for a project that does not have this yet:
 
    ```sh
    gcloud logging buckets create kms-audit --location=global --retention-days=400 --project "$PROJECT"
    gcloud logging sinks create kms-audit-sink logging.googleapis.com/projects/$PROJECT/locations/global/buckets/kms-audit \
      --log-filter='protoPayload.serviceName="cloudkms.googleapis.com"' --project "$PROJECT"
+   ```
+
+   Then, and only after a month of watching the sink land what it should, lock the bucket:
+
+   ```sh
    gcloud logging buckets update kms-audit --location=global --locked --project "$PROJECT"
    ```
 
-   Locking is irreversible and is the point: while the bucket holds entries within retention, nobody, including a compromised console, can shorten the retention or delete the bucket. Once every entry has aged past retention the bucket can be deleted, which is why the retention below is long.
+   Run that last command on its own, never in the same paste as the two above. Locking is irreversible and is the point: while the bucket holds entries within retention, nobody, including a compromised console, can shorten the retention or delete the bucket. A wrong sink filter locked in on day one is a wrong trail nobody can fix for 400 days. Once every entry has aged past retention the bucket can be deleted, which is why the retention below is long.
 
    Retention chosen: 400 days. Rationale: a year of trail plus the slack to notice a problem at the end of it. Change the number here if it changes there.
 
@@ -281,6 +292,8 @@ The key service records administrative activity on a key by itself. The decrypt 
    head -c 384 /dev/urandom > garbage.bin
    gcloud kms asymmetric-decrypt --location "$GCP_KMS_LOCATION" --keyring "$GCP_KMS_KEY_RING" --key "$GCP_KMS_KEY" --version <version> --ciphertext-file garbage.bin --plaintext-file /dev/null
    ```
+
+If the trail looks empty, check that you can read it before concluding anything. Data Access entries are visible only to a caller holding `logging.privateLogEntries.list`, granted by `roles/logging.privateLogViewer` or by ownership, and a caller without it gets an empty result rather than a permission error. An unreadable trail is indistinguishable from a key nobody is using, and on 2026-09-16 that cost an afternoon and produced a confident wrong conclusion about which project staging encrypts against. Confirm with `projects:testIamPermissions` before believing the silence.
 
 What the trail cannot answer, so nobody builds an alert on data that is not there:
 
