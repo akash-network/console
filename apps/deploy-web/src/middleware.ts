@@ -12,6 +12,9 @@ const networkRpcAndApiUrls = netConfig.getSupportedNetworks().flatMap(network =>
 /** A service worker script served as a redirect fails registration outright, so the maintenance redirect has to let the PWA assets through. */
 const PWA_ASSET_PATHNAME = /^\/(sw\.js|workbox-[^/]+\.js|manifest\.json)$/;
 
+/** Kubernetes probes hit this path, so a maintenance 307 here would get the pod restarted. */
+const HEALTHCHECK_PATHNAME = "/api/healthz";
+
 export function middleware(request: NextRequest) {
   const contentSecurityPolicyInput = {
     mainnetApiUrl: process.env.NEXT_PUBLIC_BASE_API_MAINNET_URL,
@@ -31,7 +34,8 @@ export function middleware(request: NextRequest) {
   const maintenancePage = "/maintenance";
   const { pathname } = request.nextUrl;
   const isMaintenanceMode = process.env.MAINTENANCE_MODE === "true";
-  const shouldRedirectToMaintenance = isMaintenanceMode && !pathname.startsWith(maintenancePage) && !PWA_ASSET_PATHNAME.test(pathname);
+  const shouldRedirectToMaintenance =
+    isMaintenanceMode && !pathname.startsWith(maintenancePage) && !PWA_ASSET_PATHNAME.test(pathname) && pathname !== HEALTHCHECK_PATHNAME;
 
   if (shouldRedirectToMaintenance) {
     const fromPath = pathname + request.nextUrl.search;
