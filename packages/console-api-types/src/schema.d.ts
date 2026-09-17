@@ -8732,7 +8732,7 @@ export interface operations {
                 settings: {
                   /** @description The name this deployment carries, or null for one created before the console recorded names. */
                   name: string | null;
-                  autoTopUpEnabled: boolean;
+                  /** @description Runtime limit in hours chosen at deployment creation, or null for always-on funding. */
                   runtimeLimitHours: number | null;
                   /**
                    * Format: date-time

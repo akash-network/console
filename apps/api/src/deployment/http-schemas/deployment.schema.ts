@@ -94,11 +94,12 @@ const DeploymentNameResponseSchema = z.string().nullable().openapi({
   description: "The name this deployment carries, or null for one created before the console recorded names."
 });
 
-/** The fields a list shows, which deliberately exclude the ones that cost a chain read per row: the top-up estimate above all. */
+/** The fields a list shows, excluding both the ones that cost a chain read per row and `autoTopUpEnabled`, which no client can set and which every deployment a user made carries as true. */
 const ListedDeploymentSettingsSchema = z.object({
   name: DeploymentNameResponseSchema,
-  autoTopUpEnabled: z.boolean(),
-  runtimeLimitHours: z.number().int().nullable(),
+  runtimeLimitHours: z.number().int().nullable().openapi({
+    description: "Runtime limit in hours chosen at deployment creation, or null for always-on funding."
+  }),
   runtimeEndsAt: z.string().datetime().nullable().openapi({
     description: "When the runtime limit expires, or null for a limit no lease has anchored yet."
   }),

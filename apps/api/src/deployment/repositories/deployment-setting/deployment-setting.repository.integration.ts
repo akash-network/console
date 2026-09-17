@@ -679,14 +679,13 @@ describe(DeploymentSettingRepository.name, () => {
   describe("findListedSettings", () => {
     it("reads the settings of a whole page in one query, keyed by dseq", async () => {
       const { deploymentSettingRepository, user, abilityFor, createLimitedSetting } = await setup();
-      const limited = await createLimitedSetting(5, { autoTopUpEnabled: true });
+      const limited = await createLimitedSetting(5);
       await deploymentSettingRepository.upsertName({ userId: user.id, dseq: limited.dseq, name: "web" });
 
       const settings = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findListedSettings({ userId: user.id, dseqs: [limited.dseq] });
 
       expect(settings.get(limited.dseq)).toEqual({
         name: "web",
-        autoTopUpEnabled: true,
         closed: false,
         runtimeLimitHours: 5,
         runtimeEndsAt: null

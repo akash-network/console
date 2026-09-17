@@ -17,7 +17,7 @@ export type DeploymentSettingsOutput = Omit<DeploymentSettingsDbOutput, "created
 };
 
 /** What a deployment list shows about a deployment, as distinct from the fuller row a single settings read answers with. */
-export type ListedDeploymentSetting = Pick<DeploymentSettingsDbOutput, "name" | "autoTopUpEnabled" | "closed" | "runtimeLimitHours" | "runtimeEndsAt">;
+export type ListedDeploymentSetting = Pick<DeploymentSettingsDbOutput, "name" | "closed" | "runtimeLimitHours" | "runtimeEndsAt">;
 
 /** A won auto-funding claim: the deployment setting id and the exact marker the claim wrote. */
 export type FundingClaim = {
@@ -150,7 +150,6 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .select({
         dseq: this.table.dseq,
         name: this.table.name,
-        autoTopUpEnabled: this.table.autoTopUpEnabled,
         closed: this.table.closed,
         runtimeLimitHours: this.table.runtimeLimitHours,
         runtimeEndsAt: this.table.runtimeEndsAt

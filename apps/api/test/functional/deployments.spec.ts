@@ -709,7 +709,7 @@ describe("Deployments API", () => {
       const deployments = setupDeploymentListMock(wallets, 1);
       const dseq = (deployments as DeploymentInfo[])[0].deployment.id.dseq;
       const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
-      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true, runtimeLimitHours: 5 });
+      await deploymentSettingRepository.create({ userId: user.id, dseq, runtimeLimitHours: 5 });
       await deploymentSettingRepository.upsertName({ userId: user.id, dseq, name: "web" });
 
       nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
@@ -726,7 +726,6 @@ describe("Deployments API", () => {
       const result = (await response.json()) as { data: { deployments: { name: string | null; settings: unknown }[] } };
       expect(result.data.deployments[0].settings).toEqual({
         name: "web",
-        autoTopUpEnabled: true,
         runtimeLimitHours: 5,
         runtimeEndsAt: null,
         closed: false

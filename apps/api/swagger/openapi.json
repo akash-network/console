@@ -6675,12 +6675,10 @@
                                     "nullable": true,
                                     "description": "The name this deployment carries, or null for one created before the console recorded names."
                                   },
-                                  "autoTopUpEnabled": {
-                                    "type": "boolean"
-                                  },
                                   "runtimeLimitHours": {
                                     "type": "integer",
-                                    "nullable": true
+                                    "nullable": true,
+                                    "description": "Runtime limit in hours chosen at deployment creation, or null for always-on funding."
                                   },
                                   "runtimeEndsAt": {
                                     "type": "string",
@@ -6695,7 +6693,6 @@
                                 },
                                 "required": [
                                   "name",
-                                  "autoTopUpEnabled",
                                   "runtimeLimitHours",
                                   "runtimeEndsAt",
                                   "closed"

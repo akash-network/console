@@ -396,14 +396,13 @@ describe(DeploymentReaderService.name, () => {
       const { service } = setup({
         wallet,
         listedDseqs: ["100"],
-        settings: { "100": { name: "web", autoTopUpEnabled: true, closed: false, runtimeLimitHours: 5, runtimeEndsAt } }
+        settings: { "100": { name: "web", closed: false, runtimeLimitHours: 5, runtimeEndsAt } }
       });
 
       const { deployments } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
 
       expect(deployments[0].settings).toEqual({
         name: "web",
-        autoTopUpEnabled: true,
         closed: false,
         runtimeLimitHours: 5,
         runtimeEndsAt: "2026-09-20T10:00:00.000Z"
@@ -681,7 +680,7 @@ describe(DeploymentReaderService.name, () => {
           new Map(
             Object.entries(input.settings ?? {}).map(([dseq, setting]) => [
               dseq,
-              { name: null, autoTopUpEnabled: false, closed: false, runtimeLimitHours: null, runtimeEndsAt: null, ...setting }
+              { name: null, closed: false, runtimeLimitHours: null, runtimeEndsAt: null, ...setting }
             ])
           )
         )
