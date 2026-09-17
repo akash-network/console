@@ -1067,6 +1067,35 @@ describe(useDeploymentFlow.name, () => {
       expect(result.current.error).toBeUndefined();
     });
 
+    it("does not track cancel_during_create when the create is still queued behind a close, since none was sent", () => {
+      const closeMutate = vi.fn();
+      const createMutate = vi.fn();
+      const { result, analyticsService } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      expect(result.current.phase).toBe("creating");
+      expect(createMutate).not.toHaveBeenCalled();
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(analyticsService.track).not.toHaveBeenCalledWith("cancel_during_create", { category: "deployments" });
+    });
+
+    it("reports the retried close as still settling, so the warning does not vanish into apparent success", () => {
+      const closeCalls: Array<{ onError?: (cause: unknown) => void }> = [];
+      const closeMutate = vi.fn((_args, options) => closeCalls.push(options));
+      const getDeploymentMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { deployment: { state: "active" } } }));
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, getDeploymentMutate });
+
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => closeCalls[0]?.onError?.(new Error("close boom")));
+      expect(result.current.pendingClose?.failed).toBe(true);
+
+      act(() => result.current.actions.retryClose());
+
+      expect(result.current.pendingClose).toEqual({ dseq: "777", failed: false });
+    });
+
     it("does not track cancel_during_create when cancelling a deployment that already exists", () => {
       const closeMutate = vi.fn();
       const { result, analyticsService } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });

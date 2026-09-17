@@ -419,7 +419,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       createAttemptRef.current += 1;
       queuedCreateRef.current = null;
       const dseqToClose = dseq ?? strandedDseq;
-      if (!dseqToClose && phase === "creating") analyticsService.track("cancel_during_create", { category: "deployments" });
+      const isCreateOutstanding = phase === "creating" && !closingDseqRef.current;
+      if (!dseqToClose && isCreateOutstanding) analyticsService.track("cancel_during_create", { category: "deployments" });
       resetToConfiguring();
       if (dseqToClose) startClose(dseqToClose);
     },

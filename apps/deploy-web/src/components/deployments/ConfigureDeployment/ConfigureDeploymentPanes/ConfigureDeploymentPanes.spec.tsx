@@ -87,23 +87,28 @@ describe("ConfigureDeploymentPanes", () => {
   });
 
   it("leaves both spec panes unlocked while a cancelled deployment closes in the background", () => {
-    const { DeploymentPane, ConfigurationPane, PaneLockBanner } = setup({ phase: "configuring", pendingClose: { dseq: "777", failed: false } });
+    const pendingClose = { dseq: "777", failed: false };
+    const { DeploymentPane, ConfigurationPane, PaneLockBanner, BackgroundCloseBanner } = setup({ phase: "configuring", pendingClose });
 
     expect(DeploymentPane).toHaveBeenCalledWith(expect.objectContaining({ locked: false }), expect.anything());
     expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ locked: undefined }), expect.anything());
     expect(PaneLockBanner).not.toHaveBeenCalled();
+    expect(BackgroundCloseBanner).toHaveBeenCalledWith(expect.objectContaining({ pendingClose }), expect.anything());
   });
 
   it("offers a retry on a non-blocking banner when the background close failed", () => {
     const onRetryClose = vi.fn();
-    const { BackgroundCloseBanner, DeploymentPane } = setup({
-      phase: "configuring",
-      pendingClose: { dseq: "777", failed: true, message: "close boom" },
-      onRetryClose
-    });
+    const pendingClose = { dseq: "777", failed: true, message: "close boom" };
+    const { BackgroundCloseBanner, DeploymentPane } = setup({ phase: "configuring", pendingClose, onRetryClose });
 
-    expect(BackgroundCloseBanner).toHaveBeenCalledWith(expect.objectContaining({ onRetry: onRetryClose, message: "close boom" }), expect.anything());
+    expect(BackgroundCloseBanner).toHaveBeenCalledWith(expect.objectContaining({ pendingClose, onRetry: onRetryClose }), expect.anything());
     expect(DeploymentPane).toHaveBeenCalledWith(expect.objectContaining({ locked: false }), expect.anything());
+  });
+
+  it("hides the background close banner once nothing is left unaccounted for", () => {
+    const { BackgroundCloseBanner } = setup({ phase: "configuring", pendingClose: null });
+
+    expect(BackgroundCloseBanner).not.toHaveBeenCalled();
   });
 
   it("keeps the lock banner alone while locked, even with a failed close outstanding", () => {

@@ -86,9 +86,9 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
           <div className="col-start-1 col-end-3 row-start-2">
             <d.PaneLockBanner onCancelAndEdit={onCancelAndEdit} />
           </div>
-        ) : pendingClose?.failed ? (
+        ) : pendingClose ? (
           <div className="col-start-1 col-end-3 row-start-2">
-            <d.BackgroundCloseBanner onRetry={onRetryClose} message={pendingClose.message} />
+            <d.BackgroundCloseBanner pendingClose={pendingClose} onRetry={onRetryClose} />
           </div>
         ) : null}
       </div>
