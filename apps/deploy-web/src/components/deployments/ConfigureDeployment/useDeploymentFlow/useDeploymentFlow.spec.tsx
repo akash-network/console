@@ -1054,6 +1054,28 @@ describe(useDeploymentFlow.name, () => {
       expect(result.current.pendingClose).toEqual(expect.objectContaining({ dseq: "777", failed: true }));
     });
 
+    it("clears a prior error when cancelling, so a stale failure does not follow the user into editing", () => {
+      const createMutate = vi.fn((_args, options) => options.onError?.(new Error("create boom")));
+      const { result } = setup({ createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      expect(result.current.phase).toBe("error");
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(result.current.phase).toBe("configuring");
+      expect(result.current.error).toBeUndefined();
+    });
+
+    it("does not track cancel_during_create when cancelling a deployment that already exists", () => {
+      const closeMutate = vi.fn();
+      const { result, analyticsService } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(analyticsService.track).not.toHaveBeenCalledWith("cancel_during_create", { category: "deployments" });
+    });
+
     it("reports the close still settling so the form can flag it without blocking", () => {
       const closeMutate = vi.fn();
       const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
