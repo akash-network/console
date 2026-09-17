@@ -127,6 +127,7 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
       errorCategory,
       errno,
       shortCircuited: proxyResult.shortCircuited ?? false,
+      repeatedFailure: proxyResult.repeatedFailure ?? false,
       url,
       method,
       providerAddress,
