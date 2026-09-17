@@ -16,10 +16,10 @@ export type DeploymentSettingsOutput = Omit<DeploymentSettingsDbOutput, "created
   updatedAt: string;
 };
 
-/** A won auto-funding claim: the deployment setting id and the exact marker the claim wrote. */
 /** What a deployment list shows about a deployment, as distinct from the fuller row a single settings read answers with. */
 export type ListedDeploymentSetting = Pick<DeploymentSettingsDbOutput, "name" | "autoTopUpEnabled" | "closed" | "runtimeLimitHours" | "runtimeEndsAt">;
 
+/** A won auto-funding claim: the deployment setting id and the exact marker the claim wrote. */
 export type FundingClaim = {
   id: string;
   claimedAt: string;
