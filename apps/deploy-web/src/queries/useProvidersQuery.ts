@@ -16,6 +16,7 @@ import type {
 import type { ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { providerStatusToDto } from "@src/utils/providerUtils";
+import { findFirstReachableProvider } from "./findFirstReachableProvider";
 import { QueryKeys } from "./queryKeys";
 
 export function useProviderDetail(
@@ -57,30 +58,38 @@ export function useProviderStatus(
   });
 }
 
-/** Per-provider `/status` probe timeout. Keeps the loop from stalling on a single unresponsive provider so we move on to the next candidate quickly. */
+/** Per-provider `/status` probe timeout. Keeps one unresponsive provider from holding up the rest of its batch. */
 const PROVIDER_STATUS_PROBE_TIMEOUT_MS = 5000;
 
+/**
+ * The first of `providers` to answer a `/status` probe, for the placement named by `placementKey`. Keyed on the
+ * placement rather than on the candidates, so a bid poll that grows or reorders the list no longer abandons an
+ * in-flight probe and restarts it from the first candidate.
+ */
 export function useFirstReachableProvider(
+  placementKey: string | null,
   providers: ApiProviderList[] | undefined | null,
   options: Omit<UseQueryOptions<ApiProviderList | null>, "queryKey" | "queryFn"> = {}
 ): UseQueryResult<ApiProviderList | null> {
-  const { providerProxy } = useServices();
+  const { providerProxy, logger } = useServices();
   const providerList = providers ?? [];
   return useQuery({
-    queryKey: QueryKeys.getFirstReachableProviderKey(providerList.map(provider => provider.hostUri || "")),
+    queryKey: QueryKeys.getFirstReachableProviderKey(placementKey ?? ""),
     queryFn: async () => {
-      for (const provider of providerList) {
-        try {
-          await providerProxy.request<ProviderStatus>("/status", {
-            providerIdentity: { owner: provider.owner, hostUri: provider.hostUri },
-            timeout: PROVIDER_STATUS_PROBE_TIMEOUT_MS
-          });
-          return provider;
-        } catch {
-          continue;
-        }
+      const reachable = await findFirstReachableProvider(providerList, provider =>
+        providerProxy.request<ProviderStatus>("/status", {
+          providerIdentity: { owner: provider.owner, hostUri: provider.hostUri },
+          timeout: PROVIDER_STATUS_PROBE_TIMEOUT_MS
+        })
+      );
+      if (!reachable) {
+        logger.warn({
+          event: "NO_REACHABLE_PROVIDER",
+          placementKey,
+          candidates: providerList.map(provider => provider.owner)
+        });
       }
-      return null;
+      return reachable;
     },
     ...options
   });

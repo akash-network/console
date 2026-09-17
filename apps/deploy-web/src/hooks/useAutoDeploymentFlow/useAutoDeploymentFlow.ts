@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { DeploymentFlow, DeploymentFlowPhase } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
+import { useQuoteExpiry } from "@src/components/deployments/ConfigureDeployment/useQuoteExpiry/useQuoteExpiry";
+import { useServices } from "@src/context/ServicesProvider";
 import type { DeployPhase, DeployPhaseId, DeployProgressState } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 import { PHASE_ORDER, useDeployPhaseProgress } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 import { BID_POLL_INTERVAL } from "@src/queries/useListBids";
@@ -50,6 +52,15 @@ type Result = {
   stopAutopilot: () => void;
 };
 
+/**
+ * How long the autopilot may sit in `quoting` with bids on the table before abandoning the attempt. The quote window
+ * runs ~5 minutes, but everything left at that point — probe the bidders, record a selection, fire the lease — is
+ * seconds of work, so 90s without progress means it is not coming and holding the deposit longer buys nothing.
+ */
+const MATCH_DEADLINE_MS = 90 * 1000;
+
+const MATCH_FAILED_MESSAGE = "We couldn't match this deployment with a provider in time. Try again, or contact support if it keeps happening.";
+
 /** The four coordinates that identify a lease/bid. */
 type LeaseId = { dseq: string; gseq: number; oseq: number; provider: string };
 
@@ -68,10 +79,14 @@ function getRequiredGseqs(sdl: string): number[] {
 }
 
 export const DEPENDENCIES = {
+  useServices,
   useProviderList,
   useFirstReachableProvider,
+  useQuoteExpiry,
   // eslint-disable-next-line akash/dependencies-component-or-hook
-  getRequiredGseqs
+  getRequiredGseqs,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
+  matchDeadlineMs: MATCH_DEADLINE_MS
 };
 
 /**
@@ -90,6 +105,7 @@ export const DEPENDENCIES = {
  * address. `flow.phase` is projected onto the three-step create → match → prepare progress UI.
  */
 export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options, dependencies: typeof DEPENDENCIES = DEPENDENCIES): Result {
+  const { analyticsService } = dependencies.useServices();
   const sdlRef = useRef(sdl);
   sdlRef.current = sdl;
 
@@ -99,12 +115,6 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
   // deploying (creating leases), but still lets the deployment creation finish — so the manual form inherits a live,
   // quoting deployment to drive rather than being handed a dangling one.
   const [autopilotStopped, setAutopilotStopped] = useState(false);
-
-  // One-shot guard per group. Unlike create/deploy (which move the flow off their phase synchronously, so a phase check
-  // already prevents a re-fire), selectProvider keeps the flow in "quoting" — so without this a bid-poll refetch that
-  // changes a group's reachable bid could re-select it. Holding the set of already-matched gseqs pins each group to its
-  // first match.
-  const firedGseqsRef = useRef<Set<number>>(new Set());
 
   const dseq = flow.dseq;
 
@@ -145,38 +155,31 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
     .map(bid => providers?.find(provider => provider.owner === bid.bid.id.provider))
     .filter((provider): provider is ApiProviderList => !!provider);
 
-  const reachableProviderQuery = dependencies.useFirstReachableProvider(candidateProviders, {
+  // Names the group being matched, so the probe is cached per placement instead of per candidate list: bids keep
+  // arriving while a probe runs, and a candidate-derived key would discard it and restart from the first candidate.
+  const placementKey = dseq && matchingGseq !== undefined ? `${dseq}/${matchingGseq}` : null;
+  const reachableProviderQuery = dependencies.useFirstReachableProvider(placementKey, candidateProviders, {
     enabled: flow.phase === "quoting" && candidateProviders.length > 0,
     refetchInterval: BID_POLL_INTERVAL
   });
   const reachableProvider = reachableProviderQuery.data;
   const activeBid = reachableProvider ? openBids.find(bid => bid.bid.id.provider === reachableProvider.owner) : undefined;
 
-  // Every selection ready to record now: one per already-leased group (a resume takes those verbatim), plus the first
-  // reachable open bid for the group currently being matched. The guard resolves lease state before this flow mounts, so
-  // reconstruction and fresh matching never race an existing lease. Empty until there's something to select.
+  // Every selection ready to record now: one per already-leased group the flow has not recorded yet (a resume takes
+  // those verbatim), plus the first reachable open bid for the group currently being matched. Both are keyed off what
+  // the flow actually holds, so a selection it dropped — its bid died, or a resumed one was pruned — is matched again
+  // on the next render, while one that still stands is never re-recorded.
   const selectionTargets = useMemo<LeaseId[]>(() => {
     const targets: LeaseId[] = [];
     for (const gseq of requiredGseqs) {
       const lease = leasesByGseq.get(gseq);
-      if (lease) targets.push(lease);
+      if (lease && !selectedGseqs.has(gseq)) targets.push(lease);
     }
     if (activeBid) {
       targets.push({ dseq: activeBid.bid.id.dseq, gseq: activeBid.bid.id.gseq, oseq: activeBid.bid.id.oseq, provider: activeBid.bid.id.provider });
     }
     return targets;
-  }, [requiredGseqs, leasesByGseq, activeBid]);
-
-  // Release the selection guard whenever the flow returns to configuring (fresh start / after retry) so a new attempt
-  // can match every group again.
-  useEffect(
-    function resetSelectionGuardOnConfiguring() {
-      if (flow.phase === "configuring") {
-        firedGseqsRef.current = new Set();
-      }
-    },
-    [flow.phase]
-  );
+  }, [requiredGseqs, leasesByGseq, selectedGseqs, activeBid]);
 
   useEffect(
     function fireCreate() {
@@ -192,16 +195,17 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
 
   useEffect(
     function recordSelections() {
-      if (autopilotStopped || flow.phase !== "quoting") return;
+      // A failed deploy is terminal for the auto flow — the error scene is up and "Try again" starts a fresh attempt.
+      // Re-recording a selection here would clear the flow's deploy error, which is exactly what `fireDeploy` reads as
+      // terminal, and so re-fire the lease on every bid poll.
+      if (autopilotStopped || flow.phase !== "quoting" || flow.deployError) return;
       for (const target of selectionTargets) {
-        if (firedGseqsRef.current.has(target.gseq)) continue;
-        firedGseqsRef.current.add(target.gseq);
         const bidId = formatBidId(target);
         flow.actions.selectProvider(bidId, bidId);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [flow.phase, selectionTargets, autopilotStopped]
+    [flow.phase, flow.deployError, selectionTargets, autopilotStopped]
   );
 
   // A multi-placement deployment leases all its groups together, so deploy waits until every required group has a
@@ -226,6 +230,58 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
     [flow.phase, allGroupsSelected, flow.deployError, autopilotStopped]
   );
 
+  // Read through a ref so the deadline can call the latest action without re-arming on every render: the action's
+  // identity changes with the close mutation's, which would reset the timer forever.
+  const closeAndFailRef = useRef(flow.actions.closeAndFail);
+  closeAndFailRef.current = flow.actions.closeAndFail;
+
+  // The bid window's hard stop, off the same `listBids` entry the flow already polls. Best-effort — it stays null when
+  // the chain endpoint is unavailable — so it only ever shortens the deadline below, never replaces it.
+  const quoteExpiry = dependencies.useQuoteExpiry({ dseq: dseq ?? null, enabled: flow.phase === "quoting" });
+  const quotesExpired = !!quoteExpiry?.isExpired;
+
+  // True while the autopilot still owes this deployment a lease. A deployment that already holds one is excluded:
+  // closing it would tear down a running workload, so a resume keeps waiting instead. A deploy error is excluded too —
+  // the scene already shows it, and abandoning would overwrite it with a vaguer message.
+  const isAutopilotPending = !autopilotStopped && flow.phase === "quoting" && !flow.deployError && leasesByGseq.size === 0;
+
+  // Bids on the table mean the flow's own no-bids timeout has stood down for good (it latches off the first bid), so
+  // from here the deadline is the autopilot's to keep.
+  const hasBids = flow.bids.length > 0;
+
+  // Read inside the deadline callback only, so their churn never re-arms it.
+  const bidCountRef = useRef(0);
+  bidCountRef.current = flow.bids.length;
+  const candidateCountRef = useRef(0);
+  candidateCountRef.current = candidateProviders.length;
+
+  useEffect(
+    function failWhenNoProviderIsMatched() {
+      if (!isAutopilotPending || !hasBids) return;
+      function giveUpOnMatching() {
+        // The funnel goes dark between `bids_received` and `bid_selected`; this is the event that explains the gap.
+        analyticsService.track("onboarding_match_failed", {
+          category: "onboarding",
+          reason: quotesExpired ? "quote_expired" : "deadline",
+          dseq,
+          numberOfBids: bidCountRef.current,
+          numberOfCandidates: candidateCountRef.current
+        });
+        closeAndFailRef.current(MATCH_FAILED_MESSAGE);
+      }
+      if (quotesExpired) {
+        giveUpOnMatching();
+        return;
+      }
+      const timer = setTimeout(giveUpOnMatching, dependencies.matchDeadlineMs);
+      return function cancelMatchDeadline() {
+        clearTimeout(timer);
+      };
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isAutopilotPending, hasBids, quotesExpired]
+  );
+
   const projected = projectPhase(flow.phase, flow.deploySucceeded, !!flow.deployError);
   const errorMessage = flow.deployError?.message ?? flow.error?.message;
 
@@ -237,9 +293,8 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
     // on chain when one exists (a failed lease leaves the flow in `quoting` with a live dseq) and returns the flow to
     // `configuring`; a create that never produced a dseq goes straight back to `configuring`. Either way the autopilot's
     // `fireCreate` then broadcasts a brand-new deployment, so "Try again" always starts from scratch rather than
-    // re-leasing the same one. The selection guard is released so the fresh attempt can match a provider again.
+    // re-leasing the same one.
     setRetryToken(previous => previous + 1);
-    firedGseqsRef.current = new Set();
     setAutopilotStopped(false);
     flow.actions.cancelAndEdit();
   }

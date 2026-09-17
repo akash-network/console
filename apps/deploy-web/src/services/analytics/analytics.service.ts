@@ -105,6 +105,7 @@ export type AnalyticsEvent =
   | "log_collector_deployed"
   | "onboarding_deploy_click"
   | "onboarding_choose_provider_click"
+  | "onboarding_match_failed"
   | "onboarding_skipped"
   | "fair_use_policy_accepted"
   | "add_credits_opened"
