@@ -27,6 +27,18 @@ const DeploymentLeaseSchema = z.object({
   created_at: z.string(),
   closed_on: z.string(),
   reason: z.string().optional(),
+  reclamation: z
+    .object({
+      window: z.string().optional(),
+      started_at: z.string().optional(),
+      deadline: z.string().optional(),
+      reason: z.string().optional()
+    })
+    .optional()
+    .openapi({
+      description:
+        "Present only on a lease its provider has flagged for reclamation. `deadline` is unix seconds; `reason` is a `lease_closed_reason_*` enum name."
+    }),
   status: z.nullable(LeaseStatusResponseSchema)
 });
 
@@ -84,7 +96,10 @@ const DeploymentNameResponseSchema = z.string().nullable().openapi({
 
 const DeploymentLeaseListItemSchema = DeploymentResponseSchema.extend({
   leases: z.array(DeploymentLeaseSchema.omit({ status: true })),
-  name: DeploymentNameResponseSchema
+  name: DeploymentNameResponseSchema,
+  groups: DeploymentInfoSchema.shape.groups.openapi({
+    description: "The resource groups the deployment declares on chain, as the chain describes them."
+  })
 });
 
 const ConsoleSettingsSchema = z.object({
@@ -330,7 +345,20 @@ export const PatchDeploymentResponseSchema = z.object({
 
 export const deploymentListMaxLimit = 100;
 
+export const DeploymentListStateSchema = z.enum(["active", "closed"]);
+export type DeploymentListState = z.infer<typeof DeploymentListStateSchema>;
+
 export const ListDeploymentsQuerySchema = z.object({
+  state: DeploymentListStateSchema.default("active").openapi({
+    description: "Which of the owner's deployments to list. `closed` serves the archive."
+  }),
+  reverse: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform(value => value === "true")
+    .openapi({
+      description: "Newest deployment first when true, rather than the chain's own oldest-first order."
+    }),
   skip: z.coerce.number().int().min(0).default(0).openapi({
     description: "Deployments to skip before the page begins."
   }),
@@ -344,6 +372,8 @@ export const ListDeploymentsQuerySchema = z.object({
       description: `Deployments per page, at most ${deploymentListMaxLimit}. Omitting it pages from the start rather than returning every deployment, so page on while \`hasMore\` is true.`
     })
 });
+
+export type ListDeploymentsQuery = z.infer<typeof ListDeploymentsQuerySchema>;
 
 export const ListDeploymentsResponseSchema = z.object({
   data: z.object({

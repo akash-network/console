@@ -23,7 +23,13 @@ import type { WalletInitialized } from "@src/billing/repositories";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { Memoize } from "@src/caching/helpers";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
-import { ConsoleSettings, DeploymentResponse, GetDeploymentResponse, ListDeploymentsItem } from "@src/deployment/http-schemas/deployment.schema";
+import {
+  ConsoleSettings,
+  DeploymentListState,
+  DeploymentResponse,
+  GetDeploymentResponse,
+  ListDeploymentsItem
+} from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
@@ -164,18 +170,22 @@ export class DeploymentReaderService {
   /** The chain's `total` counts only the page it returned once an owner filter and an offset combine, so the count comes from the console's index. */
   public async list({
     query,
+    state = "active",
     skip,
-    limit
+    limit,
+    reverse = false
   }: {
     query: { userId: string };
+    state?: DeploymentListState;
     skip: number;
     limit: number;
+    reverse?: boolean;
   }): Promise<{ deployments: ListDeploymentsItem[]; total: number | null; hasMore: boolean }> {
     const wallet = await this.walletReaderService.getWalletByUserId(query.userId);
     const { address: owner } = wallet;
     const [deploymentReponse, countedTotal] = await Promise.all([
-      this.getDeploymentsList({ owner, state: "active", pagination: { offset: skip, limit } }),
-      this.#countDeployments(owner, "active")
+      this.getDeploymentsList({ owner, state, pagination: { offset: skip, limit, reverse } }),
+      this.#countDeployments(owner, state)
     ]);
     const deployments = deploymentReponse.deployments;
 
@@ -195,6 +205,7 @@ export class DeploymentReaderService {
 
     const deploymentsWithLeases = deployments.map((deployment, index) => ({
       deployment: deployment.deployment,
+      groups: deployment.groups,
       leases: this.#fetchedLeasesAt(leaseResults, index).map(({ lease }) => lease),
       escrow_account: deployment.escrow_account,
       name: names.get(deployment.deployment.id.dseq) ?? null
@@ -207,7 +218,7 @@ export class DeploymentReaderService {
   }
 
   /** An index the console cannot count degrades `total` to what the page already proves, rather than failing a list the chain answered. */
-  async #countDeployments(owner: string, state: "active" | "closed"): Promise<number | null> {
+  async #countDeployments(owner: string, state: DeploymentListState): Promise<number | null> {
     try {
       return await this.deploymentRepository.countByOwnerAndState(owner, state);
     } catch (error) {
