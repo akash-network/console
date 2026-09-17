@@ -131,6 +131,21 @@ describe(useAutoDeploymentFlow.name, () => {
     expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
   });
 
+  it("stops reconstructing a resumed lease once a retry has created a different deployment", async () => {
+    const resumeLeases = [{ dseq: DSEQ, gseq: 1, oseq: 2, provider: PROVIDER_OWNER }];
+    const { flow, actions } = setup({ initialDseq: DSEQ, bids: [], resumeLeases, requiredGseqs: [1], holdDeploy: true });
+
+    await vi.waitFor(() => expect(actions.selectProvider).toHaveBeenCalled());
+    actions.selectProvider.mockClear();
+    act(() => {
+      flow.replaceDseq("99999");
+      flow.dropSelections();
+    });
+    await waitForDeadline();
+
+    expect(actions.selectProvider).not.toHaveBeenCalled();
+  });
+
   it("does not abandon a deployment another tab has already leased", async () => {
     const openBid = mock<DeploymentBids[number]>({ bid: { state: "open", id: { provider: PROVIDER_OWNER, dseq: DSEQ, gseq: 1, oseq: 1 } } });
     const leasedBid = mock<DeploymentBids[number]>({ bid: { state: "active", id: { provider: "akash1other", dseq: DSEQ, gseq: 1, oseq: 1 } } });
@@ -403,11 +418,13 @@ describe(useAutoDeploymentFlow.name, () => {
       setDeployError: (message?: string) => void;
       setClosing: () => void;
       dropSelections: () => void;
+      replaceDseq: (next: string) => void;
     } = {
       setPhaseError: () => undefined,
       setDeployError: () => undefined,
       setClosing: () => undefined,
-      dropSelections: () => undefined
+      dropSelections: () => undefined,
+      replaceDseq: () => undefined
     };
 
     // A live, stateful stub of the base flow: it advances phase in response to the autopilot's action calls exactly as
@@ -431,6 +448,7 @@ describe(useAutoDeploymentFlow.name, () => {
       };
       flowControls.setClosing = () => setPhase("closing");
       flowControls.dropSelections = () => setSelections({});
+      flowControls.replaceDseq = (next: string) => setDseq(next);
 
       const requestQuotes = useCallback((sdl: string) => {
         actions.requestQuotes(sdl);

@@ -121,10 +121,11 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
   const leasesByGseq = useMemo(() => {
     const byGseq = new Map<number, LeaseId>();
     for (const lease of resumeLeases) {
+      if (lease.dseq !== dseq) continue;
       byGseq.set(lease.gseq, lease);
     }
     return byGseq;
-  }, [resumeLeases]);
+  }, [resumeLeases, dseq]);
 
   // Every group (gseq) the deployment must fill — one per SDL placement, unioned with any already-leased group so a
   // resume restores every on-chain lease even when the SDL can't be parsed. A bid/lease's gseq identifies its group.

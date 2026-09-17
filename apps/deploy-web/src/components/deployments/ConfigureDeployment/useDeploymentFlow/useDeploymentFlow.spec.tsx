@@ -625,6 +625,17 @@ describe(useDeploymentFlow.name, () => {
       expect(result.current.dseq).toBeNull();
     });
 
+    it("does not broadcast a second close while a failed close is still being verified", () => {
+      const closeMutate = vi.fn((_args, { onError }) => onError(new Error("close failed")));
+      const getDeploymentMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate, getDeploymentMutate });
+
+      act(() => result.current.actions.closeAndFail("no match"));
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(closeMutate).toHaveBeenCalledTimes(1);
+    });
+
     it("drops the dseq from the URL so a reload cannot resume the abandoned deployment", () => {
       const replace = vi.fn();
       const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777", templateId: "tpl" }, replace, closeMutate: vi.fn() });

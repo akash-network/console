@@ -246,6 +246,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const verifyCloseOutcome = useCallback(
     function verifyCloseOutcome(dseqToVerify: string, cause: unknown, attempt: number, onActuallyClosed: () => void) {
       function settle(verifiedClosed: boolean) {
+        if (pendingCloseDseqRef.current === dseqToVerify) pendingCloseDseqRef.current = null;
         if (attempt !== createAttemptRef.current) return;
         analyticsService.track("close_deployment_failed", { category: "deployments", dseq: dseqToVerify, verifiedClosed });
         if (verifiedClosed) {
@@ -398,7 +399,6 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
             clearDeploymentState();
           },
           onError: function onAbandonedCloseFailed(cause: unknown) {
-            pendingCloseDseqRef.current = null;
             verifyCloseOutcome(abandonedDseq, cause, attempt, clearDeploymentState);
           }
         }
