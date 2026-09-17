@@ -308,7 +308,7 @@ describe("deploymentDetailUtils", () => {
         }
       },
       name: "web",
-      settings: { name: "web", autoTopUpEnabled: true, runtimeLimitHours: null, runtimeEndsAt: null, closed: false }
+      settings: { name: "web", runtimeLimitHours: null, runtimeEndsAt: null, closed: false }
     };
   }
 });

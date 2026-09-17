@@ -28,6 +28,9 @@ import { DeploymentsEmptyState } from "./DeploymentsEmptyState";
 import { useDeploymentsListModel } from "./useDeploymentsListModel";
 import type { DeploymentsListSourceHook } from "./useDeploymentsListSource";
 
+/** The api rejects a search longer than a deployment name may be, so the box stops one from being entered. */
+export const MAX_SEARCH_LENGTH = 256;
+
 export const DEPENDENCIES = {
   useDeploymentsListModel,
   useBlockchainStatus,
@@ -87,6 +90,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ useDeployments
                 onChange={changeSearch}
                 aria-label="Search deployments"
                 placeholder="Search deployments"
+                maxLength={MAX_SEARCH_LENGTH}
                 className="w-full sm:w-64"
                 type="text"
                 startIcon={<Search className="ml-3 h-4 w-4 text-muted-foreground" />}

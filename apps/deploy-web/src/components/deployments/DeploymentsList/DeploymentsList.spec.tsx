@@ -3,7 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { DeploymentsCollectionProps } from "./DeploymentsCollection";
-import { DEPENDENCIES, DeploymentsList } from "./DeploymentsList";
+import { DEPENDENCIES, DeploymentsList, MAX_SEARCH_LENGTH } from "./DeploymentsList";
 import type { useDeploymentsListModel } from "./useDeploymentsListModel";
 
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -322,6 +322,12 @@ describe("DeploymentsList", () => {
   function namedDeployment(dseq: string) {
     return mock<ListedDeploymentDto>({ dseq, state: "closed" });
   }
+
+  it("stops a search longer than the api accepts from being entered at all", () => {
+    setup({ hasAnyDeployment: true });
+
+    expect(screen.getByRole("textbox", { name: "Search deployments" })).toHaveAttribute("maxlength", String(MAX_SEARCH_LENGTH));
+  });
 
   it("tells the reader to narrow the list when the api refused to search it", () => {
     setup({ hasAnyDeployment: true, isSearching: true, search: "acme", showSearchTooBroad: true });
