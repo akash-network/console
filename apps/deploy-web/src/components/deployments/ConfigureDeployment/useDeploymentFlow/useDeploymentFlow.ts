@@ -138,6 +138,10 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const bidStrategyRef = useRef(bidStrategy);
   bidStrategyRef.current = bidStrategy;
 
+  /** Read when an abandoned close settles, to tell a retry parked in `closing` from an attempt still showing its error. */
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
+
   /**
    * Bumped on every requestQuotes and every cancel, so any create from a superseded attempt is treated as stale: one
    * not yet started (still behind a pre-create close) is skipped in `create()`, and one already in flight has its late
@@ -233,6 +237,15 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       setPhase("configuring");
     },
     [clearDeploymentState]
+  );
+
+  /** A retry that landed while the close was still settling waits in `closing`, so the settled close hands the form back itself. */
+  const finishAbandonedClose = useCallback(
+    function finishAbandonedClose() {
+      if (phaseRef.current === "closing") finishClose();
+      else clearDeploymentState();
+    },
+    [finishClose, clearDeploymentState]
   );
 
   /**
@@ -353,19 +366,18 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const cancelAndEdit = useCallback(
     function cancelAndEdit() {
       router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategy), undefined, { shallow: true });
-      createAttemptRef.current += 1;
+      setError(undefined);
       if (dseq && pendingCloseDseqRef.current === dseq) {
-        finishClose();
+        setPhase("closing");
         return;
       }
+      createAttemptRef.current += 1;
       if (!dseq) {
         if (phase === "creating") analyticsService.track("cancel_during_create", { category: "deployments" });
-        setError(undefined);
         setPhase("configuring");
         return;
       }
       setPhase("closing");
-      setError(undefined);
       const attempt = createAttemptRef.current;
       closeDeployment.mutate(
         { dseq },
@@ -394,17 +406,17 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         { dseq: abandonedDseq },
         {
           onSuccess: function onAbandonedClosed() {
-            pendingCloseDseqRef.current = null;
+            if (pendingCloseDseqRef.current === abandonedDseq) pendingCloseDseqRef.current = null;
             if (attempt !== createAttemptRef.current) return;
-            clearDeploymentState();
+            finishAbandonedClose();
           },
           onError: function onAbandonedCloseFailed(cause: unknown) {
-            verifyCloseOutcome(abandonedDseq, cause, attempt, clearDeploymentState);
+            verifyCloseOutcome(abandonedDseq, cause, attempt, finishAbandonedClose);
           }
         }
       );
     },
-    [closeDeployment, dseq, router, clearDeploymentState, verifyCloseOutcome]
+    [closeDeployment, dseq, router, finishAbandonedClose, verifyCloseOutcome]
   );
 
   cancelAndEditRef.current = cancelAndEdit;
