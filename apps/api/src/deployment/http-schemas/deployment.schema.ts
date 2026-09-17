@@ -94,11 +94,28 @@ const DeploymentNameResponseSchema = z.string().nullable().openapi({
   description: "The name this deployment carries, or null for one created before the console recorded names."
 });
 
+/** The fields a list shows, excluding both the ones that cost a chain read per row and `autoTopUpEnabled`, which no client can set and which every deployment a user made carries as true. */
+const ListedDeploymentSettingsSchema = z.object({
+  name: DeploymentNameResponseSchema,
+  runtimeLimitHours: z.number().int().nullable().openapi({
+    description: "Runtime limit in hours chosen at deployment creation, or null for always-on funding."
+  }),
+  runtimeEndsAt: z.string().datetime().nullable().openapi({
+    description: "When the runtime limit expires, or null for a limit no lease has anchored yet."
+  }),
+  closed: z.boolean().openapi({
+    description: "The console's own bookkeeping, which can trail the chain. `deployment.state` is what the chain says."
+  })
+});
+
 const DeploymentLeaseListItemSchema = DeploymentResponseSchema.extend({
   leases: z.array(DeploymentLeaseSchema.omit({ status: true })),
   name: DeploymentNameResponseSchema,
   groups: DeploymentInfoSchema.shape.groups.openapi({
     description: "The resource groups the deployment declares on chain, as the chain describes them."
+  }),
+  settings: ListedDeploymentSettingsSchema.nullable().openapi({
+    description: "What the console holds about this deployment, or null when it holds nothing."
   })
 });
 

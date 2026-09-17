@@ -8,7 +8,11 @@ import type { WalletInitialized } from "@src/billing/repositories";
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
-import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import type {
+  DeploymentSettingRepository,
+  DeploymentSettingsOutput,
+  ListedDeploymentSetting
+} from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { FallbackDeploymentReaderService } from "@src/deployment/services/fallback-deployment-reader/fallback-deployment-reader.service";
 import type { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import type { MessageService } from "@src/deployment/services/message-service/message.service";
@@ -238,14 +242,14 @@ describe(DeploymentReaderService.name, () => {
   describe("list", () => {
     it("returns each deployment's name, and null for one the console never named", async () => {
       const wallet = createUserWallet() as WalletInitialized;
-      const { service } = setup({ wallet, listedDseqs: ["100", "200"], names: { "100": "web" } });
+      const { service } = setup({ wallet, listedDseqs: ["100", "200"], settings: { "100": { name: "web" } } });
 
       const { deployments } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
 
       expect(deployments).toMatchObject([{ name: "web" }, { name: null }]);
     });
 
-    it("looks the names up once for the whole page, under the caller's own ability and user id", async () => {
+    it("looks the settings up once for the whole page, under the caller's own ability and user id", async () => {
       const wallet = createUserWallet() as WalletInitialized;
       const { service, deploymentSettingRepository, scopedDeploymentSettingRepository, authService } = setup({
         wallet,
@@ -255,8 +259,8 @@ describe(DeploymentReaderService.name, () => {
       await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
 
       expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
-      expect(scopedDeploymentSettingRepository.findNamesByDseqs).toHaveBeenCalledTimes(1);
-      expect(scopedDeploymentSettingRepository.findNamesByDseqs).toHaveBeenCalledWith({ userId: wallet.userId, dseqs: ["100", "200"] });
+      expect(scopedDeploymentSettingRepository.findListedSettings).toHaveBeenCalledTimes(1);
+      expect(scopedDeploymentSettingRepository.findListedSettings).toHaveBeenCalledWith({ userId: wallet.userId, dseqs: ["100", "200"] });
     });
 
     it("gives each listed deployment the leases fetched for that deployment alone", async () => {
@@ -293,14 +297,14 @@ describe(DeploymentReaderService.name, () => {
       expect(deployments.map(item => item.leases.map(lease => lease.id.dseq))).toEqual([["100"]]);
     });
 
-    it("reads no names for a page with no deployments on it", async () => {
+    it("reads no settings for a page with no deployments on it", async () => {
       const wallet = createUserWallet() as WalletInitialized;
       const { service, scopedDeploymentSettingRepository } = setup({ wallet, listedDseqs: [] });
 
       const { deployments } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
 
       expect(deployments).toEqual([]);
-      expect(scopedDeploymentSettingRepository.findNamesByDseqs).not.toHaveBeenCalled();
+      expect(scopedDeploymentSettingRepository.findListedSettings).not.toHaveBeenCalled();
     });
 
     it("falls back to database when blockchain node is unreachable", async () => {
@@ -384,6 +388,43 @@ describe(DeploymentReaderService.name, () => {
       const { total } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
 
       expect(total).toBeNull();
+    });
+
+    it("returns what the console holds about each listed deployment", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const runtimeEndsAt = new Date("2026-09-20T10:00:00.000Z");
+      const { service } = setup({
+        wallet,
+        listedDseqs: ["100"],
+        settings: { "100": { name: "web", closed: false, runtimeLimitHours: 5, runtimeEndsAt } }
+      });
+
+      const { deployments } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
+
+      expect(deployments[0].settings).toEqual({
+        name: "web",
+        closed: false,
+        runtimeLimitHours: 5,
+        runtimeEndsAt: "2026-09-20T10:00:00.000Z"
+      });
+    });
+
+    it("returns no settings for a deployment the console holds no row for", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service } = setup({ wallet, listedDseqs: ["100"] });
+
+      const { deployments } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
+
+      expect(deployments[0].settings).toBeNull();
+    });
+
+    it("returns no runtime end for a deployment whose limit was never anchored", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service } = setup({ wallet, listedDseqs: ["100"], settings: { "100": { runtimeLimitHours: 5, runtimeEndsAt: null } } });
+
+      const { deployments } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
+
+      expect(deployments[0].settings).toMatchObject({ runtimeLimitHours: 5, runtimeEndsAt: null });
     });
 
     it("asks the chain for the state the caller named", async () => {
@@ -578,6 +619,7 @@ describe(DeploymentReaderService.name, () => {
       recorded?: (Pick<DeploymentSettingsOutput, "sdl" | "manifestVersion"> & { name?: string | null }) | null;
       listedDseqs?: string[];
       names?: Record<string, string | null>;
+      settings?: Record<string, Partial<ListedDeploymentSetting>>;
       listedGroups?: ReturnType<typeof createDeploymentInfoGroupSeed>[];
       nextKey?: string | null;
       chainTotal?: string;
@@ -631,7 +673,17 @@ describe(DeploymentReaderService.name, () => {
     const recorded = input.recorded === undefined ? { sdl: "version: '2.0'", manifestVersion: "BAUG", name: null } : input.recorded;
     const scopedDeploymentSettingRepository = mock<DeploymentSettingRepository>({
       findOneBy: vi.fn().mockResolvedValue(recorded ? mock<DeploymentSettingsOutput>({ ...recorded, name: recorded.name ?? null }) : undefined),
-      findNamesByDseqs: vi.fn().mockResolvedValue(new Map(Object.entries(input.names ?? {})))
+      findNamesByDseqs: vi.fn().mockResolvedValue(new Map(Object.entries(input.names ?? {}))),
+      findListedSettings: vi
+        .fn()
+        .mockResolvedValue(
+          new Map(
+            Object.entries(input.settings ?? {}).map(([dseq, setting]) => [
+              dseq,
+              { name: null, closed: false, runtimeLimitHours: null, runtimeEndsAt: null, ...setting }
+            ])
+          )
+        )
     });
     const deploymentSettingRepository = mock<DeploymentSettingRepository>({
       accessibleBy: vi.fn().mockReturnValue(scopedDeploymentSettingRepository)

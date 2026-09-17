@@ -8728,6 +8728,20 @@ export interface operations {
                   };
                   created_at: string;
                 }[];
+                /** @description What the console holds about this deployment, or null when it holds nothing. */
+                settings: {
+                  /** @description The name this deployment carries, or null for one created before the console recorded names. */
+                  name: string | null;
+                  /** @description Runtime limit in hours chosen at deployment creation, or null for always-on funding. */
+                  runtimeLimitHours: number | null;
+                  /**
+                   * Format: date-time
+                   * @description When the runtime limit expires, or null for a limit no lease has anchored yet.
+                   */
+                  runtimeEndsAt: string | null;
+                  /** @description The console's own bookkeeping, which can trail the chain. `deployment.state` is what the chain says. */
+                  closed: boolean;
+                } | null;
               }[];
               pagination: {
                 /** @description Deployments the owner holds in this state, counted from the console's chain index, so it can trail the chain by a block. Null when that index cannot answer, which leaves the count unknown rather than understated; page on `hasMore` regardless. */
