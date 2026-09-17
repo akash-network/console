@@ -842,7 +842,7 @@ describe("Deployments API", () => {
       nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
         .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
         .reply(200, { deployments: deployments.slice(0, 1), pagination: { total: "1", next_key: "second" } })
-        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
+        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*pagination\.key=second.*/)
         .reply(200, { deployments: deployments.slice(1), pagination: { total: "1", next_key: null } });
 
       const response = await app.request("/v1/deployments?search=web", {

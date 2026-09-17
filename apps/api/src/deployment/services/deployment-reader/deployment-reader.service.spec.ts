@@ -813,7 +813,6 @@ describe(DeploymentReaderService.name, () => {
         }
       : createDeploymentListResponseSeed({}, 0);
 
-    let pagesRead = 0;
     const mocks = {
       providerService: mock<ProviderService>({
         getLeaseStatus: vi.fn().mockResolvedValue(null),
@@ -822,9 +821,10 @@ describe(DeploymentReaderService.name, () => {
       deploymentHttpService: mock<DeploymentHttpService>({
         findByOwnerAndDseq: vi.fn().mockResolvedValue(defaultDeploymentInfo),
         findAll: input.searchPages
-          ? vi.fn().mockImplementation(async () => {
+          ? vi.fn().mockImplementation(async ({ pagination }: { pagination?: { key?: string } }) => {
               const pages = input.searchPages!;
-              const page = pages[Math.min(pagesRead++, pages.length - 1)];
+              const requested = pagination?.key ? pages.findIndex(({ nextKey }) => nextKey === pagination.key) + 1 : 0;
+              const page = pages[requested] ?? pages[pages.length - 1];
               return createSearchPage(wallet.address, page.dseqs, page.nextKey);
             })
           : vi.fn().mockResolvedValue(defaultDeploymentList)
