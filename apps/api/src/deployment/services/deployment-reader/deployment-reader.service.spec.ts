@@ -642,6 +642,16 @@ describe(DeploymentReaderService.name, () => {
       expect(fallbackDeploymentReaderService.findAll).toHaveBeenNthCalledWith(1, expect.objectContaining({ key: undefined }));
     });
 
+    it("has the database count the state, which is where its next page comes from", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentHttpService, fallbackDeploymentReaderService } = setup({ wallet, listedDseqs: ["100"] });
+      deploymentHttpService.findAll.mockRejectedValue(createNetworkError("ECONNRESET"));
+
+      await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10, search: "web" });
+
+      expect(fallbackDeploymentReaderService.findAll).toHaveBeenCalledWith(expect.objectContaining({ countTotal: true }));
+    });
+
     it("falls back to the database for a search the chain cannot answer", async () => {
       const wallet = createUserWallet() as WalletInitialized;
       const { service, deploymentHttpService, fallbackDeploymentReaderService } = setup({ wallet, listedDseqs: ["100"] });

@@ -46,7 +46,7 @@ const SEARCH_PAGE_SIZE = 1000;
 /** Above this a search would sweep more of the chain than it is worth, so it is refused rather than served slowly. */
 export const MAX_SEARCHABLE_DEPLOYMENTS = 5000;
 
-type SweepPagination = { key?: string; limit: number; countTotal: false };
+type SweepPagination = { key?: string; limit: number };
 
 type LoadDeploymentPage = (pagination: SweepPagination) => Promise<DeploymentListResponse>;
 
@@ -308,7 +308,9 @@ export class DeploymentReaderService {
    */
   async #loadEveryDeployment(owner: string, state: DeploymentListState): Promise<DeploymentInfo[]> {
     try {
-      return await this.#sweepEveryPage(owner, state, pagination => this.deploymentHttpService.findAll({ owner, state, pagination }));
+      return await this.#sweepEveryPage(owner, state, pagination =>
+        this.deploymentHttpService.findAll({ owner, state, pagination: { ...pagination, countTotal: false } })
+      );
     } catch (error) {
       if (error instanceof UnprocessableEntityError || !this.shouldFallbackToDatabase(error)) {
         throw error;
@@ -316,8 +318,13 @@ export class DeploymentReaderService {
 
       this.logger.warn({ event: "DEPLOYMENT_SEARCH_FELL_BACK_TO_DATABASE", owner, state, error });
 
-      return await this.#sweepEveryPage(owner, state, pagination => this.fallbackDeploymentReaderService.findAll({ owner, state, ...pagination }));
+      return await this.#sweepEveryPage(owner, state, pagination => this.#loadDeploymentPageFromDatabase(owner, state, pagination));
     }
+  }
+
+  /** The database counts the state to work out whether another page follows, so a sweep that skipped the count would stop after the first one. */
+  async #loadDeploymentPageFromDatabase(owner: string, state: DeploymentListState, pagination: SweepPagination): Promise<DeploymentListResponse> {
+    return await this.fallbackDeploymentReaderService.findAll({ owner, state, ...pagination, countTotal: true });
   }
 
   async #sweepEveryPage(owner: string, state: DeploymentListState, loadPage: LoadDeploymentPage): Promise<DeploymentInfo[]> {
@@ -325,7 +332,7 @@ export class DeploymentReaderService {
     let key: string | undefined;
 
     do {
-      const response = await loadPage({ key, limit: SEARCH_PAGE_SIZE, countTotal: false });
+      const response = await loadPage({ key, limit: SEARCH_PAGE_SIZE });
       deployments.push(...response.deployments);
       key = response.pagination.next_key ?? undefined;
 
