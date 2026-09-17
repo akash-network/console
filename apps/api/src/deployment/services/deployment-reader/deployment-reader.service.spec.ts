@@ -1,4 +1,4 @@
-import type { DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
+import type { DeploymentHttpService, DeploymentListResponse, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { AxiosError } from "axios";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -483,6 +483,21 @@ describe(DeploymentReaderService.name, () => {
       expect(deployments[0].groups).toEqual(groups);
     });
 
+    it("fetches leases while the settings query is still running", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, scopedDeploymentSettingRepository, leaseHttpService } = setup({ wallet, listedDseqs: ["100"] });
+      let leasesStartedFirst = false;
+      scopedDeploymentSettingRepository.findListedSettings.mockImplementation(async () => {
+        await new Promise(resolve => setImmediate(resolve));
+        leasesStartedFirst = leaseHttpService.list.mock.calls.length > 0;
+        return new Map();
+      });
+
+      await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
+
+      expect(leasesStartedFirst).toBe(true);
+    });
+
     it("matches a deployment by the name the console holds for it", async () => {
       const wallet = createUserWallet() as WalletInitialized;
       const { service } = setup({ wallet, listedDseqs: ["100", "200"], settings: { "100": { name: "web" }, "200": { name: "database" } } });
@@ -574,14 +589,20 @@ describe(DeploymentReaderService.name, () => {
       expect(deployments.map(item => item.deployment.id.dseq)).toEqual(["2000", "300", "100"]);
     });
 
-    it("reads the settings of the whole account once, rather than of one page", async () => {
+    it("reads the settings of every deployment it swept, in one query", async () => {
       const wallet = createUserWallet() as WalletInitialized;
-      const { service, scopedDeploymentSettingRepository } = setup({ wallet, listedDseqs: ["100"] });
+      const { service, scopedDeploymentSettingRepository } = setup({
+        wallet,
+        searchPages: [
+          { dseqs: ["100"], nextKey: "second" },
+          { dseqs: ["200"], nextKey: null }
+        ]
+      });
 
       await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10, search: "web" });
 
       expect(scopedDeploymentSettingRepository.findListedSettings).toHaveBeenCalledTimes(1);
-      expect(scopedDeploymentSettingRepository.findListedSettings).toHaveBeenCalledWith({ userId: wallet.userId });
+      expect(scopedDeploymentSettingRepository.findListedSettings).toHaveBeenCalledWith({ userId: wallet.userId, dseqs: ["100", "200"] });
     });
 
     it("refuses a search over more deployments than it will span", async () => {
@@ -591,6 +612,34 @@ describe(DeploymentReaderService.name, () => {
 
       await expect(service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10, search: "web" })).rejects.toMatchObject({ status: 422 });
       expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_SEARCH_TOO_LARGE" }));
+    });
+
+    it("refuses without pulling the page beyond the cap", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const atTheBound = Array.from({ length: MAX_SEARCHABLE_DEPLOYMENTS }, (_, index) => String(index + 1));
+      const { service, deploymentHttpService } = setup({ wallet, searchPages: [{ dseqs: atTheBound, nextKey: "second" }] });
+
+      await expect(service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10, search: "web" })).rejects.toMatchObject({ status: 422 });
+      expect(deploymentHttpService.findAll).toHaveBeenCalledTimes(1);
+    });
+
+    it("sweeps the whole state again on the database rather than handing it a chain cursor", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentHttpService, fallbackDeploymentReaderService } = setup({ wallet });
+      deploymentHttpService.findAll
+        .mockResolvedValueOnce(createSearchPage(wallet.address, ["100"], "rBcN+w=="))
+        .mockRejectedValueOnce(createNetworkError("ECONNRESET"));
+      const recorded = ["100", "200"];
+      fallbackDeploymentReaderService.findAll.mockImplementation(async ({ key }) => {
+        const offset = key ? parseInt(key, 10) || 0 : 0;
+        return createSearchPage(wallet.address, [recorded[offset]], offset + 1 < recorded.length ? String(offset + 1) : null);
+      });
+
+      const { deployments, total } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10, search: "0" });
+
+      expect(deployments.map(item => item.deployment.id.dseq)).toEqual(["100", "200"]);
+      expect(total).toBe(2);
+      expect(fallbackDeploymentReaderService.findAll).toHaveBeenNthCalledWith(1, expect.objectContaining({ key: undefined }));
     });
 
     it("falls back to the database for a search the chain cannot answer", async () => {
@@ -707,6 +756,13 @@ describe(DeploymentReaderService.name, () => {
     });
   });
 
+  function createSearchPage(owner: string, dseqs: string[], nextKey: string | null): DeploymentListResponse {
+    return {
+      deployments: dseqs.map(dseq => createDeploymentInfoSeed({ owner, dseq })),
+      pagination: { next_key: nextKey, total: String(dseqs.length) }
+    };
+  }
+
   function createNetworkError(code: string): AxiosError {
     const error = new AxiosError(code);
     error.code = code;
@@ -769,10 +825,7 @@ describe(DeploymentReaderService.name, () => {
           ? vi.fn().mockImplementation(async () => {
               const pages = input.searchPages!;
               const page = pages[Math.min(pagesRead++, pages.length - 1)];
-              return {
-                deployments: page.dseqs.map(dseq => createDeploymentInfoSeed({ owner: wallet.address, dseq })),
-                pagination: { next_key: page.nextKey, total: String(page.dseqs.length) }
-              };
+              return createSearchPage(wallet.address, page.dseqs, page.nextKey);
             })
           : vi.fn().mockResolvedValue(defaultDeploymentList)
       }),

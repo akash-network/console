@@ -46,6 +46,10 @@ const SEARCH_PAGE_SIZE = 1000;
 /** Above this a search would sweep more of the chain than it is worth, so it is refused rather than served slowly. */
 export const MAX_SEARCHABLE_DEPLOYMENTS = 5000;
 
+type SweepPagination = { key?: string; limit: number; countTotal: false };
+
+type LoadDeploymentPage = (pagination: SweepPagination) => Promise<DeploymentListResponse>;
+
 interface PageQuery {
   owner: string;
   userId: string;
@@ -124,11 +128,6 @@ export class DeploymentReaderService {
     }
 
     return await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findListedSettings({ userId, dseqs });
-  }
-
-  /** Every record the caller holds, for a search that has to know each deployment's name before it can tell which page the matches fall on. */
-  private async findEverySettingFor(userId: string): Promise<Map<string, ListedDeploymentSetting>> {
-    return await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findListedSettings({ userId });
   }
 
   /** Answers every dseq asked about, with null where the console holds no name, so a caller never has to tell a missing row from an unnamed one. */
@@ -215,17 +214,25 @@ export class DeploymentReaderService {
     const wallet = await this.walletReaderService.getWalletByUserId(query.userId);
     const { address: owner } = wallet;
 
-    const { page, settings, total, hasMore } = search
+    const {
+      page,
+      settings: pendingSettings,
+      total,
+      hasMore
+    } = search
       ? await this.#findMatchingPage({ owner, userId: query.userId, state, skip, limit, reverse, search })
       : await this.#findPage({ owner, userId: query.userId, state, skip, limit, reverse });
 
-    const { results: leaseResults } = await PromisePool.withConcurrency(100)
-      .for(page)
-      .useCorrespondingResults()
-      .handleError(async error => {
-        throw error;
-      })
-      .process(async deployment => this.getLeaseList({ owner, dseq: deployment.deployment.id.dseq }));
+    const [{ results: leaseResults }, settings] = await Promise.all([
+      PromisePool.withConcurrency(100)
+        .for(page)
+        .useCorrespondingResults()
+        .handleError(async error => {
+          throw error;
+        })
+        .process(async deployment => this.getLeaseList({ owner, dseq: deployment.deployment.id.dseq })),
+      pendingSettings
+    ]);
 
     const deployments = page.map((deployment, index) => {
       const recorded = settings.get(deployment.deployment.id.dseq);
@@ -252,7 +259,7 @@ export class DeploymentReaderService {
 
     return {
       page,
-      settings: await this.findSettingsFor(
+      settings: this.findSettingsFor(
         userId,
         page.map(deployment => deployment.deployment.id.dseq)
       ),
@@ -276,7 +283,11 @@ export class DeploymentReaderService {
    * of the requested state is loaded, matched, and only then paged. Leases are still fetched for the page alone.
    */
   async #findMatchingPage({ owner, userId, state, skip, limit, reverse, search }: PageQuery & { search: string }) {
-    const [everyDeployment, settings] = await Promise.all([this.#loadEveryDeployment(owner, state), this.findEverySettingFor(userId)]);
+    const everyDeployment = await this.#loadEveryDeployment(owner, state);
+    const settings = await this.findSettingsFor(
+      userId,
+      everyDeployment.map(({ deployment }) => deployment.id.dseq)
+    );
 
     const needle = search.toLowerCase();
     const matches = everyDeployment.filter(({ deployment }) => {
@@ -291,22 +302,41 @@ export class DeploymentReaderService {
     return { page: matches.slice(skip, skip + limit), settings, total: matches.length, hasMore: skip + limit < matches.length };
   }
 
+  /**
+   * A cursor only means something to the source that issued it, so an unreachable chain restarts the sweep on the
+   * database rather than handing the chain's key to it mid-way, which would silently re-read from the first page.
+   */
   async #loadEveryDeployment(owner: string, state: DeploymentListState): Promise<DeploymentInfo[]> {
+    try {
+      return await this.#sweepEveryPage(owner, state, pagination => this.deploymentHttpService.findAll({ owner, state, pagination }));
+    } catch (error) {
+      if (error instanceof UnprocessableEntityError || !this.shouldFallbackToDatabase(error)) {
+        throw error;
+      }
+
+      this.logger.warn({ event: "DEPLOYMENT_SEARCH_FELL_BACK_TO_DATABASE", owner, state, error });
+
+      return await this.#sweepEveryPage(owner, state, pagination => this.fallbackDeploymentReaderService.findAll({ owner, state, ...pagination }));
+    }
+  }
+
+  async #sweepEveryPage(owner: string, state: DeploymentListState, loadPage: LoadDeploymentPage): Promise<DeploymentInfo[]> {
     const deployments: DeploymentInfo[] = [];
     let key: string | undefined;
 
     do {
-      const response = await this.getDeploymentsList({ owner, state, pagination: { key, limit: SEARCH_PAGE_SIZE, countTotal: false } });
+      const response = await loadPage({ key, limit: SEARCH_PAGE_SIZE, countTotal: false });
       deployments.push(...response.deployments);
+      key = response.pagination.next_key ?? undefined;
 
-      if (deployments.length > MAX_SEARCHABLE_DEPLOYMENTS) {
+      const moreThanTheCapExist = key ? deployments.length >= MAX_SEARCHABLE_DEPLOYMENTS : deployments.length > MAX_SEARCHABLE_DEPLOYMENTS;
+
+      if (moreThanTheCapExist) {
         this.logger.warn({ event: "DEPLOYMENT_SEARCH_TOO_LARGE", owner, state, loaded: deployments.length });
         throw new UnprocessableEntityError(
           `More than ${MAX_SEARCHABLE_DEPLOYMENTS} deployments to search through. Page through them without a search instead.`
         );
       }
-
-      key = response.pagination.next_key ?? undefined;
     } while (key);
 
     return deployments;
