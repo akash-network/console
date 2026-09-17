@@ -130,9 +130,10 @@ export class ProviderProxy {
 
             if (destroyedByProxy) return resolve({ ok: false, code: "connectionError", error });
 
-            this.recordUnreachable(trackerKey, error);
+            const errno = toErrno(error);
+            this.recordUnreachable(trackerKey, error, errno);
 
-            if (this.isRepeatedFailure(trackerKey)) return resolve({ ok: false, code: "connectionError", error, repeatedFailure: true });
+            if (this.isRepeatedFailure(trackerKey, errno)) return resolve({ ok: false, code: "connectionError", error, repeatedFailure: true });
 
             resolve({ ok: false, code: "connectionError", error });
           })
@@ -166,12 +167,12 @@ export class ProviderProxy {
     if (trackerKey) this.#connectionTracker?.recordReachable(trackerKey);
   }
 
-  private recordUnreachable(trackerKey: string | undefined, error: unknown): void {
-    if (trackerKey) this.#connectionTracker?.recordUnreachable(trackerKey, error, toErrno(error));
+  private recordUnreachable(trackerKey: string | undefined, error: unknown, errno: string | undefined): void {
+    if (trackerKey) this.#connectionTracker?.recordUnreachable(trackerKey, error, errno);
   }
 
-  private isRepeatedFailure(trackerKey: string | undefined): boolean {
-    return !!trackerKey && !!this.#connectionTracker?.isRepeatedFailure(trackerKey);
+  private isRepeatedFailure(trackerKey: string | undefined, errno: string | undefined): boolean {
+    return !!trackerKey && !!this.#connectionTracker?.isRepeatedFailure(trackerKey, errno);
   }
 
   private getRequestOptions(options: ProxyConnectOptions) {

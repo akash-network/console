@@ -103,17 +103,26 @@ describe(ProviderConnectionTracker.name, () => {
 
     fail("provider-a");
 
-    expect(tracker.isRepeatedFailure("provider-a")).toBe(false);
+    expect(tracker.isRepeatedFailure("provider-a", "EHOSTUNREACH")).toBe(false);
 
     fail("provider-a");
 
-    expect(tracker.isRepeatedFailure("provider-a")).toBe(true);
+    expect(tracker.isRepeatedFailure("provider-a", "EHOSTUNREACH")).toBe(true);
   });
 
   it("reports nothing as repeated for a provider it never saw fail", () => {
     const { tracker } = setup();
 
-    expect(tracker.isRepeatedFailure("provider-a")).toBe(false);
+    expect(tracker.isRepeatedFailure("provider-a", "EHOSTUNREACH")).toBe(false);
+  });
+
+  it.each(["ETIMEDOUT", "EPIPE"])("reports nothing as repeated for %s, which it never counted", errno => {
+    const { tracker, fail } = setup({ failureThreshold: 3 });
+
+    fail("provider-a");
+    fail("provider-a");
+
+    expect(tracker.isRepeatedFailure("provider-a", errno)).toBe(false);
   });
 
   it("resumes dialing once the provider answers", () => {
