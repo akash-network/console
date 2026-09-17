@@ -52,7 +52,8 @@ export function createContainer(untrustedConfig: Record<string, unknown>): Conta
         Date.now,
         {
           failureThreshold: appConfig.PROVIDER_UNREACHABLE_FAILURE_THRESHOLD,
-          cooldownMs: appConfig.PROVIDER_UNREACHABLE_COOLDOWN_MS
+          cooldownMs: appConfig.PROVIDER_UNREACHABLE_COOLDOWN_MS,
+          maxCooldownMs: appConfig.PROVIDER_UNREACHABLE_MAX_COOLDOWN_MS
         },
         isLoggingDisabled ? undefined : createProviderConnectionTrackerInstrumentation(createOtelLogger({ name: "connection-tracker" }))
       )

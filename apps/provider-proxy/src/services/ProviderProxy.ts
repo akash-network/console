@@ -127,7 +127,14 @@ export class ProviderProxy {
           "error",
           propagateTracingContext(error => {
             const destroyedByProxy = selfDestroyed || (requestOptions.agent !== undefined && this.#tornDownAgents.has(requestOptions.agent));
-            if (!destroyedByProxy) this.recordUnreachable(trackerKey, error);
+
+            if (destroyedByProxy) return resolve({ ok: false, code: "connectionError", error });
+
+            const errno = toErrno(error);
+            this.recordUnreachable(trackerKey, error, errno);
+
+            if (this.isRepeatedFailure(trackerKey, errno)) return resolve({ ok: false, code: "connectionError", error, repeatedFailure: true });
+
             resolve({ ok: false, code: "connectionError", error });
           })
         );
@@ -160,8 +167,12 @@ export class ProviderProxy {
     if (trackerKey) this.#connectionTracker?.recordReachable(trackerKey);
   }
 
-  private recordUnreachable(trackerKey: string | undefined, error: unknown): void {
-    if (trackerKey) this.#connectionTracker?.recordUnreachable(trackerKey, error, toErrno(error));
+  private recordUnreachable(trackerKey: string | undefined, error: unknown, errno: string | undefined): void {
+    if (trackerKey) this.#connectionTracker?.recordUnreachable(trackerKey, error, errno);
+  }
+
+  private isRepeatedFailure(trackerKey: string | undefined, errno: string | undefined): boolean {
+    return !!trackerKey && !!this.#connectionTracker?.isRepeatedFailure(trackerKey, errno);
   }
 
   private getRequestOptions(options: ProxyConnectOptions) {
@@ -230,4 +241,4 @@ interface ProxyConnectionResultSuccess {
 type ProxyConnectionResultError =
   | { ok: false; code: "invalidCertificate"; reason: CertValidationResultError["code"] }
   | { ok: false; code: "insecureConnection" }
-  | { ok: false; code: "connectionError"; error: unknown; shortCircuited?: true };
+  | { ok: false; code: "connectionError"; error: unknown; shortCircuited?: true; repeatedFailure?: true };

@@ -98,7 +98,8 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
     {
       retryIf(result) {
         const isServerError = result.ok && (!result.response.statusCode || result.response.statusCode >= 500);
-        const isConnectionError = result.ok === false && result.code === "connectionError" && !result.shortCircuited && canRetryOnError(result.error);
+        const isConnectionError =
+          result.ok === false && result.code === "connectionError" && !result.shortCircuited && !result.repeatedFailure && canRetryOnError(result.error);
         return !clientAbortSignal.aborted && (isServerError || isConnectionError);
       },
       logger: ctx.get("container").appLogger
@@ -126,6 +127,7 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
       errorCategory,
       errno,
       shortCircuited: proxyResult.shortCircuited ?? false,
+      repeatedFailure: proxyResult.repeatedFailure ?? false,
       url,
       method,
       providerAddress,

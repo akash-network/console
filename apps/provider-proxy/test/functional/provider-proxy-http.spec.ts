@@ -475,6 +475,32 @@ describe("Provider HTTP proxy", () => {
     expect((await dial()).status).toBe(503);
   });
 
+  it("stops re-dialing a provider that already hung up on this request", async () => {
+    const providerAddress = generateBech32();
+    const validCertPair = await createX509CertPair({ commonName: providerAddress });
+    let dials = 0;
+
+    const { providerUrl } = await startProviderServer({
+      certPair: validCertPair,
+      handlers: {
+        "/hangs-up"(req) {
+          dials += 1;
+          req.destroy();
+        }
+      }
+    });
+    const chainServer = await startChainApiServer([validCertPair.cert]);
+    await startServer({ REST_API_NODE_URL: chainServer.url });
+
+    const response = await request("/", {
+      method: "POST",
+      body: JSON.stringify({ method: "GET", url: `${providerUrl}/hangs-up`, providerAddress })
+    });
+
+    expect(response.status).toBe(502);
+    expect(dials).toBe(2);
+  });
+
   it("responds with 502 if provider host hangs up connection", async () => {
     const providerAddress = generateBech32();
     const validCertPair = await createX509CertPair({
