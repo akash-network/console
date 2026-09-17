@@ -149,11 +149,25 @@ describe("DeploymentArchive", () => {
     return DeploymentsCollection.mock.lastCall?.[0].deployments as ListedDeploymentDto[];
   }
 
+  it("says the search was too broad rather than passing off a refused search as an empty archive", () => {
+    const { DeploymentsCollection } = setup({ count: 0, totalCount: null, isSearchTooBroad: true });
+
+    expect(screen.getByText(/Too many closed deployments to search through/)).toBeInTheDocument();
+    expect(DeploymentsCollection).not.toHaveBeenCalled();
+  });
+
+  it("offers no retry for a refused search, since repeating it would be refused again", () => {
+    setup({ count: 0, totalCount: null, isSearchTooBroad: true });
+
+    expect(screen.queryByRole("button", { name: /Retry/ })).not.toBeInTheDocument();
+  });
+
   function setup(input: {
     count: number;
     totalCount?: number | null;
     viewMode?: "grid" | "list";
     isError?: boolean;
+    isSearchTooBroad?: boolean;
     isRetrying?: boolean;
     pageIndex?: number;
     isPaginated?: boolean;
@@ -175,6 +189,7 @@ describe("DeploymentArchive", () => {
         providers={[]}
         viewMode={input.viewMode ?? "grid"}
         isError={input.isError ?? false}
+        isSearchTooBroad={input.isSearchTooBroad ?? false}
         isRetrying={input.isRetrying ?? false}
         onRetry={onRetry}
         pageIndex={input.pageIndex ?? 0}

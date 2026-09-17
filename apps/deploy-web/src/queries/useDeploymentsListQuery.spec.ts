@@ -50,7 +50,7 @@ describe(useDeploymentsListQuery.name, () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(result.current.data).toEqual({ deployments: [], total: 0, hasNextPage: false });
+    expect(result.current.data).toEqual({ deployments: [], total: 0, hasNextPage: false, isSearchTooBroad: false });
   });
 
   it("reads a wallet that is not initialized yet the same way", async () => {
@@ -59,6 +59,34 @@ describe(useDeploymentsListQuery.name, () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(result.current.data?.deployments).toEqual([]);
+  });
+
+  it("reads a refused search as a page saying so rather than as a failure", async () => {
+    const { result } = setup({
+      search: "web",
+      rejectWith: new ApiError(422, { message: "More than 5000 deployments to search through." }, "unprocessable entity")
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.isSearchTooBroad).toBe(true);
+    expect(result.current.data?.deployments).toEqual([]);
+  });
+
+  it("leaves the archive header countless when a search was refused, rather than claiming none are closed", async () => {
+    const { result } = setup({ state: "closed", search: "web", rejectWith: new ApiError(422, { message: "too many" }, "unprocessable entity") });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.total).toBeNull();
+  });
+
+  it("marks a page the api did answer as searchable, so one refused slice cannot speak for the other", async () => {
+    const { result } = setup({ search: "web", items: [item("100")] });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.isSearchTooBroad).toBe(false);
   });
 
   it("reports a server fault rather than swallowing it as an empty account", async () => {

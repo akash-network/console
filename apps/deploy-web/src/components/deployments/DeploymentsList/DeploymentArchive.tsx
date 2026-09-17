@@ -27,6 +27,7 @@ export interface DeploymentArchiveProps {
   providers: ApiProviderList[] | undefined;
   viewMode: DeploymentsViewMode;
   isError: boolean;
+  isSearchTooBroad: boolean;
   isRetrying: boolean;
   onRetry: () => void;
   pageIndex: number;
@@ -43,6 +44,7 @@ export const DeploymentArchive: FC<DeploymentArchiveProps> = ({
   providers,
   viewMode,
   isError,
+  isSearchTooBroad,
   isRetrying,
   onRetry,
   pageIndex,
@@ -62,6 +64,10 @@ export const DeploymentArchive: FC<DeploymentArchiveProps> = ({
         </LoadingButton>
       </div>
     );
+  }
+
+  if (isSearchTooBroad) {
+    return <p className="py-8 text-sm text-muted-foreground">Too many closed deployments to search through. Clear the search to page through them instead.</p>;
   }
 
   if (!totalCount && deployments.length === 0) return null;
