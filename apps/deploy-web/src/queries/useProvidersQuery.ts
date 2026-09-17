@@ -58,14 +58,10 @@ export function useProviderStatus(
   });
 }
 
-/** Per-provider `/status` probe timeout. Keeps one unresponsive provider from holding up the rest of its batch. */
+/** Keeps one unresponsive provider from holding up the rest of its batch. */
 const PROVIDER_STATUS_PROBE_TIMEOUT_MS = 5000;
 
-/**
- * The first of `providers` to answer a `/status` probe, for the placement named by `placementKey`. Keyed on the
- * placement rather than on the candidates, so a bid poll that grows or reorders the list no longer abandons an
- * in-flight probe and restarts it from the first candidate.
- */
+/** Keyed on the placement rather than the candidates, so a bid poll no longer abandons an in-flight probe and restarts it. */
 export function useFirstReachableProvider(
   placementKey: string | null,
   providers: ApiProviderList[] | undefined | null,

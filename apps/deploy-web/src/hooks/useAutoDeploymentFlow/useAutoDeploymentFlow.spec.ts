@@ -18,10 +18,8 @@ const DSEQ = "12345";
 const BID_ID = `${PROVIDER_OWNER}/${DSEQ}/1/1`;
 
 describe(useAutoDeploymentFlow.name, () => {
-  // Long by default so only the tests that opt into a short deadline ever reach it.
   const UNREACHED_DEADLINE_MS = 10_000;
   const SHORT_DEADLINE_MS = 20;
-  // Long enough to reach a deploy before it fires, short enough to wait out.
   const DISARMABLE_DEADLINE_MS = 300;
 
   async function waitForDeadline() {
@@ -133,9 +131,21 @@ describe(useAutoDeploymentFlow.name, () => {
     expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
   });
 
+  it("does not abandon a deployment another tab has already leased", async () => {
+    const openBid = mock<DeploymentBids[number]>({ bid: { state: "open", id: { provider: PROVIDER_OWNER, dseq: DSEQ, gseq: 1, oseq: 1 } } });
+    const leasedBid = mock<DeploymentBids[number]>({ bid: { state: "active", id: { provider: "akash1other", dseq: DSEQ, gseq: 1, oseq: 1 } } });
+    const { flow } = setup({
+      bids: [openBid, leasedBid],
+      providerProxyRequest: vi.fn().mockRejectedValue(new Error("unreachable")),
+      matchDeadlineMs: SHORT_DEADLINE_MS
+    });
+
+    await waitForDeadline();
+
+    expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
+  });
+
   it("does not abandon the attempt after a failed deploy, whose error the scene already shows", async () => {
-    // A deadline long enough to reach the failed deploy first, then wait well past it: without the deploy-error guard
-    // the attempt would be abandoned at DISARMABLE_DEADLINE_MS and overwrite the error already on screen.
     const { flow } = setup({ holdDeploy: true, matchDeadlineMs: DISARMABLE_DEADLINE_MS });
 
     await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalled());
@@ -501,7 +511,14 @@ describe(useAutoDeploymentFlow.name, () => {
             resumeLeases: input?.resumeLeases,
             flow
           },
-          { useServices, useProviderList, useFirstReachableProvider, useQuoteExpiry, getRequiredGseqs, matchDeadlineMs: input?.matchDeadlineMs ?? UNREACHED_DEADLINE_MS }
+          {
+            useServices,
+            useProviderList,
+            useFirstReachableProvider,
+            useQuoteExpiry,
+            getRequiredGseqs,
+            matchDeadlineMs: input?.matchDeadlineMs ?? UNREACHED_DEADLINE_MS
+          }
         );
       },
       {

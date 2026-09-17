@@ -46,10 +46,7 @@ export interface DeploymentFlowActions {
    * form values so the request can never lag behind an in-flight edit. */
   requestQuotes: (sdl: string, name?: string) => void;
   cancelAndEdit: () => void;
-  /**
-   * Ends the attempt in `error` with `message` and closes the deployment so its escrow deposit is released. For an
-   * autopilot that has given up; a human uses `cancelAndEdit`, which lands back in the form with the spec intact.
-   */
+  /** Ends the attempt in `error` and closes the deployment so its deposit is released; a human uses `cancelAndEdit`. */
   closeAndFail: (message: string) => void;
   setBidStrategy: (strategy: BidStrategy) => void;
   refreshQuotes: () => void;
@@ -83,6 +80,9 @@ const NO_BIDS_TIMEOUT_MS = 60 * 1000;
 
 /** Error surfaced when a deployment draws no provider bids at all within {@link NO_BIDS_TIMEOUT_MS}. */
 const NO_PROVIDERS_MESSAGE = "No providers are available for this deployment right now. Try adjusting your deployment and requesting quotes again.";
+
+/** An `active` bid is one this deployment already holds the lease on — exactly what a resumed selection points at. */
+const LIVE_BID_STATES = new Set(["open", "active"]);
 
 /** Surfaced when the SDL on screen can't be turned into a provider manifest at deploy time. */
 const MANIFEST_BUILD_MESSAGE = "We couldn't prepare this deployment's manifest. Check your SDL and try again.";
@@ -161,11 +161,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     function pruneStaleSelections() {
       const bids = bidsQuery.data?.data;
       if (!bids || bids.length === 0) return;
-      // `active` is kept alongside `open`: an active bid is one this deployment already holds the lease on, which is
-      // exactly what a selection reconstructed from a live lease points at. Only a bid that is gone invalidates one.
-      const liveBidIds = new Set(
-        bids.filter(entry => entry.bid.state === "open" || entry.bid.state === "active").map(entry => formatBidId(entry.bid.id))
-      );
+      const liveBidIds = new Set(bids.filter(entry => LIVE_BID_STATES.has(entry.bid.state)).map(entry => formatBidId(entry.bid.id)));
       setSelections(function dropDeadSelections(previous) {
         const survivors = Object.entries(previous).filter(([, bidId]) => liveBidIds.has(bidId));
         return survivors.length === Object.keys(previous).length ? previous : Object.fromEntries(survivors);
@@ -375,13 +371,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     },
     [closeDeployment, dseq, phase, router, bidStrategy, analyticsService, createDeployment, finishClose, verifyCloseOutcome]
   );
-  /**
-   * Terminal give-up on the current attempt. The phase flips to `error` before the close is even sent, so the caller's
-   * watchdog disarms and the bid poll stops at once; the close runs behind the error scene purely to release the
-   * deposit. Landing in `error` rather than `configuring` is load-bearing — the auto flow re-creates a deployment the
-   * instant it reads `configuring`, so `cancelAndEdit`'s destination would spin up a fresh one instead of showing the
-   * failure. A close that fails verification keeps the dseq, so "Try again" closes it on its way out.
-   */
+  /** Lands in `error`, never `configuring`: the auto flow creates a fresh deployment the instant it reads `configuring`. */
   const closeAndFail = useCallback(
     function closeAndFail(message: string) {
       const attempt = ++createAttemptRef.current;
@@ -455,8 +445,6 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       if (!dseq) return;
       const nextManifest = dependencies.manifestFromSdl(sdl);
       const leases = Object.values(selections).map(parseBidId);
-      // Both used to return silently, parking the flow in `quoting` with nothing in flight and no dependency left to
-      // change — the shape of stall an autopilot can never recover from.
       if (!nextManifest) {
         setDeployError({ message: MANIFEST_BUILD_MESSAGE });
         return;

@@ -52,11 +52,7 @@ type Result = {
   stopAutopilot: () => void;
 };
 
-/**
- * How long the autopilot may sit in `quoting` with bids on the table before abandoning the attempt. The quote window
- * runs ~5 minutes, but everything left at that point — probe the bidders, record a selection, fire the lease — is
- * seconds of work, so 90s without progress means it is not coming and holding the deposit longer buys nothing.
- */
+/** Everything left once bids are in — probe, select, lease — is seconds of work, so 90s of no progress means it is not coming. */
 const MATCH_DEADLINE_MS = 90 * 1000;
 
 const MATCH_FAILED_MESSAGE = "We couldn't match this deployment with a provider in time. Try again, or contact support if it keeps happening.";
@@ -155,8 +151,7 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
     .map(bid => providers?.find(provider => provider.owner === bid.bid.id.provider))
     .filter((provider): provider is ApiProviderList => !!provider);
 
-  // Names the group being matched, so the probe is cached per placement instead of per candidate list: bids keep
-  // arriving while a probe runs, and a candidate-derived key would discard it and restart from the first candidate.
+  /** Keyed per placement, not per candidate list: bids keep arriving mid-probe and a candidate-derived key would restart it. */
   const placementKey = dseq && matchingGseq !== undefined ? `${dseq}/${matchingGseq}` : null;
   const reachableProviderQuery = dependencies.useFirstReachableProvider(placementKey, candidateProviders, {
     enabled: flow.phase === "quoting" && candidateProviders.length > 0,
@@ -165,10 +160,7 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
   const reachableProvider = reachableProviderQuery.data;
   const activeBid = reachableProvider ? openBids.find(bid => bid.bid.id.provider === reachableProvider.owner) : undefined;
 
-  // Every selection ready to record now: one per already-leased group the flow has not recorded yet (a resume takes
-  // those verbatim), plus the first reachable open bid for the group currently being matched. Both are keyed off what
-  // the flow actually holds, so a selection it dropped — its bid died, or a resumed one was pruned — is matched again
-  // on the next render, while one that still stands is never re-recorded.
+  /** Keyed off what the flow holds, so a dropped selection is matched again while one that still stands is never re-recorded. */
   const selectionTargets = useMemo<LeaseId[]>(() => {
     const targets: LeaseId[] = [];
     for (const gseq of requiredGseqs) {
@@ -195,9 +187,6 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
 
   useEffect(
     function recordSelections() {
-      // A failed deploy is terminal for the auto flow — the error scene is up and "Try again" starts a fresh attempt.
-      // Re-recording a selection here would clear the flow's deploy error, which is exactly what `fireDeploy` reads as
-      // terminal, and so re-fire the lease on every bid poll.
       if (autopilotStopped || flow.phase !== "quoting" || flow.deployError) return;
       for (const target of selectionTargets) {
         const bidId = formatBidId(target);
@@ -230,26 +219,23 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
     [flow.phase, allGroupsSelected, flow.deployError, autopilotStopped]
   );
 
-  // Read through a ref so the deadline can call the latest action without re-arming on every render: the action's
-  // identity changes with the close mutation's, which would reset the timer forever.
+  /** Held in a ref so the deadline calls the latest action without the close mutation's changing identity re-arming it. */
   const closeAndFailRef = useRef(flow.actions.closeAndFail);
   closeAndFailRef.current = flow.actions.closeAndFail;
 
-  // The bid window's hard stop, off the same `listBids` entry the flow already polls. Best-effort — it stays null when
-  // the chain endpoint is unavailable — so it only ever shortens the deadline below, never replaces it.
+  /** Best-effort — null when the chain endpoint is unavailable — so it only ever shortens the deadline, never replaces it. */
   const quoteExpiry = dependencies.useQuoteExpiry({ dseq: dseq ?? null, enabled: flow.phase === "quoting" });
   const quotesExpired = !!quoteExpiry?.isExpired;
 
-  // True while the autopilot still owes this deployment a lease. A deployment that already holds one is excluded:
-  // closing it would tear down a running workload, so a resume keeps waiting instead. A deploy error is excluded too —
-  // the scene already shows it, and abandoning would overwrite it with a vaguer message.
-  const isAutopilotPending = !autopilotStopped && flow.phase === "quoting" && !flow.deployError && leasesByGseq.size === 0;
+  /** A bid goes `active` the moment any tab leases it, making this the only lease signal fresh enough to stop a close. */
+  const hasLeasedBid = flow.bids.some(entry => entry.bid.state === "active");
 
-  // Bids on the table mean the flow's own no-bids timeout has stood down for good (it latches off the first bid), so
-  // from here the deadline is the autopilot's to keep.
+  const isAutopilotPending = !autopilotStopped && flow.phase === "quoting" && !flow.deployError && leasesByGseq.size === 0 && !hasLeasedBid;
+
+  /** Bids on the table mean the flow's own no-bids timeout has latched off for good, so the deadline is the autopilot's. */
   const hasBids = flow.bids.length > 0;
 
-  // Read inside the deadline callback only, so their churn never re-arms it.
+  /** Read only inside the deadline callback, so bid churn never re-arms the timer. */
   const bidCountRef = useRef(0);
   bidCountRef.current = flow.bids.length;
   const candidateOwnersRef = useRef<string[]>([]);
@@ -260,10 +246,7 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
       if (!isAutopilotPending || !hasBids) return;
       function giveUpOnMatching() {
         const reason = quotesExpired ? "quote_expired" : "deadline";
-        // Logged here rather than per probe pass: a healthy match still takes several failing passes, and warning on
-        // each would bury a session's Sentry breadcrumbs long before anything actually went wrong.
         logger.warn({ event: "AUTO_DEPLOY_MATCH_FAILED", reason, dseq, candidates: candidateOwnersRef.current });
-        // The funnel goes dark between `bids_received` and `bid_selected`; this is the event that explains the gap.
         analyticsService.track("onboarding_match_failed", {
           category: "onboarding",
           reason,

@@ -1,6 +1,6 @@
 import type { ApiProviderList } from "@src/types/provider";
 
-/** Probed in batches rather than one at a time: a serial loop costs one probe timeout per dead candidate, long enough that a bid poll restarts it before it reaches a live provider. Capped because every probe goes through the provider proxy. */
+/** Capped rather than unbounded because every probe in a batch goes through the provider proxy. */
 export const PROVIDER_PROBE_CONCURRENCY = 5;
 
 /** The first candidate to answer `probe`, or null when none of them does. */
