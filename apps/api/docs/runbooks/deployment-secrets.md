@@ -177,13 +177,17 @@ What it means: a normal deploy unwraps one user's key. Something opening many us
 
 How the threshold was set, so the next person can tighten it rather than guess. It began at 75, estimated from Amplitude deploy counts while none of this was live yet. Production traffic has since made the real population measurable, by running the query above without its threshold:
 
-| Measure, prod Loki                              | Value  | When       |
-| ----------------------------------------------- | ------ | ---------- |
-| Distinct users unwrapping per 5 min, 7-day max  | 20     | 2026-09-11 |
-| Distinct users unwrapping per 5 min, normal day | 5 to 8 |            |
-| Unwraps per 5 min, 24-hour max                  | 186    | 2026-09-16 |
-| `SDL_SECRETS_STORED_OPENED`, busiest hour       | 1877   | 2026-09-16 |
-| `SECRET_DECRYPT_FAILED`, 24 hours               | 0      | 2026-09-16 |
+| Measure, prod Loki                                | Value | When       |
+| ------------------------------------------------- | ----- | ---------- |
+| Distinct users unwrapping per 5 min, 7-day median | 2     | 2026-09-17 |
+| Distinct users unwrapping per 5 min, 7-day p95    | 4     | 2026-09-17 |
+| Distinct users unwrapping per 5 min, 7-day p99    | 6     | 2026-09-17 |
+| Distinct users unwrapping per 5 min, 7-day max    | 21    | 2026-09-12 |
+| Unwraps per 5 min, 24-hour max                    | 186   | 2026-09-16 |
+| `SDL_SECRETS_STORED_OPENED`, busiest hour         | 1877  | 2026-09-16 |
+| `SECRET_DECRYPT_FAILED`, 30 days, every service   | 0     | 2026-09-17 |
+
+The distinct-user rows come from 3,544 evaluations over seven days rather than a spot check, and not one of them reached 40.
 
 Counting deployers ran about four times high, so 75 would have let a sweep of sixty accounts pass in silence. The threshold is 40, twice the observed peak, which still clears every normal day by a wide margin while a sweep across hundreds of users crosses it in seconds. Repeat the measurement every few months, in Grafana Explore over the last 30 days, and move the threshold back to about twice the maximum. Tighten it when the measured peak stays well under for a month; raise it only after a legitimate spike, such as a hackathon, and record the date and reason in the table above.
 
@@ -204,12 +208,24 @@ That receiver is a clone of `Slack Console Alerts` carrying `mentionChannel: her
 
 It is still a channel and not a pager. Nothing here wakes a sleeping person, and giving these alerts a real paging destination is a team decision this runbook cannot settle on its own.
 
-The two signals in front of that notification have not been proven end to end. Prove each once before trusting it, and note that both must be triggered through the deployed API, since Loki only sees the cluster and an operator script logs to its own terminal:
+Both signals were proven end to end on 2026-09-17, using temporary clones of these rules pointed at `namespace="staging", service_name=~"console-api-sandbox.*"` and notifying the same receiver, with the 5.2 clone's threshold dropped to 0 so ordinary staging traffic would trip it:
 
-- 5.1: on a non-production environment, alter one character of a test deployment's `sealed_secrets` in the database, then redeploy that deployment. The deploy must fail, `SECRET_DECRYPT_FAILED` must appear, and the page must arrive. Restore the row afterwards.
-- 5.2: on a non-production environment, lower the threshold to 0, deploy once with a secret, confirm the page, restore the threshold.
+| Signal              | Event in Loki                                              | Reached Slack |
+| ------------------- | ---------------------------------------------------------- | ------------- |
+| 5.2 unwrap sweep    | two ordinary staging unwraps, 19:48:08Z and 19:48:21Z      | 19:49:27Z     |
+| 5.1 decrypt failure | `SECRET_DECRYPT_FAILED` at 20:39:12Z, header claims intact | 20:40:23Z     |
 
-The third check, that ordinary traffic stays clear of the threshold, was done on 2026-09-16: the 5.2 query without its threshold peaked at 20 over the previous seven days. Repeat it whenever the threshold moves.
+Just over a minute from event to a mention in the channel, in both cases. Both had to be triggered through the deployed API, since Loki only sees the cluster and an operator script logs to its own terminal. Delete the clones once they have fired.
+
+Provoking 5.1 is the part that costs an evening if you guess at it. The event is written only by `SdlSecretsService#decryptStored`, reached only from `openStored`, which reads a row that is already stored. Exactly one action in the web app gets there: **creating a lease**, which re-derives the manifest from the stored token. So corrupt the token while sitting on the bid selection screen, which is a pause of arbitrary length between the seal and that read, then accept a bid.
+
+Three plausible-looking alternatives do not work, each for its own reason:
+
+- **Update** calls the deprecated `PUT /v1/deployments/{dseq}`, which resubmits the whole SDL and reseals the definition wholesale without ever reading what is stored. It repairs the corruption on its way past, about half a second before the lease creation reads it.
+- **Redeploy** re-sends the values from the browser and seals a fresh token for the new deployment. The API can inherit a previous deployment's secrets through `inheritSecretsFrom`, which does open the source token, but the web app never sets that field.
+- **Rename** is the only `PATCH` the web app issues, and a name-only patch returns before the stored secrets are opened.
+
+Corrupt the authentication tag, meaning the last character of the compact JWE, rather than anything earlier in it. The protected header is validated before the data key is looked up, so a damaged header throws early, records empty `claims` and never reaches the key service. A damaged tag gives the faithful signature instead: the data key is unwrapped, the tag check fails, and the event carries the `sub`, `dseq` and `kid` that section 5.1 tells you to compare against `data_keys`. Note the original character before you change it. The tag is 22 base64url characters encoding 128 bits, so its last character carries only two bits and is always one of `A`, `Q`, `g` or `w`.
 
 ### 5.4 What these alerts cannot catch
 
