@@ -413,6 +413,15 @@ describe(DeploymentReaderService.name, () => {
       expect(deploymentHttpService.findAll).toHaveBeenCalledWith(expect.objectContaining({ pagination: expect.objectContaining({ reverse: true }) }));
     });
 
+    it("leaves the chain's own order alone when the caller does not reverse it", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentHttpService } = setup({ wallet, listedDseqs: ["100"] });
+
+      await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
+
+      expect(deploymentHttpService.findAll).toHaveBeenCalledWith(expect.objectContaining({ pagination: expect.objectContaining({ reverse: false }) }));
+    });
+
     it("forwards the state and the order to the database it falls back to", async () => {
       const wallet = createUserWallet() as WalletInitialized;
       const { service, deploymentHttpService, fallbackDeploymentReaderService } = setup({ wallet, listedDseqs: ["100"] });
