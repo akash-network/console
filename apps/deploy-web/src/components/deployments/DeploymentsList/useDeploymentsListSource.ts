@@ -23,14 +23,14 @@ export interface DeploymentsListSourceInput {
 export interface DeploymentsListSlice {
   deployments: NamedDeploymentDto[];
   hasNextPage: boolean;
-  /** Whether the paged query has ever answered, which is what the placeholders wait on. A search does not retract it. */
+  /** Stays tied to the paged query, so opening a search does not retract what the placeholders wait on. */
   isResolved: boolean;
   isFetching: boolean;
   isError: boolean;
 }
 
 export interface DeploymentsListArchiveSlice extends DeploymentsListSlice {
-  /** Closed deployments matching the current search, or all of them when there is none. The count the Archive header shows. */
+  /** Closed deployments matching the current search, or all of them when there is none. */
   total: number;
 }
 

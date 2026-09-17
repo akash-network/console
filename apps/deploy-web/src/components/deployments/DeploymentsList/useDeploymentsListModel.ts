@@ -24,7 +24,7 @@ export const DEPENDENCIES = {
 /** Must stay one of the sizes PaginationSizeSelector offers, or the selector renders blank. */
 export const DEFAULT_PAGE_SIZE = MIN_PAGE_SIZE;
 
-/** Owns what the page does with a list of deployments. Where that list comes from is the source's business. */
+/** Owns what the page does with a list of deployments, never where that list comes from. */
 export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
   const d = dependencies;
   const { address, signAndBroadcastTx, hasWallet } = d.useWallet();
