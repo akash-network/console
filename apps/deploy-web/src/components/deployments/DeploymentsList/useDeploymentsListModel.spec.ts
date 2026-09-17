@@ -793,7 +793,43 @@ describe(useDeploymentsListModel.name, () => {
     isCloseConfirmed?: boolean;
     broadcastResponse?: boolean;
     names?: Record<string, string>;
+    appliedSearch?: string;
+    isSearchTooBroad?: boolean;
+    isArchiveSearchTooBroad?: boolean;
   };
+
+  describe("when the source has yet to apply the search in the box", () => {
+    it("keeps the toolbar up rather than reading a cleared box as an account with nothing in it", () => {
+      const { result } = setup({ active: [], archived: [], appliedSearch: "no-such-deployment" });
+
+      expect(result.current.hasAnyDeployment).toBe(true);
+      expect(result.current.hasSettledWithoutActiveDeployments).toBe(false);
+    });
+
+    it("keeps reporting the applied search's empty result until the source catches up", () => {
+      const { result } = setup({ active: [], archived: [], appliedSearch: "no-such-deployment" });
+
+      expect(result.current.showNoSearchResults).toBe(true);
+    });
+  });
+
+  describe("when the api refuses a search as too broad", () => {
+    it("says so instead of leaving the list to report a generic failure", () => {
+      const { result } = setup({ active: [], archived: [], appliedSearch: "web", isSearchTooBroad: true });
+
+      expect(result.current.showSearchTooBroad).toBe(true);
+      expect(result.current.showErrorState).toBe(false);
+      expect(result.current.showNoSearchResults).toBe(false);
+    });
+
+    it("keeps a refusal that only the archive hit out of the active list's message", () => {
+      const { result } = setup({ active: [], archived: [], appliedSearch: "web", isArchiveSearchTooBroad: true });
+
+      expect(result.current.showArchiveSearchTooBroad).toBe(true);
+      expect(result.current.showSearchTooBroad).toBe(false);
+      expect(result.current.showNoSearchResults).toBe(false);
+    });
+  });
 
   function closedDeployments(count: number) {
     return Array.from({ length: count }, (_, index) => deployment(`${200 + index}`, "closed"));
@@ -848,7 +884,16 @@ describe(useDeploymentsListModel.name, () => {
     const useDeploymentsListSource = (sourceInput: Parameters<typeof useChainDeploymentsListSource>[0]) => {
       const source = useChainDeploymentsListSource(sourceInput, { useWallet, useDeploymentNames, useDeploymentsPage, useDeploymentList });
 
-      return current.unknownArchiveTotal ? { ...source, archive: { ...source.archive, total: null } } : source;
+      return {
+        ...source,
+        appliedSearch: current.appliedSearch ?? source.appliedSearch,
+        active: { ...source.active, isSearchTooBroad: current.isSearchTooBroad ?? false },
+        archive: {
+          ...source.archive,
+          total: current.unknownArchiveTotal ? null : source.archive.total,
+          isSearchTooBroad: current.isArchiveSearchTooBroad ?? false
+        }
+      };
     };
 
     const dependencies = {

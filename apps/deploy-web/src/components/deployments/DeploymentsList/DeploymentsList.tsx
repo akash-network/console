@@ -157,6 +157,8 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ useDeployments
 
       {model.showNoSearchResults && <p className="py-6">No deployment found.</p>}
 
+      {model.showSearchTooBroad && <p className="py-6">Too many deployments to search through. Clear the search to page through them instead.</p>}
+
       {model.showPageSizeSelector && (
         <div className="flex flex-col items-center justify-between px-2 py-8 md:flex-row md:space-x-4">
           <PaginationSizeSelector pageSize={model.pageSize} setPageSize={model.changePageSize} />
@@ -181,6 +183,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ useDeployments
         providers={model.providers}
         viewMode={model.viewMode}
         isError={model.showArchiveError}
+        isSearchTooBroad={model.showArchiveSearchTooBroad}
         isRetrying={model.isRetryingArchive}
         onRetry={model.refetchDeployments}
         pageIndex={model.archivePageIndex}

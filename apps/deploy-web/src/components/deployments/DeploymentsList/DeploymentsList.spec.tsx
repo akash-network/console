@@ -323,6 +323,19 @@ describe("DeploymentsList", () => {
     return mock<ListedDeploymentDto>({ dseq, state: "closed" });
   }
 
+  it("tells the reader to narrow the list when the api refused to search it", () => {
+    setup({ hasAnyDeployment: true, isSearching: true, search: "acme", showSearchTooBroad: true });
+
+    expect(screen.getByText(/Too many deployments to search through/)).toBeInTheDocument();
+  });
+
+  it("hands a refused archive search to the archive rather than the active list", () => {
+    const { DeploymentArchive } = setup({ hasAnyDeployment: true, isSearching: true, search: "acme", showArchiveSearchTooBroad: true });
+
+    expect(DeploymentArchive).toHaveBeenCalledWith(expect.objectContaining({ isSearchTooBroad: true }), expect.anything());
+    expect(screen.queryByText(/Too many deployments to search through/)).not.toBeInTheDocument();
+  });
+
   function setup(modelOverrides: Partial<Model>, options: { isBlockchainDown?: boolean } = {}) {
     const changeSearch = vi.fn();
     const changeViewMode = vi.fn();
@@ -360,6 +373,8 @@ describe("DeploymentsList", () => {
       showErrorState: false,
       showArchiveError: false,
       isRetryingArchive: false,
+      showSearchTooBroad: false,
+      showArchiveSearchTooBroad: false,
       showNoSearchResults: false,
       pageIndex: 0,
       pageSize: 12,

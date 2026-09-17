@@ -27,6 +27,8 @@ export interface DeploymentsListSlice {
   isResolved: boolean;
   isFetching: boolean;
   isError: boolean;
+  /** The api refuses a search once the account holds more deployments than it will sweep for one. */
+  isSearchTooBroad: boolean;
 }
 
 export interface DeploymentsListArchiveSlice extends DeploymentsListSlice {
@@ -35,6 +37,8 @@ export interface DeploymentsListArchiveSlice extends DeploymentsListSlice {
 }
 
 export interface DeploymentsListSource {
+  /** The search the slices reflect, which a source that paces its requests only catches up to once the pacing commits. */
+  appliedSearch: string;
   active: DeploymentsListSlice;
   archive: DeploymentsListArchiveSlice;
   refetch: () => void;
@@ -90,12 +94,14 @@ export function useChainDeploymentsListSource(
   }, [refetchActive, refetchArchive]);
 
   return {
+    appliedSearch: search.trim(),
     active: {
       deployments: pageDeployments,
       hasNextPage: isSearching ? (pageIndex + 1) * pageSize < activeDeployments.length : activePage.data?.hasNextPage ?? false,
       isResolved: activePage.data !== undefined,
       isFetching: isSearching ? activeList.isFetching : activePage.isFetching,
-      isError: isSearching ? activeList.isError : activePage.isError
+      isError: isSearching ? activeList.isError : activePage.isError,
+      isSearchTooBroad: false
     },
     archive: {
       deployments: archivePageDeployments,
@@ -103,7 +109,8 @@ export function useChainDeploymentsListSource(
       hasNextPage: (archivePageIndex + 1) * pageSize < archiveDeployments.length,
       isResolved: archiveList.data !== undefined,
       isFetching: archiveList.isFetching,
-      isError: archiveList.isError
+      isError: archiveList.isError,
+      isSearchTooBroad: false
     },
     refetch
   };

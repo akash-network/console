@@ -40,9 +40,10 @@ export function useDeploymentsListModel(
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [search, setSearch] = useState("");
 
-  const isSearching = search.trim().length > 0;
+  const { appliedSearch, active, archive, refetch: refetchDeployments } = useDeploymentsListSource({ search, pageIndex, pageSize, archivePageIndex });
 
-  const { active, archive, refetch: refetchDeployments } = useDeploymentsListSource({ search, pageIndex, pageSize, archivePageIndex });
+  /** Reads the search the rows were fetched with rather than the box, so a paced source cannot report a search its rows have yet to reflect. */
+  const isSearching = appliedSearch.length > 0;
 
   const pageDeployments = active.deployments;
   const archivePageDeployments = archive.deployments;
@@ -51,6 +52,7 @@ export function useDeploymentsListModel(
   const isLoadingDeployments = active.isFetching;
   const isError = active.isError;
   const isArchiveError = archive.isError;
+  const isSearchTooBroad = active.isSearchTooBroad || archive.isSearchTooBroad;
 
   const hasPageResults = pageDeployments.length > 0;
   /** The count is unknown when the api could not answer it, so the rows it did return stand in for it. */
@@ -148,7 +150,10 @@ export function useDeploymentsListModel(
     showErrorState: isError && !hasPageResults && !isLoadingDeployments,
     showArchiveError: isArchiveError,
     isRetryingArchive: isArchiveError && archive.isFetching,
-    showNoSearchResults: isSearching && !isError && !isArchiveError && !isLoadingDeployments && !archive.isFetching && !hasPageResults && !hasAnyArchived,
+    showSearchTooBroad: active.isSearchTooBroad,
+    showArchiveSearchTooBroad: archive.isSearchTooBroad,
+    showNoSearchResults:
+      isSearching && !isSearchTooBroad && !isError && !isArchiveError && !isLoadingDeployments && !archive.isFetching && !hasPageResults && !hasAnyArchived,
     pageIndex,
     pageSize,
     changePageSize,

@@ -19,12 +19,9 @@ export const DEPENDENCIES = {
 /** A search spans the whole account server-side, so it is paced rather than sent on every keystroke. */
 export const SEARCH_PACING = { wait: 400, maxWait: 1000 };
 
-const EMPTY_PAGE: DeploymentsListPage = { deployments: [], total: 0, hasNextPage: false };
+const EMPTY_PAGE: DeploymentsListPage = { deployments: [], total: 0, hasNextPage: false, isSearchTooBroad: false };
 
-/**
- * One request per slice: the console API resolves the caller's wallet, filters by name or dseq, and answers
- * with the rows already carrying their leases and what it records about them.
- */
+/** One request per slice, answering with the rows, their leases and what the console records about them. */
 export function useApiDeploymentsListSource(
   { search, pageIndex, pageSize, archivePageIndex }: DeploymentsListSourceInput,
   dependencies: typeof DEPENDENCIES = DEPENDENCIES
@@ -51,12 +48,14 @@ export function useApiDeploymentsListSource(
   const archivePage = archive.data ?? EMPTY_PAGE;
 
   return {
+    appliedSearch: pacedSearch,
     active: {
       deployments: activePage.deployments,
       hasNextPage: activePage.hasNextPage,
       isResolved: active.data !== undefined,
       isFetching: active.isFetching,
-      isError: active.isError
+      isError: active.isError,
+      isSearchTooBroad: activePage.isSearchTooBroad
     },
     archive: {
       deployments: archivePage.deployments,
@@ -64,7 +63,8 @@ export function useApiDeploymentsListSource(
       hasNextPage: archivePage.hasNextPage,
       isResolved: archive.data !== undefined,
       isFetching: archive.isFetching,
-      isError: archive.isError
+      isError: archive.isError,
+      isSearchTooBroad: archivePage.isSearchTooBroad
     },
     refetch
   };

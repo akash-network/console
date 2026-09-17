@@ -25,8 +25,8 @@ describe(useApiDeploymentsListSource.name, () => {
 
   it("hands each slice its rows, its count and whether another page follows", () => {
     const { result } = setup({
-      active: { deployments: [listed("100")], total: 4, hasNextPage: true },
-      archive: { deployments: [listed("200")], total: 9, hasNextPage: false }
+      active: page({ deployments: [listed("100")], total: 4, hasNextPage: true }),
+      archive: page({ deployments: [listed("200")], total: 9, hasNextPage: false })
     });
 
     expect(result.current.active.deployments.map(deployment => deployment.dseq)).toEqual(["100"]);
@@ -78,6 +78,36 @@ describe(useApiDeploymentsListSource.name, () => {
 
     expect(result.current.active.isResolved).toBe(false);
   });
+
+  it("passes on a slice whose search the api refused, so the list can say so instead of failing", () => {
+    const { result } = setup({ search: "web", active: page({ isSearchTooBroad: true }), archive: page({}) });
+
+    expect(result.current.active.isSearchTooBroad).toBe(true);
+    expect(result.current.archive.isSearchTooBroad).toBe(false);
+  });
+
+  it("reports the search its rows were fetched with, not the one still being typed", async () => {
+    vi.useFakeTimers();
+    try {
+      const { result, rerenderWith } = setup({ search: "" });
+
+      await act(async () => rerenderWith({ search: "web" }));
+
+      expect(result.current.appliedSearch).toBe("");
+
+      await act(async () => {
+        vi.advanceTimersByTime(SEARCH_PACING.wait);
+      });
+
+      expect(result.current.appliedSearch).toBe("web");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  function page(overrides: Partial<DeploymentsListPage>): DeploymentsListPage {
+    return { deployments: [], total: 0, hasNextPage: false, isSearchTooBroad: false, ...overrides };
+  }
 
   function searchesAskedFor(useDeploymentsListQuery: ReturnType<typeof vi.fn>) {
     return useDeploymentsListQuery.mock.calls.map(call => call[0].search);
