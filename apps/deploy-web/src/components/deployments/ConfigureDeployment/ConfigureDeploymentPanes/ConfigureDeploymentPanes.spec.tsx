@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { createStore, Provider as JotaiStoreProvider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 
-import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
+import type { DeploymentFlowPhase, PendingClose } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./ConfigureDeploymentPanes";
 import { ConfigureDeploymentPanes } from "./ConfigureDeploymentPanes";
 
@@ -86,12 +86,31 @@ describe("ConfigureDeploymentPanes", () => {
     expect(PaneLockBanner).toHaveBeenCalledWith(expect.objectContaining({ onCancelAndEdit: expect.any(Function) }), expect.anything());
   });
 
-  it("flags close progress on the shared lock banner while closing", () => {
-    const { DeploymentPane, ConfigurationPane, PaneLockBanner } = setup({ phase: "closing" });
+  it("leaves both spec panes unlocked while a cancelled deployment closes in the background", () => {
+    const { DeploymentPane, ConfigurationPane, PaneLockBanner } = setup({ phase: "configuring", pendingClose: { dseq: "777", failed: false } });
 
-    expect(DeploymentPane).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
-    expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ locked: "all" }), expect.anything());
-    expect(PaneLockBanner).toHaveBeenCalledWith(expect.objectContaining({ isClosing: true }), expect.anything());
+    expect(DeploymentPane).toHaveBeenCalledWith(expect.objectContaining({ locked: false }), expect.anything());
+    expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ locked: undefined }), expect.anything());
+    expect(PaneLockBanner).not.toHaveBeenCalled();
+  });
+
+  it("offers a retry on a non-blocking banner when the background close failed", () => {
+    const onRetryClose = vi.fn();
+    const { BackgroundCloseBanner, DeploymentPane } = setup({
+      phase: "configuring",
+      pendingClose: { dseq: "777", failed: true, message: "close boom" },
+      onRetryClose
+    });
+
+    expect(BackgroundCloseBanner).toHaveBeenCalledWith(expect.objectContaining({ onRetry: onRetryClose, message: "close boom" }), expect.anything());
+    expect(DeploymentPane).toHaveBeenCalledWith(expect.objectContaining({ locked: false }), expect.anything());
+  });
+
+  it("keeps the lock banner alone while locked, even with a failed close outstanding", () => {
+    const { PaneLockBanner, BackgroundCloseBanner } = setup({ phase: "quoting", pendingClose: { dseq: "777", failed: true } });
+
+    expect(PaneLockBanner).toHaveBeenCalledTimes(1);
+    expect(BackgroundCloseBanner).not.toHaveBeenCalled();
   });
 
   it("leaves both spec panes unlocked and hides the lock banner while configuring", () => {
@@ -131,6 +150,8 @@ describe("ConfigureDeploymentPanes", () => {
       selections?: Record<string, string>;
       onSelectProvider?: (placementId: string, bidId: string) => void;
       onCancelAndEdit?: () => void;
+      pendingClose?: PendingClose | null;
+      onRetryClose?: () => void;
       configurationActions?: ReactNode;
     } = {}
   ) {
@@ -144,11 +165,13 @@ describe("ConfigureDeploymentPanes", () => {
     const ConfigurationPane = vi.fn(() => <div data-testid="configuration-pane-mock" />);
     const MarketplacePane = vi.fn(() => <div data-testid="marketplace-pane-mock" />);
     const PaneLockBanner = vi.fn(() => <div data-testid="pane-lock-banner-mock" />);
+    const BackgroundCloseBanner = vi.fn(() => <div data-testid="background-close-banner-mock" />);
     const dependencies: typeof DEPENDENCIES = {
       DeploymentPane: DeploymentPane as never,
       ConfigurationPane: ConfigurationPane as never,
       MarketplacePane: MarketplacePane as never,
       PaneLockBanner: PaneLockBanner as never,
+      BackgroundCloseBanner: BackgroundCloseBanner as never,
       SdlPreviewPane: SdlPreviewPane as never,
       useFlag: (() => input.isSdlPreviewEnabled ?? false) as never
     };
@@ -172,6 +195,8 @@ describe("ConfigureDeploymentPanes", () => {
           selections={input.selections ?? {}}
           onSelectProvider={input.onSelectProvider ?? vi.fn()}
           onCancelAndEdit={input.onCancelAndEdit ?? vi.fn()}
+          pendingClose={input.pendingClose ?? null}
+          onRetryClose={input.onRetryClose ?? vi.fn()}
           deploymentName=""
           onDeploymentNameChange={vi.fn()}
           configurationActions={input.configurationActions}
@@ -180,6 +205,6 @@ describe("ConfigureDeploymentPanes", () => {
       </JotaiStoreProvider>
     );
 
-    return { SdlPreviewPane, DeploymentPane, ConfigurationPane, MarketplacePane, PaneLockBanner, unmount };
+    return { SdlPreviewPane, DeploymentPane, ConfigurationPane, MarketplacePane, PaneLockBanner, BackgroundCloseBanner, unmount };
   }
 });

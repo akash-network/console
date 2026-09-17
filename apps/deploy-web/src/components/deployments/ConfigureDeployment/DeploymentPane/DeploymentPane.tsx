@@ -125,7 +125,7 @@ export const DeploymentPane: FC<Props> = ({
  * requested through deploy (creating/quoting/deploying) — to the user, "creating" is already a waiting-for-
  * quotes state, so there's no badge-less gap after Request quotes: WAITING until the placement's bids arrive,
  * SELECTING when it's the focused placement with its bids in, DONE once a provider is chosen. Idle otherwise
- * (configuring, closing, error).
+ * (configuring, error).
  */
 export function placementSelectionState(args: {
   phase: DeploymentFlowPhase;

@@ -310,11 +310,8 @@ function projectPhase(phase: DeploymentFlowPhase, deploySucceeded: boolean, depl
   if (deployErrored || phase === "error") return "error";
   if (deploySucceeded) return "success";
   switch (phase) {
-    // `closing` in the auto flow only ever happens as the first step of "Try again" — tearing down the old deployment
-    // before a fresh create — so it restarts progress at "creating" rather than jumping back to matching.
     case "configuring":
     case "creating":
-    case "closing":
       return "creating";
     case "quoting":
       return "matching";

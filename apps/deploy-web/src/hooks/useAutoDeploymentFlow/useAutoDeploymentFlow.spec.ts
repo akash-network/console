@@ -262,11 +262,11 @@ describe(useAutoDeploymentFlow.name, () => {
     await vi.waitFor(() => expect(result.current.state).toEqual({ kind: "error", message: "lease failed" }));
   });
 
-  it("restarts progress at the create step while the old deployment is closing", async () => {
+  it("restarts progress at the create step while a queued create waits on the old deployment's close", async () => {
     const { result, flow } = setup({ bids: [] });
 
     await vi.waitFor(() => expect(result.current.state.kind).toBe("matching"));
-    act(() => flow.setClosing());
+    act(() => flow.setCreating());
 
     expect(result.current.state.kind).toBe("creating");
     expect(result.current.phases[0].status).toBe("active");
@@ -407,6 +407,7 @@ describe(useAutoDeploymentFlow.name, () => {
       deploy: vi.fn(),
       cancelAndEdit: vi.fn(),
       closeAndFail: vi.fn(),
+      retryClose: vi.fn(),
       setBidStrategy: vi.fn(),
       refreshQuotes: vi.fn(),
       retry: vi.fn(),
@@ -416,13 +417,13 @@ describe(useAutoDeploymentFlow.name, () => {
     const flowControls: {
       setPhaseError: (message?: string) => void;
       setDeployError: (message?: string) => void;
-      setClosing: () => void;
+      setCreating: () => void;
       dropSelections: () => void;
       replaceDseq: (next: string) => void;
     } = {
       setPhaseError: () => undefined,
       setDeployError: () => undefined,
-      setClosing: () => undefined,
+      setCreating: () => undefined,
       dropSelections: () => undefined,
       replaceDseq: () => undefined
     };
@@ -446,7 +447,7 @@ describe(useAutoDeploymentFlow.name, () => {
         setDeployError({ message });
         setPhase("quoting");
       };
-      flowControls.setClosing = () => setPhase("closing");
+      flowControls.setCreating = () => setPhase("creating");
       flowControls.dropSelections = () => setSelections({});
       flowControls.replaceDseq = (next: string) => setDseq(next);
 
@@ -498,6 +499,7 @@ describe(useAutoDeploymentFlow.name, () => {
         deploySucceeded,
         deployError,
         error,
+        pendingClose: null,
         actions: { ...actions, requestQuotes, selectProvider, deploy, retry, cancelAndEdit, closeAndFail }
       };
     }
