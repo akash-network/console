@@ -376,6 +376,16 @@ export const ListDeploymentsQuerySchema = z.object({
     .openapi({
       description: "Newest deployment first when true, rather than the chain's own oldest-first order."
     }),
+  search: z
+    .string()
+    .trim()
+    .max(MAX_DEPLOYMENT_NAME_LENGTH)
+    .optional()
+    .transform(value => value || undefined)
+    .openapi({
+      description:
+        "Case-insensitive substring matched against each deployment's console name and its dseq. It spans every deployment in `state` before paging, so `total` and `hasMore` describe the matches rather than the state."
+    }),
   skip: z.coerce.number().int().min(0).default(0).openapi({
     description: "Deployments to skip before the page begins."
   }),

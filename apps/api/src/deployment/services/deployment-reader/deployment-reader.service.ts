@@ -14,7 +14,7 @@ import {
 import { PromisePool } from "@supercharge/promise-pool";
 import { AxiosError } from "axios";
 import assert from "http-assert";
-import { InternalServerError } from "http-errors";
+import { InternalServerError, UnprocessableEntity as UnprocessableEntityError } from "http-errors";
 import { Op } from "sequelize";
 import { inject, singleton } from "tsyringe";
 
@@ -39,6 +39,25 @@ import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import { averageBlockCountInAMonth } from "@src/utils/constants";
 import { FallbackDeploymentReaderService } from "../fallback-deployment-reader/fallback-deployment-reader.service";
 import { MessageService } from "../message-service/message.service";
+
+/** One page of the key-paged sweep a search makes, matching the default the chain client uses for an unpaginated read. */
+const SEARCH_PAGE_SIZE = 1000;
+
+/** Above this a search would sweep more of the chain than it is worth, so it is refused rather than served slowly. */
+export const MAX_SEARCHABLE_DEPLOYMENTS = 5000;
+
+type SweepPagination = { key?: string; limit: number };
+
+type LoadDeploymentPage = (pagination: SweepPagination) => Promise<DeploymentListResponse>;
+
+interface PageQuery {
+  owner: string;
+  userId: string;
+  state: DeploymentListState;
+  skip: number;
+  limit: number;
+  reverse: boolean;
+}
 
 @singleton()
 export class DeploymentReaderService {
@@ -182,37 +201,40 @@ export class DeploymentReaderService {
     state = "active",
     skip,
     limit,
-    reverse = false
+    reverse = false,
+    search
   }: {
     query: { userId: string };
     state?: DeploymentListState;
     skip: number;
     limit: number;
     reverse?: boolean;
+    search?: string;
   }): Promise<{ deployments: ListDeploymentsItem[]; total: number | null; hasMore: boolean }> {
     const wallet = await this.walletReaderService.getWalletByUserId(query.userId);
     const { address: owner } = wallet;
-    const [deploymentReponse, countedTotal] = await Promise.all([
-      this.getDeploymentsList({ owner, state, pagination: { offset: skip, limit, reverse } }),
-      this.#countDeployments(owner, state)
-    ]);
-    const deployments = deploymentReponse.deployments;
+
+    const {
+      page,
+      settings: pendingSettings,
+      total,
+      hasMore
+    } = search
+      ? await this.#findMatchingPage({ owner, userId: query.userId, state, skip, limit, reverse, search })
+      : await this.#findPage({ owner, userId: query.userId, state, skip, limit, reverse });
 
     const [{ results: leaseResults }, settings] = await Promise.all([
       PromisePool.withConcurrency(100)
-        .for(deployments)
+        .for(page)
         .useCorrespondingResults()
         .handleError(async error => {
           throw error;
         })
         .process(async deployment => this.getLeaseList({ owner, dseq: deployment.deployment.id.dseq })),
-      this.findSettingsFor(
-        query.userId,
-        deployments.map(deployment => deployment.deployment.id.dseq)
-      )
+      pendingSettings
     ]);
 
-    const deploymentsWithLeases = deployments.map((deployment, index) => {
+    const deployments = page.map((deployment, index) => {
       const recorded = settings.get(deployment.deployment.id.dseq);
 
       return {
@@ -224,10 +246,25 @@ export class DeploymentReaderService {
         settings: recorded ? toListedSettings(recorded) : null
       };
     });
+
+    return { deployments, total, hasMore };
+  }
+
+  async #findPage({ owner, userId, state, skip, limit, reverse }: PageQuery) {
+    const [response, countedTotal] = await Promise.all([
+      this.getDeploymentsList({ owner, state, pagination: { offset: skip, limit, reverse } }),
+      this.#countDeployments(owner, state)
+    ]);
+    const page = response.deployments;
+
     return {
-      deployments: deploymentsWithLeases,
-      total: totalCovering({ countedTotal, skip, pageLength: deployments.length }),
-      hasMore: !!deploymentReponse.pagination.next_key
+      page,
+      settings: this.findSettingsFor(
+        userId,
+        page.map(deployment => deployment.deployment.id.dseq)
+      ),
+      total: totalCovering({ countedTotal, skip, pageLength: page.length }),
+      hasMore: !!response.pagination.next_key
     };
   }
 
@@ -239,6 +276,77 @@ export class DeploymentReaderService {
       this.logger.warn({ event: "DEPLOYMENT_COUNT_FAILED", owner, state, error });
       return null;
     }
+  }
+
+  /**
+   * A name lives in the console's database and a deployment on chain, so neither side can filter on both: the whole
+   * of the requested state is loaded, matched, and only then paged. Leases are still fetched for the page alone.
+   */
+  async #findMatchingPage({ owner, userId, state, skip, limit, reverse, search }: PageQuery & { search: string }) {
+    const everyDeployment = await this.#loadEveryDeployment(owner, state);
+    const settings = await this.findSettingsFor(
+      userId,
+      everyDeployment.map(({ deployment }) => deployment.id.dseq)
+    );
+
+    const needle = search.toLowerCase();
+    const matches = everyDeployment.filter(({ deployment }) => {
+      const name = settings.get(deployment.id.dseq)?.name;
+      return deployment.id.dseq.includes(needle) || !!name?.toLowerCase().includes(needle);
+    });
+
+    if (reverse) {
+      matches.sort((one, other) => (BigInt(other.deployment.id.dseq) > BigInt(one.deployment.id.dseq) ? 1 : -1));
+    }
+
+    return { page: matches.slice(skip, skip + limit), settings, total: matches.length, hasMore: skip + limit < matches.length };
+  }
+
+  /**
+   * A cursor only means something to the source that issued it, so an unreachable chain restarts the sweep on the
+   * database rather than handing the chain's key to it mid-way, which would silently re-read from the first page.
+   */
+  async #loadEveryDeployment(owner: string, state: DeploymentListState): Promise<DeploymentInfo[]> {
+    try {
+      return await this.#sweepEveryPage(owner, state, pagination =>
+        this.deploymentHttpService.findAll({ owner, state, pagination: { ...pagination, countTotal: false } })
+      );
+    } catch (error) {
+      if (error instanceof UnprocessableEntityError || !this.shouldFallbackToDatabase(error)) {
+        throw error;
+      }
+
+      this.logger.warn({ event: "DEPLOYMENT_SEARCH_FELL_BACK_TO_DATABASE", owner, state, error });
+
+      return await this.#sweepEveryPage(owner, state, pagination => this.#loadDeploymentPageFromDatabase(owner, state, pagination));
+    }
+  }
+
+  /** The database counts the state to work out whether another page follows, so a sweep that skipped the count would stop after the first one. */
+  async #loadDeploymentPageFromDatabase(owner: string, state: DeploymentListState, pagination: SweepPagination): Promise<DeploymentListResponse> {
+    return await this.fallbackDeploymentReaderService.findAll({ owner, state, ...pagination, countTotal: true });
+  }
+
+  async #sweepEveryPage(owner: string, state: DeploymentListState, loadPage: LoadDeploymentPage): Promise<DeploymentInfo[]> {
+    const deployments: DeploymentInfo[] = [];
+    let key: string | undefined;
+
+    do {
+      const response = await loadPage({ key, limit: SEARCH_PAGE_SIZE });
+      deployments.push(...response.deployments);
+      key = response.pagination.next_key ?? undefined;
+
+      const moreThanTheCapExist = key ? deployments.length >= MAX_SEARCHABLE_DEPLOYMENTS : deployments.length > MAX_SEARCHABLE_DEPLOYMENTS;
+
+      if (moreThanTheCapExist) {
+        this.logger.warn({ event: "DEPLOYMENT_SEARCH_TOO_LARGE", owner, state, loaded: deployments.length });
+        throw new UnprocessableEntityError(
+          `More than ${MAX_SEARCHABLE_DEPLOYMENTS} deployments to search through. Page through them without a search instead.`
+        );
+      }
+    } while (key);
+
+    return deployments;
   }
 
   #fetchedLeasesAt(leaseResults: Array<RestAkashLeaseListResponse | symbol>, index: number): RestAkashLeaseListResponse["leases"] {

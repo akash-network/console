@@ -781,6 +781,137 @@ describe("Deployments API", () => {
       expect(JSON.stringify(body)).not.toContain("someone else's");
     });
 
+    it("keeps only the deployments whose console name matches the search", async () => {
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const deployments = setupDeploymentListMock(wallets, 2);
+      const [matching, other] = (deployments as DeploymentInfo[]).map(({ deployment }) => deployment.id.dseq);
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      await deploymentSettingRepository.upsertDefinition({
+        userId: user.id,
+        dseq: matching,
+        sdl: "version: '2.0'",
+        manifestVersion: "BAUG",
+        name: "my-web-app"
+      });
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: other, sdl: "version: '2.0'", manifestVersion: "BAUG", name: "database" });
+
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .persist()
+        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
+        .reply(200, { deployments, pagination: { total: "2", next_key: null } });
+
+      const response = await app.request("/v1/deployments?search=WEB", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: { deployments: { deployment: { id: { dseq: string } } }[]; pagination: { total: number } } };
+      expect(result.data.deployments.map(item => item.deployment.id.dseq)).toEqual([matching]);
+      expect(result.data.pagination.total).toBe(1);
+    });
+
+    it("keeps the deployments whose dseq matches the search", async () => {
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
+      const deployments = setupDeploymentListMock(wallets, 2);
+      const [first] = (deployments as DeploymentInfo[]).map(({ deployment }) => deployment.id.dseq);
+
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .persist()
+        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
+        .reply(200, { deployments, pagination: { total: "2", next_key: null } });
+
+      const response = await app.request(`/v1/deployments?search=${first}`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: { deployments: { deployment: { id: { dseq: string } } }[] } };
+      expect(result.data.deployments.map(item => item.deployment.id.dseq)).toEqual([first]);
+    });
+
+    it("searches every page the chain holds, not just the first", async () => {
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const deployments = setupDeploymentListMock(wallets, 2);
+      const [, onSecondPage] = (deployments as DeploymentInfo[]).map(({ deployment }) => deployment.id.dseq);
+      await container
+        .resolve(DeploymentSettingRepository)
+        .upsertDefinition({ userId: user.id, dseq: onSecondPage, sdl: "version: '2.0'", manifestVersion: "BAUG", name: "web" });
+
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
+        .reply(200, { deployments: deployments.slice(0, 1), pagination: { total: "1", next_key: "second" } })
+        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*pagination\.key=second.*/)
+        .reply(200, { deployments: deployments.slice(1), pagination: { total: "1", next_key: null } });
+
+      const response = await app.request("/v1/deployments?search=web", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: { deployments: { deployment: { id: { dseq: string } } }[] } };
+      expect(result.data.deployments.map(item => item.deployment.id.dseq)).toEqual([onSecondPage]);
+    });
+
+    it("pages the matches rather than the state, and counts them", async () => {
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const deployments = setupDeploymentListMock(wallets, 3);
+      const dseqs = (deployments as DeploymentInfo[]).map(({ deployment }) => deployment.id.dseq);
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      for (const dseq of dseqs) {
+        await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG", name: `web-${dseq}` });
+      }
+
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .persist()
+        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
+        .reply(200, { deployments, pagination: { total: "3", next_key: null } });
+
+      const response = await app.request("/v1/deployments?search=web&skip=1&limit=1", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as {
+        data: { deployments: { deployment: { id: { dseq: string } } }[]; pagination: { total: number; hasMore: boolean } };
+      };
+      expect(result.data.deployments.map(item => item.deployment.id.dseq)).toEqual([dseqs[1]]);
+      expect(result.data.pagination).toMatchObject({ total: 3, hasMore: true });
+    });
+
+    it("treats a search of nothing but spaces as no search at all", async () => {
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
+      const deployments = setupDeploymentListMock(wallets, 2);
+
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .persist()
+        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
+        .reply(200, { deployments, pagination: { total: "2", next_key: null } });
+
+      const response = await app.request("/v1/deployments?search=%20%20", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: { deployments: unknown[] } };
+      expect(result.data.deployments).toHaveLength(2);
+    });
+
+    it("returns 400 for a search longer than a deployment name may be", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request(`/v1/deployments?search=${"a".repeat(MAX_DEPLOYMENT_NAME_LENGTH + 1)}`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+    });
+
     it("returns 400 for a state the chain does not hold deployments in", async () => {
       const { userApiKeySecret } = await mockUser();
 

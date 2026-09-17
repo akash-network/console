@@ -66,7 +66,7 @@ export function createDeploymentInfoGroupSeed(input: DeploymentInfoGroupSeederIn
   };
 }
 
-export function createDeploymentInfoSeed(input: DeploymentInfoSeederInput = {}): RestAkashDeploymentInfoResponse {
+export function createDeploymentInfoSeed(input: DeploymentInfoSeederInput = {}): DeploymentInfo {
   const {
     owner = createAkashAddress(),
     dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false }),
@@ -126,7 +126,7 @@ export function createDeploymentInfoSeed(input: DeploymentInfoSeederInput = {}):
   };
 }
 
-export function createManyDeploymentInfoSeeds(count: number, input: DeploymentInfoSeederInput = {}): RestAkashDeploymentInfoResponse[] {
+export function createManyDeploymentInfoSeeds(count: number, input: DeploymentInfoSeederInput = {}): DeploymentInfo[] {
   return Array.from({ length: count }, () => createDeploymentInfoSeed(input));
 }
 

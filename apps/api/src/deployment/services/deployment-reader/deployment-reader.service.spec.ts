@@ -1,4 +1,4 @@
-import type { DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
+import type { DeploymentHttpService, DeploymentListResponse, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { AxiosError } from "axios";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -17,7 +17,7 @@ import type { FallbackDeploymentReaderService } from "@src/deployment/services/f
 import type { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import type { MessageService } from "@src/deployment/services/message-service/message.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
-import { DeploymentReaderService } from "./deployment-reader.service";
+import { DeploymentReaderService, MAX_SEARCHABLE_DEPLOYMENTS } from "./deployment-reader.service";
 
 import { createDeploymentInfoGroupSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
@@ -483,6 +483,185 @@ describe(DeploymentReaderService.name, () => {
       expect(deployments[0].groups).toEqual(groups);
     });
 
+    it("fetches leases while the settings query is still running", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, scopedDeploymentSettingRepository, leaseHttpService } = setup({ wallet, listedDseqs: ["100"] });
+      let leasesStartedFirst = false;
+      scopedDeploymentSettingRepository.findListedSettings.mockImplementation(async () => {
+        await new Promise(resolve => setImmediate(resolve));
+        leasesStartedFirst = leaseHttpService.list.mock.calls.length > 0;
+        return new Map();
+      });
+
+      await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
+
+      expect(leasesStartedFirst).toBe(true);
+    });
+
+    it("matches a deployment by the name the console holds for it", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service } = setup({ wallet, listedDseqs: ["100", "200"], settings: { "100": { name: "web" }, "200": { name: "database" } } });
+
+      const { deployments } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10, search: "web" });
+
+      expect(deployments.map(item => item.deployment.id.dseq)).toEqual(["100"]);
+    });
+
+    it("matches a name whatever case the caller types it in", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service } = setup({ wallet, listedDseqs: ["100"], settings: { "100": { name: "My Web App" } } });
+
+      const { deployments } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10, search: "wEB" });
+
+      expect(deployments.map(item => item.deployment.id.dseq)).toEqual(["100"]);
+    });
+
+    it("matches a deployment by its dseq", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service } = setup({ wallet, listedDseqs: ["100", "200"] });
+
+      const { deployments } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10, search: "20" });
+
+      expect(deployments.map(item => item.deployment.id.dseq)).toEqual(["200"]);
+    });
+
+    it("spans every page the chain holds rather than the one the caller asked for", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentHttpService } = setup({
+        wallet,
+        searchPages: [
+          { dseqs: ["100"], nextKey: "second" },
+          { dseqs: ["200"], nextKey: null }
+        ],
+        settings: { "200": { name: "web" } }
+      });
+
+      const { deployments } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10, search: "web" });
+
+      expect(deployments.map(item => item.deployment.id.dseq)).toEqual(["200"]);
+      expect(deploymentHttpService.findAll).toHaveBeenCalledTimes(2);
+    });
+
+    it("reports how many deployments matched, and pages through them", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service } = setup({
+        wallet,
+        listedDseqs: ["100", "200", "300"],
+        settings: { "100": { name: "web" }, "200": { name: "web-2" }, "300": { name: "web-3" } }
+      });
+
+      const { deployments, total, hasMore } = await service.list({ query: { userId: wallet.userId }, skip: 1, limit: 1, search: "web" });
+
+      expect(deployments.map(item => item.deployment.id.dseq)).toEqual(["200"]);
+      expect(total).toBe(3);
+      expect(hasMore).toBe(true);
+    });
+
+    it("reports no further page once the matches run out", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service } = setup({ wallet, listedDseqs: ["100", "200"], settings: { "100": { name: "web" }, "200": { name: "web-2" } } });
+
+      const { hasMore } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10, search: "web" });
+
+      expect(hasMore).toBe(false);
+    });
+
+    it("fetches leases for the matches on the page alone", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, leaseHttpService } = setup({
+        wallet,
+        listedDseqs: ["100", "200", "300"],
+        settings: { "100": { name: "web" }, "200": { name: "web-2" }, "300": { name: "web-3" } }
+      });
+
+      await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 1, search: "web" });
+
+      expect(leaseHttpService.list).toHaveBeenCalledTimes(1);
+      expect(leaseHttpService.list).toHaveBeenCalledWith({ owner: wallet.address, dseq: "100" });
+    });
+
+    it("orders the matches newest first when the caller reverses the order", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service } = setup({ wallet, listedDseqs: ["100", "2000", "300"] });
+
+      const { deployments } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10, search: "0", reverse: true });
+
+      expect(deployments.map(item => item.deployment.id.dseq)).toEqual(["2000", "300", "100"]);
+    });
+
+    it("reads the settings of every deployment it swept, in one query", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, scopedDeploymentSettingRepository } = setup({
+        wallet,
+        searchPages: [
+          { dseqs: ["100"], nextKey: "second" },
+          { dseqs: ["200"], nextKey: null }
+        ]
+      });
+
+      await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10, search: "web" });
+
+      expect(scopedDeploymentSettingRepository.findListedSettings).toHaveBeenCalledTimes(1);
+      expect(scopedDeploymentSettingRepository.findListedSettings).toHaveBeenCalledWith({ userId: wallet.userId, dseqs: ["100", "200"] });
+    });
+
+    it("refuses a search over more deployments than it will span", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const overTheBound = Array.from({ length: MAX_SEARCHABLE_DEPLOYMENTS + 1 }, (_, index) => String(index + 1));
+      const { service, logger } = setup({ wallet, searchPages: [{ dseqs: overTheBound, nextKey: null }] });
+
+      await expect(service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10, search: "web" })).rejects.toMatchObject({ status: 422 });
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_SEARCH_TOO_LARGE" }));
+    });
+
+    it("refuses without pulling the page beyond the cap", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const atTheBound = Array.from({ length: MAX_SEARCHABLE_DEPLOYMENTS }, (_, index) => String(index + 1));
+      const { service, deploymentHttpService } = setup({ wallet, searchPages: [{ dseqs: atTheBound, nextKey: "second" }] });
+
+      await expect(service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10, search: "web" })).rejects.toMatchObject({ status: 422 });
+      expect(deploymentHttpService.findAll).toHaveBeenCalledTimes(1);
+    });
+
+    it("sweeps the whole state again on the database rather than handing it a chain cursor", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentHttpService, fallbackDeploymentReaderService } = setup({ wallet });
+      deploymentHttpService.findAll
+        .mockResolvedValueOnce(createSearchPage(wallet.address, ["100"], "rBcN+w=="))
+        .mockRejectedValueOnce(createNetworkError("ECONNRESET"));
+      const recorded = ["100", "200"];
+      fallbackDeploymentReaderService.findAll.mockImplementation(async ({ key }) => {
+        const offset = key ? parseInt(key, 10) || 0 : 0;
+        return createSearchPage(wallet.address, [recorded[offset]], offset + 1 < recorded.length ? String(offset + 1) : null);
+      });
+
+      const { deployments, total } = await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10, search: "0" });
+
+      expect(deployments.map(item => item.deployment.id.dseq)).toEqual(["100", "200"]);
+      expect(total).toBe(2);
+      expect(fallbackDeploymentReaderService.findAll).toHaveBeenNthCalledWith(1, expect.objectContaining({ key: undefined }));
+    });
+
+    it("has the database count the state, which is where its next page comes from", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentHttpService, fallbackDeploymentReaderService } = setup({ wallet, listedDseqs: ["100"] });
+      deploymentHttpService.findAll.mockRejectedValue(createNetworkError("ECONNRESET"));
+
+      await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10, search: "web" });
+
+      expect(fallbackDeploymentReaderService.findAll).toHaveBeenCalledWith(expect.objectContaining({ countTotal: true }));
+    });
+
+    it("falls back to the database for a search the chain cannot answer", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentHttpService, fallbackDeploymentReaderService } = setup({ wallet, listedDseqs: ["100"] });
+      deploymentHttpService.findAll.mockRejectedValue(createNetworkError("ECONNRESET"));
+
+      await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10, search: "web" });
+
+      expect(fallbackDeploymentReaderService.findAll).toHaveBeenCalled();
+    });
+
     it("forwards pagination as flat skip/limit when falling back to database", async () => {
       const deploymentList = createDeploymentListResponseSeed({}, 2);
       const wallet = createUserWallet() as WalletInitialized;
@@ -587,6 +766,13 @@ describe(DeploymentReaderService.name, () => {
     });
   });
 
+  function createSearchPage(owner: string, dseqs: string[], nextKey: string | null): DeploymentListResponse {
+    return {
+      deployments: dseqs.map(dseq => createDeploymentInfoSeed({ owner, dseq })),
+      pagination: { next_key: nextKey, total: String(dseqs.length) }
+    };
+  }
+
   function createNetworkError(code: string): AxiosError {
     const error = new AxiosError(code);
     error.code = code;
@@ -621,6 +807,7 @@ describe(DeploymentReaderService.name, () => {
       names?: Record<string, string | null>;
       settings?: Record<string, Partial<ListedDeploymentSetting>>;
       listedGroups?: ReturnType<typeof createDeploymentInfoGroupSeed>[];
+      searchPages?: { dseqs: string[]; nextKey: string | null }[];
       nextKey?: string | null;
       chainTotal?: string;
       deploymentCount?: number;
@@ -643,7 +830,14 @@ describe(DeploymentReaderService.name, () => {
       }),
       deploymentHttpService: mock<DeploymentHttpService>({
         findByOwnerAndDseq: vi.fn().mockResolvedValue(defaultDeploymentInfo),
-        findAll: vi.fn().mockResolvedValue(defaultDeploymentList)
+        findAll: input.searchPages
+          ? vi.fn().mockImplementation(async ({ pagination }: { pagination?: { key?: string } }) => {
+              const pages = input.searchPages!;
+              const requested = pagination?.key ? pages.findIndex(({ nextKey }) => nextKey === pagination.key) + 1 : 0;
+              const page = pages[requested] ?? pages[pages.length - 1];
+              return createSearchPage(wallet.address, page.dseqs, page.nextKey);
+            })
+          : vi.fn().mockResolvedValue(defaultDeploymentList)
       }),
       fallbackDeploymentReaderService: mock<FallbackDeploymentReaderService>({
         findByOwnerAndDseq: vi.fn().mockResolvedValue(input.fallbackDeploymentInfo ?? defaultDeploymentInfo),
