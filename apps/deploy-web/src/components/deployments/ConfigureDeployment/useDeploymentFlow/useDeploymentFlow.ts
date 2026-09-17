@@ -42,7 +42,7 @@ export interface DeploymentFlowState {
   deploySucceeded: boolean;
   deployError?: { message?: string };
   error?: { message?: string; kind?: FlowErrorKind };
-  /** The cancelled deployment closing in the background, if any. Orthogonal to `phase`: the form stays editable throughout. */
+  /** The cancelled deployment closing in the background. Orthogonal to `phase`: the form stays editable throughout. */
   pendingClose: PendingClose | null;
 }
 
@@ -240,7 +240,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     setDeploySucceeded(false);
   }, []);
 
-  /** Returns the form to an editable, deployment-less state. Leaves `pendingClose` alone: that close outlives the reset. */
+  /** Leaves `pendingClose` alone, because the close it tracks outlives the reset that hands the form back. */
   const resetToConfiguring = useCallback(
     function resetToConfiguring() {
       clearDeploymentState();
@@ -261,11 +261,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     [queryClient, settingsId]
   );
 
-  /**
-   * The one place a close ends: it releases the mutex, then either runs the create waiting on it or records the
-   * deployment as still open. A failure only becomes an error scene when a create was queued behind it, so a purely
-   * background failure leaves the phase alone and surfaces as a retryable notice instead.
-   */
+  /** A failure only becomes an error scene when a create was queued behind it, so a purely background one leaves the phase alone. */
   const settleClose = useCallback(
     function settleClose(closedDseq: string, token: number, verifiedClosed: boolean, cause?: unknown) {
       if (token !== closeTokenRef.current) return;
@@ -290,12 +286,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   );
 
   /**
-   * Settles an ambiguous close failure with a single live-chain read. tx-signer stops polling (~36s) only after the tx
-   * TTL (30s) has expired, so a reported failure is often a false negative and one refetch is decisive: no indexer lag,
-   * and no window left for the tx to still land. A closed deployment or a 404 means it is gone. The read is async, so
-   * `token` pins it to the close it was started for, which must not be the create-attempt counter: a cancel now leaves
-   * the close running in the background, and any later re-quote would bump that counter and drop the very outcome the
-   * queued create is waiting on.
+   * tx-signer stops polling (~36s) only after the tx TTL (30s) expires, so a reported failure is often a false negative
+   * and one live read is decisive. `token` must not be the create-attempt counter: a re-quote after the cancel would bump
+   * that counter and drop the very outcome the queued create waits on.
    */
   const verifyCloseOutcome = useCallback(
     function verifyCloseOutcome(dseqToVerify: string, token: number, cause: unknown) {
@@ -345,9 +338,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
   /**
    * Caches the SDL under the settings id + dseq at create time (the create response omits `owner`) so an in-progress
-   * deployment can resume into the flow after a reload, under the same key the detail page reads. A deployment still
-   * open — live, or left behind by a failed close — is closed first, and a create fired while a close is already in
-   * flight waits on it rather than racing it, so only one deployment is ever open.
+   * deployment can resume after a reload. A still-open deployment is closed first and a create fired mid-close waits on
+   * it rather than racing it, so only one deployment is ever open.
    */
   const requestQuotes = useCallback(
     function requestQuotes(sdl: string, name?: string) {
@@ -418,9 +410,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   );
 
   /**
-   * Hands the form straight back to the user and closes the deployment behind them; the dseq also leaves the URL at
-   * once, so a returning user never sees the abandoned deployment. Falls back to `strandedDseq` rather than any
-   * pending dseq so a second press cannot broadcast a duplicate close for one already settling.
+   * The dseq leaves the URL on the same tick, so a returning user never sees the abandoned deployment. Falls back to
+   * `strandedDseq` rather than any pending dseq so a second press cannot broadcast a duplicate close for one settling.
    */
   const cancelAndEdit = useCallback(
     function cancelAndEdit() {
