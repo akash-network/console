@@ -22,8 +22,9 @@ export interface DeploymentBadgesProps {
 export const DeploymentBadges: FC<DeploymentBadgesProps> = ({ deployment, dependencies: d = DEPENDENCIES }) => {
   const interconnect = d.useDeclaredGpuInterconnect(deployment);
   const { isTrialing } = d.useWallet();
+  const isClosed = deployment.state === "closed";
 
-  if (!interconnect.enabled && !isTrialing) return null;
+  if (isClosed || (!interconnect.enabled && !isTrialing)) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-1">

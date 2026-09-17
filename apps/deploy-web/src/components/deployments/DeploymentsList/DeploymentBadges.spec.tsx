@@ -51,12 +51,18 @@ describe(DeploymentBadges.name, () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  function setup(input: { interconnect?: DeclaredGpuInterconnect; isTrialing?: boolean; createdAt?: number }) {
+  it("leaves a closed deployment bare, since its close reason is the only thing left to say about it", () => {
+    const { container } = setup({ state: "closed", isTrialing: true, interconnect: { enabled: true, fabrics: ["infiniband"] } });
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  function setup(input: { interconnect?: DeclaredGpuInterconnect; isTrialing?: boolean; createdAt?: number; state?: string }) {
     const useDeclaredGpuInterconnect: typeof DEPENDENCIES.useDeclaredGpuInterconnect = () => input.interconnect ?? { enabled: false, fabrics: [] };
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false });
     const GpuInterconnectBadge = vi.fn<typeof DEPENDENCIES.GpuInterconnectBadge>(() => <span>gpu interconnect badge</span>);
     const TrialDeploymentBadge = vi.fn<typeof DEPENDENCIES.TrialDeploymentBadge>(() => <span>trial badge</span>);
-    const deployment = mock<DeploymentDto>({ dseq: "100", createdAt: input.createdAt ?? 100 });
+    const deployment = mock<DeploymentDto>({ dseq: "100", createdAt: input.createdAt ?? 100, state: input.state ?? "active" });
 
     const { container } = render(
       <DeploymentBadges
