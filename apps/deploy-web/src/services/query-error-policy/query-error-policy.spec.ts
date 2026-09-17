@@ -2,12 +2,21 @@ import { AxiosError } from "axios";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  isProviderTokenRejection,
   isProviderUnavailableError,
   retryOnServerError,
   shouldReportError,
   SKIP_REPORTING_HANDLED_BY_CALLER,
-  SKIP_REPORTING_PROVIDER_UNAVAILABLE
+  SKIP_REPORTING_PROVIDER_POLL_FAILURE
 } from "./query-error-policy";
+
+const EXPIRED_TOKEN_BODY = {
+  success: false,
+  error: {
+    issues: [{ code: "custom", message: "is not a valid JWT token", path: ["auth", "token"], params: { errors: ["Token has expired"] } }],
+    name: "ZodError"
+  }
+};
 
 describe("query-error-policy", () => {
   describe("isProviderUnavailableError", () => {
@@ -25,6 +34,32 @@ describe("query-error-policy", () => {
 
     it("is false for a non-http error", () => {
       expect(isProviderUnavailableError(new Error("boom"))).toBe(false);
+    });
+  });
+
+  describe("isProviderTokenRejection", () => {
+    it("is true for the proxy's expired-token rejection", () => {
+      expect(isProviderTokenRejection(httpError(400, EXPIRED_TOKEN_BODY))).toBe(true);
+    });
+
+    it("is false for a 400 whose issue points at another field", () => {
+      expect(isProviderTokenRejection(httpError(400, { error: { issues: [{ path: ["auth", "certPem"] }] } }))).toBe(false);
+    });
+
+    it.each([
+      ["a body with no issues", { error: {} }],
+      ["a body that is not an object", "Could not establish tls connection"],
+      ["no body", undefined]
+    ])("is false for %s", (_name, data) => {
+      expect(isProviderTokenRejection(httpError(400, data))).toBe(false);
+    });
+
+    it("is false for the same body on a status other than 400", () => {
+      expect(isProviderTokenRejection(httpError(503, EXPIRED_TOKEN_BODY))).toBe(false);
+    });
+
+    it("is false for a non-http error", () => {
+      expect(isProviderTokenRejection(new Error("boom"))).toBe(false);
     });
   });
 
@@ -50,11 +85,11 @@ describe("query-error-policy", () => {
     });
 
     it("reports when the query opts out of a different error", () => {
-      expect(shouldReportError(httpError(500), SKIP_REPORTING_PROVIDER_UNAVAILABLE)).toBe(true);
+      expect(shouldReportError(httpError(500), SKIP_REPORTING_PROVIDER_POLL_FAILURE)).toBe(true);
     });
 
     it("stays quiet for the error the query opted out of", () => {
-      expect(shouldReportError(httpError(502), SKIP_REPORTING_PROVIDER_UNAVAILABLE)).toBe(false);
+      expect(shouldReportError(httpError(502), SKIP_REPORTING_PROVIDER_POLL_FAILURE)).toBe(false);
     });
 
     it("passes the error to the predicate", () => {
@@ -71,6 +106,24 @@ describe("query-error-policy", () => {
     });
   });
 
+  describe("SKIP_REPORTING_PROVIDER_POLL_FAILURE", () => {
+    it.each([400, 404, 429, 495])("stays quiet for a %s", status => {
+      expect(shouldReportError(httpError(status), SKIP_REPORTING_PROVIDER_POLL_FAILURE)).toBe(false);
+    });
+
+    it.each([502, 503])("stays quiet for a %s", status => {
+      expect(shouldReportError(httpError(status), SKIP_REPORTING_PROVIDER_POLL_FAILURE)).toBe(false);
+    });
+
+    it.each([500, 504])("reports a %s", status => {
+      expect(shouldReportError(httpError(status), SKIP_REPORTING_PROVIDER_POLL_FAILURE)).toBe(true);
+    });
+
+    it("reports a non-http error", () => {
+      expect(shouldReportError(new Error("boom"), SKIP_REPORTING_PROVIDER_POLL_FAILURE)).toBe(true);
+    });
+  });
+
   describe("SKIP_REPORTING_HANDLED_BY_CALLER", () => {
     it("suppresses cache-level reporting whatever the error", () => {
       expect(shouldReportError(httpError(500), SKIP_REPORTING_HANDLED_BY_CALLER)).toBe(false);
@@ -78,7 +131,7 @@ describe("query-error-policy", () => {
     });
   });
 
-  function httpError(status: number) {
-    return new AxiosError("Request failed", String(status), undefined, undefined, { status } as never);
+  function httpError(status: number, data?: unknown) {
+    return new AxiosError("Request failed", String(status), undefined, undefined, { status, data } as never);
   }
 });

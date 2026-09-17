@@ -92,6 +92,47 @@ describe(useProviderCredentials.name, () => {
     expect(generateToken).toHaveBeenCalledTimes(1);
   });
 
+  it("ensureToken generates a new token when the current one expires after the last render", async () => {
+    const generateToken = vi.fn().mockResolvedValue("fresh-token");
+    const isTokenExpiredRef = { current: false };
+    const { result } = setup({
+      wallet: { hasWallet: true },
+      providerJwt: { accessToken: "stale-token", generateToken },
+      isTokenExpiredRef
+    });
+
+    isTokenExpiredRef.current = true;
+    const token = await result.current.ensureToken();
+
+    expect(token).toBe("fresh-token");
+    expect(generateToken).toHaveBeenCalledTimes(1);
+  });
+
+  it("ensureToken regenerates a token that is still fresh when forced", async () => {
+    const generateToken = vi.fn().mockResolvedValue("forced-token");
+    const { result } = setup({
+      wallet: { hasWallet: true },
+      providerJwt: { accessToken: "fresh-token", isTokenExpired: false, generateToken }
+    });
+
+    const token = await result.current.ensureToken({ force: true });
+
+    expect(token).toBe("forced-token");
+    expect(generateToken).toHaveBeenCalledTimes(1);
+  });
+
+  it("ensureToken deduplicates concurrent forced generation requests", async () => {
+    const generateToken = vi.fn().mockResolvedValue("forced-token");
+    const { result } = setup({
+      wallet: { hasWallet: true },
+      providerJwt: { accessToken: "fresh-token", isTokenExpired: false, generateToken }
+    });
+
+    await Promise.all([result.current.ensureToken({ force: true }), result.current.ensureToken({ force: true })]);
+
+    expect(generateToken).toHaveBeenCalledTimes(1);
+  });
+
   it("ensureToken deduplicates concurrent generation requests", async () => {
     const generateToken = vi.fn().mockResolvedValue("fresh-token");
     const { result } = setup({
@@ -193,6 +234,7 @@ describe(useProviderCredentials.name, () => {
     providerJwt?: Partial<UseProviderJwtResult>;
     notificator?: Partial<ReturnType<typeof useNotificator>>;
     addressRef?: { current: string };
+    isTokenExpiredRef?: { current: boolean };
   }) {
     return setupQuery(() =>
       useProviderCredentials({
@@ -204,14 +246,20 @@ describe(useProviderCredentials.name, () => {
               ...input?.wallet,
               address: input?.addressRef?.current ?? input?.wallet?.address ?? "akash1aaa"
             }),
-          useProviderJwt: () =>
-            mock<UseProviderJwtResult>({
+          useProviderJwt: () => {
+            const jwt = mock<UseProviderJwtResult>({
               accessToken: null,
               isTokenExpired: false,
               isHydrated: true,
               generateToken: vi.fn().mockResolvedValue("generated-token"),
               ...input?.providerJwt
-            }),
+            });
+            const isTokenExpiredRef = input?.isTokenExpiredRef;
+            if (isTokenExpiredRef) {
+              Object.defineProperty(jwt, "isTokenExpired", { get: () => isTokenExpiredRef.current, configurable: true });
+            }
+            return jwt;
+          },
           useNotificator: () =>
             mock<ReturnType<typeof useNotificator>>({
               error: vi.fn(),

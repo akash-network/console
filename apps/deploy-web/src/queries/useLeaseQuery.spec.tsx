@@ -625,6 +625,79 @@ describe("useLeaseQuery", () => {
       expect(providerProxy.request).toHaveBeenCalledTimes(1);
     });
 
+    it("mints a fresh token and retries once when the proxy rejects the one it sent", async () => {
+      const providerProxy = mock<ProviderProxyService>({
+        request: vi.fn().mockRejectedValueOnce(expiredTokenRejection()).mockResolvedValueOnce({ data: mockLeaseStatus })
+      });
+      const ensureToken = vi.fn().mockResolvedValueOnce("expired-token").mockResolvedValueOnce("refreshed-token");
+      const { result } = setupLeaseStatus({
+        lease: mockLease,
+        ensureToken,
+        services: {
+          providerProxy: () => providerProxy
+        }
+      });
+
+      await vi.waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
+
+      expect(result.current.data).toEqual(mockLeaseStatus);
+      expect(ensureToken).toHaveBeenNthCalledWith(2, { force: true });
+      expect(providerProxy.request).toHaveBeenCalledTimes(2);
+      expect(providerProxy.request).toHaveBeenLastCalledWith(
+        expect.stringContaining(`/lease/${mockLease.dseq}/${mockLease.gseq}/${mockLease.oseq}/status`),
+        expect.objectContaining({ credentials: { type: "jwt", value: "refreshed-token" } })
+      );
+    });
+
+    it("gives up when the proxy rejects the refreshed token too", async () => {
+      const providerProxy = mock<ProviderProxyService>({
+        request: vi.fn().mockRejectedValue(expiredTokenRejection())
+      });
+      const ensureToken = vi.fn().mockResolvedValue("jwt-token");
+      const { result } = setupLeaseStatus({
+        lease: mockLease,
+        ensureToken,
+        services: {
+          providerProxy: () => providerProxy
+        }
+      });
+
+      await vi.waitFor(() => {
+        expect(result.current.isError).toBe(true);
+      });
+
+      expect(providerProxy.request).toHaveBeenCalledTimes(2);
+      expect(ensureToken).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not refresh the token for a 400 the proxy raised about something else", async () => {
+      const providerProxy = mock<ProviderProxyService>({
+        request: vi.fn().mockRejectedValue(
+          new AxiosError("Bad Request", "400", undefined, undefined, {
+            status: 400,
+            data: { error: { issues: [{ path: ["url"] }] } }
+          } as any)
+        )
+      });
+      const ensureToken = vi.fn().mockResolvedValue("jwt-token");
+      const { result } = setupLeaseStatus({
+        lease: mockLease,
+        ensureToken,
+        services: {
+          providerProxy: () => providerProxy
+        }
+      });
+
+      await vi.waitFor(() => {
+        expect(result.current.isError).toBe(true);
+      });
+
+      expect(providerProxy.request).toHaveBeenCalledTimes(1);
+      expect(ensureToken).toHaveBeenCalledTimes(1);
+    });
+
     it("fetches lease status when a JWT is available", async () => {
       const provider = buildProvider();
       const providerProxy = mock<ProviderProxyService>({
@@ -854,12 +927,26 @@ describe("useLeaseQuery", () => {
       expect(result.current.data?.ips).toEqual({});
     });
 
+    function expiredTokenRejection() {
+      return new AxiosError("Bad Request", "400", undefined, undefined, {
+        status: 400,
+        data: {
+          success: false,
+          error: {
+            issues: [{ code: "custom", message: "is not a valid JWT token", path: ["auth", "token"], params: { errors: ["Token has expired"] } }],
+            name: "ZodError"
+          }
+        }
+      } as any);
+    }
+
     function setupLeaseStatus(input?: {
       provider?: ApiProviderList;
       lease?: LeaseDto;
       providerCredentials?: UseProviderCredentialsResult["details"];
       services?: ServicesProviderProps["services"];
       select?: (data: LeaseStatusDto | null) => LeaseStatusDto | null;
+      ensureToken?: UseProviderCredentialsResult["ensureToken"];
     }) {
       const dependencies: typeof USE_LEASE_STATUS_DEPENDENCIES = {
         ...USE_LEASE_STATUS_DEPENDENCIES,
@@ -871,7 +958,7 @@ describe("useLeaseQuery", () => {
             usable: true,
             error: null
           },
-          ensureToken: vi.fn().mockResolvedValue("jwt-token")
+          ensureToken: input?.ensureToken ?? vi.fn().mockResolvedValue("jwt-token")
         })
       };
       return setupQuery(() => useLeaseStatus({ provider: input?.provider || buildProvider(), lease: input?.lease, dependencies, select: input?.select }), {

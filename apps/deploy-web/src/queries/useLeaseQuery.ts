@@ -7,7 +7,12 @@ import mapValues from "lodash/mapValues";
 import { useServices } from "@src/context/ServicesProvider";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
-import { isProviderUnavailableError, retryOnServerError, SKIP_REPORTING_PROVIDER_UNAVAILABLE } from "@src/services/query-error-policy/query-error-policy";
+import {
+  isProviderTokenRejection,
+  isProviderUnavailableError,
+  retryOnServerError,
+  SKIP_REPORTING_PROVIDER_POLL_FAILURE
+} from "@src/services/query-error-policy/query-error-policy";
 import type { DeploymentDto, LeaseDto, RpcLease } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
@@ -137,7 +142,7 @@ export function useLeaseStatus(
       }),
     ...options,
     retry: retryUnlessProviderIsUnavailable,
-    meta: SKIP_REPORTING_PROVIDER_UNAVAILABLE,
+    meta: SKIP_REPORTING_PROVIDER_POLL_FAILURE,
     enabled: options.enabled !== false && !!provider?.hostUri && providerCredentials.details.usable,
     // Defensive: the attestation sidecar is a pod container under the current provider design and
     // never appears as a lease-status service, so this is a passthrough today. It keeps the sidecar
@@ -175,7 +180,7 @@ export function useLeaseStatuses(
       },
       ...options,
       retry: retryUnlessProviderIsUnavailable,
-      meta: SKIP_REPORTING_PROVIDER_UNAVAILABLE,
+      meta: SKIP_REPORTING_PROVIDER_POLL_FAILURE,
       enabled: options.enabled !== false && !!provider?.hostUri && providerCredentials.details.usable,
       select: (data: LeaseStatusDto | null) => {
         const filtered = data ? omitAttestationSidecar(data) : data;
@@ -205,20 +210,21 @@ function isLeaseStatusUnavailable(error: unknown): boolean {
   return error instanceof TypeError && /failed to fetch/i.test(error.message);
 }
 
+type LeaseStatusRequest = (
+  url: string,
+  options: { method: "GET"; credentials: { type: "jwt"; value: string } }
+) => Promise<{ data: LeaseStatusResponse | null }>;
+
 async function fetchLeaseStatus(input: {
   lease?: LeaseDto | null;
   provider?: ApiProviderList | null;
-  ensureToken: () => Promise<string>;
-  request: (url: string, options: { method: "GET"; credentials: { type: "jwt"; value: string } }) => Promise<{ data: LeaseStatusResponse | null }>;
+  ensureToken: (options?: { force?: boolean }) => Promise<string>;
+  request: LeaseStatusRequest;
 }): Promise<LeaseStatusDto | null> {
   const { lease, provider, ensureToken, request } = input;
   if (!lease || !provider || !isLeaseLive(lease)) return null;
 
-  const token = await ensureToken();
-  const response = await request(`/lease/${lease.dseq}/${lease.gseq}/${lease.oseq}/status`, {
-    method: "GET",
-    credentials: { type: "jwt", value: token }
-  }).catch(error => {
+  const response = await requestLeaseStatus(`/lease/${lease.dseq}/${lease.gseq}/${lease.oseq}/status`, { ensureToken, request }).catch(error => {
     if (isLeaseStatusUnavailable(error)) {
       return { data: null };
     }
@@ -226,6 +232,24 @@ async function fetchLeaseStatus(input: {
   });
 
   return response.data ? normalizeLeaseStatus(response.data) : null;
+}
+
+/**
+ * The proxy validates the provider JWT before it dials, so a token this client still believes in can be rejected
+ * on a clock the proxy disagrees with. That rejection earns one forced refresh and a single retry.
+ */
+async function requestLeaseStatus(
+  url: string,
+  input: { ensureToken: (options?: { force?: boolean }) => Promise<string>; request: LeaseStatusRequest }
+): Promise<{ data: LeaseStatusResponse | null }> {
+  const send = async (token: string) => input.request(url, { method: "GET", credentials: { type: "jwt", value: token } });
+
+  try {
+    return await send(await input.ensureToken());
+  } catch (error) {
+    if (!isProviderTokenRejection(error)) throw error;
+    return send(await input.ensureToken({ force: true }));
+  }
 }
 
 export interface ForwardedPort {
