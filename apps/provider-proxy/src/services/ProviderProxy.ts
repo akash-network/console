@@ -51,6 +51,8 @@ export class ProviderProxy {
         url,
         requestOptions,
         propagateTracingContext(async (res: IncomingMessage) => {
+          proxyTermination ??= "providerAnswered";
+
           try {
             res.on(
               "error",
@@ -93,7 +95,6 @@ export class ProviderProxy {
                 this.#agentsCache.delete(agentCacheKey);
                 resolve({ ok: false, code: "invalidCertificate", reason: validationResult.code });
                 req.off("error", reject);
-                proxyTermination ??= "certificateRejected";
                 res.destroy();
                 req.destroy();
                 if (requestOptions.agent) this.#tornDownAgents.add(requestOptions.agent);
@@ -227,7 +228,8 @@ export class ProviderProxy {
   }
 }
 
-type DialTermination = "certificateRejected" | "clientAborted" | "attemptTimedOut" | "agentTornDown";
+/** providerAnswered is recorded first so that anything killing the dial afterwards, a slow certificate validation timing out most of all, cannot be read back as the host having failed to answer. */
+type DialTermination = "providerAnswered" | "clientAborted" | "attemptTimedOut" | "agentTornDown";
 
 export interface ProxyConnectOptions {
   method: string;

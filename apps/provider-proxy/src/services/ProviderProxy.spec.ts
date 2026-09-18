@@ -182,6 +182,25 @@ describe(ProviderProxy.name, () => {
     expect(connectionTracker.recordUnreachable).not.toHaveBeenCalled();
   });
 
+  it("records nothing when its per-attempt timeout fires while the certificate is still being validated", async () => {
+    const { proxy, connectionTracker, certificateValidator } = setup();
+    certificateValidator.validate.mockReturnValue(new Promise<never>(() => {}));
+    const { request } = stubDialWithUnverifiedTlsResponse();
+
+    const pending = proxy.connect("https://provider.example.com:8443/status", {
+      method: "GET",
+      providerAddress: "akash1provider",
+      timeout: 5_000
+    });
+    await vi.waitFor(() => expect(connectionTracker.recordReachable).toHaveBeenCalled());
+    request.emit("timeout");
+    request.emit("error", Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }));
+
+    await expect(pending).resolves.toMatchObject({ ok: false, code: "connectionError" });
+    expect(connectionTracker.recordUnresponsive).not.toHaveBeenCalled();
+    expect(connectionTracker.recordUnreachable).not.toHaveBeenCalled();
+  });
+
   it("records nothing for a dial killed by another request's certificate teardown", async () => {
     const { proxy, connectionTracker, certificateValidator } = setup();
     certificateValidator.validate.mockResolvedValue({ ok: false, code: "expired" });
@@ -226,6 +245,20 @@ describe(ProviderProxy.name, () => {
   function stubDialWithTlsResponse() {
     const request = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn(), reusedSocket: false });
     const socket = Object.assign(Object.create(TLSSocket.prototype) as TLSSocket, { authorized: true });
+    const response = Object.assign(new EventEmitter(), { socket, destroy: vi.fn(), pause: vi.fn(), resume: vi.fn() });
+    vi.spyOn(https, "request").mockImplementation((_url, _options, callback) => {
+      setImmediate(() => (callback as ((res: IncomingMessage) => void) | undefined)?.(response as unknown as IncomingMessage));
+      return request as unknown as ClientRequest;
+    });
+    return { request, response };
+  }
+
+  function stubDialWithUnverifiedTlsResponse() {
+    const request = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn(), reusedSocket: false });
+    const socket = Object.assign(Object.create(TLSSocket.prototype) as TLSSocket, {
+      authorized: false,
+      getPeerX509Certificate: vi.fn().mockReturnValue(mock<X509Certificate>())
+    });
     const response = Object.assign(new EventEmitter(), { socket, destroy: vi.fn(), pause: vi.fn(), resume: vi.fn() });
     vi.spyOn(https, "request").mockImplementation((_url, _options, callback) => {
       setImmediate(() => (callback as ((res: IncomingMessage) => void) | undefined)?.(response as unknown as IncomingMessage));
