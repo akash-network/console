@@ -2,9 +2,10 @@ import { ApiError } from "@akashnetwork/openapi-sdk";
 import { useAtomValue } from "jotai";
 
 import { useServices } from "@src/context/ServicesProvider";
+import { useDeploymentNameBackfill } from "@src/hooks/useDeploymentNameBackfill/useDeploymentNameBackfill";
 import { settingsIdAtom } from "@src/store/settingsStore";
 
-export const DEPENDENCIES = { useServices };
+export const DEPENDENCIES = { useServices, useDeploymentNameBackfill };
 
 /** A deployment's name as the console api holds it, falling back to this browser's own record only where the api holds none. */
 export function useResolvedDeploymentName(dseq: string | undefined | null, dependencies = DEPENDENCIES): string | undefined {
@@ -23,6 +24,8 @@ export function useResolvedDeploymentName(dseq: string | undefined | null, depen
       }
     }
   );
+
+  dependencies.useDeploymentNameBackfill(dseq && query.data ? [{ dseq, name: query.data.data.name }] : []);
 
   return query.data?.data.name ?? deploymentLocalStorage.get(address, dseq)?.name;
 }

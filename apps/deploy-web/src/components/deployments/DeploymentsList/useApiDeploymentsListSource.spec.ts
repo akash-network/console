@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentsListPage } from "@src/queries/useDeploymentsListQuery";
+import type { DeploymentStorageService } from "@src/services/deployment-storage/deployment-storage.service";
 import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { DEPENDENCIES } from "./useApiDeploymentsListSource";
 import { SEARCH_PACING, useApiDeploymentsListSource } from "./useApiDeploymentsListSource";
@@ -86,6 +87,55 @@ describe(useApiDeploymentsListSource.name, () => {
     expect(result.current.archive.isSearchTooBroad).toBe(false);
   });
 
+  it("names a row this browser recorded when the api holds no name for it", () => {
+    const { result } = setup({ active: page({ deployments: [listed("100")] }), localNames: { "100": "local-name" } });
+
+    expect(result.current.active.deployments[0].name).toBe("local-name");
+  });
+
+  it("keeps the api's name over the one this browser recorded", () => {
+    const { result } = setup({ active: page({ deployments: [listed("100", "api-name")] }), localNames: { "100": "local-name" } });
+
+    expect(result.current.active.deployments[0].name).toBe("api-name");
+  });
+
+  it("names an archived row this browser recorded too", () => {
+    const { result } = setup({ archive: page({ deployments: [listed("900")] }), localNames: { "900": "closed-name" } });
+
+    expect(result.current.archive.deployments[0].name).toBe("closed-name");
+  });
+
+  it("leaves a row unnamed when neither the api nor this browser holds a name", () => {
+    const { result } = setup({ active: page({ deployments: [listed("100")] }) });
+
+    expect(result.current.active.deployments[0].name).toBeNull();
+  });
+
+  it("reads this browser's record under the wallet the list is for", () => {
+    const { deploymentLocalStorage } = setup({ active: page({ deployments: [listed("100")] }), localNames: { "100": "local-name" } });
+
+    expect(deploymentLocalStorage.get).toHaveBeenCalledWith("akash1owner", "100");
+  });
+
+  it("hands every row the api answered, active and archived, to the backfill with the api's own answer", () => {
+    const { useDeploymentNameBackfill } = setup({
+      active: page({ deployments: [listed("100")] }),
+      archive: page({ deployments: [listed("900")] }),
+      localNames: { "100": "local-name" }
+    });
+
+    expect(useDeploymentNameBackfill).toHaveBeenLastCalledWith([
+      { dseq: "100", name: null },
+      { dseq: "900", name: null }
+    ]);
+  });
+
+  it("hands the backfill nothing before the api answered", () => {
+    const { useDeploymentNameBackfill } = setup({ active: undefined, archive: undefined });
+
+    expect(useDeploymentNameBackfill).toHaveBeenLastCalledWith([]);
+  });
+
   it("reports the search its rows were fetched with, not the one still being typed", async () => {
     vi.useFakeTimers();
     try {
@@ -113,8 +163,8 @@ describe(useApiDeploymentsListSource.name, () => {
     return useDeploymentsListQuery.mock.calls.map(call => call[0].search);
   }
 
-  function listed(dseq: string) {
-    return mock<ListedDeploymentDto>({ dseq });
+  function listed(dseq: string, name: string | null = null) {
+    return mock<ListedDeploymentDto>({ dseq, name });
   }
 
   type Input = {
@@ -127,6 +177,7 @@ describe(useApiDeploymentsListSource.name, () => {
     archive?: DeploymentsListPage;
     isFetching?: boolean;
     isError?: boolean;
+    localNames?: Record<string, string>;
   };
 
   function setup(input: Input) {
@@ -145,12 +196,22 @@ describe(useApiDeploymentsListSource.name, () => {
     const useWallet: typeof DEPENDENCIES.useWallet = () =>
       mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ hasWallet: current.hasWallet ?? true, address: "akash1owner" });
     const useQueryClient: typeof DEPENDENCIES.useQueryClient = () => mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>({ invalidateQueries });
-    const useServices: typeof DEPENDENCIES.useServices = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useServices>>({
-        api: { v1: { listDeployments: { getKey: () => listKeyPrefix } } }
-      } as never);
 
-    const dependencies = { useWallet, useQueryClient, useServices, useDeploymentsListQuery };
+    const deploymentLocalStorage = mock<DeploymentStorageService>({
+      get: vi.fn((address, dseq) => {
+        const name = address && dseq ? current.localNames?.[String(dseq)] : undefined;
+
+        return name === undefined ? null : { name };
+      })
+    });
+    const services = mock<ReturnType<typeof DEPENDENCIES.useServices>>({
+      api: { v1: { listDeployments: { getKey: () => listKeyPrefix } } },
+      deploymentLocalStorage
+    } as never);
+    const useServices: typeof DEPENDENCIES.useServices = () => services;
+    const useDeploymentNameBackfill = vi.fn<typeof DEPENDENCIES.useDeploymentNameBackfill>();
+
+    const dependencies = { useWallet, useQueryClient, useServices, useDeploymentsListQuery, useDeploymentNameBackfill };
 
     const store = createStore();
     const hook = renderHook(
@@ -174,6 +235,8 @@ describe(useApiDeploymentsListSource.name, () => {
         hook.rerender();
       },
       useDeploymentsListQuery,
+      useDeploymentNameBackfill,
+      deploymentLocalStorage,
       invalidateQueries,
       listKeyPrefix
     };

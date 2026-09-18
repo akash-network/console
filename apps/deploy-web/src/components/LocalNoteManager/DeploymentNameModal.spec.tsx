@@ -1,15 +1,20 @@
+import { createStore, Provider as JotaiStoreProvider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
 import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/config/deploy.config";
 import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
+import type { DeploymentNameBackfillService } from "@src/services/deployment-name-backfill/deployment-name-backfill.service";
 import type { DeploymentStorageService } from "@src/services/deployment-storage/deployment-storage.service";
+import { settingsIdAtom } from "@src/store/settingsStore";
 import type { DEPENDENCIES } from "./DeploymentNameModal";
 import { DeploymentNameModal } from "./DeploymentNameModal";
 
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
+
+const OWNER = "akash1owner";
 
 describe("DeploymentNameModal", () => {
   it("renames the deployment through the api, so the name outlives this browser", async () => {
@@ -172,6 +177,62 @@ describe("DeploymentNameModal", () => {
     expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("typed-while-loading");
   });
 
+  it("takes the deployment over from the backfill before renaming it", async () => {
+    const { preempt, patchMutate } = setup({ resolvedName: "old-name" });
+
+    await rename("my-app");
+
+    expect(preempt).toHaveBeenCalledExactlyOnceWith(OWNER, "12345");
+    expect(preempt.mock.invocationCallOrder[0]).toBeLessThan(patchMutate.mock.invocationCallOrder[0]);
+  });
+
+  it("holds the rename until a backfill already writing that deployment's name settled, so the older name cannot land last", async () => {
+    let releaseBackfill = () => undefined as void;
+    const preempt = vi.fn(
+      () =>
+        new Promise<void>(resolve => {
+          releaseBackfill = resolve;
+        })
+    );
+    const { patchMutate } = setup({ resolvedName: "old-name", preempt });
+
+    await rename("my-app");
+
+    expect(patchMutate).not.toHaveBeenCalled();
+
+    await act(async () => releaseBackfill());
+
+    expect(patchMutate).toHaveBeenCalledWith({ dseq: "12345", data: { name: "my-app" } }, expect.any(Object));
+  });
+
+  it("ignores a resubmit made while it is still waiting for the backfill, so the rename is sent once", async () => {
+    let releaseBackfill = () => undefined as void;
+    const heldBackfill = new Promise<void>(resolve => {
+      releaseBackfill = resolve;
+    });
+    const { patchMutate } = setup({ resolvedName: "old-name", preempt: vi.fn(() => heldBackfill) });
+    await type("my-app");
+
+    await submitWithEnter();
+    await submitWithEnter();
+    await act(async () => releaseBackfill());
+
+    expect(patchMutate).toHaveBeenCalledExactlyOnceWith({ dseq: "12345", data: { name: "my-app" } }, expect.any(Object));
+  });
+
+  it("keeps saving disabled while it waits for the backfill", async () => {
+    const preempt = vi.fn(() => new Promise<void>(() => undefined));
+    setup({ resolvedName: "old-name", preempt });
+
+    await rename("my-app");
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
+  async function submitWithEnter() {
+    await userEvent.type(screen.getByRole("textbox", { name: "Name" }), "{Enter}");
+  }
+
   async function type(name: string) {
     const field = screen.getByRole("textbox", { name: "Name" });
     await userEvent.clear(field);
@@ -185,9 +246,17 @@ describe("DeploymentNameModal", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
   }
 
-  function setup(input: { dseq?: string | null; resolvedName?: string; patchMutate?: ReturnType<typeof vi.fn>; isPending?: boolean }) {
+  function setup(input: {
+    dseq?: string | null;
+    resolvedName?: string;
+    patchMutate?: ReturnType<typeof vi.fn>;
+    preempt?: ReturnType<typeof vi.fn>;
+    isPending?: boolean;
+  }) {
     const dseq = input.dseq === undefined ? "12345" : input.dseq;
     const patchMutate = input.patchMutate ?? vi.fn((_variables, options) => options?.onSuccess?.());
+    const preempt = input.preempt ?? vi.fn(() => Promise.resolve());
+    const deploymentNameBackfill = mock<DeploymentNameBackfillService>({ preempt: preempt as never });
 
     const api = mockDeep<AppDIContainer["api"]>();
     api.v1.getDeployment.getKey.mockImplementation(request => ["getDeployment", request?.dseq ?? ""]);
@@ -209,10 +278,17 @@ describe("DeploymentNameModal", () => {
       useResolvedDeploymentName: () => resolvedName
     };
 
+    const store = createStore();
+    store.set(settingsIdAtom, OWNER);
+
     const modalFor = (shownDseq: string | number | null) => (
-      <TestContainerProvider services={{ api: () => api, deploymentLocalStorage: () => deploymentLocalStorage }}>
-        <DeploymentNameModal dseq={shownDseq} onClose={onClose} onSaved={onSaved} dependencies={dependencies} />
-      </TestContainerProvider>
+      <JotaiStoreProvider store={store}>
+        <TestContainerProvider
+          services={{ api: () => api, deploymentLocalStorage: () => deploymentLocalStorage, deploymentNameBackfill: () => deploymentNameBackfill }}
+        >
+          <DeploymentNameModal dseq={shownDseq} onClose={onClose} onSaved={onSaved} dependencies={dependencies} />
+        </TestContainerProvider>
+      </JotaiStoreProvider>
     );
     const { rerender } = render(modalFor(dseq));
 
@@ -221,6 +297,6 @@ describe("DeploymentNameModal", () => {
       rerender(modalFor(shown.dseq));
     };
 
-    return { patchMutate, deploymentLocalStorage, queryClient, enqueueSnackbar, onSaved, onClose, api, showDeployment };
+    return { patchMutate, preempt, deploymentLocalStorage, queryClient, enqueueSnackbar, onSaved, onClose, api, showDeployment };
   }
 });

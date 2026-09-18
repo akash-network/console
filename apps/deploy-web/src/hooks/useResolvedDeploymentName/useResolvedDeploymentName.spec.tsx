@@ -73,6 +73,34 @@ describe(useResolvedDeploymentName.name, () => {
     expect(result.current).toBe("local-name");
   });
 
+  it.each([null, "api-name"])("hands the api's answer of %p to the backfill once it arrives", async apiName => {
+    const { useDeploymentNameBackfill } = setup({ apiName });
+
+    await vi.waitFor(() => expect(useDeploymentNameBackfill).toHaveBeenLastCalledWith([{ dseq: "123", name: apiName }]));
+  });
+
+  it("hands the backfill nothing while the api is still answering", () => {
+    const { useDeploymentNameBackfill } = setup({ apiName: null, localName: "local-name" });
+
+    expect(useDeploymentNameBackfill).toHaveBeenLastCalledWith([]);
+  });
+
+  it("hands the backfill nothing when the api refused the read, whose answer is then unknown", async () => {
+    const { useDeploymentNameBackfill, getDeployment } = setup({
+      apiError: new ApiError(401, {}, "GET /v1/deployments/{dseq} \u2192 401"),
+      localName: "local-name"
+    });
+
+    await vi.waitFor(() => expect(getDeployment).toHaveBeenCalled());
+    expect(useDeploymentNameBackfill).toHaveBeenLastCalledWith([]);
+  });
+
+  it("hands the backfill nothing when there is no dseq", () => {
+    const { useDeploymentNameBackfill } = setup({ dseq: null, localName: "local-name" });
+
+    expect(useDeploymentNameBackfill).toHaveBeenLastCalledWith([]);
+  });
+
   it("asks the api for nothing when there is no dseq", () => {
     const { result, getDeployment } = setup({ dseq: null, apiName: "api-name", localName: "local-name" });
 
@@ -81,6 +109,7 @@ describe(useResolvedDeploymentName.name, () => {
   });
 
   function setup(input: { dseq?: string | null; apiName?: string | null; apiError?: Error; localName?: string }) {
+    const useDeploymentNameBackfill = vi.fn<typeof DEPENDENCIES.useDeploymentNameBackfill>();
     const getDeployment = vi.fn(() => {
       if (input.apiError) return Promise.reject(input.apiError);
       return Promise.resolve({ data: { name: input.apiName ?? null } });
@@ -104,7 +133,7 @@ describe(useResolvedDeploymentName.name, () => {
     const store = createStore();
     store.set(settingsIdAtom, "akash1test");
 
-    const { result } = setupQuery(() => useResolvedDeploymentName(input.dseq === undefined ? "123" : input.dseq, { useServices }), {
+    const { result } = setupQuery(() => useResolvedDeploymentName(input.dseq === undefined ? "123" : input.dseq, { useServices, useDeploymentNameBackfill }), {
       services: { api: () => api, deploymentLocalStorage: () => deploymentLocalStorage, queryClient: () => queryClient },
       wrapper: ({ children }) => <JotaiStoreProvider store={store}>{children}</JotaiStoreProvider>
     });
@@ -112,6 +141,7 @@ describe(useResolvedDeploymentName.name, () => {
     return {
       result,
       getDeployment,
+      useDeploymentNameBackfill,
       deploymentLocalStorage,
       onQueryError,
       queryStatus: () => queryClient.getQueryState(api.v1.getDeployment.getKey({ dseq: "123" }))?.status
