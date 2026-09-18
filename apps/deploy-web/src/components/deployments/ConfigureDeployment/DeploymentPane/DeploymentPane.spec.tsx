@@ -210,9 +210,8 @@ describe("DeploymentPane placement management", () => {
 });
 
 describe(placementSelectionState.name, () => {
-  it("is idle while configuring, and while closing or errored even with a selection", () => {
+  it("is idle while configuring, and while errored even with a selection", () => {
     expect(placementSelectionState({ phase: "configuring", placementId: "p1", selectedPlacementId: "p1", selections: {}, hasBids: true })).toBe("idle");
-    expect(placementSelectionState({ phase: "closing", placementId: "p1", selectedPlacementId: "p1", selections: { p1: "bid" }, hasBids: true })).toBe("idle");
     expect(placementSelectionState({ phase: "error", placementId: "p1", selectedPlacementId: "p1", selections: { p1: "bid" }, hasBids: true })).toBe("idle");
   });
 

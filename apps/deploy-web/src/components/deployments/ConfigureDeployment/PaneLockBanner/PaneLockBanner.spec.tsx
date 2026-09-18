@@ -12,11 +12,4 @@ describe(PaneLockBanner.name, () => {
     fireEvent.click(screen.getByRole("button", { name: /cancel and edit/i }));
     expect(onCancelAndEdit).toHaveBeenCalled();
   });
-
-  it("reflects close progress with a disabled Cancelling action", () => {
-    render(<PaneLockBanner onCancelAndEdit={vi.fn()} isClosing />);
-    const action = screen.getByRole("button", { name: /cancelling/i });
-    expect(action).toBeDisabled();
-    expect(screen.queryByRole("button", { name: /cancel and edit/i })).not.toBeInTheDocument();
-  });
 });

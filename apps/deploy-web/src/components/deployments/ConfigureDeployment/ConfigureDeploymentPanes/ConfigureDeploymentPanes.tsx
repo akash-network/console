@@ -3,15 +3,16 @@ import { useAtom } from "jotai";
 
 import { useFlag } from "@src/hooks/useFlag";
 import sdlStore from "@src/store/sdlStore";
+import { BackgroundCloseBanner } from "../BackgroundCloseBanner/BackgroundCloseBanner";
 import type { ConfigurationLock } from "../ConfigurationPane/configurationLock";
 import { ConfigurationPane } from "../ConfigurationPane/ConfigurationPane";
 import { DeploymentPane } from "../DeploymentPane/DeploymentPane";
 import { MarketplacePane } from "../MarketplacePane/MarketplacePane";
 import { PaneLockBanner } from "../PaneLockBanner/PaneLockBanner";
 import { SdlPreviewPane } from "../SdlPreviewPane/SdlPreviewPane";
-import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
+import type { DeploymentFlowPhase, PendingClose } from "../useDeploymentFlow/useDeploymentFlow";
 
-export const DEPENDENCIES = { DeploymentPane, ConfigurationPane, MarketplacePane, PaneLockBanner, SdlPreviewPane, useFlag };
+export const DEPENDENCIES = { DeploymentPane, ConfigurationPane, MarketplacePane, PaneLockBanner, BackgroundCloseBanner, SdlPreviewPane, useFlag };
 
 type Props = {
   sdl: string;
@@ -26,6 +27,8 @@ type Props = {
   selections: Record<string, string>;
   onSelectProvider: (placementId: string, bidId: string) => void;
   onCancelAndEdit: () => void;
+  pendingClose: PendingClose | null;
+  onRetryClose: () => void;
   deploymentName: string;
   onDeploymentNameChange: (value: string) => void;
   /** Rendered in the Configuration column header, e.g. the SDL import/export menu. */
@@ -51,6 +54,8 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
   selections,
   onSelectProvider,
   onCancelAndEdit,
+  pendingClose,
+  onRetryClose,
   deploymentName,
   onDeploymentNameChange,
   configurationActions,
@@ -58,8 +63,7 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
 }) => {
   const [isSdlPreviewOpen, setIsSdlPreviewOpen] = useAtom(sdlStore.sdlPreviewOpen);
   const isSdlPreviewEnabled = d.useFlag("ui_sdl_preview_panel");
-  const isLocked = phase === "creating" || phase === "quoting" || phase === "closing" || phase === "deploying";
-  const isClosing = phase === "closing";
+  const isLocked = phase === "creating" || phase === "quoting" || phase === "deploying";
   const configurationLock: ConfigurationLock | undefined = phase === "quoting" ? "onchain" : isLocked ? "all" : undefined;
 
   return (
@@ -78,11 +82,15 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
           onDeploymentNameChange={onDeploymentNameChange}
         />
         <d.ConfigurationPane selectedServiceId={selectedServiceId} locked={configurationLock} actions={configurationActions} />
-        {isLocked && (
+        {isLocked ? (
           <div className="col-start-1 col-end-3 row-start-2">
-            <d.PaneLockBanner onCancelAndEdit={onCancelAndEdit} isClosing={isClosing} />
+            <d.PaneLockBanner onCancelAndEdit={onCancelAndEdit} />
           </div>
-        )}
+        ) : pendingClose ? (
+          <div className="col-start-1 col-end-3 row-start-2">
+            <d.BackgroundCloseBanner pendingClose={pendingClose} onRetry={onRetryClose} />
+          </div>
+        ) : null}
       </div>
       <div className="min-h-0 border-l border-zinc-300 dark:border-zinc-700">
         <d.MarketplacePane

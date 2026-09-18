@@ -113,10 +113,9 @@ describe(ConfigureDeploymentHeader.name, () => {
     expect(screen.getByRole("button", { name: /request quotes/i })).toBeInTheDocument();
   });
 
-  it("shows a Cancelling CTA while closing", () => {
-    setup({ phase: "closing" });
-    expect(screen.getByRole("button", { name: /cancelling/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /requesting/i })).not.toBeInTheDocument();
+  it("never shows a cancelling CTA, because cancelling returns the form to configuring at once", () => {
+    setup({ phase: "configuring" });
+    expect(screen.queryByRole("button", { name: /cancelling/i })).not.toBeInTheDocument();
   });
 
   it("restores Request quotes after an error so the spec can be retried", () => {

@@ -21,7 +21,7 @@ export interface PlacementOffer extends ScreenedProvider {
 type BidEntry = NonNullable<ReturnType<typeof useListBids>["data"]>["data"][number];
 
 interface UsePlacementOffersInput {
-  phase: "configuring" | "creating" | "quoting" | "closing" | "deploying" | "error";
+  phase: "configuring" | "creating" | "quoting" | "deploying" | "error";
   dseq?: string;
   sdl: string;
   placementName: string;
@@ -52,7 +52,7 @@ export const DEPENDENCIES = { useScreenedProviders, useListBids, useProviderList
  *   Screened metadata (name, region, audited flag, incident-derived uptime) is reused for any provider that
  *   was screened; the provider list only fills in a bidder that was never screened.
  *
- * Once the deployment is locked (`creating`/`quoting`/`closing`/`deploying`) screening is paused and the last
+ * Once the deployment is locked (`creating`/`quoting`/`deploying`) screening is paused and the last
  * screened set is kept (`keepPreviousData`) as both the pre-bid fallback and the metadata source. `listBids`
  * returns every bid for the deployment across its groups, so bids are scoped to this placement by its group
  * sequence (`gseq`).
@@ -61,7 +61,7 @@ export function usePlacementOffers(
   { phase, dseq, sdl, placementName, region }: UsePlacementOffersInput,
   dependencies: typeof DEPENDENCIES = DEPENDENCIES
 ): UsePlacementOffersResult {
-  const isLocked = phase === "creating" || phase === "quoting" || phase === "closing" || phase === "deploying";
+  const isLocked = phase === "creating" || phase === "quoting" || phase === "deploying";
   const isScreening = phase === "configuring" || phase === "creating";
   const screened = dependencies.useScreenedProviders({ sdl, placementName, region, enabled: !isLocked });
   const bidsQuery = dependencies.useListBids(dseq, { enabled: phase === "quoting", refetchInterval: BID_POLL_INTERVAL });

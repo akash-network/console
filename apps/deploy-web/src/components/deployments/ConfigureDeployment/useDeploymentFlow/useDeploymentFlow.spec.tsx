@@ -147,7 +147,7 @@ describe(useDeploymentFlow.name, () => {
     }
   });
 
-  it("keeps the no-providers message set while the close is still in flight in the manual flow", () => {
+  it("leaves the form editable with the no-providers message while the close runs in the background", () => {
     vi.useFakeTimers();
     try {
       const closeMutate = vi.fn();
@@ -155,7 +155,7 @@ describe(useDeploymentFlow.name, () => {
 
       act(() => vi.advanceTimersByTime(60_000));
 
-      expect(result.current.phase).toBe("closing");
+      expect(result.current.phase).toBe("configuring");
       expect(result.current.error?.message).toContain("No providers");
     } finally {
       vi.useRealTimers();
@@ -222,19 +222,21 @@ describe(useDeploymentFlow.name, () => {
 
     act(() => result.current.actions.cancelAndEdit());
 
-    expect(result.current.phase).toBe("closing");
+    expect(result.current.phase).toBe("configuring");
     const url = replace.mock.calls.at(-1)?.[0] as string;
     expect(url.startsWith("/new-deployment/configure?")).toBe(true);
     expect(url).not.toContain("/configure/777");
   });
 
-  it("enters the closing phase while the close mutation is in flight", () => {
+  it("returns to configuring immediately while the close is still in flight, so the form is editable at once", () => {
     const closeMutate = vi.fn();
     const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
 
     act(() => result.current.actions.cancelAndEdit());
 
-    expect(result.current.phase).toBe("closing");
+    expect(result.current.phase).toBe("configuring");
+    expect(result.current.dseq).toBeNull();
+    expect(closeMutate).toHaveBeenCalledWith({ dseq: "777" }, expect.any(Object));
   });
 
   it("setBidStrategy mirrors the new strategy to the URL", () => {
@@ -456,9 +458,8 @@ describe(useDeploymentFlow.name, () => {
     expect(result.current.deployError).toBeUndefined();
   });
 
-  it("clears selections when the deployment is closed so a re-quote cannot reuse stale bids", () => {
+  it("clears selections the moment cancel starts, so a re-quote cannot reuse stale bids", () => {
     const closeDeployment = mockMutation();
-    closeDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({}));
     const { result } = renderFlow({ closeDeployment, intent: { dseq: "555" } });
 
     act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
@@ -624,23 +625,22 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.closeAndFail("no match"));
 
       expect(result.current.phase).toBe("error");
-      expect(result.current.dseq).toBe("777");
+      expect(result.current.pendingClose).toEqual({ dseq: "777", failed: false });
     });
 
-    it("waits in closing when a retry lands while the close is in flight, then hands the form back without a second close", () => {
+    it("hands the form back at once when a retry lands while the close is in flight, without a second close", () => {
       const closeMutate = vi.fn();
       const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate });
 
       act(() => result.current.actions.closeAndFail("no match"));
       act(() => result.current.actions.cancelAndEdit());
-      expect(result.current.phase).toBe("closing");
-      expect(result.current.dseq).toBe("777");
+      expect(result.current.phase).toBe("configuring");
+      expect(result.current.dseq).toBeNull();
 
       act(() => closeMutate.mock.calls[0][1].onSuccess({}));
 
       expect(closeMutate).toHaveBeenCalledTimes(1);
-      expect(result.current.phase).toBe("configuring");
-      expect(result.current.dseq).toBeNull();
+      expect(result.current.pendingClose).toBeNull();
     });
 
     it("does not broadcast a second close while a failed close is still being verified", () => {
@@ -652,7 +652,7 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.cancelAndEdit());
 
       expect(closeMutate).toHaveBeenCalledTimes(1);
-      expect(result.current.phase).toBe("closing");
+      expect(result.current.phase).toBe("configuring");
     });
 
     it("hands the form back once a failed close is verified gone, even when a retry landed mid-verification", () => {
@@ -668,7 +668,7 @@ describe(useDeploymentFlow.name, () => {
       expect(result.current.dseq).toBeNull();
     });
 
-    it("surfaces the close failure instead of forgetting a deployment verified still open after a retry landed mid-verification", () => {
+    it("keeps a deployment verified still open after a retry landed mid-verification, so the next cancel closes it", () => {
       const closeMutate = vi.fn((_args, { onError }) => onError(new Error("close failed")));
       const getDeploymentMutate = vi.fn();
       const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate, getDeploymentMutate });
@@ -677,9 +677,8 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.cancelAndEdit());
       act(() => getDeploymentMutate.mock.calls[0][1].onSuccess({ data: { deployment: { state: "active" } } }));
 
-      expect(result.current.phase).toBe("error");
-      expect(result.current.error?.kind).toBe("close");
-      expect(result.current.dseq).toBe("777");
+      expect(result.current.phase).toBe("configuring");
+      expect(result.current.pendingClose).toMatchObject({ dseq: "777", failed: true });
 
       act(() => result.current.actions.cancelAndEdit());
 
@@ -693,14 +692,14 @@ describe(useDeploymentFlow.name, () => {
 
       act(() => result.current.actions.closeAndFail("no match"));
       act(() => result.current.actions.requestQuotes("sdl"));
-      act(() => closeMutate.mock.calls[1][1].onSuccess({}));
+      act(() => closeMutate.mock.calls[0][1].onSuccess({}));
       expect(result.current.dseq).toBe("888");
+
       act(() => result.current.actions.closeAndFail("no match"));
       act(() => closeMutate.mock.calls[0][1].onSuccess({}));
-      act(() => result.current.actions.cancelAndEdit());
 
-      expect(closeMutate).toHaveBeenCalledTimes(3);
-      expect(result.current.phase).toBe("closing");
+      expect(closeMutate).toHaveBeenCalledTimes(2);
+      expect(result.current.pendingClose).toEqual({ dseq: "888", failed: false });
     });
 
     it("drops the dseq from the URL so a reload cannot resume the abandoned deployment", () => {
@@ -730,8 +729,8 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.closeAndFail("no match"));
 
       expect(result.current.phase).toBe("error");
-      expect(result.current.error?.kind).toBe("close");
-      expect(result.current.dseq).toBe("777");
+      expect(result.current.error?.kind).toBe("no-match");
+      expect(result.current.pendingClose).toMatchObject({ dseq: "777", failed: true });
     });
 
     it("clears the abandoned deployment when its failed close is verified already closed", () => {
@@ -958,7 +957,8 @@ describe(useDeploymentFlow.name, () => {
 
       expect(result.current.phase).toBe("error");
       expect(result.current.error?.kind).toBe("close");
-      expect(result.current.dseq).toBe("777");
+      expect(result.current.dseq).toBeNull();
+      expect(result.current.pendingClose).toEqual(expect.objectContaining({ dseq: "777", failed: true }));
       expect(createMutate).not.toHaveBeenCalled();
     });
 
@@ -972,6 +972,7 @@ describe(useDeploymentFlow.name, () => {
       expect(result.current.phase).toBe("configuring");
       expect(result.current.error).toBeUndefined();
       expect(result.current.dseq).toBeNull();
+      expect(result.current.pendingClose).toBeNull();
     });
 
     it("returns to configuring without error when a failed close verifies as a 404", () => {
@@ -984,18 +985,19 @@ describe(useDeploymentFlow.name, () => {
       expect(result.current.phase).toBe("configuring");
       expect(result.current.error).toBeUndefined();
       expect(result.current.dseq).toBeNull();
+      expect(result.current.pendingClose).toBeNull();
     });
 
-    it("keeps the deployment editable in error when a failed close is verified still open", () => {
+    it("surfaces a failed background close as a retryable notice rather than an error scene", () => {
       const closeMutate = vi.fn((_args, options) => options.onError?.(new Error("close boom")));
       const getDeploymentMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { deployment: { state: "active" } } }));
       const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, getDeploymentMutate });
 
       act(() => result.current.actions.cancelAndEdit());
 
-      expect(result.current.phase).toBe("error");
-      expect(result.current.error?.kind).toBe("close");
-      expect(result.current.dseq).toBe("777");
+      expect(result.current.phase).toBe("configuring");
+      expect(result.current.error).toBeUndefined();
+      expect(result.current.pendingClose).toEqual(expect.objectContaining({ dseq: "777", failed: true }));
     });
 
     it("tracks close_deployment_failed with the verified outcome on a failed close", () => {
@@ -1008,7 +1010,7 @@ describe(useDeploymentFlow.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith("close_deployment_failed", { category: "deployments", dseq: "777", verifiedClosed: true });
     });
 
-    it("does not spawn a deployment when cancelled while the pre-create close is still in flight", () => {
+    it("drops the queued create when cancelled while the pre-create close is still in flight", () => {
       const closeCallbacks: Array<(result: unknown) => void> = [];
       const closeMutate = vi.fn((_args, options) => closeCallbacks.push(options.onSuccess));
       const createMutate = vi.fn();
@@ -1019,17 +1021,17 @@ describe(useDeploymentFlow.name, () => {
       expect(closeMutate).toHaveBeenCalledTimes(1);
 
       act(() => result.current.actions.cancelAndEdit());
-      expect(result.current.phase).toBe("closing");
+      expect(result.current.phase).toBe("configuring");
+      expect(closeMutate).toHaveBeenCalledTimes(1);
 
       act(() => closeCallbacks[0]?.({}));
-      expect(createMutate).not.toHaveBeenCalled();
 
-      act(() => closeCallbacks[1]?.({}));
+      expect(createMutate).not.toHaveBeenCalled();
       expect(result.current.phase).toBe("configuring");
       expect(result.current.dseq).toBeNull();
     });
 
-    it("drops a stale pre-create close verification instead of clobbering a cancelled-and-reconfigured session", () => {
+    it("surfaces a background close failure as a notice instead of clobbering a cancelled-and-reconfigured session", () => {
       const closeCalls: Array<{ onSuccess?: (result: unknown) => void; onError?: (cause: unknown) => void }> = [];
       const closeMutate = vi.fn((_args, options) => closeCalls.push(options));
       const verifyCalls: Array<(result: { data: { deployment: { state: string } } }) => void> = [];
@@ -1041,13 +1043,197 @@ describe(useDeploymentFlow.name, () => {
       expect(result.current.phase).toBe("creating");
 
       act(() => result.current.actions.cancelAndEdit());
-      act(() => closeCalls[1]?.onSuccess?.({}));
       expect(result.current.phase).toBe("configuring");
 
       act(() => verifyCalls[0]?.({ data: { deployment: { state: "active" } } }));
 
       expect(result.current.phase).toBe("configuring");
       expect(result.current.error).toBeUndefined();
+      expect(result.current.pendingClose).toEqual(expect.objectContaining({ dseq: "777", failed: true }));
+    });
+
+    it("clears a prior error when cancelling, so a stale failure does not follow the user into editing", () => {
+      const createMutate = vi.fn((_args, options) => options.onError?.(new Error("create boom")));
+      const { result } = setup({ createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      expect(result.current.phase).toBe("error");
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(result.current.phase).toBe("configuring");
+      expect(result.current.error).toBeUndefined();
+    });
+
+    it("does not track cancel_during_create when the create is still queued behind a close, since none was sent", () => {
+      const closeMutate = vi.fn();
+      const createMutate = vi.fn();
+      const { result, analyticsService } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      expect(result.current.phase).toBe("creating");
+      expect(createMutate).not.toHaveBeenCalled();
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(analyticsService.track).not.toHaveBeenCalledWith("cancel_during_create", { category: "deployments" });
+    });
+
+    it("reports the retried close as still settling, so the warning does not vanish into apparent success", () => {
+      const closeCalls: Array<{ onError?: (cause: unknown) => void }> = [];
+      const closeMutate = vi.fn((_args, options) => closeCalls.push(options));
+      const getDeploymentMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { deployment: { state: "active" } } }));
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, getDeploymentMutate });
+
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => closeCalls[0]?.onError?.(new Error("close boom")));
+      expect(result.current.pendingClose?.failed).toBe(true);
+
+      act(() => result.current.actions.retryClose());
+
+      expect(result.current.pendingClose).toEqual({ dseq: "777", failed: false });
+    });
+
+    it("does not track cancel_during_create when cancelling a deployment that already exists", () => {
+      const closeMutate = vi.fn();
+      const { result, analyticsService } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(analyticsService.track).not.toHaveBeenCalledWith("cancel_during_create", { category: "deployments" });
+    });
+
+    it("reports the close still settling so the form can flag it without blocking", () => {
+      const closeMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(result.current.pendingClose).toEqual({ dseq: "777", failed: false });
+    });
+
+    it("clears the pending close once it settles", () => {
+      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({}));
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(result.current.pendingClose).toBeNull();
+    });
+
+    it("queues a requested create behind the in-flight background close instead of opening a second deployment", () => {
+      const closeCallbacks: Array<(result: unknown) => void> = [];
+      const closeMutate = vi.fn((_args, options) => closeCallbacks.push(options.onSuccess));
+      const createMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { dseq: "1000", manifest: "m" } }));
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, createMutate });
+
+      act(() => result.current.actions.cancelAndEdit());
+      expect(result.current.phase).toBe("configuring");
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      expect(createMutate).not.toHaveBeenCalled();
+      expect(result.current.phase).toBe("creating");
+
+      act(() => closeCallbacks[0]?.({}));
+
+      expect(closeMutate).toHaveBeenCalledTimes(1);
+      expect(createMutate).toHaveBeenCalledTimes(1);
+      expect(result.current.dseq).toBe("1000");
+      expect(result.current.phase).toBe("quoting");
+    });
+
+    it("closes the deployment before creating, so two are never open at once", () => {
+      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({}));
+      const createMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { dseq: "1000", manifest: "m" } }));
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+
+      expect(closeMutate.mock.invocationCallOrder[0]).toBeLessThan(createMutate.mock.invocationCallOrder[0]);
+    });
+
+    it("skips the create and surfaces a close error when the close it was queued behind verifies still open", () => {
+      const closeCalls: Array<{ onError?: (cause: unknown) => void }> = [];
+      const closeMutate = vi.fn((_args, options) => closeCalls.push(options));
+      const getDeploymentMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { deployment: { state: "active" } } }));
+      const createMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, getDeploymentMutate, createMutate });
+
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => result.current.actions.requestQuotes("sdl"));
+      act(() => closeCalls[0]?.onError?.(new Error("close boom")));
+
+      expect(createMutate).not.toHaveBeenCalled();
+      expect(result.current.phase).toBe("error");
+      expect(result.current.error?.kind).toBe("close");
+      expect(result.current.pendingClose).toEqual(expect.objectContaining({ dseq: "777", failed: true }));
+    });
+
+    it("closes a deployment a previous close left open before creating a new one", () => {
+      const closeCalls: Array<{ onSuccess?: (result: unknown) => void; onError?: (cause: unknown) => void }> = [];
+      const closeMutate = vi.fn((_args, options) => closeCalls.push(options));
+      const getDeploymentMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { deployment: { state: "active" } } }));
+      const createMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { dseq: "1000", manifest: "m" } }));
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, getDeploymentMutate, createMutate });
+
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => closeCalls[0]?.onError?.(new Error("close boom")));
+      expect(result.current.pendingClose).toEqual(expect.objectContaining({ dseq: "777", failed: true }));
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      expect(createMutate).not.toHaveBeenCalled();
+
+      act(() => closeCalls[1]?.onSuccess?.({}));
+
+      expect(closeCalls).toHaveLength(2);
+      expect(closeMutate).toHaveBeenLastCalledWith({ dseq: "777" }, expect.any(Object));
+      expect(createMutate).toHaveBeenCalledTimes(1);
+      expect(result.current.dseq).toBe("1000");
+    });
+
+    it("retryClose re-closes a deployment a background close left open", () => {
+      const closeMutate = vi.fn((_args, options) => options.onError?.(new Error("close boom")));
+      const getDeploymentMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { deployment: { state: "active" } } }));
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, getDeploymentMutate });
+
+      act(() => result.current.actions.cancelAndEdit());
+      expect(result.current.pendingClose?.failed).toBe(true);
+
+      act(() => result.current.actions.retryClose());
+
+      expect(closeMutate).toHaveBeenCalledTimes(2);
+      expect(closeMutate).toHaveBeenLastCalledWith({ dseq: "777" }, expect.any(Object));
+    });
+
+    it("ignores retryClose while a close is already in flight", () => {
+      const closeMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
+
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => result.current.actions.retryClose());
+
+      expect(closeMutate).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not fire a second close when cancel is pressed while one is already settling", () => {
+      const closeMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
+
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(closeMutate).toHaveBeenCalledTimes(1);
+    });
+
+    it("refreshes the balance and deployment lists once the background close lands, so the freed deposit shows up", () => {
+      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({}));
+      const { result, queryClient } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: QueryKeys.getBalancesKey("akash1owner") });
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: QueryKeys.getDeploymentListKey("akash1owner") });
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: QueryKeys.getDeploymentsPageKeyPrefix("akash1owner") });
     });
   });
 
@@ -1059,6 +1245,7 @@ describe(useDeploymentFlow.name, () => {
     getDeploymentMutate?: ReturnType<typeof vi.fn>;
   }) {
     const intent = { vm: false, ...(input.intent ?? { sdlStrategy: "edit" as const, bidStrategy: "select" as const, dseq: undefined }) };
+    const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
     const createDeployment = mockMutation(input.createMutate);
     const closeDeployment = mockMutation(input.closeMutate);
     const getDeployment = mockMutation(input.getDeploymentMutate);
@@ -1067,11 +1254,18 @@ describe(useDeploymentFlow.name, () => {
       useServices: (() => services) as never,
       useListBids: (() => ({ data: { data: [] }, isLoading: false, isError: false })) as never,
       useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: (input.replace ?? vi.fn()) as never })) as never,
-      useQueryClient: (() => mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>()) as never,
+      useQueryClient: (() => queryClient) as never,
       manifestFromSdl: () => "manifest",
       deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 })
     };
-    return { ...renderDeploymentFlow(intent, dependencies), analyticsService: services.analyticsService, createDeployment, closeDeployment, getDeployment };
+    return {
+      ...renderDeploymentFlow(intent, dependencies),
+      analyticsService: services.analyticsService,
+      queryClient,
+      createDeployment,
+      closeDeployment,
+      getDeployment
+    };
   }
 
   function renderFlow(input?: {

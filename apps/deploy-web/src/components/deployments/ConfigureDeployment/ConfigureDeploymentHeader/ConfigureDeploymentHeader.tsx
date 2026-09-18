@@ -67,8 +67,6 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
    * moment the timer elapses. While any open bid remains the user can still deploy.
    */
   const hasOpenBids = !!cost;
-  /** Closing (after Close and Edit) reuses the disabled loading CTA, but labelled to match the action in flight. */
-  const isClosing = flow.phase === "closing";
 
   /**
    * Request quotes runs the zod form validation first, then regenerates the SDL from the values
@@ -150,9 +148,9 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
             {hasDeployError ? "Retry" : "Deploy"}
           </Button>
         ) : (
-          <Button type="button" disabled aria-label={isClosing ? "Cancelling" : "Requesting"} className="h-9 shrink-0 gap-2 px-3 md:h-10 md:px-8">
+          <Button type="button" disabled aria-label="Requesting" className="h-9 shrink-0 gap-2 px-3 md:h-10 md:px-8">
             <LoaderCircle className="h-4 w-4 animate-spin text-current" aria-hidden="true" />
-            <span>{isClosing ? "Cancelling…" : "Requesting…"}</span>
+            <span>Requesting…</span>
           </Button>
         )}
       </div>

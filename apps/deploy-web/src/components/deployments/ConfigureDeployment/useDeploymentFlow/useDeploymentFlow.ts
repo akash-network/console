@@ -16,7 +16,10 @@ import { WALLET_PROVISIONING_ERROR_CODE, walletProvisioningRetry } from "@src/ut
 import { aggregateDeploymentResources } from "../DeploymentResourceSummary/deploymentResources";
 import type { BidStrategy, DeploymentIntent } from "./deploymentIntent";
 
-export type DeploymentFlowPhase = "configuring" | "creating" | "quoting" | "closing" | "deploying" | "error";
+export type DeploymentFlowPhase = "configuring" | "creating" | "quoting" | "deploying" | "error";
+
+/** A close still settling after a cancel; `failed` marks one verified still open, which the next create must close first. */
+export type PendingClose = { dseq: string; failed: boolean; message?: string };
 
 /** Which toast the form shows. A close failure reads differently from a failed quote request, and a refusal the user can pay their way out of needs an Add Funds action rather than an apology. */
 export type FlowErrorKind = "create" | "close" | "no-providers" | "needs-funds" | "no-match";
@@ -39,6 +42,8 @@ export interface DeploymentFlowState {
   deploySucceeded: boolean;
   deployError?: { message?: string };
   error?: { message?: string; kind?: FlowErrorKind };
+  /** The cancelled deployment closing in the background. Orthogonal to `phase`: the form stays editable throughout. */
+  pendingClose: PendingClose | null;
 }
 
 export interface DeploymentFlowActions {
@@ -48,6 +53,8 @@ export interface DeploymentFlowActions {
   cancelAndEdit: () => void;
   /** Ends the attempt in `error` and closes the deployment so its deposit is released; a human uses `cancelAndEdit`. */
   closeAndFail: (message: string) => void;
+  /** Re-closes a deployment a background close left open. No-op while a close is in flight. */
+  retryClose: () => void;
   setBidStrategy: (strategy: BidStrategy) => void;
   refreshQuotes: () => void;
   retry: () => void;
@@ -130,6 +137,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const [manifest, setManifest] = useState<string | null>(null);
   const [deployError, setDeployError] = useState<{ message?: string } | undefined>(undefined);
   const [deploySucceeded, setDeploySucceeded] = useState(false);
+  const [pendingClose, setPendingClose] = useState<PendingClose | null>(null);
 
   const intentRef = useRef(intent);
   intentRef.current = intent;
@@ -138,16 +146,21 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const bidStrategyRef = useRef(bidStrategy);
   bidStrategyRef.current = bidStrategy;
 
-  /** Read when an abandoned close settles, to tell a retry parked in `closing` from an attempt still showing its error. */
-  const phaseRef = useRef(phase);
-  phaseRef.current = phase;
-
   /**
    * Bumped on every requestQuotes and every cancel, so any create from a superseded attempt is treated as stale: one
    * not yet started (still behind a pre-create close) is skipped in `create()`, and one already in flight has its late
    * success auto-close the just-created deployment instead of resuming.
    */
   const createAttemptRef = useRef(0);
+
+  /** The dseq of the close in flight. Read synchronously so a create can never overlap one and open a second deployment. */
+  const closingDseqRef = useRef<string | null>(null);
+
+  /** The create waiting on that close, run once the deployment is verified gone and dropped when it is not. */
+  const queuedCreateRef = useRef<(() => void) | null>(null);
+
+  /** Pins a close's outcome to the close that started it, so a superseded one can never settle a newer session. */
+  const closeTokenRef = useRef(0);
 
   /** Held in a ref so the no-providers timeout calls the latest `cancelAndEdit` without re-arming the timer each render. */
   const cancelAndEditRef = useRef<() => void>();
@@ -218,9 +231,6 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     [phase, hasOpenBids]
   );
 
-  /** The dseq `closeAndFail` already has a close in flight for, so a "Try again" in that window never broadcasts a second one. */
-  const pendingCloseDseqRef = useRef<string | null>(null);
-
   /** Everything tied to the deployment that just went away. The caller decides where the flow lands afterwards. */
   const clearDeploymentState = useCallback(function clearDeploymentState() {
     setDseq(null);
@@ -230,44 +240,62 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     setDeploySucceeded(false);
   }, []);
 
-  /** The success teardown for a user-initiated cancel: the same clear, then back to the editable form. */
-  const finishClose = useCallback(
-    function finishClose() {
+  /** Leaves `pendingClose` alone, because the close it tracks outlives the reset that hands the form back. */
+  const resetToConfiguring = useCallback(
+    function resetToConfiguring() {
       clearDeploymentState();
+      setError(undefined);
       setPhase("configuring");
     },
     [clearDeploymentState]
   );
 
-  /** A retry that landed while the close was still settling waits in `closing`, so the settled close hands the form back itself. */
-  const finishAbandonedClose = useCallback(
-    function finishAbandonedClose() {
-      if (phaseRef.current === "closing") finishClose();
-      else clearDeploymentState();
+  /** Guarded on the settings id because `getBalancesKey(undefined)` is the empty key, which would invalidate every query. */
+  const invalidateClosedDeploymentCaches = useCallback(
+    function invalidateClosedDeploymentCaches() {
+      if (!settingsId) return;
+      queryClient.invalidateQueries({ queryKey: QueryKeys.getBalancesKey(settingsId) });
+      queryClient.invalidateQueries({ queryKey: QueryKeys.getDeploymentListKey(settingsId) });
+      queryClient.invalidateQueries({ queryKey: QueryKeys.getDeploymentsPageKeyPrefix(settingsId) });
     },
-    [finishClose, clearDeploymentState]
+    [queryClient, settingsId]
+  );
+
+  /** A failure only becomes an error scene when a create was queued behind it, so a purely background one leaves the phase alone. */
+  const settleClose = useCallback(
+    function settleClose(closedDseq: string, token: number, verifiedClosed: boolean, cause?: unknown) {
+      if (token !== closeTokenRef.current) return;
+      closingDseqRef.current = null;
+      const queuedCreate = queuedCreateRef.current;
+      queuedCreateRef.current = null;
+
+      if (verifiedClosed) {
+        setPendingClose(null);
+        invalidateClosedDeploymentCaches();
+        queuedCreate?.();
+        return;
+      }
+
+      const message = extractApiErrorMessage(cause) ?? undefined;
+      setPendingClose({ dseq: closedDseq, failed: true, message });
+      if (!queuedCreate) return;
+      setError({ message, kind: "close" });
+      setPhase("error");
+    },
+    [invalidateClosedDeploymentCaches]
   );
 
   /**
-   * Settles an ambiguous close failure with a single live-chain read. tx-signer stops polling (~36s) only after the tx
-   * TTL (30s) has expired, so a reported failure is often a false negative and one refetch is decisive: no indexer lag,
-   * and no window left for the tx to still land. A closed deployment or a 404 means it is gone, so the caller's success
-   * path runs; anything else is a real failure, surfaced as a close error with the deployment left editable. The read is
-   * async, so `attempt` pins it to its originating flow: a cancel or re-quote that superseded it drops the settle rather
-   * than clobbering the newer session back into an error.
+   * tx-signer stops polling (~36s) only after the tx TTL (30s) expires, so a reported failure is often a false negative
+   * and one live read is decisive. `token` must not be the create-attempt counter: a re-quote after the cancel would bump
+   * that counter and drop the very outcome the queued create waits on.
    */
   const verifyCloseOutcome = useCallback(
-    function verifyCloseOutcome(dseqToVerify: string, cause: unknown, attempt: number, onActuallyClosed: () => void) {
+    function verifyCloseOutcome(dseqToVerify: string, token: number, cause: unknown) {
       function settle(verifiedClosed: boolean) {
-        if (pendingCloseDseqRef.current === dseqToVerify) pendingCloseDseqRef.current = null;
-        if (attempt !== createAttemptRef.current) return;
+        if (token !== closeTokenRef.current) return;
         analyticsService.track("close_deployment_failed", { category: "deployments", dseq: dseqToVerify, verifiedClosed });
-        if (verifiedClosed) {
-          onActuallyClosed();
-          return;
-        }
-        setError({ message: extractApiErrorMessage(cause) ?? undefined, kind: "close" });
-        setPhase("error");
+        settleClose(dseqToVerify, token, verifiedClosed, cause);
       }
       getDeployment.mutate(
         { dseq: dseqToVerify },
@@ -281,13 +309,37 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         }
       );
     },
-    [getDeployment, analyticsService]
+    [getDeployment, analyticsService, settleClose]
   );
+
+  /** The only close path, so one mutex and one queue cover both a cancel's background close and a pre-create close. */
+  const startClose = useCallback(
+    function startClose(dseqToClose: string) {
+      const token = ++closeTokenRef.current;
+      closingDseqRef.current = dseqToClose;
+      setPendingClose({ dseq: dseqToClose, failed: false });
+      closeDeployment.mutate(
+        { dseq: dseqToClose },
+        {
+          onSuccess: function onClosed() {
+            settleClose(dseqToClose, token, true);
+          },
+          onError: function onCloseFailed(cause: unknown) {
+            verifyCloseOutcome(dseqToClose, token, cause);
+          }
+        }
+      );
+    },
+    [closeDeployment, settleClose, verifyCloseOutcome]
+  );
+
+  /** A deployment this session opened that is known to be still open with no close in flight: the next create closes it first. */
+  const strandedDseq = pendingClose?.failed ? pendingClose.dseq : null;
 
   /**
    * Caches the SDL under the settings id + dseq at create time (the create response omits `owner`) so an in-progress
-   * deployment can resume into the flow after a reload, under the same key the detail page reads. When a previous
-   * deployment is still open (a prior close failed), it is closed first so the single-open-deployment invariant holds.
+   * deployment can resume after a reload. A still-open deployment is closed first and a create fired mid-close waits on
+   * it rather than racing it, so only one deployment is ever open.
    */
   const requestQuotes = useCallback(
     function requestQuotes(sdl: string, name?: string) {
@@ -337,89 +389,71 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         );
       }
 
-      if (dseq) {
+      const openDseq = dseq ?? strandedDseq;
+      if (openDseq) {
         setPhase("creating");
-        closeDeployment.mutate(
-          { dseq },
-          {
-            onSuccess: function onPriorClosed() {
-              setDseq(null);
-              create();
-            },
-            onError: function onPriorCloseFailed(cause: unknown) {
-              verifyCloseOutcome(dseq, cause, attempt, function createAfterVerifiedClose() {
-                setDseq(null);
-                create();
-              });
-            }
-          }
-        );
+        setDseq(null);
+        queuedCreateRef.current = create;
+        startClose(openDseq);
+        return;
+      }
+
+      if (closingDseqRef.current) {
+        setPhase("creating");
+        queuedCreateRef.current = create;
         return;
       }
 
       create();
     },
-    [createDeployment, closeDeployment, dseq, router, deploymentLocalStorage, settingsId, analyticsService, verifyCloseOutcome]
+    [createDeployment, closeDeployment, dseq, strandedDseq, router, deploymentLocalStorage, settingsId, analyticsService, startClose]
   );
 
-  /** Drops the dseq from the URL immediately, not on close-success, so a returning user never sees the abandoned deployment while the close is in flight. */
+  /**
+   * The dseq leaves the URL on the same tick, so a returning user never sees the abandoned deployment. Falls back to
+   * `strandedDseq` rather than any pending dseq so a second press cannot broadcast a duplicate close for one settling.
+   */
   const cancelAndEdit = useCallback(
     function cancelAndEdit() {
       router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategy), undefined, { shallow: true });
-      setError(undefined);
-      if (dseq && pendingCloseDseqRef.current === dseq) {
-        setPhase("closing");
-        return;
-      }
       createAttemptRef.current += 1;
-      if (!dseq) {
-        if (phase === "creating") analyticsService.track("cancel_during_create", { category: "deployments" });
-        setPhase("configuring");
-        return;
-      }
-      setPhase("closing");
-      const attempt = createAttemptRef.current;
-      closeDeployment.mutate(
-        { dseq },
-        {
-          onSuccess: finishClose,
-          onError: function onCloseFailed(cause: unknown) {
-            verifyCloseOutcome(dseq, cause, attempt, finishClose);
-          }
-        }
-      );
+      queuedCreateRef.current = null;
+      const dseqToClose = dseq ?? strandedDseq;
+      const isCreateOutstanding = phase === "creating" && !closingDseqRef.current;
+      if (!dseqToClose && isCreateOutstanding) analyticsService.track("cancel_during_create", { category: "deployments" });
+      resetToConfiguring();
+      if (dseqToClose) startClose(dseqToClose);
     },
-    [closeDeployment, dseq, phase, router, bidStrategy, analyticsService, createDeployment, finishClose, verifyCloseOutcome]
+    [dseq, strandedDseq, phase, router, bidStrategy, analyticsService, resetToConfiguring, startClose]
   );
-  /** Lands in `error`, never `configuring`: the auto flow creates a fresh deployment the instant it reads `configuring`. */
+  /**
+   * Lands in `error`, never `configuring`: the auto flow creates a fresh deployment the instant it reads `configuring`.
+   * Clearing the dseq up front is what stops a retry in the close's window from broadcasting a second one, since every
+   * other close path falls back to `strandedDseq`, which only names a deployment whose close already came back open.
+   */
   const closeAndFail = useCallback(
     function closeAndFail(message: string) {
-      const attempt = ++createAttemptRef.current;
+      createAttemptRef.current += 1;
+      queuedCreateRef.current = null;
       router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategyRef.current), undefined, { shallow: true });
+      const dseqToClose = dseq ?? strandedDseq;
+      clearDeploymentState();
       setError({ message, kind: "no-match" });
       setPhase("error");
-      if (!dseq) return;
-
-      const abandonedDseq = dseq;
-      pendingCloseDseqRef.current = abandonedDseq;
-      closeDeployment.mutate(
-        { dseq: abandonedDseq },
-        {
-          onSuccess: function onAbandonedClosed() {
-            if (pendingCloseDseqRef.current === abandonedDseq) pendingCloseDseqRef.current = null;
-            if (attempt !== createAttemptRef.current) return;
-            finishAbandonedClose();
-          },
-          onError: function onAbandonedCloseFailed(cause: unknown) {
-            verifyCloseOutcome(abandonedDseq, cause, attempt, finishAbandonedClose);
-          }
-        }
-      );
+      if (dseqToClose) startClose(dseqToClose);
     },
-    [closeDeployment, dseq, router, finishAbandonedClose, verifyCloseOutcome]
+    [dseq, strandedDseq, router, clearDeploymentState, startClose]
   );
 
   cancelAndEditRef.current = cancelAndEdit;
+
+  const retryClose = useCallback(
+    function retryClose() {
+      if (!strandedDseq) return;
+      startClose(strandedDseq);
+    },
+    [strandedDseq, startClose]
+  );
 
   const setBidStrategy = useCallback(
     function setBidStrategy(strategy: BidStrategy) {
@@ -531,7 +565,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     deploySucceeded,
     deployError,
     error,
-    actions: { requestQuotes, cancelAndEdit, closeAndFail, setBidStrategy, refreshQuotes, retry, selectProvider, clearSelection, deploy }
+    pendingClose,
+    actions: { requestQuotes, cancelAndEdit, closeAndFail, retryClose, setBidStrategy, refreshQuotes, retry, selectProvider, clearSelection, deploy }
   };
 }
 

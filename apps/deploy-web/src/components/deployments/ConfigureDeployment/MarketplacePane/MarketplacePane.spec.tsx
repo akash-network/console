@@ -54,8 +54,8 @@ describe(MarketplacePane.name, () => {
     expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ isSelectable: true }), expect.anything());
   });
 
-  it("blocks provider selection while the deployment is being cancelled", () => {
-    const { MarketplaceProvidersTable } = setup({ phase: "closing", offers: [buildOffer()] });
+  it("blocks provider selection while the deployment is being created", () => {
+    const { MarketplaceProvidersTable } = setup({ phase: "creating", offers: [buildOffer()] });
 
     expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ isSelectable: false }), expect.anything());
   });

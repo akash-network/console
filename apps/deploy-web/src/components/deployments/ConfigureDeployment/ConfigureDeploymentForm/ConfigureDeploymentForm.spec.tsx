@@ -503,6 +503,13 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(ConfigureDeploymentHeader).toHaveBeenCalledWith(expect.objectContaining({ deploymentName: "" }), expect.anything());
   });
 
+  it("threads a failed background close and its retry into the panes", () => {
+    const pendingClose = { dseq: "777", failed: true };
+    const { ConfigureDeploymentPanes, flow } = setup({ initialSdl: undefined, pendingClose });
+
+    expect(ConfigureDeploymentPanes).toHaveBeenCalledWith(expect.objectContaining({ pendingClose, onRetryClose: flow.actions.retryClose }), expect.anything());
+  });
+
   function setup(input: {
     initialSdl: string | undefined;
     initialName?: string;
@@ -514,6 +521,7 @@ describe(ConfigureDeploymentForm.name, () => {
     flowError?: { message?: string; kind?: FlowErrorKind };
     vm?: boolean;
     phase?: DeploymentFlow["phase"];
+    pendingClose?: DeploymentFlow["pendingClose"];
   }) {
     const ConfigureDeploymentPanes = vi.fn(
       input.Panes ?? (({ configurationActions }: ProbePanesProps) => <div data-testid="panes-mock">{configurationActions}</div>)
@@ -562,6 +570,7 @@ describe(ConfigureDeploymentForm.name, () => {
       selections: {},
       deploySucceeded: input.deploySucceeded ?? false,
       error: input.flowError,
+      pendingClose: input.pendingClose ?? null,
       actions: mock<DeploymentFlow["actions"]>({ requestQuotes })
     });
     const analyticsService = mock<AnalyticsService>();

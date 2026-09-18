@@ -180,9 +180,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
           const key = enqueueSnackbar(
             <d.Snackbar
               title="Add funds to continue"
-              subTitle={
-                <d.AddCreditsSnackbarContent message={flow.error.message} context="configure_quotes_needs_funds" onAction={() => closeSnackbar(key)} />
-              }
+              subTitle={<d.AddCreditsSnackbarContent message={flow.error.message} context="configure_quotes_needs_funds" onAction={() => closeSnackbar(key)} />}
               iconVariant="warning"
             />,
             { variant: "warning", autoHideDuration: NEEDS_FUNDS_TOAST_DURATION_MS }
@@ -301,6 +299,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
               selections={flow.selections}
               onSelectProvider={selectProviderAndAdvance}
               onCancelAndEdit={flow.actions.cancelAndEdit}
+              pendingClose={flow.pendingClose}
+              onRetryClose={flow.actions.retryClose}
               deploymentName={deploymentName}
               onDeploymentNameChange={setDeploymentName}
               configurationActions={<d.SdlImportExport sdl={liveSdl} deploymentName={deploymentName} canImport={isEditable} onImport={applyImportedState} />}
