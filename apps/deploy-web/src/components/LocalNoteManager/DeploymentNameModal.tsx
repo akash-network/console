@@ -4,12 +4,14 @@ import { useForm } from "react-hook-form";
 import { Form, FormField, FormInput, Popup, Snackbar } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
 
 import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/config/deploy.config";
 import { useServices } from "@src/context/ServicesProvider";
 import { useResolvedDeploymentName } from "@src/hooks/useResolvedDeploymentName/useResolvedDeploymentName";
+import { settingsIdAtom } from "@src/store/settingsStore";
 
 export const DEPENDENCIES = { useSnackbar, useQueryClient, useResolvedDeploymentName };
 
@@ -30,6 +32,8 @@ export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, d
   const { enqueueSnackbar } = d.useSnackbar();
   const queryClient = d.useQueryClient();
   const resolvedName = d.useResolvedDeploymentName(dseq ? String(dseq) : null);
+  /** Read from the store rather than `useWallet`, since this dialog mounts outside the wallet provider and would resolve no address there at all. */
+  const owner = useAtomValue(settingsIdAtom);
   const renameDeployment = api.v1.patchDeployment.useMutation();
   const form = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
@@ -41,6 +45,8 @@ export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, d
   const isEdited = formState.isDirty;
   /** One modal instance serves every deployment, so a name typed for one must never be carried into another's field. */
   const seededDseqRef = useRef<string | null>(null);
+  /** `isPending` only turns true once the mutation starts, leaving a resubmit free to pass while the backfill being preempted is still settling. */
+  const isRenamingRef = useRef(false);
 
   useEffect(
     function seedFromTheNameOnShow() {
@@ -64,10 +70,12 @@ export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, d
   };
 
   async function onSubmit({ name }: z.infer<typeof formSchema>) {
-    if (!dseq || renameDeployment.isPending) return;
+    if (!dseq || isRenamingRef.current || renameDeployment.isPending) return;
+
+    isRenamingRef.current = true;
     const renamedDseq = String(dseq);
 
-    await deploymentNameBackfill.preempt(renamedDseq);
+    if (owner) await deploymentNameBackfill.preempt(owner, renamedDseq);
 
     renameDeployment.mutate(
       { dseq: renamedDseq, data: { name } },
@@ -81,6 +89,9 @@ export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, d
         },
         onError: function reportRenameFailure() {
           enqueueSnackbar(<Snackbar title="Couldn't rename this deployment" iconVariant="error" />, { variant: "error" });
+        },
+        onSettled: function allowAnotherRename() {
+          isRenamingRef.current = false;
         }
       }
     );

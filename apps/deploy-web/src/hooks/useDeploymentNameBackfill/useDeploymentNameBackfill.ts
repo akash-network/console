@@ -42,7 +42,7 @@ export function useDeploymentNameBackfill(apiNames: ReadonlyArray<ApiDeploymentN
 
         if (!name) continue;
 
-        deploymentNameBackfill.enqueue(dseq, () =>
+        deploymentNameBackfill.enqueue(address, dseq, () =>
           recordName({ dseq, data: { name } })
             .then(function refreshEverySurfaceShowingTheName() {
               queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq }) });

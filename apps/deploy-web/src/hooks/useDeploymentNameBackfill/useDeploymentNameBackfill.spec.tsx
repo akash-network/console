@@ -84,6 +84,12 @@ describe(useDeploymentNameBackfill.name, () => {
     expect(enqueue).toHaveBeenCalledTimes(1);
   });
 
+  it("hands the backfill the wallet the name belongs to, since the same dseq recurs under another", async () => {
+    const { enqueue } = setup({ apiNames: [answered("100", null)], localNames: { "100": "local-name" } });
+
+    await vi.waitFor(() => expect(enqueue).toHaveBeenCalledExactlyOnceWith("akash1test", "100", expect.any(Function)));
+  });
+
   it("asks the api to record one name at a time", async () => {
     const { patchDeployment } = setup({
       apiNames: [answered("100", null), answered("200", null)],

@@ -2,12 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 
 import { DeploymentNameBackfillService } from "./deployment-name-backfill.service";
 
+const OWNER = "akash1owner";
+const OTHER_OWNER = "akash1other";
+
 describe(DeploymentNameBackfillService.name, () => {
   it("backfills a deployment as soon as it is enqueued", async () => {
     const { service, backfill } = setup();
     const only = backfill();
 
-    service.enqueue("100", only.run);
+    service.enqueue(OWNER, "100", only.run);
 
     await vi.waitFor(() => expect(only.run).toHaveBeenCalled());
   });
@@ -17,8 +20,8 @@ describe(DeploymentNameBackfillService.name, () => {
     const first = backfill();
     const second = backfill();
 
-    service.enqueue("100", first.run);
-    service.enqueue("200", second.run);
+    service.enqueue(OWNER, "100", first.run);
+    service.enqueue(OWNER, "200", second.run);
 
     await vi.waitFor(() => expect(first.run).toHaveBeenCalled());
     expect(second.run).not.toHaveBeenCalled();
@@ -33,8 +36,8 @@ describe(DeploymentNameBackfillService.name, () => {
     const first = backfill();
     const repeat = backfill();
 
-    service.enqueue("100", first.run);
-    service.enqueue("100", repeat.run);
+    service.enqueue(OWNER, "100", first.run);
+    service.enqueue(OWNER, "100", repeat.run);
 
     expect(repeat.run).not.toHaveBeenCalled();
   });
@@ -44,10 +47,10 @@ describe(DeploymentNameBackfillService.name, () => {
     const first = backfill();
     const repeat = backfill();
 
-    service.enqueue("100", first.run);
+    service.enqueue(OWNER, "100", first.run);
     first.finish();
     await flush();
-    service.enqueue("100", repeat.run);
+    service.enqueue(OWNER, "100", repeat.run);
 
     expect(repeat.run).not.toHaveBeenCalled();
   });
@@ -57,8 +60,8 @@ describe(DeploymentNameBackfillService.name, () => {
     const failing = backfill();
     const next = backfill();
 
-    service.enqueue("100", failing.run);
-    service.enqueue("200", next.run);
+    service.enqueue(OWNER, "100", failing.run);
+    service.enqueue(OWNER, "200", next.run);
     failing.fail();
 
     await vi.waitFor(() => expect(next.run).toHaveBeenCalled());
@@ -69,10 +72,10 @@ describe(DeploymentNameBackfillService.name, () => {
     const failing = backfill();
     const retry = backfill();
 
-    service.enqueue("100", failing.run);
+    service.enqueue(OWNER, "100", failing.run);
     failing.fail();
     await flush();
-    service.enqueue("100", retry.run);
+    service.enqueue(OWNER, "100", retry.run);
 
     expect(retry.run).not.toHaveBeenCalled();
   });
@@ -82,9 +85,9 @@ describe(DeploymentNameBackfillService.name, () => {
     const inFlight = backfill();
     const queued = backfill();
 
-    service.enqueue("100", inFlight.run);
-    service.enqueue("200", queued.run);
-    await service.preempt("200");
+    service.enqueue(OWNER, "100", inFlight.run);
+    service.enqueue(OWNER, "200", queued.run);
+    await service.preempt(OWNER, "200");
     inFlight.finish();
     await flush();
 
@@ -94,10 +97,10 @@ describe(DeploymentNameBackfillService.name, () => {
   it("holds a rename until the backfill already writing that deployment's name settled", async () => {
     const { service, backfill, flush } = setup();
     const inFlight = backfill();
-    service.enqueue("100", inFlight.run);
+    service.enqueue(OWNER, "100", inFlight.run);
     const preempted = vi.fn();
 
-    const waiting = service.preempt("100").then(preempted);
+    const waiting = service.preempt(OWNER, "100").then(preempted);
     await flush();
     expect(preempted).not.toHaveBeenCalled();
 
@@ -110,9 +113,9 @@ describe(DeploymentNameBackfillService.name, () => {
   it("releases a rename whose backfill failed, so it is not held on a write that will never land", async () => {
     const { service, backfill } = setup();
     const failing = backfill();
-    service.enqueue("100", failing.run);
+    service.enqueue(OWNER, "100", failing.run);
 
-    const preempted = service.preempt("100");
+    const preempted = service.preempt(OWNER, "100");
     failing.fail();
 
     await expect(preempted).resolves.toBeUndefined();
@@ -121,17 +124,40 @@ describe(DeploymentNameBackfillService.name, () => {
   it("renames a deployment no backfill is writing without waiting on an unrelated one", async () => {
     const { service, backfill } = setup();
     const unrelated = backfill();
-    service.enqueue("100", unrelated.run);
+    service.enqueue(OWNER, "100", unrelated.run);
 
-    await expect(service.preempt("200")).resolves.toBeUndefined();
+    await expect(service.preempt(OWNER, "200")).resolves.toBeUndefined();
+  });
+
+  it("backfills another wallet's deployment of the same number, which is a different deployment", async () => {
+    const { service, backfill, flush } = setup();
+    const first = backfill();
+    const sameNumberElsewhere = backfill();
+
+    service.enqueue(OWNER, "100", first.run);
+    first.finish();
+    await flush();
+    service.enqueue(OTHER_OWNER, "100", sameNumberElsewhere.run);
+
+    await vi.waitFor(() => expect(sameNumberElsewhere.run).toHaveBeenCalled());
+  });
+
+  it("leaves another wallet's deployment of the same number eligible after a rename", async () => {
+    const { service, backfill } = setup();
+    const sameNumberElsewhere = backfill();
+
+    await service.preempt(OWNER, "100");
+    service.enqueue(OTHER_OWNER, "100", sameNumberElsewhere.run);
+
+    await vi.waitFor(() => expect(sameNumberElsewhere.run).toHaveBeenCalled());
   });
 
   it("leaves a renamed deployment alone when a later answer asks for its backfill", async () => {
     const { service, backfill } = setup();
     const late = backfill();
 
-    await service.preempt("100");
-    service.enqueue("100", late.run);
+    await service.preempt(OWNER, "100");
+    service.enqueue(OWNER, "100", late.run);
 
     expect(late.run).not.toHaveBeenCalled();
   });
