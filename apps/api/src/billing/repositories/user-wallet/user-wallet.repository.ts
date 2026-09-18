@@ -1,6 +1,6 @@
 import { Trace } from "@akashnetwork/instrumentation";
 import subDays from "date-fns/subDays";
-import { and, count, eq, gt, inArray, isNotNull, isNull, lte, ne, notExists, or, sql } from "drizzle-orm";
+import { and, asc, count, eq, gt, inArray, isNotNull, isNull, lte, ne, notExists, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { StripeTransactions } from "@src/billing/model-schemas";
@@ -28,6 +28,12 @@ export type WalletInitialized = Omit<UserWalletOutput, "address"> & { address: s
 
 export function isWalletInitialized(wallet: UserWalletOutput): wallet is WalletInitialized {
   return !!wallet.address;
+}
+
+/** All a sweep needs to close a deployment on a wallet's behalf: the address it owns on chain and the index the signer derives it from. */
+export interface ManagedWalletRef {
+  id: UserWalletOutput["id"];
+  address: string;
 }
 
 export interface TrialWindow {
@@ -241,6 +247,30 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     if (addresses.length === 0) return [];
 
     return this.toOutputList(await this.cursor.query.UserWallets.findMany({ where: this.whereAccessibleBy(inArray(this.table.address, addresses)) }));
+  }
+
+  /**
+   * Keyset-paged on the primary key so each batch stays an index scan, and projected down to what a close needs, because
+   * a sweep reads every managed wallet to learn which handful of them own an orphan.
+   */
+  async *findManagedIteratively({ batchSize }: { batchSize: number }): AsyncGenerator<ManagedWalletRef[]> {
+    let cursor: number | undefined;
+
+    while (true) {
+      const batch = await this.cursor
+        .select({ id: this.table.id, address: this.table.address })
+        .from(this.table)
+        .where(this.whereAccessibleBy(and(isNotNull(this.table.address), ...(cursor === undefined ? [] : [gt(this.table.id, cursor)]))))
+        .orderBy(asc(this.table.id))
+        .limit(batchSize);
+
+      if (!batch.length) return;
+
+      yield batch as ManagedWalletRef[];
+
+      if (batch.length < batchSize) return;
+      cursor = batch[batch.length - 1].id;
+    }
   }
 
   async findFirst() {

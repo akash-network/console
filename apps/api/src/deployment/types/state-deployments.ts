@@ -1,3 +1,3 @@
-import type { ConcurrencyOptions } from "@src/core/types/console";
+import type { ConcurrencyOptions, DryRunOptions } from "@src/core/types/console";
 
-export interface CleanUpStaleDeploymentsParams extends ConcurrencyOptions {}
+export interface CleanUpStaleDeploymentsParams extends ConcurrencyOptions, DryRunOptions {}
