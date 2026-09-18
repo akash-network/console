@@ -45,12 +45,14 @@ export class ProviderProxy {
     }
 
     return new Promise<ProxyConnectionResult>((resolve, reject) => {
-      let selfDestroyed = false;
+      let proxyTermination: DialTermination | undefined;
       const { agentCacheKey, ...requestOptions } = this.getRequestOptions(options);
       const req = https.request(
         url,
         requestOptions,
         propagateTracingContext(async (res: IncomingMessage) => {
+          proxyTermination ??= "providerAnswered";
+
           try {
             res.on(
               "error",
@@ -93,7 +95,6 @@ export class ProviderProxy {
                 this.#agentsCache.delete(agentCacheKey);
                 resolve({ ok: false, code: "invalidCertificate", reason: validationResult.code });
                 req.off("error", reject);
-                selfDestroyed = true;
                 res.destroy();
                 req.destroy();
                 if (requestOptions.agent) this.#tornDownAgents.add(requestOptions.agent);
@@ -115,7 +116,7 @@ export class ProviderProxy {
         options.signal.addEventListener(
           "abort",
           () => {
-            selfDestroyed = true;
+            proxyTermination ??= "clientAborted";
             req.destroy();
           },
           { once: true }
@@ -126,14 +127,12 @@ export class ProviderProxy {
         req.on(
           "error",
           propagateTracingContext(error => {
-            const destroyedByProxy = selfDestroyed || (requestOptions.agent !== undefined && this.#tornDownAgents.has(requestOptions.agent));
+            const tornDownAgent = requestOptions.agent !== undefined && this.#tornDownAgents.has(requestOptions.agent);
+            const termination = proxyTermination ?? (tornDownAgent ? "agentTornDown" : undefined);
 
-            if (destroyedByProxy) return resolve({ ok: false, code: "connectionError", error });
-
-            const errno = toErrno(error);
-            this.recordUnreachable(trackerKey, error, errno);
-
-            if (this.isRepeatedFailure(trackerKey, errno)) return resolve({ ok: false, code: "connectionError", error, repeatedFailure: true });
+            if (this.recordDialFailure(trackerKey, error, termination)) {
+              return resolve({ ok: false, code: "connectionError", error, repeatedFailure: true });
+            }
 
             resolve({ ok: false, code: "connectionError", error });
           })
@@ -141,7 +140,7 @@ export class ProviderProxy {
         req.on(
           "timeout",
           propagateTracingContext(() => {
-            selfDestroyed = true;
+            proxyTermination ??= "attemptTimedOut";
             req.destroy();
           })
         );
@@ -167,12 +166,21 @@ export class ProviderProxy {
     if (trackerKey) this.#connectionTracker?.recordReachable(trackerKey);
   }
 
-  private recordUnreachable(trackerKey: string | undefined, error: unknown, errno: string | undefined): void {
-    if (trackerKey) this.#connectionTracker?.recordUnreachable(trackerKey, error, errno);
-  }
+  /** Of the dials the proxy kills itself only a timed-out one says anything about the host, so the rest are recorded as nothing at all. */
+  private recordDialFailure(trackerKey: string | undefined, error: unknown, termination: DialTermination | undefined): boolean {
+    if (!trackerKey || !this.#connectionTracker) return false;
 
-  private isRepeatedFailure(trackerKey: string | undefined, errno: string | undefined): boolean {
-    return !!trackerKey && !!this.#connectionTracker?.isRepeatedFailure(trackerKey, errno);
+    if (termination === "attemptTimedOut") {
+      this.#connectionTracker.recordUnresponsive(trackerKey, error);
+      return this.#connectionTracker.hasRepeatedFailures(trackerKey);
+    }
+
+    if (termination) return false;
+
+    const errno = toErrno(error);
+    this.#connectionTracker.recordUnreachable(trackerKey, error, errno);
+
+    return this.#connectionTracker.isRepeatedFailure(trackerKey, errno);
   }
 
   private getRequestOptions(options: ProxyConnectOptions) {
@@ -219,6 +227,9 @@ export class ProviderProxy {
     return this.#agentsCache.get(key)!;
   }
 }
+
+/** providerAnswered is recorded first so that anything killing the dial afterwards, a slow certificate validation timing out most of all, cannot be read back as the host having failed to answer. */
+type DialTermination = "providerAnswered" | "clientAborted" | "attemptTimedOut" | "agentTornDown";
 
 export interface ProxyConnectOptions {
   method: string;

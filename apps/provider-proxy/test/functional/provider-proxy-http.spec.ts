@@ -501,6 +501,31 @@ describe("Provider HTTP proxy", () => {
     expect(dials).toBe(2);
   });
 
+  it("stops re-dialing a provider that accepts the connection and never answers", async () => {
+    const providerAddress = generateBech32();
+    const validCertPair = await createX509CertPair({ commonName: providerAddress });
+    let dials = 0;
+
+    const { providerUrl } = await startProviderServer({
+      certPair: validCertPair,
+      handlers: {
+        "/never-answers"() {
+          dials += 1;
+        }
+      }
+    });
+    const chainServer = await startChainApiServer([validCertPair.cert]);
+    await startServer({ REST_API_NODE_URL: chainServer.url });
+
+    const response = await request("/", {
+      method: "POST",
+      body: JSON.stringify({ method: "GET", url: `${providerUrl}/never-answers`, providerAddress, timeout: 500 })
+    });
+
+    expect(response.status).toBe(502);
+    expect(dials).toBe(2);
+  });
+
   it("responds with 502 if provider host hangs up connection", async () => {
     const providerAddress = generateBech32();
     const validCertPair = await createX509CertPair({

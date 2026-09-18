@@ -1,7 +1,7 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import { LRUCache } from "lru-cache";
 
-/** ECONNRESET is listed only because ProviderProxy never reports a destroy it caused itself (its own per-attempt timeouts, client aborts and shared-agent teardowns all surface as ECONNRESET too). */
+/** ECONNRESET is safe to list only because ProviderProxy never routes a destroy it caused itself here: client aborts and shared-agent teardowns go unreported, and its own per-attempt timeouts go to recordUnresponsive. */
 const UNREACHABLE_ERRNOS = ["EHOSTUNREACH", "ENETUNREACH", "ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "ECONNRESET"];
 
 function isUnreachableErrno(errno: string | undefined): errno is string {
@@ -30,6 +30,7 @@ export interface ProviderConnectionTrackerInstrumentation {
 
 interface ProviderConnectionState {
   consecutiveFailures: number;
+  consecutiveTimeouts: number;
   cooldownUntil: number;
   lastError: unknown;
 }
@@ -67,15 +68,19 @@ export class ProviderConnectionTracker {
 
   /** Another dial now would only repeat the failure just recorded, so callers stop retrying instead. */
   isRepeatedFailure(key: string, errno: string | undefined): boolean {
-    return isUnreachableErrno(errno) && (this.states.get(key)?.consecutiveFailures ?? 0) > 1;
+    return isUnreachableErrno(errno) && this.hasRepeatedFailures(key);
+  }
+
+  hasRepeatedFailures(key: string): boolean {
+    const state = this.states.get(key);
+    return !!state && state.consecutiveFailures + state.consecutiveTimeouts > 1;
   }
 
   recordUnreachable(key: string, error: unknown, errno: string | undefined): void {
     if (!isUnreachableErrno(errno)) return;
 
-    const state = this.states.get(key) ?? { consecutiveFailures: 0, cooldownUntil: 0, lastError: error };
+    const state = this.toFailingState(key, error);
     state.consecutiveFailures += 1;
-    state.lastError = error;
 
     if (state.consecutiveFailures >= this.options.failureThreshold) {
       state.cooldownUntil = this.now() + this.cooldownMsAfter(state.consecutiveFailures);
@@ -83,6 +88,19 @@ export class ProviderConnectionTracker {
     }
 
     this.states.set(key, state);
+  }
+
+  /** Counted apart from unreachable errors because only those may arm a cooldown, and a provider that answers late must never be 502ed for running out of time. */
+  recordUnresponsive(key: string, error: unknown): void {
+    const state = this.toFailingState(key, error);
+    state.consecutiveTimeouts += 1;
+    this.states.set(key, state);
+  }
+
+  private toFailingState(key: string, error: unknown): ProviderConnectionState {
+    const state = this.states.get(key) ?? { consecutiveFailures: 0, consecutiveTimeouts: 0, cooldownUntil: 0, lastError: error };
+    state.lastError = error;
+    return state;
   }
 
   /** Doubling each window keeps a provider that has been dark for days from costing a dial every minute. */
