@@ -625,23 +625,22 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.closeAndFail("no match"));
 
       expect(result.current.phase).toBe("error");
-      expect(result.current.dseq).toBe("777");
+      expect(result.current.pendingClose).toEqual({ dseq: "777", failed: false });
     });
 
-    it("waits in closing when a retry lands while the close is in flight, then hands the form back without a second close", () => {
+    it("hands the form back at once when a retry lands while the close is in flight, without a second close", () => {
       const closeMutate = vi.fn();
       const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate });
 
       act(() => result.current.actions.closeAndFail("no match"));
       act(() => result.current.actions.cancelAndEdit());
-      expect(result.current.phase).toBe("closing");
-      expect(result.current.dseq).toBe("777");
+      expect(result.current.phase).toBe("configuring");
+      expect(result.current.dseq).toBeNull();
 
       act(() => closeMutate.mock.calls[0][1].onSuccess({}));
 
       expect(closeMutate).toHaveBeenCalledTimes(1);
-      expect(result.current.phase).toBe("configuring");
-      expect(result.current.dseq).toBeNull();
+      expect(result.current.pendingClose).toBeNull();
     });
 
     it("does not broadcast a second close while a failed close is still being verified", () => {
@@ -653,7 +652,7 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.cancelAndEdit());
 
       expect(closeMutate).toHaveBeenCalledTimes(1);
-      expect(result.current.phase).toBe("closing");
+      expect(result.current.phase).toBe("configuring");
     });
 
     it("hands the form back once a failed close is verified gone, even when a retry landed mid-verification", () => {
@@ -669,7 +668,7 @@ describe(useDeploymentFlow.name, () => {
       expect(result.current.dseq).toBeNull();
     });
 
-    it("surfaces the close failure instead of forgetting a deployment verified still open after a retry landed mid-verification", () => {
+    it("keeps a deployment verified still open after a retry landed mid-verification, so the next cancel closes it", () => {
       const closeMutate = vi.fn((_args, { onError }) => onError(new Error("close failed")));
       const getDeploymentMutate = vi.fn();
       const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate, getDeploymentMutate });
@@ -678,9 +677,8 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.cancelAndEdit());
       act(() => getDeploymentMutate.mock.calls[0][1].onSuccess({ data: { deployment: { state: "active" } } }));
 
-      expect(result.current.phase).toBe("error");
-      expect(result.current.error?.kind).toBe("close");
-      expect(result.current.dseq).toBe("777");
+      expect(result.current.phase).toBe("configuring");
+      expect(result.current.pendingClose).toMatchObject({ dseq: "777", failed: true });
 
       act(() => result.current.actions.cancelAndEdit());
 
@@ -694,14 +692,14 @@ describe(useDeploymentFlow.name, () => {
 
       act(() => result.current.actions.closeAndFail("no match"));
       act(() => result.current.actions.requestQuotes("sdl"));
-      act(() => closeMutate.mock.calls[1][1].onSuccess({}));
+      act(() => closeMutate.mock.calls[0][1].onSuccess({}));
       expect(result.current.dseq).toBe("888");
+
       act(() => result.current.actions.closeAndFail("no match"));
       act(() => closeMutate.mock.calls[0][1].onSuccess({}));
-      act(() => result.current.actions.cancelAndEdit());
 
-      expect(closeMutate).toHaveBeenCalledTimes(3);
-      expect(result.current.phase).toBe("closing");
+      expect(closeMutate).toHaveBeenCalledTimes(2);
+      expect(result.current.pendingClose).toEqual({ dseq: "888", failed: false });
     });
 
     it("drops the dseq from the URL so a reload cannot resume the abandoned deployment", () => {
@@ -731,8 +729,8 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.closeAndFail("no match"));
 
       expect(result.current.phase).toBe("error");
-      expect(result.current.error?.kind).toBe("close");
-      expect(result.current.dseq).toBe("777");
+      expect(result.current.error?.kind).toBe("no-match");
+      expect(result.current.pendingClose).toMatchObject({ dseq: "777", failed: true });
     });
 
     it("clears the abandoned deployment when its failed close is verified already closed", () => {
