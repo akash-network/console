@@ -156,6 +156,26 @@ describe(ProviderConnectionTracker.name, () => {
     expect(tracker.shouldSkipDial("provider-a")).toBe(false);
   });
 
+  it("keeps timed-out dials out of the count that arms a cooldown", () => {
+    const { tracker, fail, hang } = setup({ failureThreshold: 3 });
+
+    hang("provider-a");
+    hang("provider-a");
+    fail("provider-a");
+
+    expect(tracker.shouldSkipDial("provider-a")).toBe(false);
+  });
+
+  it("arms a cooldown on the threshold of unreachable errors even after timed-out dials", () => {
+    const { tracker, fail, hang } = setup({ failureThreshold: 2 });
+
+    hang("provider-a");
+    fail("provider-a");
+    fail("provider-a");
+
+    expect(tracker.shouldSkipDial("provider-a")).toBe(true);
+  });
+
   it("forgets timed-out dials once the provider answers", () => {
     const { tracker, hang } = setup({ failureThreshold: 3 });
 

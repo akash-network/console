@@ -30,6 +30,7 @@ export interface ProviderConnectionTrackerInstrumentation {
 
 interface ProviderConnectionState {
   consecutiveFailures: number;
+  consecutiveTimeouts: number;
   cooldownUntil: number;
   lastError: unknown;
 }
@@ -71,13 +72,15 @@ export class ProviderConnectionTracker {
   }
 
   hasRepeatedFailures(key: string): boolean {
-    return (this.states.get(key)?.consecutiveFailures ?? 0) > 1;
+    const state = this.states.get(key);
+    return !!state && state.consecutiveFailures + state.consecutiveTimeouts > 1;
   }
 
   recordUnreachable(key: string, error: unknown, errno: string | undefined): void {
     if (!isUnreachableErrno(errno)) return;
 
-    const state = this.toFailedState(key, error);
+    const state = this.toFailingState(key, error);
+    state.consecutiveFailures += 1;
 
     if (state.consecutiveFailures >= this.options.failureThreshold) {
       state.cooldownUntil = this.now() + this.cooldownMsAfter(state.consecutiveFailures);
@@ -87,14 +90,15 @@ export class ProviderConnectionTracker {
     this.states.set(key, state);
   }
 
-  /** A dial that ran out of time proves the host did not answer this one, not that it is down, so it never arms a cooldown that would 502 a merely slow provider. */
+  /** Counted apart from unreachable errors because only those may arm a cooldown, and a provider that answers late must never be 502ed for running out of time. */
   recordUnresponsive(key: string, error: unknown): void {
-    this.states.set(key, this.toFailedState(key, error));
+    const state = this.toFailingState(key, error);
+    state.consecutiveTimeouts += 1;
+    this.states.set(key, state);
   }
 
-  private toFailedState(key: string, error: unknown): ProviderConnectionState {
-    const state = this.states.get(key) ?? { consecutiveFailures: 0, cooldownUntil: 0, lastError: error };
-    state.consecutiveFailures += 1;
+  private toFailingState(key: string, error: unknown): ProviderConnectionState {
+    const state = this.states.get(key) ?? { consecutiveFailures: 0, consecutiveTimeouts: 0, cooldownUntil: 0, lastError: error };
     state.lastError = error;
     return state;
   }
