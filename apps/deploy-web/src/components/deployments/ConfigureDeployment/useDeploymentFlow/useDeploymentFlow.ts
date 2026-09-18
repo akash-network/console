@@ -19,7 +19,7 @@ import type { BidStrategy, DeploymentIntent } from "./deploymentIntent";
 export type DeploymentFlowPhase = "configuring" | "creating" | "quoting" | "closing" | "deploying" | "error";
 
 /** Which toast the form shows. A close failure reads differently from a failed quote request, and a refusal the user can pay their way out of needs an Add Funds action rather than an apology. */
-export type FlowErrorKind = "create" | "close" | "no-providers" | "needs-funds";
+export type FlowErrorKind = "create" | "close" | "no-providers" | "needs-funds" | "no-match";
 
 /** The live bids the flow polls while quoting (react-query-backed). Element shape derived from the shared `listBids` query. */
 export type DeploymentBids = NonNullable<ReturnType<typeof useListBids>["data"]>["data"];
@@ -46,6 +46,8 @@ export interface DeploymentFlowActions {
    * form values so the request can never lag behind an in-flight edit. */
   requestQuotes: (sdl: string, name?: string) => void;
   cancelAndEdit: () => void;
+  /** Ends the attempt in `error` and closes the deployment so its deposit is released; a human uses `cancelAndEdit`. */
+  closeAndFail: (message: string) => void;
   setBidStrategy: (strategy: BidStrategy) => void;
   refreshQuotes: () => void;
   retry: () => void;
@@ -78,6 +80,15 @@ const NO_BIDS_TIMEOUT_MS = 60 * 1000;
 
 /** Error surfaced when a deployment draws no provider bids at all within {@link NO_BIDS_TIMEOUT_MS}. */
 const NO_PROVIDERS_MESSAGE = "No providers are available for this deployment right now. Try adjusting your deployment and requesting quotes again.";
+
+/** An `active` bid is one this deployment already holds the lease on — exactly what a resumed selection points at. */
+const LIVE_BID_STATES = new Set(["open", "active"]);
+
+/** Surfaced when the SDL on screen can't be turned into a provider manifest at deploy time. */
+const MANIFEST_BUILD_MESSAGE = "We couldn't prepare this deployment's manifest. Check your SDL and try again.";
+
+/** Surfaced when deploy is reached with nothing selected — the manual CTA is disabled for that, an autopilot is not. */
+const NO_SELECTION_MESSAGE = "No provider is selected for this deployment.";
 
 /** Surfaced when the create-deployment retry budget is exhausted while the trial wallet is still provisioning server-side. */
 const WALLET_PROVISIONING_TIMEOUT_MESSAGE =
@@ -127,6 +138,10 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const bidStrategyRef = useRef(bidStrategy);
   bidStrategyRef.current = bidStrategy;
 
+  /** Read when an abandoned close settles, to tell a retry parked in `closing` from an attempt still showing its error. */
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
+
   /**
    * Bumped on every requestQuotes and every cancel, so any create from a superseded attempt is treated as stale: one
    * not yet started (still behind a pre-create close) is skipped in `create()`, and one already in flight has its late
@@ -150,9 +165,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     function pruneStaleSelections() {
       const bids = bidsQuery.data?.data;
       if (!bids || bids.length === 0) return;
-      const openBidIds = new Set(bids.filter(entry => entry.bid.state === "open").map(entry => formatBidId(entry.bid.id)));
-      setSelections(function dropClosedSelections(previous) {
-        const survivors = Object.entries(previous).filter(([, bidId]) => openBidIds.has(bidId));
+      const liveBidIds = new Set(bids.filter(entry => LIVE_BID_STATES.has(entry.bid.state)).map(entry => formatBidId(entry.bid.id)));
+      setSelections(function dropDeadSelections(previous) {
+        const survivors = Object.entries(previous).filter(([, bidId]) => liveBidIds.has(bidId));
         return survivors.length === Object.keys(previous).length ? previous : Object.fromEntries(survivors);
       });
     },
@@ -203,15 +218,35 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     [phase, hasOpenBids]
   );
 
-  /** The success teardown, shared by a clean close and by a close whose failure verified the deployment is actually gone. */
-  const finishClose = useCallback(function finishClose() {
+  /** The dseq `closeAndFail` already has a close in flight for, so a "Try again" in that window never broadcasts a second one. */
+  const pendingCloseDseqRef = useRef<string | null>(null);
+
+  /** Everything tied to the deployment that just went away. The caller decides where the flow lands afterwards. */
+  const clearDeploymentState = useCallback(function clearDeploymentState() {
     setDseq(null);
     setSelections({});
     setManifest(null);
     setDeployError(undefined);
     setDeploySucceeded(false);
-    setPhase("configuring");
   }, []);
+
+  /** The success teardown for a user-initiated cancel: the same clear, then back to the editable form. */
+  const finishClose = useCallback(
+    function finishClose() {
+      clearDeploymentState();
+      setPhase("configuring");
+    },
+    [clearDeploymentState]
+  );
+
+  /** A retry that landed while the close was still settling waits in `closing`, so the settled close hands the form back itself. */
+  const finishAbandonedClose = useCallback(
+    function finishAbandonedClose() {
+      if (phaseRef.current === "closing") finishClose();
+      else clearDeploymentState();
+    },
+    [finishClose, clearDeploymentState]
+  );
 
   /**
    * Settles an ambiguous close failure with a single live-chain read. tx-signer stops polling (~36s) only after the tx
@@ -224,6 +259,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const verifyCloseOutcome = useCallback(
     function verifyCloseOutcome(dseqToVerify: string, cause: unknown, attempt: number, onActuallyClosed: () => void) {
       function settle(verifiedClosed: boolean) {
+        if (pendingCloseDseqRef.current === dseqToVerify) pendingCloseDseqRef.current = null;
         if (attempt !== createAttemptRef.current) return;
         analyticsService.track("close_deployment_failed", { category: "deployments", dseq: dseqToVerify, verifiedClosed });
         if (verifiedClosed) {
@@ -330,15 +366,18 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const cancelAndEdit = useCallback(
     function cancelAndEdit() {
       router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategy), undefined, { shallow: true });
+      setError(undefined);
+      if (dseq && pendingCloseDseqRef.current === dseq) {
+        setPhase("closing");
+        return;
+      }
       createAttemptRef.current += 1;
       if (!dseq) {
         if (phase === "creating") analyticsService.track("cancel_during_create", { category: "deployments" });
-        setError(undefined);
         setPhase("configuring");
         return;
       }
       setPhase("closing");
-      setError(undefined);
       const attempt = createAttemptRef.current;
       closeDeployment.mutate(
         { dseq },
@@ -352,6 +391,34 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     },
     [closeDeployment, dseq, phase, router, bidStrategy, analyticsService, createDeployment, finishClose, verifyCloseOutcome]
   );
+  /** Lands in `error`, never `configuring`: the auto flow creates a fresh deployment the instant it reads `configuring`. */
+  const closeAndFail = useCallback(
+    function closeAndFail(message: string) {
+      const attempt = ++createAttemptRef.current;
+      router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategyRef.current), undefined, { shallow: true });
+      setError({ message, kind: "no-match" });
+      setPhase("error");
+      if (!dseq) return;
+
+      const abandonedDseq = dseq;
+      pendingCloseDseqRef.current = abandonedDseq;
+      closeDeployment.mutate(
+        { dseq: abandonedDseq },
+        {
+          onSuccess: function onAbandonedClosed() {
+            if (pendingCloseDseqRef.current === abandonedDseq) pendingCloseDseqRef.current = null;
+            if (attempt !== createAttemptRef.current) return;
+            finishAbandonedClose();
+          },
+          onError: function onAbandonedCloseFailed(cause: unknown) {
+            verifyCloseOutcome(abandonedDseq, cause, attempt, finishAbandonedClose);
+          }
+        }
+      );
+    },
+    [closeDeployment, dseq, router, finishAbandonedClose, verifyCloseOutcome]
+  );
+
   cancelAndEditRef.current = cancelAndEdit;
 
   const setBidStrategy = useCallback(
@@ -397,10 +464,17 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
    */
   const deploy = useCallback(
     function deploy(sdl: string) {
+      if (!dseq) return;
       const nextManifest = dependencies.manifestFromSdl(sdl);
-      if (!dseq || !nextManifest) return;
       const leases = Object.values(selections).map(parseBidId);
-      if (leases.length === 0) return;
+      if (!nextManifest) {
+        setDeployError({ message: MANIFEST_BUILD_MESSAGE });
+        return;
+      }
+      if (leases.length === 0) {
+        setDeployError({ message: NO_SELECTION_MESSAGE });
+        return;
+      }
       const activeDseq = dseq;
       const activeManifest = nextManifest;
       const resources = dependencies.deploymentResourcesFromSdl(sdl);
@@ -457,7 +531,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     deploySucceeded,
     deployError,
     error,
-    actions: { requestQuotes, cancelAndEdit, setBidStrategy, refreshQuotes, retry, selectProvider, clearSelection, deploy }
+    actions: { requestQuotes, cancelAndEdit, closeAndFail, setBidStrategy, refreshQuotes, retry, selectProvider, clearSelection, deploy }
   };
 }
 

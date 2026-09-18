@@ -593,6 +593,198 @@ describe(useDeploymentFlow.name, () => {
     expect(result.current.selections).toEqual({ "placement-1": "akash1a/555/1/3" });
   });
 
+  it("keeps a selection whose bid has gone active, which is this deployment's own lease", async () => {
+    const { result } = renderFlow({
+      intent: { dseq: "555" },
+      listBids: [{ bid: { state: "active", price: { amount: "1", denom: "uakt" }, id: { provider: "akash1a", dseq: "555", gseq: 1, oseq: 3 } } }]
+    });
+
+    act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+
+    await waitFor(() => expect(result.current.selections).toEqual({ "placement-1": "akash1a/555/1/3" }));
+  });
+
+  describe("abandoning an attempt", () => {
+    it("closes the deployment and halts in error", async () => {
+      const closeMutate = vi.fn((_args, { onSuccess }) => onSuccess({}));
+      const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate });
+
+      act(() => result.current.actions.closeAndFail("no match"));
+
+      await waitFor(() => expect(result.current.dseq).toBeNull());
+      expect(result.current.phase).toBe("error");
+      expect(result.current.error).toEqual({ message: "no match", kind: "no-match" });
+      expect(closeMutate).toHaveBeenCalledWith({ dseq: "777" }, expect.any(Object));
+    });
+
+    it("halts in error before the close resolves, so the caller stops driving immediately", () => {
+      const closeMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate });
+
+      act(() => result.current.actions.closeAndFail("no match"));
+
+      expect(result.current.phase).toBe("error");
+      expect(result.current.dseq).toBe("777");
+    });
+
+    it("waits in closing when a retry lands while the close is in flight, then hands the form back without a second close", () => {
+      const closeMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate });
+
+      act(() => result.current.actions.closeAndFail("no match"));
+      act(() => result.current.actions.cancelAndEdit());
+      expect(result.current.phase).toBe("closing");
+      expect(result.current.dseq).toBe("777");
+
+      act(() => closeMutate.mock.calls[0][1].onSuccess({}));
+
+      expect(closeMutate).toHaveBeenCalledTimes(1);
+      expect(result.current.phase).toBe("configuring");
+      expect(result.current.dseq).toBeNull();
+    });
+
+    it("does not broadcast a second close while a failed close is still being verified", () => {
+      const closeMutate = vi.fn((_args, { onError }) => onError(new Error("close failed")));
+      const getDeploymentMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate, getDeploymentMutate });
+
+      act(() => result.current.actions.closeAndFail("no match"));
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(closeMutate).toHaveBeenCalledTimes(1);
+      expect(result.current.phase).toBe("closing");
+    });
+
+    it("hands the form back once a failed close is verified gone, even when a retry landed mid-verification", () => {
+      const closeMutate = vi.fn((_args, { onError }) => onError(new Error("close failed")));
+      const getDeploymentMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate, getDeploymentMutate });
+
+      act(() => result.current.actions.closeAndFail("no match"));
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => getDeploymentMutate.mock.calls[0][1].onSuccess({ data: { deployment: { state: "closed" } } }));
+
+      expect(result.current.phase).toBe("configuring");
+      expect(result.current.dseq).toBeNull();
+    });
+
+    it("surfaces the close failure instead of forgetting a deployment verified still open after a retry landed mid-verification", () => {
+      const closeMutate = vi.fn((_args, { onError }) => onError(new Error("close failed")));
+      const getDeploymentMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate, getDeploymentMutate });
+
+      act(() => result.current.actions.closeAndFail("no match"));
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => getDeploymentMutate.mock.calls[0][1].onSuccess({ data: { deployment: { state: "active" } } }));
+
+      expect(result.current.phase).toBe("error");
+      expect(result.current.error?.kind).toBe("close");
+      expect(result.current.dseq).toBe("777");
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(closeMutate).toHaveBeenCalledTimes(2);
+    });
+
+    it("leaves a newer deployment's pending close alone when an older close settles late", () => {
+      const closeMutate = vi.fn();
+      const createMutate = vi.fn((_args, options) => options.onSuccess({ data: { dseq: "888", manifest: "manifest" } }));
+      const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate, createMutate });
+
+      act(() => result.current.actions.closeAndFail("no match"));
+      act(() => result.current.actions.requestQuotes("sdl"));
+      act(() => closeMutate.mock.calls[1][1].onSuccess({}));
+      expect(result.current.dseq).toBe("888");
+      act(() => result.current.actions.closeAndFail("no match"));
+      act(() => closeMutate.mock.calls[0][1].onSuccess({}));
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(closeMutate).toHaveBeenCalledTimes(3);
+      expect(result.current.phase).toBe("closing");
+    });
+
+    it("drops the dseq from the URL so a reload cannot resume the abandoned deployment", () => {
+      const replace = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777", templateId: "tpl" }, replace, closeMutate: vi.fn() });
+
+      act(() => result.current.actions.closeAndFail("no match"));
+
+      expect(replace.mock.calls.at(-1)?.[0]).not.toContain("/configure/777");
+    });
+
+    it("halts in error without a close when the attempt never created a deployment", () => {
+      const closeMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto" }, closeMutate });
+
+      act(() => result.current.actions.closeAndFail("no match"));
+
+      expect(result.current.phase).toBe("error");
+      expect(closeMutate).not.toHaveBeenCalled();
+    });
+
+    it("keeps the deployment for a later retry when its failed close is verified still open", () => {
+      const closeMutate = vi.fn((_args, { onError }) => onError(new Error("close failed")));
+      const getDeploymentMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { deployment: { state: "active" } } }));
+      const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate, getDeploymentMutate });
+
+      act(() => result.current.actions.closeAndFail("no match"));
+
+      expect(result.current.phase).toBe("error");
+      expect(result.current.error?.kind).toBe("close");
+      expect(result.current.dseq).toBe("777");
+    });
+
+    it("clears the abandoned deployment when its failed close is verified already closed", () => {
+      const closeMutate = vi.fn((_args, { onError }) => onError(new Error("close failed")));
+      const getDeploymentMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { deployment: { state: "closed" } } }));
+      const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate, getDeploymentMutate });
+
+      act(() => result.current.actions.closeAndFail("no match"));
+
+      expect(result.current.phase).toBe("error");
+      expect(result.current.error?.kind).toBe("no-match");
+      expect(result.current.dseq).toBeNull();
+    });
+
+    it("returns to configuring on cancelAndEdit, so a retry starts from scratch", async () => {
+      const closeMutate = vi.fn((_args, { onSuccess }) => onSuccess({}));
+      const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate });
+
+      act(() => result.current.actions.closeAndFail("no match"));
+      await waitFor(() => expect(result.current.dseq).toBeNull());
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(result.current.phase).toBe("configuring");
+      expect(result.current.error).toBeUndefined();
+      expect(closeMutate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("deploy preconditions", () => {
+    it("surfaces a retryable error when the manifest cannot be built from the sdl", () => {
+      const createLease = mockMutation();
+      const { result } = renderFlow({ intent: { dseq: "555" }, manifestFromSdl: () => null, createLease });
+
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.deploy("sdl"));
+
+      expect(result.current.phase).toBe("quoting");
+      expect(result.current.deployError?.message).toBeTruthy();
+      expect(createLease.mutate).not.toHaveBeenCalled();
+    });
+
+    it("surfaces an error rather than doing nothing when no provider is selected", () => {
+      const createLease = mockMutation();
+      const { result } = renderFlow({ intent: { dseq: "555" }, createLease });
+
+      act(() => result.current.actions.deploy("sdl"));
+
+      expect(result.current.phase).toBe("quoting");
+      expect(result.current.deployError?.message).toBeTruthy();
+      expect(createLease.mutate).not.toHaveBeenCalled();
+    });
+  });
+
   it("does not prune selections while no bids have loaded", () => {
     const { result } = renderFlow({ intent: { dseq: "555" }, listBids: [] });
 

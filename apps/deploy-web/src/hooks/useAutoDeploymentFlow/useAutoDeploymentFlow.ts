@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { DeploymentFlow, DeploymentFlowPhase } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
+import { useQuoteExpiry } from "@src/components/deployments/ConfigureDeployment/useQuoteExpiry/useQuoteExpiry";
+import { useServices } from "@src/context/ServicesProvider";
 import type { DeployPhase, DeployPhaseId, DeployProgressState } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 import { PHASE_ORDER, useDeployPhaseProgress } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 import { BID_POLL_INTERVAL } from "@src/queries/useListBids";
@@ -50,6 +52,11 @@ type Result = {
   stopAutopilot: () => void;
 };
 
+/** Everything left once bids are in — probe, select, lease — is seconds of work, so 90s of no progress means it is not coming. */
+const MATCH_DEADLINE_MS = 90 * 1000;
+
+const MATCH_FAILED_MESSAGE = "We couldn't match this deployment with a provider in time. Try again, or contact support if it keeps happening.";
+
 /** The four coordinates that identify a lease/bid. */
 type LeaseId = { dseq: string; gseq: number; oseq: number; provider: string };
 
@@ -68,10 +75,14 @@ function getRequiredGseqs(sdl: string): number[] {
 }
 
 export const DEPENDENCIES = {
+  useServices,
   useProviderList,
   useFirstReachableProvider,
+  useQuoteExpiry,
   // eslint-disable-next-line akash/dependencies-component-or-hook
-  getRequiredGseqs
+  getRequiredGseqs,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
+  matchDeadlineMs: MATCH_DEADLINE_MS
 };
 
 /**
@@ -90,6 +101,7 @@ export const DEPENDENCIES = {
  * address. `flow.phase` is projected onto the three-step create → match → prepare progress UI.
  */
 export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options, dependencies: typeof DEPENDENCIES = DEPENDENCIES): Result {
+  const { analyticsService, logger } = dependencies.useServices();
   const sdlRef = useRef(sdl);
   sdlRef.current = sdl;
 
@@ -100,12 +112,6 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
   // quoting deployment to drive rather than being handed a dangling one.
   const [autopilotStopped, setAutopilotStopped] = useState(false);
 
-  // One-shot guard per group. Unlike create/deploy (which move the flow off their phase synchronously, so a phase check
-  // already prevents a re-fire), selectProvider keeps the flow in "quoting" — so without this a bid-poll refetch that
-  // changes a group's reachable bid could re-select it. Holding the set of already-matched gseqs pins each group to its
-  // first match.
-  const firedGseqsRef = useRef<Set<number>>(new Set());
-
   const dseq = flow.dseq;
 
   // The live (non-closed) leases keyed by group sequence, resolved upfront by the `ResumeDeploymentGuard` so a resumed
@@ -115,10 +121,11 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
   const leasesByGseq = useMemo(() => {
     const byGseq = new Map<number, LeaseId>();
     for (const lease of resumeLeases) {
+      if (lease.dseq !== dseq) continue;
       byGseq.set(lease.gseq, lease);
     }
     return byGseq;
-  }, [resumeLeases]);
+  }, [resumeLeases, dseq]);
 
   // Every group (gseq) the deployment must fill — one per SDL placement, unioned with any already-leased group so a
   // resume restores every on-chain lease even when the SDL can't be parsed. A bid/lease's gseq identifies its group.
@@ -145,38 +152,27 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
     .map(bid => providers?.find(provider => provider.owner === bid.bid.id.provider))
     .filter((provider): provider is ApiProviderList => !!provider);
 
-  const reachableProviderQuery = dependencies.useFirstReachableProvider(candidateProviders, {
+  /** Keyed per placement, not per candidate list: bids keep arriving mid-probe and a candidate-derived key would restart it. */
+  const placementKey = dseq && matchingGseq !== undefined ? `${dseq}/${matchingGseq}` : null;
+  const reachableProviderQuery = dependencies.useFirstReachableProvider(placementKey, candidateProviders, {
     enabled: flow.phase === "quoting" && candidateProviders.length > 0,
     refetchInterval: BID_POLL_INTERVAL
   });
   const reachableProvider = reachableProviderQuery.data;
   const activeBid = reachableProvider ? openBids.find(bid => bid.bid.id.provider === reachableProvider.owner) : undefined;
 
-  // Every selection ready to record now: one per already-leased group (a resume takes those verbatim), plus the first
-  // reachable open bid for the group currently being matched. The guard resolves lease state before this flow mounts, so
-  // reconstruction and fresh matching never race an existing lease. Empty until there's something to select.
+  /** Keyed off what the flow holds, so a dropped selection is matched again while one that still stands is never re-recorded. */
   const selectionTargets = useMemo<LeaseId[]>(() => {
     const targets: LeaseId[] = [];
     for (const gseq of requiredGseqs) {
       const lease = leasesByGseq.get(gseq);
-      if (lease) targets.push(lease);
+      if (lease && !selectedGseqs.has(gseq)) targets.push(lease);
     }
     if (activeBid) {
       targets.push({ dseq: activeBid.bid.id.dseq, gseq: activeBid.bid.id.gseq, oseq: activeBid.bid.id.oseq, provider: activeBid.bid.id.provider });
     }
     return targets;
-  }, [requiredGseqs, leasesByGseq, activeBid]);
-
-  // Release the selection guard whenever the flow returns to configuring (fresh start / after retry) so a new attempt
-  // can match every group again.
-  useEffect(
-    function resetSelectionGuardOnConfiguring() {
-      if (flow.phase === "configuring") {
-        firedGseqsRef.current = new Set();
-      }
-    },
-    [flow.phase]
-  );
+  }, [requiredGseqs, leasesByGseq, selectedGseqs, activeBid]);
 
   useEffect(
     function fireCreate() {
@@ -192,16 +188,14 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
 
   useEffect(
     function recordSelections() {
-      if (autopilotStopped || flow.phase !== "quoting") return;
+      if (autopilotStopped || flow.phase !== "quoting" || flow.deployError) return;
       for (const target of selectionTargets) {
-        if (firedGseqsRef.current.has(target.gseq)) continue;
-        firedGseqsRef.current.add(target.gseq);
         const bidId = formatBidId(target);
         flow.actions.selectProvider(bidId, bidId);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [flow.phase, selectionTargets, autopilotStopped]
+    [flow.phase, flow.deployError, selectionTargets, autopilotStopped]
   );
 
   // A multi-placement deployment leases all its groups together, so deploy waits until every required group has a
@@ -226,6 +220,56 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
     [flow.phase, allGroupsSelected, flow.deployError, autopilotStopped]
   );
 
+  /** Held in a ref so the deadline calls the latest action without the close mutation's changing identity re-arming it. */
+  const closeAndFailRef = useRef(flow.actions.closeAndFail);
+  closeAndFailRef.current = flow.actions.closeAndFail;
+
+  /** Best-effort — null when the chain endpoint is unavailable — so it only ever shortens the deadline, never replaces it. */
+  const quoteExpiry = dependencies.useQuoteExpiry({ dseq: dseq ?? null, enabled: flow.phase === "quoting" });
+  const quotesExpired = !!quoteExpiry?.isExpired;
+
+  /** A bid goes `active` the moment any tab leases it, making this the only lease signal fresh enough to stop a close. */
+  const hasLeasedBid = flow.bids.some(entry => entry.bid.state === "active");
+
+  const isAutopilotPending = !autopilotStopped && flow.phase === "quoting" && !flow.deployError && leasesByGseq.size === 0 && !hasLeasedBid;
+
+  /** Bids on the table mean the flow's own no-bids timeout has latched off for good, so the deadline is the autopilot's. */
+  const hasBids = flow.bids.length > 0;
+
+  /** Read only inside the deadline callback, so bid churn never re-arms the timer. */
+  const bidCountRef = useRef(0);
+  bidCountRef.current = flow.bids.length;
+  const candidateOwnersRef = useRef<string[]>([]);
+  candidateOwnersRef.current = candidateProviders.map(provider => provider.owner);
+
+  useEffect(
+    function failWhenNoProviderIsMatched() {
+      if (!isAutopilotPending || !hasBids) return;
+      function giveUpOnMatching() {
+        const reason = quotesExpired ? "quote_expired" : "deadline";
+        logger.warn({ event: "AUTO_DEPLOY_MATCH_FAILED", reason, dseq, candidates: candidateOwnersRef.current });
+        analyticsService.track("onboarding_match_failed", {
+          category: "onboarding",
+          reason,
+          dseq,
+          numberOfBids: bidCountRef.current,
+          numberOfCandidates: candidateOwnersRef.current.length
+        });
+        closeAndFailRef.current(MATCH_FAILED_MESSAGE);
+      }
+      if (quotesExpired) {
+        giveUpOnMatching();
+        return;
+      }
+      const timer = setTimeout(giveUpOnMatching, dependencies.matchDeadlineMs);
+      return function cancelMatchDeadline() {
+        clearTimeout(timer);
+      };
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isAutopilotPending, hasBids, quotesExpired]
+  );
+
   const projected = projectPhase(flow.phase, flow.deploySucceeded, !!flow.deployError);
   const errorMessage = flow.deployError?.message ?? flow.error?.message;
 
@@ -237,9 +281,8 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
     // on chain when one exists (a failed lease leaves the flow in `quoting` with a live dseq) and returns the flow to
     // `configuring`; a create that never produced a dseq goes straight back to `configuring`. Either way the autopilot's
     // `fireCreate` then broadcasts a brand-new deployment, so "Try again" always starts from scratch rather than
-    // re-leasing the same one. The selection guard is released so the fresh attempt can match a provider again.
+    // re-leasing the same one.
     setRetryToken(previous => previous + 1);
-    firedGseqsRef.current = new Set();
     setAutopilotStopped(false);
     flow.actions.cancelAndEdit();
   }

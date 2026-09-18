@@ -18,6 +18,14 @@ const DSEQ = "12345";
 const BID_ID = `${PROVIDER_OWNER}/${DSEQ}/1/1`;
 
 describe(useAutoDeploymentFlow.name, () => {
+  const UNREACHED_DEADLINE_MS = 10_000;
+  const SHORT_DEADLINE_MS = 20;
+  const DISARMABLE_DEADLINE_MS = 300;
+
+  async function waitForDeadline() {
+    await new Promise(resolve => setTimeout(resolve, SHORT_DEADLINE_MS * 4));
+  }
+
   it("fires requestQuotes with the current SDL on mount when the flow is configuring", async () => {
     const { flow } = setup({ sdl: "sdl-content" });
 
@@ -62,6 +70,150 @@ describe(useAutoDeploymentFlow.name, () => {
     expect(result.current.state.kind).toBe("matching");
     expect(result.current.matchedProviderAddress).toBeNull();
     expect(flow.actions.selectProvider).not.toHaveBeenCalled();
+    expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
+  });
+
+  it("closes the deployment and fails the attempt when no bidder is reachable before the deadline", async () => {
+    const { result, flow, analyticsService } = setup({
+      providerProxyRequest: vi.fn().mockRejectedValue(new Error("unreachable")),
+      matchDeadlineMs: SHORT_DEADLINE_MS
+    });
+
+    await vi.waitFor(() => expect(result.current.state.kind).toBe("matching"));
+    await waitForDeadline();
+
+    expect(flow.actions.selectProvider).not.toHaveBeenCalled();
+    expect(flow.actions.closeAndFail).toHaveBeenCalledTimes(1);
+    expect(result.current.state.kind).toBe("error");
+    expect(analyticsService.track).toHaveBeenCalledWith(
+      "onboarding_match_failed",
+      expect.objectContaining({ reason: "deadline", numberOfBids: 1, numberOfCandidates: 1 })
+    );
+  });
+
+  it("abandons the attempt as soon as the quote window expires, without waiting out the deadline", async () => {
+    const { result, flow, analyticsService } = setup({
+      providerProxyRequest: vi.fn().mockRejectedValue(new Error("unreachable")),
+      quoteExpiry: { secondsLeft: 0, isExpired: true }
+    });
+
+    await vi.waitFor(() => expect(flow.actions.closeAndFail).toHaveBeenCalledTimes(1));
+    expect(result.current.state.kind).toBe("error");
+    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_match_failed", expect.objectContaining({ reason: "quote_expired" }));
+  });
+
+  it("leaves a deployment that has drawn no bids to the flow's own timeout", async () => {
+    const { flow } = setup({ bids: [], matchDeadlineMs: SHORT_DEADLINE_MS });
+
+    await waitForDeadline();
+
+    expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
+  });
+
+  it("does not abandon the attempt once the autopilot has been stopped for a manual hand-off", async () => {
+    const { result, flow } = setup({
+      providerProxyRequest: vi.fn().mockRejectedValue(new Error("unreachable")),
+      matchDeadlineMs: SHORT_DEADLINE_MS
+    });
+
+    act(() => result.current.stopAutopilot());
+    await waitForDeadline();
+
+    expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
+  });
+
+  it("does not abandon the attempt once a provider is matched and the lease is away", async () => {
+    const { flow } = setup({ matchDeadlineMs: SHORT_DEADLINE_MS });
+
+    await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalled());
+    await waitForDeadline();
+
+    expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
+  });
+
+  it("stops reconstructing a resumed lease once a retry has created a different deployment", async () => {
+    const resumeLeases = [{ dseq: DSEQ, gseq: 1, oseq: 2, provider: PROVIDER_OWNER }];
+    const { flow, actions } = setup({ initialDseq: DSEQ, bids: [], resumeLeases, requiredGseqs: [1], holdDeploy: true });
+
+    await vi.waitFor(() => expect(actions.selectProvider).toHaveBeenCalled());
+    actions.selectProvider.mockClear();
+    act(() => {
+      flow.replaceDseq("99999");
+      flow.dropSelections();
+    });
+    await waitForDeadline();
+
+    expect(actions.selectProvider).not.toHaveBeenCalled();
+  });
+
+  it("does not abandon a deployment another tab has already leased", async () => {
+    const openBid = mock<DeploymentBids[number]>({ bid: { state: "open", id: { provider: PROVIDER_OWNER, dseq: DSEQ, gseq: 1, oseq: 1 } } });
+    const leasedBid = mock<DeploymentBids[number]>({ bid: { state: "active", id: { provider: "akash1other", dseq: DSEQ, gseq: 1, oseq: 1 } } });
+    const { flow } = setup({
+      bids: [openBid, leasedBid],
+      providerProxyRequest: vi.fn().mockRejectedValue(new Error("unreachable")),
+      matchDeadlineMs: SHORT_DEADLINE_MS
+    });
+
+    await waitForDeadline();
+
+    expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
+  });
+
+  it("does not abandon the attempt after a failed deploy, whose error the scene already shows", async () => {
+    const { flow } = setup({ holdDeploy: true, matchDeadlineMs: DISARMABLE_DEADLINE_MS });
+
+    await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalled());
+    act(() => flow.setDeployError("lease failed"));
+    await new Promise(resolve => setTimeout(resolve, DISARMABLE_DEADLINE_MS * 3));
+
+    expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
+  });
+
+  it("creates a fresh deployment when tryAgain follows an abandoned attempt", async () => {
+    const { result, flow } = setup({
+      providerProxyRequest: vi.fn().mockRejectedValue(new Error("unreachable")),
+      quoteExpiry: { secondsLeft: 0, isExpired: true }
+    });
+
+    await vi.waitFor(() => expect(result.current.state.kind).toBe("error"));
+    act(() => result.current.tryAgain());
+
+    expect(flow.actions.cancelAndEdit).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(flow.actions.requestQuotes).toHaveBeenCalledTimes(2));
+  });
+
+  it("matches a group again once the flow drops the selection its bid no longer backs", async () => {
+    const resumeLeases = [{ dseq: DSEQ, gseq: 1, oseq: 3, provider: PROVIDER_OWNER }];
+    const { flow } = setup({ initialDseq: DSEQ, resumeLeases, holdDeploy: true });
+
+    await vi.waitFor(() => expect(flow.actions.selectProvider).toHaveBeenCalledTimes(1));
+    act(() => flow.dropSelections());
+
+    await vi.waitFor(() => expect(flow.actions.selectProvider).toHaveBeenCalledTimes(2));
+  });
+
+  it("does not re-record a selection the flow still holds while bids keep polling", async () => {
+    const resumeLeases = [{ dseq: DSEQ, gseq: 1, oseq: 3, provider: PROVIDER_OWNER }];
+    const { flow } = setup({ initialDseq: DSEQ, resumeLeases, holdDeploy: true });
+
+    await vi.waitFor(() => expect(flow.actions.selectProvider).toHaveBeenCalledTimes(1));
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    expect(flow.actions.selectProvider).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not re-record a dropped selection after a failed deploy, which would re-fire the lease", async () => {
+    const resumeLeases = [{ dseq: DSEQ, gseq: 1, oseq: 3, provider: PROVIDER_OWNER }];
+    const { flow } = setup({ initialDseq: DSEQ, resumeLeases, holdDeploy: true });
+
+    await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledTimes(1));
+    act(() => flow.setDeployError("lease failed"));
+    act(() => flow.dropSelections());
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    expect(flow.actions.selectProvider).toHaveBeenCalledTimes(1);
+    expect(flow.actions.deploy).toHaveBeenCalledTimes(1);
   });
 
   it("records the reachable provider as the flow's selection once found", async () => {
@@ -229,6 +381,9 @@ describe(useAutoDeploymentFlow.name, () => {
     requiredGseqs?: number[];
     resumeLeases?: Array<{ dseq: string; gseq: number; oseq: number; provider: string }>;
     providerProxyRequest?: ReturnType<typeof vi.fn>;
+    quoteExpiry?: { secondsLeft: number; isExpired: boolean } | null;
+    holdDeploy?: boolean;
+    matchDeadlineMs?: number;
   }) {
     vi.spyOn(globalThis, "requestAnimationFrame").mockReturnValue(1);
     vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => undefined);
@@ -251,16 +406,25 @@ describe(useAutoDeploymentFlow.name, () => {
       selectProvider: vi.fn(),
       deploy: vi.fn(),
       cancelAndEdit: vi.fn(),
+      closeAndFail: vi.fn(),
       setBidStrategy: vi.fn(),
       refreshQuotes: vi.fn(),
       retry: vi.fn(),
       clearSelection: vi.fn()
     };
 
-    const flowControls: { setPhaseError: (message?: string) => void; setDeployError: (message?: string) => void; setClosing: () => void } = {
+    const flowControls: {
+      setPhaseError: (message?: string) => void;
+      setDeployError: (message?: string) => void;
+      setClosing: () => void;
+      dropSelections: () => void;
+      replaceDseq: (next: string) => void;
+    } = {
       setPhaseError: () => undefined,
       setDeployError: () => undefined,
-      setClosing: () => undefined
+      setClosing: () => undefined,
+      dropSelections: () => undefined,
+      replaceDseq: () => undefined
     };
 
     // A live, stateful stub of the base flow: it advances phase in response to the autopilot's action calls exactly as
@@ -268,7 +432,7 @@ describe(useAutoDeploymentFlow.name, () => {
     // chain logic. Called inside the harness below and passed to the autopilot as its `flow` input.
     function useFlowStub({ intent }: { intent: { dseq?: string } }): DeploymentFlow {
       const [phase, setPhase] = useState<DeploymentFlow["phase"]>(intent.dseq ? "quoting" : "configuring");
-      const [dseq] = useState<string | null>(intent.dseq ?? DSEQ);
+      const [dseq, setDseq] = useState<string | null>(intent.dseq ?? DSEQ);
       const [selections, setSelections] = useState<Record<string, string>>({});
       const [deploySucceeded, setDeploySucceeded] = useState(false);
       const [deployError, setDeployError] = useState<{ message?: string } | undefined>(undefined);
@@ -283,6 +447,8 @@ describe(useAutoDeploymentFlow.name, () => {
         setPhase("quoting");
       };
       flowControls.setClosing = () => setPhase("closing");
+      flowControls.dropSelections = () => setSelections({});
+      flowControls.replaceDseq = (next: string) => setDseq(next);
 
       const requestQuotes = useCallback((sdl: string) => {
         actions.requestQuotes(sdl);
@@ -296,8 +462,16 @@ describe(useAutoDeploymentFlow.name, () => {
       const deploy = useCallback((sdl: string) => {
         actions.deploy(sdl);
         setDeployError(undefined);
+        if (input?.holdDeploy) return;
         setPhase("deploying");
         setDeploySucceeded(true);
+      }, []);
+      const closeAndFail = useCallback((message: string) => {
+        actions.closeAndFail(message);
+        setError({ message });
+        setSelections({});
+        setDseq(null);
+        setPhase("error");
       }, []);
       const retry = useCallback(() => {
         actions.retry();
@@ -324,7 +498,7 @@ describe(useAutoDeploymentFlow.name, () => {
         deploySucceeded,
         deployError,
         error,
-        actions: { ...actions, requestQuotes, selectProvider, deploy, retry, cancelAndEdit }
+        actions: { ...actions, requestQuotes, selectProvider, deploy, retry, cancelAndEdit, closeAndFail }
       };
     }
 
@@ -337,6 +511,13 @@ describe(useAutoDeploymentFlow.name, () => {
     // Stubbed group resolution so tests declare the placement count directly rather than crafting valid multi-group SDL.
     const getRequiredGseqs: typeof DEPENDENCIES.getRequiredGseqs = () => input?.requiredGseqs ?? [1];
 
+    // Stubbed so the deadline's backstop is declared per test; unstubbed it would poll `useListBids`/`useBlock`.
+    const useQuoteExpiry: typeof DEPENDENCIES.useQuoteExpiry = () => input?.quoteExpiry ?? null;
+
+    const analyticsService = mock<ReturnType<typeof DEPENDENCIES.useServices>["analyticsService"]>();
+    const logger = mock<ReturnType<typeof DEPENDENCIES.useServices>["logger"]>();
+    const useServices: typeof DEPENDENCIES.useServices = (() => ({ analyticsService, logger })) as never;
+
     const view = setupQuery(
       () => {
         // The base flow lives outside the autopilot now, so the harness creates the live stub flow and passes it in —
@@ -348,7 +529,14 @@ describe(useAutoDeploymentFlow.name, () => {
             resumeLeases: input?.resumeLeases,
             flow
           },
-          { useProviderList, useFirstReachableProvider, getRequiredGseqs }
+          {
+            useServices,
+            useProviderList,
+            useFirstReachableProvider,
+            useQuoteExpiry,
+            getRequiredGseqs,
+            matchDeadlineMs: input?.matchDeadlineMs ?? UNREACHED_DEADLINE_MS
+          }
         );
       },
       {
@@ -359,6 +547,6 @@ describe(useAutoDeploymentFlow.name, () => {
       }
     );
 
-    return { ...view, actions, flow: { actions, ...flowControls }, providerProxy };
+    return { ...view, actions, flow: { actions, ...flowControls }, providerProxy, analyticsService };
   }
 });

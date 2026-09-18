@@ -16,6 +16,7 @@ import type {
 import type { ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { providerStatusToDto } from "@src/utils/providerUtils";
+import { findFirstReachableProvider } from "./findFirstReachableProvider";
 import { QueryKeys } from "./queryKeys";
 
 export function useProviderDetail(
@@ -57,31 +58,26 @@ export function useProviderStatus(
   });
 }
 
-/** Per-provider `/status` probe timeout. Keeps the loop from stalling on a single unresponsive provider so we move on to the next candidate quickly. */
+/** Keeps one unresponsive provider from holding up the rest of its batch. */
 const PROVIDER_STATUS_PROBE_TIMEOUT_MS = 5000;
 
+/** Keyed on the placement rather than the candidates, so a bid poll no longer abandons an in-flight probe and restarts it. */
 export function useFirstReachableProvider(
+  placementKey: string | null,
   providers: ApiProviderList[] | undefined | null,
   options: Omit<UseQueryOptions<ApiProviderList | null>, "queryKey" | "queryFn"> = {}
 ): UseQueryResult<ApiProviderList | null> {
   const { providerProxy } = useServices();
   const providerList = providers ?? [];
   return useQuery({
-    queryKey: QueryKeys.getFirstReachableProviderKey(providerList.map(provider => provider.hostUri || "")),
-    queryFn: async () => {
-      for (const provider of providerList) {
-        try {
-          await providerProxy.request<ProviderStatus>("/status", {
-            providerIdentity: { owner: provider.owner, hostUri: provider.hostUri },
-            timeout: PROVIDER_STATUS_PROBE_TIMEOUT_MS
-          });
-          return provider;
-        } catch {
-          continue;
-        }
-      }
-      return null;
-    },
+    queryKey: QueryKeys.getFirstReachableProviderKey(placementKey ?? ""),
+    queryFn: () =>
+      findFirstReachableProvider(providerList, provider =>
+        providerProxy.request<ProviderStatus>("/status", {
+          providerIdentity: { owner: provider.owner, hostUri: provider.hostUri },
+          timeout: PROVIDER_STATUS_PROBE_TIMEOUT_MS
+        })
+      ),
     ...options
   });
 }
