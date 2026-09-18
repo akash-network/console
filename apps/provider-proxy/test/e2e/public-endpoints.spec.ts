@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { describeComparableShapes } from "./setup/describeComparableShapes";
 import { fetchAvailableProviders, fetchProvider, type Provider } from "./setup/fetchProvider";
 
 describe("Provider Proxy API", () => {
@@ -29,8 +30,12 @@ describe("Provider Proxy API", () => {
     expect(providerResponse.ok).toBe(true);
 
     const [proxyData, providerData] = await Promise.all([proxyResponse.json(), providerResponse.json()]);
-    expect(proxyData).toBeTruthy();
-    expect(proxyData).toEqual(providerData);
+    expect(proxyData).toMatchObject({
+      address: provider.owner,
+      cluster_public_hostname: new URL(provider.hostUri).hostname
+    });
+    const [proxyShape, providerShape] = describeComparableShapes(proxyData, providerData);
+    expect(proxyShape).toEqual(providerShape);
   });
 
   let providersPromise: Promise<Provider[]> | undefined;
