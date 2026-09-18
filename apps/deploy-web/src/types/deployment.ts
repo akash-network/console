@@ -266,10 +266,6 @@ export interface DeploymentDto {
   groups: Array<DeploymentGroup>;
 }
 
-export interface NamedDeploymentDto extends DeploymentDto {
-  name: string;
-}
-
 export type ListDeploymentsItem = paths["/v1/deployments"]["get"]["responses"][200]["content"]["application/json"]["data"]["deployments"][number];
 
 /** What the console records about a deployment, as a list shows it. Absent for one the console holds no record of. */

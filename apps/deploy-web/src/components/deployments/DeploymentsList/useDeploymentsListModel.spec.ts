@@ -3,142 +3,65 @@ import { createStore, Provider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { DeploymentsPage } from "@src/queries/useDeploymentQuery";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
-import type { DeploymentDto } from "@src/types/deployment";
+import type { ListedDeploymentDto } from "@src/types/deployment";
+import type { DeploymentsListSource, DeploymentsListSourceInput } from "./useApiDeploymentsListSource";
 import { DEFAULT_PAGE_SIZE, DEPENDENCIES, useDeploymentsListModel } from "./useDeploymentsListModel";
-import type { DEPENDENCIES as SOURCE_DEPENDENCIES } from "./useDeploymentsListSource";
-import { useChainDeploymentsListSource } from "./useDeploymentsListSource";
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 
 describe(useDeploymentsListModel.name, () => {
-  it("pages the active deployments server side while nobody is searching", () => {
-    const { useDeploymentsPage } = setup({ active: [deployment("100")] });
+  it("asks the source for the first active page at the default size while nobody is searching", () => {
+    const { useDeploymentsListSource } = setup({ active: [deployment("100")] });
 
-    expect(useDeploymentsPage).toHaveBeenCalledWith(
-      "akash1owner",
-      { state: "active", skip: 0, limit: DEFAULT_PAGE_SIZE },
-      expect.objectContaining({ enabled: true })
-    );
+    expect(useDeploymentsListSource).toHaveBeenCalledWith({ search: "", pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE, archivePageIndex: 0 });
   });
 
-  it("leaves every query disabled until an address is known", () => {
-    const { useDeploymentsPage, useDeploymentList } = setup({ address: "" });
+  it("shows the rows the source answered with", () => {
+    const { result } = setup({ active: [deployment("100")] });
 
-    expect(useDeploymentsPage).toHaveBeenCalledWith("", expect.anything(), expect.objectContaining({ enabled: false }));
-    expect(useDeploymentList).toHaveBeenCalledWith("", expect.objectContaining({ enabled: false }), "closed");
-  });
-
-  it("fetches the archive whole, since the chain API reports no total for the count", () => {
-    const { useDeploymentList } = setup({ archived: [deployment("200", "closed")] });
-
-    expect(useDeploymentList).toHaveBeenCalledWith("akash1owner", expect.objectContaining({ enabled: true }), "closed");
-  });
-
-  it("attaches the console's name to each deployment", () => {
-    const { result } = setup({ active: [deployment("100")], names: { "100": "acme-storefront" } });
-
-    expect(result.current.pageDeployments[0].name).toBe("acme-storefront");
-  });
-
-  it("asks for the names of the active and the archived deployments together", () => {
-    const { useDeploymentNames } = setup({ active: [deployment("100")], archived: [deployment("900")] });
-
-    expect(useDeploymentNames).toHaveBeenLastCalledWith(["100", "900"]);
+    expect(result.current.pageDeployments.map(d => d.dseq)).toEqual(["100"]);
   });
 
   describe("searching", () => {
-    it("swaps the paged query for the full active list", async () => {
-      const { result, useDeploymentList, useDeploymentsPage } = setup({ active: [deployment("100")] });
+    it("hands the source the search as typed, back on the first page", async () => {
+      const { result, useDeploymentsListSource } = setup({ active: [deployment("100")], hasNextPage: true });
 
+      await act(async () => result.current.goToNextPage());
       await act(async () => result.current.changeSearch("acme"));
 
-      expect(lastListCallFor(useDeploymentList, "active")).toEqual(["akash1owner", expect.objectContaining({ enabled: true }), "active"]);
-      expect(useDeploymentsPage).toHaveBeenLastCalledWith("akash1owner", expect.anything(), expect.objectContaining({ enabled: false }));
+      expect(useDeploymentsListSource).toHaveBeenLastCalledWith({ search: "acme", pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE, archivePageIndex: 0 });
     });
 
     it("treats whitespace as no search at all", async () => {
-      const { result, useDeploymentList } = setup({ active: [deployment("100")] });
+      const { result } = setup({ active: [deployment("100")] });
 
       await act(async () => result.current.changeSearch("   "));
 
       expect(result.current.isSearching).toBe(false);
-      expect(lastListCallFor(useDeploymentList, "active")).toEqual(["akash1owner", expect.objectContaining({ enabled: false }), "active"]);
-    });
-
-    it("matches on the name, case insensitively", async () => {
-      const { result } = setup({
-        active: [deployment("100"), deployment("101")],
-        names: { "100": "Acme-Storefront", "101": "billing-worker" }
-      });
-
-      await act(async () => result.current.changeSearch("acme"));
-
-      expect(result.current.pageDeployments.map(d => d.dseq)).toEqual(["100"]);
-    });
-
-    it("matches on the dseq for a deployment that was never named", async () => {
-      const { result } = setup({ active: [deployment("100"), deployment("2002")] });
-
-      await act(async () => result.current.changeSearch("2002"));
-
-      expect(result.current.pageDeployments.map(d => d.dseq)).toEqual(["2002"]);
-    });
-
-    it("searches the archive alongside the active deployments", async () => {
-      const { result } = setup({
-        active: [deployment("100")],
-        archived: [deployment("200", "closed"), deployment("201", "closed")],
-        names: { "100": "acme", "200": "acme-old", "201": "unrelated" }
-      });
-
-      await act(async () => result.current.changeSearch("acme"));
-
-      expect(result.current.archivePageDeployments.map(d => d.dseq)).toEqual(["200"]);
-    });
-
-    it("pages the full list in memory once the server-side paging is out of play", async () => {
-      const many = Array.from({ length: DEFAULT_PAGE_SIZE + 3 }, (_, index) => deployment(`${100 + index}`));
-      const { result } = setup({ active: many });
-
-      await act(async () => result.current.changeSearch("1"));
-      expect(result.current.pageDeployments).toHaveLength(DEFAULT_PAGE_SIZE);
-      expect(result.current.hasNextPage).toBe(true);
-
-      await act(async () => result.current.goToNextPage());
-      expect(result.current.pageDeployments).toHaveLength(3);
-      expect(result.current.hasNextPage).toBe(false);
     });
 
     it("reports no results only when neither the active list nor the archive matched", async () => {
-      const { result } = setup({ active: [deployment("100")], archived: [deployment("200", "closed")] });
+      const { result, rerenderWith } = setup({ active: [deployment("100")], archived: [deployment("200", "closed")] });
 
       await act(async () => result.current.changeSearch("nothing-matches-this"));
+      rerenderWith({ active: [], archived: [] });
 
       expect(result.current.showNoSearchResults).toBe(true);
     });
 
     it("keeps quiet about no results while the archive still has a match", async () => {
-      const { result } = setup({ active: [deployment("100")], archived: [deployment("299", "closed")] });
+      const { result, rerenderWith } = setup({ active: [deployment("100")], archived: [deployment("299", "closed")] });
 
       await act(async () => result.current.changeSearch("299"));
+      rerenderWith({ active: [] });
 
       expect(result.current.showNoSearchResults).toBe(false);
     });
 
-    it("ignores the whitespace around a search term when matching", async () => {
-      const { result } = setup({ active: [deployment("100"), deployment("101")], names: { "100": "acme", "101": "other" } });
-
-      await act(async () => result.current.changeSearch("  acme  "));
-
-      expect(result.current.pageDeployments.map(d => d.dseq)).toEqual(["100"]);
-    });
-
     it("returns to the first page when the search changes", async () => {
-      const many = Array.from({ length: DEFAULT_PAGE_SIZE + 1 }, (_, index) => deployment(`${100 + index}`));
-      const { result } = setup({ active: many });
+      const { result } = setup({ active: [deployment("100")], hasNextPage: true });
 
       await act(async () => result.current.changeSearch("1"));
       await act(async () => result.current.goToNextPage());
@@ -151,29 +74,25 @@ describe(useDeploymentsListModel.name, () => {
   });
 
   describe("paging", () => {
-    it("follows the RPC next_key rather than guessing from the page size", () => {
+    it("reports the next page the source reports", () => {
       const { result } = setup({ active: [deployment("100")], hasNextPage: true });
 
       expect(result.current.hasNextPage).toBe(true);
     });
 
-    it("reports no next page when the RPC reports none", () => {
+    it("reports no next page when the source reports none", () => {
       const { result } = setup({ active: [deployment("100")], hasNextPage: false });
 
       expect(result.current.hasNextPage).toBe(false);
     });
 
-    it("requests the next offset once the reader pages forward", async () => {
-      const { result, useDeploymentsPage } = setup({ active: [deployment("100")], hasNextPage: true });
+    it("asks the source for the next page once the reader pages forward", async () => {
+      const { result, useDeploymentsListSource } = setup({ active: [deployment("100")], hasNextPage: true });
 
       await act(async () => result.current.goToNextPage());
 
       expect(result.current.pageIndex).toBe(1);
-      expect(useDeploymentsPage).toHaveBeenLastCalledWith(
-        "akash1owner",
-        { state: "active", skip: DEFAULT_PAGE_SIZE, limit: DEFAULT_PAGE_SIZE },
-        expect.anything()
-      );
+      expect(useDeploymentsListSource).toHaveBeenLastCalledWith(expect.objectContaining({ pageIndex: 1, pageSize: DEFAULT_PAGE_SIZE }));
     });
 
     it("never pages back past the first page", async () => {
@@ -195,14 +114,14 @@ describe(useDeploymentsListModel.name, () => {
     });
 
     it("returns to the first page when the page size changes", async () => {
-      const { result, useDeploymentsPage } = setup({ active: [deployment("100")], hasNextPage: true });
+      const { result, useDeploymentsListSource } = setup({ active: [deployment("100")], hasNextPage: true });
 
       await act(async () => result.current.goToNextPage());
       await act(async () => result.current.changePageSize(50));
 
       expect(result.current.pageIndex).toBe(0);
       expect(result.current.pageSize).toBe(50);
-      expect(useDeploymentsPage).toHaveBeenLastCalledWith("akash1owner", { state: "active", skip: 0, limit: 50 }, expect.anything());
+      expect(useDeploymentsListSource).toHaveBeenLastCalledWith({ search: "", pageIndex: 0, pageSize: 50, archivePageIndex: 0 });
     });
 
     it("steps back one page at a time until it lands on one that still has rows", async () => {
@@ -273,12 +192,13 @@ describe(useDeploymentsListModel.name, () => {
       expect(result.current.isArchivePaginated).toBe(true);
     });
 
-    it("hands out the next slice once the reader pages forward", async () => {
-      const { result } = setup({ archived: closedDeployments(DEFAULT_PAGE_SIZE + 2) });
+    it("asks the source for the next archive page once the reader pages forward", async () => {
+      const { result, useDeploymentsListSource } = setup({ archived: closedDeployments(DEFAULT_PAGE_SIZE + 2) });
 
       await act(async () => result.current.goToNextArchivePage());
 
       expect(result.current.archivePageIndex).toBe(1);
+      expect(useDeploymentsListSource).toHaveBeenLastCalledWith(expect.objectContaining({ archivePageIndex: 1 }));
       expect(result.current.archivePageDeployments).toHaveLength(2);
       expect(result.current.hasNextArchivePage).toBe(false);
     });
@@ -345,29 +265,18 @@ describe(useDeploymentsListModel.name, () => {
   });
 
   describe("refreshing", () => {
-    it("refreshes the paged query and the archive together", () => {
-      const { result, refetchPage, refetchList } = setup({ active: [deployment("100")] });
+    it("asks the source to fetch the list again", () => {
+      const { result, refetch } = setup({ active: [deployment("100")] });
 
       act(() => result.current.refetchDeployments());
 
-      expect(refetchPage).toHaveBeenCalled();
-      expect(refetchList).toHaveBeenCalled();
-    });
-
-    it("refreshes the full list instead of the paged query while searching", async () => {
-      const { result, refetchPage, refetchList } = setup({ active: [deployment("100")] });
-
-      await act(async () => result.current.changeSearch("acme"));
-      act(() => result.current.refetchDeployments());
-
-      expect(refetchPage).not.toHaveBeenCalled();
-      expect(refetchList).toHaveBeenCalled();
+      expect(refetch).toHaveBeenCalled();
     });
   });
 
   describe("closing the selected deployments", () => {
     it("signs one message per selected deployment and then clears the selection", async () => {
-      const { result, signAndBroadcastTx, closeDeploymentConfirm, refetchPage } = setup({ active: [deployment("100"), deployment("101")] });
+      const { result, signAndBroadcastTx, closeDeploymentConfirm, refetch } = setup({ active: [deployment("100"), deployment("101")] });
 
       act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
       act(() => result.current.selectItem({ id: "101", isShiftPressed: false }));
@@ -375,7 +284,7 @@ describe(useDeploymentsListModel.name, () => {
 
       expect(closeDeploymentConfirm).toHaveBeenCalledWith(["100", "101"]);
       expect(signAndBroadcastTx).toHaveBeenCalledWith([expect.anything(), expect.anything()]);
-      expect(refetchPage).toHaveBeenCalled();
+      expect(refetch).toHaveBeenCalled();
       expect(result.current.selectedItemIds).toEqual([]);
     });
 
@@ -390,12 +299,12 @@ describe(useDeploymentsListModel.name, () => {
     });
 
     it("keeps the selection when the transaction does not land", async () => {
-      const { result, refetchPage } = setup({ active: [deployment("100")], broadcastResponse: false });
+      const { result, refetch } = setup({ active: [deployment("100")], broadcastResponse: false });
 
       act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
       await act(async () => await result.current.closeSelectedDeployments());
 
-      expect(refetchPage).not.toHaveBeenCalled();
+      expect(refetch).not.toHaveBeenCalled();
       expect(result.current.selectedItemIds).toEqual(["100"]);
     });
 
@@ -522,7 +431,7 @@ describe(useDeploymentsListModel.name, () => {
       const { result, rerenderWith } = setup({ active: [deployment("100")] });
 
       await act(async () => result.current.changeSearch("acme"));
-      rerenderWith({ active: [deployment("100")], isListFetching: true });
+      rerenderWith({ isFetching: true });
 
       expect(result.current.isLoadingDeployments).toBe(true);
       expect(result.current.isInitialLoad).toBe(false);
@@ -597,20 +506,12 @@ describe(useDeploymentsListModel.name, () => {
     });
 
     it("keeps counting the account as having deployments when a search matches nothing", async () => {
-      const { result } = setup({ active: [deployment("100")], names: { "100": "billing-worker" } });
+      const { result, rerenderWith } = setup({ active: [deployment("100")] });
 
       await act(async () => result.current.changeSearch("no-such-deployment"));
+      rerenderWith({ active: [], archived: [] });
 
       expect(result.current.showNoSearchResults).toBe(true);
-      expect(result.current.hasAnyDeployment).toBe(true);
-    });
-
-    it("keeps counting the account as having deployments through the first keystroke, before the full list has fetched", async () => {
-      const { result } = setup({ active: [deployment("100")], archived: [], isListUnresolved: true });
-
-      await act(async () => result.current.changeSearch("a"));
-
-      expect(result.current.pageDeployments).toEqual([]);
       expect(result.current.hasAnyDeployment).toBe(true);
     });
 
@@ -684,22 +585,6 @@ describe(useDeploymentsListModel.name, () => {
       expect(result.current.showErrorState).toBe(false);
     });
 
-    it("reports the search error rather than the paged error while searching", async () => {
-      const { result } = setup({ active: [deployment("100")], isError: false, isListError: true });
-
-      await act(async () => result.current.changeSearch("acme"));
-
-      expect(result.current.isError).toBe(true);
-    });
-
-    it("reports the search fetch rather than the paged fetch while searching", async () => {
-      const { result } = setup({ active: [deployment("100")], isFetching: true, isListFetching: false });
-
-      await act(async () => result.current.changeSearch("acme"));
-
-      expect(result.current.isLoadingDeployments).toBe(false);
-    });
-
     it("offers a retry rather than the onboarding state when the archive query failed", () => {
       const { result } = setup({ active: [], isArchiveError: true });
 
@@ -728,75 +613,24 @@ describe(useDeploymentsListModel.name, () => {
     });
 
     it("withholds the no-results message while the archive that would have matched never loaded", async () => {
-      const { result } = setup({ active: [deployment("100")], isArchiveError: true });
+      const { result, rerenderWith } = setup({ active: [deployment("100")], isArchiveError: true });
 
       await act(async () => result.current.changeSearch("nothing-matches-this"));
+      rerenderWith({ active: [] });
 
       expect(result.current.showNoSearchResults).toBe(false);
       expect(result.current.showArchiveError).toBe(true);
     });
 
     it("withholds the no-results message until the archive that might match has loaded", async () => {
-      const { result } = setup({ active: [deployment("100")], isArchiveFetching: true });
+      const { result, rerenderWith } = setup({ active: [deployment("100")], isArchiveFetching: true });
 
       await act(async () => result.current.changeSearch("nothing-matches-this"));
+      rerenderWith({ active: [] });
 
       expect(result.current.showNoSearchResults).toBe(false);
     });
   });
-
-  it("asks only for the archived deployments' names while the active page has not loaded", () => {
-    const { useDeploymentNames } = setup({ isUnresolved: true, archived: [deployment("900", "closed")] });
-
-    expect(useDeploymentNames).toHaveBeenLastCalledWith(["900"]);
-  });
-
-  it("asks only for the active deployments' names while the archive has not loaded", () => {
-    const { useDeploymentNames } = setup({ active: [deployment("100")], isArchiveUnresolved: true });
-
-    expect(useDeploymentNames).toHaveBeenLastCalledWith(["100"]);
-  });
-
-  it("clears any staged SDL when a new deployment is started", () => {
-    const { result, store } = setup({ active: [deployment("100")] });
-    store.set(sdlStore.deploySdl, mock<TemplateCreation>());
-
-    act(() => result.current.startNewDeployment());
-
-    expect(store.get(sdlStore.deploySdl)).toBeNull();
-  });
-
-  function lastListCallFor(useDeploymentList: ReturnType<typeof vi.fn>, state: string) {
-    return useDeploymentList.mock.calls.filter(call => call[2] === state).at(-1);
-  }
-
-  function deployment(dseq: string, state = "active") {
-    return mock<DeploymentDto>({ dseq, state });
-  }
-
-  type Input = {
-    active?: DeploymentDto[];
-    isUnresolved?: boolean;
-    isListUnresolved?: boolean;
-    isArchiveUnresolved?: boolean;
-    activeByPage?: Record<number, DeploymentDto[]>;
-    archived?: DeploymentDto[];
-    unknownArchiveTotal?: boolean;
-    address?: string;
-    hasNextPage?: boolean;
-    isFetching?: boolean;
-    isError?: boolean;
-    isListError?: boolean;
-    isListFetching?: boolean;
-    isArchiveFetching?: boolean;
-    isArchiveError?: boolean;
-    isCloseConfirmed?: boolean;
-    broadcastResponse?: boolean;
-    names?: Record<string, string>;
-    appliedSearch?: string;
-    isSearchTooBroad?: boolean;
-    isArchiveSearchTooBroad?: boolean;
-  };
 
   describe("when the source has yet to apply the search in the box", () => {
     it("keeps the toolbar up rather than reading a cleared box as an account with nothing in it", () => {
@@ -831,42 +665,76 @@ describe(useDeploymentsListModel.name, () => {
     });
   });
 
+  it("clears any staged SDL when a new deployment is started", () => {
+    const { result, store } = setup({ active: [deployment("100")] });
+    store.set(sdlStore.deploySdl, mock<TemplateCreation>());
+
+    act(() => result.current.startNewDeployment());
+
+    expect(store.get(sdlStore.deploySdl)).toBeNull();
+  });
+
+  function deployment(dseq: string, state = "active") {
+    return mock<ListedDeploymentDto>({ dseq, state });
+  }
+
   function closedDeployments(count: number) {
     return Array.from({ length: count }, (_, index) => deployment(`${200 + index}`, "closed"));
   }
+
+  type Input = {
+    active?: ListedDeploymentDto[];
+    activeByPage?: Record<number, ListedDeploymentDto[]>;
+    archived?: ListedDeploymentDto[];
+    isUnresolved?: boolean;
+    isArchiveUnresolved?: boolean;
+    unknownArchiveTotal?: boolean;
+    address?: string;
+    hasNextPage?: boolean;
+    isFetching?: boolean;
+    isError?: boolean;
+    isArchiveFetching?: boolean;
+    isArchiveError?: boolean;
+    isCloseConfirmed?: boolean;
+    broadcastResponse?: boolean;
+    appliedSearch?: string;
+    isSearchTooBroad?: boolean;
+    isArchiveSearchTooBroad?: boolean;
+  };
 
   function setup(input: Input) {
     localStorage.clear();
 
     let current = input;
-    const refetchPage = vi.fn();
-    const refetchList = vi.fn();
+    const refetch = vi.fn();
     const closeDeploymentConfirm = vi.fn(async () => current.isCloseConfirmed ?? true);
     const signAndBroadcastTx = vi.fn(async () => ("broadcastResponse" in current ? (current.broadcastResponse as boolean) : true));
 
-    const useDeploymentsPage = vi.fn<typeof SOURCE_DEPENDENCIES.useDeploymentsPage>((_address, params) =>
-      Object.assign(mock<ReturnType<typeof SOURCE_DEPENDENCIES.useDeploymentsPage>>(), {
-        data: current.isUnresolved
-          ? undefined
-          : ({
-              deployments: current.activeByPage ? current.activeByPage[params.skip / params.limit] ?? [] : current.active ?? [],
-              hasNextPage: current.hasNextPage ?? false
-            } satisfies DeploymentsPage),
-        isFetching: current.isFetching ?? false,
-        isError: current.isError ?? false,
-        refetch: refetchPage
-      })
-    );
+    const useDeploymentsListSource = vi.fn(({ search, pageIndex, pageSize, archivePageIndex }: DeploymentsListSourceInput): DeploymentsListSource => {
+      const archived = current.archived ?? [];
 
-    const useDeploymentList = vi.fn<typeof SOURCE_DEPENDENCIES.useDeploymentList>((_address, _options, state) =>
-      Object.assign(mock<ReturnType<typeof SOURCE_DEPENDENCIES.useDeploymentList>>(), {
-        data:
-          state === "closed" ? (current.isArchiveUnresolved ? undefined : current.archived ?? []) : current.isListUnresolved ? undefined : current.active ?? [],
-        isFetching: state === "closed" ? current.isArchiveFetching ?? false : current.isListFetching ?? false,
-        isError: state === "closed" ? current.isArchiveError ?? false : current.isListError ?? false,
-        refetch: refetchList
-      })
-    );
+      return {
+        appliedSearch: current.appliedSearch ?? search.trim(),
+        active: {
+          deployments: current.activeByPage ? current.activeByPage[pageIndex] ?? [] : current.active ?? [],
+          hasNextPage: current.hasNextPage ?? false,
+          isResolved: !current.isUnresolved,
+          isFetching: current.isFetching ?? false,
+          isError: current.isError ?? false,
+          isSearchTooBroad: current.isSearchTooBroad ?? false
+        },
+        archive: {
+          deployments: archived.slice(archivePageIndex * pageSize, (archivePageIndex + 1) * pageSize),
+          total: current.unknownArchiveTotal ? null : archived.length,
+          hasNextPage: (archivePageIndex + 1) * pageSize < archived.length,
+          isResolved: !current.isArchiveUnresolved,
+          isFetching: current.isArchiveFetching ?? false,
+          isError: current.isArchiveError ?? false,
+          isSearchTooBroad: current.isArchiveSearchTooBroad ?? false
+        },
+        refetch
+      };
+    });
 
     const useWallet: typeof DEPENDENCIES.useWallet = () =>
       mock<ReturnType<typeof DEPENDENCIES.useWallet>>({
@@ -875,36 +743,19 @@ describe(useDeploymentsListModel.name, () => {
         signAndBroadcastTx
       });
     const useProviderList: typeof DEPENDENCIES.useProviderList = () => mock<ReturnType<typeof DEPENDENCIES.useProviderList>>({ data: [], isFetching: false });
-    const useDeploymentNames = vi.fn<typeof SOURCE_DEPENDENCIES.useDeploymentNames>(() => ({
-      getDeploymentName: dseq => current.names?.[String(dseq)] ?? null
-    }));
     const useManagedDeploymentConfirm: typeof DEPENDENCIES.useManagedDeploymentConfirm = () =>
       mock<ReturnType<typeof DEPENDENCIES.useManagedDeploymentConfirm>>({ closeDeploymentConfirm });
 
-    const useDeploymentsListSource = (sourceInput: Parameters<typeof useChainDeploymentsListSource>[0]) => {
-      const source = useChainDeploymentsListSource(sourceInput, { useWallet, useDeploymentNames, useDeploymentsPage, useDeploymentList });
-
-      return {
-        ...source,
-        appliedSearch: current.appliedSearch ?? source.appliedSearch,
-        active: { ...source.active, isSearchTooBroad: current.isSearchTooBroad ?? false },
-        archive: {
-          ...source.archive,
-          total: current.unknownArchiveTotal ? null : source.archive.total,
-          isSearchTooBroad: current.isArchiveSearchTooBroad ?? false
-        }
-      };
-    };
-
-    const dependencies = {
+    const dependencies: typeof DEPENDENCIES = {
       useWallet,
       useProviderList,
       useManagedDeploymentConfirm,
-      useListSelection: DEPENDENCIES.useListSelection
+      useListSelection: DEPENDENCIES.useListSelection,
+      useDeploymentsListSource
     };
 
     const store = createStore();
-    const hook = renderHook(() => useDeploymentsListModel({ useDeploymentsListSource }, dependencies), {
+    const hook = renderHook(() => useDeploymentsListModel(dependencies), {
       wrapper: ({ children }) => createElement(Provider, { store }, children)
     });
 
@@ -915,13 +766,10 @@ describe(useDeploymentsListModel.name, () => {
         current = { ...current, ...next };
         hook.rerender();
       },
-      refetchPage,
-      refetchList,
+      refetch,
       closeDeploymentConfirm,
       signAndBroadcastTx,
-      useDeploymentsPage,
-      useDeploymentList,
-      useDeploymentNames
+      useDeploymentsListSource
     };
   }
 });

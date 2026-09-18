@@ -416,7 +416,6 @@ describe("DeploymentsList", () => {
 
     render(
       <DeploymentsList
-        useDeploymentsListSource={vi.fn()}
         dependencies={MockComponents(DEPENDENCIES, {
           useDeploymentsListModel,
           useBlockchainStatus,

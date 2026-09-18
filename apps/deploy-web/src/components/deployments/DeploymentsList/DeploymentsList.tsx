@@ -26,7 +26,6 @@ import { DeploymentArchive } from "./DeploymentArchive";
 import { DeploymentsCollection } from "./DeploymentsCollection";
 import { DeploymentsEmptyState } from "./DeploymentsEmptyState";
 import { useDeploymentsListModel } from "./useDeploymentsListModel";
-import type { DeploymentsListSourceHook } from "./useDeploymentsListSource";
 
 /** The api rejects a search longer than a deployment name may be, so the box stops one from being entered. */
 export const MAX_SEARCH_LENGTH = 256;
@@ -42,12 +41,11 @@ export const DEPENDENCIES = {
 };
 
 interface Props {
-  useDeploymentsListSource: DeploymentsListSourceHook;
   dependencies?: typeof DEPENDENCIES;
 }
 
-export const DeploymentsList: React.FunctionComponent<Props> = ({ useDeploymentsListSource, dependencies: d = DEPENDENCIES }) => {
-  const model = d.useDeploymentsListModel({ useDeploymentsListSource });
+export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: d = DEPENDENCIES }) => {
+  const model = d.useDeploymentsListModel();
   const { isBlockchainDown } = d.useBlockchainStatus();
   const newDeploymentUrl = d.useNewDeploymentUrl();
 

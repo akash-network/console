@@ -256,9 +256,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       if (!settingsId) return;
       queryClient.invalidateQueries({ queryKey: QueryKeys.getBalancesKey(settingsId) });
       queryClient.invalidateQueries({ queryKey: QueryKeys.getDeploymentListKey(settingsId) });
-      queryClient.invalidateQueries({ queryKey: QueryKeys.getDeploymentsPageKeyPrefix(settingsId) });
+      queryClient.invalidateQueries({ queryKey: api.v1.listDeployments.getKey() });
     },
-    [queryClient, settingsId]
+    [queryClient, settingsId, api]
   );
 
   /** A failure only becomes an error scene when a create was queued behind it, so a purely background one leaves the phase alone. */
@@ -530,7 +530,6 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         queryClient.invalidateQueries({ queryKey: QueryKeys.getLeaseExistenceKey(owner) });
         queryClient.invalidateQueries({ queryKey: QueryKeys.getAllLeasesKey(owner) });
         queryClient.invalidateQueries({ queryKey: QueryKeys.getDeploymentListKey(owner) });
-        queryClient.invalidateQueries({ queryKey: QueryKeys.getDeploymentsPageKeyPrefix(owner) });
         queryClient.invalidateQueries({ queryKey: api.v1.listDeployments.getKey() });
         setDeploySucceeded(true);
         redirectTimerRef.current = setTimeout(function redirectToDeployment() {
