@@ -125,6 +125,13 @@ describe(useDeploymentNames.name, () => {
     expect(asked.flat().sort()).toEqual([...dseqs].sort());
   });
 
+  it("still names a surface holding exactly as many deployments as it will name", async () => {
+    const dseqs = Array.from({ length: MAX_NAMED_DEPLOYMENTS }, (_, index) => String(1000 + index));
+    const { listDeploymentNames } = setup({ dseqs });
+
+    await vi.waitFor(() => expect(listDeploymentNames).toHaveBeenCalledTimes(MAX_NAMED_DEPLOYMENTS / MAX_DSEQS_PER_NAMES_LOOKUP));
+  });
+
   it("asks the api for nothing when the surface holds more deployments than it will name, and still answers from this browser's record", () => {
     const dseqs = Array.from({ length: MAX_NAMED_DEPLOYMENTS + 1 }, (_, index) => String(1000 + index));
     const { result, listDeploymentNames, queryClient } = setup({ dseqs, localNames: { "1000": "local-name" } });

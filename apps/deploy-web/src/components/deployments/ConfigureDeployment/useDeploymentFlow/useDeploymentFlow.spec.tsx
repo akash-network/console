@@ -1317,6 +1317,7 @@ describe(useDeploymentFlow.name, () => {
     services.api.v1.createLease.useMutation.mockReturnValue((mutations?.createLease ?? mockMutation()) as never);
     services.api.v1.updateDeployment.useMutation.mockReturnValue((mutations?.updateDeployment ?? mockMutation()) as never);
     services.api.v1.getDeployment.useMutation.mockReturnValue((mutations?.getDeployment ?? mockMutation()) as never);
+    services.api.v1.listDeployments.getKey.mockReturnValue(["v1", "listDeployments"]);
     return services;
   }
 
