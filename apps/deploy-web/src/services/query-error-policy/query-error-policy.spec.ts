@@ -7,6 +7,7 @@ import {
   isProviderUnavailableError,
   retryOnServerError,
   shouldReportError,
+  SKIP_REPORTING_BELOW_SERVER_ERROR,
   SKIP_REPORTING_HANDLED_BY_CALLER,
   SKIP_REPORTING_PROVIDER_POLL_FAILURE
 } from "./query-error-policy";
@@ -143,6 +144,28 @@ describe("query-error-policy", () => {
       expect(shouldReportError(new Error("boom"), SKIP_REPORTING_HANDLED_BY_CALLER)).toBe(false);
     });
   });
+
+  describe("SKIP_REPORTING_BELOW_SERVER_ERROR", () => {
+    it.each([401, 403, 404])("stays quiet for a %s the typed api client raised", status => {
+      expect(shouldReportError(apiError(status), SKIP_REPORTING_BELOW_SERVER_ERROR)).toBe(false);
+    });
+
+    it("stays quiet for a browser that could not reach the api at all", () => {
+      expect(shouldReportError(new TypeError("Failed to fetch"), SKIP_REPORTING_BELOW_SERVER_ERROR)).toBe(false);
+    });
+
+    it.each([500, 503])("reports a %s", status => {
+      expect(shouldReportError(apiError(status), SKIP_REPORTING_BELOW_SERVER_ERROR)).toBe(true);
+    });
+
+    it("reports a server error the provider proxy raised as an axios one", () => {
+      expect(shouldReportError(httpError(500), SKIP_REPORTING_BELOW_SERVER_ERROR)).toBe(true);
+    });
+  });
+
+  function apiError(status: number) {
+    return new ApiError(status, {}, `PATCH /v1/deployments/{dseq} \u2192 ${status}`);
+  }
 
   function httpError(status: number, data?: unknown) {
     return new AxiosError("Request failed", String(status), undefined, undefined, { status, data } as never);

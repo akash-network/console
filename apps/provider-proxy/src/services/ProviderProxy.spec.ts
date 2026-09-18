@@ -96,9 +96,10 @@ describe(ProviderProxy.name, () => {
     expect(connectionTracker.isRepeatedFailure).toHaveBeenCalledWith("akash1provider|https://provider.example.com:8443", "ETIMEDOUT");
   });
 
-  it("records nothing when its own per-attempt timeout kills the dial", async () => {
+  it("records the host as unresponsive when its own per-attempt timeout kills the dial", async () => {
     const { proxy, connectionTracker } = setup();
     const request = stubDial();
+    const error = Object.assign(new Error("socket hang up"), { code: "ECONNRESET" });
 
     const pending = proxy.connect("https://provider.example.com:8443/status", {
       method: "GET",
@@ -106,10 +107,48 @@ describe(ProviderProxy.name, () => {
       timeout: 5_000
     });
     request.emit("timeout");
+    request.emit("error", error);
+
+    await expect(pending).resolves.toEqual({ ok: false, code: "connectionError", error });
+    expect(request.destroy).toHaveBeenCalled();
+    expect(connectionTracker.recordUnresponsive).toHaveBeenCalledWith("akash1provider|https://provider.example.com:8443", error);
+    expect(connectionTracker.recordUnreachable).not.toHaveBeenCalled();
+  });
+
+  it("flags a dial that timed out on a provider already known to be failing", async () => {
+    const { proxy, connectionTracker } = setup({ repeatedFailure: true });
+    const request = stubDial();
+    const error = Object.assign(new Error("socket hang up"), { code: "ECONNRESET" });
+
+    const pending = proxy.connect("https://provider.example.com:8443/status", {
+      method: "GET",
+      providerAddress: "akash1provider",
+      timeout: 5_000
+    });
+    request.emit("timeout");
+    request.emit("error", error);
+
+    await expect(pending).resolves.toEqual({ ok: false, code: "connectionError", error, repeatedFailure: true });
+    expect(connectionTracker.hasRepeatedFailures).toHaveBeenCalledWith("akash1provider|https://provider.example.com:8443");
+  });
+
+  it("records nothing for a dial the client aborted before the timeout could fire", async () => {
+    const { proxy, connectionTracker } = setup();
+    const request = stubDial();
+    const abortController = new AbortController();
+
+    const pending = proxy.connect("https://provider.example.com:8443/status", {
+      method: "GET",
+      providerAddress: "akash1provider",
+      timeout: 5_000,
+      signal: abortController.signal
+    });
+    abortController.abort();
+    request.emit("timeout");
     request.emit("error", Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }));
 
     await expect(pending).resolves.toMatchObject({ ok: false, code: "connectionError" });
-    expect(request.destroy).toHaveBeenCalled();
+    expect(connectionTracker.recordUnresponsive).not.toHaveBeenCalled();
     expect(connectionTracker.recordUnreachable).not.toHaveBeenCalled();
   });
 
@@ -140,6 +179,25 @@ describe(ProviderProxy.name, () => {
 
     expect(result).toMatchObject({ ok: true });
     expect(connectionTracker.recordReachable).toHaveBeenCalledWith("akash1provider|https://provider.example.com:8443");
+    expect(connectionTracker.recordUnreachable).not.toHaveBeenCalled();
+  });
+
+  it("records nothing when its per-attempt timeout fires while the certificate is still being validated", async () => {
+    const { proxy, connectionTracker, certificateValidator } = setup();
+    certificateValidator.validate.mockReturnValue(new Promise<never>(() => {}));
+    const { request } = stubDialWithUnverifiedTlsResponse();
+
+    const pending = proxy.connect("https://provider.example.com:8443/status", {
+      method: "GET",
+      providerAddress: "akash1provider",
+      timeout: 5_000
+    });
+    await vi.waitFor(() => expect(connectionTracker.recordReachable).toHaveBeenCalled());
+    request.emit("timeout");
+    request.emit("error", Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }));
+
+    await expect(pending).resolves.toMatchObject({ ok: false, code: "connectionError" });
+    expect(connectionTracker.recordUnresponsive).not.toHaveBeenCalled();
     expect(connectionTracker.recordUnreachable).not.toHaveBeenCalled();
   });
 
@@ -195,6 +253,20 @@ describe(ProviderProxy.name, () => {
     return { request, response };
   }
 
+  function stubDialWithUnverifiedTlsResponse() {
+    const request = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn(), reusedSocket: false });
+    const socket = Object.assign(Object.create(TLSSocket.prototype) as TLSSocket, {
+      authorized: false,
+      getPeerX509Certificate: vi.fn().mockReturnValue(mock<X509Certificate>())
+    });
+    const response = Object.assign(new EventEmitter(), { socket, destroy: vi.fn(), pause: vi.fn(), resume: vi.fn() });
+    vi.spyOn(https, "request").mockImplementation((_url, _options, callback) => {
+      setImmediate(() => (callback as ((res: IncomingMessage) => void) | undefined)?.(response as unknown as IncomingMessage));
+      return request as unknown as ClientRequest;
+    });
+    return { request, response };
+  }
+
   function stubDialFailure(error: Error) {
     const request = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn(), reusedSocket: false });
     vi.spyOn(https, "request").mockImplementation(() => {
@@ -207,7 +279,8 @@ describe(ProviderProxy.name, () => {
     const connectionTracker = mock<ProviderConnectionTracker>({
       shouldSkipDial: vi.fn().mockReturnValue(input.shouldSkipDial ?? false),
       getLastError: vi.fn().mockReturnValue(input.lastError),
-      isRepeatedFailure: vi.fn((_key: string, errno: string | undefined) => (input.repeatedFailure ?? false) && errno === "ECONNRESET")
+      isRepeatedFailure: vi.fn((_key: string, errno: string | undefined) => (input.repeatedFailure ?? false) && errno === "ECONNRESET"),
+      hasRepeatedFailures: vi.fn().mockReturnValue(input.repeatedFailure ?? false)
     });
     const certificateValidator = mock<CertificateValidator>();
     const proxy = new ProviderProxy(certificateValidator, undefined, connectionTracker);

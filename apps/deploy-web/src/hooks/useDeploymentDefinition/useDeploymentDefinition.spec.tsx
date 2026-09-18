@@ -175,7 +175,8 @@ describe(useDeploymentDefinition.name, () => {
     const services = { api, deploymentLocalStorage } satisfies Partial<ReturnType<typeof DEPENDENCIES.useServices>>;
     const useServices: typeof DEPENDENCIES.useServices = () => services as unknown as ReturnType<typeof DEPENDENCIES.useServices>;
 
-    const useResolvedName: typeof DEPENDENCIES.useResolvedDeploymentName = dseq => useResolvedDeploymentName(dseq, { useServices });
+    const useResolvedName: typeof DEPENDENCIES.useResolvedDeploymentName = dseq =>
+      useResolvedDeploymentName(dseq, { useServices, useDeploymentNameBackfill: () => undefined });
 
     const { result } = setupQuery(
       () => useDeploymentDefinition(input.dseq === undefined ? "123" : input.dseq, { useServices, useWallet, useResolvedDeploymentName: useResolvedName }),

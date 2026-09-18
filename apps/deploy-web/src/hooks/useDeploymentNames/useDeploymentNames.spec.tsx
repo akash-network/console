@@ -64,6 +64,35 @@ describe(useDeploymentNames.name, () => {
     expect(deploymentLocalStorage.get).not.toHaveBeenCalled();
   });
 
+  it("hands the api's answers to the backfill once they arrive", async () => {
+    const { useDeploymentNameBackfill } = setup({ dseqs: ["100", "200"], apiNames: { "100": null, "200": "api-name" } });
+
+    await vi.waitFor(() =>
+      expect(useDeploymentNameBackfill).toHaveBeenLastCalledWith([
+        { dseq: "100", name: null },
+        { dseq: "200", name: "api-name" }
+      ])
+    );
+  });
+
+  it("hands the backfill nothing while the api is still answering", () => {
+    const { useDeploymentNameBackfill } = setup({ dseqs: ["100"], apiNames: { "100": null }, localNames: { "100": "local-name" } });
+
+    expect(useDeploymentNameBackfill).toHaveBeenLastCalledWith([]);
+  });
+
+  it("hands the backfill nothing for a lookup the api refused, whose answers are then unknown", async () => {
+    const { useDeploymentNameBackfill, settleLookups } = setup({
+      dseqs: ["100"],
+      apiError: new ApiError(401, {}, "GET /v1/deployment-names \u2192 401"),
+      localNames: { "100": "local-name" }
+    });
+
+    await settleLookups();
+
+    expect(useDeploymentNameBackfill).toHaveBeenLastCalledWith([]);
+  });
+
   it("asks the api for nothing when there is no deployment to name", () => {
     const { listDeploymentNames } = setup({ dseqs: [null, undefined, ""] });
 
@@ -154,6 +183,7 @@ describe(useDeploymentNames.name, () => {
     apiError?: Error;
     localNames?: Record<string, string>;
   }) {
+    const useDeploymentNameBackfill = vi.fn<typeof DEPENDENCIES.useDeploymentNameBackfill>();
     const listDeploymentNames = vi.fn(({ dseq }: { dseq: string[] }) => {
       if (input.apiError) return Promise.reject(input.apiError);
 
@@ -183,7 +213,7 @@ describe(useDeploymentNames.name, () => {
     store.set(settingsIdAtom, "akash1test");
 
     let dseqs = input.dseqs;
-    const { result, rerender } = setupQuery(() => useDeploymentNames(dseqs, { useServices }), {
+    const { result, rerender } = setupQuery(() => useDeploymentNames(dseqs, { useServices, useDeploymentNameBackfill }), {
       services: { api: () => api, deploymentLocalStorage: () => deploymentLocalStorage, queryClient: () => queryClient },
       wrapper: ({ children }) => <JotaiStoreProvider store={store}>{children}</JotaiStoreProvider>
     });
@@ -191,6 +221,7 @@ describe(useDeploymentNames.name, () => {
     return {
       result,
       listDeploymentNames,
+      useDeploymentNameBackfill,
       deploymentLocalStorage,
       onQueryError,
       queryClient,

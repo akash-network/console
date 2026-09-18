@@ -4,9 +4,10 @@ import { useQueries } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 
 import { useServices } from "@src/context/ServicesProvider";
+import { useDeploymentNameBackfill } from "@src/hooks/useDeploymentNameBackfill/useDeploymentNameBackfill";
 import { settingsIdAtom } from "@src/store/settingsStore";
 
-export const DEPENDENCIES = { useServices };
+export const DEPENDENCIES = { useServices, useDeploymentNameBackfill };
 
 /** The api refuses a lookup naming more deployments than this, so a longer list is split into several. */
 export const MAX_DSEQS_PER_NAMES_LOOKUP = 100;
@@ -71,6 +72,8 @@ export function useDeploymentNames(dseqs: ReadonlyArray<Dseq>, dependencies = DE
     queries: lookups.map(dseq => api.v1.listDeploymentNames.queryOptions({ dseq }, { catchError: recoverWithNoNames })),
     combine: collectNames
   });
+
+  dependencies.useDeploymentNameBackfill([...apiNames].map(([dseq, name]) => ({ dseq, name })));
 
   const getDeploymentName = useCallback(
     (dseq: Dseq) => {

@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useDeploymentNameBackfill } from "@src/hooks/useDeploymentNameBackfill/useDeploymentNameBackfill";
 import { usePacedValue } from "@src/hooks/usePacedValue/usePacedValue";
 import type { DeploymentsListPage } from "@src/queries/useDeploymentsListQuery";
 import { useDeploymentsListQuery } from "@src/queries/useDeploymentsListQuery";
@@ -44,7 +45,8 @@ export const DEPENDENCIES = {
   useWallet,
   useQueryClient,
   useServices,
-  useDeploymentsListQuery
+  useDeploymentsListQuery,
+  useDeploymentNameBackfill
 };
 
 /** A search spans the whole account server-side, so it is paced rather than sent on every keystroke. */
@@ -58,9 +60,9 @@ export function useApiDeploymentsListSource(
   dependencies: typeof DEPENDENCIES = DEPENDENCIES
 ): DeploymentsListSource {
   const d = dependencies;
-  const { hasWallet } = d.useWallet();
+  const { hasWallet, address } = d.useWallet();
   const queryClient = d.useQueryClient();
-  const { api } = d.useServices();
+  const { api, deploymentLocalStorage } = d.useServices();
 
   const pacedSearch = usePacedValue(search.trim(), SEARCH_PACING);
 
@@ -78,10 +80,21 @@ export function useApiDeploymentsListSource(
   const activePage = active.data ?? EMPTY_PAGE;
   const archivePage = archive.data ?? EMPTY_PAGE;
 
+  d.useDeploymentNameBackfill([...activePage.deployments, ...archivePage.deployments].map(({ dseq, name }) => ({ dseq, name })));
+
+  const activeDeployments = useMemo(
+    () => withRecordedNames(activePage.deployments, address, deploymentLocalStorage),
+    [activePage.deployments, address, deploymentLocalStorage]
+  );
+  const archiveDeployments = useMemo(
+    () => withRecordedNames(archivePage.deployments, address, deploymentLocalStorage),
+    [archivePage.deployments, address, deploymentLocalStorage]
+  );
+
   return {
     appliedSearch: pacedSearch,
     active: {
-      deployments: activePage.deployments,
+      deployments: activeDeployments,
       hasNextPage: activePage.hasNextPage,
       isResolved: active.data !== undefined,
       isFetching: active.isFetching,
@@ -89,7 +102,7 @@ export function useApiDeploymentsListSource(
       isSearchTooBroad: activePage.isSearchTooBroad
     },
     archive: {
-      deployments: archivePage.deployments,
+      deployments: archiveDeployments,
       total: archivePage.total,
       hasNextPage: archivePage.hasNextPage,
       isResolved: archive.data !== undefined,
@@ -99,4 +112,15 @@ export function useApiDeploymentsListSource(
     },
     refetch
   };
+}
+
+/** The api holds no name for a deployment named before it recorded them, so this browser's own record still stands in for one. */
+function withRecordedNames(
+  deployments: ListedDeploymentDto[],
+  address: string | undefined | null,
+  deploymentLocalStorage: ReturnType<typeof useServices>["deploymentLocalStorage"]
+): ListedDeploymentDto[] {
+  return deployments.map(deployment =>
+    deployment.name ? deployment : { ...deployment, name: deploymentLocalStorage.get(address, deployment.dseq)?.name ?? null }
+  );
 }
