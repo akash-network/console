@@ -179,6 +179,24 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: OWNER, alreadyClosedCount: 3 });
     });
 
+    it("spends one drop budget across all of an owner's transactions rather than one per transaction", async () => {
+      const executeDerivedTx = vi
+        .fn()
+        .mockRejectedValueOnce(buildDeploymentClosedAppError(0))
+        .mockRejectedValueOnce(buildDeploymentClosedAppError(0))
+        .mockResolvedValueOnce(buildOkTx())
+        .mockRejectedValueOnce(buildDeploymentClosedAppError(0))
+        .mockRejectedValueOnce(buildDeploymentClosedAppError(0));
+      const dseqs = Array.from({ length: 25 }, (_, index) => String(index + 1));
+      const { service, logger, wallet } = setup({ staleDeployments: dseqs, executeDerivedTx });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(executeDerivedTx).toHaveBeenCalledTimes(5);
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CLEAN_UP_DROP_LIMIT", owner: OWNER }));
+      expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS" }));
+    });
+
     it("treats a landed tx that reverted on a closed deployment as a failure and drops it", async () => {
       const revertedTx = mock<IndexedTx>({ code: 8, hash: "tx-hash", rawLog: "failed to execute message; message index: 0: Deployment closed" });
       const executeDerivedTx = vi.fn().mockResolvedValueOnce(revertedTx).mockResolvedValueOnce(buildOkTx());
@@ -301,6 +319,18 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       const result = await service.cleanup({ concurrency: 1, dryRun: false });
 
       expect(result.ok).toBe(true);
+    });
+
+    it("carries on to the next batch when screening one of them fails", async () => {
+      const screenFailure = new Error("chain db timed out");
+      const { service, deploymentRepository, logger } = setup({ walletBatches: [2, 2] });
+      deploymentRepository.findStaleDeployments.mockRejectedValueOnce(screenFailure).mockResolvedValueOnce([]);
+
+      const result = await service.cleanup({ concurrency: 1, dryRun: false });
+
+      expect(deploymentRepository.findStaleDeployments).toHaveBeenCalledTimes(2);
+      expect(result.err).toBe(true);
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CLEAN_UP_SWEEP_END" }));
     });
 
     it("logs the unsettleable event and swallows the error without refilling fees or retrying", async () => {

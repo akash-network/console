@@ -17,7 +17,7 @@ import { DeploymentRepository, type StaleDeployment, type StaleDeploymentsOutput
 import { CleanUpStaleDeploymentsParams } from "@src/deployment/types/state-deployments";
 import { averageBlockTime, COSMOS_TX_CODE_OK } from "@src/utils/constants";
 
-/** Bounds how many already-closed deployments one pass drops; the batch left after the last drop is still broadcast once. */
+/** Bounds how many already-closed deployments one owner's pass drops; the batch left after the last drop is still broadcast once. */
 const MAX_CLOSED_DEPLOYMENT_DROPS = 3;
 
 /** How many owners one chain query screens, which bounds both the query payload and the rows held in memory at once. */
@@ -26,10 +26,7 @@ const WALLET_BATCH_SIZE = 5_000;
 /** Keeps one owner's orphans from growing into a transaction the chain refuses for gas, which no amount of retrying fixes. */
 const MAX_CLOSES_PER_TX = 20;
 
-/**
- * How far the indexer may trail the chain before a sweep refuses to run: the staleness cutoff is derived from the last
- * indexed height, so an indexer far enough behind reports a leased deployment as lease-less and the sweep closes a live one.
- */
+/** How far the indexer may trail the chain before the sweep refuses to run, because a lagging indexer reads a leased deployment as lease-less. */
 const MAX_INDEXER_LAG_IN_BLOCKS = Math.floor((10 * secondsInMinute) / averageBlockTime);
 
 function groupByOwner(deployments: StaleDeployment[]): Map<string, StaleDeployment[]> {
@@ -64,10 +61,7 @@ export class StaleManagedDeploymentsCleanerService {
     this.logger = createLogger({ context: StaleManagedDeploymentsCleanerService.name });
   }
 
-  /**
-   * Asks the chain which of a batch of managed wallets owns an orphan rather than asking each wallet in turn, so the run
-   * costs a query per batch instead of a query per wallet and stays flat as the wallet table grows.
-   */
+  /** Asks the chain which of a batch of wallets owns an orphan instead of asking each wallet in turn, so a run costs a query per batch, not per wallet. */
   async cleanup(options: CleanUpStaleDeploymentsParams): Promise<Result<void, unknown[]>> {
     const indexedHeight = await this.#resolveFreshIndexedHeight();
 
@@ -109,12 +103,16 @@ export class StaleManagedDeploymentsCleanerService {
     staleBeforeHeight: number,
     options: CleanUpStaleDeploymentsParams
   ): Promise<{ owners: number; errors: unknown[] }> {
-    const deployments = await this.deploymentRepository.findStaleDeployments({
-      owners: wallets.map(wallet => wallet.address),
-      staleBeforeHeight
-    });
-    const orphansByOwner = groupByOwner(deployments);
     const errors: unknown[] = [];
+    const deployments = await this.errorService.execWithErrorHandler(
+      {
+        event: "DEPLOYMENT_CLEAN_UP_SCREEN_ERROR",
+        context: StaleManagedDeploymentsCleanerService.name
+      },
+      () => this.deploymentRepository.findStaleDeployments({ owners: wallets.map(wallet => wallet.address), staleBeforeHeight }),
+      error => errors.push(error)
+    );
+    const orphansByOwner = groupByOwner(deployments ?? []);
 
     if (options.dryRun) {
       for (const [owner, orphans] of orphansByOwner) {
@@ -145,7 +143,7 @@ export class StaleManagedDeploymentsCleanerService {
     return { owners: orphansByOwner.size, errors };
   }
 
-  /** The chain is the authority on where the tip is; the indexer only says how much of it this sweep can see. Undefined means it cannot see enough. */
+  /** Undefined when the indexer cannot see enough of the chain for this sweep's cutoff to mean anything. */
   async #resolveFreshIndexedHeight(): Promise<number | undefined> {
     const [chainHeight, indexedHeight] = await Promise.all([this.blockHttpService.getCurrentHeight(), this.blockRepository.getLatestProcessedHeight()]);
     const lag = chainHeight - indexedHeight;
@@ -173,7 +171,7 @@ export class StaleManagedDeploymentsCleanerService {
     let alreadyClosedCount = 0;
 
     for (const batch of chunk(deployments, MAX_CLOSES_PER_TX)) {
-      const dropped = await this.#closeBatch(wallet, batch);
+      const dropped = await this.#closeBatch(wallet, batch, MAX_CLOSED_DEPLOYMENT_DROPS - alreadyClosedCount);
 
       if (dropped === undefined) return;
 
@@ -184,7 +182,7 @@ export class StaleManagedDeploymentsCleanerService {
   }
 
   /** Returns how many already-closed deployments it dropped, or undefined when the wallet is left for the next run. */
-  async #closeBatch(wallet: ManagedWalletRef, deployments: StaleDeploymentsOutput[]): Promise<number | undefined> {
+  async #closeBatch(wallet: ManagedWalletRef, deployments: StaleDeploymentsOutput[], dropBudget: number): Promise<number | undefined> {
     let remaining = deployments;
     let closedDeploymentsDropped = 0;
 
@@ -211,7 +209,7 @@ export class StaleManagedDeploymentsCleanerService {
         throw failure;
       }
 
-      if (closedDeploymentsDropped >= MAX_CLOSED_DEPLOYMENT_DROPS) {
+      if (closedDeploymentsDropped >= dropBudget) {
         this.logger.warn({ event: "DEPLOYMENT_CLEAN_UP_DROP_LIMIT", owner: wallet.address, remainingCount: remaining.length });
         return undefined;
       }

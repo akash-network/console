@@ -249,10 +249,7 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return this.toOutputList(await this.cursor.query.UserWallets.findMany({ where: this.whereAccessibleBy(inArray(this.table.address, addresses)) }));
   }
 
-  /**
-   * Keyset-paged on the primary key so each batch stays an index scan, and projected down to what a close needs, because
-   * a sweep reads every managed wallet to learn which handful of them own an orphan.
-   */
+  /** Keyset-paged on the primary key and projected to what a close needs, because a sweep reads every managed wallet to find the few that own an orphan. */
   async *findManagedIteratively({ batchSize }: { batchSize: number }): AsyncGenerator<ManagedWalletRef[]> {
     let cursor: number | undefined;
 

@@ -121,10 +121,7 @@ export class DeploymentRepository {
     });
   }
 
-  /**
-   * Owners reach the query as one array rather than one call each, so a sweep of every managed wallet costs a query per
-   * batch instead of a query per wallet, and the batch that comes back is already only the orphans worth closing.
-   */
+  /** Owners reach the query as one array rather than one call each, so a sweep costs a query per batch instead of a query per wallet. */
   async findStaleDeployments(options: StaleDeploymentsOptions): Promise<StaleDeployment[]> {
     if (options.owners.length === 0) return [];
 
