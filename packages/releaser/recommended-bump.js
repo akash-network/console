@@ -14,9 +14,9 @@ const { values: cliOptions } = parseArgs({
   }
 });
 
-// analyzed commits carry full hashes, so an abbreviated --target-sha would match nothing and read as "not releasable"
 const targetSha = cliOptions["target-sha"] ? resolveCommitSha(cliOptions["target-sha"]) : undefined;
 
+/** Analyzed commits carry full hashes, so an abbreviated --target-sha would match nothing and read as "not releasable". */
 function resolveCommitSha(sha) {
   try {
     return execFileSync("git", ["rev-parse", "--verify", `${sha}^{commit}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();

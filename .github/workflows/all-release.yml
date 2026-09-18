@@ -37,12 +37,13 @@ jobs:
         # shellcheck disable=SC2016
         run: | # shell
           if [[ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]]; then
-            pushed_shas=$(gh api "repos/$GITHUB_REPOSITORY/compare/$PUSHED_FROM_SHA...$GITHUB_SHA" --jq '.commits[].sha' || true)
+            pushed_shas=$(gh api --paginate "repos/$GITHUB_REPOSITORY/compare/$PUSHED_FROM_SHA...$GITHUB_SHA?per_page=100" --jq '.commits[].sha' || true)
             if [[ -z "$pushed_shas" ]]; then
               pushed_shas="$GITHUB_SHA"
             fi
             for pushed_sha in $pushed_shas; do
-              gh api "repos/$GITHUB_REPOSITORY/commits/$pushed_sha" --jq '{ sha: .sha, files: [.files[].filename] }'
+              gh api --paginate "repos/$GITHUB_REPOSITORY/commits/$pushed_sha?per_page=100" --jq '.files[].filename' \
+                | jq -R -s --arg sha "$pushed_sha" '{ sha: $sha, files: (split("\n") | map(select(length > 0))) }'
             done | jq -s '.' > pushed_commits.json
           fi
           node --input-type=module -e '
