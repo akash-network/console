@@ -8386,7 +8386,8 @@ export interface operations {
                   deadline?: string;
                   reason?: string;
                 };
-                status: {
+                /** @description Live status as the lease's provider reports it. Absent for a rename, which asks no provider for one. */
+                status?: {
                   forwarded_ports: {
                     [key: string]: {
                       port: number;

@@ -2097,11 +2097,20 @@ describe(DeploymentWriterService.name, () => {
 
       it("refuses a deployment the chain does not hold, writing no name", async () => {
         const { service, ability, deploymentReaderService, deploymentSettingRepository } = setup();
-        deploymentReaderService.findByWalletAndDseq.mockRejectedValue(createError(404, "Deployment not found"));
+        deploymentReaderService.findByWalletAndDseqWithoutLeaseStatus.mockRejectedValue(createError(404, "Deployment not found"));
 
         await expect(service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability)).rejects.toMatchObject({ status: 404 });
 
         expect(deploymentSettingRepository.upsertName).not.toHaveBeenCalled();
+      });
+
+      it("reads the deployment without lease statuses, so a rename asks no provider for one", async () => {
+        const { service, ability, deploymentReaderService } = setup();
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
+
+        expect(deploymentReaderService.findByWalletAndDseqWithoutLeaseStatus).toHaveBeenCalledWith(expect.anything(), "1234");
+        expect(deploymentReaderService.findByWalletAndDseq).not.toHaveBeenCalled();
       });
     });
 
@@ -2226,13 +2235,15 @@ describe(DeploymentWriterService.name, () => {
       deploymentSettingRepository.accessibleBy.mockReturnValue(scoped);
 
       const deploymentReaderService = mock<DeploymentReaderService>();
-      deploymentReaderService.findByWalletAndDseq.mockResolvedValue({
+      const chainDeployment: Awaited<ReturnType<DeploymentReaderService["findByWalletAndDseq"]>> = {
         deployment: { id: { owner: "akash1owner", dseq: "1234" }, state: "active", hash: input?.chainHash ?? "OTHER", created_at: "" },
         leases: (input?.providers ?? ["akash1provider"]).map(provider =>
           mock<Awaited<ReturnType<DeploymentReaderService["findByWalletAndDseq"]>>["leases"][number]>({ id: { provider } })
         ),
         escrow_account: mock()
-      });
+      };
+      deploymentReaderService.findByWalletAndDseq.mockResolvedValue(chainDeployment);
+      deploymentReaderService.findByWalletAndDseqWithoutLeaseStatus.mockResolvedValue(chainDeployment);
 
       const resolved: GenerateResolvedManifestResult = input?.resolveErrors
         ? { ok: false, value: input.resolveErrors }

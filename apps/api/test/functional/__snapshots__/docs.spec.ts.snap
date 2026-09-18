@@ -8738,6 +8738,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "type": "string",
                               },
                               "status": {
+                                "description": "Live status as the lease's provider reports it. Absent for a rename, which asks no provider for one.",
                                 "nullable": true,
                                 "properties": {
                                   "forwarded_ports": {
@@ -8860,7 +8861,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "price",
                               "created_at",
                               "closed_on",
-                              "status",
                             ],
                             "type": "object",
                           },

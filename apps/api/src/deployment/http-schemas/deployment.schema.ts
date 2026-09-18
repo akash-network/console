@@ -353,6 +353,13 @@ export const PatchDeploymentRequestSchema = z.object({
 
 export const PatchDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema.extend({
+    leases: z.array(
+      DeploymentLeaseSchema.extend({
+        status: DeploymentLeaseSchema.shape.status.optional().openapi({
+          description: "Live status as the lease's provider reports it. Absent for a rename, which asks no provider for one."
+        })
+      })
+    ),
     name: DeploymentNameResponseSchema,
     manifestVersion: z.string().optional().openapi({
       description: "Base64 manifest version this patch recorded and committed on chain. Absent for a rename, which records none."
@@ -564,6 +571,7 @@ export const GetWeeklyDeploymentCostResponseSchema = z.object({
 });
 
 export type DeploymentResponse = z.infer<typeof DeploymentResponseSchema>;
+export type DeploymentWithoutLeaseStatus = Omit<DeploymentResponse, "leases"> & { leases: Array<Omit<DeploymentResponse["leases"][number], "status">> };
 export type CreateLeaseResponse = z.infer<typeof CreateLeaseResponseSchema>;
 export type ConsoleSettings = z.infer<typeof ConsoleSettingsSchema>;
 export type GetDeploymentResponse = z.infer<typeof GetDeploymentResponseSchema>;
