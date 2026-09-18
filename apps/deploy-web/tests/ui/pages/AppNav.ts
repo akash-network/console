@@ -14,9 +14,8 @@ export class AppNav {
       .click();
   }
 
-  /** The deployments list labels its deploy entry "Deploy", or "New deployment" under ui_deployments_list_redesign. */
   deployLink() {
-    return this.page.getByRole("link", { name: /^(deploy|create deployment|new deployment)$/i }).first();
+    return this.page.getByRole("link", { name: /^new deployment$/i }).first();
   }
 
   async openDeploy() {

@@ -11,6 +11,9 @@ export const DEPENDENCIES = { useServices };
 /** The api refuses a lookup naming more deployments than this, so a longer list is split into several. */
 export const MAX_DSEQS_PER_NAMES_LOOKUP = 100;
 
+/** Mirrors the api's MAX_SEARCHABLE_DEPLOYMENTS: a surface holding more is left unnamed rather than fanned out into hundreds of lookups. */
+export const MAX_NAMED_DEPLOYMENTS = 5000;
+
 type Dseq = string | number | null | undefined;
 
 export interface DeploymentNames {
@@ -36,6 +39,7 @@ function normalizeDseqs(dseqs: ReadonlyArray<Dseq>): string[] {
 
 function splitIntoLookups(dseqs: string[]): string[][] {
   const lookups: string[][] = [];
+  if (dseqs.length > MAX_NAMED_DEPLOYMENTS) return lookups;
 
   for (let start = 0; start < dseqs.length; start += MAX_DSEQS_PER_NAMES_LOOKUP) {
     lookups.push(dseqs.slice(start, start + MAX_DSEQS_PER_NAMES_LOOKUP));

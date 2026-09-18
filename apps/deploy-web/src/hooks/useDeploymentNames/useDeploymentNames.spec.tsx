@@ -8,7 +8,7 @@ import { mock } from "vitest-mock-extended";
 import type { DeploymentStorageService } from "@src/services/deployment-storage/deployment-storage.service";
 import { settingsIdAtom } from "@src/store/settingsStore";
 import type { DEPENDENCIES } from "./useDeploymentNames";
-import { MAX_DSEQS_PER_NAMES_LOOKUP, useDeploymentNames } from "./useDeploymentNames";
+import { MAX_DSEQS_PER_NAMES_LOOKUP, MAX_NAMED_DEPLOYMENTS, useDeploymentNames } from "./useDeploymentNames";
 
 import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
 
@@ -94,6 +94,15 @@ describe(useDeploymentNames.name, () => {
     const asked = listDeploymentNames.mock.calls.map(([input]) => input.dseq);
     expect(asked.every(lookup => lookup.length <= MAX_DSEQS_PER_NAMES_LOOKUP)).toBe(true);
     expect(asked.flat().sort()).toEqual([...dseqs].sort());
+  });
+
+  it("asks the api for nothing when the surface holds more deployments than it will name, and still answers from this browser's record", () => {
+    const dseqs = Array.from({ length: MAX_NAMED_DEPLOYMENTS + 1 }, (_, index) => String(1000 + index));
+    const { result, listDeploymentNames, queryClient } = setup({ dseqs, localNames: { "1000": "local-name" } });
+
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
+    expect(listDeploymentNames).not.toHaveBeenCalled();
+    expect(result.current.getDeploymentName("1000")).toBe("local-name");
   });
 
   it("names a deployment from whichever lookup answered for it", async () => {
@@ -184,6 +193,7 @@ describe(useDeploymentNames.name, () => {
       listDeploymentNames,
       deploymentLocalStorage,
       onQueryError,
+      queryClient,
       rerenderWith(next: Array<string | number | null | undefined>) {
         dseqs = next;
         rerender();

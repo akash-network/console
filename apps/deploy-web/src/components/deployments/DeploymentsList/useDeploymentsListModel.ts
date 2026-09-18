@@ -11,23 +11,21 @@ import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
 import { deploymentsViewModeAtom } from "@src/store/deploymentsViewStore";
 import sdlStore from "@src/store/sdlStore";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import type { DeploymentsListSourceHook } from "./useDeploymentsListSource";
+import { useApiDeploymentsListSource } from "./useApiDeploymentsListSource";
 
 export const DEPENDENCIES = {
   useWallet,
   useProviderList,
   useManagedDeploymentConfirm,
-  useListSelection
+  useListSelection,
+  useDeploymentsListSource: useApiDeploymentsListSource
 };
 
 /** Must stay one of the sizes PaginationSizeSelector offers, or the selector renders blank. */
 export const DEFAULT_PAGE_SIZE = MIN_PAGE_SIZE;
 
 /** Owns what the page does with a list of deployments, never where that list comes from. */
-export function useDeploymentsListModel(
-  { useDeploymentsListSource }: { useDeploymentsListSource: DeploymentsListSourceHook },
-  dependencies: typeof DEPENDENCIES = DEPENDENCIES
-) {
+export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
   const d = dependencies;
   const { address, signAndBroadcastTx, hasWallet } = d.useWallet();
   const { data: providers, isFetching: isLoadingProviders } = d.useProviderList();
@@ -40,7 +38,7 @@ export function useDeploymentsListModel(
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [search, setSearch] = useState("");
 
-  const { appliedSearch, active, archive, refetch: refetchDeployments } = useDeploymentsListSource({ search, pageIndex, pageSize, archivePageIndex });
+  const { appliedSearch, active, archive, refetch: refetchDeployments } = d.useDeploymentsListSource({ search, pageIndex, pageSize, archivePageIndex });
 
   /** Reads the search the rows were fetched with rather than the box, so a paced source cannot report a search its rows have yet to reflect. */
   const isSearching = appliedSearch.length > 0;

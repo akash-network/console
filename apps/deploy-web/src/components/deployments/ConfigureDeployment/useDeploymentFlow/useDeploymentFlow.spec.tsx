@@ -1227,13 +1227,13 @@ describe(useDeploymentFlow.name, () => {
 
     it("refreshes the balance and deployment lists once the background close lands, so the freed deposit shows up", () => {
       const closeMutate = vi.fn((_args, options) => options.onSuccess?.({}));
-      const { result, queryClient } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
+      const { result, queryClient, services } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
 
       act(() => result.current.actions.cancelAndEdit());
 
       expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: QueryKeys.getBalancesKey("akash1owner") });
       expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: QueryKeys.getDeploymentListKey("akash1owner") });
-      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: QueryKeys.getDeploymentsPageKeyPrefix("akash1owner") });
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: services.api.v1.listDeployments.getKey() });
     });
   });
 
@@ -1259,6 +1259,7 @@ describe(useDeploymentFlow.name, () => {
       deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 })
     };
     return {
+      services,
       ...renderDeploymentFlow(intent, dependencies),
       analyticsService: services.analyticsService,
       queryClient,

@@ -5,30 +5,12 @@ import networkStore from "@src/store/networkStore";
 import type { DeploymentStatus } from "@src/types/deployment";
 import { appendSearchParams } from "./urlUtils";
 
-type DeploymentsPageUrlParams = {
-  owner: string;
-  state: DeploymentStatus;
-  offset: number;
-  limit: number;
-  reverse?: boolean;
-};
-
 export class ApiUrlService {
   static depositParams(apiEndpoint: string) {
     return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/params`;
   }
   static deploymentList(apiEndpoint: string, address: string, state?: DeploymentStatus, reverse?: boolean) {
     let url = `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/list?filters.owner=${address}${state ? `&filters.state=${state}` : ""}`;
-    if (reverse) url += "&pagination.reverse=true";
-    return url;
-  }
-  /**
-   * Single-page deployment listing. Offset pagination requires `filters.state`.
-   * Do not request `count_total`: the RPC reports the current page size, not the collection size.
-   * Callers should use `pagination.next_key` to decide whether another page exists.
-   */
-  static deploymentsPage(apiEndpoint: string, { owner, state, offset, limit, reverse }: DeploymentsPageUrlParams) {
-    let url = `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/list?filters.owner=${owner}&filters.state=${state}&pagination.offset=${offset}&pagination.limit=${limit}`;
     if (reverse) url += "&pagination.reverse=true";
     return url;
   }

@@ -7,7 +7,38 @@ import { useWallet } from "@src/context/WalletProvider";
 import { usePacedValue } from "@src/hooks/usePacedValue/usePacedValue";
 import type { DeploymentsListPage } from "@src/queries/useDeploymentsListQuery";
 import { useDeploymentsListQuery } from "@src/queries/useDeploymentsListQuery";
-import type { DeploymentsListSource, DeploymentsListSourceInput } from "./useDeploymentsListSource";
+import type { ListedDeploymentDto } from "@src/types/deployment";
+
+export interface DeploymentsListSourceInput {
+  search: string;
+  pageIndex: number;
+  pageSize: number;
+  archivePageIndex: number;
+}
+
+export interface DeploymentsListSlice {
+  deployments: ListedDeploymentDto[];
+  hasNextPage: boolean;
+  /** Stays tied to the paged query, so opening a search does not retract what the placeholders wait on. */
+  isResolved: boolean;
+  isFetching: boolean;
+  isError: boolean;
+  /** The api refuses a search once the account holds more deployments than it will sweep for one. */
+  isSearchTooBroad: boolean;
+}
+
+export interface DeploymentsListArchiveSlice extends DeploymentsListSlice {
+  /** Closed deployments matching the current search, or all of them when there is none; null leaves the Archive header without a count. */
+  total: number | null;
+}
+
+export interface DeploymentsListSource {
+  /** The search the slices reflect, which a source that paces its requests only catches up to once the pacing commits. */
+  appliedSearch: string;
+  active: DeploymentsListSlice;
+  archive: DeploymentsListArchiveSlice;
+  refetch: () => void;
+}
 
 export const DEPENDENCIES = {
   useWallet,
