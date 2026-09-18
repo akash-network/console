@@ -3,10 +3,12 @@ export type JsonShape = string | JsonShape[] | { [key: string]: JsonShape };
 /** Two snapshots of a live document disagree on counters and element counts, and an array empty on either side says nothing about its elements. */
 export function describeComparableShapes(left: unknown, right: unknown): [JsonShape, JsonShape] {
   if (Array.isArray(left) && Array.isArray(right)) {
-    if (left.length === 0 || right.length === 0) return [[], []];
+    const pairedElements = Math.min(left.length, right.length);
+    if (pairedElements === 0) return [[], []];
 
-    const [leftElement, rightElement] = describeComparableShapes(left[0], right[0]);
-    return [[leftElement], [rightElement]];
+    const shapes = Array.from({ length: pairedElements }, (_, index) => describeComparableShapes(left[index], right[index]));
+
+    return [distinctShapes(shapes.map(([leftShape]) => leftShape)), distinctShapes(shapes.map(([, rightShape]) => rightShape))];
   }
 
   if (isRecord(left) && isRecord(right)) {
@@ -20,6 +22,10 @@ export function describeComparableShapes(left: unknown, right: unknown): [JsonSh
   }
 
   return [describeType(left), describeType(right)];
+}
+
+function distinctShapes(shapes: JsonShape[]): JsonShape[] {
+  return [...new Map(shapes.map(shape => [JSON.stringify(shape), shape])).values()];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
