@@ -1,5 +1,6 @@
 import conventionalChangelogConventionalCommits from "conventional-changelog-conventionalcommits";
 import { Bumper } from "conventional-recommended-bump";
+import { execFileSync } from "node:child_process";
 import { parseArgs } from "node:util";
 
 import { findLocalPackageDependencies } from "./find-local-package-dependencies.js";
@@ -12,6 +13,18 @@ const { values: cliOptions } = parseArgs({
     "target-sha": { type: "string" }
   }
 });
+
+const targetSha = cliOptions["target-sha"] ? resolveCommitSha(cliOptions["target-sha"]) : undefined;
+
+/** Analyzed commits carry full hashes, so an abbreviated --target-sha would match nothing and read as "not releasable". */
+function resolveCommitSha(sha) {
+  try {
+    return execFileSync("git", ["rev-parse", "--verify", `${sha}^{commit}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch {
+    console.error(JSON.stringify({ error: `Cannot resolve target SHA to a commit: ${sha}` }));
+    process.exit(1);
+  }
+}
 
 const COMMIT_TYPES = [
   { type: "feat", section: "Features" },
@@ -70,7 +83,7 @@ for (const commit of commits) {
     patch++;
   }
 
-  if (!cliOptions["target-sha"] || commit.hash === cliOptions["target-sha"]) {
+  if (!targetSha || commit.hash === targetSha) {
     targetCommit = commit;
     targetCommitReleaseLevel = level;
     break;
