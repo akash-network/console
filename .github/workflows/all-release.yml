@@ -32,32 +32,37 @@ jobs:
         id: matrix
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PUSHED_FROM_SHA: ${{ github.event.before }}
+          DISPATCH_SHA: ${{ inputs.sha }}
         # shellcheck disable=SC2016
         run: | # shell
           if [[ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]]; then
-            gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA" --jq '[.files[].filename]' > changed_files.json
+            pushed_shas=$(gh api "repos/$GITHUB_REPOSITORY/compare/$PUSHED_FROM_SHA...$GITHUB_SHA" --jq '.commits[].sha' || true)
+            if [[ -z "$pushed_shas" ]]; then
+              pushed_shas="$GITHUB_SHA"
+            fi
+            for pushed_sha in $pushed_shas; do
+              gh api "repos/$GITHUB_REPOSITORY/commits/$pushed_sha" --jq '{ sha: .sha, files: [.files[].filename] }'
+            done | jq -s '.' > pushed_commits.json
           fi
           node --input-type=module -e '
             import fs from "fs";
             import { findLocalPackageDependencies } from "./packages/releaser/find-local-package-dependencies.js";
 
-            // trigger release for all in case of workflow_dispatch, otherwise only for changed apps
-            const changedFiles = process.env.GITHUB_EVENT_NAME === "workflow_dispatch"
-              ? fs.readdirSync("./apps").map(app => "apps/" + app + "/")
-              : JSON.parse(fs.readFileSync("./changed_files.json", "utf-8"));
+            const apps = fs.readdirSync("./apps").map(app => ({ app, paths: ["apps/" + app, ...findLocalPackageDependencies("apps/" + app)] }));
 
-            const appsToRelease = fs.readdirSync("./apps").filter(app => {
-              const appPath = "apps/" + app;
-              const localDependencies = findLocalPackageDependencies(appPath);
-              return changedFiles.some(f => f.startsWith(appPath + "/") || localDependencies.some(dep => f.startsWith(dep + "/")));
-            });
+            // release every app in case of workflow_dispatch, otherwise every app each pushed commit changed
+            const pushedCommits = process.env.GITHUB_EVENT_NAME === "workflow_dispatch"
+              ? [{ sha: process.env.DISPATCH_SHA || "", files: apps.map(({ app }) => "apps/" + app + "/") }]
+              : JSON.parse(fs.readFileSync("./pushed_commits.json", "utf-8"));
 
-            const nextjs = appsToRelease
-              .filter(a => fs.readdirSync("apps/" + a).some(f => f.startsWith("next.config")))
-              .map(a => ({ app: a }));
-            const backends = appsToRelease
-              .filter(a => !nextjs.some(n => n.app === a) && a !== "log-collector")
-              .map(a => ({ app: a }));
+            const releases = pushedCommits.flatMap(({ sha, files }) =>
+              apps.filter(({ paths }) => files.some(f => paths.some(p => f.startsWith(p + "/")))).map(({ app }) => ({ app, sha }))
+            );
+
+            const isNextjs = app => fs.readdirSync("apps/" + app).some(f => f.startsWith("next.config"));
+            const nextjs = releases.filter(({ app }) => isNextjs(app));
+            const backends = releases.filter(({ app }) => !isNextjs(app) && app !== "log-collector");
 
             console.log("nextjs=" + JSON.stringify({ include: nextjs }));
             console.log("backends=" + JSON.stringify({ include: backends }));
@@ -77,7 +82,7 @@ jobs:
       actions: write
     with:
       app: ${{ matrix.app }}
-      sha: ${{ inputs.sha }}
+      sha: ${{ matrix.sha }}
 
   release-nextjs:
     needs: setup
@@ -93,4 +98,4 @@ jobs:
       actions: write
     with:
       app: ${{ matrix.app }}
-      sha: ${{ inputs.sha }}
+      sha: ${{ matrix.sha }}
