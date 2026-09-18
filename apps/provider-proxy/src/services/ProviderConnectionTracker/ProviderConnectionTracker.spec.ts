@@ -125,6 +125,56 @@ describe(ProviderConnectionTracker.name, () => {
     expect(tracker.isRepeatedFailure("provider-a", errno)).toBe(false);
   });
 
+  it("reports a dial that timed out after an earlier one as repeated", () => {
+    const { tracker, hang } = setup({ failureThreshold: 3 });
+
+    hang("provider-a");
+
+    expect(tracker.hasRepeatedFailures("provider-a")).toBe(false);
+
+    hang("provider-a");
+
+    expect(tracker.hasRepeatedFailures("provider-a")).toBe(true);
+  });
+
+  it("counts a dial that timed out toward a provider that was already failing", () => {
+    const { tracker, fail, hang } = setup({ failureThreshold: 3 });
+
+    fail("provider-a");
+    hang("provider-a");
+
+    expect(tracker.hasRepeatedFailures("provider-a")).toBe(true);
+  });
+
+  it("never starts a cooldown for a provider that only times out", () => {
+    const { tracker, hang } = setup({ failureThreshold: 1 });
+
+    hang("provider-a");
+    hang("provider-a");
+    hang("provider-a");
+
+    expect(tracker.shouldSkipDial("provider-a")).toBe(false);
+  });
+
+  it("forgets timed-out dials once the provider answers", () => {
+    const { tracker, hang } = setup({ failureThreshold: 3 });
+
+    hang("provider-a");
+    hang("provider-a");
+    tracker.recordReachable("provider-a");
+
+    expect(tracker.hasRepeatedFailures("provider-a")).toBe(false);
+  });
+
+  it("hands back the error from a dial that timed out", () => {
+    const { tracker } = setup();
+    const error = new Error("socket hang up");
+
+    tracker.recordUnresponsive("provider-a", error);
+
+    expect(tracker.getLastError("provider-a")).toBe(error);
+  });
+
   it("resumes dialing once the provider answers", () => {
     const { tracker, fail } = setup({ failureThreshold: 1 });
 
@@ -206,7 +256,8 @@ describe(ProviderConnectionTracker.name, () => {
       advance: (ms: number) => {
         clock += ms;
       },
-      fail: (key: string, errno = "EHOSTUNREACH") => tracker.recordUnreachable(key, Object.assign(new Error(errno), { code: errno }), errno)
+      fail: (key: string, errno = "EHOSTUNREACH") => tracker.recordUnreachable(key, Object.assign(new Error(errno), { code: errno }), errno),
+      hang: (key: string) => tracker.recordUnresponsive(key, Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }))
     };
   }
 });
