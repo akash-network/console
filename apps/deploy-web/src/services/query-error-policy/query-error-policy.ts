@@ -60,3 +60,6 @@ export const SKIP_REPORTING_PROVIDER_POLL_FAILURE = {
 
 /** Opt out for call sites whose own onError reports the failure with tags the cache handler has no way to know. */
 export const SKIP_REPORTING_HANDLED_BY_CALLER = { skipErrorReporting: () => true };
+
+/** Opt out for a best-effort write the user never asked for, whose refusal is the session's state rather than a fault, while a server error stays Console's to answer for. */
+export const SKIP_REPORTING_BELOW_SERVER_ERROR = { skipErrorReporting: (error: unknown) => !isServerError(error) };

@@ -25,7 +25,7 @@ type Props = {
 };
 
 export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, dependencies: d = DEPENDENCIES }) => {
-  const { api } = useServices();
+  const { api, deploymentNameBackfill } = useServices();
   const formRef = useRef<HTMLFormElement | null>(null);
   const { enqueueSnackbar } = d.useSnackbar();
   const queryClient = d.useQueryClient();
@@ -63,9 +63,11 @@ export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, d
     formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
 
-  function onSubmit({ name }: z.infer<typeof formSchema>) {
+  async function onSubmit({ name }: z.infer<typeof formSchema>) {
     if (!dseq || renameDeployment.isPending) return;
     const renamedDseq = String(dseq);
+
+    await deploymentNameBackfill.preempt(renamedDseq);
 
     renameDeployment.mutate(
       { dseq: renamedDseq, data: { name } },
@@ -103,7 +105,7 @@ export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, d
           color: "primary",
           variant: "default",
           side: "right",
-          disabled: renameDeployment.isPending,
+          disabled: renameDeployment.isPending || formState.isSubmitting,
           onClick: onSaveClick
         }
       ]}

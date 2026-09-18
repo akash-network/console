@@ -7,6 +7,7 @@ import * as walletUtils from "@src/utils/walletUtils";
 import { AuthService } from "../auth/auth/auth.service";
 import { PROXY_API_BASE_URL, withUserToken } from "../auth/auth/interceptors";
 import { createChildContainer } from "../container/createContainer";
+import { DeploymentNameBackfillService } from "../deployment-name-backfill/deployment-name-backfill.service";
 import { DeploymentStorageService } from "../deployment-storage/deployment-storage.service";
 import { BitbucketService } from "../remote-deploy/bitbucket-http.service";
 import { GitHubService } from "../remote-deploy/github-http.service";
@@ -51,6 +52,7 @@ export const services = createChildContainer(rootContainer, {
   authService: () => new AuthService(services.urlService, services.internalApiHttpClient),
   storedWalletsService: () => walletUtils,
   deploymentLocalStorage: () => new DeploymentStorageService(localStorage, services.networkStore),
+  deploymentNameBackfill: () => new DeploymentNameBackfillService(),
   windowLocation: () => window.location,
   windowHistory: () => window.history,
   sdlAnalyzer: () => new SDLAnalyzer({ ciCdImageName: services.publicConfig.NEXT_PUBLIC_CI_CD_IMAGE_NAME })
