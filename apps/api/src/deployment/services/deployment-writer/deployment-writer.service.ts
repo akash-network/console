@@ -499,7 +499,7 @@ export class DeploymentWriterService {
    */
   async #renameByUserIdAndDseq(userId: string, dseq: string, name: string, ability: AnyAbility): Promise<PatchDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
-    const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutLeaseStatus(wallet, dseq);
+    const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
 
     const persistedName = await this.deploymentSettingRepository.accessibleBy(ability, "update").upsertName({ userId, dseq, name });
 

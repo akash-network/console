@@ -108,32 +108,33 @@ describe(DeploymentReaderService.name, () => {
     });
   });
 
-  describe("findByWalletAndDseqWithoutLeaseStatus", () => {
+  describe("findByWalletAndDseqWithoutProviderStatus", () => {
     it.each(["active", "reclaiming"])("asks no provider for the status of a %s lease", async state => {
       const wallet = createUserWallet() as WalletInitialized;
       const dseq = "12345";
       const lease = createLeaseApiResponse({ owner: wallet.address, dseq, state });
       const { service, providerService } = setup({ leases: [lease] });
 
-      await service.findByWalletAndDseqWithoutLeaseStatus(wallet, dseq);
+      await service.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
 
       expect(providerService.getLeaseStatus).not.toHaveBeenCalled();
       expect(providerService.toProviderAuth).not.toHaveBeenCalled();
     });
 
-    it("returns every lease, carrying no status for any of them", async () => {
+    it("returns every lease with a null status, so a live one is not reported as running", async () => {
       const wallet = createUserWallet() as WalletInitialized;
       const dseq = "12345";
       const leases = [
         createLeaseApiResponse({ owner: wallet.address, dseq, state: "active" }),
         createLeaseApiResponse({ owner: wallet.address, dseq, state: "closed" })
       ];
-      const { service } = setup({ leases });
+      const { service, providerService } = setup({ leases });
+      providerService.getLeaseStatus.mockResolvedValue(mock<Awaited<ReturnType<ProviderService["getLeaseStatus"]>>>());
 
-      const result = await service.findByWalletAndDseqWithoutLeaseStatus(wallet, dseq);
+      const result = await service.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
 
       expect(result.leases).toHaveLength(2);
-      expect(result.leases.every(lease => !("status" in lease))).toBe(true);
+      expect(result.leases.every(lease => lease.status === null)).toBe(true);
     });
 
     it("refuses a deployment the chain does not hold, so a write guarded on it still fails", async () => {
@@ -142,7 +143,7 @@ describe(DeploymentReaderService.name, () => {
 
       deploymentHttpService.findByOwnerAndDseq.mockResolvedValue({ code: 5, message: "deployment not found", details: [] });
 
-      await expect(service.findByWalletAndDseqWithoutLeaseStatus(wallet, "12345")).rejects.toMatchObject({ status: 404 });
+      await expect(service.findByWalletAndDseqWithoutProviderStatus(wallet, "12345")).rejects.toMatchObject({ status: 404 });
     });
   });
 

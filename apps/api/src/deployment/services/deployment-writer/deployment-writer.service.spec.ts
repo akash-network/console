@@ -2097,19 +2097,19 @@ describe(DeploymentWriterService.name, () => {
 
       it("refuses a deployment the chain does not hold, writing no name", async () => {
         const { service, ability, deploymentReaderService, deploymentSettingRepository } = setup();
-        deploymentReaderService.findByWalletAndDseqWithoutLeaseStatus.mockRejectedValue(createError(404, "Deployment not found"));
+        deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockRejectedValue(createError(404, "Deployment not found"));
 
         await expect(service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability)).rejects.toMatchObject({ status: 404 });
 
         expect(deploymentSettingRepository.upsertName).not.toHaveBeenCalled();
       });
 
-      it("reads the deployment without lease statuses, so a rename asks no provider for one", async () => {
+      it("reads the deployment without provider statuses, so a rename asks no provider for one", async () => {
         const { service, ability, deploymentReaderService } = setup();
 
         await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
 
-        expect(deploymentReaderService.findByWalletAndDseqWithoutLeaseStatus).toHaveBeenCalledWith(expect.anything(), "1234");
+        expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledWith(expect.anything(), "1234");
         expect(deploymentReaderService.findByWalletAndDseq).not.toHaveBeenCalled();
       });
     });
@@ -2243,7 +2243,7 @@ describe(DeploymentWriterService.name, () => {
         escrow_account: mock()
       };
       deploymentReaderService.findByWalletAndDseq.mockResolvedValue(chainDeployment);
-      deploymentReaderService.findByWalletAndDseqWithoutLeaseStatus.mockResolvedValue(chainDeployment);
+      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue(chainDeployment);
 
       const resolved: GenerateResolvedManifestResult = input?.resolveErrors
         ? { ok: false, value: input.resolveErrors }
