@@ -108,6 +108,45 @@ describe(DeploymentReaderService.name, () => {
     });
   });
 
+  describe("findByWalletAndDseqWithoutProviderStatus", () => {
+    it.each(["active", "reclaiming"])("asks no provider for the status of a %s lease", async state => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const dseq = "12345";
+      const lease = createLeaseApiResponse({ owner: wallet.address, dseq, state });
+      const { service, providerService } = setup({ leases: [lease] });
+
+      await service.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
+
+      expect(providerService.getLeaseStatus).not.toHaveBeenCalled();
+      expect(providerService.toProviderAuth).not.toHaveBeenCalled();
+    });
+
+    it("returns every lease with a null status, so a live one is not reported as running", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const dseq = "12345";
+      const leases = [
+        createLeaseApiResponse({ owner: wallet.address, dseq, state: "active" }),
+        createLeaseApiResponse({ owner: wallet.address, dseq, state: "closed" })
+      ];
+      const { service, providerService } = setup({ leases });
+      providerService.getLeaseStatus.mockResolvedValue(mock<Awaited<ReturnType<ProviderService["getLeaseStatus"]>>>());
+
+      const result = await service.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
+
+      expect(result.leases).toHaveLength(2);
+      expect(result.leases.every(lease => lease.status === null)).toBe(true);
+    });
+
+    it("refuses a deployment the chain does not hold, so a write guarded on it still fails", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentHttpService } = setup();
+
+      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue({ code: 5, message: "deployment not found", details: [] });
+
+      await expect(service.findByWalletAndDseqWithoutProviderStatus(wallet, "12345")).rejects.toMatchObject({ status: 404 });
+    });
+  });
+
   describe("findByWalletAndDseq", () => {
     it("falls back to database for deployment data when blockchain node is unreachable", async () => {
       const wallet = createUserWallet() as WalletInitialized;

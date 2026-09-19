@@ -138,7 +138,31 @@ export class DeploymentReaderService {
   }
 
   public async findByWalletAndDseq(wallet: WalletInitialized, dseq: string): Promise<DeploymentResponse> {
-    const { address: owner } = wallet;
+    const { deployment, leases, escrow_account } = await this.#findOnChain(wallet.address, dseq);
+
+    const leasesWithStatus = await Promise.all(leases.map(lease => this.withLeaseStatus(wallet, lease)));
+
+    return {
+      deployment,
+      leases: leasesWithStatus.map(({ lease, status }) => ({
+        ...lease,
+        status
+      })),
+      escrow_account
+    };
+  }
+
+  /**
+   * The same deployment with every lease status left null rather than asked of its provider: the chain reads
+   * still refuse a dseq the owner does not hold, so the 404 a write depends on is unchanged.
+   */
+  public async findByWalletAndDseqWithoutProviderStatus(wallet: WalletInitialized, dseq: string): Promise<DeploymentResponse> {
+    const { deployment, leases, escrow_account } = await this.#findOnChain(wallet.address, dseq);
+
+    return { deployment, leases: leases.map(lease => ({ ...lease, status: null })), escrow_account };
+  }
+
+  async #findOnChain(owner: string, dseq: string) {
     const deploymentResponse = await this.getDeployment(owner, dseq);
     assert(deploymentResponse, 404, "Deployment not found");
 
@@ -150,14 +174,9 @@ export class DeploymentReaderService {
 
     const { leases } = await this.getLeaseList({ owner, dseq });
 
-    const leasesWithStatus = await Promise.all(leases.map(({ lease }) => this.withLeaseStatus(wallet, lease)));
-
     return {
       deployment: deploymentResponse.deployment,
-      leases: leasesWithStatus.map(({ lease, status }) => ({
-        ...lease,
-        status
-      })),
+      leases: leases.map(({ lease }) => lease),
       escrow_account: deploymentResponse.escrow_account
     };
   }
