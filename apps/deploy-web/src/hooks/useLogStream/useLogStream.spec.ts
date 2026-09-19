@@ -16,23 +16,31 @@ describe(useLogStream.name, () => {
     vi.useRealTimers();
   });
 
-  it("waits on the provider before reporting anything", () => {
-    const { result } = setup();
+  it("waits on the provider before reporting anything", async () => {
+    const { result } = await setup();
 
     expect(result.current.status).toBe("connecting");
     expect(result.current.logText).toBe("");
   });
 
   it("reports a silent stream when the provider sends nothing for the whole grace period", async () => {
-    const { result } = setup();
+    const { result } = await setup();
 
     await advanceTime(SILENT_STREAM_TIMEOUT_MS);
 
     expect(result.current.status).toBe("silent");
   });
 
+  it("does not count authentication latency against the grace period", async () => {
+    const { result } = await setup({ ensureToken: () => new Promise<string>(() => {}) });
+
+    await advanceTime(SILENT_STREAM_TIMEOUT_MS * 2);
+
+    expect(result.current.status).toBe("connecting");
+  });
+
   it("stays connecting until the grace period is over", async () => {
-    const { result } = setup();
+    const { result } = await setup();
 
     await advanceTime(SILENT_STREAM_TIMEOUT_MS - 1);
 
@@ -40,7 +48,7 @@ describe(useLogStream.name, () => {
   });
 
   it("streams an event that arrives within the grace period", async () => {
-    const { result, stream } = setup();
+    const { result, stream } = await setup();
 
     await pushEvent(stream, { reason: "Started", note: "Started container web" });
 
@@ -49,7 +57,7 @@ describe(useLogStream.name, () => {
   });
 
   it("puts each event on its own line", async () => {
-    const { result, stream } = setup();
+    const { result, stream } = await setup();
 
     await pushEvent(stream, { reason: "Pulled", note: "Pulled image" });
     await pushEvent(stream, { reason: "Started", note: "Started container web" });
@@ -59,7 +67,7 @@ describe(useLogStream.name, () => {
   });
 
   it("formats log lines rather than events in logs mode", async () => {
-    const { result, stream } = setup({ mode: "logs" });
+    const { result, stream } = await setup({ mode: "logs" });
 
     await act(async () => {
       stream.push({ message: mock<LogEntryMessage>({ name: "web-abc123", message: "listening on 8080" }) });
@@ -70,7 +78,7 @@ describe(useLogStream.name, () => {
   });
 
   it("never turns silent once an event has arrived", async () => {
-    const { result, stream } = setup();
+    const { result, stream } = await setup();
 
     await pushEvent(stream, { reason: "Started", note: "Started container web" });
     await advanceTime(SILENT_STREAM_TIMEOUT_MS * 2);
@@ -79,7 +87,7 @@ describe(useLogStream.name, () => {
   });
 
   it("recovers from silence when a later event arrives", async () => {
-    const { result, stream } = setup();
+    const { result, stream } = await setup();
 
     await advanceTime(SILENT_STREAM_TIMEOUT_MS);
     expect(result.current.status).toBe("silent");
@@ -90,7 +98,7 @@ describe(useLogStream.name, () => {
   });
 
   it("reports a closed stream when the provider hangs up", async () => {
-    const { result, stream, errorHandler } = setup();
+    const { result, stream, errorHandler } = await setup();
 
     await closeStream(stream);
 
@@ -99,7 +107,7 @@ describe(useLogStream.name, () => {
   });
 
   it("reports a closed stream when the generator ends on its own", async () => {
-    const { result, stream } = setup();
+    const { result, stream } = await setup();
 
     await act(async () => {
       stream.end();
@@ -110,7 +118,7 @@ describe(useLogStream.name, () => {
   });
 
   it("stays closed instead of turning silent after the stream ends", async () => {
-    const { result, stream } = setup();
+    const { result, stream } = await setup();
 
     await closeStream(stream);
     await advanceTime(SILENT_STREAM_TIMEOUT_MS * 2);
@@ -119,7 +127,7 @@ describe(useLogStream.name, () => {
   });
 
   it("closes the stream and reports the failure when it throws", async () => {
-    const { result, stream, errorHandler } = setup();
+    const { result, stream, errorHandler } = await setup();
     const error = new Error("websocket blew up");
 
     await act(async () => {
@@ -132,7 +140,7 @@ describe(useLogStream.name, () => {
   });
 
   it("swallows a failure that lands after the consumer went away", async () => {
-    const { stream, errorHandler, unmount } = setup();
+    const { stream, errorHandler, unmount } = await setup();
 
     unmount();
     await act(async () => {
@@ -143,43 +151,43 @@ describe(useLogStream.name, () => {
     expect(errorHandler.reportError).not.toHaveBeenCalled();
   });
 
-  it("stays idle and asks the provider for nothing when disabled", () => {
-    const { result, providerProxy } = setup({ enabled: false });
+  it("stays idle and asks the provider for nothing when disabled", async () => {
+    const { result, providerProxy } = await setup({ enabled: false });
 
     expect(result.current.status).toBe("idle");
     expect(providerProxy.getLogsStream).not.toHaveBeenCalled();
   });
 
-  it("stays idle while no service is selected", () => {
-    const { result, providerProxy } = setup({ selectedServices: [] });
+  it("stays idle while no service is selected", async () => {
+    const { result, providerProxy } = await setup({ selectedServices: [] });
 
     expect(result.current.status).toBe("idle");
     expect(providerProxy.getLogsStream).not.toHaveBeenCalled();
   });
 
-  it("stays idle while the lease reports no services", () => {
-    const { result, providerProxy } = setup({ services: [] });
+  it("stays idle while the lease reports no services", async () => {
+    const { result, providerProxy } = await setup({ services: [] });
 
     expect(result.current.status).toBe("idle");
     expect(providerProxy.getLogsStream).not.toHaveBeenCalled();
   });
 
-  it("stays idle without a gseq", () => {
-    const { result, providerProxy } = setup({ gseq: undefined });
+  it("stays idle without a gseq", async () => {
+    const { result, providerProxy } = await setup({ gseq: undefined });
 
     expect(result.current.status).toBe("idle");
     expect(providerProxy.getLogsStream).not.toHaveBeenCalled();
   });
 
-  it("stays idle without an oseq", () => {
-    const { result, providerProxy } = setup({ oseq: undefined });
+  it("stays idle without an oseq", async () => {
+    const { result, providerProxy } = await setup({ oseq: undefined });
 
     expect(result.current.status).toBe("idle");
     expect(providerProxy.getLogsStream).not.toHaveBeenCalled();
   });
 
   it("subscribes again from scratch on every reconnect", async () => {
-    const { result, providerProxy } = setup();
+    const { result, providerProxy } = await setup();
 
     await advanceTime(SILENT_STREAM_TIMEOUT_MS);
     expect(result.current.status).toBe("silent");
@@ -196,20 +204,20 @@ describe(useLogStream.name, () => {
     expect(providerProxy.getLogsStream).toHaveBeenCalledTimes(3);
   });
 
-  it("requests the whole lease when every service is selected", () => {
-    const { providerProxy } = setup({ services: ["web", "db"], selectedServices: ["web", "db"] });
+  it("requests the whole lease when every service is selected", async () => {
+    const { providerProxy } = await setup({ services: ["web", "db"], selectedServices: ["web", "db"] });
 
     expect(providerProxy.getLogsStream).toHaveBeenCalledWith(expect.objectContaining({ services: undefined, follow: true, type: "events" }));
   });
 
-  it("requests a single service when only part of the lease is selected", () => {
-    const { providerProxy } = setup({ services: ["web", "db"], selectedServices: ["db"] });
+  it("requests a single service when only part of the lease is selected", async () => {
+    const { providerProxy } = await setup({ services: ["web", "db"], selectedServices: ["db"] });
 
     expect(providerProxy.getLogsStream).toHaveBeenCalledWith(expect.objectContaining({ services: ["db"] }));
   });
 
-  it("aborts the stream when the consumer goes away", () => {
-    const { unmount, providerProxy } = setup();
+  it("aborts the stream when the consumer goes away", async () => {
+    const { unmount, providerProxy } = await setup();
     const { signal } = providerProxy.getLogsStream.mock.calls[0][0];
 
     unmount();
@@ -217,8 +225,8 @@ describe(useLogStream.name, () => {
     expect(signal?.aborted).toBe(true);
   });
 
-  it("disarms the grace period when the consumer goes away", () => {
-    const { unmount } = setup();
+  it("disarms the grace period when the consumer goes away", async () => {
+    const { unmount } = await setup();
     expect(vi.getTimerCount()).toBe(1);
 
     unmount();
@@ -248,14 +256,22 @@ describe(useLogStream.name, () => {
     });
   }
 
-  function setup(input?: { mode?: LOGS_MODE; enabled?: boolean; services?: string[]; selectedServices?: string[]; gseq?: number; oseq?: number }) {
+  async function setup(input?: {
+    mode?: LOGS_MODE;
+    enabled?: boolean;
+    services?: string[];
+    selectedServices?: string[];
+    gseq?: number;
+    oseq?: number;
+    ensureToken?: () => Promise<string>;
+  }) {
     vi.useFakeTimers();
 
     const stream = createControllableStream();
     const providerProxy = mock<ProviderProxyService>();
     providerProxy.getLogsStream.mockImplementation(() => stream.generate() as ReturnType<ProviderProxyService["getLogsStream"]>);
     const errorHandler = mock<ErrorHandlerService>();
-    const ensureToken = async () => "jwt-token";
+    const ensureToken = input?.ensureToken ?? (async () => "jwt-token");
     const mode = input?.mode ?? "events";
     const services = input?.services ?? ["web"];
     const selectedServices = input?.selectedServices ?? ["web"];
@@ -278,6 +294,9 @@ describe(useLogStream.name, () => {
         }),
       { services: { providerProxy: () => providerProxy, errorHandler: () => errorHandler } }
     );
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     return { result, unmount, stream, providerProxy, errorHandler };
   }

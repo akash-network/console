@@ -75,6 +75,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     selectedServices
   });
   const emptyStreamStatus = !logText && (status === "silent" || status === "closed") ? status : null;
+  const isResolvingStream = status === "idle" && (isLoadingStatus || services.length === 0);
 
   function handleEditorDidMount(editor: editor.IStandaloneCodeEditor, monaco: Monaco) {
     // here is another way to get monaco instance
@@ -229,7 +230,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                 )}
               </div>
 
-              <LinearLoadingSkeleton isLoading={status === "connecting"} />
+              <LinearLoadingSkeleton isLoading={status === "connecting" || isResolvingStream} />
 
               <ViewPanel stickToBottom className="relative" style={{ overflow: "hidden" }}>
                 <Editor

@@ -10,7 +10,7 @@ export type LOGS_MODE = "logs" | "events";
 
 export type LogStreamStatus = "idle" | "connecting" | "silent" | "streaming" | "closed";
 
-/** A provider with nothing to send holds the socket open indefinitely, so silence past this point is the only signal that there is nothing to show. */
+/** A provider with nothing to send holds the socket open indefinitely, so silence this long after authenticating is the only signal that there is nothing to show. */
 export const SILENT_STREAM_TIMEOUT_MS = 10_000;
 
 const FLUSH_INTERVAL_MS = 1000;
@@ -72,7 +72,20 @@ export function useLogStream({
 
     const { providerProxy, errorHandler } = containerRef.current;
     const abortController = new AbortController();
-    const silenceTimerId = setTimeout(() => setStatus("silent"), SILENT_STREAM_TIMEOUT_MS);
+    let silenceTimerId: ReturnType<typeof setTimeout> | undefined;
+    let silenceCountdownCancelled = false;
+    const cancelSilenceCountdown = () => {
+      silenceCountdownCancelled = true;
+      clearTimeout(silenceTimerId);
+    };
+
+    ensureToken()
+      .then(() => {
+        if (silenceCountdownCancelled) return;
+
+        silenceTimerId = setTimeout(() => setStatus("silent"), SILENT_STREAM_TIMEOUT_MS);
+      })
+      .catch(() => undefined);
 
     forEachGeneratedItem(
       providerProxy.getLogsStream({
@@ -88,7 +101,7 @@ export function useLogStream({
         signal: abortController.signal
       }),
       (proxyMessage: ProviderProxyMessage<LogEntryMessage> | ProviderProxyMessage<K8sEventMessage>) => {
-        clearTimeout(silenceTimerId);
+        cancelSilenceCountdown();
 
         if (proxyMessage.closed) {
           setStatus("closed");
@@ -104,19 +117,19 @@ export function useLogStream({
       .then(() => {
         if (abortController.signal.aborted) return;
 
-        clearTimeout(silenceTimerId);
+        cancelSilenceCountdown();
         setStatus("closed");
       })
       .catch(error => {
         if (abortController.signal.aborted) return;
 
-        clearTimeout(silenceTimerId);
+        cancelSilenceCountdown();
         setStatus("closed");
         errorHandler.reportError({ error, tags: { category: "deployments", label: "followLogs" } });
       });
 
     return () => {
-      clearTimeout(silenceTimerId);
+      cancelSilenceCountdown();
       abortController.abort();
     };
   }, [enabled, mode, providerBaseUrl, providerAddress, ensureToken, dseq, gseq, oseq, servicesCount, selectedServicesKey, reconnectNonce, flushLines]);
