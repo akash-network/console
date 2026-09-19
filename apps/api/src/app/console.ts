@@ -57,9 +57,10 @@ program
   .command("cleanup-stale-deployments")
   .description("Close deployments without leases created at least 10min ago")
   .option("-c, --concurrency <number>", "How many wallets is processed concurrently", value => z.number({ coerce: true }).optional().default(10).parse(value))
+  .option("-d, --dry-run", "Log which deployments would be closed without broadcasting", false)
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
-      await container.resolve(TopUpDeploymentsController).cleanUpStaleDeployment(options);
+      return container.resolve(TopUpDeploymentsController).cleanUpStaleDeployment(options);
     });
   });
 

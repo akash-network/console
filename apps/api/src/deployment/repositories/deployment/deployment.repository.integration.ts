@@ -186,7 +186,7 @@ describe(DeploymentRepository.name, () => {
       const { repository, owner, base } = setup();
       const deployment = await seedOpenDeployment(owner, { createdHeight: base - 1 });
 
-      const found = await repository.findStaleDeployments({ owner, staleBeforeHeight: base });
+      const found = await repository.findStaleDeployments({ owners: [owner], staleBeforeHeight: base });
 
       expect(found.map(stale => String(stale.dseq))).toEqual([deployment.dseq]);
     });
@@ -196,7 +196,7 @@ describe(DeploymentRepository.name, () => {
       const deployment = await seedOpenDeployment(owner, { createdHeight: base - 1_000 });
       await seedLease(deployment, { closedHeight: base - 1 });
 
-      const found = await repository.findStaleDeployments({ owner, staleBeforeHeight: base });
+      const found = await repository.findStaleDeployments({ owners: [owner], staleBeforeHeight: base });
 
       expect(found.map(stale => String(stale.dseq))).toEqual([deployment.dseq]);
     });
@@ -207,7 +207,7 @@ describe(DeploymentRepository.name, () => {
       await seedLease(deployment, { gseq: 1, closedHeight: base - 500 });
       await seedLease(deployment, { gseq: 2, closedHeight: base });
 
-      const found = await repository.findStaleDeployments({ owner, staleBeforeHeight: base });
+      const found = await repository.findStaleDeployments({ owners: [owner], staleBeforeHeight: base });
 
       expect(found).toEqual([]);
     });
@@ -218,7 +218,7 @@ describe(DeploymentRepository.name, () => {
       await seedLease(deployment, { gseq: 1, closedHeight: base - 500 });
       await seedLease(deployment, { gseq: 2 });
 
-      const found = await repository.findStaleDeployments({ owner, staleBeforeHeight: base });
+      const found = await repository.findStaleDeployments({ owners: [owner], staleBeforeHeight: base });
 
       expect(found).toEqual([]);
     });
@@ -227,7 +227,7 @@ describe(DeploymentRepository.name, () => {
       const { repository, owner, base } = setup();
       await seedOpenDeployment(owner, { createdHeight: base });
 
-      const found = await repository.findStaleDeployments({ owner, staleBeforeHeight: base });
+      const found = await repository.findStaleDeployments({ owners: [owner], staleBeforeHeight: base });
 
       expect(found).toEqual([]);
     });
@@ -236,7 +236,7 @@ describe(DeploymentRepository.name, () => {
       const { repository, owner, base } = setup();
       await seedOpenDeployment(owner, { createdHeight: base - 1_000, closedHeight: base - 500 });
 
-      const found = await repository.findStaleDeployments({ owner, staleBeforeHeight: base });
+      const found = await repository.findStaleDeployments({ owners: [owner], staleBeforeHeight: base });
 
       expect(found).toEqual([]);
     });
@@ -245,9 +245,39 @@ describe(DeploymentRepository.name, () => {
       const { repository, owner, base } = setup();
       await seedOpenDeployment(createAkashAddress(), { createdHeight: base - 1 });
 
-      const found = await repository.findStaleDeployments({ owner, staleBeforeHeight: base });
+      const found = await repository.findStaleDeployments({ owners: [owner], staleBeforeHeight: base });
 
       expect(found).toEqual([]);
+    });
+
+    it("returns the orphans of every owner it is given, each labelled with its owner", async () => {
+      const { repository, owner, base } = setup();
+      const other = createAkashAddress();
+      const mine = await seedOpenDeployment(owner, { createdHeight: base - 1 });
+      const theirs = await seedOpenDeployment(other, { createdHeight: base - 1 });
+
+      const found = await repository.findStaleDeployments({ owners: [owner, other], staleBeforeHeight: base });
+
+      expect(found).toHaveLength(2);
+      expect(found).toContainEqual({ owner, dseq: mine.dseq });
+      expect(found).toContainEqual({ owner: other, dseq: theirs.dseq });
+    });
+
+    it("returns a deployment once however many of its leases closed before the cutoff", async () => {
+      const { repository, owner, base } = setup();
+      const deployment = await seedOpenDeployment(owner, { createdHeight: base - 1_000 });
+      await seedLease(deployment, { gseq: 1, closedHeight: base - 500 });
+      await seedLease(deployment, { gseq: 2, closedHeight: base - 400 });
+
+      const found = await repository.findStaleDeployments({ owners: [owner], staleBeforeHeight: base });
+
+      expect(found).toEqual([{ owner, dseq: deployment.dseq }]);
+    });
+
+    it("queries nothing when given no owners", async () => {
+      const { repository, base } = setup();
+
+      await expect(repository.findStaleDeployments({ owners: [], staleBeforeHeight: base })).resolves.toEqual([]);
     });
   });
 

@@ -69,7 +69,7 @@ describe(TopUpDeploymentsController.name, () => {
   describe("cleanUpStaleDeployment", () => {
     it("should call the service to clean up stale deployments", async () => {
       const { controller, staleDeploymentsCleanerService } = setup();
-      const options = { concurrency: 5 };
+      const options = { concurrency: 5, dryRun: false };
 
       await controller.cleanUpStaleDeployment(options);
 
