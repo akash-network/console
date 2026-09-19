@@ -72,7 +72,7 @@ export function useLogStream({
 
     const { providerProxy, errorHandler } = containerRef.current;
     const abortController = new AbortController();
-    const silenceTimerId = setTimeout(() => setStatus(current => (current === "connecting" ? "silent" : current)), SILENT_STREAM_TIMEOUT_MS);
+    const silenceTimerId = setTimeout(() => setStatus("silent"), SILENT_STREAM_TIMEOUT_MS);
 
     forEachGeneratedItem(
       providerProxy.getLogsStream({
