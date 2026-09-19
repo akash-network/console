@@ -15,20 +15,17 @@ import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkele
 import { SelectCheckbox } from "@src/components/shared/SelectCheckbox";
 import { ViewPanel } from "@src/components/shared/ViewPanel";
 import { useServices } from "@src/context/ServicesProvider";
+import type { LOGS_MODE } from "@src/hooks/useLogStream/useLogStream";
+import { useLogStream } from "@src/hooks/useLogStream/useLogStream";
 import { useProviderAccess } from "@src/hooks/useProviderAccess/useProviderAccess";
 import { useProviderApiActions } from "@src/hooks/useProviderApiActions";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
-import { useThrottledCallback } from "@src/hooks/useThrottle";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
-import { formatK8sEvent, formatLogMessage } from "@src/services/provider-proxy/logFormatters";
-import type { K8sEventMessage, LogEntryMessage, ProviderProxyMessage } from "@src/services/provider-proxy/provider-proxy.service";
 import type { LeaseDto } from "@src/types/deployment";
-import { forEachGeneratedItem } from "@src/utils/array";
 import { LeaseSelect } from "./LeaseSelect";
+import { LogStreamPlaceholder } from "./LogStreamPlaceholder";
 import { ProviderAuthFallback } from "./ProviderAuthGate";
-
-export type LOGS_MODE = "logs" | "events";
 
 type Props = {
   leases: Array<LeaseDto> | null | undefined;
@@ -36,12 +33,7 @@ type Props = {
 };
 
 export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selectedLogsMode }) => {
-  const { analyticsService, providerProxy, errorHandler } = useServices();
-  const [isLoadingLogs, setIsLoadingLogs] = useState(true);
-  const [isConnectionEstablished, setIsConnectionEstablished] = useState(false);
-  // TODO Type
-  const logs = useRef<string[]>([]);
-  const [logText, setLogText] = useState("");
+  const { analyticsService } = useServices();
   const [isDownloadingLogs, setIsDownloadingLogs] = useState(false);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [stickToBottom, setStickToBottom] = useState(true);
@@ -70,6 +62,20 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
+  const { logText, status, reconnect } = useLogStream({
+    mode: selectedLogsMode,
+    enabled: hasLogsAccess,
+    providerBaseUrl: providerHostUri,
+    providerAddress,
+    ensureToken: providerCredentials.ensureToken,
+    dseq,
+    gseq,
+    oseq,
+    services,
+    selectedServices
+  });
+  const emptyStreamStatus = !logText && (status === "silent" || status === "closed") ? status : null;
+
   function handleEditorDidMount(editor: editor.IStandaloneCodeEditor, monaco: Monaco) {
     // here is another way to get monaco instance
     // you can also store it in `useRef` for further usage
@@ -96,16 +102,6 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     setSelectedServices(prev => (isEqual(prev, next) ? prev : next));
   }, [leaseStatus]);
 
-  const updateLogText = useThrottledCallback(
-    () => {
-      const logText = logs.current.join("\n");
-      setLogText(logText);
-      setIsLoadingLogs(false);
-    },
-    [],
-    1000
-  );
-
   useEffect(() => {
     if (!leases || leases.length === 0) return;
 
@@ -118,82 +114,12 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     getLeaseStatus();
   }, [selectedLease, providerInfo, getLeaseStatus]);
 
-  useEffect(() => {
-    if (
-      !providerHostUri ||
-      !providerAddress ||
-      !hasLogsAccess ||
-      !dseq ||
-      gseq === undefined ||
-      oseq === undefined ||
-      !services?.length ||
-      !selectedServices?.length
-    )
-      return;
-
-    logs.current = [];
-
-    setIsLoadingLogs(true);
-    const abortController = new AbortController();
-    forEachGeneratedItem(
-      providerProxy.getLogsStream({
-        providerBaseUrl: providerHostUri,
-        providerAddress,
-        ensureToken: providerCredentials.ensureToken,
-        dseq,
-        gseq,
-        oseq,
-        type: selectedLogsMode,
-        follow: true,
-        services: selectedServices.length < services.length ? selectedServices : undefined,
-        signal: abortController.signal
-      }),
-      onLogReceived
-    ).catch(error => {
-      if (abortController.signal.aborted) return;
-
-      setIsLoadingLogs(false);
-      setIsConnectionEstablished(false);
-
-      errorHandler.reportError({
-        error,
-        tags: { category: "deployments", label: "followLogs" }
-      });
-    });
-
-    return () => {
-      abortController.abort();
-      setIsLoadingLogs(false);
-      setIsConnectionEstablished(false);
-    };
-  }, [
-    hasLogsAccess,
-    selectedLogsMode,
-    dseq,
-    gseq,
-    oseq,
-    selectedServices,
-    services?.length,
-    providerHostUri,
-    providerAddress,
-    providerCredentials.ensureToken
-  ]);
-
-  function onLogReceived(proxyMessage: ProviderProxyMessage<LogEntryMessage> | ProviderProxyMessage<K8sEventMessage>) {
-    if (proxyMessage.closed) return;
-
-    const message = proxyMessage.message;
-    setIsLoadingLogs(true);
-
-    if (logs.current.length === 0) {
-      setStickToBottom(true);
-    }
-
-    const logMessage = selectedLogsMode === "logs" ? formatLogMessage(message as LogEntryMessage) : formatK8sEvent(message as K8sEventMessage);
-    logs.current = logs.current.concat(logMessage);
-    updateLogText();
-    setIsConnectionEstablished(true);
-  }
+  useEffect(
+    function followNewOutput() {
+      if (status === "streaming") setStickToBottom(true);
+    },
+    [status]
+  );
 
   useEffect(() => {
     if (stickToBottom && monacoEditorRef.current && monacoRef.current) {
@@ -210,20 +136,9 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     setSelectedLease(leases?.find(x => x.id === id) || null);
 
     if (id !== selectedLease?.id) {
-      setLogText("");
       setSelectedServices([]);
-      setIsLoadingLogs(true);
-      setIsConnectionEstablished(false);
     }
   }
-
-  const onSelectedServicesChange = (selected: string[]) => {
-    setSelectedServices(selected);
-
-    setLogText("");
-    setIsLoadingLogs(selected.length > 0);
-    setIsConnectionEstablished(selected.length === 0);
-  };
 
   const onDownloadLogsClick = async () => {
     if (!isDownloadingLogs && providerInfo && selectedLease) {
@@ -257,7 +172,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                       <SelectCheckbox
                         options={services}
                         selected={selectedServices}
-                        onSelectedChange={onSelectedServicesChange}
+                        onSelectedChange={setSelectedServices}
                         label="Services"
                         placeholder="Select services"
                         disabled={selectedLogsMode !== "logs"}
@@ -300,13 +215,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                   <div className="flex items-center">
                     <CheckboxWithLabel label="Stick to bottom" checked={stickToBottom} onCheckedChange={checked => setStickToBottom(checked as boolean)} />
                     <div className="ml-4">
-                      <Button
-                        onClick={onDownloadLogsClick}
-                        variant="default"
-                        size="sm"
-                        color="secondary"
-                        disabled={isDownloadingLogs || !isConnectionEstablished}
-                      >
+                      <Button onClick={onDownloadLogsClick} variant="default" size="sm" color="secondary" disabled={isDownloadingLogs || !logText}>
                         {isDownloadingLogs ? <Spinner size="small" /> : selectedLogsMode === "logs" ? "Download logs" : "Download events"}
                       </Button>
                     </div>
@@ -320,9 +229,9 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                 )}
               </div>
 
-              <LinearLoadingSkeleton isLoading={isLoadingLogs} />
+              <LinearLoadingSkeleton isLoading={status === "connecting"} />
 
-              <ViewPanel stickToBottom style={{ overflow: "hidden" }}>
+              <ViewPanel stickToBottom className="relative" style={{ overflow: "hidden" }}>
                 <Editor
                   value={logText}
                   language={selectedLogsMode === "logs" ? "log" : "k8s-events"}
@@ -331,6 +240,8 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                     readOnly: true
                   }}
                 />
+
+                {emptyStreamStatus && <LogStreamPlaceholder mode={selectedLogsMode} status={emptyStreamStatus} onRetry={reconnect} />}
               </ViewPanel>
             </>
           )}
