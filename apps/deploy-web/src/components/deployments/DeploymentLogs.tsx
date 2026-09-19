@@ -24,7 +24,7 @@ import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import type { LeaseDto } from "@src/types/deployment";
 import { LeaseSelect } from "./LeaseSelect";
-import { LogStreamPlaceholder } from "./LogStreamPlaceholder";
+import { LogStreamDisconnectedBar, LogStreamPlaceholder } from "./LogStreamPlaceholder";
 import { ProviderAuthFallback } from "./ProviderAuthGate";
 
 type Props = {
@@ -76,6 +76,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   });
   const emptyStreamStatus = !logText && (status === "silent" || status === "closed") ? status : null;
   const isResolvingStream = status === "idle" && (isLoadingStatus || services.length === 0);
+  const isDisconnectedWithOutput = !!logText && status === "closed";
 
   function handleEditorDidMount(editor: editor.IStandaloneCodeEditor, monaco: Monaco) {
     // here is another way to get monaco instance
@@ -229,6 +230,8 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                   </div>
                 )}
               </div>
+
+              {isDisconnectedWithOutput && <LogStreamDisconnectedBar onRetry={reconnect} />}
 
               <LinearLoadingSkeleton isLoading={status === "connecting" || isResolvingStream} />
 

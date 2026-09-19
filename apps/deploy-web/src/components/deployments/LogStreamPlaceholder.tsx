@@ -41,3 +41,14 @@ export function LogStreamPlaceholder({ mode, status, onRetry }: Props) {
     </div>
   );
 }
+
+export function LogStreamDisconnectedBar({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex items-center gap-3 py-2 text-sm text-muted-foreground">
+      <span>{CLOSED_STREAM_COPY.title}</span>
+      <Button variant="outline" size="sm" onClick={onRetry}>
+        Retry
+      </Button>
+    </div>
+  );
+}

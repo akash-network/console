@@ -204,6 +204,23 @@ describe(useLogStream.name, () => {
     expect(providerProxy.getLogsStream).toHaveBeenCalledTimes(3);
   });
 
+  it("ignores a message from a stream that was already torn down", async () => {
+    const { result, stream } = await setup();
+
+    await act(async () => {
+      result.current.reconnect();
+    });
+    await act(async () => {
+      stream.push({
+        message: mock<K8sEventMessage>({ type: "Normal", reason: "Started", note: "late", object: { kind: "Pod", name: "web-1", namespace: "akash" } })
+      });
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(result.current.status).toBe("connecting");
+    expect(result.current.logText).toBe("");
+  });
+
   it("requests the whole lease when every service is selected", async () => {
     const { providerProxy } = await setup({ services: ["web", "db"], selectedServices: ["web", "db"] });
 
@@ -267,9 +284,13 @@ describe(useLogStream.name, () => {
   }) {
     vi.useFakeTimers();
 
-    const stream = createControllableStream();
+    const streams: ControllableStream[] = [];
     const providerProxy = mock<ProviderProxyService>();
-    providerProxy.getLogsStream.mockImplementation(() => stream.generate() as ReturnType<ProviderProxyService["getLogsStream"]>);
+    providerProxy.getLogsStream.mockImplementation(() => {
+      const stream = createControllableStream();
+      streams.push(stream);
+      return stream.generate() as ReturnType<ProviderProxyService["getLogsStream"]>;
+    });
     const errorHandler = mock<ErrorHandlerService>();
     const ensureToken = input?.ensureToken ?? (async () => "jwt-token");
     const mode = input?.mode ?? "events";
@@ -298,7 +319,7 @@ describe(useLogStream.name, () => {
       await Promise.resolve();
     });
 
-    return { result, unmount, stream, providerProxy, errorHandler };
+    return { result, unmount, stream: streams[0], streams, providerProxy, errorHandler };
   }
 });
 

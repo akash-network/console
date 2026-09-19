@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { LOGS_MODE } from "@src/hooks/useLogStream/useLogStream";
-import { LogStreamPlaceholder } from "./LogStreamPlaceholder";
+import { LogStreamDisconnectedBar, LogStreamPlaceholder } from "./LogStreamPlaceholder";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -45,6 +45,28 @@ describe(LogStreamPlaceholder.name, () => {
   function setup(input: { mode: LOGS_MODE; status: "silent" | "closed" }) {
     const onRetry = vi.fn();
     render(<LogStreamPlaceholder mode={input.mode} status={input.status} onRetry={onRetry} />);
+    return { onRetry };
+  }
+});
+
+describe(LogStreamDisconnectedBar.name, () => {
+  it("reports the disconnect alongside output that already arrived", () => {
+    setup();
+
+    expect(screen.getByText("Stream disconnected")).toBeInTheDocument();
+  });
+
+  it("retries on demand", async () => {
+    const { onRetry } = setup();
+
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  function setup() {
+    const onRetry = vi.fn();
+    render(<LogStreamDisconnectedBar onRetry={onRetry} />);
     return { onRetry };
   }
 });

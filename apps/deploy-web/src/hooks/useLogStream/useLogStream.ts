@@ -101,6 +101,8 @@ export function useLogStream({
         signal: abortController.signal
       }),
       (proxyMessage: ProviderProxyMessage<LogEntryMessage> | ProviderProxyMessage<K8sEventMessage>) => {
+        if (abortController.signal.aborted) return;
+
         cancelSilenceCountdown();
 
         if (proxyMessage.closed) {
