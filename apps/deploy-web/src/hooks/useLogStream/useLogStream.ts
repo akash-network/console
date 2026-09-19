@@ -132,6 +132,7 @@ export function useLogStream({
 
     return () => {
       cancelSilenceCountdown();
+      flushLines.cancel();
       abortController.abort();
     };
   }, [enabled, mode, providerBaseUrl, providerAddress, ensureToken, dseq, gseq, oseq, servicesCount, selectedServicesKey, reconnectNonce, flushLines]);

@@ -204,6 +204,18 @@ describe(useLogStream.name, () => {
     expect(providerProxy.getLogsStream).toHaveBeenCalledTimes(3);
   });
 
+  it("flushes the first line of a new session without waiting on the previous throttle", async () => {
+    const { result, streams } = await setup();
+
+    await pushEvent(streams[0], { reason: "Pulled", note: "old session" });
+    await act(async () => {
+      result.current.reconnect();
+    });
+    await pushEvent(streams[1], { reason: "Started", note: "new session" });
+
+    expect(result.current.logText).toBe("[web]: [Normal] [Started] [Pod] new session");
+  });
+
   it("ignores a message from a stream that was already torn down", async () => {
     const { result, stream } = await setup();
 

@@ -206,7 +206,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                         <CustomDropdownLinkItem
                           onClick={onDownloadLogsClick}
                           icon={isDownloadingLogs ? <Spinner /> : <Download />}
-                          disabled={isDownloadingLogs}
+                          disabled={isDownloadingLogs || !logText}
                         >
                           {selectedLogsMode === "logs" ? "Download logs" : "Download events"}
                         </CustomDropdownLinkItem>
