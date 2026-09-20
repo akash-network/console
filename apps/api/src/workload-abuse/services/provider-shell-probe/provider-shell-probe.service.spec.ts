@@ -315,6 +315,15 @@ describe(ProviderShellProbeService.name, () => {
       expect(result.output).toContain("--accel");
     });
 
+    it("cuts at the last boundary, so a repeated one cannot hide collected output from the scanner", async () => {
+      const { service } = setup(boundary => streamOf(`--tmp\n--evidence ${boundary}\ntotal 8\n--evidence ${boundary}\n--accel\naccel: unavailable`));
+
+      const result = await service.run(TARGET);
+
+      expect(result.output).toContain("total 8");
+      expect(result.evidence).toBe("--accel\naccel: unavailable");
+    });
+
     it("issues a boundary the workload has not seen before on every run", async () => {
       const { service, providerStreamService } = setup(streamOf("--loadavg\n1.00"));
 

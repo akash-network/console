@@ -13,9 +13,11 @@ export type ProbeEvidenceArtifact = { path: string; sizeBytes: number };
 
 export type ProbeEvidenceProcessOrigin = { pid: number; ppid: number; comm: string; startedAtEpochMs: number };
 
+export type ProbeEvidenceConnectionState = "established" | "connecting";
+
 export type ProbeEvidenceNetShape = {
   listenPorts: number[];
-  established: Array<{ localPort: number; remoteIp: string; remotePort: number; count: number }>;
+  connections: Array<{ localPort: number; remoteIp: string; remotePort: number; count: number; state: ProbeEvidenceConnectionState }>;
 };
 
 export type ProbeEvidenceBehaviouralFinding = { signal: string; detail: Record<string, unknown> };

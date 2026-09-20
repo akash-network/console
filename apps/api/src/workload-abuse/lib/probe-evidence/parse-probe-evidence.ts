@@ -7,6 +7,9 @@ export type ProbeEvidenceFeatures = {
   netShape: ProbeEvidenceNetShape | null;
 };
 
+/** The kernel numbers a live socket 01 and a half open one 02, and the collector reports both. */
+const ESTABLISHED_SOCKET_STATE = "01";
+
 const SECTION_MARKERS = ["--accel", "--netl", "--disk", "--procorig"] as const;
 
 export function parseProbeEvidence(evidenceOutput: string): ProbeEvidenceFeatures {
@@ -123,23 +126,24 @@ function parseNetShape(netlLines: string[] | undefined): ProbeEvidenceNetShape |
     if (match) listenPorts.add(Number(match[1]));
   }
 
-  const establishedByKey = new Map<string, ProbeEvidenceNetShape["established"][number]>();
+  const connectionsByKey = new Map<string, ProbeEvidenceNetShape["connections"][number]>();
   for (const line of netlLines) {
-    const match = line.trim().match(/^(\d+)\s+([0-9A-Fa-f]+)\s+([0-9A-Fa-f]+):([0-9A-Fa-f]+)\s+\d+$/);
+    const match = line.trim().match(/^(\d+)\s+([0-9A-Fa-f]+)\s+([0-9A-Fa-f]+):([0-9A-Fa-f]+)\s+(\d+)$/);
     if (!match) continue;
     const localPort = parseInt(match[2], 16);
     const remoteIp = decodeHexIp(match[3]);
     const remotePort = parseInt(match[4], 16);
     if (!remoteIp) continue;
-    const key = `${localPort}|${remoteIp}|${remotePort}`;
-    const existing = establishedByKey.get(key);
+    const state = match[5] === ESTABLISHED_SOCKET_STATE ? "established" : "connecting";
+    const key = `${localPort}|${remoteIp}|${remotePort}|${state}`;
+    const existing = connectionsByKey.get(key);
     if (existing) existing.count += Number(match[1]);
-    else establishedByKey.set(key, { localPort, remoteIp, remotePort, count: Number(match[1]) });
+    else connectionsByKey.set(key, { localPort, remoteIp, remotePort, count: Number(match[1]), state });
   }
 
   return {
     listenPorts: [...listenPorts].sort((a, b) => a - b),
-    established: [...establishedByKey.values()]
+    connections: [...connectionsByKey.values()]
   };
 }
 

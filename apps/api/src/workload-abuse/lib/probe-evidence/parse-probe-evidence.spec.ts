@@ -28,7 +28,7 @@ describe("parseProbeEvidence", () => {
     expect(features.processOrigins).toEqual([{ pid: 1234, ppid: 1, comm: "python3", startedAtEpochMs: 1740006500000 }]);
     expect(features.netShape).toEqual({
       listenPorts: [8080],
-      established: [{ localPort: 3333, remoteIp: "18.185.10.20", remotePort: 443, count: 3 }]
+      connections: [{ localPort: 3333, remoteIp: "18.185.10.20", remotePort: 443, count: 3, state: "established" }]
     });
   });
 
@@ -92,9 +92,9 @@ describe("parseProbeEvidence", () => {
     const features = parseProbeEvidence(raw);
 
     expect(features.netShape?.listenPorts).toEqual([22]);
-    expect(features.netShape?.established).toEqual([
-      { localPort: 22, remoteIp: "127.0.0.1", remotePort: 443, count: 1 },
-      { localPort: 3751, remoteIp: "2a01:04f8:0c17:0b8f:0000:0000:0000:0002", remotePort: 80, count: 2 }
+    expect(features.netShape?.connections).toEqual([
+      { localPort: 22, remoteIp: "127.0.0.1", remotePort: 443, count: 1, state: "established" },
+      { localPort: 3751, remoteIp: "2a01:04f8:0c17:0b8f:0000:0000:0000:0002", remotePort: 80, count: 2, state: "established" }
     ]);
   });
 
@@ -103,7 +103,18 @@ describe("parseProbeEvidence", () => {
 
     const features = parseProbeEvidence(raw);
 
-    expect(features.netShape?.established).toEqual([{ localPort: 3333, remoteIp: "18.185.10.20", remotePort: 443, count: 5 }]);
+    expect(features.netShape?.connections).toEqual([{ localPort: 3333, remoteIp: "18.185.10.20", remotePort: 443, count: 5, state: "established" }]);
+  });
+
+  it("keeps a half open socket apart from a live one", () => {
+    const raw = ["--netl", "      1 0D05 140AB912:01BB 01", "      1 0D06 140AB912:01BB 02", ""].join("\n");
+
+    const features = parseProbeEvidence(raw);
+
+    expect(features.netShape?.connections).toEqual([
+      { localPort: 3333, remoteIp: "18.185.10.20", remotePort: 443, count: 1, state: "established" },
+      { localPort: 3334, remoteIp: "18.185.10.20", remotePort: 443, count: 1, state: "connecting" }
+    ]);
   });
 
   it("ignores malformed section lines instead of throwing", () => {
@@ -114,7 +125,7 @@ describe("parseProbeEvidence", () => {
     expect(features.accelerator).toEqual([]);
     expect(features.artifacts).toEqual([]);
     expect(features.processOrigins).toEqual([]);
-    expect(features.netShape).toEqual({ listenPorts: [], established: [] });
+    expect(features.netShape).toEqual({ listenPorts: [], connections: [] });
   });
 
   it("reports zero startedAtEpochMs when the btime header is missing", () => {

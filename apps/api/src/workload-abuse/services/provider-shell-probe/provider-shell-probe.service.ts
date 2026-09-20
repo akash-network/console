@@ -83,9 +83,10 @@ export class ProviderShellProbeService {
   }
 }
 
+/** Cutting at the last match means a repeat of the boundary can only widen what the scanner reads, never hide part of it. */
 function splitAtEvidenceBoundary(output: string, boundary: string): { output: string; evidence: string } {
   const lines = output.split("\n");
-  const boundaryIndex = lines.indexOf(`${EVIDENCE_BOUNDARY_PREFIX}${boundary}`);
+  const boundaryIndex = lines.lastIndexOf(`${EVIDENCE_BOUNDARY_PREFIX}${boundary}`);
 
   if (boundaryIndex === -1) return { output, evidence: "" };
 
