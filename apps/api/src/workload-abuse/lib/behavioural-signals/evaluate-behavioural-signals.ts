@@ -1,8 +1,11 @@
 import { evaluateAccelWithoutArtifacts } from "./accel-without-artifacts";
 import { evaluateNetworkIsolation } from "./network-isolation";
-import { BEHAVIOURAL_SIGNALS, type BehaviouralFinding, type BehaviouralSignalParams, type ProbeEvidenceSnapshot } from "./types";
+import { BEHAVIOURAL_SIGNALS, type BehaviouralFinding, type BehaviouralSignalParams, COMPLETE_SHELL_STATUS, type ProbeEvidenceSnapshot } from "./types";
 
+/** A section that stopped early looks the same as a section with nothing in it, so a shell that was cut short supports no signal. */
 export function evaluateBehaviouralSignals(snapshot: ProbeEvidenceSnapshot, params: BehaviouralSignalParams): BehaviouralFinding[] {
+  if (snapshot.shellStatus !== COMPLETE_SHELL_STATUS) return [];
+
   const evaluated = [evaluateAccelWithoutArtifacts(snapshot, params), evaluateNetworkIsolation(snapshot, params)];
 
   return evaluated.filter((finding): finding is BehaviouralFinding => finding !== null);

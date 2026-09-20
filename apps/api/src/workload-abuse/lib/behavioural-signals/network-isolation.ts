@@ -21,5 +21,36 @@ export function evaluateNetworkIsolation(snapshot: ProbeEvidenceSnapshot, params
 }
 
 function isRelayEndpoint(connection: EstablishedConnection, relayEndpoints: string[]): boolean {
-  return relayEndpoints.includes(connection.remoteIp) || relayEndpoints.includes(`${connection.remoteIp}:${connection.remotePort}`);
+  const configured = new Set(relayEndpoints.map(normalizeEndpoint));
+  const host = normalizeHost(connection.remoteIp);
+
+  return configured.has(host) || configured.has(`${host}/${connection.remotePort}`);
+}
+
+function normalizeEndpoint(endpoint: string): string {
+  const bracketed = endpoint.trim().match(/^\[(.+)\]:(\d+)$/);
+
+  if (bracketed) return `${normalizeHost(bracketed[1])}/${bracketed[2]}`;
+
+  const withPort = endpoint.trim().match(/^([^:]+):(\d+)$/);
+
+  if (withPort) return `${normalizeHost(withPort[1])}/${withPort[2]}`;
+
+  return normalizeHost(endpoint);
+}
+
+/** The probe decodes IPv6 from the kernel's fixed width hex, so an address configured in its compressed form has to be expanded to match one. */
+function normalizeHost(host: string): string {
+  const address = host.trim().toLowerCase();
+
+  if (!address.includes(":")) return address;
+
+  const [head, tail = ""] = address.split("::");
+  const headGroups = head ? head.split(":") : [];
+  const tailGroups = tail ? tail.split(":") : [];
+  const groups = address.includes("::")
+    ? [...headGroups, ...Array(Math.max(8 - headGroups.length - tailGroups.length, 0)).fill("0"), ...tailGroups]
+    : address.split(":");
+
+  return groups.map(group => group.padStart(4, "0")).join(":");
 }

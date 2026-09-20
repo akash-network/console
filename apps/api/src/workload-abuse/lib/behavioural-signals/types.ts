@@ -14,8 +14,12 @@ export type BehaviouralSignal = (typeof BEHAVIOURAL_SIGNALS)[keyof typeof BEHAVI
 
 export type BehaviouralFinding = ProbeEvidenceBehaviouralFinding;
 
+/** Only a shell session that ran to the end proves an absence, and every signal reads one. */
+export const COMPLETE_SHELL_STATUS = "completed";
+
 /** The columns of one evidence row, so the replay and the live probe evaluate the exact same input. */
 export type ProbeEvidenceSnapshot = {
+  shellStatus: string;
   accelerator: ProbeEvidenceAccelerator[] | null;
   artifacts: ProbeEvidenceArtifact[] | null;
   netShape: ProbeEvidenceNetShape | null;

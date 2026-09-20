@@ -77,7 +77,7 @@ describe("evaluateAccelWithoutArtifacts", () => {
               processes: [{ pid: 1234, name: "worker", vramMb: input.vramMb ?? 18_000 }]
             }
           ];
-    const snapshot: ProbeEvidenceSnapshot = { accelerator, artifacts: input.artifacts ?? null, netShape: null };
+    const snapshot: ProbeEvidenceSnapshot = { shellStatus: "completed", accelerator, artifacts: input.artifacts ?? null, netShape: null };
     const params: BehaviouralSignalParams = {
       accelMinVramMb: input.accelMinVramMb ?? 1_024,
       artifactMinMb: input.artifactMinMb ?? 256,

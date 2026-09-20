@@ -4,10 +4,15 @@ import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { evaluateBehaviouralSignals, isBehaviouralCandidate } from "@src/workload-abuse/lib/behavioural-signals/evaluate-behavioural-signals";
-import { BEHAVIOURAL_SIGNALS, type BehaviouralSignalParams, type ProbeEvidenceSnapshot } from "@src/workload-abuse/lib/behavioural-signals/types";
+import {
+  BEHAVIOURAL_SIGNALS,
+  type BehaviouralSignalParams,
+  COMPLETE_SHELL_STATUS,
+  type ProbeEvidenceSnapshot
+} from "@src/workload-abuse/lib/behavioural-signals/types";
 import { WorkloadProbeEvidenceRepository } from "@src/workload-abuse/repositories/workload-probe-evidence/workload-probe-evidence.repository";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
-import { type BehaviouralReplayFixture, BUNDLED_REPLAY_FIXTURES } from "./fixtures";
+import { type BehaviouralReplayFixture, BUNDLED_REPLAY_FIXTURES, parseReplayFixture } from "./fixtures";
 
 const DEFAULT_WINDOW_DAYS = 30;
 const AGREEMENT_SWEEP = [1, 2, 3, 5];
@@ -58,7 +63,7 @@ export class BehaviouralSignalReplayService {
   async replay(options: BehaviouralReplayOptions = {}): Promise<BehaviouralReplaySummary> {
     const params = this.#readParams(options);
     const fixtureSeries = await this.#loadFixtures(options);
-    const usesDatabase = fixtureSeries.length === 0 || Boolean(options.since);
+    const usesDatabase = fixtureSeries.length === 0 || Boolean(options.since || options.until);
     const window = usesDatabase ? this.#resolveWindow(options) : null;
     const databaseSeries = window ? await this.#loadFromDatabase(window) : [];
     const series = [...databaseSeries, ...fixtureSeries];
@@ -86,7 +91,8 @@ export class BehaviouralSignalReplayService {
       deployments: deployments.length,
       probes: deployments.reduce((total, deployment) => total + deployment.probes, 0),
       candidateDeployments: deployments.filter(deployment => deployment.candidateProbes > 0).length,
-      wouldEnforce: summary.wouldEnforce
+      wouldEnforce: summary.wouldEnforce,
+      sensitivity: summary.sensitivity
     });
 
     return summary;
@@ -112,6 +118,8 @@ export class BehaviouralSignalReplayService {
     const byDeployment = new Map<string, SnapshotSeries>();
 
     for (const row of rows) {
+      if (row.shellStatus !== COMPLETE_SHELL_STATUS) continue;
+
       const label = `${row.walletId}/${row.dseq}/${row.service}`;
       const series = byDeployment.get(label) ?? { source: "database" as const, label, snapshots: [] };
       series.snapshots.push(row);
@@ -126,10 +134,24 @@ export class BehaviouralSignalReplayService {
     const loaded: BehaviouralReplayFixture[] = [];
 
     for (const path of options.fixturePaths ?? []) {
-      loaded.push(...(await readFixtures(path)));
+      for (const file of await listFixtureFiles(path)) {
+        const fixture = await this.#readFixture(file);
+
+        if (fixture) loaded.push(fixture);
+      }
     }
 
     return [...bundled, ...loaded].map(fixture => ({ source: "fixture" as const, label: fixture.deployment, snapshots: fixture.snapshots }));
+  }
+
+  /** One unreadable file an operator passed in must not cost them the report on everything else. */
+  async #readFixture(path: string): Promise<BehaviouralReplayFixture | null> {
+    try {
+      return parseReplayFixture(JSON.parse(await readFile(path, "utf8")));
+    } catch (error) {
+      this.logger.warn({ event: "BEHAVIOURAL_REPLAY_FIXTURE_SKIPPED", path, error });
+      return null;
+    }
   }
 
   #summarise(series: SnapshotSeries, params: BehaviouralSignalParams): BehaviouralReplayDeployment {
@@ -166,18 +188,12 @@ export class BehaviouralSignalReplayService {
   }
 }
 
-async function readFixtures(path: string): Promise<BehaviouralReplayFixture[]> {
+async function listFixtureFiles(path: string): Promise<string[]> {
   const entries = await readdir(path).catch(() => null);
 
-  if (!entries) return [await readFixtureFile(path)];
+  if (!entries) return [path];
 
-  const files = entries.filter(entry => entry.endsWith(".json"));
-
-  return await Promise.all(files.map(file => readFixtureFile(join(path, file))));
-}
-
-async function readFixtureFile(path: string): Promise<BehaviouralReplayFixture> {
-  return JSON.parse(await readFile(path, "utf8")) as BehaviouralReplayFixture;
+  return entries.filter(entry => entry.endsWith(".json")).map(entry => join(path, entry));
 }
 
 function findLongestAgreement(candidates: boolean[]): number {

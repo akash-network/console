@@ -125,13 +125,21 @@ describe(ProbeEvidenceService.name, () => {
     expect(evidenceRepository.recordBehaviouralFindings).not.toHaveBeenCalled();
   });
 
+  it("records nothing for a row whose shell was cut short", async () => {
+    const { service, evidenceRepository } = setup({ signalsEnabled: true });
+
+    await expect(service.recordBehaviouralFindings([createEvidenceRow({ shellStatus: "output_capped" })])).resolves.toEqual([]);
+
+    expect(evidenceRepository.recordBehaviouralFindings).not.toHaveBeenCalled();
+  });
+
   it("logs and counts a findings write failure without rethrowing", async () => {
     const { service, evidenceRepository, instrumentation, logger } = setup({ signalsEnabled: true });
     evidenceRepository.recordBehaviouralFindings.mockRejectedValue(new Error("connection refused"));
 
     await expect(service.recordBehaviouralFindings([createEvidenceRow()])).resolves.toEqual([]);
 
-    expect(instrumentation.recordEvidenceWriteFailure).toHaveBeenCalledTimes(1);
+    expect(instrumentation.recordEvidenceWriteFailure).toHaveBeenCalledWith("findings");
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "WORKLOAD_EVIDENCE_FINDINGS_WRITE_FAILED", walletId: 42, dseq: "1000001" }));
   });
 
@@ -159,6 +167,7 @@ describe(ProbeEvidenceService.name, () => {
       walletId: 42,
       dseq: "1000001",
       service: "web",
+      shellStatus: "completed",
       accelerator: [{ name: "accelerator-0", utilPct: 99, memUsedMb: 20_480, memTotalMb: 24_576, processes: [{ pid: 1234, name: "worker", vramMb: 18_000 }] }],
       artifacts: [{ path: "/opt/worker", sizeBytes: 4_194_304 }],
       netShape: { listenPorts: [22], established: [] },

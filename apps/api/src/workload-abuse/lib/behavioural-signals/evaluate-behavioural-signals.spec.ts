@@ -26,6 +26,12 @@ describe("evaluateBehaviouralSignals", () => {
     expect(evaluateBehaviouralSignals(snapshot, params)).toEqual([]);
   });
 
+  it("returns nothing when the shell that collected the snapshot was cut short", () => {
+    const { snapshot, params } = setup({ vramMb: 18_000, artifactBytes: 1_024, established: [], shellStatus: "output_capped" });
+
+    expect(evaluateBehaviouralSignals(snapshot, params)).toEqual([]);
+  });
+
   it("treats the two signals together as a candidate", () => {
     const { snapshot, params } = setup({ vramMb: 18_000, artifactBytes: 1_024, established: [] });
 
@@ -38,8 +44,14 @@ describe("evaluateBehaviouralSignals", () => {
     expect(isBehaviouralCandidate(evaluateBehaviouralSignals(snapshot, params))).toBe(false);
   });
 
-  function setup(input: { vramMb: number; artifactBytes: number; established: NonNullable<ProbeEvidenceSnapshot["netShape"]>["established"] }) {
+  function setup(input: {
+    vramMb: number;
+    artifactBytes: number;
+    established: NonNullable<ProbeEvidenceSnapshot["netShape"]>["established"];
+    shellStatus?: string;
+  }) {
     const snapshot: ProbeEvidenceSnapshot = {
+      shellStatus: input.shellStatus ?? "completed",
       accelerator: [
         { name: "accelerator-0", utilPct: 97, memUsedMb: 20_480, memTotalMb: 24_576, processes: [{ pid: 1234, name: "worker", vramMb: input.vramMb }] }
       ],

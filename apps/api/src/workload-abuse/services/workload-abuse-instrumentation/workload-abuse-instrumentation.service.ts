@@ -6,7 +6,7 @@ import type { WorkloadVerdict } from "@src/workload-abuse/lib/evidence-scanner/e
 
 export type DomainBlockResult = "blocked" | "raced" | "skipped" | "dry_run" | "failed" | "sibling_limit_reached";
 
-export type EvidenceWriteOperation = "insert" | "purge";
+export type EvidenceWriteOperation = "insert" | "findings" | "purge";
 
 @singleton()
 export class WorkloadAbuseInstrumentationService {

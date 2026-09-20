@@ -2,11 +2,26 @@
   "deployment": "cpu-only-workload",
   "snapshots": [
     {
+      "shellStatus": "completed",
       "accelerator": null,
-      "artifacts": [{ "path": "/srv/app", "sizeBytes": 10485760 }],
+      "artifacts": [
+        {
+          "path": "/srv/app",
+          "sizeBytes": 10485760
+        }
+      ],
       "netShape": {
-        "listenPorts": [3000],
-        "established": [{ "localPort": 46000, "remoteIp": "198.51.100.10", "remotePort": 443, "count": 2 }]
+        "listenPorts": [
+          3000
+        ],
+        "established": [
+          {
+            "localPort": 46000,
+            "remoteIp": "198.51.100.10",
+            "remotePort": 443,
+            "count": 2
+          }
+        ]
       }
     }
   ]

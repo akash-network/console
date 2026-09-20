@@ -2,30 +2,64 @@
   "deployment": "packaged-runtime",
   "snapshots": [
     {
+      "shellStatus": "completed",
       "accelerator": [
         {
           "name": "accelerator-0",
           "utilPct": 96,
           "memUsedMb": 19000,
           "memTotalMb": 24576,
-          "processes": [{ "pid": 3100, "name": "runtime", "vramMb": 17000 }]
+          "processes": [
+            {
+              "pid": 3100,
+              "name": "runtime",
+              "vramMb": 17000
+            }
+          ]
         }
       ],
-      "artifacts": [{ "path": "/usr/lib/runtime/packages", "sizeBytes": 3221225472 }],
-      "netShape": { "listenPorts": [22], "established": [] }
+      "artifacts": [
+        {
+          "path": "/usr/lib/runtime/packages",
+          "sizeBytes": 3221225472
+        }
+      ],
+      "netShape": {
+        "listenPorts": [
+          22
+        ],
+        "established": []
+      }
     },
     {
+      "shellStatus": "completed",
       "accelerator": [
         {
           "name": "accelerator-0",
           "utilPct": 95,
           "memUsedMb": 19000,
           "memTotalMb": 24576,
-          "processes": [{ "pid": 3100, "name": "runtime", "vramMb": 17000 }]
+          "processes": [
+            {
+              "pid": 3100,
+              "name": "runtime",
+              "vramMb": 17000
+            }
+          ]
         }
       ],
-      "artifacts": [{ "path": "/usr/lib/runtime/packages", "sizeBytes": 3221225472 }],
-      "netShape": { "listenPorts": [22], "established": [] }
+      "artifacts": [
+        {
+          "path": "/usr/lib/runtime/packages",
+          "sizeBytes": 3221225472
+        }
+      ],
+      "netShape": {
+        "listenPorts": [
+          22
+        ],
+        "established": []
+      }
     }
   ]
 }

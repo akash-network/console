@@ -2,43 +2,94 @@
   "deployment": "accelerator-bound-no-artifacts",
   "snapshots": [
     {
+      "shellStatus": "completed",
       "accelerator": [
         {
           "name": "accelerator-0",
           "utilPct": 99,
           "memUsedMb": 20480,
           "memTotalMb": 24576,
-          "processes": [{ "pid": 1234, "name": "worker", "vramMb": 18000 }]
+          "processes": [
+            {
+              "pid": 1234,
+              "name": "worker",
+              "vramMb": 18000
+            }
+          ]
         }
       ],
-      "artifacts": [{ "path": "/opt/worker", "sizeBytes": 6291456 }],
-      "netShape": { "listenPorts": [22], "established": [] }
+      "artifacts": [
+        {
+          "path": "/opt/worker",
+          "sizeBytes": 6291456
+        }
+      ],
+      "netShape": {
+        "listenPorts": [
+          22
+        ],
+        "established": []
+      }
     },
     {
+      "shellStatus": "completed",
       "accelerator": [
         {
           "name": "accelerator-0",
           "utilPct": 98,
           "memUsedMb": 20480,
           "memTotalMb": 24576,
-          "processes": [{ "pid": 1234, "name": "worker", "vramMb": 18000 }]
+          "processes": [
+            {
+              "pid": 1234,
+              "name": "worker",
+              "vramMb": 18000
+            }
+          ]
         }
       ],
-      "artifacts": [{ "path": "/opt/worker", "sizeBytes": 6291456 }],
-      "netShape": { "listenPorts": [22], "established": [] }
+      "artifacts": [
+        {
+          "path": "/opt/worker",
+          "sizeBytes": 6291456
+        }
+      ],
+      "netShape": {
+        "listenPorts": [
+          22
+        ],
+        "established": []
+      }
     },
     {
+      "shellStatus": "completed",
       "accelerator": [
         {
           "name": "accelerator-0",
           "utilPct": 97,
           "memUsedMb": 20480,
           "memTotalMb": 24576,
-          "processes": [{ "pid": 1234, "name": "worker", "vramMb": 17800 }]
+          "processes": [
+            {
+              "pid": 1234,
+              "name": "worker",
+              "vramMb": 17800
+            }
+          ]
         }
       ],
-      "artifacts": [{ "path": "/opt/worker", "sizeBytes": 6291456 }],
-      "netShape": { "listenPorts": [22], "established": [] }
+      "artifacts": [
+        {
+          "path": "/opt/worker",
+          "sizeBytes": 6291456
+        }
+      ],
+      "netShape": {
+        "listenPorts": [
+          22
+        ],
+        "established": []
+      }
     }
   ]
 }

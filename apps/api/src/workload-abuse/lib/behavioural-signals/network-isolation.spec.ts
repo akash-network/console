@@ -41,6 +41,15 @@ describe("evaluateNetworkIsolation", () => {
     expect(evaluateNetworkIsolation(snapshot, params)).not.toBeNull();
   });
 
+  it("fires when the relay is configured in the short form of its IPv6 address", () => {
+    const { snapshot, params } = setup({
+      netShape: { listenPorts: [], established: [{ localPort: 41_234, remoteIp: "2001:0db8:0000:0000:0000:0000:0000:0001", remotePort: 443, count: 1 }] },
+      relayEndpoints: ["2001:db8::1"]
+    });
+
+    expect(evaluateNetworkIsolation(snapshot, params)).not.toBeNull();
+  });
+
   it("stays silent when a connection lands on a listening port", () => {
     const { snapshot, params } = setup({
       netShape: { listenPorts: [8080], established: [{ localPort: 8080, remoteIp: "203.0.113.9", remotePort: 51_000, count: 3 }] }
@@ -65,7 +74,7 @@ describe("evaluateNetworkIsolation", () => {
   });
 
   function setup(input: { netShape: ProbeEvidenceNetShape | null; relayEndpoints?: string[] }) {
-    const snapshot: ProbeEvidenceSnapshot = { accelerator: null, artifacts: null, netShape: input.netShape };
+    const snapshot: ProbeEvidenceSnapshot = { shellStatus: "completed", accelerator: null, artifacts: null, netShape: input.netShape };
     const params: BehaviouralSignalParams = { accelMinVramMb: 1_024, artifactMinMb: 256, relayEndpoints: input.relayEndpoints ?? [] };
 
     return { snapshot, params };

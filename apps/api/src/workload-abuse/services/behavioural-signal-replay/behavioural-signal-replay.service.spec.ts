@@ -1,3 +1,6 @@
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -99,6 +102,47 @@ describe(BehaviouralSignalReplayService.name, () => {
     ]);
   });
 
+  it("leaves out evidence whose shell was cut short, since its empty sections prove nothing", async () => {
+    const { service } = setup({
+      rows: [createRow({ id: "row-1", service: "web" }), createRow({ id: "row-2", service: "web", shellStatus: "output_capped" })]
+    });
+
+    const summary = await service.replay({ since: new Date("2026-08-01T00:00:00.000Z") });
+
+    expect(summary.deployments).toEqual([
+      { source: "database", label: "42/1000001/web", probes: 1, accelFires: 1, networkFires: 1, candidateProbes: 1, longestAgreement: 1 }
+    ]);
+  });
+
+  it("scores the recorded window an operator asks for by its end alone", async () => {
+    const { service, evidenceRepository } = setup({ rows: [createRow({ id: "row-1", service: "web" })] });
+
+    const summary = await service.replay({ bundledFixtures: true, until: new Date("2026-09-01T00:00:00.000Z") });
+
+    expect(evidenceRepository.findCreatedBetween).toHaveBeenCalledWith({ since: expect.any(Date), until: new Date("2026-09-01T00:00:00.000Z") });
+    expect(summary.deployments).toContainEqual(expect.objectContaining({ source: "database" }));
+  });
+
+  it("skips a fixture file it cannot read and reports every other one", async () => {
+    const { service, logger } = setup();
+    const directory = mkdtempSync(join(tmpdir(), "behavioural-replay-"));
+    writeFileSync(join(directory, "broken.json"), '{ "deployment": "broken", "snapshots": [{ "netShape": {} }] }');
+
+    const summary = await service.replay({ bundledFixtures: true, fixturePaths: [directory] });
+
+    expect(summary.deployments.map(deployment => deployment.label)).not.toContain("broken");
+    expect(summary.deployments).not.toHaveLength(0);
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "BEHAVIOURAL_REPLAY_FIXTURE_SKIPPED" }));
+  });
+
+  it("logs the threshold sweep with the rest of the report, so a run leaves it behind", async () => {
+    const { service, logger } = setup();
+
+    const summary = await service.replay({ bundledFixtures: true });
+
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "BEHAVIOURAL_REPLAY_COMPLETED", sensitivity: summary.sensitivity }));
+  });
+
   it("reads the window from the request and writes nothing back", async () => {
     const { service, evidenceRepository } = setup();
 
@@ -123,6 +167,7 @@ describe(BehaviouralSignalReplayService.name, () => {
     return mock<WorkloadProbeEvidenceOutput>({
       walletId: 42,
       dseq: "1000001",
+      shellStatus: "completed",
       accelerator: [{ name: "accelerator-0", utilPct: 99, memUsedMb: 20_480, memTotalMb: 24_576, processes: [{ pid: 1234, name: "worker", vramMb: 18_000 }] }],
       artifacts: [{ path: "/opt/worker", sizeBytes: 4_194_304 }],
       netShape: { listenPorts: [22], established: [] },
