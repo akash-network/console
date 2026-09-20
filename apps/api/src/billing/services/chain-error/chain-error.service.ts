@@ -16,6 +16,8 @@ const FEE_GRANT_REFUSED_MESSAGE = "does not allow to pay fees";
 /** A signer that refused the connection or never resolved carries no response to read a status from, yet it is as much a dependency outage as a 5xx from one. */
 const UNREACHABLE_UPSTREAM_CODES = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "EHOSTUNREACH", "ENETUNREACH"]);
 
+/** Names no host or address, because the error handler echoes `message` to the caller for every `http-errors` instance regardless of `expose`. */
+const UNREACHABLE_UPSTREAM_MESSAGE = "Service temporarily unavailable";
 
 @singleton()
 export class ChainErrorService {
@@ -109,6 +111,10 @@ export class ChainErrorService {
     const clue = clues.find(clue => error.message.toLowerCase().includes(clue.toLowerCase()));
 
     if (!clue) {
+      if (this.isUnreachableUpstreamCause(error)) {
+        return createError(503, UNREACHABLE_UPSTREAM_MESSAGE, { originalError: error });
+      }
+
       const upstreamStatus = this.getUpstreamStatusFromCause(error);
       if (upstreamStatus) {
         return createError(upstreamStatus, error.message, { originalError: error });
@@ -125,14 +131,15 @@ export class ChainErrorService {
     return createError(code, prefixedMessage, { originalError: error });
   }
 
+  private isUnreachableUpstreamCause(error: Error): boolean {
+    const { cause } = error;
+    return axios.isAxiosError(cause) && !cause.response && UNREACHABLE_UPSTREAM_CODES.has(cause.code ?? "");
+  }
+
   private getUpstreamStatusFromCause(error: Error): number | undefined {
     const { cause } = error;
-    if (!axios.isAxiosError(cause)) {
+    if (!axios.isAxiosError(cause) || !cause.response) {
       return undefined;
-    }
-
-    if (!cause.response) {
-      return UNREACHABLE_UPSTREAM_CODES.has(cause.code ?? "") ? 503 : undefined;
     }
 
     const status = cause.response.status;
