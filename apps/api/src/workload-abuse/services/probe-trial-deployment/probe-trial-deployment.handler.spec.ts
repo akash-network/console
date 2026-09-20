@@ -8,6 +8,7 @@ import type {
   WorkloadAbuseDetectionRepository
 } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import { EnforceTrialAbuse } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
+import type { ProbeEvidenceService } from "@src/workload-abuse/services/probe-evidence/probe-evidence.service";
 import type { ProbeReport, TrialWorkloadProbeService } from "@src/workload-abuse/services/trial-workload-probe/trial-workload-probe.service";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import type { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
@@ -50,7 +51,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     expect(detectionRepository.create).not.toHaveBeenCalled();
   });
 
-  it("reschedules a clean probe and records nothing", async () => {
+  it("reschedules a clean probe and records no detection", async () => {
     const { handler, probeJobService, detectionRepository, instrumentation } = setup({ report: createReport({ verdict: "clean" }) });
 
     await handler.handle(PAYLOAD);
@@ -58,6 +59,46 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     expect(detectionRepository.create).not.toHaveBeenCalled();
     expect(probeJobService.scheduleNext).toHaveBeenCalledWith(PAYLOAD);
     expect(instrumentation.recordProbe).toHaveBeenCalledWith(expect.objectContaining({ verdict: "clean", probeStatus: "probed" }));
+  });
+
+  it("records evidence on a clean probe with the raw shell outputs and no detection id", async () => {
+    const shellOutputs = [{ service: "web", provider: "akash1provider", output: "--loadavg\n0.10" }];
+    const { handler, wallet, probeEvidenceService } = setup({ report: createReport({ verdict: "clean", shellOutputs }) });
+
+    await handler.handle(PAYLOAD);
+
+    expect(probeEvidenceService.recordEvidence).toHaveBeenCalledWith({
+      walletId: wallet.id,
+      dseq: PAYLOAD.dseq,
+      verdict: "clean",
+      probeStatus: "probed",
+      detectionId: undefined,
+      shellOutputs
+    });
+  });
+
+  it("records evidence with the detection id on a probe that lands a detection", async () => {
+    const { handler, probeEvidenceService } = setup({ report: createReport({ verdict: "hard" }) });
+
+    await handler.handle(PAYLOAD);
+
+    expect(probeEvidenceService.recordEvidence).toHaveBeenCalledWith(expect.objectContaining({ detectionId: "detection-1" }));
+  });
+
+  it("logs the recorded evidence services for the probe run", async () => {
+    const { handler, logger } = setup({ report: createReport({ verdict: "clean" }) });
+
+    await handler.handle(PAYLOAD);
+
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_WORKLOAD_EVIDENCE_RECORDED", services: ["ssh"] }));
+  });
+
+  it("records no evidence when the deployment has no live lease", async () => {
+    const { handler, probeEvidenceService } = setup({ report: createReport({ probeStatus: "no_live_lease", shellOutputs: [] }) });
+
+    await handler.handle(PAYLOAD);
+
+    expect(probeEvidenceService.recordEvidence).not.toHaveBeenCalled();
   });
 
   it("logs what the shell saw for every verdict, cut so the line survives log shipping", async () => {
@@ -182,6 +223,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
           logStatus: "completed"
         }
       ],
+      shellOutputs: [{ service: "ssh", provider: "akash1provider", output: "--loadavg\n0.10" }],
       ...overrides
     };
   }
@@ -232,6 +274,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     const detectionRepository = mock<WorkloadAbuseDetectionRepository>();
     detectionRepository.create.mockResolvedValue(mock<WorkloadAbuseDetectionOutput>({ id: "detection-1" }));
     detectionRepository.findOneBy.mockResolvedValue(input.existingDetection ? mock<WorkloadAbuseDetectionOutput>({ id: "detection-0" }) : undefined);
+    const probeEvidenceService = mock<ProbeEvidenceService>();
     const instrumentation = mock<WorkloadAbuseInstrumentationService>();
     const config = mockConfigService<WorkloadAbuseConfigService>({
       WORKLOAD_ABUSE_PROBE_ENABLED: input.enabled ?? true,
@@ -247,12 +290,24 @@ describe(ProbeTrialDeploymentHandler.name, () => {
       probeService,
       probeJobService,
       detectionRepository,
+      probeEvidenceService,
       instrumentation,
       config,
       jobQueueService,
       createLogger
     );
 
-    return { handler, wallet: wallet!, userWalletRepository, probeService, probeJobService, detectionRepository, instrumentation, jobQueueService, logger };
+    return {
+      handler,
+      wallet: wallet!,
+      userWalletRepository,
+      probeService,
+      probeJobService,
+      detectionRepository,
+      probeEvidenceService,
+      instrumentation,
+      jobQueueService,
+      logger
+    };
   }
 });

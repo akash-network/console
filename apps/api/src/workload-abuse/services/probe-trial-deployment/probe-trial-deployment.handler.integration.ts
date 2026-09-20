@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { JOB_NAME } from "@src/core";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
+import { WorkloadProbeEvidenceRepository } from "@src/workload-abuse/repositories/workload-probe-evidence/workload-probe-evidence.repository";
 import { type ProbeReport, TrialWorkloadProbeService } from "@src/workload-abuse/services/trial-workload-probe/trial-workload-probe.service";
 import { ProbeTrialDeployment, probeTrialDeploymentKeyFor } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
@@ -15,6 +16,8 @@ import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
 const MAX_ATTEMPTS = 30;
+
+const ACCELERATED_SHELL_OUTPUT = "--loadavg\n0.10\n--accel\nNVIDIA A100, 95, 20480, 24576\n1234, python3, 18000";
 
 const jobWorkers = useJobWorkers(() => [container.resolve(ProbeTrialDeploymentHandler)]);
 
@@ -64,6 +67,42 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     expect(await findDetections()).toHaveLength(0);
   });
 
+  it("records evidence for every probed service on a clean probe", async () => {
+    const { probeDeployment, findEvidence } = await setup({ verdict: "clean" });
+
+    await probeDeployment();
+
+    expect(await findEvidence()).toMatchObject([
+      {
+        verdict: "clean",
+        detectionId: null,
+        provider: "akash1provider",
+        service: "ssh",
+        accelerator: [{ name: "NVIDIA A100", utilPct: 95, memUsedMb: 20480, memTotalMb: 24576, processes: [{ pid: 1234, name: "python3", vramMb: 18000 }] }],
+        artifacts: null,
+        processOrigins: null,
+        netShape: null
+      }
+    ]);
+  });
+
+  it("links the evidence rows to the detection the probe recorded", async () => {
+    const { probeDeployment, findDetections, findEvidence } = await setup({ verdict: "hard" });
+
+    await probeDeployment();
+
+    const [detection] = await findDetections();
+    expect(await findEvidence()).toMatchObject([{ verdict: "hard", detectionId: detection.id }]);
+  });
+
+  it("records no evidence when the deployment has no live lease", async () => {
+    const { probeDeployment, findEvidence } = await setup({ verdict: "clean", probeStatus: "no_live_lease" });
+
+    await probeDeployment();
+
+    expect(await findEvidence()).toHaveLength(0);
+  });
+
   it("records nothing more for a deployment already judged abusive", async () => {
     const { probeDeployment, findDetections, probe, seedExistingDetection } = await setup({ verdict: "hard" });
     await seedExistingDetection();
@@ -74,9 +113,16 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     expect(await findDetections()).toHaveLength(1);
   });
 
-  async function setup(input: { verdict: ProbeReport["verdict"]; attempt?: number; isTrialing?: boolean }) {
+  async function setup(input: {
+    verdict: ProbeReport["verdict"];
+    attempt?: number;
+    isTrialing?: boolean;
+    probeStatus?: ProbeReport["probeStatus"];
+    shellOutputs?: ProbeReport["shellOutputs"];
+  }) {
     const { enqueue, startWorkers } = await jobWorkers();
     const detectionRepository = container.resolve(WorkloadAbuseDetectionRepository);
+    const evidenceRepository = container.resolve(WorkloadProbeEvidenceRepository);
     const { user, wallet, address } = await seedUserWithWallet({ isTrialing: input.isTrialing ?? true });
     const dseq = createDseq();
 
@@ -86,10 +132,11 @@ describe(ProbeTrialDeploymentHandler.name, () => {
 
     const probe = vi.spyOn(container.resolve(TrialWorkloadProbeService), "probe").mockResolvedValue({
       verdict: input.verdict,
-      probeStatus: "probed",
+      probeStatus: input.probeStatus ?? "probed",
       signals: [],
       excerpt: "denied",
-      leases: []
+      leases: [],
+      shellOutputs: input.shellOutputs ?? [{ service: "ssh", provider: "akash1provider", output: ACCELERATED_SHELL_OUTPUT }]
     });
 
     const probeKey = probeTrialDeploymentKeyFor({ walletId: wallet.id, dseq });
@@ -98,6 +145,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
       dseq,
       probe,
       findDetections: () => detectionRepository.find({ walletId: wallet.id, dseq }),
+      findEvidence: () => evidenceRepository.find({ walletId: wallet.id, dseq }),
       seedExistingDetection: () =>
         detectionRepository.create({
           userId: user.id,

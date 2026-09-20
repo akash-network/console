@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, symlinkSync, truncateSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -184,6 +184,92 @@ describe(ProviderShellProbeService.name, () => {
     });
   });
 
+  describe("the --accel collector", () => {
+    it("reports the accelerator model, utilization and memory along with the processes holding it", () => {
+      const binDirectory = mkdtempSync(join(tmpdir(), "shell-probe-accel-"));
+      writeFileSync(
+        join(binDirectory, "nvidia-smi"),
+        [
+          "#!/bin/sh",
+          'case "$1" in',
+          "  --query-gpu*) printf 'NVIDIA A100, 95, 20480, 24576\\n' ;;",
+          "  --query-compute-apps*) printf '1234, python3, 18000\\n' ;;",
+          "esac"
+        ].join("\n"),
+        { mode: 0o755 }
+      );
+
+      const reported = runCollector("--accel", collector => collector, { ...process.env, PATH: `${binDirectory}:${process.env.PATH}` });
+
+      expect(reported).toEqual(["--accel", "NVIDIA A100, 95, 20480, 24576", "1234, python3, 18000"]);
+    });
+
+    it("reports the accelerator as unavailable when the container has no nvidia-smi", () => {
+      const binDirectory = mkdtempSync(join(tmpdir(), "shell-probe-accel-"));
+      symlinkSync("/bin/sh", join(binDirectory, "sh"));
+
+      const reported = runCollector("--accel", collector => collector, { PATH: binDirectory });
+
+      expect(reported).toEqual(["--accel", "accel: unavailable"]);
+    });
+  });
+
+  describe("the --netl collector", () => {
+    it("reports the local port and remote endpoint of each connected socket, counted per peer", () => {
+      const reported = runNetlCollector({
+        tcp: [
+          "   0: 0100007F:9C4E 140AB912:0D05 01 00000000:00000000 00:00000000 00000000     0        0 2 1 0 0 0",
+          "   1: 0100007F:9C4E 140AB912:0D05 01 00000000:00000000 00:00000000 00000000     0        0 2 1 0 0 0",
+          "   2: 00000000:1F90 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 3 1 0 0 0"
+        ],
+        tcp6: [
+          "   0: 0000000000000000FFFF00000100007F:A0F0 0000000000000000FFFF000009030E34:0D05 01 00000000:00000000 00:00000000 00000000     0        0 4 1 0 0 0"
+        ]
+      });
+
+      expect(reported).toEqual(expect.arrayContaining(["2 9C4E 140AB912:0D05 01", "1 A0F0 0000000000000000FFFF000009030E34:0D05 01"]));
+      expect(reported).toHaveLength(3);
+    });
+
+    it("leaves out a socket that is neither established nor connecting", () => {
+      const reported = runNetlCollector({
+        tcp: ["   0: 0100007F:9C4E 140AB912:0D05 06 00000000:00000000 00:00000000 00000000     0        0 7 1 0 0 0"]
+      });
+
+      expect(reported).toEqual(["--netl"]);
+    });
+  });
+
+  describe("the --disk collector", () => {
+    it("reports the size and path of a file over 64 MiB and leaves smaller files out", () => {
+      const directory = mkdtempSync(join(tmpdir(), "shell-probe-disk-"));
+      writeFileSync(join(directory, "weights.bin"), "");
+      truncateSync(join(directory, "weights.bin"), 70 * 1024 * 1024);
+      writeFileSync(join(directory, "notes.txt"), "notes");
+
+      const reported = runCollector("--disk", collector => collector.replace("find / -xdev", `find ${directory} -xdev`)).map(line => line.trim());
+
+      expect(reported).toEqual(["--disk", `73400320 ${join(directory, "weights.bin")}`]);
+    });
+  });
+
+  describe("the --procorig collector", () => {
+    it("reports the boot time and the parent, start time and name of each process it finds", () => {
+      const reported = runProcorigCollector([{ pid: "9000001", comm: "node", ppid: 1, starttimeTicks: 100, cmdline: ["node", "app.js"] }]);
+
+      expect(reported).toEqual(["--procorig", "btime=1740000000", "9000001 ppid=1 starttime=100 comm=node"]);
+    });
+
+    it("leaves out a process with no command line, so kernel threads do not crowd out the workload", () => {
+      const reported = runProcorigCollector([
+        { pid: "9000001", comm: "kthreadd", ppid: 2, starttimeTicks: 5, cmdline: [] },
+        { pid: "9000002", comm: "node", ppid: 1, starttimeTicks: 200, cmdline: ["node", "app.js"] }
+      ]);
+
+      expect(reported).toEqual(["--procorig", "btime=1740000000", "9000002 ppid=1 starttime=200 comm=node"]);
+    });
+  });
+
   describe("run", () => {
     it("joins stdout and stderr into the output and keeps the stream status", async () => {
       const { service } = setup({
@@ -242,9 +328,9 @@ describe(ProviderShellProbeService.name, () => {
     return { reported: runCollector("--files", collector => collector.replace(TMP_FILE_GLOBS, `${directory}/*.conf`)), path };
   }
 
-  function runCollector(section: string, toRunnable: (collector: string) => string) {
+  function runCollector(section: string, toRunnable: (collector: string) => string, env?: NodeJS.ProcessEnv) {
     const collector = SHELL_PROBE_COLLECTORS.find(entry => entry.includes(section)) ?? "";
-    const { stdout } = spawnSync("sh", ["-c", toRunnable(collector)], { encoding: "utf8" });
+    const { stdout } = spawnSync("sh", ["-c", toRunnable(collector)], { encoding: "utf8", env });
 
     return stdout
       .split("\n")
@@ -261,6 +347,36 @@ describe(ProviderShellProbeService.name, () => {
     }
 
     return runCollector("--net", collector => collector.replace("/proc/net/tcp /proc/net/tcp6", `${directory}/tcp ${directory}/tcp6`)).map(line => line.trim());
+  }
+
+  function runNetlCollector(procFiles: { tcp?: string[]; tcp6?: string[] }) {
+    const header = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode";
+    const directory = mkdtempSync(join(tmpdir(), "shell-probe-netl-"));
+
+    for (const name of ["tcp", "tcp6"] as const) {
+      writeFileSync(join(directory, name), [header, ...(procFiles[name] ?? [])].join("\n") + "\n");
+    }
+
+    return runCollector("--netl", collector => collector.replace("/proc/net/tcp /proc/net/tcp6", `${directory}/tcp ${directory}/tcp6`)).map(line =>
+      line.trim()
+    );
+  }
+
+  function runProcorigCollector(processes: { pid: string; comm: string; ppid: number; starttimeTicks: number; cmdline: string[] }[]) {
+    const directory = mkdtempSync(join(tmpdir(), "shell-probe-procorig-"));
+    writeFileSync(join(directory, "stat"), "btime 1740000000\n");
+
+    for (const fixture of processes) {
+      const fieldsAfterComm: (string | number)[] = Array(22).fill(0);
+      fieldsAfterComm[0] = "S";
+      fieldsAfterComm[1] = fixture.ppid;
+      fieldsAfterComm[19] = fixture.starttimeTicks;
+      mkdirSync(join(directory, fixture.pid));
+      writeFileSync(join(directory, fixture.pid, "stat"), `${fixture.pid} (${fixture.comm}) ${fieldsAfterComm.join(" ")}\n`);
+      writeFileSync(join(directory, fixture.pid, "cmdline"), fixture.cmdline.map(argument => `${argument}\0`).join(""));
+    }
+
+    return runCollector("--procorig", collector => collector.replaceAll("/proc/", `${directory}/`));
   }
 
   function setup(result: ProviderStreamResult) {

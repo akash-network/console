@@ -31,7 +31,7 @@ describe(TrialWorkloadProbeService.name, () => {
 
     const report = await service.probe({ wallet, dseq: DSEQ });
 
-    expect(report).toEqual({ verdict: "clean", signals: [], excerpt: "", probeStatus: "no_live_lease", leases: [] });
+    expect(report).toEqual({ verdict: "clean", signals: [], excerpt: "", probeStatus: "no_live_lease", leases: [], shellOutputs: [] });
     expect(providerService.toProviderAuth).not.toHaveBeenCalled();
   });
 
@@ -175,6 +175,32 @@ describe(TrialWorkloadProbeService.name, () => {
 
     expect(report.probeStatus).toBe("no_running_service");
     expect(shellProbeService.run).not.toHaveBeenCalled();
+  });
+
+  it("keeps the raw shell output out of the scanned sources while recording it in shellOutputs", async () => {
+    const shellOutput = [
+      "--loadavg",
+      "0.10 0.20 0.30",
+      "--accel",
+      "NVIDIA T4, 95, 14000, 15360",
+      "1234, stratum+tcp://pool.example:3333, 14000",
+      "--disk",
+      "1073741824 /tmp/stratum+tcp://pool.example:3333",
+      "--procorig",
+      "btime=1740000000",
+      "1234 ppid=1 starttime=650000 comm=stratum+tcp://pool.example:3333"
+    ].join("\n");
+    const { service, wallet } = setup({ leases: [createRpcLease()], services: { web: 1 }, shell: { status: "completed", output: shellOutput } });
+
+    const report = await service.probe({ wallet, dseq: DSEQ });
+
+    expect(report.verdict).toBe("clean");
+    expect(report.signals).toEqual([]);
+    expect(report.excerpt).not.toContain("--accel");
+    expect(report.excerpt).not.toContain("--disk");
+    expect(report.excerpt).not.toContain("--procorig");
+    expect(report.excerpt).not.toContain("stratum+tcp");
+    expect(report.shellOutputs).toEqual([{ service: "web", provider: PROVIDER, output: shellOutput }]);
   });
 
   function createRpcLease(overrides: Partial<RpcLease["lease"]["id"]> = {}): RpcLease {
