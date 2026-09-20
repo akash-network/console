@@ -8,6 +8,8 @@ export type DomainBlockResult = "blocked" | "raced" | "skipped" | "dry_run" | "f
 
 export type EvidenceWriteOperation = "insert" | "findings" | "purge";
 
+export type DetectionVerdict = WorkloadVerdict | "behavioural";
+
 @singleton()
 export class WorkloadAbuseInstrumentationService {
   private readonly meter: Meter;
@@ -48,7 +50,7 @@ export class WorkloadAbuseInstrumentationService {
     this.probes.add(1, { verdict: input.verdict, probe_status: input.probeStatus });
   }
 
-  recordDetection(verdict: WorkloadVerdict): void {
+  recordDetection(verdict: DetectionVerdict): void {
     this.detections.add(1, { verdict });
   }
 

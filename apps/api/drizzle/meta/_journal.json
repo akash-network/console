@@ -414,6 +414,13 @@
       "when": 1789839246549,
       "tag": "0058_workload_probe_evidence",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1789901600865,
+      "tag": "0059_workload_abuse_behavioural_verdict",
+      "breakpoints": true
     }
   ]
 }

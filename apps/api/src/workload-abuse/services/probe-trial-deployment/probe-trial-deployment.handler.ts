@@ -2,9 +2,11 @@ import { inject, singleton } from "tsyringe";
 
 import { isWalletInitialized, UserWalletRepository } from "@src/billing/repositories";
 import { type CreateLogger, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, JobQueueService, LOGGER_FACTORY } from "@src/core";
+import { findBehaviouralAgreement } from "@src/workload-abuse/lib/behavioural-signals/agreement";
 import { withoutFileContents } from "@src/workload-abuse/lib/evidence-scanner/evidence-scanner";
 import { truncateToUtf8Bytes } from "@src/workload-abuse/lib/utf8-text/utf8-text";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
+import { WorkloadProbeEvidenceRepository } from "@src/workload-abuse/repositories/workload-probe-evidence/workload-probe-evidence.repository";
 import { EnforceTrialAbuse, enforceTrialAbuseKeyFor } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
 import { ProbeEvidenceService } from "@src/workload-abuse/services/probe-evidence/probe-evidence.service";
 import { type ProbeReport, TrialWorkloadProbeService } from "@src/workload-abuse/services/trial-workload-probe/trial-workload-probe.service";
@@ -32,6 +34,7 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
     private readonly probeService: TrialWorkloadProbeService,
     private readonly probeJobService: TrialWorkloadProbeJobService,
     private readonly detectionRepository: WorkloadAbuseDetectionRepository,
+    private readonly evidenceRepository: WorkloadProbeEvidenceRepository,
     private readonly probeEvidenceService: ProbeEvidenceService,
     private readonly instrumentation: WorkloadAbuseInstrumentationService,
     private readonly config: WorkloadAbuseConfigService,
@@ -144,6 +147,8 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
       return;
     }
 
+    if (await this.#enforceOnRepeatedShape(wallet, dseq, report, context)) return;
+
     if (attempt >= this.config.get("WORKLOAD_ABUSE_PROBE_MAX_PER_DEPLOYMENT")) {
       this.logger.info({ event: "TRIAL_WORKLOAD_PROBE_FINISHED", reason: "MAX_ATTEMPTS", ...context, userId: wallet.userId });
       return;
@@ -177,6 +182,63 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
     });
 
     return detection.id;
+  }
+
+  /** One probe cannot tell a shape apart from a moment, so the same shape has to hold across probes and across time before it counts. */
+  async #enforceOnRepeatedShape(
+    wallet: { id: number; userId: string; address: string },
+    dseq: string,
+    report: ProbeReport,
+    context: Record<string, unknown>
+  ): Promise<boolean> {
+    if (!this.config.get("WORKLOAD_ABUSE_BEHAVIOURAL_ENFORCEMENT_ENABLED")) return false;
+
+    const rows = await this.evidenceRepository.findRecentForDeployment({ walletId: wallet.id, dseq, since: this.#evidenceLookbackStart() });
+    const agreement = findBehaviouralAgreement(rows, {
+      agreementProbes: this.config.get("WORKLOAD_ABUSE_BEHAVIOURAL_AGREEMENT_PROBES"),
+      minWindowMinutes: this.config.get("WORKLOAD_ABUSE_BEHAVIOURAL_MIN_WINDOW_MINUTES")
+    });
+
+    if (!agreement.agreed) return false;
+
+    const existing = await this.detectionRepository.findOneBy({ walletId: wallet.id, dseq, verdict: "behavioural" });
+
+    if (existing) {
+      await this.#enforce(wallet, existing.id, context);
+      return true;
+    }
+
+    const detection = await this.detectionRepository.create({
+      userId: wallet.userId,
+      walletId: wallet.id,
+      dseq,
+      provider: report.leases.map(lease => lease.provider).join(","),
+      verdict: "behavioural",
+      probeStatus: report.probeStatus,
+      signals: report.signals,
+      evidenceExcerpt: withoutFileContents(report.excerpt)
+    });
+    this.instrumentation.recordDetection("behavioural");
+
+    this.logger.warn({
+      event: "TRIAL_WORKLOAD_SHAPE_CONFIRMED",
+      ...context,
+      userId: wallet.userId,
+      detectionId: detection.id,
+      service: agreement.service,
+      probes: agreement.streak,
+      spanMinutes: agreement.spanMinutes
+    });
+
+    await this.#enforce(wallet, detection.id, context);
+
+    return true;
+  }
+
+  #evidenceLookbackStart(): Date {
+    const probeSpanMinutes = this.config.get("WORKLOAD_ABUSE_PROBE_INTERVAL_MIN") * this.config.get("WORKLOAD_ABUSE_PROBE_MAX_PER_DEPLOYMENT");
+
+    return new Date(Date.now() - probeSpanMinutes * 60_000);
   }
 
   /** Detect mode records the verdict and stops there, so a rollout can be compared against manual review before anything is wiped. */

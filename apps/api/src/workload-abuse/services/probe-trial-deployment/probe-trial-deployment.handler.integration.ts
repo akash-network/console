@@ -142,6 +142,36 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     expect(evidence.behaviouralFindings).toBeNull();
   });
 
+  it("confirms the deployment and stops probing once the recorded shape agrees across probes", async () => {
+    const { probeDeployment, findDetections, findNextProbe, seedShapeHistory } = await setup({
+      verdict: "clean",
+      behaviouralSignalsEnabled: true,
+      behaviouralEnforcementEnabled: true,
+      shellOutputs: [{ service: "ssh", provider: "akash1provider", output: ISOLATED_ACCELERATED_SHELL_OUTPUT }]
+    });
+    await seedShapeHistory([130, 250]);
+
+    await probeDeployment();
+
+    expect(await findDetections()).toMatchObject([{ verdict: "behavioural", probeStatus: "probed" }]);
+    expect(await findNextProbe()).toBeUndefined();
+  });
+
+  it("keeps probing while the recorded shape is one probe short of agreement", async () => {
+    const { probeDeployment, findDetections, findNextProbe, seedShapeHistory } = await setup({
+      verdict: "clean",
+      behaviouralSignalsEnabled: true,
+      behaviouralEnforcementEnabled: true,
+      shellOutputs: [{ service: "ssh", provider: "akash1provider", output: ISOLATED_ACCELERATED_SHELL_OUTPUT }]
+    });
+    await seedShapeHistory([130]);
+
+    await probeDeployment();
+
+    expect(await findDetections()).toHaveLength(0);
+    expect((await findNextProbe())?.data).toMatchObject({ attempt: 2 });
+  });
+
   it("records nothing more for a deployment already judged abusive", async () => {
     const { probeDeployment, findDetections, probe, seedExistingDetection } = await setup({ verdict: "hard" });
     await seedExistingDetection();
@@ -159,6 +189,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     probeStatus?: ProbeReport["probeStatus"];
     shellEvidence?: ProbeReport["shellEvidence"];
     behaviouralSignalsEnabled?: boolean;
+    behaviouralEnforcementEnabled?: boolean;
   }) {
     const { enqueue, startWorkers } = await jobWorkers();
     const detectionRepository = container.resolve(WorkloadAbuseDetectionRepository);
@@ -170,7 +201,8 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     const readConfig = config.get.bind(config);
     const overrides: Record<string, unknown> = {
       WORKLOAD_ABUSE_PROBE_ENABLED: true,
-      WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED: input.behaviouralSignalsEnabled ?? false
+      WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED: input.behaviouralSignalsEnabled ?? false,
+      WORKLOAD_ABUSE_BEHAVIOURAL_ENFORCEMENT_ENABLED: input.behaviouralEnforcementEnabled ?? false
     };
     vi.spyOn(config, "get").mockImplementation((key => (key in overrides ? overrides[key] : readConfig(key))) as typeof config.get);
 
@@ -190,6 +222,22 @@ describe(ProbeTrialDeploymentHandler.name, () => {
       probe,
       findDetections: () => detectionRepository.find({ walletId: wallet.id, dseq }),
       findEvidence: () => evidenceRepository.find({ walletId: wallet.id, dseq }),
+      seedShapeHistory: (minutesAgo: number[]) =>
+        evidenceRepository.insertMany(
+          minutesAgo.map(minutes => ({
+            walletId: wallet.id,
+            dseq,
+            provider: "akash1provider",
+            service: "ssh",
+            probeStatus: "probed",
+            verdict: "clean",
+            createdAt: new Date(Date.now() - minutes * 60_000),
+            behaviouralFindings: [
+              { signal: "accel_without_artifacts", detail: {} },
+              { signal: "network_isolated", detail: {} }
+            ]
+          }))
+        ),
       seedExistingDetection: () =>
         detectionRepository.create({
           userId: user.id,

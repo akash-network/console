@@ -24,11 +24,11 @@ export class WorkloadAbuseDetectionRepository extends BaseRepository<Table, Work
     return new WorkloadAbuseDetectionRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
-  async findRecentHardTargets({ since }: { since: Date }): Promise<Array<{ walletId: number; dseq: string }>> {
+  async findRecentDetectedTargets({ since }: { since: Date }): Promise<Array<{ walletId: number; dseq: string }>> {
     return await this.cursor
       .selectDistinct({ walletId: this.table.walletId, dseq: this.table.dseq })
       .from(this.table)
-      .where(and(eq(this.table.verdict, "hard"), gt(this.table.createdAt, since)));
+      .where(and(inArray(this.table.verdict, ["hard", "behavioural"]), gt(this.table.createdAt, since)));
   }
 
   /** One detection per wallet, since the wipe covers the whole wallet whichever of its detections re-queues it. */

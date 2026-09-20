@@ -7,7 +7,7 @@ import { UserRepository } from "@src/user/repositories";
 import { WorkloadAbuseDetectionRepository } from "./workload-abuse-detection.repository";
 
 describe(WorkloadAbuseDetectionRepository.name, () => {
-  describe("findRecentHardTargets", () => {
+  describe("findRecentDetectedTargets", () => {
     it("lists each deployment with a confirmed detection inside the window once", async () => {
       const { repository, walletId, createDetection } = await setup();
       await createDetection({ dseq: "1", verdict: "hard" });
@@ -15,7 +15,16 @@ describe(WorkloadAbuseDetectionRepository.name, () => {
       await createDetection({ dseq: "2", verdict: "soft" });
       await createDetection({ dseq: "3", verdict: "hard", createdAt: subHours(new Date(), 30) });
 
-      const targets = await repository.findRecentHardTargets({ since: subHours(new Date(), 26) });
+      const targets = await repository.findRecentDetectedTargets({ since: subHours(new Date(), 26) });
+
+      expect(targets.filter(target => target.walletId === walletId)).toEqual([{ walletId, dseq: "1" }]);
+    });
+
+    it("lists a deployment confirmed by repeated behaviour alongside the rest", async () => {
+      const { repository, walletId, createDetection } = await setup();
+      await createDetection({ dseq: "1", verdict: "behavioural" });
+
+      const targets = await repository.findRecentDetectedTargets({ since: subHours(new Date(), 26) });
 
       expect(targets.filter(target => target.walletId === walletId)).toEqual([{ walletId, dseq: "1" }]);
     });
@@ -46,7 +55,7 @@ describe(WorkloadAbuseDetectionRepository.name, () => {
 
     async function createDetection(input: {
       dseq: string;
-      verdict: "hard" | "soft" | "proxy";
+      verdict: "hard" | "soft" | "proxy" | "behavioural";
       action?: "detected" | "enforcing" | "enforced" | "enforcement_failed";
       createdAt?: Date;
     }) {

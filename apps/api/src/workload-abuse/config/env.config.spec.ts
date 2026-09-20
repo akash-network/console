@@ -36,6 +36,14 @@ describe("workload abuse env config", () => {
     expect(config.WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB).toBe(256);
   });
 
+  it("defaults behavioural enforcement to off behind a multi-probe agreement", () => {
+    const config = envSchema.parse({});
+
+    expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_ENFORCEMENT_ENABLED).toBe(false);
+    expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_AGREEMENT_PROBES).toBe(3);
+    expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_MIN_WINDOW_MINUTES).toBe(120);
+  });
+
   it("parses the relay endpoint list", () => {
     const config = envSchema.parse({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: JSON.stringify(["10.0.0.7", "10.0.0.8:443"]) });
 

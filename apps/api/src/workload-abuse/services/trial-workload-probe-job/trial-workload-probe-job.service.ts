@@ -107,7 +107,7 @@ export class TrialWorkloadProbeJobService {
     if (dryRun) return;
 
     const pendingKeys = await this.jobQueueService.findPendingSingletonKeys(ProbeTrialDeployment[JOB_NAME]);
-    const detectedTargets = await this.detectionRepository.findRecentHardTargets({ since: subHours(new Date(), maxAgeHours) });
+    const detectedTargets = await this.detectionRepository.findRecentDetectedTargets({ since: subHours(new Date(), maxAgeHours) });
     const detectedKeys = new Set(detectedTargets.map(probeTrialDeploymentKeyFor));
     let scheduled = 0;
     let alreadyScheduled = 0;
