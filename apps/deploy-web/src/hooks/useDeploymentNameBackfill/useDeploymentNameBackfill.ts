@@ -44,10 +44,9 @@ export function useDeploymentNameBackfill(apiNames: ReadonlyArray<ApiDeploymentN
 
         deploymentNameBackfill.enqueue(address, dseq, () =>
           recordName({ dseq, data: { name } })
-            .then(function refreshEverySurfaceShowingTheName() {
+            /** Every list already falls back to the record this name came from, so refetching one only replaces each name with itself. */
+            .then(function refreshTheDeploymentTheNameBelongsTo() {
               queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq }) });
-              queryClient.invalidateQueries({ queryKey: api.v1.listDeploymentNames.getKey() });
-              queryClient.invalidateQueries({ queryKey: api.v1.listDeployments.getKey() });
             })
             .catch(function reportRefusedBackfill(error) {
               logger.warn({ event: "DEPLOYMENT_NAME_BACKFILL_FAILED", dseq, error });
