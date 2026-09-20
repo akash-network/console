@@ -117,7 +117,7 @@ describe(ProbeEvidenceService.name, () => {
     const recorded = await service.recordBehaviouralFindings([
       createEvidenceRow({
         accelerator: null,
-        netShape: { listenPorts: [8_080], established: [{ localPort: 8_080, remoteIp: "203.0.113.5", remotePort: 51_000, count: 1 }] }
+        netShape: { listenPorts: [8_080], connections: [{ localPort: 8_080, remoteIp: "203.0.113.5", remotePort: 51_000, count: 1, state: "established" }] }
       })
     ]);
 
@@ -170,7 +170,7 @@ describe(ProbeEvidenceService.name, () => {
       shellStatus: "completed",
       accelerator: [{ name: "accelerator-0", utilPct: 99, memUsedMb: 20_480, memTotalMb: 24_576, processes: [{ pid: 1234, name: "worker", vramMb: 18_000 }] }],
       artifacts: [{ path: "/opt/worker", sizeBytes: 4_194_304 }],
-      netShape: { listenPorts: [22], established: [] },
+      netShape: { listenPorts: [22], connections: [] },
       ...overrides
     });
   }

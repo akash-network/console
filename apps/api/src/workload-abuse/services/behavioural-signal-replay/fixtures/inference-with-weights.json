@@ -32,12 +32,13 @@
         "listenPorts": [
           8080
         ],
-        "established": [
+        "connections": [
           {
             "localPort": 8080,
             "remoteIp": "203.0.113.20",
             "remotePort": 54321,
-            "count": 4
+            "count": 4,
+            "state": "established"
           }
         ]
       }
@@ -69,12 +70,13 @@
         "listenPorts": [
           8080
         ],
-        "established": [
+        "connections": [
           {
             "localPort": 8080,
             "remoteIp": "203.0.113.21",
             "remotePort": 51222,
-            "count": 2
+            "count": 2,
+            "state": "established"
           }
         ]
       }

@@ -17,7 +17,15 @@ const SNAPSHOT_SCHEMA = z.object({
   netShape: z
     .object({
       listenPorts: z.array(z.number()),
-      established: z.array(z.object({ localPort: z.number(), remoteIp: z.string(), remotePort: z.number(), count: z.number() }))
+      connections: z.array(
+        z.object({
+          localPort: z.number(),
+          remoteIp: z.string(),
+          remotePort: z.number(),
+          count: z.number(),
+          state: z.enum(["established", "connecting"])
+        })
+      )
     })
     .nullable()
 });
@@ -36,4 +44,4 @@ export const BUNDLED_REPLAY_FIXTURES: BehaviouralReplayFixture[] = [
   idleShellHost,
   packagedRuntime,
   cpuOnlyWorkload
-];
+].map(fixture => parseReplayFixture(fixture));

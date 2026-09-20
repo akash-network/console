@@ -5,13 +5,13 @@ import type { BehaviouralSignalParams, ProbeEvidenceSnapshot } from "./types";
 
 describe("evaluateBehaviouralSignals", () => {
   it("returns both findings when the snapshot matches both signals", () => {
-    const { snapshot, params } = setup({ vramMb: 18_000, artifactBytes: 1_024, established: [] });
+    const { snapshot, params } = setup({ vramMb: 18_000, artifactBytes: 1_024, connections: [] });
 
     expect(evaluateBehaviouralSignals(snapshot, params).map(finding => finding.signal)).toEqual(["accel_without_artifacts", "network_isolated"]);
   });
 
   it("returns one finding when the workload carries weights but talks to nobody", () => {
-    const { snapshot, params } = setup({ vramMb: 18_000, artifactBytes: 8_589_934_592, established: [] });
+    const { snapshot, params } = setup({ vramMb: 18_000, artifactBytes: 8_589_934_592, connections: [] });
 
     expect(evaluateBehaviouralSignals(snapshot, params).map(finding => finding.signal)).toEqual(["network_isolated"]);
   });
@@ -20,26 +20,26 @@ describe("evaluateBehaviouralSignals", () => {
     const { snapshot, params } = setup({
       vramMb: 18_000,
       artifactBytes: 8_589_934_592,
-      established: [{ localPort: 8_080, remoteIp: "203.0.113.9", remotePort: 51_000, count: 2 }]
+      connections: [{ localPort: 8_080, remoteIp: "203.0.113.9", remotePort: 51_000, count: 2, state: "established" }]
     });
 
     expect(evaluateBehaviouralSignals(snapshot, params)).toEqual([]);
   });
 
   it("returns nothing when the shell that collected the snapshot was cut short", () => {
-    const { snapshot, params } = setup({ vramMb: 18_000, artifactBytes: 1_024, established: [], shellStatus: "output_capped" });
+    const { snapshot, params } = setup({ vramMb: 18_000, artifactBytes: 1_024, connections: [], shellStatus: "output_capped" });
 
     expect(evaluateBehaviouralSignals(snapshot, params)).toEqual([]);
   });
 
   it("treats the two signals together as a candidate", () => {
-    const { snapshot, params } = setup({ vramMb: 18_000, artifactBytes: 1_024, established: [] });
+    const { snapshot, params } = setup({ vramMb: 18_000, artifactBytes: 1_024, connections: [] });
 
     expect(isBehaviouralCandidate(evaluateBehaviouralSignals(snapshot, params))).toBe(true);
   });
 
   it("treats a single signal as no candidate", () => {
-    const { snapshot, params } = setup({ vramMb: 18_000, artifactBytes: 8_589_934_592, established: [] });
+    const { snapshot, params } = setup({ vramMb: 18_000, artifactBytes: 8_589_934_592, connections: [] });
 
     expect(isBehaviouralCandidate(evaluateBehaviouralSignals(snapshot, params))).toBe(false);
   });
@@ -47,7 +47,7 @@ describe("evaluateBehaviouralSignals", () => {
   function setup(input: {
     vramMb: number;
     artifactBytes: number;
-    established: NonNullable<ProbeEvidenceSnapshot["netShape"]>["established"];
+    connections: NonNullable<ProbeEvidenceSnapshot["netShape"]>["connections"];
     shellStatus?: string;
   }) {
     const snapshot: ProbeEvidenceSnapshot = {
@@ -56,7 +56,7 @@ describe("evaluateBehaviouralSignals", () => {
         { name: "accelerator-0", utilPct: 97, memUsedMb: 20_480, memTotalMb: 24_576, processes: [{ pid: 1234, name: "worker", vramMb: input.vramMb }] }
       ],
       artifacts: [{ path: "/opt/payload", sizeBytes: input.artifactBytes }],
-      netShape: { listenPorts: [8_080], established: input.established }
+      netShape: { listenPorts: [8_080], connections: input.connections }
     };
     const params: BehaviouralSignalParams = { accelMinVramMb: 1_024, artifactMinMb: 256, relayEndpoints: [] };
 

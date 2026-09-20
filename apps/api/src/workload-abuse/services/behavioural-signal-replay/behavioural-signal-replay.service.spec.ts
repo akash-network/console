@@ -170,7 +170,7 @@ describe(BehaviouralSignalReplayService.name, () => {
       shellStatus: "completed",
       accelerator: [{ name: "accelerator-0", utilPct: 99, memUsedMb: 20_480, memTotalMb: 24_576, processes: [{ pid: 1234, name: "worker", vramMb: 18_000 }] }],
       artifacts: [{ path: "/opt/worker", sizeBytes: 4_194_304 }],
-      netShape: { listenPorts: [22], established: [] },
+      netShape: { listenPorts: [22], connections: [] },
       ...overrides
     });
   }

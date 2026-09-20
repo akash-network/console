@@ -28,7 +28,7 @@
         "listenPorts": [
           22
         ],
-        "established": []
+        "connections": []
       }
     },
     {
@@ -58,7 +58,7 @@
         "listenPorts": [
           22
         ],
-        "established": []
+        "connections": []
       }
     },
     {
@@ -88,7 +88,7 @@
         "listenPorts": [
           22
         ],
-        "established": []
+        "connections": []
       }
     }
   ]

@@ -14,12 +14,13 @@
         "listenPorts": [
           3000
         ],
-        "established": [
+        "connections": [
           {
             "localPort": 46000,
             "remoteIp": "198.51.100.10",
             "remotePort": 443,
-            "count": 2
+            "count": 2,
+            "state": "established"
           }
         ]
       }

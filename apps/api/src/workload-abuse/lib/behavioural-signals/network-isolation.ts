@@ -1,7 +1,7 @@
 import type { ProbeEvidenceNetShape } from "@src/workload-abuse/model-schemas";
 import { BEHAVIOURAL_SIGNALS, type BehaviouralFinding, type BehaviouralSignalParams, type ProbeEvidenceSnapshot } from "./types";
 
-type EstablishedConnection = ProbeEvidenceNetShape["established"][number];
+type EstablishedConnection = ProbeEvidenceNetShape["connections"][number];
 
 export function evaluateNetworkIsolation(snapshot: ProbeEvidenceSnapshot, params: BehaviouralSignalParams): BehaviouralFinding | null {
   const netShape = snapshot.netShape;
@@ -9,13 +9,13 @@ export function evaluateNetworkIsolation(snapshot: ProbeEvidenceSnapshot, params
   if (!netShape) return null;
 
   const listenPorts = new Set(netShape.listenPorts);
-  const inbound = netShape.established.filter(connection => listenPorts.has(connection.localPort));
+  const inbound = netShape.connections.filter(connection => listenPorts.has(connection.localPort));
 
   if (inbound.length > 0) return null;
 
-  const relayOutbound = netShape.established.filter(connection => isRelayEndpoint(connection, params.relayEndpoints));
+  const relayOutbound = netShape.connections.filter(connection => isRelayEndpoint(connection, params.relayEndpoints));
 
-  if (relayOutbound.length < netShape.established.length) return null;
+  if (relayOutbound.length < netShape.connections.length) return null;
 
   return { signal: BEHAVIOURAL_SIGNALS.networkIsolated, detail: { excludedRelay: relayOutbound.length, listenPorts: netShape.listenPorts.length } };
 }

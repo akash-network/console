@@ -6,7 +6,7 @@ import type { BehaviouralSignalParams, ProbeEvidenceSnapshot } from "./types";
 
 describe("evaluateNetworkIsolation", () => {
   it("fires when nothing is established in either direction", () => {
-    const { snapshot, params } = setup({ netShape: { listenPorts: [22, 8080], established: [] } });
+    const { snapshot, params } = setup({ netShape: { listenPorts: [22, 8080], connections: [] } });
 
     expect(evaluateNetworkIsolation(snapshot, params)).toEqual({
       signal: "network_isolated",
@@ -16,7 +16,7 @@ describe("evaluateNetworkIsolation", () => {
 
   it("fires when the only outbound connection goes to a first-party relay", () => {
     const { snapshot, params } = setup({
-      netShape: { listenPorts: [22], established: [{ localPort: 41_234, remoteIp: "10.0.0.7", remotePort: 443, count: 1 }] },
+      netShape: { listenPorts: [22], connections: [{ localPort: 41_234, remoteIp: "10.0.0.7", remotePort: 443, count: 1, state: "established" }] },
       relayEndpoints: ["10.0.0.7"]
     });
 
@@ -25,7 +25,7 @@ describe("evaluateNetworkIsolation", () => {
 
   it("fires when a relay entry pins the port the connection uses", () => {
     const { snapshot, params } = setup({
-      netShape: { listenPorts: [], established: [{ localPort: 41_234, remoteIp: "10.0.0.7", remotePort: 443, count: 1 }] },
+      netShape: { listenPorts: [], connections: [{ localPort: 41_234, remoteIp: "10.0.0.7", remotePort: 443, count: 1, state: "established" }] },
       relayEndpoints: ["10.0.0.7:443"]
     });
 
@@ -34,7 +34,10 @@ describe("evaluateNetworkIsolation", () => {
 
   it("fires when the relay answers over IPv6", () => {
     const { snapshot, params } = setup({
-      netShape: { listenPorts: [], established: [{ localPort: 41_234, remoteIp: "2001:0db8:0000:0000:0000:0000:0000:0001", remotePort: 443, count: 1 }] },
+      netShape: {
+        listenPorts: [],
+        connections: [{ localPort: 41_234, remoteIp: "2001:0db8:0000:0000:0000:0000:0000:0001", remotePort: 443, count: 1, state: "established" }]
+      },
       relayEndpoints: ["2001:0db8:0000:0000:0000:0000:0000:0001"]
     });
 
@@ -43,7 +46,10 @@ describe("evaluateNetworkIsolation", () => {
 
   it("fires when the relay is configured in the short form of its IPv6 address", () => {
     const { snapshot, params } = setup({
-      netShape: { listenPorts: [], established: [{ localPort: 41_234, remoteIp: "2001:0db8:0000:0000:0000:0000:0000:0001", remotePort: 443, count: 1 }] },
+      netShape: {
+        listenPorts: [],
+        connections: [{ localPort: 41_234, remoteIp: "2001:0db8:0000:0000:0000:0000:0000:0001", remotePort: 443, count: 1, state: "established" }]
+      },
       relayEndpoints: ["2001:db8::1"]
     });
 
@@ -52,7 +58,7 @@ describe("evaluateNetworkIsolation", () => {
 
   it("stays silent when a connection lands on a listening port", () => {
     const { snapshot, params } = setup({
-      netShape: { listenPorts: [8080], established: [{ localPort: 8080, remoteIp: "203.0.113.9", remotePort: 51_000, count: 3 }] }
+      netShape: { listenPorts: [8080], connections: [{ localPort: 8080, remoteIp: "203.0.113.9", remotePort: 51_000, count: 3, state: "established" }] }
     });
 
     expect(evaluateNetworkIsolation(snapshot, params)).toBeNull();
@@ -60,7 +66,7 @@ describe("evaluateNetworkIsolation", () => {
 
   it("stays silent when an outbound connection goes somewhere other than a relay", () => {
     const { snapshot, params } = setup({
-      netShape: { listenPorts: [22], established: [{ localPort: 41_234, remoteIp: "198.51.100.4", remotePort: 3_333, count: 1 }] },
+      netShape: { listenPorts: [22], connections: [{ localPort: 41_234, remoteIp: "198.51.100.4", remotePort: 3_333, count: 1, state: "established" }] },
       relayEndpoints: ["10.0.0.7"]
     });
 

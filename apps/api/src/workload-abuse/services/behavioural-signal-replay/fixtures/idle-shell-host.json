@@ -14,12 +14,13 @@
         "listenPorts": [
           22
         ],
-        "established": [
+        "connections": [
           {
             "localPort": 40100,
             "remoteIp": "10.0.0.7",
             "remotePort": 443,
-            "count": 1
+            "count": 1,
+            "state": "established"
           }
         ]
       }
@@ -37,12 +38,13 @@
         "listenPorts": [
           22
         ],
-        "established": [
+        "connections": [
           {
             "localPort": 40101,
             "remoteIp": "10.0.0.7",
             "remotePort": 443,
-            "count": 1
+            "count": 1,
+            "state": "established"
           }
         ]
       }
