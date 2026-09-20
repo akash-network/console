@@ -17,6 +17,9 @@ const USDC_IBC_DENOMS = {
   sandboxId: "ibc/028CD1864059EEFB48A6048376165318E3E82C234390AE5A6D7B22001725B06E"
 } as const;
 
+const FEE_GRANT_NOT_FOUND =
+  "Broadcasting transaction failed with code 38 (codespace: sdk). Log: akash1master does not allow to pay fees for akash1user: fee-grant not found: not found";
+
 describe(ChainErrorService.name, () => {
   describe("toAppError", () => {
     const encodeMessages: EncodeObject[] = [];
@@ -413,6 +416,33 @@ describe(ChainErrorService.name, () => {
       const { service } = setup();
 
       expect(service.isUnsettleableDeploymentError(new Error("insufficient balance"))).toBe(false);
+    });
+  });
+
+  describe("isFeeGrantRefusedError", () => {
+    it("returns true for the fee-grant refusal the chain emits", () => {
+      const { service } = setup();
+
+      expect(service.isFeeGrantRefusedError(new Error(FEE_GRANT_NOT_FOUND))).toBe(true);
+    });
+
+    it("returns true when the refusal survives only on the original error", () => {
+      const { service } = setup();
+      const err = Object.assign(new Error("Failed to close deployment"), { originalError: new Error(FEE_GRANT_NOT_FOUND) });
+
+      expect(service.isFeeGrantRefusedError(err)).toBe(true);
+    });
+
+    it("returns false for an unrelated chain error", () => {
+      const { service } = setup();
+
+      expect(service.isFeeGrantRefusedError(new Error("insufficient funds: 10uakt is smaller than 20uakt"))).toBe(false);
+    });
+
+    it("returns false for a value that is not an error, even one carrying the wording", () => {
+      const { service } = setup();
+
+      expect(service.isFeeGrantRefusedError({ message: FEE_GRANT_NOT_FOUND })).toBe(false);
     });
   });
 

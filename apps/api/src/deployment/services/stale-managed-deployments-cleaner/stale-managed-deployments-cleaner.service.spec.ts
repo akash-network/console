@@ -28,6 +28,9 @@ const UNSETTLEABLE_LOG = {
   owner: OWNER
 };
 
+const FEE_GRANT_REFUSED =
+  "Broadcasting transaction failed with code 38 (codespace: sdk). Log: akash1master does not allow to pay fees for akash1test: fee-grant not found: not found";
+
 describe(StaleManagedDeploymentsCleanerService.name, () => {
   describe("cleanUpForWallet", () => {
     it("cuts off well below the current height when no age override is passed", async () => {
@@ -212,7 +215,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     it("composes the fee refill with the closed-deployment drop", async () => {
       const executeDerivedTx = vi
         .fn()
-        .mockRejectedValueOnce(new Error("not allowed to pay fees"))
+        .mockRejectedValueOnce(new Error(FEE_GRANT_REFUSED))
         .mockRejectedValueOnce(buildDeploymentClosedAppError(0))
         .mockResolvedValueOnce(buildOkTx());
       const { service, managedUserWalletService, logger, wallet } = setup({ staleDeployments: ["1", "2"], executeDerivedTx });
@@ -356,8 +359,8 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       expect(errorLogger.error).not.toHaveBeenCalled();
     });
 
-    it("refills fees and retries when the wallet is not allowed to pay fees", async () => {
-      const executeDerivedTx = vi.fn().mockRejectedValueOnce(new Error("not allowed to pay fees")).mockResolvedValueOnce(buildOkTx());
+    it("refills fees and retries when the master wallet no longer pays the wallet's fees", async () => {
+      const executeDerivedTx = vi.fn().mockRejectedValueOnce(new Error(FEE_GRANT_REFUSED)).mockResolvedValueOnce(buildOkTx());
       const { service, managedUserWalletService, logger } = setup({ executeDerivedTx });
 
       await service.cleanup({ concurrency: 1, dryRun: false });
@@ -368,7 +371,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     });
 
     it("logs the unsettleable event when the fee-authorized retry hits the escrow underflow", async () => {
-      const executeDerivedTx = vi.fn().mockRejectedValueOnce(new Error("not allowed to pay fees")).mockRejectedValueOnce(buildUnsettleableAppError());
+      const executeDerivedTx = vi.fn().mockRejectedValueOnce(new Error(FEE_GRANT_REFUSED)).mockRejectedValueOnce(buildUnsettleableAppError());
       const { service, managedUserWalletService, logger } = setup({ executeDerivedTx });
 
       await service.cleanup({ concurrency: 1, dryRun: false });

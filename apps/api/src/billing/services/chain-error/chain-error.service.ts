@@ -10,6 +10,9 @@ import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.se
 
 const ESCROW_SETTLEMENT_UNDERFLOW_MESSAGE = "negative decimal coin amount" as const;
 
+/** cosmos-sdk reworded this between v0.45 ("%s not allowed to pay fees from %s") and v0.53 ("%s does not allow to pay fees for %s"); mainnet emits the latter. */
+const FEE_GRANT_REFUSED_MESSAGE = "does not allow to pay fees";
+
 @singleton()
 export class ChainErrorService {
   private readonly ERRORS = {
@@ -173,6 +176,15 @@ export class ChainErrorService {
     const originalError = (error as { originalError?: unknown }).originalError;
     const messages = [error.message, originalError instanceof Error ? originalError.message : undefined];
     return messages.some(message => message?.toLowerCase().includes(ESCROW_SETTLEMENT_UNDERFLOW_MESSAGE));
+  }
+
+  public isFeeGrantRefusedError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+
+    const originalError = (error as { originalError?: unknown }).originalError;
+    const messages = [error.message, originalError instanceof Error ? originalError.message : undefined];
+
+    return messages.some(message => message?.includes(FEE_GRANT_REFUSED_MESSAGE));
   }
 
   public async isMasterWalletInsufficientFundsError(error: Error) {

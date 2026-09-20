@@ -1,4 +1,4 @@
-import { AuthzHttpService, LeaseHttpService, LIVE_LEASE_STATES } from "@akashnetwork/http-sdk";
+import { AuthzHttpService, DeploymentHttpService } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { inject, singleton } from "tsyringe";
 
@@ -30,9 +30,9 @@ export type EnforcementOutcome = {
 const GRANT_MISSING_PATTERN = /not found/i;
 
 /**
- * Wipes a trial wallet caught mining: the deposit grant goes first so nothing new can be created, the live deployments
- * are closed while the fee grant still pays for the closes, then the fee grant goes and the wallet is zeroed and
- * locked in one write. Every step re-reads chain state, so a retry after a partial failure resumes where it stopped.
+ * Wipes a trial wallet caught mining: the deposit grant goes first so nothing new can be created, every open
+ * deployment, leased or not, is closed while the fee grant still pays for the closes, then the fee grant goes and the
+ * wallet is zeroed and locked in one write. Every step re-reads chain state, so a retry after a partial failure resumes where it stopped.
  */
 @singleton()
 export class TrialAbuseEnforcementService {
@@ -43,7 +43,7 @@ export class TrialAbuseEnforcementService {
     private readonly authzHttpService: AuthzHttpService,
     private readonly rpcMessageService: RpcMessageService,
     private readonly signerService: ManagedSignerService,
-    private readonly leaseHttpService: LeaseHttpService,
+    private readonly deploymentHttpService: DeploymentHttpService,
     private readonly deploymentWriterService: DeploymentWriterService,
     private readonly chainErrorService: ChainErrorService,
     private readonly userWalletRepository: UserWalletRepository,
@@ -130,7 +130,7 @@ export class TrialAbuseEnforcementService {
   async #wipe(wallet: WalletInitialized, reason: AbuseLockReason): Promise<EnforcementOutcome> {
     const granter = await this.txManagerService.getFundingWalletAddress();
     const depositGrantRevoked = await this.#revokeDepositGrant(granter, wallet.address);
-    const closedDseqs = await this.#closeLiveDeployments(wallet);
+    const closedDseqs = await this.#closeOpenDeployments(wallet);
     const feeGrantRevoked = await this.#revokeFeeGrant(granter, wallet.address);
     await this.userWalletRepository.lockForAbuse(wallet.id, reason);
     await this.probeJobService.cancelForWallet(wallet.id);
@@ -162,8 +162,8 @@ export class TrialAbuseEnforcementService {
   }
 
   /** An unsettleable escrow is skipped for this pass and fails the run at the end, so the queue retries the close later without blocking the other deployments. */
-  async #closeLiveDeployments(wallet: WalletInitialized): Promise<string[]> {
-    const dseqs = await this.#findLiveDseqs(wallet.address);
+  async #closeOpenDeployments(wallet: WalletInitialized): Promise<string[]> {
+    const dseqs = await this.#findOpenDseqs(wallet.address);
     const closed: string[] = [];
     const unsettleable: string[] = [];
 
@@ -187,10 +187,11 @@ export class TrialAbuseEnforcementService {
     return closed;
   }
 
-  async #findLiveDseqs(owner: string): Promise<string[]> {
-    const responses = await Promise.all(LIVE_LEASE_STATES.map(state => this.leaseHttpService.list({ owner, state })));
+  /** Listed by deployment rather than by lease: a deployment whose bids never became a lease still holds escrow and would outlive the fee grant that pays for its close. */
+  async #findOpenDseqs(owner: string): Promise<string[]> {
+    const { deployments } = await this.deploymentHttpService.findAll({ owner, state: "active" });
 
-    return [...new Set(responses.flatMap(response => response.leases.map(lease => lease.lease.id.dseq)))];
+    return deployments.map(deployment => deployment.deployment.id.dseq);
   }
 }
 

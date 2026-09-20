@@ -1,4 +1,4 @@
-import { AuthzHttpService, LeaseHttpService, type RpcLease } from "@akashnetwork/http-sdk";
+import { AuthzHttpService, DeploymentHttpService } from "@akashnetwork/http-sdk";
 import { addHours } from "date-fns";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
@@ -23,6 +23,7 @@ import { EnforceTrialAbuse, EnforceTrialAbuseHandler, enforceTrialAbuseKeyFor } 
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
 const jobWorkers = useJobWorkers(() => [
@@ -38,7 +39,7 @@ describe(EnforceTrialAbuseHandler.name, () => {
 
   it("wipes a trial wallet the way a worker runs it: revokes both grants, closes its deployments, locks the wallet and cancels its probes", async () => {
     const { wallet, detection, close, executeFundingTx, enqueueEnforcement, startWorkers, findWallet, findDetection, findProbeJob } = await setup({
-      liveDseqs: ["11"]
+      openDseqs: ["11"]
     });
 
     await enqueueEnforcement(detection.id);
@@ -54,7 +55,7 @@ describe(EnforceTrialAbuseHandler.name, () => {
   });
 
   it("settles every confirmed detection of the wallet, not only the one that triggered the wipe", async () => {
-    const { handler, wallet, detection, createDetection, findDetection } = await setup({ liveDseqs: ["11", "22"] });
+    const { handler, wallet, detection, createDetection, findDetection } = await setup({ openDseqs: ["11", "22"] });
     const otherDetection = await createDetection("22");
 
     await handler.handle({ walletId: wallet.id, detectionId: detection.id, version: 1 });
@@ -94,7 +95,7 @@ describe(EnforceTrialAbuseHandler.name, () => {
   });
 
   it("waits for a payment holding the wallet row and leaves the wallet alone once that payment has ended its trial", async () => {
-    const { handler, wallet, detection, close, executeFundingTx, findWallet, findDetection, holdWalletRowUntil } = await setup({ liveDseqs: ["11"] });
+    const { handler, wallet, detection, close, executeFundingTx, findWallet, findDetection, holdWalletRowUntil } = await setup({ openDseqs: ["11"] });
     let wipe: Promise<void> | undefined;
 
     await holdWalletRowUntil(async ({ wipeWaitsForRow, endTrial }) => {
@@ -112,7 +113,7 @@ describe(EnforceTrialAbuseHandler.name, () => {
 
   it("records the failure on the detection and keeps the wallet unlocked and monitored when a revoke fails", async () => {
     const { handler, wallet, detection, findWallet, findDetection, findProbeJob } = await setup({
-      liveDseqs: ["11"],
+      openDseqs: ["11"],
       revokeError: new Error("account sequence mismatch")
     });
 
@@ -123,11 +124,11 @@ describe(EnforceTrialAbuseHandler.name, () => {
     expect((await findProbeJob("11"))?.state).toBe("created");
   });
 
-  async function setup(input: { isTrialing?: boolean; abuseLockedAt?: Date; liveDseqs?: string[]; revokeError?: Error } = {}) {
+  async function setup(input: { isTrialing?: boolean; abuseLockedAt?: Date; openDseqs?: string[]; revokeError?: Error } = {}) {
     const { enqueue, startWorkers } = await jobWorkers();
     const userWalletRepository = container.resolve(UserWalletRepository);
     const detectionRepository = container.resolve(WorkloadAbuseDetectionRepository);
-    const liveDseqs = input.liveDseqs ?? [];
+    const openDseqs = input.openDseqs ?? [];
 
     const { user, wallet } = await seedUserWithWallet({
       isTrialing: input.isTrialing ?? true,
@@ -149,9 +150,9 @@ describe(EnforceTrialAbuseHandler.name, () => {
       });
     }
 
-    const detection = await createDetection(liveDseqs[0] ?? "11");
+    const detection = await createDetection(openDseqs[0] ?? "11");
 
-    for (const dseq of liveDseqs) {
+    for (const dseq of openDseqs) {
       await enqueue(new ProbeTrialDeployment({ walletId: wallet.id, dseq, attempt: 1, leaseCreatedAt: new Date().toISOString() }), {
         singletonKey: probeTrialDeploymentKeyFor({ walletId: wallet.id, dseq }),
         startAfter: addHours(new Date(), 1)
@@ -161,10 +162,10 @@ describe(EnforceTrialAbuseHandler.name, () => {
     vi.spyOn(container.resolve(TxManagerService), "getFundingWalletAddress").mockResolvedValue(createAkashAddress());
     vi.spyOn(container.resolve(AuthzHttpService), "hasDepositDeploymentGrant").mockResolvedValue(true);
     vi.spyOn(container.resolve(AuthzHttpService), "hasFeeAllowance").mockResolvedValue(true);
-    vi.spyOn(container.resolve(LeaseHttpService), "list").mockImplementation(async ({ state }) => ({
-      leases: state === "active" ? liveDseqs.map(dseq => mock<RpcLease>({ lease: { id: { dseq } } })) : [],
-      pagination: { next_key: null, total: "0" }
-    }));
+    vi.spyOn(container.resolve(DeploymentHttpService), "findAll").mockResolvedValue({
+      deployments: openDseqs.map(dseq => createDeploymentInfoSeed({ dseq })),
+      pagination: { next_key: null, total: String(openDseqs.length) }
+    });
     const executeFundingTx = vi.spyOn(container.resolve(ManagedSignerService), "executeFundingTx");
     if (input.revokeError) executeFundingTx.mockRejectedValue(input.revokeError);
     else executeFundingTx.mockResolvedValue(mock<Awaited<ReturnType<ManagedSignerService["executeFundingTx"]>>>());

@@ -1,4 +1,4 @@
-import type { AuthzHttpService, LeaseHttpService, RpcLease } from "@akashnetwork/http-sdk";
+import type { AuthzHttpService, DeploymentHttpService } from "@akashnetwork/http-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -14,6 +14,7 @@ import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/
 import type { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
 import { ABUSE_LOCK_REASON, BLOCKED_DOMAIN_LOCK_REASON, TrialAbuseEnforcementService } from "./trial-abuse-enforcement.service";
 
+import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createInitializedUserWallet } from "@test/seeders/user-wallet.seeder";
 
 const GRANTER = "akash1funding";
@@ -22,8 +23,8 @@ const REVOKE_DEPOSIT = mock<ReturnType<RpcMessageService["getRevokeDepositDeploy
 const REVOKE_FEE = mock<ReturnType<RpcMessageService["getRevokeAllowanceMsg"]>>({ typeUrl: "/cosmos.feegrant.v1beta1.MsgRevokeAllowance" });
 
 describe(TrialAbuseEnforcementService.name, () => {
-  it("revokes the deposit grant, closes every live deployment, revokes the fee grant, locks the wallet, then cancels its probes, in that order", async () => {
-    const { service, wallet, calls, userWalletRepository, detectionRepository, instrumentation } = setup({ liveDseqs: ["11", "22"] });
+  it("revokes the deposit grant, closes every open deployment, revokes the fee grant, locks the wallet, then cancels its probes, in that order", async () => {
+    const { service, wallet, calls, userWalletRepository, detectionRepository, instrumentation } = setup({ openDseqs: ["11", "22"] });
 
     const outcome = await service.enforce({ wallet, detectionId: DETECTION_ID });
 
@@ -40,7 +41,7 @@ describe(TrialAbuseEnforcementService.name, () => {
   });
 
   it("does not count a wipe that landed as failed when the bookkeeping after the lock throws", async () => {
-    const { service, wallet, calls, detectionRepository, instrumentation } = setup({ liveDseqs: [] });
+    const { service, wallet, calls, detectionRepository, instrumentation } = setup({ openDseqs: [] });
     detectionRepository.markWalletEnforced.mockRejectedValue(new Error("db down"));
 
     await expect(service.enforce({ wallet, detectionId: DETECTION_ID })).rejects.toThrow("db down");
@@ -51,7 +52,7 @@ describe(TrialAbuseEnforcementService.name, () => {
   });
 
   it("skips a revoke the chain no longer holds and tolerates one it reports as already gone", async () => {
-    const { service, wallet, signerService, calls } = setup({ liveDseqs: [], hasDepositGrant: false, hasFeeGrant: true });
+    const { service, wallet, signerService, calls } = setup({ openDseqs: [], hasDepositGrant: false, hasFeeGrant: true });
     signerService.executeFundingTx.mockRejectedValueOnce(new Error("failed to execute message; message index: 0: authorization not found"));
 
     const outcome = await service.enforce({ wallet, detectionId: DETECTION_ID });
@@ -64,7 +65,7 @@ describe(TrialAbuseEnforcementService.name, () => {
 
   it("leaves a wallet that paid while waiting for its row alone and hands the detection back", async () => {
     const { service, wallet, calls, signerService, deploymentWriterService, userWalletRepository, detectionRepository, instrumentation } = setup({
-      liveDseqs: ["11"],
+      openDseqs: ["11"],
       paidUnderLock: true
     });
 
@@ -80,17 +81,9 @@ describe(TrialAbuseEnforcementService.name, () => {
     expect(instrumentation.recordEnforcement).toHaveBeenCalledWith("skipped");
   });
 
-  it("closes each live deployment once even when several leases share it", async () => {
-    const { service, wallet, deploymentWriterService } = setup({ liveDseqs: ["11", "11"] });
-
-    await service.enforce({ wallet, detectionId: DETECTION_ID });
-
-    expect(deploymentWriterService.close).toHaveBeenCalledTimes(1);
-  });
-
   it("closes the other deployments, then fails the run when an escrow cannot settle yet, so the queue retries", async () => {
     const { service, wallet, deploymentWriterService, chainErrorService, userWalletRepository, detectionRepository, instrumentation } = setup({
-      liveDseqs: ["11", "22"]
+      openDseqs: ["11", "22"]
     });
     const unsettleable = new Error("escrow settlement underflow");
     deploymentWriterService.close.mockImplementation(async (_wallet, dseq) => {
@@ -112,7 +105,7 @@ describe(TrialAbuseEnforcementService.name, () => {
   });
 
   it("strips the NUL bytes out of the failure it records, since Postgres rejects them in text", async () => {
-    const { service, wallet, signerService, detectionRepository } = setup({ liveDseqs: [] });
+    const { service, wallet, signerService, detectionRepository } = setup({ openDseqs: [] });
     signerService.executeFundingTx.mockRejectedValueOnce(new Error("broadcast failed: raw_log=\u0000miner"));
 
     await expect(service.enforce({ wallet, detectionId: DETECTION_ID })).rejects.toThrow("broadcast failed");
@@ -125,7 +118,7 @@ describe(TrialAbuseEnforcementService.name, () => {
   });
 
   it("logs the enforcement failure and rethrows it when the failure itself cannot be recorded", async () => {
-    const { service, wallet, signerService, detectionRepository, logger, instrumentation } = setup({ liveDseqs: [] });
+    const { service, wallet, signerService, detectionRepository, logger, instrumentation } = setup({ openDseqs: [] });
     const wipeError = new Error("account sequence mismatch");
     const recordError = new Error("invalid byte sequence for encoding UTF8");
     signerService.executeFundingTx.mockRejectedValueOnce(wipeError);
@@ -141,7 +134,7 @@ describe(TrialAbuseEnforcementService.name, () => {
   });
 
   it("leaves the wallet untouched and keeps its probes scheduled when a revoke fails for another reason", async () => {
-    const { service, wallet, signerService, userWalletRepository, deploymentWriterService, probeJobService } = setup({ liveDseqs: ["11"] });
+    const { service, wallet, signerService, userWalletRepository, deploymentWriterService, probeJobService } = setup({ openDseqs: ["11"] });
     signerService.executeFundingTx.mockRejectedValueOnce(new Error("account sequence mismatch"));
 
     await expect(service.enforce({ wallet, detectionId: DETECTION_ID })).rejects.toThrow("account sequence mismatch");
@@ -153,7 +146,7 @@ describe(TrialAbuseEnforcementService.name, () => {
 
   describe("wipeTrialWallet", () => {
     it("locks the wallet with the reason it was given, without touching the detection ledger", async () => {
-      const { service, wallet, userWalletRepository, detectionRepository, instrumentation } = setup({ liveDseqs: ["11"] });
+      const { service, wallet, userWalletRepository, detectionRepository, instrumentation } = setup({ openDseqs: ["11"] });
 
       const outcome = await service.wipeTrialWallet(wallet, BLOCKED_DOMAIN_LOCK_REASON);
 
@@ -165,15 +158,25 @@ describe(TrialAbuseEnforcementService.name, () => {
     });
 
     it("leaves a wallet that paid under the row lock alone", async () => {
-      const { service, wallet, userWalletRepository } = setup({ liveDseqs: [], paidUnderLock: true });
+      const { service, wallet, userWalletRepository } = setup({ openDseqs: [], paidUnderLock: true });
 
       await expect(service.wipeTrialWallet(wallet, BLOCKED_DOMAIN_LOCK_REASON)).resolves.toBeNull();
 
       expect(userWalletRepository.lockForAbuse).not.toHaveBeenCalled();
     });
+
+    it("closes a deployment the chain holds open without any lease, before the fee grant that pays for the close goes", async () => {
+      const { service, wallet, calls, deploymentHttpService } = setup({ openDseqs: ["1789632785526"] });
+
+      const outcome = await service.wipeTrialWallet(wallet, BLOCKED_DOMAIN_LOCK_REASON);
+
+      expect(deploymentHttpService.findAll).toHaveBeenCalledWith({ owner: wallet.address, state: "active" });
+      expect(calls).toEqual(["tx:begin", "lockRow", "revoke:deposit", "close:1789632785526", "revoke:fee", "lock", "cancelProbes", "tx:commit"]);
+      expect(outcome).toEqual({ depositGrantRevoked: true, feeGrantRevoked: true, closedDseqs: ["1789632785526"] });
+    });
   });
 
-  function setup(input: { liveDseqs: string[]; hasDepositGrant?: boolean; hasFeeGrant?: boolean; paidUnderLock?: boolean }) {
+  function setup(input: { openDseqs: string[]; hasDepositGrant?: boolean; hasFeeGrant?: boolean; paidUnderLock?: boolean }) {
     const wallet = createInitializedUserWallet({ isTrialing: true });
     const calls: string[] = [];
 
@@ -198,11 +201,11 @@ describe(TrialAbuseEnforcementService.name, () => {
       calls.push(messages[0] === REVOKE_DEPOSIT ? "revoke:deposit" : "revoke:fee");
       return mock<Awaited<ReturnType<ManagedSignerService["executeFundingTx"]>>>();
     });
-    const leaseHttpService = mock<LeaseHttpService>();
-    leaseHttpService.list.mockImplementation(async ({ state }) => ({
-      leases: state === "active" ? input.liveDseqs.map(dseq => mock<RpcLease>({ lease: { id: { dseq } } })) : [],
-      pagination: { next_key: null, total: "0" }
-    }));
+    const deploymentHttpService = mock<DeploymentHttpService>();
+    deploymentHttpService.findAll.mockResolvedValue({
+      deployments: input.openDseqs.map(dseq => createDeploymentInfoSeed({ owner: wallet.address, dseq })),
+      pagination: { next_key: null, total: String(input.openDseqs.length) }
+    });
     const deploymentWriterService = mock<DeploymentWriterService>();
     deploymentWriterService.close.mockImplementation(async (_wallet, dseq) => {
       calls.push(`close:${dseq}`);
@@ -233,7 +236,7 @@ describe(TrialAbuseEnforcementService.name, () => {
       authzHttpService,
       rpcMessageService,
       signerService,
-      leaseHttpService,
+      deploymentHttpService,
       deploymentWriterService,
       chainErrorService,
       userWalletRepository,
@@ -249,6 +252,7 @@ describe(TrialAbuseEnforcementService.name, () => {
       wallet,
       calls,
       signerService,
+      deploymentHttpService,
       deploymentWriterService,
       chainErrorService,
       userWalletRepository,
