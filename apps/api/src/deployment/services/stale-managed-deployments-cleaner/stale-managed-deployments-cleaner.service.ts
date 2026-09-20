@@ -235,7 +235,7 @@ export class StaleManagedDeploymentsCleanerService {
       await this.#broadcastClose(wallet.id, messages);
       return undefined;
     } catch (error) {
-      if (!(error instanceof Error) || !error.message.includes("not allowed to pay fees")) {
+      if (!this.chainErrorService.isFeeGrantRefusedError(error)) {
         return error;
       }
 
