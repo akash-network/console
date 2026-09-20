@@ -48,6 +48,45 @@ describe("findBehaviouralAgreement", () => {
     expect(findBehaviouralAgreement([...rows, ...sidecar], params)).toMatchObject({ agreed: true, service: "web", streak: 3 });
   });
 
+  it("orders a history that arrives out of order before counting the streak", () => {
+    const { rows, params } = setup({ minutesAgo: [250, 10, 130], findingsByIndex: { 0: [{ signal: "network_isolated", detail: {} }] } });
+
+    expect(findBehaviouralAgreement(rows, params)).toMatchObject({ agreed: false, streak: 2, spanMinutes: 130 });
+  });
+
+  it("breaks the streak on a probe that recorded no findings at all", () => {
+    const { rows, params } = setup({ minutesAgo: [10, 130, 250], nullFindingsAt: 1 });
+
+    expect(findBehaviouralAgreement(rows, params)).toMatchObject({ agreed: false, streak: 1 });
+  });
+
+  it("agrees once the streak is exactly as old as the minimum window", () => {
+    const { rows, params } = setup({ minutesAgo: [10, 60, 120], minWindowMinutes: 120 });
+
+    expect(findBehaviouralAgreement(rows, params)).toMatchObject({ agreed: true, streak: 3, spanMinutes: 120 });
+  });
+
+  it("prefers the service that agreed over one carrying a longer streak that has not", () => {
+    const { rows, params } = setup({ minutesAgo: [10, 130, 250] });
+    const sidecar = setup({ minutesAgo: [1, 2, 3, 4] }).rows.map(row => ({ ...row, service: "sidecar" }));
+
+    expect(findBehaviouralAgreement([...rows, ...sidecar], params)).toMatchObject({ agreed: true, service: "web", streak: 3 });
+  });
+
+  it("reports the longest streak while no service has agreed", () => {
+    const { rows, params } = setup({ minutesAgo: [10, 130] });
+    const sidecar = setup({ minutesAgo: [1, 2, 3, 4] }).rows.map(row => ({ ...row, service: "sidecar" }));
+
+    expect(findBehaviouralAgreement([...rows, ...sidecar], params)).toMatchObject({ agreed: false, service: "sidecar", streak: 4 });
+  });
+
+  it("keeps the first service when two are equally short of agreement", () => {
+    const { rows, params } = setup({ minutesAgo: [10, 130] });
+    const sidecar = rows.map(row => ({ ...row, service: "sidecar" }));
+
+    expect(findBehaviouralAgreement([...rows, ...sidecar], params)).toMatchObject({ agreed: false, service: "web", streak: 2 });
+  });
+
   it("finds no agreement in an empty history", () => {
     const { params } = setup({ minutesAgo: [] });
 
@@ -60,12 +99,13 @@ describe("findBehaviouralAgreement", () => {
     minWindowMinutes?: number;
     findingsByIndex?: Record<number, BehaviouralFinding[]>;
     statusByIndex?: Record<number, string>;
+    nullFindingsAt?: number;
   }) {
     const rows: AgreementRow[] = input.minutesAgo.map((minutes, index) => ({
       service: "web",
       createdAt: new Date(NOW.getTime() - minutes * 60_000),
       shellStatus: input.statusByIndex?.[index] ?? "completed",
-      behaviouralFindings: input.findingsByIndex?.[index] ?? BOTH_SIGNALS
+      behaviouralFindings: index === input.nullFindingsAt ? null : input.findingsByIndex?.[index] ?? BOTH_SIGNALS
     }));
 
     return {

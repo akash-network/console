@@ -49,7 +49,7 @@ function measureService(rows: AgreementRow[], params: AgreementParams, now: Date
 
   for (const row of newestFirst) {
     if (row.shellStatus !== COMPLETE_SHELL_STATUS) continue;
-    if (!isBehaviouralCandidate(row.behaviouralFindings ?? [])) break;
+    if (!row.behaviouralFindings || !isBehaviouralCandidate(row.behaviouralFindings)) break;
     streak.push(row);
   }
 
@@ -58,7 +58,7 @@ function measureService(rows: AgreementRow[], params: AgreementParams, now: Date
 
   return {
     agreed: streak.length >= params.agreementProbes && spanMinutes >= params.minWindowMinutes,
-    service: newestFirst[0]?.service ?? null,
+    service: newestFirst[0].service,
     streak: streak.length,
     spanMinutes
   };

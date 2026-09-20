@@ -269,6 +269,84 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     expect(detectionRepository.create).toHaveBeenCalledWith(expect.objectContaining({ verdict: "behavioural" }));
   });
 
+  it("reads evidence back across the whole probe schedule when it outlasts the minimum window", async () => {
+    const { handler, wallet, evidenceRepository } = setup({
+      report: createReport({ verdict: "clean" }),
+      behaviouralEnforcement: true,
+      probeIntervalMinutes: 60,
+      maxAttempts: 5,
+      minWindowMinutes: 120,
+      now: new Date("2026-09-20T12:00:00.000Z")
+    });
+
+    await handler.handle(PAYLOAD);
+
+    expect(evidenceRepository.findRecentForDeployment).toHaveBeenCalledWith({
+      walletId: wallet.id,
+      dseq: PAYLOAD.dseq,
+      since: new Date("2026-09-20T07:00:00.000Z")
+    });
+  });
+
+  it("queues the wipe against the detection a confirmed shape already has instead of recording a second one", async () => {
+    const { handler, wallet, detectionRepository, jobQueueService, probeJobService } = setup({
+      report: createReport({ verdict: "clean" }),
+      behaviouralEnforcement: true,
+      enforcementMode: "enforce",
+      existingBehaviouralDetection: true,
+      deploymentEvidence: createShapeHistory([10, 130, 250])
+    });
+
+    await handler.handle(PAYLOAD);
+
+    expect(detectionRepository.findOneBy).toHaveBeenCalledWith({ walletId: wallet.id, dseq: PAYLOAD.dseq, verdict: "behavioural" });
+    expect(detectionRepository.create).not.toHaveBeenCalled();
+    expect(probeJobService.scheduleNext).not.toHaveBeenCalled();
+    expect(jobQueueService.enqueue).toHaveBeenCalledWith(new EnforceTrialAbuse({ walletId: wallet.id, detectionId: "detection-2" }), {
+      singletonKey: `enforceTrialAbuse.${wallet.id}`
+    });
+  });
+
+  it("names every provider the shape was seen on and stops probing once it is recorded", async () => {
+    const { handler, detectionRepository, probeJobService } = setup({
+      report: createReport({
+        verdict: "clean",
+        leases: [
+          {
+            provider: "akash1first",
+            hostUri: "https://first.example",
+            gseq: 1,
+            oseq: 1,
+            services: ["web"],
+            shellStatuses: ["completed"],
+            logStatus: "completed"
+          },
+          {
+            provider: "akash1second",
+            hostUri: "https://second.example",
+            gseq: 2,
+            oseq: 1,
+            services: ["web"],
+            shellStatuses: ["completed"],
+            logStatus: "completed"
+          }
+        ]
+      }),
+      behaviouralEnforcement: true,
+      deploymentEvidence: createShapeHistory([10, 130, 250])
+    });
+
+    await handler.handle(PAYLOAD);
+
+    expect(detectionRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "akash1first,akash1second",
+        evidenceExcerpt: expect.stringMatching(/^\[behavioural\] service:web probes:3 spanMinutes:\d+\n\[soft\/pool-port\] shell:ssh: pool:3333$/)
+      })
+    );
+    expect(probeJobService.scheduleNext).not.toHaveBeenCalled();
+  });
+
   it("keeps probing while the shape has held for fewer probes than required", async () => {
     const { handler, detectionRepository, probeJobService } = setup({
       report: createReport({ verdict: "clean" }),
@@ -386,6 +464,8 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     report?: ProbeReport;
     maxAttempts?: number;
     existingDetection?: boolean;
+    existingBehaviouralDetection?: boolean;
+    now?: Date;
     enforcementMode?: "detect" | "enforce";
     evidenceRows?: WorkloadProbeEvidenceOutput[];
     behaviouralFindings?: RecordedBehaviouralFindings[];
@@ -395,6 +475,9 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     minWindowMinutes?: number;
     probeIntervalMinutes?: number;
   }) {
+    if (input.now) vi.useFakeTimers({ now: input.now, toFake: ["Date"] });
+    else vi.useRealTimers();
+
     const wallet = input.wallet === undefined ? createUserWallet({ isTrialing: true }) : input.wallet;
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findById.mockResolvedValue(wallet ?? undefined);
@@ -403,7 +486,13 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     const probeJobService = mock<TrialWorkloadProbeJobService>();
     const detectionRepository = mock<WorkloadAbuseDetectionRepository>();
     detectionRepository.create.mockResolvedValue(mock<WorkloadAbuseDetectionOutput>({ id: "detection-1" }));
-    detectionRepository.findOneBy.mockResolvedValue(input.existingDetection ? mock<WorkloadAbuseDetectionOutput>({ id: "detection-0" }) : undefined);
+    const hardDetection = mock<WorkloadAbuseDetectionOutput>({ id: "detection-0" });
+    const behaviouralDetection = mock<WorkloadAbuseDetectionOutput>({ id: "detection-2" });
+    detectionRepository.findOneBy.mockImplementation(async query => {
+      if (query?.verdict === "hard") return input.existingDetection ? hardDetection : undefined;
+      if (query?.verdict === "behavioural") return input.existingBehaviouralDetection ? behaviouralDetection : undefined;
+      return undefined;
+    });
     const evidenceRepository = mock<WorkloadProbeEvidenceRepository>();
     evidenceRepository.findRecentForDeployment.mockResolvedValue(input.deploymentEvidence ?? []);
     const probeEvidenceService = mock<ProbeEvidenceService>();
