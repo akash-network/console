@@ -64,7 +64,7 @@ describe("findBehaviouralAgreement", () => {
     const rows: AgreementRow[] = input.minutesAgo.map((minutes, index) => ({
       service: "web",
       createdAt: new Date(NOW.getTime() - minutes * 60_000),
-      probeStatus: input.statusByIndex?.[index] ?? "probed",
+      shellStatus: input.statusByIndex?.[index] ?? "completed",
       behaviouralFindings: input.findingsByIndex?.[index] ?? BOTH_SIGNALS
     }));
 

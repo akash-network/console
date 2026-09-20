@@ -1,13 +1,12 @@
 import { isBehaviouralCandidate } from "./evaluate-behavioural-signals";
-import type { BehaviouralFinding } from "./types";
+import { type BehaviouralFinding, COMPLETE_SHELL_STATUS } from "./types";
 
-const COLLECTED_PROBE_STATUS = "probed";
 const MS_PER_MINUTE = 60_000;
 
 export type AgreementRow = {
   service: string;
   createdAt: Date;
-  probeStatus: string;
+  shellStatus: string;
   behaviouralFindings: BehaviouralFinding[] | null;
 };
 
@@ -49,7 +48,7 @@ function measureService(rows: AgreementRow[], params: AgreementParams, now: Date
   const streak: AgreementRow[] = [];
 
   for (const row of newestFirst) {
-    if (row.probeStatus !== COLLECTED_PROBE_STATUS) continue;
+    if (row.shellStatus !== COMPLETE_SHELL_STATUS) continue;
     if (!isBehaviouralCandidate(row.behaviouralFindings ?? [])) break;
     streak.push(row);
   }

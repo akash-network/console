@@ -248,6 +248,21 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     });
   });
 
+  it("reads back at least as far as the window the shape has to span, however the probe cadence is set", async () => {
+    const { handler, detectionRepository } = setup({
+      report: createReport({ verdict: "clean" }),
+      behaviouralEnforcement: true,
+      probeIntervalMinutes: 10,
+      maxAttempts: 5,
+      minWindowMinutes: 120,
+      deploymentEvidence: createShapeHistory([10, 130, 250])
+    });
+
+    await handler.handle(PAYLOAD);
+
+    expect(detectionRepository.create).toHaveBeenCalledWith(expect.objectContaining({ verdict: "behavioural" }));
+  });
+
   it("keeps probing while the shape has held for fewer probes than required", async () => {
     const { handler, detectionRepository, probeJobService } = setup({
       report: createReport({ verdict: "clean" }),
@@ -349,7 +364,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     return minutesAgo.map(minutes =>
       mock<WorkloadProbeEvidenceOutput>({
         service: "web",
-        probeStatus: "probed",
+        shellStatus: "completed",
         createdAt: new Date(Date.now() - minutes * 60_000),
         behaviouralFindings: [
           { signal: "accel_without_artifacts", detail: {} },
@@ -372,6 +387,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     behaviouralEnforcement?: boolean;
     agreementProbes?: number;
     minWindowMinutes?: number;
+    probeIntervalMinutes?: number;
   }) {
     const wallet = input.wallet === undefined ? createUserWallet({ isTrialing: true }) : input.wallet;
     const userWalletRepository = mock<UserWalletRepository>();
@@ -397,7 +413,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
       WORKLOAD_ABUSE_BEHAVIOURAL_ENFORCEMENT_ENABLED: input.behaviouralEnforcement ?? false,
       WORKLOAD_ABUSE_BEHAVIOURAL_AGREEMENT_PROBES: input.agreementProbes ?? 3,
       WORKLOAD_ABUSE_BEHAVIOURAL_MIN_WINDOW_MINUTES: input.minWindowMinutes ?? 120,
-      WORKLOAD_ABUSE_PROBE_INTERVAL_MIN: 60
+      WORKLOAD_ABUSE_PROBE_INTERVAL_MIN: input.probeIntervalMinutes ?? 60
     });
     const jobQueueService = mock<JobQueueService>();
     const logger = mock<ReturnType<CreateLogger>>();

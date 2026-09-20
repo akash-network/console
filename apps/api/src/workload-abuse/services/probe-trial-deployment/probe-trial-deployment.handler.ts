@@ -235,10 +235,12 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
     return true;
   }
 
+  /** Reading back less far than the window agreement has to span would put agreement out of reach whatever the workload does. */
   #evidenceLookbackStart(): Date {
     const probeSpanMinutes = this.config.get("WORKLOAD_ABUSE_PROBE_INTERVAL_MIN") * this.config.get("WORKLOAD_ABUSE_PROBE_MAX_PER_DEPLOYMENT");
+    const lookbackMinutes = Math.max(probeSpanMinutes, this.config.get("WORKLOAD_ABUSE_BEHAVIOURAL_MIN_WINDOW_MINUTES"));
 
-    return new Date(Date.now() - probeSpanMinutes * 60_000);
+    return new Date(Date.now() - lookbackMinutes * 60_000);
   }
 
   /** Detect mode records the verdict and stops there, so a rollout can be compared against manual review before anything is wiped. */

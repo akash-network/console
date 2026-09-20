@@ -147,7 +147,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
       verdict: "clean",
       behaviouralSignalsEnabled: true,
       behaviouralEnforcementEnabled: true,
-      shellOutputs: [{ service: "ssh", provider: "akash1provider", output: ISOLATED_ACCELERATED_SHELL_OUTPUT }]
+      shellEvidence: [{ service: "ssh", provider: "akash1provider", status: "completed", evidence: ISOLATED_ACCELERATED_EVIDENCE }]
     });
     await seedShapeHistory([130, 250]);
 
@@ -162,7 +162,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
       verdict: "clean",
       behaviouralSignalsEnabled: true,
       behaviouralEnforcementEnabled: true,
-      shellOutputs: [{ service: "ssh", provider: "akash1provider", output: ISOLATED_ACCELERATED_SHELL_OUTPUT }]
+      shellEvidence: [{ service: "ssh", provider: "akash1provider", status: "completed", evidence: ISOLATED_ACCELERATED_EVIDENCE }]
     });
     await seedShapeHistory([130]);
 
@@ -229,7 +229,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
             dseq,
             provider: "akash1provider",
             service: "ssh",
-            probeStatus: "probed",
+            shellStatus: "completed",
             verdict: "clean",
             createdAt: new Date(Date.now() - minutes * 60_000),
             behaviouralFindings: [
