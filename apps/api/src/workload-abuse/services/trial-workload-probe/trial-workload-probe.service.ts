@@ -15,7 +15,6 @@ import {
   toVerdict,
   type WorkloadVerdict
 } from "@src/workload-abuse/lib/evidence-scanner/evidence-scanner";
-import { withoutEvidenceSections } from "@src/workload-abuse/lib/probe-evidence/parse-probe-evidence";
 import { ProviderLogTailService } from "@src/workload-abuse/services/provider-log-tail/provider-log-tail.service";
 import { ProviderShellProbeService, type ShellProbeStatus } from "@src/workload-abuse/services/provider-shell-probe/provider-shell-probe.service";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
@@ -38,8 +37,10 @@ export type ProbeReport = {
   excerpt: string;
   probeStatus: ProbeStatus;
   leases: ProbedLease[];
-  shellOutputs: Array<{ service: string; provider: string; output: string }>;
+  shellEvidence: ShellEvidence[];
 };
+
+export type ShellEvidence = { service: string; provider: string; status: ShellProbeStatus; evidence: string };
 
 const PROVIDER_SCOPES = ["status", "logs", "shell"] as const;
 /** The probed provider reports its own service list, so a hostile one must not be able to stretch a run past this many shell sessions. */
@@ -71,11 +72,11 @@ export class TrialWorkloadProbeService {
     const leases = await this.#findLiveLeases(input.wallet.address, input.dseq);
 
     if (leases.length === 0) {
-      return { verdict: "clean", signals: [], excerpt: "", probeStatus: "no_live_lease", leases: [], shellOutputs: [] };
+      return { verdict: "clean", signals: [], excerpt: "", probeStatus: "no_live_lease", leases: [], shellEvidence: [] };
     }
 
     const sources: EvidenceSource[] = [];
-    const shellOutputs: ProbeReport["shellOutputs"] = [];
+    const shellEvidence: ShellEvidence[] = [];
     const setting = await this.deploymentSettingRepository.findOneBy({ userId: input.wallet.userId, dseq: input.dseq });
     if (setting?.sdl) sources.push({ kind: "sdl", text: setting.sdl });
 
@@ -94,7 +95,7 @@ export class TrialWorkloadProbeService {
     }
 
     for (const lease of leasesToProbe) {
-      const probed = await this.#probeLease(input.wallet, lease, sources, shellOutputs);
+      const probed = await this.#probeLease(input.wallet, lease, sources, shellEvidence);
       statuses.push(probed.status);
       if (probed.lease) probedLeases.push(probed.lease);
     }
@@ -107,7 +108,7 @@ export class TrialWorkloadProbeService {
       excerpt: buildExcerpt(sources, signals),
       probeStatus: statuses.includes("probed") ? "probed" : statuses[0] ?? "stream_failed",
       leases: probedLeases,
-      shellOutputs
+      shellEvidence
     };
   }
 
@@ -121,7 +122,7 @@ export class TrialWorkloadProbeService {
     wallet: WalletInitialized,
     lease: RpcLease,
     sources: EvidenceSource[],
-    shellOutputs: ProbeReport["shellOutputs"]
+    shellEvidence: ShellEvidence[]
   ): Promise<{ status: ProbeStatus; lease?: ProbedLease }> {
     const { provider: providerAddress, dseq, gseq, oseq } = lease.lease.id;
     const provider = await this.providerRepository.findActiveByAddress(providerAddress);
@@ -156,9 +157,9 @@ export class TrialWorkloadProbeService {
     for (const service of probedServices) {
       const shell = await this.shellProbeService.run({ ...target, service });
       probedLease.shellStatuses.push(shell.status);
-      if (shell.output) {
-        shellOutputs.push({ service, provider: providerAddress, output: shell.output });
-        sources.push({ kind: "shell", service, text: withoutEvidenceSections(shell.output) });
+      if (shell.output) sources.push({ kind: "shell", service, text: shell.output });
+      if (shell.output || shell.evidence) {
+        shellEvidence.push({ service, provider: providerAddress, status: shell.status, evidence: shell.evidence });
       }
     }
 

@@ -6,6 +6,8 @@ import type { WorkloadVerdict } from "@src/workload-abuse/lib/evidence-scanner/e
 
 export type DomainBlockResult = "blocked" | "raced" | "skipped" | "dry_run" | "failed" | "sibling_limit_reached";
 
+export type EvidenceWriteOperation = "insert" | "purge";
+
 @singleton()
 export class WorkloadAbuseInstrumentationService {
   private readonly meter: Meter;
@@ -34,7 +36,7 @@ export class WorkloadAbuseInstrumentationService {
       description: "Email domain auto-block outcomes, by result and (on a skip) reason"
     });
     this.evidenceWriteFailures = metricsService.createCounter(this.meter, "workload_abuse_evidence_write_failures_total", {
-      description: "Probe evidence writes that failed to persist"
+      description: "Probe evidence statements that failed to persist, by operation"
     });
   }
 
@@ -58,7 +60,7 @@ export class WorkloadAbuseInstrumentationService {
     this.domainBlocks.add(1, reason ? { result, reason } : { result });
   }
 
-  recordEvidenceWriteFailure(): void {
-    this.evidenceWriteFailures.add(1);
+  recordEvidenceWriteFailure(operation: EvidenceWriteOperation): void {
+    this.evidenceWriteFailures.add(1, { operation });
   }
 }

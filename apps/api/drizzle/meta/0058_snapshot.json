@@ -1865,8 +1865,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "probe_status": {
-          "name": "probe_status",
+        "shell_status": {
+          "name": "shell_status",
           "type": "varchar(64)",
           "primaryKey": false,
           "notNull": true

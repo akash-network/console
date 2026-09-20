@@ -17,7 +17,7 @@ import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/j
 
 const MAX_ATTEMPTS = 30;
 
-const ACCELERATED_SHELL_OUTPUT = "--loadavg\n0.10\n--accel\nNVIDIA A100, 95, 20480, 24576\n1234, python3, 18000";
+const ACCELERATED_EVIDENCE = "--accel\nGPU-0001, NVIDIA A100, 95, 20480, 24576\nGPU-0001, 1234, python3, 18000";
 
 const jobWorkers = useJobWorkers(() => [container.resolve(ProbeTrialDeploymentHandler)]);
 
@@ -75,6 +75,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     expect(await findEvidence()).toMatchObject([
       {
         verdict: "clean",
+        shellStatus: "completed",
         detectionId: null,
         provider: "akash1provider",
         service: "ssh",
@@ -118,7 +119,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     attempt?: number;
     isTrialing?: boolean;
     probeStatus?: ProbeReport["probeStatus"];
-    shellOutputs?: ProbeReport["shellOutputs"];
+    shellEvidence?: ProbeReport["shellEvidence"];
   }) {
     const { enqueue, startWorkers } = await jobWorkers();
     const detectionRepository = container.resolve(WorkloadAbuseDetectionRepository);
@@ -136,7 +137,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
       signals: [],
       excerpt: "denied",
       leases: [],
-      shellOutputs: input.shellOutputs ?? [{ service: "ssh", provider: "akash1provider", output: ACCELERATED_SHELL_OUTPUT }]
+      shellEvidence: input.shellEvidence ?? [{ service: "ssh", provider: "akash1provider", status: "completed", evidence: ACCELERATED_EVIDENCE }]
     });
 
     const probeKey = probeTrialDeploymentKeyFor({ walletId: wallet.id, dseq });

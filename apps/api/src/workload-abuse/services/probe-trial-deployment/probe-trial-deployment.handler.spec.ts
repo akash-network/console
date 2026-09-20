@@ -61,9 +61,9 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     expect(instrumentation.recordProbe).toHaveBeenCalledWith(expect.objectContaining({ verdict: "clean", probeStatus: "probed" }));
   });
 
-  it("records evidence on a clean probe with the raw shell outputs and no detection id", async () => {
-    const shellOutputs = [{ service: "web", provider: "akash1provider", output: "--loadavg\n0.10" }];
-    const { handler, wallet, probeEvidenceService } = setup({ report: createReport({ verdict: "clean", shellOutputs }) });
+  it("records evidence on a clean probe with the collected evidence and no detection id", async () => {
+    const shellEvidence = [{ service: "web", provider: "akash1provider", status: "completed" as const, evidence: "--accel\naccel: unavailable" }];
+    const { handler, wallet, probeEvidenceService } = setup({ report: createReport({ verdict: "clean", shellEvidence }) });
 
     await handler.handle(PAYLOAD);
 
@@ -71,9 +71,8 @@ describe(ProbeTrialDeploymentHandler.name, () => {
       walletId: wallet.id,
       dseq: PAYLOAD.dseq,
       verdict: "clean",
-      probeStatus: "probed",
       detectionId: undefined,
-      shellOutputs
+      shellEvidence
     });
   });
 
@@ -94,7 +93,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
   });
 
   it("records no evidence when the deployment has no live lease", async () => {
-    const { handler, probeEvidenceService } = setup({ report: createReport({ probeStatus: "no_live_lease", shellOutputs: [] }) });
+    const { handler, probeEvidenceService } = setup({ report: createReport({ probeStatus: "no_live_lease", shellEvidence: [] }) });
 
     await handler.handle(PAYLOAD);
 
@@ -223,7 +222,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
           logStatus: "completed"
         }
       ],
-      shellOutputs: [{ service: "ssh", provider: "akash1provider", output: "--loadavg\n0.10" }],
+      shellEvidence: [{ service: "ssh", provider: "akash1provider", status: "completed", evidence: "--accel\naccel: unavailable" }],
       ...overrides
     };
   }

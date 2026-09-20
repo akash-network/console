@@ -4,7 +4,7 @@ CREATE TABLE "workload_probe_evidence" (
 	"dseq" varchar NOT NULL,
 	"provider" text NOT NULL,
 	"service" varchar(255) NOT NULL,
-	"probe_status" varchar(64) NOT NULL,
+	"shell_status" varchar(64) NOT NULL,
 	"verdict" varchar(16) NOT NULL,
 	"detection_id" uuid,
 	"accelerator" jsonb,

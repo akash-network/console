@@ -7,37 +7,17 @@ export type ProbeEvidenceFeatures = {
   netShape: ProbeEvidenceNetShape | null;
 };
 
-const SECTION_MARKERS = [
-  "--loadavg",
-  "--nproc",
-  "--procs",
-  "--net",
-  "--tmp",
-  "--files",
-  "--authorized-keys",
-  "--recent-exec",
-  "--recent-conf",
-  "--accel",
-  "--netl",
-  "--disk",
-  "--procorig"
-] as const;
+const SECTION_MARKERS = ["--accel", "--netl", "--disk", "--procorig"] as const;
 
-export function parseProbeEvidence(rawShellOutput: string): ProbeEvidenceFeatures {
-  const sections = splitSections(rawShellOutput);
+export function parseProbeEvidence(evidenceOutput: string): ProbeEvidenceFeatures {
+  const sections = splitSections(evidenceOutput);
 
   return {
     accelerator: parseAccelerator(sections.get("--accel")),
     artifacts: parseArtifacts(sections.get("--disk")),
     processOrigins: parseProcessOrigins(sections.get("--procorig")),
-    netShape: parseNetShape(sections.get("--net"), sections.get("--netl"))
+    netShape: parseNetShape(sections.get("--netl"))
   };
-}
-
-export function withoutEvidenceSections(rawShellOutput: string): string {
-  const boundary = rawShellOutput.indexOf("\n--accel\n");
-  if (boundary !== -1) return rawShellOutput.slice(0, boundary + 1);
-  return rawShellOutput.startsWith("--accel\n") ? "" : rawShellOutput;
 }
 
 function splitSections(output: string): Map<string, string[]> {
@@ -56,32 +36,44 @@ function splitSections(output: string): Map<string, string[]> {
   return sections;
 }
 
+type AcceleratorOnGpu = Omit<ProbeEvidenceAccelerator, "processes"> & { gpuUuid: string };
+
+/** Both accelerator queries report the gpu uuid, so a process lands on the card it actually ran on rather than on every card in the host. */
 function parseAccelerator(lines: string[] | undefined): ProbeEvidenceAccelerator[] | null {
   if (!lines) return null;
   if (lines.some(line => line.trim() === "accel: unavailable")) return null;
 
-  const accelerators: Array<Omit<ProbeEvidenceAccelerator, "processes">> = [];
-  const processes: ProbeEvidenceAccelerator["processes"] = [];
+  const accelerators: AcceleratorOnGpu[] = [];
+  const processesByGpu = new Map<string, ProbeEvidenceAccelerator["processes"]>();
 
   for (const line of lines) {
     const fields = line.split(",").map(field => field.trim());
-    if (fields.length >= 4 && !isNumeric(fields[0]) && isNumeric(fields[1]) && isNumeric(fields[2]) && isNumeric(fields[3])) {
+    if (fields.length >= 5 && !isNumeric(fields[1]) && isNumeric(fields[2]) && isNumeric(fields[3]) && isNumeric(fields[4])) {
       accelerators.push({
-        name: fields[0],
-        utilPct: Number(fields[1]),
-        memUsedMb: Number(fields[2]),
-        memTotalMb: Number(fields[3])
+        gpuUuid: fields[0],
+        name: fields[1],
+        utilPct: Number(fields[2]),
+        memUsedMb: Number(fields[3]),
+        memTotalMb: Number(fields[4])
       });
-    } else if (fields.length >= 3 && isNumeric(fields[0])) {
+    } else if (fields.length >= 4 && isNumeric(fields[1])) {
+      const processes = processesByGpu.get(fields[0]) ?? [];
       processes.push({
-        pid: Number(fields[0]),
-        name: fields.slice(1, -1).join(", "),
+        pid: Number(fields[1]),
+        name: fields.slice(2, -1).join(", "),
         vramMb: toNumberOrZero(fields[fields.length - 1])
       });
+      processesByGpu.set(fields[0], processes);
     }
   }
 
-  return accelerators.map(accelerator => ({ ...accelerator, processes }));
+  return accelerators.map(accelerator => ({
+    name: accelerator.name,
+    utilPct: accelerator.utilPct,
+    memUsedMb: accelerator.memUsedMb,
+    memTotalMb: accelerator.memTotalMb,
+    processes: processesByGpu.get(accelerator.gpuUuid) ?? []
+  }));
 }
 
 function parseArtifacts(lines: string[] | undefined): ProbeEvidenceArtifact[] | null {
@@ -122,15 +114,13 @@ function parseProcessOrigins(lines: string[] | undefined): ProbeEvidenceProcessO
   return origins;
 }
 
-function parseNetShape(netLines: string[] | undefined, netlLines: string[] | undefined): ProbeEvidenceNetShape | null {
+function parseNetShape(netlLines: string[] | undefined): ProbeEvidenceNetShape | null {
   if (!netlLines) return null;
 
   const listenPorts = new Set<number>();
-  if (netLines) {
-    for (const line of netLines) {
-      const match = line.trim().match(/^\d+\s+listen=(\d+)$/);
-      if (match) listenPorts.add(Number(match[1]));
-    }
+  for (const line of netlLines) {
+    const match = line.trim().match(/^\d+\s+listen=(\d+)$/);
+    if (match) listenPorts.add(Number(match[1]));
   }
 
   const establishedByKey = new Map<string, ProbeEvidenceNetShape["established"][number]>();

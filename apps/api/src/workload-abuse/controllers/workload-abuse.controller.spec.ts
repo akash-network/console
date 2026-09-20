@@ -39,16 +39,24 @@ describe(WorkloadAbuseController.name, () => {
   it("purges expired evidence once the sweeps settle", async () => {
     const { controller, probeEvidenceService } = setup();
 
-    await controller.probeTrialDeployments({ dryRun: true });
+    await controller.probeTrialDeployments({ dryRun: false });
 
     expect(probeEvidenceService.purgeExpired).toHaveBeenCalledTimes(1);
   });
 
-  it("leaves the purge to the next run when a sweep fails", async () => {
+  it("purges expired evidence even when a sweep fails", async () => {
     const { controller, probeJobService, probeEvidenceService } = setup();
     probeJobService.reconcile.mockRejectedValue(new Error("db down"));
 
     await expect(controller.probeTrialDeployments({ dryRun: false })).rejects.toThrow("db down");
+
+    expect(probeEvidenceService.purgeExpired).toHaveBeenCalledTimes(1);
+  });
+
+  it("deletes nothing on a dry run", async () => {
+    const { controller, probeEvidenceService } = setup();
+
+    await controller.probeTrialDeployments({ dryRun: true });
 
     expect(probeEvidenceService.purgeExpired).not.toHaveBeenCalled();
   });

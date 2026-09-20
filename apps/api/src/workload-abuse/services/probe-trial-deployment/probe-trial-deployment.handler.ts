@@ -99,15 +99,14 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
       walletId: wallet.id,
       dseq,
       verdict: report.verdict,
-      probeStatus: report.probeStatus,
       detectionId,
-      shellOutputs: report.shellOutputs
+      shellEvidence: report.shellEvidence
     });
     this.logger.info({
       event: "TRIAL_WORKLOAD_EVIDENCE_RECORDED",
       ...context,
       userId: wallet.userId,
-      services: report.shellOutputs.map(shellOutput => shellOutput.service)
+      services: report.shellEvidence.map(shellEvidence => shellEvidence.service)
     });
 
     this.logger.info({

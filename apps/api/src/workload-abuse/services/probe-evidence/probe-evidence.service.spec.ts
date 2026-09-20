@@ -10,7 +10,7 @@ import { ProbeEvidenceService } from "./probe-evidence.service";
 import { mockConfigService } from "@test/mocks/config-service.mock";
 
 describe(ProbeEvidenceService.name, () => {
-  it("records one row per shell output with parsed features", async () => {
+  it("records one row per probed service with parsed features", async () => {
     const { service, evidenceRepository } = setup();
     evidenceRepository.insertMany.mockResolvedValue([]);
 
@@ -18,14 +18,14 @@ describe(ProbeEvidenceService.name, () => {
       walletId: 42,
       dseq: "1000001",
       verdict: "clean",
-      probeStatus: "completed",
-      shellOutputs: [
+      shellEvidence: [
         {
           service: "web",
           provider: "akash1provider",
-          output: "--accel\nNVIDIA T4, 90, 14000, 15360\n1234, python3, 14000\n--disk\n1073741824 /root/model.bin\n"
+          status: "completed",
+          evidence: "--accel\nGPU-0001, NVIDIA T4, 90, 14000, 15360\nGPU-0001, 1234, python3, 14000\n--disk\n1073741824 /root/model.bin\n"
         },
-        { service: "sidecar", provider: "akash1provider", output: "--loadavg\n0.10\n" }
+        { service: "sidecar", provider: "akash1provider", status: "output_capped", evidence: "" }
       ]
     });
 
@@ -35,19 +35,19 @@ describe(ProbeEvidenceService.name, () => {
         dseq: "1000001",
         provider: "akash1provider",
         service: "web",
-        probeStatus: "completed",
+        shellStatus: "completed",
         verdict: "clean",
         accelerator: [expect.objectContaining({ name: "NVIDIA T4", utilPct: 90 })],
         artifacts: [{ path: "/root/model.bin", sizeBytes: 1073741824 }]
       }),
-      expect.objectContaining({ service: "sidecar", accelerator: null, artifacts: null })
+      expect.objectContaining({ service: "sidecar", shellStatus: "output_capped", accelerator: null, artifacts: null })
     ]);
   });
 
-  it("skips the write when there are no shell outputs", async () => {
+  it("skips the write when no service was reached", async () => {
     const { service, evidenceRepository } = setup();
 
-    await service.recordEvidence({ walletId: 42, dseq: "1000001", verdict: "clean", probeStatus: "completed", shellOutputs: [] });
+    await service.recordEvidence({ walletId: 42, dseq: "1000001", verdict: "clean", shellEvidence: [] });
 
     expect(evidenceRepository.insertMany).not.toHaveBeenCalled();
   });
@@ -60,9 +60,8 @@ describe(ProbeEvidenceService.name, () => {
       walletId: 42,
       dseq: "1000001",
       verdict: "hard",
-      probeStatus: "completed",
       detectionId: "detection-uuid",
-      shellOutputs: [{ service: "web", provider: "akash1provider", output: "--accel\nNVIDIA T4, 1, 2, 3\n" }]
+      shellEvidence: [{ service: "web", provider: "akash1provider", status: "completed", evidence: "--accel\nGPU-0001, NVIDIA T4, 1, 2, 3\n" }]
     });
 
     expect(evidenceRepository.insertMany).toHaveBeenCalledWith([expect.objectContaining({ detectionId: "detection-uuid" })]);
@@ -77,12 +76,11 @@ describe(ProbeEvidenceService.name, () => {
         walletId: 42,
         dseq: "1000001",
         verdict: "clean",
-        probeStatus: "completed",
-        shellOutputs: [{ service: "web", provider: "akash1provider", output: "--disk\n1 /root/x\n" }]
+        shellEvidence: [{ service: "web", provider: "akash1provider", status: "completed", evidence: "--disk\n1 /root/x\n" }]
       })
     ).resolves.toBeUndefined();
 
-    expect(instrumentation.recordEvidenceWriteFailure).toHaveBeenCalledTimes(1);
+    expect(instrumentation.recordEvidenceWriteFailure).toHaveBeenCalledWith("insert");
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "WORKLOAD_EVIDENCE_WRITE_FAILED", walletId: 42, dseq: "1000001" }));
   });
 
@@ -100,7 +98,7 @@ describe(ProbeEvidenceService.name, () => {
 
     await expect(service.purgeExpired()).resolves.toBeUndefined();
 
-    expect(instrumentation.recordEvidenceWriteFailure).toHaveBeenCalledTimes(1);
+    expect(instrumentation.recordEvidenceWriteFailure).toHaveBeenCalledWith("purge");
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "WORKLOAD_EVIDENCE_PURGE_FAILED" }));
   });
 

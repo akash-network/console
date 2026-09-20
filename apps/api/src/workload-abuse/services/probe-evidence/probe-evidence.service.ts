@@ -3,10 +3,9 @@ import { inject, singleton } from "tsyringe";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { parseProbeEvidence } from "@src/workload-abuse/lib/probe-evidence/parse-probe-evidence";
 import { WorkloadProbeEvidenceRepository } from "@src/workload-abuse/repositories/workload-probe-evidence/workload-probe-evidence.repository";
+import type { ShellEvidence } from "@src/workload-abuse/services/trial-workload-probe/trial-workload-probe.service";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 import { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
-
-type ProbeEvidenceShellOutput = { service: string; provider: string; output: string };
 
 @singleton()
 export class ProbeEvidenceService {
@@ -21,26 +20,19 @@ export class ProbeEvidenceService {
     this.logger = createLogger({ context: ProbeEvidenceService.name });
   }
 
-  async recordEvidence(input: {
-    walletId: number;
-    dseq: string;
-    verdict: string;
-    probeStatus: string;
-    detectionId?: string;
-    shellOutputs: ProbeEvidenceShellOutput[];
-  }): Promise<void> {
-    if (!input.shellOutputs.length) return;
+  async recordEvidence(input: { walletId: number; dseq: string; verdict: string; detectionId?: string; shellEvidence: ShellEvidence[] }): Promise<void> {
+    if (!input.shellEvidence.length) return;
 
     try {
       await this.evidenceRepository.insertMany(
-        input.shellOutputs.map(shellOutput => {
-          const features = parseProbeEvidence(shellOutput.output);
+        input.shellEvidence.map(shellEvidence => {
+          const features = parseProbeEvidence(shellEvidence.evidence);
           return {
             walletId: input.walletId,
             dseq: input.dseq,
-            provider: shellOutput.provider,
-            service: shellOutput.service,
-            probeStatus: input.probeStatus,
+            provider: shellEvidence.provider,
+            service: shellEvidence.service,
+            shellStatus: shellEvidence.status,
             verdict: input.verdict,
             detectionId: input.detectionId,
             accelerator: features.accelerator,
@@ -51,7 +43,7 @@ export class ProbeEvidenceService {
         })
       );
     } catch (error) {
-      this.instrumentation.recordEvidenceWriteFailure();
+      this.instrumentation.recordEvidenceWriteFailure("insert");
       this.logger.warn({ event: "WORKLOAD_EVIDENCE_WRITE_FAILED", error, walletId: input.walletId, dseq: input.dseq });
     }
   }
@@ -63,7 +55,7 @@ export class ProbeEvidenceService {
     try {
       await this.evidenceRepository.deleteOlderThan({ before });
     } catch (error) {
-      this.instrumentation.recordEvidenceWriteFailure();
+      this.instrumentation.recordEvidenceWriteFailure("purge");
       this.logger.warn({ event: "WORKLOAD_EVIDENCE_PURGE_FAILED", error, before });
     }
   }

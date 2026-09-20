@@ -13,14 +13,15 @@ export class WorkloadAbuseController {
     private readonly probeEvidenceService: ProbeEvidenceService
   ) {}
 
-  /** Each sweep runs whether or not the other fails, so a probe outage does not leave stuck wipes waiting another run. */
+  /** Each sweep runs whether or not the other fails, and retention runs whether or not the sweeps do, so nothing waits another run. */
   async probeTrialDeployments(options: DryRunOptions): Promise<void> {
     const sweeps = await Promise.allSettled([this.probeJobService.reconcile(options), this.enforcementJobService.reconcile(options)]);
+
+    if (!options.dryRun) await this.probeEvidenceService.purgeExpired();
+
     const failures = sweeps.filter((sweep): sweep is PromiseRejectedResult => sweep.status === "rejected").map(sweep => sweep.reason);
 
     if (failures.length === 1) throw failures[0];
     if (failures.length > 1) throw new AggregateError(failures, "Both the probe sweep and the enforcement sweep failed");
-
-    await this.probeEvidenceService.purgeExpired();
   }
 }

@@ -31,7 +31,7 @@ export const WorkloadProbeEvidence = pgTable(
     dseq: varchar("dseq").notNull(),
     provider: text("provider").notNull(),
     service: varchar("service", { length: 255 }).notNull(),
-    probeStatus: varchar("probe_status", { length: 64 }).notNull(),
+    shellStatus: varchar("shell_status", { length: 64 }).notNull(),
     verdict: varchar("verdict", { length: 16 }).notNull(),
     detectionId: uuid("detection_id"),
     accelerator: jsonb("accelerator").$type<ProbeEvidenceAccelerator[] | null>(),
