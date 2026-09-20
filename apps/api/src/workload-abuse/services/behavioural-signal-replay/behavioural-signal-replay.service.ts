@@ -124,7 +124,7 @@ export class BehaviouralSignalReplayService {
     for (const row of rows) {
       if (row.shellStatus !== COMPLETE_SHELL_STATUS) continue;
 
-      const label = `${row.walletId}/${row.dseq}/${row.service}`;
+      const label = `${row.walletId}/${row.dseq}/${row.service}/${row.provider}`;
       const series = byDeployment.get(label) ?? { source: "database" as const, label, snapshots: [] };
       series.snapshots.push(row);
       byDeployment.set(label, series);

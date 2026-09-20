@@ -4,7 +4,7 @@ import { index, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid, varchar 
 import { Users } from "@src/user/model-schemas";
 import type { DetectionSignal } from "@src/workload-abuse/lib/evidence-scanner/evidence-scanner";
 
-export const workloadAbuseVerdictEnum = pgEnum("workload_abuse_verdict", ["hard", "soft", "proxy"]);
+export const workloadAbuseVerdictEnum = pgEnum("workload_abuse_verdict", ["hard", "soft", "proxy", "behavioural"]);
 
 export const workloadAbuseActionEnum = pgEnum("workload_abuse_action", ["detected", "enforcing", "enforced", "enforcement_failed"]);
 

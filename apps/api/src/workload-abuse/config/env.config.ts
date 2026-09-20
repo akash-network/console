@@ -121,7 +121,17 @@ export const envSchema = z.object({
   WORKLOAD_ABUSE_SIGNAL_ACCEL_MIN_VRAM_MB: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(1_024)),
   WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(256)),
   /** The list itself lives in Doppler: these are our own endpoints, so a reader learns how the exclusion works but not what it covers. */
-  WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: z.preprocess(blankToUndefined, z.string().default("[]").transform(parseRelayEndpoints))
+  WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: z.preprocess(blankToUndefined, z.string().default("[]").transform(parseRelayEndpoints)),
+  WORKLOAD_ABUSE_BEHAVIOURAL_ENFORCEMENT_ENABLED: z.preprocess(
+    blankToUndefined,
+    z
+      .enum(["true", "false"])
+      .default("false")
+      .transform(value => value === "true")
+  ),
+  WORKLOAD_ABUSE_BEHAVIOURAL_AGREEMENT_PROBES: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(3)),
+  /** Back-to-back probes can land minutes apart, so a streak also has to span real time before it counts. */
+  WORKLOAD_ABUSE_BEHAVIOURAL_MIN_WINDOW_MINUTES: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(120))
 });
 
 export type WorkloadAbuseConfig = z.infer<typeof envSchema>;

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."workload_abuse_verdict" ADD VALUE 'behavioural';

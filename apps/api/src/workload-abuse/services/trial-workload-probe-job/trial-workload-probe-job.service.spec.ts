@@ -194,7 +194,7 @@ describe(TrialWorkloadProbeJobService.name, () => {
 
       await service.reconcile({ dryRun: false });
 
-      expect(detectionRepository.findRecentHardTargets).toHaveBeenCalledWith({ since: subHours(LEASE_CREATED_AT, 26) });
+      expect(detectionRepository.findRecentDetectedTargets).toHaveBeenCalledWith({ since: subHours(LEASE_CREATED_AT, 26) });
       expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ walletId: 2, dseq: "2" }) }),
@@ -232,7 +232,7 @@ describe(TrialWorkloadProbeJobService.name, () => {
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.findLiveTrialDeployments.mockResolvedValue(input.live ?? []);
     const detectionRepository = mock<WorkloadAbuseDetectionRepository>();
-    detectionRepository.findRecentHardTargets.mockResolvedValue(input.detected ?? []);
+    detectionRepository.findRecentDetectedTargets.mockResolvedValue(input.detected ?? []);
     const config = mockConfigService<WorkloadAbuseConfigService>({
       WORKLOAD_ABUSE_PROBE_ENABLED: input.enabled ?? true,
       WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: [5, 20, 60],

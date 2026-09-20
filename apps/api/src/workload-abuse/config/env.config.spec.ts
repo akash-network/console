@@ -36,6 +36,14 @@ describe("workload abuse env config", () => {
     expect(config.WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB).toBe(256);
   });
 
+  it("defaults behavioural enforcement to off behind a multi-probe agreement", () => {
+    const config = envSchema.parse({});
+
+    expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_ENFORCEMENT_ENABLED).toBe(false);
+    expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_AGREEMENT_PROBES).toBe(3);
+    expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_MIN_WINDOW_MINUTES).toBe(120);
+  });
+
   it("parses the relay endpoint list", () => {
     const config = envSchema.parse({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: JSON.stringify(["10.0.0.7", "10.0.0.8:443"]) });
 
@@ -83,6 +91,30 @@ describe("workload abuse env config", () => {
     expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED).toBe(false);
     expect(config.WORKLOAD_ABUSE_SIGNAL_ACCEL_MIN_VRAM_MB).toBe(1024);
     expect(config.WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB).toBe(256);
+  });
+
+  it("falls back to the enforcement defaults when those variables are set but blank", () => {
+    const config = envSchema.parse({
+      WORKLOAD_ABUSE_BEHAVIOURAL_ENFORCEMENT_ENABLED: "",
+      WORKLOAD_ABUSE_BEHAVIOURAL_AGREEMENT_PROBES: "",
+      WORKLOAD_ABUSE_BEHAVIOURAL_MIN_WINDOW_MINUTES: " "
+    });
+
+    expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_ENFORCEMENT_ENABLED).toBe(false);
+    expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_AGREEMENT_PROBES).toBe(3);
+    expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_MIN_WINDOW_MINUTES).toBe(120);
+  });
+
+  it("still reads the enforcement variables when they carry a value", () => {
+    const config = envSchema.parse({
+      WORKLOAD_ABUSE_BEHAVIOURAL_ENFORCEMENT_ENABLED: "true",
+      WORKLOAD_ABUSE_BEHAVIOURAL_AGREEMENT_PROBES: "5",
+      WORKLOAD_ABUSE_BEHAVIOURAL_MIN_WINDOW_MINUTES: "240"
+    });
+
+    expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_ENFORCEMENT_ENABLED).toBe(true);
+    expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_AGREEMENT_PROBES).toBe(5);
+    expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_MIN_WINDOW_MINUTES).toBe(240);
   });
 
   it("still reads the behavioural signal variables when they carry a value", () => {
