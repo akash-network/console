@@ -526,6 +526,38 @@ describe("Provider HTTP proxy", () => {
     expect(dials).toBe(2);
   });
 
+  it("stops re-dialing a provider that trickles bytes without ever answering", async () => {
+    const providerAddress = generateBech32();
+    const validCertPair = await createX509CertPair({ commonName: providerAddress });
+    let dials = 0;
+
+    const { providerUrl } = await startProviderServer({
+      certPair: validCertPair,
+      handlers: {
+        "/trickles"(_, res) {
+          dials += 1;
+          const answer = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
+          let sent = 0;
+          const trickle = setInterval(() => {
+            if (sent >= answer.length) return clearInterval(trickle);
+            res.socket?.write(answer[sent++]);
+          }, 50);
+          return () => clearInterval(trickle);
+        }
+      }
+    });
+    const chainServer = await startChainApiServer([validCertPair.cert]);
+    await startServer({ REST_API_NODE_URL: chainServer.url });
+
+    const response = await request("/", {
+      method: "POST",
+      body: JSON.stringify({ method: "GET", url: `${providerUrl}/trickles`, providerAddress, timeout: 300 })
+    });
+
+    expect(response.status).toBe(502);
+    expect(dials).toBe(2);
+  });
+
   it("responds with 502 if provider host hangs up connection", async () => {
     const providerAddress = generateBech32();
     const validCertPair = await createX509CertPair({

@@ -46,12 +46,16 @@ export class ProviderProxy {
 
     return new Promise<ProxyConnectionResult>((resolve, reject) => {
       let proxyTermination: DialTermination | undefined;
+      /** Node's timeout option measures socket inactivity, so a provider dribbling bytes can hold a dial open indefinitely; this bounds it by elapsed time instead. */
+      let dialDeadline: NodeJS.Timeout | undefined;
+      const stopDialDeadline = () => clearTimeout(dialDeadline);
       const { agentCacheKey, ...requestOptions } = this.getRequestOptions(options);
       const req = https.request(
         url,
         requestOptions,
         propagateTracingContext(async (res: IncomingMessage) => {
           proxyTermination ??= "providerAnswered";
+          stopDialDeadline();
 
           try {
             res.on(
@@ -123,28 +127,37 @@ export class ProviderProxy {
         );
       }
 
-      if (!req.reusedSocket) {
-        req.on(
-          "error",
-          propagateTracingContext(error => {
-            const tornDownAgent = requestOptions.agent !== undefined && this.#tornDownAgents.has(requestOptions.agent);
-            const termination = proxyTermination ?? (tornDownAgent ? "agentTornDown" : undefined);
-
-            if (this.recordDialFailure(trackerKey, error, termination)) {
-              return resolve({ ok: false, code: "connectionError", error, repeatedFailure: true });
-            }
-
-            resolve({ ok: false, code: "connectionError", error });
-          })
-        );
-        req.on(
-          "timeout",
+      if (options.timeout) {
+        dialDeadline = setTimeout(
           propagateTracingContext(() => {
             proxyTermination ??= "attemptTimedOut";
             req.destroy();
-          })
+          }),
+          options.timeout
         );
+        req.once("close", stopDialDeadline);
       }
+
+      req.on(
+        "error",
+        propagateTracingContext(error => {
+          const tornDownAgent = requestOptions.agent !== undefined && this.#tornDownAgents.has(requestOptions.agent);
+          const termination = proxyTermination ?? (tornDownAgent ? "agentTornDown" : undefined);
+
+          if (this.recordDialFailure(trackerKey, error, termination)) {
+            return resolve({ ok: false, code: "connectionError", error, repeatedFailure: true });
+          }
+
+          resolve({ ok: false, code: "connectionError", error });
+        })
+      );
+      req.on(
+        "timeout",
+        propagateTracingContext(() => {
+          proxyTermination ??= "attemptTimedOut";
+          req.destroy();
+        })
+      );
 
       if (options.body && options.method !== "GET") req.write(options.body);
       req.end();
