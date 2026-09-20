@@ -97,8 +97,8 @@ describe(BehaviouralSignalReplayService.name, () => {
       until: new Date("2026-09-01T00:00:00.000Z")
     });
     expect(summary.deployments).toEqual([
-      { source: "database", label: "42/1000001/web", probes: 2, accelFires: 2, networkFires: 2, candidateProbes: 2, longestAgreement: 2 },
-      { source: "database", label: "42/1000001/sidecar", probes: 1, accelFires: 0, networkFires: 1, candidateProbes: 0, longestAgreement: 0 }
+      { source: "database", label: "42/1000001/web/akash1provider", probes: 2, accelFires: 2, networkFires: 2, candidateProbes: 2, longestAgreement: 2 },
+      { source: "database", label: "42/1000001/sidecar/akash1provider", probes: 1, accelFires: 0, networkFires: 1, candidateProbes: 0, longestAgreement: 0 }
     ]);
   });
 
@@ -110,7 +110,7 @@ describe(BehaviouralSignalReplayService.name, () => {
     const summary = await service.replay({ since: new Date("2026-08-01T00:00:00.000Z") });
 
     expect(summary.deployments).toEqual([
-      { source: "database", label: "42/1000001/web", probes: 1, accelFires: 1, networkFires: 1, candidateProbes: 1, longestAgreement: 1 }
+      { source: "database", label: "42/1000001/web/akash1provider", probes: 1, accelFires: 1, networkFires: 1, candidateProbes: 1, longestAgreement: 1 }
     ]);
   });
 
@@ -185,6 +185,7 @@ describe(BehaviouralSignalReplayService.name, () => {
     return mock<WorkloadProbeEvidenceOutput>({
       walletId: 42,
       dseq: "1000001",
+      provider: "akash1provider",
       shellStatus: "completed",
       accelerator: [{ name: "accelerator-0", utilPct: 99, memUsedMb: 20_480, memTotalMb: 24_576, processes: [{ pid: 1234, name: "worker", vramMb: 18_000 }] }],
       artifacts: [{ path: "/opt/worker", sizeBytes: 4_194_304 }],

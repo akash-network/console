@@ -448,6 +448,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     return minutesAgo.map(minutes =>
       mock<WorkloadProbeEvidenceOutput>({
         service: "web",
+        provider: "akash1provider",
         shellStatus: "completed",
         createdAt: new Date(Date.now() - minutes * 60_000),
         behaviouralFindings: [

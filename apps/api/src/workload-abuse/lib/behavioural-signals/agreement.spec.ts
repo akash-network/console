@@ -87,6 +87,13 @@ describe("findBehaviouralAgreement", () => {
     expect(findBehaviouralAgreement([...rows, ...sidecar], params)).toMatchObject({ agreed: false, service: "web", streak: 2 });
   });
 
+  it("counts a service seen on two providers at once as two series rather than one longer streak", () => {
+    const { rows, params } = setup({ minutesAgo: [10, 130] });
+    const reclaiming = setup({ minutesAgo: [11, 131], provider: "akash1reclaiming" }).rows;
+
+    expect(findBehaviouralAgreement([...rows, ...reclaiming], params)).toMatchObject({ agreed: false, streak: 2 });
+  });
+
   it("finds no agreement in an empty history", () => {
     const { params } = setup({ minutesAgo: [] });
 
@@ -100,9 +107,11 @@ describe("findBehaviouralAgreement", () => {
     findingsByIndex?: Record<number, BehaviouralFinding[]>;
     statusByIndex?: Record<number, string>;
     nullFindingsAt?: number;
+    provider?: string;
   }) {
     const rows: AgreementRow[] = input.minutesAgo.map((minutes, index) => ({
       service: "web",
+      provider: input.provider ?? "akash1provider",
       createdAt: new Date(NOW.getTime() - minutes * 60_000),
       shellStatus: input.statusByIndex?.[index] ?? "completed",
       behaviouralFindings: index === input.nullFindingsAt ? null : input.findingsByIndex?.[index] ?? BOTH_SIGNALS

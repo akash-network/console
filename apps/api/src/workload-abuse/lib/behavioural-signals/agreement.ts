@@ -5,6 +5,7 @@ const MS_PER_MINUTE = 60_000;
 
 export type AgreementRow = {
   service: string;
+  provider: string;
   createdAt: Date;
   shellStatus: string;
   behaviouralFindings: BehaviouralFinding[] | null;
@@ -31,13 +32,15 @@ export function findBehaviouralAgreement(rows: AgreementRow[], params: Agreement
   return perService.reduce(pickStrongest, { agreed: false, service: null, streak: 0, spanMinutes: 0 });
 }
 
+/** A lease under reclamation overlaps the one replacing it, so a single run can write two rows for one service and only a per provider series counts distinct probes. */
 function groupByService(rows: AgreementRow[]): Map<string, AgreementRow[]> {
   const grouped = new Map<string, AgreementRow[]>();
 
   for (const row of rows) {
-    const serviceRows = grouped.get(row.service) ?? [];
+    const key = `${row.service}/${row.provider}`;
+    const serviceRows = grouped.get(key) ?? [];
     serviceRows.push(row);
-    grouped.set(row.service, serviceRows);
+    grouped.set(key, serviceRows);
   }
 
   return grouped;
