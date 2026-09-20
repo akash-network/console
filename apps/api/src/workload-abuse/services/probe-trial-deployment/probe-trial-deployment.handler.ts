@@ -6,6 +6,7 @@ import { withoutFileContents } from "@src/workload-abuse/lib/evidence-scanner/ev
 import { truncateToUtf8Bytes } from "@src/workload-abuse/lib/utf8-text/utf8-text";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import { EnforceTrialAbuse, enforceTrialAbuseKeyFor } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
+import { ProbeEvidenceService } from "@src/workload-abuse/services/probe-evidence/probe-evidence.service";
 import { type ProbeReport, TrialWorkloadProbeService } from "@src/workload-abuse/services/trial-workload-probe/trial-workload-probe.service";
 import { ProbeTrialDeployment, TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
@@ -31,6 +32,7 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
     private readonly probeService: TrialWorkloadProbeService,
     private readonly probeJobService: TrialWorkloadProbeJobService,
     private readonly detectionRepository: WorkloadAbuseDetectionRepository,
+    private readonly probeEvidenceService: ProbeEvidenceService,
     private readonly instrumentation: WorkloadAbuseInstrumentationService,
     private readonly config: WorkloadAbuseConfigService,
     private readonly jobQueueService: JobQueueService,
@@ -92,6 +94,22 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
     }
 
     const detectionId = report.verdict === "clean" ? undefined : await this.#recordDetection(wallet, dseq, report);
+
+    const evidenceRows = await this.probeEvidenceService.recordEvidence({
+      walletId: wallet.id,
+      dseq,
+      verdict: report.verdict,
+      detectionId,
+      shellEvidence: report.shellEvidence
+    });
+    if (evidenceRows.length) {
+      this.logger.info({
+        event: "TRIAL_WORKLOAD_EVIDENCE_RECORDED",
+        ...context,
+        userId: wallet.userId,
+        services: evidenceRows.map(row => row.service)
+      });
+    }
 
     this.logger.info({
       event: "TRIAL_WORKLOAD_PROBED",

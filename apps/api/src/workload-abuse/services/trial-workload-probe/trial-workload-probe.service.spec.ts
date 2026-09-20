@@ -31,7 +31,7 @@ describe(TrialWorkloadProbeService.name, () => {
 
     const report = await service.probe({ wallet, dseq: DSEQ });
 
-    expect(report).toEqual({ verdict: "clean", signals: [], excerpt: "", probeStatus: "no_live_lease", leases: [] });
+    expect(report).toEqual({ verdict: "clean", signals: [], excerpt: "", probeStatus: "no_live_lease", leases: [], shellEvidence: [] });
     expect(providerService.toProviderAuth).not.toHaveBeenCalled();
   });
 
@@ -177,6 +177,32 @@ describe(TrialWorkloadProbeService.name, () => {
     expect(shellProbeService.run).not.toHaveBeenCalled();
   });
 
+  it("records the evidence block the probe split off and scans only what came before it", async () => {
+    const evidence = [
+      "--accel",
+      "GPU-0001, NVIDIA T4, 95, 14000, 15360",
+      "GPU-0001, 1234, stratum+tcp://pool.example:3333, 14000",
+      "--disk",
+      "1073741824 /tmp/stratum+tcp://pool.example:3333",
+      "--procorig",
+      "btime=1740000000",
+      "1234 ppid=1 starttime=650000 comm=stratum+tcp://pool.example:3333"
+    ].join("\n");
+    const { service, wallet } = setup({
+      leases: [createRpcLease()],
+      services: { web: 1 },
+      shell: { status: "completed", output: "--loadavg\n0.10 0.20 0.30\n", evidence }
+    });
+
+    const report = await service.probe({ wallet, dseq: DSEQ });
+
+    expect(report.verdict).toBe("clean");
+    expect(report.signals).toEqual([]);
+    expect(report.excerpt).not.toContain("--accel");
+    expect(report.excerpt).not.toContain("stratum+tcp");
+    expect(report.shellEvidence).toEqual([{ service: "web", provider: PROVIDER, status: "completed", evidence }]);
+  });
+
   function createRpcLease(overrides: Partial<RpcLease["lease"]["id"]> = {}): RpcLease {
     return mock<RpcLease>({
       lease: { id: { owner: "akash1owner", dseq: DSEQ, gseq: 1, oseq: 1, provider: PROVIDER, bseq: 1, ...overrides }, state: "active" }
@@ -188,7 +214,7 @@ describe(TrialWorkloadProbeService.name, () => {
     provider?: Provider | null;
     services?: Record<string, number>;
     sdl?: string | null;
-    shell?: ShellProbeResult;
+    shell?: { status: ShellProbeResult["status"]; output: string; evidence?: string };
     logs?: string[];
   }) {
     const wallet = { ...createUserWallet({ isTrialing: true }), address: "akash1owner" };
@@ -211,7 +237,7 @@ describe(TrialWorkloadProbeService.name, () => {
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.findOneBy.mockResolvedValue(mock<DeploymentSettingsOutput>({ sdl: input.sdl ?? null }));
     const shellProbeService = mock<ProviderShellProbeService>();
-    shellProbeService.run.mockResolvedValue(input.shell ?? { status: "completed", output: "--loadavg\n0.10" });
+    shellProbeService.run.mockResolvedValue({ evidence: "", ...(input.shell ?? { status: "completed", output: "--loadavg\n0.10" }) });
     const logTailService = mock<ProviderLogTailService>();
     logTailService.collect.mockResolvedValue({ status: "completed", lines: input.logs ?? [] });
     const config = mockConfigService<WorkloadAbuseConfigService>({

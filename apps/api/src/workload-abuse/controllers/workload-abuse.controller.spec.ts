@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ProbeEvidenceService } from "@src/workload-abuse/services/probe-evidence/probe-evidence.service";
 import type { TrialAbuseEnforcementJobService } from "@src/workload-abuse/services/trial-abuse-enforcement-job/trial-abuse-enforcement-job.service";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import { WorkloadAbuseController } from "./workload-abuse.controller";
@@ -35,13 +36,39 @@ describe(WorkloadAbuseController.name, () => {
     await expect(controller.probeTrialDeployments({ dryRun: false })).rejects.toMatchObject({ errors: [probeError, enforcementError] });
   });
 
+  it("purges expired evidence once the sweeps settle", async () => {
+    const { controller, probeEvidenceService } = setup();
+
+    await controller.probeTrialDeployments({ dryRun: false });
+
+    expect(probeEvidenceService.purgeExpired).toHaveBeenCalledTimes(1);
+  });
+
+  it("purges expired evidence even when a sweep fails", async () => {
+    const { controller, probeJobService, probeEvidenceService } = setup();
+    probeJobService.reconcile.mockRejectedValue(new Error("db down"));
+
+    await expect(controller.probeTrialDeployments({ dryRun: false })).rejects.toThrow("db down");
+
+    expect(probeEvidenceService.purgeExpired).toHaveBeenCalledTimes(1);
+  });
+
+  it("deletes nothing on a dry run", async () => {
+    const { controller, probeEvidenceService } = setup();
+
+    await controller.probeTrialDeployments({ dryRun: true });
+
+    expect(probeEvidenceService.purgeExpired).not.toHaveBeenCalled();
+  });
+
   function setup() {
     const probeJobService = mock<TrialWorkloadProbeJobService>();
     probeJobService.reconcile.mockResolvedValue();
     const enforcementJobService = mock<TrialAbuseEnforcementJobService>();
     enforcementJobService.reconcile.mockResolvedValue();
-    const controller = new WorkloadAbuseController(probeJobService, enforcementJobService);
+    const probeEvidenceService = mock<ProbeEvidenceService>();
+    const controller = new WorkloadAbuseController(probeJobService, enforcementJobService, probeEvidenceService);
 
-    return { controller, probeJobService, enforcementJobService };
+    return { controller, probeJobService, enforcementJobService, probeEvidenceService };
   }
 });

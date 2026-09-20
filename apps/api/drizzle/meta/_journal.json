@@ -407,6 +407,13 @@
       "when": 1789465677452,
       "tag": "0057_deployment_settings_user_sealed_secrets_index",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1789839246549,
+      "tag": "0058_workload_probe_evidence",
+      "breakpoints": true
     }
   ]
 }
