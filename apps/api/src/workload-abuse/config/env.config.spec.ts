@@ -42,6 +42,12 @@ describe("workload abuse env config", () => {
     expect(config.WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS).toEqual(["10.0.0.7", "10.0.0.8:443"]);
   });
 
+  it("falls back to no relay endpoints when the variable is set but blank", () => {
+    const config = envSchema.parse({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: "  " });
+
+    expect(config.WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS).toEqual([]);
+  });
+
   it("rejects a relay endpoint list that is not a JSON array of strings", () => {
     expect(() => envSchema.parse({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: "10.0.0.7" })).toThrow(/ip or ip:port/);
     expect(() => envSchema.parse({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: JSON.stringify([443]) })).toThrow(/ip or ip:port/);

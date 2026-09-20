@@ -135,6 +135,15 @@ describe(BehaviouralSignalReplayService.name, () => {
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "BEHAVIOURAL_REPLAY_FIXTURE_SKIPPED" }));
   });
 
+  it("reports nothing rather than falling back to the database when every fixture asked for is unreadable", async () => {
+    const { service, evidenceRepository } = setup({ rows: [createRow({ id: "row-1", service: "web" })] });
+
+    const summary = await service.replay({ fixturePaths: [join(tmpdir(), "behavioural-replay-missing.json")] });
+
+    expect(evidenceRepository.findCreatedBetween).not.toHaveBeenCalled();
+    expect(summary.deployments).toEqual([]);
+  });
+
   it("logs the threshold sweep with the rest of the report, so a run leaves it behind", async () => {
     const { service, logger } = setup();
 

@@ -63,7 +63,8 @@ export class BehaviouralSignalReplayService {
   async replay(options: BehaviouralReplayOptions = {}): Promise<BehaviouralReplaySummary> {
     const params = this.#readParams(options);
     const fixtureSeries = await this.#loadFixtures(options);
-    const usesDatabase = fixtureSeries.length === 0 || Boolean(options.since || options.until);
+    const fixturesRequested = Boolean(options.bundledFixtures || options.fixturePaths?.length);
+    const usesDatabase = !fixturesRequested || Boolean(options.since || options.until);
     const window = usesDatabase ? this.#resolveWindow(options) : null;
     const databaseSeries = window ? await this.#loadFromDatabase(window) : [];
     const series = [...databaseSeries, ...fixtureSeries];
