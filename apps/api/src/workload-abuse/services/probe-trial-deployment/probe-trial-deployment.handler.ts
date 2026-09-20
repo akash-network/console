@@ -111,6 +111,19 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
       });
     }
 
+    const recordedFindings = await this.probeEvidenceService.recordBehaviouralFindings(evidenceRows);
+
+    for (const recorded of recordedFindings) {
+      this.logger.info({
+        event: "TRIAL_WORKLOAD_BEHAVIOURAL_FINDING",
+        ...context,
+        userId: wallet.userId,
+        service: recorded.service,
+        evidenceId: recorded.evidenceId,
+        signals: recorded.findings.map(finding => finding.signal)
+      });
+    }
+
     this.logger.info({
       event: "TRIAL_WORKLOAD_PROBED",
       ...context,

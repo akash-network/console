@@ -27,6 +27,32 @@ describe("workload abuse env config", () => {
     ]);
   });
 
+  it("defaults behavioural signals to off with no relay endpoints", () => {
+    const config = envSchema.parse({});
+
+    expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED).toBe(false);
+    expect(config.WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS).toEqual([]);
+    expect(config.WORKLOAD_ABUSE_SIGNAL_ACCEL_MIN_VRAM_MB).toBe(1024);
+    expect(config.WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB).toBe(256);
+  });
+
+  it("parses the relay endpoint list", () => {
+    const config = envSchema.parse({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: JSON.stringify(["10.0.0.7", "10.0.0.8:443"]) });
+
+    expect(config.WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS).toEqual(["10.0.0.7", "10.0.0.8:443"]);
+  });
+
+  it("falls back to no relay endpoints when the variable is set but blank", () => {
+    const config = envSchema.parse({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: "  " });
+
+    expect(config.WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS).toEqual([]);
+  });
+
+  it("rejects a relay endpoint list that is not a JSON array of strings", () => {
+    expect(() => envSchema.parse({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: "10.0.0.7" })).toThrow(/ip or ip:port/);
+    expect(() => envSchema.parse({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: JSON.stringify([443]) })).toThrow(/ip or ip:port/);
+  });
+
   it("rejects a signature document that is not JSON", () => {
     expect(() => envSchema.parse({ WORKLOAD_ABUSE_SIGNATURES: "not json" })).toThrow(/valid signature document/);
   });
@@ -45,5 +71,29 @@ describe("workload abuse env config", () => {
 
   it("falls back to the default schedule when the initial delay setting is blank", () => {
     expect(envSchema.parse({ WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: " " }).WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN).toEqual([5, 20, 60]);
+  });
+
+  it("falls back to the behavioural signal defaults when those variables are set but blank", () => {
+    const config = envSchema.parse({
+      WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED: "",
+      WORKLOAD_ABUSE_SIGNAL_ACCEL_MIN_VRAM_MB: "",
+      WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB: " "
+    });
+
+    expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED).toBe(false);
+    expect(config.WORKLOAD_ABUSE_SIGNAL_ACCEL_MIN_VRAM_MB).toBe(1024);
+    expect(config.WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB).toBe(256);
+  });
+
+  it("still reads the behavioural signal variables when they carry a value", () => {
+    const config = envSchema.parse({
+      WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED: "true",
+      WORKLOAD_ABUSE_SIGNAL_ACCEL_MIN_VRAM_MB: "2048",
+      WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB: "512"
+    });
+
+    expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED).toBe(true);
+    expect(config.WORKLOAD_ABUSE_SIGNAL_ACCEL_MIN_VRAM_MB).toBe(2048);
+    expect(config.WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB).toBe(512);
   });
 });

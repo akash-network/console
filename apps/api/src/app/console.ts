@@ -105,6 +105,28 @@ program
   });
 
 program
+  .command("replay-behavioural-signals")
+  .description("Re-score recorded workload probe evidence against the behavioural signals, writing nothing")
+  .option("-s, --since <date>", "Start of the evidence window", value => z.coerce.date().parse(value))
+  .option("-u, --until <date>", "End of the evidence window", value => z.coerce.date().parse(value))
+  .option("-f, --fixture <path...>", "Replay a fixture file or a directory of fixture files")
+  .option("-b, --bundled-fixtures", "Include the fixture corpus shipped with the repo", false)
+  .option("--accel-min-vram-mb <number>", "Override the accelerator memory threshold", value => z.number({ coerce: true }).parse(value))
+  .option("--artifact-min-mb <number>", "Override the artifact size threshold", value => z.number({ coerce: true }).parse(value))
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(WorkloadAbuseController).replayBehaviouralSignals({
+        since: options.since,
+        until: options.until,
+        fixturePaths: options.fixture,
+        bundledFixtures: options.bundledFixtures,
+        accelMinVramMb: options.accelMinVramMb,
+        artifactMinMb: options.artifactMinMb
+      });
+    });
+  });
+
+program
   .command("cleanup-provider-deployments")
   .description("Close trial deployments for a provider")
   .option("-c, --concurrency <number>", "How many wallets are processed concurrently", value => z.number({ coerce: true }).optional().default(10).parse(value))

@@ -1,0 +1,85 @@
+{
+  "deployment": "inference-with-weights",
+  "snapshots": [
+    {
+      "shellStatus": "completed",
+      "accelerator": [
+        {
+          "name": "accelerator-0",
+          "utilPct": 64,
+          "memUsedMb": 14000,
+          "memTotalMb": 24576,
+          "processes": [
+            {
+              "pid": 2001,
+              "name": "runtime",
+              "vramMb": 13800
+            }
+          ]
+        }
+      ],
+      "artifacts": [
+        {
+          "path": "/models/a.bin",
+          "sizeBytes": 8589934592
+        },
+        {
+          "path": "/models/b.bin",
+          "sizeBytes": 4294967296
+        }
+      ],
+      "netShape": {
+        "listenPorts": [
+          8080
+        ],
+        "connections": [
+          {
+            "localPort": 8080,
+            "remoteIp": "203.0.113.20",
+            "remotePort": 54321,
+            "count": 4,
+            "state": "established"
+          }
+        ]
+      }
+    },
+    {
+      "shellStatus": "completed",
+      "accelerator": [
+        {
+          "name": "accelerator-0",
+          "utilPct": 71,
+          "memUsedMb": 14200,
+          "memTotalMb": 24576,
+          "processes": [
+            {
+              "pid": 2001,
+              "name": "runtime",
+              "vramMb": 13900
+            }
+          ]
+        }
+      ],
+      "artifacts": [
+        {
+          "path": "/models/a.bin",
+          "sizeBytes": 8589934592
+        }
+      ],
+      "netShape": {
+        "listenPorts": [
+          8080
+        ],
+        "connections": [
+          {
+            "localPort": 8080,
+            "remoteIp": "203.0.113.21",
+            "remotePort": 51222,
+            "count": 2,
+            "state": "established"
+          }
+        ]
+      }
+    }
+  ]
+}

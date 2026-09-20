@@ -1,6 +1,11 @@
 import { singleton } from "tsyringe";
 
 import type { DryRunOptions } from "@src/core/types/console";
+import {
+  type BehaviouralReplayOptions,
+  type BehaviouralReplaySummary,
+  BehaviouralSignalReplayService
+} from "@src/workload-abuse/services/behavioural-signal-replay/behavioural-signal-replay.service";
 import { ProbeEvidenceService } from "@src/workload-abuse/services/probe-evidence/probe-evidence.service";
 import { TrialAbuseEnforcementJobService } from "@src/workload-abuse/services/trial-abuse-enforcement-job/trial-abuse-enforcement-job.service";
 import { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
@@ -10,7 +15,8 @@ export class WorkloadAbuseController {
   constructor(
     private readonly probeJobService: TrialWorkloadProbeJobService,
     private readonly enforcementJobService: TrialAbuseEnforcementJobService,
-    private readonly probeEvidenceService: ProbeEvidenceService
+    private readonly probeEvidenceService: ProbeEvidenceService,
+    private readonly behaviouralSignalReplayService: BehaviouralSignalReplayService
   ) {}
 
   /** Each sweep runs whether or not the other fails, and retention runs whether or not the sweeps do, so nothing waits another run. */
@@ -23,5 +29,9 @@ export class WorkloadAbuseController {
 
     if (failures.length === 1) throw failures[0];
     if (failures.length > 1) throw new AggregateError(failures, "Both the probe sweep and the enforcement sweep failed");
+  }
+
+  async replayBehaviouralSignals(options: BehaviouralReplayOptions): Promise<BehaviouralReplaySummary> {
+    return await this.behaviouralSignalReplayService.replay(options);
   }
 }
