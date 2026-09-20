@@ -41,7 +41,7 @@ function splitSections(output: string): Map<string, string[]> {
 
 type AcceleratorOnGpu = Omit<ProbeEvidenceAccelerator, "processes"> & { gpuUuid: string };
 
-/** Both accelerator queries report the gpu uuid, so a process lands on the card it actually ran on rather than on every card in the host. */
+/** Both accelerator queries report the gpu uuid, so a process lands on the card it actually ran on rather than on every card in the host, and a card whose driver reports a field as unavailable is kept with what it did report. */
 function parseAccelerator(lines: string[] | undefined): ProbeEvidenceAccelerator[] | null {
   if (!lines) return null;
   if (lines.some(line => line.trim() === "accel: unavailable")) return null;
@@ -51,13 +51,13 @@ function parseAccelerator(lines: string[] | undefined): ProbeEvidenceAccelerator
 
   for (const line of lines) {
     const fields = line.split(",").map(field => field.trim());
-    if (fields.length >= 5 && !isNumeric(fields[1]) && isNumeric(fields[2]) && isNumeric(fields[3]) && isNumeric(fields[4])) {
+    if (fields.length >= 5 && !isNumeric(fields[1])) {
       accelerators.push({
         gpuUuid: fields[0],
-        name: fields[1],
-        utilPct: Number(fields[2]),
-        memUsedMb: Number(fields[3]),
-        memTotalMb: Number(fields[4])
+        name: fields.slice(1, -3).join(", "),
+        utilPct: toNumberOrZero(fields[fields.length - 3]),
+        memUsedMb: toNumberOrZero(fields[fields.length - 2]),
+        memTotalMb: toNumberOrZero(fields[fields.length - 1])
       });
     } else if (fields.length >= 4 && isNumeric(fields[1])) {
       const processes = processesByGpu.get(fields[0]) ?? [];

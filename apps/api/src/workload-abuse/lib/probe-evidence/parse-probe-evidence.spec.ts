@@ -43,6 +43,14 @@ describe("parseProbeEvidence", () => {
     ]);
   });
 
+  it("keeps a card and its processes when the driver reports a field as unavailable", () => {
+    const features = parseProbeEvidence("--accel\nGPU-0001, NVIDIA A100, [N/A], 20480, 24576\nGPU-0001, 1234, trainer, 18000\n");
+
+    expect(features.accelerator).toEqual([
+      { name: "NVIDIA A100", utilPct: 0, memUsedMb: 20480, memTotalMb: 24576, processes: [{ pid: 1234, name: "trainer", vramMb: 18000 }] }
+    ]);
+  });
+
   it("returns null accelerator when the tooling is absent", () => {
     const features = parseProbeEvidence("--accel\naccel: unavailable\n");
 
