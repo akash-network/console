@@ -215,13 +215,77 @@ describe(ProviderProxy.name, () => {
     expect(connectionTracker.recordUnreachable).not.toHaveBeenCalled();
   });
 
+  it("abandons a dial the provider has not answered by its deadline", async () => {
+    vi.useFakeTimers();
+    const { proxy, connectionTracker } = setup();
+    const request = stubDial();
+    const error = Object.assign(new Error("socket hang up"), { code: "ECONNRESET" });
+
+    const pending = proxy.connect("https://provider.example.com:8443/status", {
+      method: "GET",
+      providerAddress: "akash1provider",
+      timeout: 15_000
+    });
+    await vi.advanceTimersByTimeAsync(15_000);
+    request.emit("error", error);
+
+    await expect(pending).resolves.toEqual({ ok: false, code: "connectionError", error });
+    expect(request.destroy).toHaveBeenCalled();
+    expect(connectionTracker.recordUnresponsive).toHaveBeenCalledWith("akash1provider|https://provider.example.com:8443", error);
+  });
+
+  it("keeps dialing indefinitely when the caller set no timeout", async () => {
+    vi.useFakeTimers();
+    const { proxy } = setup();
+    const request = stubDial();
+
+    void proxy.connect("https://provider.example.com:8443/status", { method: "GET", providerAddress: "akash1provider" });
+    await vi.advanceTimersByTimeAsync(600_000);
+
+    expect(request.destroy).not.toHaveBeenCalled();
+  });
+
+  it("stops the deadline once the provider answers so a slow body is not cut off", async () => {
+    vi.useFakeTimers();
+    const { proxy } = setup();
+    const { request } = stubDialWithTlsResponse();
+
+    const pending = proxy.connect("https://provider.example.com:8443/status", {
+      method: "GET",
+      providerAddress: "akash1provider",
+      timeout: 15_000
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(pending).resolves.toMatchObject({ ok: true });
+    await vi.advanceTimersByTimeAsync(600_000);
+
+    expect(request.destroy).not.toHaveBeenCalled();
+  });
+
+  it("stops the deadline once the request closes", async () => {
+    vi.useFakeTimers();
+    const { proxy } = setup();
+    const request = stubDial();
+
+    void proxy.connect("https://provider.example.com:8443/status", {
+      method: "GET",
+      providerAddress: "akash1provider",
+      timeout: 15_000
+    });
+    request.emit("close");
+    await vi.advanceTimersByTimeAsync(15_000);
+
+    expect(request.destroy).not.toHaveBeenCalled();
+  });
+
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
   function stubCertRejectedDialThenPendingDial() {
-    const rejectedRequest = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn(), reusedSocket: false });
-    const collateralRequest = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn(), reusedSocket: false });
+    const rejectedRequest = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn() });
+    const collateralRequest = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn() });
     const socket = Object.assign(Object.create(TLSSocket.prototype) as TLSSocket, {
       authorized: false,
       getPeerX509Certificate: vi.fn().mockReturnValue(mock<X509Certificate>())
@@ -237,13 +301,13 @@ describe(ProviderProxy.name, () => {
   }
 
   function stubDial() {
-    const request = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn(), reusedSocket: false });
+    const request = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn() });
     vi.spyOn(https, "request").mockImplementation(() => request as unknown as ClientRequest);
     return request;
   }
 
   function stubDialWithTlsResponse() {
-    const request = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn(), reusedSocket: false });
+    const request = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn() });
     const socket = Object.assign(Object.create(TLSSocket.prototype) as TLSSocket, { authorized: true });
     const response = Object.assign(new EventEmitter(), { socket, destroy: vi.fn(), pause: vi.fn(), resume: vi.fn() });
     vi.spyOn(https, "request").mockImplementation((_url, _options, callback) => {
@@ -254,7 +318,7 @@ describe(ProviderProxy.name, () => {
   }
 
   function stubDialWithUnverifiedTlsResponse() {
-    const request = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn(), reusedSocket: false });
+    const request = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn() });
     const socket = Object.assign(Object.create(TLSSocket.prototype) as TLSSocket, {
       authorized: false,
       getPeerX509Certificate: vi.fn().mockReturnValue(mock<X509Certificate>())
@@ -268,7 +332,7 @@ describe(ProviderProxy.name, () => {
   }
 
   function stubDialFailure(error: Error) {
-    const request = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn(), reusedSocket: false });
+    const request = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn() });
     vi.spyOn(https, "request").mockImplementation(() => {
       setImmediate(() => request.emit("error", error));
       return request as unknown as ClientRequest;
