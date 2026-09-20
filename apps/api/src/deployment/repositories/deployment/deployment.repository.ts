@@ -8,7 +8,7 @@ import { CHAIN_DB } from "@src/chain";
 
 export interface StaleDeploymentsOptions {
   staleBeforeHeight: number;
-  owner: string;
+  owners: string[];
 }
 
 export interface ProviderCleanupOptions {
@@ -27,7 +27,7 @@ export interface DeploymentActivityWindow {
   endDate: string;
 }
 
-/** Heights reach the query through a literal, so anything but a plain integer is refused before it can be interpolated. */
+/** A missing height would bind as NULL and match nothing, so anything but a plain integer is refused before the query runs. */
 function asHeight(value: number): number {
   if (!Number.isSafeInteger(value)) {
     throw new TypeError(`Expected a block height, received ${value}`);
@@ -52,7 +52,11 @@ export interface DatabaseDeploymentListParams {
 }
 
 export interface StaleDeploymentsOutput {
-  dseq: number;
+  dseq: string;
+}
+
+export interface StaleDeployment extends StaleDeploymentsOutput {
+  owner: string;
 }
 
 export interface DeploymentKey {
@@ -117,32 +121,29 @@ export class DeploymentRepository {
     });
   }
 
-  async findStaleDeployments(options: StaleDeploymentsOptions): Promise<StaleDeploymentsOutput[]> {
-    const deployments = await Deployment.findAll({
-      attributes: ["dseq"],
-      include: [
-        {
-          model: Lease,
-          attributes: [],
-          required: false
-        }
-      ],
-      where: {
-        owner: options.owner,
-        createdHeight: {
-          [Op.lt]: options.staleBeforeHeight
-        },
-        closedHeight: null
-      },
-      group: ["deployment.dseq"],
-      having: literal(
-        `COUNT("leases"."deploymentId") FILTER (WHERE "leases"."closedHeight" IS NULL) = 0 ` +
-          `AND COALESCE(MAX("leases"."closedHeight"), 0) < ${asHeight(options.staleBeforeHeight)}`
-      ),
-      raw: true
-    });
+  /** Owners reach the query as one array rather than one call each, so a sweep costs a query per batch instead of a query per wallet. */
+  async findStaleDeployments(options: StaleDeploymentsOptions): Promise<StaleDeployment[]> {
+    if (options.owners.length === 0) return [];
 
-    return deployments ? (deployments as unknown as StaleDeploymentsOutput[]) : [];
+    const staleBeforeHeight = asHeight(options.staleBeforeHeight);
+
+    return await this.#chainDb.query<StaleDeployment>(
+      `/* deployment:staleByOwners */
+      SELECT d."owner", d."dseq"
+      FROM deployment d
+      JOIN unnest($1::text[]) AS o(owner) ON d."owner" = o.owner
+      WHERE d."closedHeight" IS NULL
+        AND d."createdHeight" < $2
+        AND NOT EXISTS (
+          SELECT 1 FROM lease live
+          WHERE live."deploymentId" = d."id" AND live."closedHeight" IS NULL
+        )
+        AND COALESCE((SELECT MAX(last."closedHeight") FROM lease last WHERE last."deploymentId" = d."id"), 0) < $2`,
+      {
+        bind: [options.owners, staleBeforeHeight],
+        type: QueryTypes.SELECT
+      }
+    );
   }
 
   async findDeploymentsForProvider(options: ProviderCleanupOptions): Promise<StaleDeploymentsOutput[]> {

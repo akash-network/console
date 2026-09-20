@@ -30,7 +30,7 @@ export class TopUpDeploymentsController {
   }
 
   async cleanUpStaleDeployment(options: CleanUpStaleDeploymentsParams) {
-    await this.staleDeploymentsCleanerService.cleanup(options);
+    return await this.staleDeploymentsCleanerService.cleanup(options);
   }
 
   async notifyExpiringDeployments(options: DryRunOptions) {

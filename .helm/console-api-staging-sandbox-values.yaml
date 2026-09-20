@@ -17,8 +17,11 @@ jobs:
       - ./dist/instrumentation.js
       - ./dist/console.js
       - refill-wallets
+  # Start minutes are offset off every other sweep's so no two jobs start on the same minute.
   - name: cleanup-stale-deployments
-    schedule: "30 10 * * 2" # 10:30 AM every Tuesday
+    schedule: "4,14,24,34,44,54 * * * *" # every 10 minutes
+    concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 540
     command:
       - node
       - --require
