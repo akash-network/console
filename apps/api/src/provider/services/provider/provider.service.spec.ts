@@ -307,6 +307,41 @@ describe(ProviderService.name, () => {
 
       expect(providerProxyService.request).toHaveBeenCalledTimes(1);
     });
+
+    it.each([502, 503, 504])("answers 503 when provider-proxy reports the provider unreachable with %i", async upstreamStatus => {
+      const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
+
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = createUserWallet();
+      const unavailableMessage = `Provider ${provider.hostUri} is temporarily unavailable`;
+
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
+      jwtTokenService.generateJwtToken.mockResolvedValue(Ok(faker.string.alphanumeric(32)));
+
+      const axiosError = new AxiosError(`Request failed with status code ${upstreamStatus}`);
+      axiosError.response = {
+        status: upstreamStatus,
+        statusText: "Service Unavailable",
+        data: unavailableMessage,
+        headers: {},
+        config: {} as any
+      };
+      providerProxyService.request.mockRejectedValue(axiosError);
+
+      await expect(
+        service.sendManifest({
+          provider: provider.owner,
+          dseq: faker.string.numeric(6),
+          manifest: '{"quantity":{"val":"1"}}',
+          auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+        })
+      ).rejects.toMatchObject({
+        status: 503,
+        message: unavailableMessage
+      });
+
+      expect(providerProxyService.request).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("getLeaseStatus", () => {

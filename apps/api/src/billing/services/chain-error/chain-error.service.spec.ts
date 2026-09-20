@@ -289,6 +289,35 @@ describe(ChainErrorService.name, () => {
       const appErr = await service.toAppError(err, encodeMessages);
       expect(appErr).toBe(err);
     });
+
+    it("returns a 503 naming no address when the signer refused the connection", async () => {
+      const { service } = setup();
+      const message = "connect ECONNREFUSED 10.43.197.120:3000";
+      const err = new Error(message, { cause: new AxiosError(message, "ECONNREFUSED") });
+
+      const appErr = await service.toAppError(err, encodeMessages);
+      expect(appErr).toBeInstanceOf(ServiceUnavailable);
+      expect(appErr.message).toBe("Service temporarily unavailable");
+    });
+
+    it("returns a 503 naming no host when the signer host does not resolve", async () => {
+      const { service } = setup();
+      const message = "getaddrinfo ENOTFOUND tx-signer-mainnet";
+      const err = new Error(message, { cause: new AxiosError(message, "ENOTFOUND") });
+
+      const appErr = await service.toAppError(err, encodeMessages);
+      expect(appErr).toBeInstanceOf(ServiceUnavailable);
+      expect(appErr.message).toBe("Service temporarily unavailable");
+    });
+
+    it("returns original error when a responseless cause carries no transport code", async () => {
+      const { service } = setup();
+      const message = "socket hang up";
+      const err = new Error(message, { cause: new AxiosError(message) });
+
+      const appErr = await service.toAppError(err, encodeMessages);
+      expect(appErr).toBe(err);
+    });
   });
 
   describe("isDeploymentClosedError", () => {
