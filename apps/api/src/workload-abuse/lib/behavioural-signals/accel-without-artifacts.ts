@@ -13,7 +13,7 @@ export function evaluateAccelWithoutArtifacts(snapshot: ProbeEvidenceSnapshot, p
 
   if (largestArtifactMb >= params.artifactMinMb) return null;
 
-  return { signal: BEHAVIOURAL_SIGNALS.accelWithoutArtifacts, detail: { heaviestVramMb, largestArtifactMb } };
+  return { signal: BEHAVIOURAL_SIGNALS.accelWithoutArtifacts, detail: { heaviestVramMb, largestArtifactMb: Math.floor(largestArtifactMb) } };
 }
 
 function findHeaviestVramMb(snapshot: ProbeEvidenceSnapshot): number {
@@ -22,6 +22,6 @@ function findHeaviestVramMb(snapshot: ProbeEvidenceSnapshot): number {
 }
 
 function findLargestArtifactMb(snapshot: ProbeEvidenceSnapshot): number {
-  const sizes = (snapshot.artifacts ?? []).map(artifact => Math.round(artifact.sizeBytes / BYTES_PER_MB));
+  const sizes = (snapshot.artifacts ?? []).map(artifact => artifact.sizeBytes / BYTES_PER_MB);
   return sizes.reduce((largest, sizeMb) => Math.max(largest, sizeMb), 0);
 }

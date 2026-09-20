@@ -52,6 +52,18 @@ describe("evaluateAccelWithoutArtifacts", () => {
     expect(evaluateAccelWithoutArtifacts(snapshot, params)).toBeNull();
   });
 
+  it("fires when the largest artifact sits just under the threshold", () => {
+    const { snapshot, params } = setup({ vramMb: 18_000, artifacts: [{ path: "/opt/run", sizeBytes: 268_016_025 }], artifactMinMb: 256 });
+
+    expect(evaluateAccelWithoutArtifacts(snapshot, params)?.detail).toEqual({ heaviestVramMb: 18_000, largestArtifactMb: 255 });
+  });
+
+  it("stays silent when the largest artifact reaches the threshold exactly", () => {
+    const { snapshot, params } = setup({ vramMb: 18_000, artifacts: [{ path: "/opt/run", sizeBytes: 268_435_456 }], artifactMinMb: 256 });
+
+    expect(evaluateAccelWithoutArtifacts(snapshot, params)).toBeNull();
+  });
+
   it("stays silent when the probe collected no disk section", () => {
     const { snapshot, params } = setup({ vramMb: 18_000, artifacts: null });
 

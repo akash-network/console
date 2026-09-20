@@ -163,6 +163,15 @@ describe(BehaviouralSignalReplayService.name, () => {
     expect(evidenceRepository.deleteOlderThan).not.toHaveBeenCalled();
   });
 
+  it("refuses a window that starts after it ends instead of reporting an empty one", async () => {
+    const { service, evidenceRepository } = setup();
+
+    await expect(service.replay({ since: new Date("2026-09-01T00:00:00.000Z"), until: new Date("2026-08-01T00:00:00.000Z") })).rejects.toThrow(
+      /starts after it ends/
+    );
+    expect(evidenceRepository.findCreatedBetween).not.toHaveBeenCalled();
+  });
+
   it("applies the thresholds the operator asked for instead of the configured ones", async () => {
     const { service } = setup({ rows: [createRow({ id: "row-1", service: "web" })] });
 

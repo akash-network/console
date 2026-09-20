@@ -72,4 +72,28 @@ describe("workload abuse env config", () => {
   it("falls back to the default schedule when the initial delay setting is blank", () => {
     expect(envSchema.parse({ WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: " " }).WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN).toEqual([5, 20, 60]);
   });
+
+  it("falls back to the behavioural signal defaults when those variables are set but blank", () => {
+    const config = envSchema.parse({
+      WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED: "",
+      WORKLOAD_ABUSE_SIGNAL_ACCEL_MIN_VRAM_MB: "",
+      WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB: " "
+    });
+
+    expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED).toBe(false);
+    expect(config.WORKLOAD_ABUSE_SIGNAL_ACCEL_MIN_VRAM_MB).toBe(1024);
+    expect(config.WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB).toBe(256);
+  });
+
+  it("still reads the behavioural signal variables when they carry a value", () => {
+    const config = envSchema.parse({
+      WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED: "true",
+      WORKLOAD_ABUSE_SIGNAL_ACCEL_MIN_VRAM_MB: "2048",
+      WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB: "512"
+    });
+
+    expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED).toBe(true);
+    expect(config.WORKLOAD_ABUSE_SIGNAL_ACCEL_MIN_VRAM_MB).toBe(2048);
+    expect(config.WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB).toBe(512);
+  });
 });

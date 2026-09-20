@@ -111,12 +111,15 @@ export const envSchema = z.object({
   WORKLOAD_ABUSE_DOMAIN_BLOCK_MIN_ACCOUNT_AGE_DAYS: z.number({ coerce: true }).int().positive().default(30),
   /** Evidence rows feed the behavioural replay, so they must outlive its 30-day window with margin. */
   WORKLOAD_ABUSE_EVIDENCE_RETENTION_DAYS: z.number({ coerce: true }).int().positive().default(90),
-  WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED: z
-    .enum(["true", "false"])
-    .default("false")
-    .transform(value => value === "true"),
-  WORKLOAD_ABUSE_SIGNAL_ACCEL_MIN_VRAM_MB: z.number({ coerce: true }).int().positive().default(1_024),
-  WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB: z.number({ coerce: true }).int().positive().default(256),
+  WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED: z.preprocess(
+    blankToUndefined,
+    z
+      .enum(["true", "false"])
+      .default("false")
+      .transform(value => value === "true")
+  ),
+  WORKLOAD_ABUSE_SIGNAL_ACCEL_MIN_VRAM_MB: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(1_024)),
+  WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB: z.preprocess(blankToUndefined, z.number({ coerce: true }).int().positive().default(256)),
   /** The list itself lives in Doppler: these are our own endpoints, so a reader learns how the exclusion works but not what it covers. */
   WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: z.preprocess(blankToUndefined, z.string().default("[]").transform(parseRelayEndpoints))
 });

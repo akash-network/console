@@ -107,9 +107,12 @@ export class BehaviouralSignalReplayService {
     };
   }
 
+  /** A reversed window matches no row, so without this an operator reads an empty report as a clean one. */
   #resolveWindow(options: BehaviouralReplayOptions): { since: Date; until: Date } {
     const until = options.until ?? new Date();
     const since = options.since ?? new Date(until.getTime() - DEFAULT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+
+    if (since > until) throw new Error("Replay window starts after it ends");
 
     return { since, until };
   }
