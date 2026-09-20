@@ -2,7 +2,7 @@ import { inject, singleton } from "tsyringe";
 
 import { isWalletInitialized, UserWalletRepository } from "@src/billing/repositories";
 import { type CreateLogger, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, JobQueueService, LOGGER_FACTORY } from "@src/core";
-import { findBehaviouralAgreement } from "@src/workload-abuse/lib/behavioural-signals/agreement";
+import { type BehaviouralAgreement, findBehaviouralAgreement } from "@src/workload-abuse/lib/behavioural-signals/agreement";
 import { withoutFileContents } from "@src/workload-abuse/lib/evidence-scanner/evidence-scanner";
 import { truncateToUtf8Bytes } from "@src/workload-abuse/lib/utf8-text/utf8-text";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
@@ -16,6 +16,11 @@ import { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/service
 
 /** Loki splits a line past 16 KiB into unparseable partials, and a clean verdict has nowhere else to keep what the shell saw. */
 const MAX_LOGGED_EXCERPT_BYTES = 4_096;
+
+/** The probe that confirms a shape can be a clean one, so the row has to carry the streak that confirmed it rather than what that last probe saw. */
+function toShapeExcerpt(agreement: BehaviouralAgreement, excerpt: string): string {
+  return [`[behavioural] service:${agreement.service} probes:${agreement.streak} spanMinutes:${agreement.spanMinutes}`, excerpt].join("\n");
+}
 
 /** Re-reads the wallet and the chain on every run, so a probe that waited an hour decides on what is true when it runs, not when it was queued. */
 @singleton()
@@ -216,7 +221,7 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
       verdict: "behavioural",
       probeStatus: report.probeStatus,
       signals: report.signals,
-      evidenceExcerpt: withoutFileContents(report.excerpt)
+      evidenceExcerpt: withoutFileContents(toShapeExcerpt(agreement, report.excerpt))
     });
     this.instrumentation.recordDetection("behavioural");
 

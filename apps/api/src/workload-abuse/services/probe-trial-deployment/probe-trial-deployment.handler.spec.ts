@@ -241,7 +241,13 @@ describe(ProbeTrialDeploymentHandler.name, () => {
 
     await handler.handle(PAYLOAD);
 
-    expect(detectionRepository.create).toHaveBeenCalledWith(expect.objectContaining({ dseq: PAYLOAD.dseq, verdict: "behavioural" }));
+    expect(detectionRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dseq: PAYLOAD.dseq,
+        verdict: "behavioural",
+        evidenceExcerpt: expect.stringContaining("service:web probes:3 spanMinutes:")
+      })
+    );
     expect(instrumentation.recordDetection).toHaveBeenCalledWith("behavioural");
     expect(jobQueueService.enqueue).toHaveBeenCalledWith(new EnforceTrialAbuse({ walletId: wallet.id, detectionId: "detection-1" }), {
       singletonKey: `enforceTrialAbuse.${wallet.id}`
