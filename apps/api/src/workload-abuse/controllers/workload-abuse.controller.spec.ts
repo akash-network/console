@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type {
+  BehaviouralReplaySummary,
+  BehaviouralSignalReplayService
+} from "@src/workload-abuse/services/behavioural-signal-replay/behavioural-signal-replay.service";
 import type { ProbeEvidenceService } from "@src/workload-abuse/services/probe-evidence/probe-evidence.service";
 import type { TrialAbuseEnforcementJobService } from "@src/workload-abuse/services/trial-abuse-enforcement-job/trial-abuse-enforcement-job.service";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
@@ -61,14 +65,26 @@ describe(WorkloadAbuseController.name, () => {
     expect(probeEvidenceService.purgeExpired).not.toHaveBeenCalled();
   });
 
+  it("returns the replay of the window it was asked for", async () => {
+    const { controller, behaviouralSignalReplayService } = setup();
+    const summary = mock<BehaviouralReplaySummary>({ deployments: [] });
+    behaviouralSignalReplayService.replay.mockResolvedValue(summary);
+    const options = { since: new Date("2026-08-01T00:00:00.000Z") };
+
+    await expect(controller.replayBehaviouralSignals(options)).resolves.toBe(summary);
+
+    expect(behaviouralSignalReplayService.replay).toHaveBeenCalledWith(options);
+  });
+
   function setup() {
     const probeJobService = mock<TrialWorkloadProbeJobService>();
     probeJobService.reconcile.mockResolvedValue();
     const enforcementJobService = mock<TrialAbuseEnforcementJobService>();
     enforcementJobService.reconcile.mockResolvedValue();
     const probeEvidenceService = mock<ProbeEvidenceService>();
-    const controller = new WorkloadAbuseController(probeJobService, enforcementJobService, probeEvidenceService);
+    const behaviouralSignalReplayService = mock<BehaviouralSignalReplayService>();
+    const controller = new WorkloadAbuseController(probeJobService, enforcementJobService, probeEvidenceService, behaviouralSignalReplayService);
 
-    return { controller, probeJobService, enforcementJobService, probeEvidenceService };
+    return { controller, probeJobService, enforcementJobService, probeEvidenceService, behaviouralSignalReplayService };
   }
 });

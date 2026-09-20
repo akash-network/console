@@ -17,6 +17,7 @@ export class WorkloadAbuseInstrumentationService {
   private readonly blockedDomainLookupFailures: Counter;
   private readonly domainBlocks: Counter;
   private readonly evidenceWriteFailures: Counter;
+  private readonly behaviouralFindings: Counter;
 
   constructor(metricsService: MetricsService) {
     this.meter = metricsService.getMeter("workload-abuse", "1.0.0");
@@ -37,6 +38,9 @@ export class WorkloadAbuseInstrumentationService {
     });
     this.evidenceWriteFailures = metricsService.createCounter(this.meter, "workload_abuse_evidence_write_failures_total", {
       description: "Probe evidence statements that failed to persist, by operation"
+    });
+    this.behaviouralFindings = metricsService.createCounter(this.meter, "workload_abuse_behavioural_findings_total", {
+      description: "Behavioural shape signals recorded on probe evidence, by signal"
     });
   }
 
@@ -62,5 +66,9 @@ export class WorkloadAbuseInstrumentationService {
 
   recordEvidenceWriteFailure(operation: EvidenceWriteOperation): void {
     this.evidenceWriteFailures.add(1, { operation });
+  }
+
+  recordBehaviouralFinding(signal: string): void {
+    this.behaviouralFindings.add(1, { signal });
   }
 }

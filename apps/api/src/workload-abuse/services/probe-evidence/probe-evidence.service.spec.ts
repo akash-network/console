@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { type CreateLogger } from "@src/core";
-import type { WorkloadProbeEvidenceRepository } from "@src/workload-abuse/repositories/workload-probe-evidence/workload-probe-evidence.repository";
+import type {
+  WorkloadProbeEvidenceOutput,
+  WorkloadProbeEvidenceRepository
+} from "@src/workload-abuse/repositories/workload-probe-evidence/workload-probe-evidence.repository";
 import type { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 import type { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
 import { ProbeEvidenceService } from "./probe-evidence.service";
@@ -84,6 +87,54 @@ describe(ProbeEvidenceService.name, () => {
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "WORKLOAD_EVIDENCE_WRITE_FAILED", walletId: 42, dseq: "1000001" }));
   });
 
+  it("records the signals that fire on a stored row", async () => {
+    const { service, evidenceRepository, instrumentation } = setup({ signalsEnabled: true });
+
+    const recorded = await service.recordBehaviouralFindings([createEvidenceRow()]);
+
+    expect(evidenceRepository.recordBehaviouralFindings).toHaveBeenCalledWith({
+      id: "evidence-1",
+      findings: [
+        { signal: "accel_without_artifacts", detail: { heaviestVramMb: 18_000, largestArtifactMb: 4 } },
+        { signal: "network_isolated", detail: { excludedRelay: 0, listenPorts: 1 } }
+      ]
+    });
+    expect(recorded).toEqual([{ evidenceId: "evidence-1", service: "web", findings: expect.any(Array) }]);
+    expect(instrumentation.recordBehaviouralFinding).toHaveBeenCalledTimes(2);
+  });
+
+  it("evaluates nothing while behavioural signals are disabled", async () => {
+    const { service, evidenceRepository } = setup({ signalsEnabled: false });
+
+    await expect(service.recordBehaviouralFindings([createEvidenceRow()])).resolves.toEqual([]);
+
+    expect(evidenceRepository.recordBehaviouralFindings).not.toHaveBeenCalled();
+  });
+
+  it("leaves a row alone when no signal fires", async () => {
+    const { service, evidenceRepository } = setup({ signalsEnabled: true });
+
+    const recorded = await service.recordBehaviouralFindings([
+      createEvidenceRow({
+        accelerator: null,
+        netShape: { listenPorts: [8_080], established: [{ localPort: 8_080, remoteIp: "203.0.113.5", remotePort: 51_000, count: 1 }] }
+      })
+    ]);
+
+    expect(recorded).toEqual([]);
+    expect(evidenceRepository.recordBehaviouralFindings).not.toHaveBeenCalled();
+  });
+
+  it("logs and counts a findings write failure without rethrowing", async () => {
+    const { service, evidenceRepository, instrumentation, logger } = setup({ signalsEnabled: true });
+    evidenceRepository.recordBehaviouralFindings.mockRejectedValue(new Error("connection refused"));
+
+    await expect(service.recordBehaviouralFindings([createEvidenceRow()])).resolves.toEqual([]);
+
+    expect(instrumentation.recordEvidenceWriteFailure).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "WORKLOAD_EVIDENCE_FINDINGS_WRITE_FAILED", walletId: 42, dseq: "1000001" }));
+  });
+
   it("purges rows older than the retention window", async () => {
     const { service, evidenceRepository } = setup();
 
@@ -102,12 +153,31 @@ describe(ProbeEvidenceService.name, () => {
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "WORKLOAD_EVIDENCE_PURGE_FAILED" }));
   });
 
-  function setup(input?: { retentionDays?: number }) {
+  function createEvidenceRow(overrides: Partial<WorkloadProbeEvidenceOutput> = {}) {
+    return mock<WorkloadProbeEvidenceOutput>({
+      id: "evidence-1",
+      walletId: 42,
+      dseq: "1000001",
+      service: "web",
+      accelerator: [{ name: "accelerator-0", utilPct: 99, memUsedMb: 20_480, memTotalMb: 24_576, processes: [{ pid: 1234, name: "worker", vramMb: 18_000 }] }],
+      artifacts: [{ path: "/opt/worker", sizeBytes: 4_194_304 }],
+      netShape: { listenPorts: [22], established: [] },
+      ...overrides
+    });
+  }
+
+  function setup(input?: { retentionDays?: number; signalsEnabled?: boolean }) {
     const evidenceRepository = mock<WorkloadProbeEvidenceRepository>();
     const instrumentation = mock<WorkloadAbuseInstrumentationService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
-    const config = mockConfigService<WorkloadAbuseConfigService>({ WORKLOAD_ABUSE_EVIDENCE_RETENTION_DAYS: input?.retentionDays ?? 90 });
+    const config = mockConfigService<WorkloadAbuseConfigService>({
+      WORKLOAD_ABUSE_EVIDENCE_RETENTION_DAYS: input?.retentionDays ?? 90,
+      WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED: input?.signalsEnabled ?? false,
+      WORKLOAD_ABUSE_SIGNAL_ACCEL_MIN_VRAM_MB: 1_024,
+      WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB: 256,
+      WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: []
+    });
     const service = new ProbeEvidenceService(evidenceRepository, instrumentation, config, createLogger);
 
     return { service, evidenceRepository, instrumentation, logger, config };

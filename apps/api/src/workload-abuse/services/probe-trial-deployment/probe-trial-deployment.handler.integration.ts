@@ -19,6 +19,16 @@ const MAX_ATTEMPTS = 30;
 
 const ACCELERATED_EVIDENCE = "--accel\nGPU-0001, NVIDIA A100, 95, 20480, 24576\nGPU-0001, 1234, python3, 18000";
 
+const ISOLATED_ACCELERATED_EVIDENCE = [
+  "--accel",
+  "GPU-0001, NVIDIA A100, 95, 20480, 24576",
+  "GPU-0001, 1234, python3, 18000",
+  "--netl",
+  "      2 listen=22",
+  "--disk",
+  "4194304 /opt/worker"
+].join("\n");
+
 const jobWorkers = useJobWorkers(() => [container.resolve(ProbeTrialDeploymentHandler)]);
 
 describe(ProbeTrialDeploymentHandler.name, () => {
@@ -104,6 +114,34 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     expect(await findEvidence()).toHaveLength(0);
   });
 
+  it("records the behavioural signals on the row once the signals are enabled", async () => {
+    const { probeDeployment, findEvidence } = await setup({
+      verdict: "clean",
+      behaviouralSignalsEnabled: true,
+      shellEvidence: [{ service: "ssh", provider: "akash1provider", status: "completed", evidence: ISOLATED_ACCELERATED_EVIDENCE }]
+    });
+
+    await probeDeployment();
+
+    const [evidence] = await findEvidence();
+    expect(evidence.behaviouralFindings).toEqual([
+      { signal: "accel_without_artifacts", detail: { heaviestVramMb: 18000, largestArtifactMb: 4 } },
+      { signal: "network_isolated", detail: { excludedRelay: 0, listenPorts: 1 } }
+    ]);
+  });
+
+  it("leaves the row without findings while the signals are disabled", async () => {
+    const { probeDeployment, findEvidence } = await setup({
+      verdict: "clean",
+      shellEvidence: [{ service: "ssh", provider: "akash1provider", status: "completed", evidence: ISOLATED_ACCELERATED_EVIDENCE }]
+    });
+
+    await probeDeployment();
+
+    const [evidence] = await findEvidence();
+    expect(evidence.behaviouralFindings).toBeNull();
+  });
+
   it("records nothing more for a deployment already judged abusive", async () => {
     const { probeDeployment, findDetections, probe, seedExistingDetection } = await setup({ verdict: "hard" });
     await seedExistingDetection();
@@ -120,6 +158,7 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     isTrialing?: boolean;
     probeStatus?: ProbeReport["probeStatus"];
     shellEvidence?: ProbeReport["shellEvidence"];
+    behaviouralSignalsEnabled?: boolean;
   }) {
     const { enqueue, startWorkers } = await jobWorkers();
     const detectionRepository = container.resolve(WorkloadAbuseDetectionRepository);
@@ -129,7 +168,11 @@ describe(ProbeTrialDeploymentHandler.name, () => {
 
     const config = container.resolve(WorkloadAbuseConfigService);
     const readConfig = config.get.bind(config);
-    vi.spyOn(config, "get").mockImplementation((key => (key === "WORKLOAD_ABUSE_PROBE_ENABLED" ? true : readConfig(key))) as typeof config.get);
+    const overrides: Record<string, unknown> = {
+      WORKLOAD_ABUSE_PROBE_ENABLED: true,
+      WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED: input.behaviouralSignalsEnabled ?? false
+    };
+    vi.spyOn(config, "get").mockImplementation((key => (key in overrides ? overrides[key] : readConfig(key))) as typeof config.get);
 
     const probe = vi.spyOn(container.resolve(TrialWorkloadProbeService), "probe").mockResolvedValue({
       verdict: input.verdict,

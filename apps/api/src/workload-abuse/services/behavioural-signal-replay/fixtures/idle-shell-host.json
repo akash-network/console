@@ -1,0 +1,15 @@
+{
+  "deployment": "idle-shell-host",
+  "snapshots": [
+    {
+      "accelerator": null,
+      "artifacts": [{ "path": "/usr/bin/toolchain", "sizeBytes": 20971520 }],
+      "netShape": { "listenPorts": [22], "established": [{ "localPort": 40100, "remoteIp": "10.0.0.7", "remotePort": 443, "count": 1 }] }
+    },
+    {
+      "accelerator": null,
+      "artifacts": [{ "path": "/usr/bin/toolchain", "sizeBytes": 20971520 }],
+      "netShape": { "listenPorts": [22], "established": [{ "localPort": 40101, "remoteIp": "10.0.0.7", "remotePort": 443, "count": 1 }] }
+    }
+  ]
+}

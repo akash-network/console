@@ -9,7 +9,7 @@ import type {
 } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import type { WorkloadProbeEvidenceOutput } from "@src/workload-abuse/repositories/workload-probe-evidence/workload-probe-evidence.repository";
 import { EnforceTrialAbuse } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
-import type { ProbeEvidenceService } from "@src/workload-abuse/services/probe-evidence/probe-evidence.service";
+import type { ProbeEvidenceService, RecordedBehaviouralFindings } from "@src/workload-abuse/services/probe-evidence/probe-evidence.service";
 import type { ProbeReport, TrialWorkloadProbeService } from "@src/workload-abuse/services/trial-workload-probe/trial-workload-probe.service";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import type { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
@@ -107,6 +107,28 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     await handler.handle(PAYLOAD);
 
     expect(probeEvidenceService.recordEvidence).not.toHaveBeenCalled();
+  });
+
+  it("hands the rows it just wrote to the behavioural signals", async () => {
+    const evidenceRows = [mock<WorkloadProbeEvidenceOutput>({ id: "evidence-1", service: "web" })];
+    const { handler, probeEvidenceService } = setup({ report: createReport({ verdict: "clean" }), evidenceRows });
+
+    await handler.handle(PAYLOAD);
+
+    expect(probeEvidenceService.recordBehaviouralFindings).toHaveBeenCalledWith(evidenceRows);
+  });
+
+  it("logs the signals recorded for each service they fired on", async () => {
+    const { handler, logger } = setup({
+      report: createReport({ verdict: "clean" }),
+      behaviouralFindings: [{ evidenceId: "evidence-1", service: "web", findings: [{ signal: "network_isolated", detail: {} }] }]
+    });
+
+    await handler.handle(PAYLOAD);
+
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "TRIAL_WORKLOAD_BEHAVIOURAL_FINDING", service: "web", evidenceId: "evidence-1", signals: ["network_isolated"] })
+    );
   });
 
   it("logs what the shell saw for every verdict, cut so the line survives log shipping", async () => {
@@ -272,6 +294,8 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     maxAttempts?: number;
     existingDetection?: boolean;
     enforcementMode?: "detect" | "enforce";
+    evidenceRows?: WorkloadProbeEvidenceOutput[];
+    behaviouralFindings?: RecordedBehaviouralFindings[];
   }) {
     const wallet = input.wallet === undefined ? createUserWallet({ isTrialing: true }) : input.wallet;
     const userWalletRepository = mock<UserWalletRepository>();
@@ -283,9 +307,10 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     detectionRepository.create.mockResolvedValue(mock<WorkloadAbuseDetectionOutput>({ id: "detection-1" }));
     detectionRepository.findOneBy.mockResolvedValue(input.existingDetection ? mock<WorkloadAbuseDetectionOutput>({ id: "detection-0" }) : undefined);
     const probeEvidenceService = mock<ProbeEvidenceService>();
-    probeEvidenceService.recordEvidence.mockImplementation(async ({ shellEvidence }) =>
-      shellEvidence.map(entry => mock<WorkloadProbeEvidenceOutput>({ service: entry.service }))
+    probeEvidenceService.recordEvidence.mockImplementation(
+      async ({ shellEvidence }) => input.evidenceRows ?? shellEvidence.map(entry => mock<WorkloadProbeEvidenceOutput>({ service: entry.service }))
     );
+    probeEvidenceService.recordBehaviouralFindings.mockResolvedValue(input.behaviouralFindings ?? []);
     const instrumentation = mock<WorkloadAbuseInstrumentationService>();
     const config = mockConfigService<WorkloadAbuseConfigService>({
       WORKLOAD_ABUSE_PROBE_ENABLED: input.enabled ?? true,

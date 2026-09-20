@@ -27,6 +27,26 @@ describe("workload abuse env config", () => {
     ]);
   });
 
+  it("defaults behavioural signals to off with no relay endpoints", () => {
+    const config = envSchema.parse({});
+
+    expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED).toBe(false);
+    expect(config.WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS).toEqual([]);
+    expect(config.WORKLOAD_ABUSE_SIGNAL_ACCEL_MIN_VRAM_MB).toBe(1024);
+    expect(config.WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB).toBe(256);
+  });
+
+  it("parses the relay endpoint list", () => {
+    const config = envSchema.parse({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: JSON.stringify(["10.0.0.7", "10.0.0.8:443"]) });
+
+    expect(config.WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS).toEqual(["10.0.0.7", "10.0.0.8:443"]);
+  });
+
+  it("rejects a relay endpoint list that is not a JSON array of strings", () => {
+    expect(() => envSchema.parse({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: "10.0.0.7" })).toThrow(/ip or ip:port/);
+    expect(() => envSchema.parse({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: JSON.stringify([443]) })).toThrow(/ip or ip:port/);
+  });
+
   it("rejects a signature document that is not JSON", () => {
     expect(() => envSchema.parse({ WORKLOAD_ABUSE_SIGNATURES: "not json" })).toThrow(/valid signature document/);
   });
