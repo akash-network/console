@@ -13,6 +13,10 @@ const ESCROW_SETTLEMENT_UNDERFLOW_MESSAGE = "negative decimal coin amount" as co
 /** cosmos-sdk reworded this between v0.45 ("%s not allowed to pay fees from %s") and v0.53 ("%s does not allow to pay fees for %s"); mainnet emits the latter. */
 const FEE_GRANT_REFUSED_MESSAGE = "does not allow to pay fees";
 
+/** A signer that refused the connection or never resolved carries no response to read a status from, yet it is as much a dependency outage as a 5xx from one. */
+const UNREACHABLE_UPSTREAM_CODES = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "EHOSTUNREACH", "ENETUNREACH"]);
+
+
 @singleton()
 export class ChainErrorService {
   private readonly ERRORS = {
@@ -123,8 +127,12 @@ export class ChainErrorService {
 
   private getUpstreamStatusFromCause(error: Error): number | undefined {
     const { cause } = error;
-    if (!axios.isAxiosError(cause) || !cause.response) {
+    if (!axios.isAxiosError(cause)) {
       return undefined;
+    }
+
+    if (!cause.response) {
+      return UNREACHABLE_UPSTREAM_CODES.has(cause.code ?? "") ? 503 : undefined;
     }
 
     const status = cause.response.status;
