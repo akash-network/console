@@ -78,7 +78,7 @@ describe(ProbeEvidenceService.name, () => {
         verdict: "clean",
         shellEvidence: [{ service: "web", provider: "akash1provider", status: "completed", evidence: "--disk\n1 /root/x\n" }]
       })
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual([]);
 
     expect(instrumentation.recordEvidenceWriteFailure).toHaveBeenCalledWith("insert");
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "WORKLOAD_EVIDENCE_WRITE_FAILED", walletId: 42, dseq: "1000001" }));

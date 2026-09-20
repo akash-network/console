@@ -95,19 +95,21 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
 
     const detectionId = report.verdict === "clean" ? undefined : await this.#recordDetection(wallet, dseq, report);
 
-    await this.probeEvidenceService.recordEvidence({
+    const evidenceRows = await this.probeEvidenceService.recordEvidence({
       walletId: wallet.id,
       dseq,
       verdict: report.verdict,
       detectionId,
       shellEvidence: report.shellEvidence
     });
-    this.logger.info({
-      event: "TRIAL_WORKLOAD_EVIDENCE_RECORDED",
-      ...context,
-      userId: wallet.userId,
-      services: report.shellEvidence.map(shellEvidence => shellEvidence.service)
-    });
+    if (evidenceRows.length) {
+      this.logger.info({
+        event: "TRIAL_WORKLOAD_EVIDENCE_RECORDED",
+        ...context,
+        userId: wallet.userId,
+        services: evidenceRows.map(row => row.service)
+      });
+    }
 
     this.logger.info({
       event: "TRIAL_WORKLOAD_PROBED",

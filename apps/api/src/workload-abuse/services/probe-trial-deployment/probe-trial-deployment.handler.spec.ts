@@ -7,6 +7,7 @@ import type {
   WorkloadAbuseDetectionOutput,
   WorkloadAbuseDetectionRepository
 } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
+import type { WorkloadProbeEvidenceOutput } from "@src/workload-abuse/repositories/workload-probe-evidence/workload-probe-evidence.repository";
 import { EnforceTrialAbuse } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
 import type { ProbeEvidenceService } from "@src/workload-abuse/services/probe-evidence/probe-evidence.service";
 import type { ProbeReport, TrialWorkloadProbeService } from "@src/workload-abuse/services/trial-workload-probe/trial-workload-probe.service";
@@ -90,6 +91,14 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     await handler.handle(PAYLOAD);
 
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_WORKLOAD_EVIDENCE_RECORDED", services: ["ssh"] }));
+  });
+
+  it("says nothing about recorded evidence when the probe reached no service", async () => {
+    const { handler, logger } = setup({ report: createReport({ verdict: "clean", shellEvidence: [] }) });
+
+    await handler.handle(PAYLOAD);
+
+    expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_WORKLOAD_EVIDENCE_RECORDED" }));
   });
 
   it("records no evidence when the deployment has no live lease", async () => {
@@ -274,6 +283,9 @@ describe(ProbeTrialDeploymentHandler.name, () => {
     detectionRepository.create.mockResolvedValue(mock<WorkloadAbuseDetectionOutput>({ id: "detection-1" }));
     detectionRepository.findOneBy.mockResolvedValue(input.existingDetection ? mock<WorkloadAbuseDetectionOutput>({ id: "detection-0" }) : undefined);
     const probeEvidenceService = mock<ProbeEvidenceService>();
+    probeEvidenceService.recordEvidence.mockImplementation(async ({ shellEvidence }) =>
+      shellEvidence.map(entry => mock<WorkloadProbeEvidenceOutput>({ service: entry.service }))
+    );
     const instrumentation = mock<WorkloadAbuseInstrumentationService>();
     const config = mockConfigService<WorkloadAbuseConfigService>({
       WORKLOAD_ABUSE_PROBE_ENABLED: input.enabled ?? true,

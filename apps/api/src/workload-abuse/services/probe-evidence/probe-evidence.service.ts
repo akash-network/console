@@ -2,7 +2,10 @@ import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { parseProbeEvidence } from "@src/workload-abuse/lib/probe-evidence/parse-probe-evidence";
-import { WorkloadProbeEvidenceRepository } from "@src/workload-abuse/repositories/workload-probe-evidence/workload-probe-evidence.repository";
+import {
+  type WorkloadProbeEvidenceOutput,
+  WorkloadProbeEvidenceRepository
+} from "@src/workload-abuse/repositories/workload-probe-evidence/workload-probe-evidence.repository";
 import type { ShellEvidence } from "@src/workload-abuse/services/trial-workload-probe/trial-workload-probe.service";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 import { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
@@ -20,11 +23,17 @@ export class ProbeEvidenceService {
     this.logger = createLogger({ context: ProbeEvidenceService.name });
   }
 
-  async recordEvidence(input: { walletId: number; dseq: string; verdict: string; detectionId?: string; shellEvidence: ShellEvidence[] }): Promise<void> {
-    if (!input.shellEvidence.length) return;
+  async recordEvidence(input: {
+    walletId: number;
+    dseq: string;
+    verdict: string;
+    detectionId?: string;
+    shellEvidence: ShellEvidence[];
+  }): Promise<WorkloadProbeEvidenceOutput[]> {
+    if (!input.shellEvidence.length) return [];
 
     try {
-      await this.evidenceRepository.insertMany(
+      return await this.evidenceRepository.insertMany(
         input.shellEvidence.map(shellEvidence => {
           const features = parseProbeEvidence(shellEvidence.evidence);
           return {
@@ -45,6 +54,7 @@ export class ProbeEvidenceService {
     } catch (error) {
       this.instrumentation.recordEvidenceWriteFailure("insert");
       this.logger.warn({ event: "WORKLOAD_EVIDENCE_WRITE_FAILED", error, walletId: input.walletId, dseq: input.dseq });
+      return [];
     }
   }
 
