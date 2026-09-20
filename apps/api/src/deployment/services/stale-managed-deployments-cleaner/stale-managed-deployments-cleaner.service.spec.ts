@@ -134,7 +134,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
 
       const result = await service.cleanup({ concurrency: 1, dryRun: false });
 
-      expect(result.err).toBe(true);
+      expect(result.ok).toBe(true);
       expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
       expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CLEAN_UP_ALREADY_CLOSED" }));
       expect(errorLogger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CLEAN_UP_ERROR", error }));
@@ -294,10 +294,10 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_WOULD_CLOSE", owner: OWNER, dseqs: ["9"] });
     });
 
-    it("carries on to the other owners when one of them fails", async () => {
+    it("carries on to the other owners and still succeeds when one of them fails", async () => {
       const failure = new Error("some unexpected failure");
       const executeDerivedTx = vi.fn().mockRejectedValueOnce(failure).mockResolvedValue(buildOkTx());
-      const { service, errorLogger } = setup({
+      const { service, logger, errorLogger } = setup({
         orphans: [
           { owner: "akash1a", dseq: "1" },
           { owner: "akash1b", dseq: "2" }
@@ -309,8 +309,9 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       const result = await service.cleanup({ concurrency: 1, dryRun: false });
 
       expect(executeDerivedTx).toHaveBeenCalledTimes(2);
-      expect(result.err).toBe(true);
+      expect(result.ok).toBe(true);
       expect(errorLogger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CLEAN_UP_ERROR", error: failure }));
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CLEAN_UP_SWEEP_END", failedOwners: 1, screenFailures: 0 }));
     });
 
     it("succeeds without an error when every owner closes", async () => {
@@ -321,7 +322,15 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       expect(result.ok).toBe(true);
     });
 
-    it("carries on to the next batch when screening one of them fails", async () => {
+    it("reports how long the sweep took", async () => {
+      const { service, logger } = setup();
+
+      await service.cleanup({ concurrency: 1, dryRun: false });
+
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CLEAN_UP_SWEEP_END", durationMs: expect.any(Number) }));
+    });
+
+    it("carries on to the next batch but fails the run when screening one of them fails", async () => {
       const screenFailure = new Error("chain db timed out");
       const { service, deploymentRepository, logger } = setup({ walletBatches: [2, 2] });
       deploymentRepository.findStaleDeployments.mockRejectedValueOnce(screenFailure).mockResolvedValueOnce([]);
@@ -330,7 +339,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
 
       expect(deploymentRepository.findStaleDeployments).toHaveBeenCalledTimes(2);
       expect(result.err).toBe(true);
-      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CLEAN_UP_SWEEP_END" }));
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CLEAN_UP_SWEEP_END", screenFailures: 1, failedOwners: 0 }));
     });
 
     it("logs the unsettleable event and swallows the error without refilling fees or retrying", async () => {

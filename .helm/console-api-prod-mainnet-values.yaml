@@ -19,7 +19,7 @@ jobs:
       - ./dist/instrumentation.js
       - ./dist/console.js
       - refill-wallets
-  # Offset off every other sweep's minute, mint-act's */10 included, so two jobs never contend for the signer at once.
+  # Start minutes are offset off every other sweep's, mint-act's */10 included, so no two jobs start on the same minute.
   - name: cleanup-stale-deployments
     schedule: "4,14,24,34,44,54 * * * *" # every 10 minutes
     concurrencyPolicy: Forbid

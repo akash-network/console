@@ -314,6 +314,70 @@ describe(UserWalletRepository.name, () => {
     });
   });
 
+  describe("findManagedIteratively", () => {
+    it("yields every wallet that holds an address, in id order across batches", async () => {
+      const { createWallet, collectYielded } = await setupManagedWallets();
+      const first = await createWallet();
+      const second = await createWallet();
+      const third = await createWallet();
+
+      const yielded = await collectYielded([first, second, third], 2);
+
+      expect(yielded).toEqual([
+        { id: first.id, address: first.address },
+        { id: second.id, address: second.address },
+        { id: third.id, address: third.address }
+      ]);
+    });
+
+    it("leaves out a wallet that has no address yet, since it owns nothing on chain", async () => {
+      const { createWallet, collectYielded } = await setupManagedWallets();
+      const addressless = await createWallet({ withAddress: false });
+      const managed = await createWallet();
+
+      const yielded = await collectYielded([addressless, managed], 10);
+
+      expect(yielded).toEqual([{ id: managed.id, address: managed.address }]);
+    });
+
+    it("caps every batch at the batch size", async () => {
+      const { userWalletRepository, createWallet } = await setupManagedWallets();
+      await createWallet();
+      await createWallet();
+      await createWallet();
+      const sizes: number[] = [];
+
+      for await (const batch of userWalletRepository.findManagedIteratively({ batchSize: 2 })) {
+        sizes.push(batch.length);
+      }
+
+      expect(Math.max(...sizes)).toBeLessThanOrEqual(2);
+    });
+  });
+
+  async function setupManagedWallets() {
+    const userRepository = container.resolve(UserRepository);
+    const userWalletRepository = container.resolve(UserWalletRepository);
+
+    async function createWallet(input: { withAddress?: boolean } = {}) {
+      const user = await userRepository.create({ userId: faker.string.uuid() });
+      return await userWalletRepository.create({ userId: user.id, address: input.withAddress === false ? undefined : createAkashAddress() });
+    }
+
+    async function collectYielded(wallets: { id: number }[], batchSize: number) {
+      const ids = new Set(wallets.map(wallet => wallet.id));
+      const yielded = [];
+
+      for await (const batch of userWalletRepository.findManagedIteratively({ batchSize })) {
+        yielded.push(...batch.filter(wallet => ids.has(wallet.id)));
+      }
+
+      return yielded;
+    }
+
+    return { userWalletRepository, createWallet, collectYielded };
+  }
+
   async function setupDomain() {
     const userRepository = container.resolve(UserRepository);
     const userWalletRepository = container.resolve(UserWalletRepository);

@@ -61,8 +61,9 @@ export class StaleManagedDeploymentsCleanerService {
     this.logger = createLogger({ context: StaleManagedDeploymentsCleanerService.name });
   }
 
-  /** Asks the chain which of a batch of wallets owns an orphan instead of asking each wallet in turn, so a run costs a query per batch, not per wallet. */
+  /** One owner's failed close is logged and counted rather than failing the run, because a persistently failing owner would otherwise keep every run red. */
   async cleanup(options: CleanUpStaleDeploymentsParams): Promise<Result<void, unknown[]>> {
+    const startedAt = Date.now();
     const indexedHeight = await this.#resolveFreshIndexedHeight();
 
     if (indexedHeight === undefined) {
@@ -70,9 +71,10 @@ export class StaleManagedDeploymentsCleanerService {
     }
 
     const staleBeforeHeight = indexedHeight - this.MAX_LIVE_BLOCKS;
-    const errors: unknown[] = [];
+    const screenErrors: unknown[] = [];
     let screened = 0;
     let owners = 0;
+    let failedOwners = 0;
 
     this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SWEEP_START", staleBeforeHeight, dryRun: options.dryRun });
 
@@ -81,16 +83,25 @@ export class StaleManagedDeploymentsCleanerService {
 
       screened += wallets.length;
       owners += batch.owners;
-      errors.push(...batch.errors);
+      failedOwners += batch.failedOwners;
+      screenErrors.push(...batch.screenErrors);
     }
 
-    this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SWEEP_END", screened, owners, failed: errors.length, dryRun: options.dryRun });
+    this.logger.info({
+      event: "DEPLOYMENT_CLEAN_UP_SWEEP_END",
+      screened,
+      owners,
+      failedOwners,
+      screenFailures: screenErrors.length,
+      durationMs: Date.now() - startedAt,
+      dryRun: options.dryRun
+    });
 
-    return errors.length > 0 ? Err(errors) : Ok(undefined);
+    return screenErrors.length > 0 ? Err(screenErrors) : Ok(undefined);
   }
 
   async cleanUpForWallet(wallet: UserWalletOutput, maxLiveBlocks: number = this.MAX_LIVE_BLOCKS) {
-    const staleBeforeHeight = await this.#resolveStaleBeforeHeight(maxLiveBlocks);
+    const staleBeforeHeight = (await this.blockRepository.getLatestProcessedHeight()) - maxLiveBlocks;
     const managedWallet = { id: wallet.id, address: wallet.address! };
     const deployments = await this.deploymentRepository.findStaleDeployments({ owners: [managedWallet.address], staleBeforeHeight });
 
@@ -102,15 +113,15 @@ export class StaleManagedDeploymentsCleanerService {
     wallets: ManagedWalletRef[],
     staleBeforeHeight: number,
     options: CleanUpStaleDeploymentsParams
-  ): Promise<{ owners: number; errors: unknown[] }> {
-    const errors: unknown[] = [];
+  ): Promise<{ owners: number; failedOwners: number; screenErrors: unknown[] }> {
+    const screenErrors: unknown[] = [];
     const deployments = await this.errorService.execWithErrorHandler(
       {
         event: "DEPLOYMENT_CLEAN_UP_SCREEN_ERROR",
         context: StaleManagedDeploymentsCleanerService.name
       },
       () => this.deploymentRepository.findStaleDeployments({ owners: wallets.map(wallet => wallet.address), staleBeforeHeight }),
-      error => errors.push(error)
+      error => screenErrors.push(error)
     );
     const orphansByOwner = groupByOwner(deployments ?? []);
 
@@ -119,10 +130,11 @@ export class StaleManagedDeploymentsCleanerService {
         this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_WOULD_CLOSE", owner, dseqs: orphans.map(orphan => orphan.dseq) });
       }
 
-      return { owners: orphansByOwner.size, errors };
+      return { owners: orphansByOwner.size, failedOwners: 0, screenErrors };
     }
 
     const walletsByAddress = new Map(wallets.map(wallet => [wallet.address, wallet]));
+    let failedOwners = 0;
 
     for (const group of chunk([...orphansByOwner], options.concurrency || 10)) {
       await Promise.all(
@@ -134,13 +146,13 @@ export class StaleManagedDeploymentsCleanerService {
               context: StaleManagedDeploymentsCleanerService.name
             },
             () => this.#closeDeploymentsWithoutActiveLease(walletsByAddress.get(owner)!, orphans),
-            error => errors.push(error)
+            () => failedOwners++
           );
         })
       );
     }
 
-    return { owners: orphansByOwner.size, errors };
+    return { owners: orphansByOwner.size, failedOwners, screenErrors };
   }
 
   /** Undefined when the indexer cannot see enough of the chain for this sweep's cutoff to mean anything. */
@@ -153,11 +165,6 @@ export class StaleManagedDeploymentsCleanerService {
     this.logger.error({ event: "DEPLOYMENT_CLEAN_UP_INDEXER_LAGGING", chainHeight, indexedHeight, lag, maxLag: MAX_INDEXER_LAG_IN_BLOCKS });
 
     return undefined;
-  }
-
-  /** Read once per sweep instead of per wallet: the tip is the same for every one of them, and the sweep walks the whole managed-wallet table. */
-  async #resolveStaleBeforeHeight(maxLiveBlocks: number): Promise<number> {
-    return (await this.blockRepository.getLatestProcessedHeight()) - maxLiveBlocks;
   }
 
   /** Dropping a message and re-broadcasting is safe because both classified failures reject the tx whole: an estimate never lands, a non-zero code reverts. */

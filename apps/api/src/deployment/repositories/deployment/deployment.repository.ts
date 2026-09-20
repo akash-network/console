@@ -27,7 +27,7 @@ export interface DeploymentActivityWindow {
   endDate: string;
 }
 
-/** Heights reach the query through a literal, so anything but a plain integer is refused before it can be interpolated. */
+/** A missing height would bind as NULL and match nothing, so anything but a plain integer is refused before the query runs. */
 function asHeight(value: number): number {
   if (!Number.isSafeInteger(value)) {
     throw new TypeError(`Expected a block height, received ${value}`);
