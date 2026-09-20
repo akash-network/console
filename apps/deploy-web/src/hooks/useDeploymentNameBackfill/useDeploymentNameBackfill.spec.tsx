@@ -49,12 +49,10 @@ describe(useDeploymentNameBackfill.name, () => {
     await vi.waitFor(() => expect(patchDeployment).toHaveBeenCalledWith({ dseq: "100", data: { name: "a".repeat(MAX_DEPLOYMENT_NAME_LENGTH) } }));
   });
 
-  it("refreshes the deployment, the names lookup and the deployments pages once the api accepted the name", async () => {
+  it("refreshes the deployment the name belongs to and no list, so a sweep does not refetch every page per name", async () => {
     const { invalidateQueries, api } = setup({ apiNames: [answered("100", null)], localNames: { "100": "local-name" } });
 
-    await vi.waitFor(() => expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.getDeployment.getKey({ dseq: "100" }) }));
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.listDeploymentNames.getKey() });
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.listDeployments.getKey() });
+    await vi.waitFor(() => expect(invalidateQueries).toHaveBeenCalledExactlyOnceWith({ queryKey: api.v1.getDeployment.getKey({ dseq: "100" }) }));
   });
 
   it("reports a refused backfill and refreshes nothing", async () => {
