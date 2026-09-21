@@ -207,6 +207,7 @@ describe("DeploymentDetail", () => {
         isSuccess: input?.isLeasesLoaded ?? true,
         isError: input?.isLeasesError ?? false
       });
+    const useDetectedLeaseGpus: typeof DEPENDENCIES.useDetectedLeaseGpus = () => new Map();
     const useProviderList: typeof DEPENDENCIES.useProviderList = () =>
       mock<ReturnType<typeof DEPENDENCIES.useProviderList>>({ data: providers, isFetching: false });
     const redeploy = vi.fn();
@@ -239,6 +240,7 @@ describe("DeploymentDetail", () => {
           useDeploymentDefinition,
           useDeploymentDetail,
           useDeploymentLeaseList,
+          useDetectedLeaseGpus,
           useProviderList,
           DeploymentDetailHeader,
           ReclamationBanner,
