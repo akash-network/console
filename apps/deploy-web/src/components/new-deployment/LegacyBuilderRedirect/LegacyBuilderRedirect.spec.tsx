@@ -13,6 +13,19 @@ describe(LegacyBuilderRedirect.name, () => {
     expect(screen.getByText("picker")).toBeInTheDocument();
   });
 
+  it("renders the picker for the link the picker itself published as its canonical url", () => {
+    const { replace } = setup({ query: { step: "choose-template" } });
+
+    expect(replace).not.toHaveBeenCalled();
+    expect(screen.getByText("picker")).toBeInTheDocument();
+  });
+
+  it("resumes the deployment rather than reopening the template when a link names both", () => {
+    const { replace } = setup({ query: { step: "create-leases", dseq: "555", templateId: "tpl-1" } });
+
+    expect(replace).toHaveBeenCalledWith("/new-deployment/configure/555");
+  });
+
   it("opens a template link on configure", () => {
     const { replace } = setup({ query: { step: "edit-deployment", templateId: "tpl-1" } });
 

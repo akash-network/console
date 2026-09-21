@@ -148,10 +148,6 @@ export const SSH_EXPOSE = {
 };
 
 /**
- * Overrides applied to a fresh service when the surrounding flow exposes SSH:
- * picks a known SSH-enabled VM image and drops the default HTTP expose.
- */
-/**
  * The managed SSH expose row a fresh Container-VM service is seeded with: container port 22 published
  * globally as 22 over tcp. The SDL is generated straight from form state, so the row must exist on the model itself.
  */

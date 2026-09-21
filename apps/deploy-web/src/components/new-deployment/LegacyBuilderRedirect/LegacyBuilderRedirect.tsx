@@ -32,19 +32,23 @@ export function LegacyBuilderRedirect({ children, dependencies: d = DEPENDENCIES
   return <>{children}</>;
 }
 
-/** A template opens on Configure, a deployment mid-creation resumes there, a redeploy goes to its deployment, and every other builder link (git or blank editor) starts a blank Configure. */
+/** The builder step the picker itself lived on, which its canonical and shared links still name. */
+const PICKER_STEP = "choose-template";
+
+/** A redeploy goes to its deployment, a deployment mid-creation resumes on Configure, a template opens there, and every other builder link (git or blank editor) starts a blank Configure. */
 export function legacyBuilderDestination(query: ParsedUrlQuery, urlService: typeof UrlService): string | null {
   const step = stringParam(query.step);
   const templateId = stringParam(query.templateId);
   const redeploy = stringParam(query.redeploy);
   const dseq = stringParam(query.dseq);
   const gitIntent = [query.gitProvider, query.repoUrl, query.code, query.state].map(stringParam);
-  const namesBuilderIntent = [step, templateId, redeploy, dseq, ...gitIntent].some(value => value !== undefined);
+  const builderStep = step === PICKER_STEP ? undefined : step;
+  const namesBuilderIntent = [builderStep, templateId, redeploy, dseq, ...gitIntent].some(value => value !== undefined);
 
   if (!namesBuilderIntent) return null;
   if (redeploy) return urlService.deploymentDetails(redeploy);
-  if (templateId) return urlService.configureDeployment({ templateId });
   if (dseq) return urlService.configureDeployment({ dseq });
+  if (templateId) return urlService.configureDeployment({ templateId });
   return urlService.configureDeployment({});
 }
 
