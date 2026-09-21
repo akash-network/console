@@ -47,11 +47,7 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-/**
- * "Environment Variables & Secrets" card: an inline editor over `services.${serviceIndex}.env`. Each row is either a
- * plain variable or a secret; a secret's value is masked and never reaches the SDL, which carries a reference to it
- * instead. Reserved keys like SSH_PUBKEY are managed elsewhere and never listed.
- */
+/** A secret row's value never reaches the SDL, which carries a reference in its place, and reserved keys are managed elsewhere. */
 export const VariablesAndSecretsCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   const { control, getValues } = useFormContext<SdlBuilderFormValuesType>();
   const { fields, append, remove, replace } = useFieldArray({ control, name: `services.${serviceIndex}.env`, keyName: "fieldId" });
@@ -67,10 +63,7 @@ export const VariablesAndSecretsCard: FC<Props> = ({ serviceIndex, locked = fals
     [append]
   );
 
-  /**
-   * Merges pasted `KEY=value` lines into the variables read live from the form: new keys are appended with the kind
-   * of the row pasted into, existing keys are updated in place, and the empty row pasted into is dropped.
-   */
+  /** A pasted key that already exists is updated in place rather than appended a second time. */
   const insertPastedEnvVars = useCallback(
     (event: ClipboardEvent<HTMLInputElement>, focusedEnvIndex: number) => {
       const pastedText = event.clipboardData.getData("text")?.trim();
