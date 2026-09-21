@@ -13,9 +13,7 @@ export interface AvailableGpu {
   interface: string;
 }
 
-/**
- * A node reporting -1 allocatable GPUs declares unlimited capacity, mirroring `availableCapacity`.
- */
+/** A node reporting -1 allocatable GPUs declares unlimited capacity, mirroring `availableCapacity`. */
 const UNLIMITED_CAPACITY = -1;
 
 @singleton()
@@ -44,10 +42,7 @@ export class PlacementOptionsRepository {
       .sort();
   }
 
-  /**
-   * Nodes are filtered on free GPU capacity rather than on the GPUs they hold, so every distinct GPU on a node
-   * with room counts as available even when the free units are of another model on the same node.
-   */
+  /** Filtered on a node's free GPU capacity rather than on which of its GPUs are free, because the inventory does not say which units are free. */
   async findAvailableGpus(): Promise<AvailableGpu[]> {
     const sql = this.#sql;
     return await sql<AvailableGpu[]>`

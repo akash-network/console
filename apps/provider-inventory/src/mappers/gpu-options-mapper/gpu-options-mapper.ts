@@ -8,11 +8,7 @@ interface ModelValues {
   interface: Set<string>;
 }
 
-/**
- * Memory and interface are collected per model rather than as pairs, so a model offered as 40Gi/PCIe by one
- * provider and 80Gi/SXM by another lists both of each. Keeping the wider set matches what the pickers already
- * do with the hardware catalog and never hides a GPU somebody could lease.
- */
+/** Memory and interface are collected per model rather than as pairs, so the wider set never hides a GPU somebody could lease. */
 export function mapToGpuVendorOptions(gpus: AvailableGpu[]): GpuVendorOption[] {
   const vendors = new Map<string, Map<string, ModelValues>>();
 
