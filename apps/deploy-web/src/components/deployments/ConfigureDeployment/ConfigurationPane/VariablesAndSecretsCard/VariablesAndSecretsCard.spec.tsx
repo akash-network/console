@@ -240,6 +240,19 @@ describe(VariablesAndSecretsCard.name, () => {
       expect(getValues().services[0].env).toEqual([expect.objectContaining({ key: "API_KEY", value: "hunter2", isSecret: true })]);
     });
 
+    it("leaves a kept secret reference standing when a pasted line carries no value", async () => {
+      const { getValues } = setup({
+        env: [
+          { key: "DB_PASS", value: "ac-secret://DB_PASS", isSecret: true },
+          { key: "", value: "" }
+        ]
+      });
+
+      await pasteIntoKey(2, "DB_PASS=");
+
+      expect(getValues().services[0].env).toEqual([expect.objectContaining({ key: "DB_PASS", value: "ac-secret://DB_PASS", isSecret: true })]);
+    });
+
     async function pasteIntoKey(visibleIndex: number, text: string) {
       await userEvent.click(screen.getByLabelText(`Environment variable ${visibleIndex} key`));
       await userEvent.paste(text);

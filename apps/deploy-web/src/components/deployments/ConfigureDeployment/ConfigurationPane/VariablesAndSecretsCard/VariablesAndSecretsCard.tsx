@@ -81,7 +81,7 @@ export const VariablesAndSecretsCard: FC<Props> = ({ serviceIndex, locked = fals
           nextEnv.push({ id: nanoid(), key, value, isSecret });
         } else {
           const existing = nextEnv[existingEnvIndex];
-          nextEnv[existingEnvIndex] = { ...existing, value, isSecret: existing.isSecret || isSecret };
+          nextEnv[existingEnvIndex] = { ...existing, value: pastedValueOver(existing.value, value), isSecret: existing.isSecret || isSecret };
         }
       });
 
@@ -165,6 +165,11 @@ type VariableRowProps = {
   onPasteKey: (event: ClipboardEvent<HTMLInputElement>, envIndex: number) => void;
   dependencies: typeof DEPENDENCIES;
 };
+
+/** A dotenv template lists its keys with no values, so an empty pasted value leaves a kept reference standing rather than unsetting an already sealed secret. */
+function pastedValueOver(existingValue: string | undefined, pasted: string): string {
+  return !pasted && isSdlReference(existingValue ?? "") ? (existingValue as string) : pasted;
+}
 
 const VariableRow: FC<VariableRowProps> = ({ serviceIndex, envIndex, visibleIndex, onRemove, onPasteKey, dependencies: d }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
