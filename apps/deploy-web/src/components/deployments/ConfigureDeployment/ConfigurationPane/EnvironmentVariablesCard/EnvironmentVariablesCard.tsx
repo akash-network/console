@@ -227,6 +227,8 @@ const EnvironmentVariableFields: FC<EnvironmentVariableFieldsProps> = ({ service
 
   const key = useController({ control, name: `${basePath}.key` });
   const value = useController({ control, name: `${basePath}.value` });
+  /** Validation reports a reserved value against the value field, so showing only the key's error would disable the submit with nothing on screen. */
+  const rowError = key.fieldState.error?.message ?? value.fieldState.error?.message;
 
   return (
     <div className="flex flex-col gap-1">
@@ -261,7 +263,7 @@ const EnvironmentVariableFields: FC<EnvironmentVariableFieldsProps> = ({ service
           <TrashIcon className="h-4 w-4" />
         </Button>
       </div>
-      {key.fieldState.error && <p className="pl-1 text-xs text-destructive">{key.fieldState.error.message}</p>}
+      {rowError && <p className="pl-1 text-xs text-destructive">{rowError}</p>}
     </div>
   );
 };

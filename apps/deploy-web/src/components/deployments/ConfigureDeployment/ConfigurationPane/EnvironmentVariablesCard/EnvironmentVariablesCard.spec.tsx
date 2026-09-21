@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { describe, expect, it } from "vitest";
 
 import type { EnvironmentVariableType, SdlBuilderFormValuesType } from "@src/types";
-import { SdlBuilderFormValuesSchema } from "@src/types/sdlBuilder/sdlBuilder";
+import { RESERVED_ENV_VALUE_MESSAGE, SdlBuilderFormValuesSchema } from "@src/types/sdlBuilder/sdlBuilder";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { DEPENDENCIES, EnvironmentVariablesCard } from "./EnvironmentVariablesCard";
 
@@ -332,6 +332,15 @@ describe(EnvironmentVariablesCard.name, () => {
     function valueValues() {
       return screen.getAllByLabelText<HTMLInputElement>(/^Environment variable \d+ value$/).map(el => el.value);
     }
+  });
+
+  it("shows why a value the console reserves is refused, rather than only blocking the submit", async () => {
+    const { openCard, trigger } = setup({ env: [{ key: "API_KEY", value: "ac-secret://SOMETHING_ELSE" }] });
+    await openCard();
+
+    await trigger();
+
+    expect(await screen.findByText(RESERVED_ENV_VALUE_MESSAGE)).toBeInTheDocument();
   });
 
   function setup(input: { env?: Array<Partial<EnvironmentVariableType>>; image?: string; locked?: boolean }) {

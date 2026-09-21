@@ -190,6 +190,8 @@ function keptCredentialOf(defaultValue: string | undefined): string {
 const CredentialsFields: FC<{ serviceIndex: number }> = ({ serviceIndex }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const { defaultValues } = useFormState({ control });
+  /** Matched by id, not position: removing a service shifts every later index while the seeded values keep their own order. */
+  const serviceId = useWatch({ control, name: `services.${serviceIndex}.id` });
   const basePath = `services.${serviceIndex}.credentials` as const;
 
   const host = useController({ control, name: `${basePath}.host` });
@@ -198,7 +200,7 @@ const CredentialsFields: FC<{ serviceIndex: number }> = ({ serviceIndex }) => {
 
   const [showPassword, setShowPassword] = useState(false);
   const isCustomHost = host.field.value === CUSTOM_HOST_ID || supportedHosts.every(option => option.id !== host.field.value);
-  const seededCredentials = defaultValues?.services?.[serviceIndex]?.credentials;
+  const seededCredentials = defaultValues?.services?.find(seeded => seeded?.id === serviceId)?.credentials;
   const keptUsername = keptCredentialOf(seededCredentials?.username);
   const keptPassword = keptCredentialOf(seededCredentials?.password);
   const isUsernameKept = isSdlReference(username.field.value ?? "");

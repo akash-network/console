@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from "react";
 import type { Resolver } from "react-hook-form";
-import { FormProvider, useForm } from "react-hook-form";
+import { FormProvider, useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { describe, expect, it } from "vitest";
 
@@ -109,6 +109,16 @@ describe(ImageCard.name, () => {
     importValues(
       defaultServiceWithPlacement({ image: "redis:7", hasCredentials: true, credentials: { host: "ghcr.io", username: "alice", password: "hunter22" } })
     );
+    await userEvent.clear(screen.getByLabelText("Registry username"));
+
+    expect(getValues().services[0].credentials?.username).toBe("");
+  });
+
+  it("does not take the removed service's kept credential after an earlier service is dropped", async () => {
+    const { getValues } = setupServices();
+
+    await userEvent.click(screen.getByRole("button", { name: "drop first service" }));
+    await userEvent.type(screen.getByLabelText("Registry username"), "bob");
     await userEvent.clear(screen.getByLabelText("Registry username"));
 
     expect(getValues().services[0].credentials?.username).toBe("");
@@ -293,6 +303,45 @@ describe(ImageCard.name, () => {
         <ImageCard serviceIndex={0} />
       </Wrapper>
     );
+  }
+
+  /** Seeds two services and lets the test drop the first, because react-hook-form leaves its default values in the original order. */
+  function setupServices() {
+    const seeded = defaultServiceWithPlacement({
+      image: "nginx",
+      hasCredentials: true,
+      credentials: { host: "ghcr.io", username: "ac-secret://REGISTRY_USERNAME", password: "ac-secret://REGISTRY_PASSWORD" }
+    });
+    const survivor = {
+      ...seeded.services[0],
+      id: "survivor",
+      image: "redis",
+      credentials: { host: "ghcr.io", username: "alice", password: "hunter22" }
+    };
+    const values = { ...seeded, services: [seeded.services[0], survivor] };
+
+    let getValues: () => SdlBuilderFormValuesType = () => values;
+    const Wrapper = ({ children }: PropsWithChildren) => {
+      const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values, mode: "onSubmit" });
+      const { remove } = useFieldArray({ control: form.control, name: "services" });
+      getValues = form.getValues;
+      return (
+        <FormProvider {...form}>
+          <button type="button" onClick={() => remove(0)}>
+            drop first service
+          </button>
+          {children}
+        </FormProvider>
+      );
+    };
+
+    render(
+      <Wrapper>
+        <ImageCard serviceIndex={0} />
+      </Wrapper>
+    );
+
+    return { getValues: () => getValues() };
   }
 
   /** Renders the card under the real resolver so the custom-host URL validation flows to the field state. */
