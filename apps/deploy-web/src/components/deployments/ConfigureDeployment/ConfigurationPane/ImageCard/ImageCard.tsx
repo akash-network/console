@@ -1,6 +1,6 @@
 import type { FC } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useController, useFormContext, useWatch } from "react-hook-form";
+import { useCallback, useEffect, useState } from "react";
+import { useController, useFormContext, useFormState, useWatch } from "react-hook-form";
 import {
   Checkbox,
   CollapsibleCard,
@@ -178,21 +178,18 @@ const ImageField: FC<ImageFieldProps> = ({ serviceIndex, hasCredentials, onToggl
   );
 };
 
-/** A kept credential shows as an empty box, so clearing it restores the reference instead of submitting a blank credential. */
-function useKeptCredential(field: { value?: string; onChange: (value: string) => void }) {
-  const reference = useRef<string | undefined>(undefined);
-  const isKept = isSdlReference(field.value ?? "");
-
-  if (isKept) reference.current = field.value;
-
-  return {
-    isKept,
-    valueOfInput: (typed: string) => typed || reference.current || ""
-  };
+/**
+ * A kept credential shows as an empty box, so clearing it has to restore the reference rather than submit a blank one,
+ * and the reference is read from the form's defaults because an import resets those and must not leave the old one behind.
+ */
+function keptCredentialOf(defaultValue: string | undefined): string {
+  const reference = defaultValue ?? "";
+  return isSdlReference(reference) ? reference : "";
 }
 
 const CredentialsFields: FC<{ serviceIndex: number }> = ({ serviceIndex }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
+  const { defaultValues } = useFormState({ control });
   const basePath = `services.${serviceIndex}.credentials` as const;
 
   const host = useController({ control, name: `${basePath}.host` });
@@ -201,8 +198,11 @@ const CredentialsFields: FC<{ serviceIndex: number }> = ({ serviceIndex }) => {
 
   const [showPassword, setShowPassword] = useState(false);
   const isCustomHost = host.field.value === CUSTOM_HOST_ID || supportedHosts.every(option => option.id !== host.field.value);
-  const keptUsername = useKeptCredential(username.field);
-  const keptPassword = useKeptCredential(password.field);
+  const seededCredentials = defaultValues?.services?.[serviceIndex]?.credentials;
+  const keptUsername = keptCredentialOf(seededCredentials?.username);
+  const keptPassword = keptCredentialOf(seededCredentials?.password);
+  const isUsernameKept = isSdlReference(username.field.value ?? "");
+  const isPasswordKept = isSdlReference(password.field.value ?? "");
 
   /**
    * `CUSTOM_HOST_ID` is a UI-only sentinel for the "Custom Registry" option; it
@@ -250,9 +250,9 @@ const CredentialsFields: FC<{ serviceIndex: number }> = ({ serviceIndex }) => {
           <Input
             id={`credentials-username-${serviceIndex}`}
             aria-label="Registry username"
-            value={keptUsername.isKept ? "" : username.field.value ?? ""}
-            placeholder={keptUsername.isKept ? KEPT_CREDENTIAL_PLACEHOLDER : undefined}
-            onChange={event => username.field.onChange(keptUsername.valueOfInput(event.target.value))}
+            value={isUsernameKept ? "" : username.field.value ?? ""}
+            placeholder={isUsernameKept ? KEPT_CREDENTIAL_PLACEHOLDER : undefined}
+            onChange={event => username.field.onChange(event.target.value || keptUsername)}
             onBlur={username.field.onBlur}
             error={!!username.fieldState.error}
             inputClassName="h-9"
@@ -268,9 +268,9 @@ const CredentialsFields: FC<{ serviceIndex: number }> = ({ serviceIndex }) => {
             id={`credentials-password-${serviceIndex}`}
             aria-label="Registry password"
             type={showPassword ? "text" : "password"}
-            value={keptPassword.isKept ? "" : password.field.value ?? ""}
-            placeholder={keptPassword.isKept ? KEPT_CREDENTIAL_PLACEHOLDER : undefined}
-            onChange={event => password.field.onChange(keptPassword.valueOfInput(event.target.value))}
+            value={isPasswordKept ? "" : password.field.value ?? ""}
+            placeholder={isPasswordKept ? KEPT_CREDENTIAL_PLACEHOLDER : undefined}
+            onChange={event => password.field.onChange(event.target.value || keptPassword)}
             onBlur={password.field.onBlur}
             error={!!password.fieldState.error}
             inputClassName="h-9"

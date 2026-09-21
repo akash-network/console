@@ -9,7 +9,7 @@ import { SdlBuilderFormValuesSchema } from "@src/types";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { ImageCard } from "./ImageCard";
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(ImageCard.name, () => {
@@ -98,6 +98,20 @@ describe(ImageCard.name, () => {
     await userEvent.clear(screen.getByLabelText("Registry password"));
 
     expect(getValues().services[0].credentials?.password).toBe("ac-secret://REGISTRY_PASSWORD");
+  });
+
+  it("does not resurrect the previous deployment's credential after an import replaces it", async () => {
+    const { getValues, importValues } = setup({
+      image: "nginx:latest",
+      credentials: { host: "ghcr.io", username: "ac-secret://REGISTRY_USERNAME", password: "ac-secret://REGISTRY_PASSWORD" }
+    });
+
+    importValues(
+      defaultServiceWithPlacement({ image: "redis:7", hasCredentials: true, credentials: { host: "ghcr.io", username: "alice", password: "hunter22" } })
+    );
+    await userEvent.clear(screen.getByLabelText("Registry username"));
+
+    expect(getValues().services[0].credentials?.username).toBe("");
   });
 
   it("clears a typed registry username the user never kept", async () => {
@@ -236,6 +250,7 @@ describe(ImageCard.name, () => {
     });
 
     let getValues: () => SdlBuilderFormValuesType = () => values;
+    let reset: (imported: SdlBuilderFormValuesType) => void = () => undefined;
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({
         defaultValues: values,
@@ -244,6 +259,7 @@ describe(ImageCard.name, () => {
         resolver: input.resolver
       });
       getValues = form.getValues;
+      reset = form.reset;
       return (
         <FormProvider {...form}>
           <form onSubmit={form.handleSubmit(() => undefined)}>
@@ -260,7 +276,7 @@ describe(ImageCard.name, () => {
       </Wrapper>
     );
 
-    return { getValues: () => getValues() };
+    return { getValues: () => getValues(), importValues: (imported: SdlBuilderFormValuesType) => act(() => reset(imported)) };
   }
 
   /** Renders the card in the app's `onTouched` mode with the real resolver so touched-field validation can be asserted. */
