@@ -50,7 +50,7 @@ export const EnvironmentVariablesCard: FC<Props> = ({ serviceIndex, locked = fal
 
   const handleCancel = useCallback(() => {
     if (snapshot) {
-      reset(snapshot, { keepErrors: true });
+      reset(snapshot, { keepErrors: true, keepDefaultValues: true });
       void trigger(`services.${serviceIndex}.env`);
     }
     setOpen(false);
@@ -60,7 +60,7 @@ export const EnvironmentVariablesCard: FC<Props> = ({ serviceIndex, locked = fal
     const current = getValues();
     const env = current.services[serviceIndex].env ?? [];
     current.services[serviceIndex].env = env.filter(e => e.key.trim() !== "" && !(RESERVED_ENV_KEYS.has(e.key) && e.id !== e.key));
-    reset(current, { keepDirty: true, keepErrors: true });
+    reset(current, { keepDirty: true, keepErrors: true, keepDefaultValues: true });
     void trigger(`services.${serviceIndex}.env`);
     setOpen(false);
   }, [getValues, reset, trigger, serviceIndex]);
@@ -227,6 +227,8 @@ const EnvironmentVariableFields: FC<EnvironmentVariableFieldsProps> = ({ service
 
   const key = useController({ control, name: `${basePath}.key` });
   const value = useController({ control, name: `${basePath}.value` });
+  /** Validation reports a reserved value against the value field, so showing only the key's error would disable the submit with nothing on screen. */
+  const rowError = key.fieldState.error?.message ?? value.fieldState.error?.message;
 
   return (
     <div className="flex flex-col gap-1">
@@ -261,7 +263,7 @@ const EnvironmentVariableFields: FC<EnvironmentVariableFieldsProps> = ({ service
           <TrashIcon className="h-4 w-4" />
         </Button>
       </div>
-      {key.fieldState.error && <p className="pl-1 text-xs text-destructive">{key.fieldState.error.message}</p>}
+      {rowError && <p className="pl-1 text-xs text-destructive">{rowError}</p>}
     </div>
   );
 };

@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
+import { resolveSdlSecrets } from "@src/utils/sdl/sdlSecrets";
 import type { DeploymentCost } from "../useDeploymentCost/useDeploymentCost";
 import type { DeploymentFlow, DeploymentFlowActions } from "../useDeploymentFlow/useDeploymentFlow";
 import type { QuoteExpiry } from "../useQuoteExpiry/useQuoteExpiry";
@@ -24,7 +25,7 @@ describe(ConfigureDeploymentHeader.name, () => {
 
     fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
 
-    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, ""));
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "" }));
     expect(enqueueSnackbar).not.toHaveBeenCalled();
   });
 
@@ -34,7 +35,7 @@ describe(ConfigureDeploymentHeader.name, () => {
 
     fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
 
-    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, "my-app"));
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "my-app" }));
   });
 
   it("blocks a trial deployment whose GPU resolves to a blocked selection and surfaces the trial message", async () => {
@@ -66,7 +67,7 @@ describe(ConfigureDeploymentHeader.name, () => {
 
     fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
 
-    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, ""));
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "" }));
   });
 
   it("does not apply the trial GPU guard for a non-trial user", async () => {
@@ -80,7 +81,50 @@ describe(ConfigureDeploymentHeader.name, () => {
 
     fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
 
-    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, ""));
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "" }));
+  });
+
+  it("seals credentials in the generated SDL and hands the typed secret values to the flow when the secrets feature is on", async () => {
+    const requestQuotes = vi.fn();
+    const { generateSdl } = setup({
+      phase: "configuring",
+      requestQuotes,
+      secretsEnabled: true,
+      resolveSdlSecrets: () => ({ references: new Map(), values: { API_KEY: "hunter2" }, unresolved: [] })
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
+
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "", secrets: { API_KEY: "hunter2" } }));
+    expect(generateSdl).toHaveBeenCalledWith(expect.anything(), { sealSecrets: true });
+  });
+
+  it("refuses to request quotes while a secret still needs a value, naming the secret and its service", async () => {
+    const requestQuotes = vi.fn();
+    const { enqueueSnackbar } = setup({
+      phase: "configuring",
+      requestQuotes,
+      secretsEnabled: true,
+      resolveSdlSecrets: () => ({ references: new Map(), values: {}, unresolved: [{ serviceTitle: "web", label: "API_KEY", name: "API_KEY" }] })
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
+
+    await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledTimes(1));
+    expect(requestQuotes).not.toHaveBeenCalled();
+
+    render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
+    expect(screen.getByText('Secret "API_KEY" in service "web" needs a value.')).toBeInTheDocument();
+  });
+
+  it("keeps credentials as typed and hands no secrets to the flow while the feature is off", async () => {
+    const requestQuotes = vi.fn();
+    const { generateSdl } = setup({ phase: "configuring", requestQuotes });
+
+    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
+
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "" }));
+    expect(generateSdl).toHaveBeenCalledWith(expect.anything(), { sealSecrets: false });
   });
 
   it("surfaces SDL validation errors and does not request quotes when the spec is invalid", async () => {
@@ -258,6 +302,8 @@ describe(ConfigureDeploymentHeader.name, () => {
     isRestricted?: boolean;
     deploymentName?: string;
     services?: Array<{ profile: { hasGpu?: boolean; gpuModels?: Array<{ vendor: string; name?: string }> } }>;
+    secretsEnabled?: boolean;
+    resolveSdlSecrets?: typeof DEPENDENCIES.resolveSdlSecrets;
   }) {
     const flow = mock<DeploymentFlow>({
       phase: input.phase,
@@ -272,13 +318,16 @@ describe(ConfigureDeploymentHeader.name, () => {
     flow.selections = input.selections ?? {};
     const enqueueSnackbar = vi.fn();
     const useDeploymentCost = vi.fn(() => input.cost ?? null);
+    const generateSdl = vi.fn(() => GENERATED_SDL);
     const dependencies: typeof DEPENDENCIES = {
       useDeploymentResourceSummary: (() => "1 vCPU") as never,
       useDeploymentHasGpu: () => input.hasGpu ?? true,
       useSnackbar: () => mock<ReturnType<(typeof DEPENDENCIES)["useSnackbar"]>>({ enqueueSnackbar }),
       Snackbar,
-      generateSdl: () => GENERATED_SDL,
+      generateSdl,
       validateGeneratedSdl: () => input.validationErrors ?? [],
+      resolveSdlSecrets: input.resolveSdlSecrets ?? resolveSdlSecrets,
+      useFlag: () => input.secretsEnabled ?? false,
       useDeploymentCost: useDeploymentCost as typeof DEPENDENCIES.useDeploymentCost,
       PriceValue: ({ value }) => <span data-testid="price">{String(value)}</span>,
       useQuoteExpiry: () => input.expiry ?? null,
@@ -297,7 +346,7 @@ describe(ConfigureDeploymentHeader.name, () => {
         />
       </Wrapper>
     );
-    return { enqueueSnackbar, useDeploymentCost };
+    return { enqueueSnackbar, useDeploymentCost, generateSdl };
   }
 
   function Wrapper({

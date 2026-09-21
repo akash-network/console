@@ -228,6 +228,73 @@ describe("sdlGenerator", () => {
       expect(parsed.services.web).not.toHaveProperty("args");
     });
 
+    it("emits a secret reference in place of a typed secret value, so the value never reaches the SDL", () => {
+      const service = buildLogCollectorService({
+        title: "web",
+        image: "nginx",
+        env: [
+          { id: "k", key: "API_KEY", value: "hunter2", isSecret: true },
+          { id: "p", key: "PORT", value: "80" }
+        ]
+      });
+
+      const sdl = generateSdl(buildFormValues(service), { sealSecrets: true });
+
+      expect(envOf(sdl)).toEqual(["API_KEY=ac-secret://API_KEY", "PORT=80"]);
+      expect(sdl).not.toContain("hunter2");
+    });
+
+    it("carries a kept secret reference through verbatim", () => {
+      const service = buildLogCollectorService({
+        title: "web",
+        image: "nginx",
+        env: [{ id: "k", key: "DB_URL", value: "ac-secret://SHARED_DB", isSecret: true }]
+      });
+
+      expect(envOf(generateSdl(buildFormValues(service)))).toEqual(["DB_URL=ac-secret://SHARED_DB"]);
+    });
+
+    it("emits a reference for a secret with no value yet, so a restored draft still knows it is a secret", () => {
+      const service = buildLogCollectorService({ title: "web", image: "nginx", env: [{ id: "k", key: "API_KEY", value: "", isSecret: true }] });
+
+      expect(envOf(generateSdl(buildFormValues(service), { sealSecrets: true }))).toEqual(["API_KEY=ac-secret://API_KEY"]);
+    });
+
+    it("blanks a secret value rather than writing it out when no reference is minted, so an unsealed document never carries it", () => {
+      const service = buildLogCollectorService({ title: "web", image: "nginx", env: [{ id: "k", key: "API_KEY", value: "hunter2", isSecret: true }] });
+
+      expect(envOf(generateSdl(buildFormValues(service)))).toEqual(["API_KEY="]);
+    });
+
+    it("emits registry credentials as typed unless asked to seal them", () => {
+      const credentials = { host: "ghcr.io", username: "alice", password: "hunter22" };
+      const service = buildLogCollectorService({ title: "web", image: "nginx", hasCredentials: true, credentials });
+
+      expect(credentialsOf(generateSdl(buildFormValues(service)))).toEqual(credentials);
+    });
+
+    it("emits sealed registry credentials as references, so the password never reaches the SDL", () => {
+      const service = buildLogCollectorService({
+        title: "web",
+        image: "nginx",
+        hasCredentials: true,
+        credentials: { host: "ghcr.io", username: "alice", password: "hunter22" }
+      });
+
+      const sdl = generateSdl(buildFormValues(service), { sealSecrets: true });
+
+      expect(credentialsOf(sdl)).toEqual({ host: "ghcr.io", username: "ac-secret://REGISTRY_USERNAME", password: "ac-secret://REGISTRY_PASSWORD" });
+      expect(sdl).not.toContain("hunter22");
+    });
+
+    function envOf(sdl: string): string[] | undefined {
+      return (yaml.load(sdl) as { services: Record<string, { env?: string[] }> }).services.web?.env;
+    }
+
+    function credentialsOf(sdl: string): Record<string, string> | undefined {
+      return (yaml.load(sdl) as { services: Record<string, { credentials?: Record<string, string> }> }).services.web?.credentials;
+    }
+
     function buildLogCollectorService(overrides?: Partial<ServiceType>): ServiceType {
       return {
         id: overrides?.title ? `${overrides.title}-id` : "web-log-collector",

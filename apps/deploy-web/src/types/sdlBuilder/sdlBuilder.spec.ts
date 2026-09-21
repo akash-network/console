@@ -5,7 +5,9 @@ import {
   EndpointSchema,
   EnvironmentVariableSchema,
   ProfileSchema,
+  RESERVED_ENV_VALUE_MESSAGE,
   SdlBuilderFormValuesSchema,
+  SECRET_NAME_MESSAGE,
   ServiceExposeHTTPProxySchema,
   ServiceSchema,
   ServiceStorageSchema
@@ -61,6 +63,40 @@ describe("EnvironmentVariableSchema", () => {
 
   it("accepts a non-reserved key", () => {
     const result = EnvironmentVariableSchema.safeParse({ id: "user-1", key: "FOO", value: "bar" });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a plain value that opens with the reference prefix, which the api reserves", () => {
+    const result = EnvironmentVariableSchema.safeParse({ id: "user-1", key: "FOO", value: "ac-milan", isSecret: false });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["value"], message: RESERVED_ENV_VALUE_MESSAGE }));
+  });
+
+  it("accepts a plain value that merely contains the prefix", () => {
+    const result = EnvironmentVariableSchema.safeParse({ id: "user-1", key: "FOO", value: "milan-ac-x" });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a secret value that opens with the reference prefix, since it never reaches the SDL", () => {
+    const result = EnvironmentVariableSchema.safeParse({ id: "user-1", key: "FOO", value: "ac-milan", isSecret: true });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a typed secret whose key cannot spell a reference name", () => {
+    const result = EnvironmentVariableSchema.safeParse({ id: "user-1", key: "my.var", value: "hunter2", isSecret: true });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["key"], message: SECRET_NAME_MESSAGE }));
+  });
+
+  it("accepts a kept secret reference under any key, because the reference already carries the name", () => {
+    const result = EnvironmentVariableSchema.safeParse({ id: "user-1", key: "my.var", value: "ac-secret://MY_VAR", isSecret: true });
 
     expect(result.success).toBe(true);
   });

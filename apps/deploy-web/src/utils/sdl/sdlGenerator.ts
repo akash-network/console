@@ -1,8 +1,14 @@
 import yaml from "js-yaml";
 
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
-import type { ExposeType, PlacementType, ProfileGpuModelType, SdlBuilderFormValuesType, ServiceExposeHTTPProxyType } from "@src/types";
+import type { ExposeType, PlacementType, ProfileGpuModelType, SdlBuilderFormValuesType, ServiceExposeHTTPProxyType, ServiceType } from "@src/types";
 import { defaultHttpOptions } from "./data";
+import { credentialSecretSlotKey, envSecretSlotKey, isSdlReference, resolveSdlSecrets } from "./sdlSecrets";
+
+export interface GenerateSdlOptions {
+  /** Emits every secret, env and registry credential alike, as a reference for the create to seal values under, instead of as typed. */
+  sealSecrets?: boolean;
+}
 
 /**
  * Converts the Command and Arguments form fields (one array token per line) into
@@ -29,7 +35,14 @@ const buildGpuAttributes = (interconnect: { group?: string } | undefined): Recor
   return attributes;
 };
 
-export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
+/** A typed secret with no reference minted for it is blanked rather than written out, because an unsealed document is kept in the draft and offered for export. */
+function plainEnvValueOf(variable: { value?: string; isSecret?: boolean }): string {
+  const value = variable.value?.trim() ?? "";
+  if (!variable.isSecret) return value;
+  return isSdlReference(value) ? value : "";
+}
+
+export const generateSdl = (formValues: SdlBuilderFormValuesType, options: GenerateSdlOptions = {}) => {
   const sdl: Record<string, any> = { version: "2.0", services: {}, profiles: { compute: {}, placement: {} }, deployment: {} };
 
   // Optional deployment-level reclamation requirement. Omitted entirely when unset ("Any"), which
@@ -39,6 +52,7 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
   }
 
   const placementById = new Map<string, PlacementType>(formValues.placements.map(p => [p.id, p]));
+  const secrets = resolveSdlSecrets(formValues, { sealSecrets: options.sealSecrets });
 
   formValues.placements.forEach(placement => {
     sdl.profiles.placement[placement.name] = { pricing: {} };
@@ -69,7 +83,7 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
     }
   });
 
-  formValues.services.forEach(service => {
+  formValues.services.forEach((service, serviceIndex) => {
     const placement = placementById.get(service.placementId);
     if (!placement) {
       throw new Error(`Service "${service.title}" references unknown placementId "${service.placementId}"`);
@@ -78,7 +92,7 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
     sdl.services[service.title] = {
       image: service.image,
 
-      credentials: service.hasCredentials ? service.credentials : undefined,
+      credentials: service.hasCredentials ? credentialsWithReferences(service, serviceIndex, secrets.references) : undefined,
 
       expose: service.expose.map(e => {
         const _expose: Record<string, any> = { port: e.port };
@@ -135,7 +149,9 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
     }
 
     if ((service.env?.length || 0) > 0) {
-      sdl.services[service.title].env = service.env?.map(e => `${e.key.trim()}=${e.isSecret ? "" : e.value?.trim()}`);
+      sdl.services[service.title].env = service.env?.map(
+        (e, envIndex) => `${e.key.trim()}=${secrets.references.get(envSecretSlotKey(serviceIndex, envIndex)) ?? plainEnvValueOf(e)}`
+      );
     }
 
     sdl.profiles.compute[service.title] = {
@@ -273,6 +289,18 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType) => {
   return `---
 ${result}`;
 };
+
+/** Swaps each sealed credential for its reference, so a typed registry secret never reaches the SDL; the rest is emitted as typed. */
+function credentialsWithReferences(service: ServiceType, serviceIndex: number, references: ReadonlyMap<string, string>): ServiceType["credentials"] {
+  const credentials = service.credentials;
+  if (!credentials) return undefined;
+
+  return {
+    ...credentials,
+    username: references.get(credentialSecretSlotKey(serviceIndex, "username")) ?? credentials.username,
+    password: references.get(credentialSecretSlotKey(serviceIndex, "password")) ?? credentials.password
+  };
+}
 
 /** Builds the SDL `http_options.proxy` map: `buffering_disable` is emitted only when true (false is the default), and every other field is emitted whenever explicitly defined so a defined 0 survives rather than being dropped. */
 function buildHttpProxyYaml(proxy?: ServiceExposeHTTPProxyType): Record<string, number | boolean> | undefined {

@@ -1,7 +1,6 @@
 import yaml from "js-yaml";
 
-/** Mirrors the API's SDL Reference grammar; anchored, so a value merely containing the spelling is not a reference. */
-const SDL_REFERENCE = /^ac-[a-z]{1,16}:\/\/[A-Za-z_][A-Za-z0-9_]{0,63}$/;
+import { SDL_REFERENCE_PATTERN } from "./sdlSecrets";
 
 export function hasSdlReference(sdl: string): boolean {
   return carriesReference(parseSdl(sdl));
@@ -35,7 +34,7 @@ function parseSdl(sdl: string): unknown {
 }
 
 function carriesReference(document: unknown): boolean {
-  return stringsIn(document).some(scalar => SDL_REFERENCE.test(scalar) || SDL_REFERENCE.test(assignedValueOf(scalar)));
+  return stringsIn(document).some(scalar => SDL_REFERENCE_PATTERN.test(scalar) || SDL_REFERENCE_PATTERN.test(assignedValueOf(scalar)));
 }
 
 /** An env entry is one `NAME=value` scalar, so a reference stands in the half after the separator. */

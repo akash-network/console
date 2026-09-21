@@ -5,14 +5,17 @@ import { useAtomValue } from "jotai";
 import { useRouter } from "next/router";
 
 import { useServices } from "@src/context/ServicesProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
 import { settingsIdAtom } from "@src/store/settingsStore";
 import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
 import { ManifestYaml } from "@src/utils/deploymentData/helpers";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
+import type { SdlSecretValues } from "@src/utils/sdl/sdlSecrets";
+import { sealSdlSecrets } from "@src/utils/sdl/sealSdlSecrets";
 import { UrlService } from "@src/utils/urlUtils";
-import { WALLET_PROVISIONING_ERROR_CODE, walletProvisioningRetry } from "@src/utils/walletProvisioning";
+import { isWalletProvisioning, WALLET_PROVISIONING_ERROR_CODE, walletProvisioningRetry } from "@src/utils/walletProvisioning";
 import { aggregateDeploymentResources } from "../DeploymentResourceSummary/deploymentResources";
 import type { BidStrategy, DeploymentIntent } from "./deploymentIntent";
 
@@ -46,10 +49,16 @@ export interface DeploymentFlowState {
   pendingClose: PendingClose | null;
 }
 
+export interface RequestQuotesOptions {
+  name?: string;
+  /** Typed secret values keyed by the name their SDL reference carries; sealed ahead of the create while the secrets feature is on. */
+  secrets?: SdlSecretValues;
+}
+
 export interface DeploymentFlowActions {
-  /** Creates the deployment from the given SDL and name. The caller passes the SDL generated from the just-submitted
-   * form values so the request can never lag behind an in-flight edit. */
-  requestQuotes: (sdl: string, name?: string) => void;
+  /** Creates the deployment from the given SDL. The caller passes the SDL generated from the just-submitted form
+   * values so the request can never lag behind an in-flight edit. */
+  requestQuotes: (sdl: string, options?: RequestQuotesOptions) => void;
   cancelAndEdit: () => void;
   /** Ends the attempt in `error` and closes the deployment so its deposit is released; a human uses `cancelAndEdit`. */
   closeAndFail: (message: string) => void;
@@ -75,6 +84,9 @@ interface UseDeploymentFlowInput {
 const DEFAULT_DEPOSIT = 0.5;
 
 const HTTP_PAYMENT_REQUIRED = 402;
+
+/** A seal made to a key version the console no longer holds; a fresh context and a new seal is the remedy. */
+const HTTP_CONFLICT = 409;
 
 /** Hold after a successful lease so the deploy overlay's progress bar can fill to 100% and its final step turn green before redirecting. */
 const DEPLOY_SUCCESS_DWELL_MS = 1200;
@@ -106,10 +118,13 @@ export const DEPENDENCIES = {
   useListBids,
   useRouter,
   useQueryClient,
+  useFlag,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   manifestFromSdl,
   // eslint-disable-next-line akash/dependencies-component-or-hook
-  deploymentResourcesFromSdl
+  deploymentResourcesFromSdl,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
+  sealSdlSecrets
 };
 
 /**
@@ -126,6 +141,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const createLease = api.v1.createLease.useMutation();
   const updateDeployment = api.v1.updateDeployment.useMutation();
   const getDeployment = api.v1.getDeployment.useMutation();
+  const getSdlSecretsContext = api.v1.getSDLSecretsContext.useMutation();
+  const isSecretsEnabled = dependencies.useFlag("ui_deployment_secrets");
   const queryClient = dependencies.useQueryClient();
   const settingsId = useAtomValue(settingsIdAtom);
 
@@ -339,54 +356,95 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   /**
    * Caches the SDL under the settings id + dseq at create time (the create response omits `owner`) so an in-progress
    * deployment can resume after a reload. A still-open deployment is closed first and a create fired mid-close waits on
-   * it rather than racing it, so only one deployment is ever open.
+   * it rather than racing it, so only one deployment is ever open. With the secrets feature on, the typed values are
+   * sealed to the console's current key first, and a seal the api reports stale is remade once against a fresh key.
    */
   const requestQuotes = useCallback(
-    function requestQuotes(sdl: string, name?: string) {
+    function requestQuotes(sdl: string, options: RequestQuotesOptions = {}) {
       const attempt = ++createAttemptRef.current;
       providersEverBidRef.current = false;
       bidsReceivedTrackedRef.current = false;
       setError(undefined);
+      const secrets = options.secrets ?? {};
 
-      function create() {
-        if (attempt !== createAttemptRef.current) return;
-        setPhase("creating");
+      function isCurrentAttempt() {
+        return attempt === createAttemptRef.current;
+      }
+
+      function onCreated(result: { data: { dseq: string; manifest: string } }) {
+        if (!isCurrentAttempt()) {
+          closeDeployment.mutate(
+            { dseq: result.data.dseq },
+            {
+              onError: function trackAutoCloseFailure() {
+                analyticsService.track("cancelled_deployment_auto_close_failed", { category: "deployments", dseq: result.data.dseq });
+              }
+            }
+          );
+          return;
+        }
+        setDseq(result.data.dseq);
+        setManifest(result.data.manifest);
+        setSelections({});
+        setDeployError(undefined);
+        setDeploySucceeded(false);
+        setPhase("quoting");
+        analyticsService.track("create_deployment", {
+          category: "deployments",
+          label: "Create deployment in wizard",
+          dseq: result.data.dseq,
+          secretCount: Object.keys(secrets).length
+        });
+        cacheDeployedSdl(deploymentLocalStorage, settingsId, result.data.dseq, sdl);
+        router.replace(buildConfigureUrl(intentRef.current, result.data.dseq, bidStrategyRef.current), undefined, { shallow: true });
+      }
+
+      function onCreateFailed(cause: unknown) {
+        if (!isCurrentAttempt()) return;
+        const message =
+          extractApiErrorCode(cause) === WALLET_PROVISIONING_ERROR_CODE ? WALLET_PROVISIONING_TIMEOUT_MESSAGE : extractApiErrorMessage(cause) ?? undefined;
+        setError({ message, kind: isPaymentRequired(cause) ? "needs-funds" : "create" });
+        setPhase("error");
+      }
+
+      function submitCreate(sealed: { sealedSecrets?: string }, canResealOnce: boolean) {
         createDeployment.mutate(
-          { data: { sdl, ...namePayload(name), deposit: DEFAULT_DEPOSIT } },
+          { data: { sdl, ...namePayload(options.name), ...sealed, deposit: DEFAULT_DEPOSIT } },
           {
-            onSuccess: function onCreated(result: { data: { dseq: string; manifest: string } }) {
-              if (attempt !== createAttemptRef.current) {
-                closeDeployment.mutate(
-                  { dseq: result.data.dseq },
-                  {
-                    onError: function trackAutoCloseFailure() {
-                      analyticsService.track("cancelled_deployment_auto_close_failed", { category: "deployments", dseq: result.data.dseq });
-                    }
-                  }
-                );
+            onSuccess: onCreated,
+            onError: function retryOrFail(cause: unknown) {
+              if (!isCurrentAttempt()) return;
+              if (canResealOnce && isStaleSealingKey(cause)) {
+                void sealAndSubmit(false);
                 return;
               }
-              setDseq(result.data.dseq);
-              setManifest(result.data.manifest);
-              setSelections({});
-              setDeployError(undefined);
-              setDeploySucceeded(false);
-              setPhase("quoting");
-              analyticsService.track("create_deployment", { category: "deployments", label: "Create deployment in wizard", dseq: result.data.dseq });
-              cacheDeployedSdl(deploymentLocalStorage, settingsId, result.data.dseq, sdl);
-              router.replace(buildConfigureUrl(intentRef.current, result.data.dseq, bidStrategyRef.current), undefined, { shallow: true });
-            },
-            onError: function onCreateFailed(cause: unknown) {
-              if (attempt !== createAttemptRef.current) return;
-              const message =
-                extractApiErrorCode(cause) === WALLET_PROVISIONING_ERROR_CODE
-                  ? WALLET_PROVISIONING_TIMEOUT_MESSAGE
-                  : extractApiErrorMessage(cause) ?? undefined;
-              setError({ message, kind: isPaymentRequired(cause) ? "needs-funds" : "create" });
-              setPhase("error");
+              onCreateFailed(cause);
             }
           }
         );
+      }
+
+      async function sealAndSubmit(canResealOnce: boolean) {
+        let sealedSecrets: string;
+        try {
+          const context = await getSdlSecretsContext.mutateAsync();
+          sealedSecrets = await dependencies.sealSdlSecrets({ context: context.data, sdl, secrets });
+        } catch (cause) {
+          onCreateFailed(cause);
+          return;
+        }
+        if (!isCurrentAttempt()) return;
+        submitCreate({ sealedSecrets }, canResealOnce);
+      }
+
+      function create() {
+        if (!isCurrentAttempt()) return;
+        setPhase("creating");
+        if (isSecretsEnabled) {
+          void sealAndSubmit(true);
+          return;
+        }
+        submitCreate({}, false);
       }
 
       const openDseq = dseq ?? strandedDseq;
@@ -406,7 +464,20 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
       create();
     },
-    [createDeployment, closeDeployment, dseq, strandedDseq, router, deploymentLocalStorage, settingsId, analyticsService, startClose]
+    [
+      createDeployment,
+      closeDeployment,
+      getSdlSecretsContext,
+      isSecretsEnabled,
+      dependencies,
+      dseq,
+      strandedDseq,
+      router,
+      deploymentLocalStorage,
+      settingsId,
+      analyticsService,
+      startClose
+    ]
   );
 
   /**
@@ -578,6 +649,11 @@ function namePayload(name: string | undefined): { name?: string } {
 /** Status is the only signal available: a refused deposit, an exhausted fee allowance and a trial-blocked GPU all report `payment_required`. */
 function isPaymentRequired(cause: unknown): boolean {
   return isApiError(cause) && cause.status === HTTP_PAYMENT_REQUIRED;
+}
+
+/** A seal made against a retired key comes back as a bare 409; a wallet still provisioning answers 409 too and has its own retry. */
+function isStaleSealingKey(cause: unknown): boolean {
+  return isApiError(cause) && cause.status === HTTP_CONFLICT && !isWalletProvisioning(cause);
 }
 
 /** Best-effort cache under owner + dseq (the key the detail page reads); failures are swallowed so storage issues never block deploy. */

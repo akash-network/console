@@ -1,15 +1,16 @@
 import type { PropsWithChildren } from "react";
 import type { Resolver } from "react-hook-form";
-import { FormProvider, useForm } from "react-hook-form";
+import { FormProvider, useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { describe, expect, it } from "vitest";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
+import { EnvironmentVariablesCard } from "../EnvironmentVariablesCard/EnvironmentVariablesCard";
 import { ImageCard } from "./ImageCard";
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(ImageCard.name, () => {
@@ -56,6 +57,109 @@ describe(ImageCard.name, () => {
     await userEvent.type(screen.getByLabelText("Registry username"), "alice");
 
     expect(getValues().services[0].credentials?.username).toBe("alice");
+  });
+
+  it("shows a kept registry credential as a placeholder rather than its reference, so the reference never reads as the value", () => {
+    setup({ image: "nginx:latest", credentials: { host: "ghcr.io", username: "ac-secret://REGISTRY_USERNAME", password: "ac-secret://REGISTRY_PASSWORD" } });
+
+    expect(screen.getByLabelText("Registry username")).toHaveValue("");
+    expect(screen.getByLabelText("Registry username")).toHaveAttribute("placeholder", "Kept from your deployment. Type to replace.");
+    expect(screen.getByLabelText("Registry password")).toHaveValue("");
+    expect(screen.getByLabelText("Registry password")).toHaveAttribute("placeholder", "Kept from your deployment. Type to replace.");
+  });
+
+  it("replaces a kept credential with what the user types", async () => {
+    const { getValues } = setup({ image: "nginx:latest", credentials: { host: "ghcr.io", username: "ac-secret://REGISTRY_USERNAME", password: "hunter22" } });
+
+    await userEvent.type(screen.getByLabelText("Registry username"), "bob");
+
+    expect(getValues().services[0].credentials?.username).toBe("bob");
+  });
+
+  it("keeps a registry credential the deployment holds when the user clears the box again", async () => {
+    const { getValues } = setup({
+      image: "nginx:latest",
+      credentials: { host: "ghcr.io", username: "ac-secret://REGISTRY_USERNAME", password: "ac-secret://REGISTRY_PASSWORD" }
+    });
+
+    await userEvent.type(screen.getByLabelText("Registry username"), "bob");
+    await userEvent.clear(screen.getByLabelText("Registry username"));
+
+    expect(getValues().services[0].credentials?.username).toBe("ac-secret://REGISTRY_USERNAME");
+    expect(screen.getByLabelText("Registry username")).toHaveAttribute("placeholder", "Kept from your deployment. Type to replace.");
+  });
+
+  it("keeps a registry password the deployment holds when the user clears the box again", async () => {
+    const { getValues } = setup({
+      image: "nginx:latest",
+      credentials: { host: "ghcr.io", username: "ac-secret://REGISTRY_USERNAME", password: "ac-secret://REGISTRY_PASSWORD" }
+    });
+
+    await userEvent.type(screen.getByLabelText("Registry password"), "hunter22");
+    await userEvent.clear(screen.getByLabelText("Registry password"));
+
+    expect(getValues().services[0].credentials?.password).toBe("ac-secret://REGISTRY_PASSWORD");
+  });
+
+  it("keeps a registry credential the deployment holds after an unrelated environment variables save", async () => {
+    const { getValues, openEnvironmentVariables } = setupWithEnvironmentVariables();
+
+    await userEvent.type(screen.getByLabelText("Registry username"), "bob");
+    await openEnvironmentVariables();
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await userEvent.clear(screen.getByLabelText("Registry username"));
+
+    expect(getValues().services[0].credentials?.username).toBe("ac-secret://REGISTRY_USERNAME");
+  });
+
+  it("keeps a registry credential the deployment holds after an unrelated environment variables cancel", async () => {
+    const { getValues, openEnvironmentVariables } = setupWithEnvironmentVariables();
+
+    await userEvent.type(screen.getByLabelText("Registry username"), "bob");
+    await openEnvironmentVariables();
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await userEvent.clear(screen.getByLabelText("Registry username"));
+
+    expect(getValues().services[0].credentials?.username).toBe("ac-secret://REGISTRY_USERNAME");
+  });
+
+  it("does not resurrect the previous deployment's credential after an import replaces it", async () => {
+    const { getValues, importValues } = setup({
+      image: "nginx:latest",
+      credentials: { host: "ghcr.io", username: "ac-secret://REGISTRY_USERNAME", password: "ac-secret://REGISTRY_PASSWORD" }
+    });
+
+    importValues(
+      defaultServiceWithPlacement({ image: "redis:7", hasCredentials: true, credentials: { host: "ghcr.io", username: "alice", password: "hunter22" } })
+    );
+    await userEvent.clear(screen.getByLabelText("Registry username"));
+
+    expect(getValues().services[0].credentials?.username).toBe("");
+  });
+
+  it("does not take the removed service's kept credential after an earlier service is dropped", async () => {
+    const { getValues } = setupServices();
+
+    await userEvent.click(screen.getByRole("button", { name: "drop first service" }));
+    await userEvent.type(screen.getByLabelText("Registry username"), "bob");
+    await userEvent.clear(screen.getByLabelText("Registry username"));
+
+    expect(getValues().services[0].credentials?.username).toBe("");
+  });
+
+  it("clears a typed registry username the user never kept", async () => {
+    const { getValues } = setup({ image: "nginx:latest", credentials: { host: "ghcr.io", username: "alice", password: "hunter22" } });
+
+    await userEvent.clear(screen.getByLabelText("Registry username"));
+
+    expect(getValues().services[0].credentials?.username).toBe("");
+  });
+
+  it("shows a typed registry username as typed", () => {
+    setup({ image: "nginx:latest", credentials: { host: "ghcr.io", username: "alice", password: "hunter22" } });
+
+    expect(screen.getByLabelText("Registry username")).toHaveValue("alice");
+    expect(screen.getByLabelText("Registry username")).not.toHaveAttribute("placeholder");
   });
 
   it("shows a custom registry URL field for a custom host", async () => {
@@ -164,14 +268,22 @@ describe(ImageCard.name, () => {
     expect(screen.queryByText("Operating System")).not.toBeInTheDocument();
   });
 
-  function setup(input: { image?: string; hasCredentials?: boolean; resolver?: Resolver<SdlBuilderFormValuesType>; locked?: boolean }) {
+  function setup(input: {
+    image?: string;
+    hasCredentials?: boolean;
+    credentials?: { host: string; username: string; password: string };
+    resolver?: Resolver<SdlBuilderFormValuesType>;
+    locked?: boolean;
+  }) {
+    const hasCredentials = input.hasCredentials ?? !!input.credentials;
     const values = defaultServiceWithPlacement({
       image: input.image ?? "",
-      hasCredentials: input.hasCredentials ?? false,
-      credentials: input.hasCredentials ? { host: "docker.io", username: "", password: "" } : undefined
+      hasCredentials,
+      credentials: hasCredentials ? input.credentials ?? { host: "docker.io", username: "", password: "" } : undefined
     });
 
     let getValues: () => SdlBuilderFormValuesType = () => values;
+    let reset: (imported: SdlBuilderFormValuesType) => void = () => undefined;
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({
         defaultValues: values,
@@ -180,6 +292,7 @@ describe(ImageCard.name, () => {
         resolver: input.resolver
       });
       getValues = form.getValues;
+      reset = form.reset;
       return (
         <FormProvider {...form}>
           <form onSubmit={form.handleSubmit(() => undefined)}>
@@ -196,7 +309,7 @@ describe(ImageCard.name, () => {
       </Wrapper>
     );
 
-    return { getValues: () => getValues() };
+    return { getValues: () => getValues(), importValues: (imported: SdlBuilderFormValuesType) => act(() => reset(imported)) };
   }
 
   /** Renders the card in the app's `onTouched` mode with the real resolver so touched-field validation can be asserted. */
@@ -213,6 +326,73 @@ describe(ImageCard.name, () => {
         <ImageCard serviceIndex={0} />
       </Wrapper>
     );
+  }
+
+  /** Seeds two services and lets the test drop the first, because react-hook-form leaves its default values in the original order. */
+  function setupServices() {
+    const seeded = defaultServiceWithPlacement({
+      image: "nginx",
+      hasCredentials: true,
+      credentials: { host: "ghcr.io", username: "ac-secret://REGISTRY_USERNAME", password: "ac-secret://REGISTRY_PASSWORD" }
+    });
+    const survivor = {
+      ...seeded.services[0],
+      id: "survivor",
+      image: "redis",
+      credentials: { host: "ghcr.io", username: "alice", password: "hunter22" }
+    };
+    const values = { ...seeded, services: [seeded.services[0], survivor] };
+
+    let getValues: () => SdlBuilderFormValuesType = () => values;
+    const Wrapper = ({ children }: PropsWithChildren) => {
+      const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values, mode: "onSubmit" });
+      const { remove } = useFieldArray({ control: form.control, name: "services" });
+      getValues = form.getValues;
+      return (
+        <FormProvider {...form}>
+          <button type="button" onClick={() => remove(0)}>
+            drop first service
+          </button>
+          {children}
+        </FormProvider>
+      );
+    };
+
+    render(
+      <Wrapper>
+        <ImageCard serviceIndex={0} />
+      </Wrapper>
+    );
+
+    return { getValues: () => getValues() };
+  }
+
+  function setupWithEnvironmentVariables() {
+    const values = defaultServiceWithPlacement({
+      image: "nginx:latest",
+      hasCredentials: true,
+      credentials: { host: "ghcr.io", username: "ac-secret://REGISTRY_USERNAME", password: "ac-secret://REGISTRY_PASSWORD" },
+      env: [{ key: "FOO", value: "bar", isSecret: false }]
+    });
+
+    let getValues: () => SdlBuilderFormValuesType = () => values;
+    const Wrapper = ({ children }: PropsWithChildren) => {
+      const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values, mode: "onChange", resolver: zodResolver(SdlBuilderFormValuesSchema) });
+      getValues = form.getValues;
+      return <FormProvider {...form}>{children}</FormProvider>;
+    };
+
+    render(
+      <Wrapper>
+        <ImageCard serviceIndex={0} />
+        <EnvironmentVariablesCard serviceIndex={0} />
+      </Wrapper>
+    );
+
+    return {
+      getValues: () => getValues(),
+      openEnvironmentVariables: () => userEvent.click(screen.getByText(/^Environment Variables/))
+    };
   }
 
   /** Renders the card under the real resolver so the custom-host URL validation flows to the field state. */
