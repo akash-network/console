@@ -3,6 +3,7 @@ import { ApiError } from "@akashnetwork/openapi-sdk";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useResolvedDeploymentName } from "@src/hooks/useResolvedDeploymentName/useResolvedDeploymentName";
 import { isStoredSdlRedeployable, isStoredSdlSelfContained } from "@src/utils/sdl/storedDefinition";
 
@@ -22,10 +23,10 @@ export function isUsableDeploymentDefinition(definition: DeploymentDefinition): 
   return !!definition.sdl && USABLE_SOURCES.includes(definition.source);
 }
 
-export const DEPENDENCIES = { useServices, useWallet, useResolvedDeploymentName };
+export const DEPENDENCIES = { useServices, useWallet, useResolvedDeploymentName, useFlag };
 
 export interface DeploymentDefinitionOptions {
-  /** Takes the api's copy even where it withholds values as references, for a caller that hands the SDL to Configure rather than signing it. */
+  /** Takes the api's copy even where it withholds values as references, for a caller that hands the SDL to Configure rather than signing it, and only while the secrets feature can resolve them. */
   acceptReferences?: boolean;
 }
 
@@ -63,7 +64,8 @@ export function useDeploymentDefinition(
   const isApiCopyOnChain = !!consoleSettings?.manifestVersion && consoleSettings.manifestVersion === query.data?.deployment?.hash;
   const localSdl = deploymentLocalStorage.get(address, dseq)?.manifest;
   const name = dependencies.useResolvedDeploymentName(dseq);
-  const acceptReferences = !!options.acceptReferences;
+  /** Nothing resolves a reference with the feature off, so the api's copy is only preferred over this browser's while it is on. */
+  const acceptReferences = !!options.acceptReferences && dependencies.useFlag("ui_deployment_secrets");
 
   return useMemo(() => {
     const isApiCopyUsable = acceptReferences ? isStoredSdlRedeployable : isStoredSdlSelfContained;

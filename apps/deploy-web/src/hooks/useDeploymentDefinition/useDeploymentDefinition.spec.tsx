@@ -142,6 +142,13 @@ describe(useDeploymentDefinition.name, () => {
 
       await vi.waitFor(() => expect(result.current.source).toBe("local"));
     });
+
+    it("keeps this browser's copy while the secrets feature is off, because nothing would resolve the references", async () => {
+      const { result } = setup({ apiSdl: WITHHELD_VALUES_SDL, localSdl: LOCAL_SDL, acceptReferences: true, secretsEnabled: false });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("local"));
+      expect(result.current.sdl).toBe(LOCAL_SDL);
+    });
   });
 
   it("asks the api for nothing when there is no dseq", () => {
@@ -161,6 +168,7 @@ describe(useDeploymentDefinition.name, () => {
     localSdl?: string;
     localName?: string;
     acceptReferences?: boolean;
+    secretsEnabled?: boolean;
   }) {
     const chainManifestVersion = input.chainManifestVersion ?? "on-chain-version";
     const recordedManifestVersion = input.recordedManifestVersion ?? chainManifestVersion;
@@ -199,7 +207,7 @@ describe(useDeploymentDefinition.name, () => {
         useDeploymentDefinition(
           input.dseq === undefined ? "123" : input.dseq,
           { acceptReferences: input.acceptReferences },
-          { useServices, useWallet, useResolvedDeploymentName: useResolvedName }
+          { useServices, useWallet, useResolvedDeploymentName: useResolvedName, useFlag: () => input.secretsEnabled ?? true }
         ),
       {
         services: { api: () => api, deploymentLocalStorage: () => deploymentLocalStorage, queryClient: () => queryClient }
