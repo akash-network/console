@@ -911,6 +911,17 @@ describe(useDeploymentFlow.name, () => {
       expect(result.current.error?.message).toContain("still being set up");
     });
 
+    it("does not seal again when the create fails with something other than a conflict", async () => {
+      const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(500, { message: "Internal server error" }, "POST /v1/deployments \u2192 500")));
+      const { result, sealSdlSecrets } = setup({ secretsEnabled: true, createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl-content"));
+
+      await waitFor(() => expect(result.current.phase).toBe("error"));
+      expect(createMutate).toHaveBeenCalledTimes(1);
+      expect(sealSdlSecrets).toHaveBeenCalledTimes(1);
+    });
+
     it("gives up after one new seal, so a conflict that persists surfaces as a create error", async () => {
       const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(409, { message: STALE_KEY_MESSAGE }, "POST /v1/deployments → 409")));
       const { result } = setup({ secretsEnabled: true, createMutate });

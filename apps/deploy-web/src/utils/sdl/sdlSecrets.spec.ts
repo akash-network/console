@@ -108,6 +108,40 @@ describe("sdlSecrets", () => {
     it("is empty for an sdl that does not parse", () => {
       expect(secretReferenceNamesIn("services: [")).toEqual(new Set());
     });
+
+    it("is empty for an sdl that parses to nothing", () => {
+      expect(secretReferenceNamesIn("")).toEqual(new Set());
+    });
+
+    it("is empty when services is a sequence rather than a mapping", () => {
+      const sdl = 'version: "2.0"\nservices:\n  - env:\n      - "A=ac-secret://A"\n';
+
+      expect(secretReferenceNamesIn(sdl)).toEqual(new Set());
+    });
+
+    it("ignores an env entry that is not a string", () => {
+      const sdl = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - 42\n';
+
+      expect(secretReferenceNamesIn(sdl)).toEqual(new Set());
+    });
+
+    it("ignores a bare env entry, which names a variable rather than assigning one", () => {
+      const sdl = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "ac-secret://LOOKS_LIKE_ONE"\n';
+
+      expect(secretReferenceNamesIn(sdl)).toEqual(new Set());
+    });
+
+    it("reads a reference assigned to a single character key", () => {
+      const sdl = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "A=ac-secret://SHORT_KEY"\n';
+
+      expect(secretReferenceNamesIn(sdl)).toEqual(new Set(["SHORT_KEY"]));
+    });
+
+    it("ignores credentials that are not a mapping", () => {
+      const sdl = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    credentials: null\n';
+
+      expect(secretReferenceNamesIn(sdl)).toEqual(new Set());
+    });
   });
 
   describe(resolveSdlSecrets.name, () => {

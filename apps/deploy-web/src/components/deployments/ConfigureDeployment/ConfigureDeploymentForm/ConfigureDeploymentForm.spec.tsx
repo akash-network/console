@@ -442,12 +442,13 @@ describe(ConfigureDeploymentForm.name, () => {
   });
 
   it("hands the typed secret values to the deploy when the secrets feature is on", async () => {
-    const { flow } = setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes, secretsEnabled: true });
+    const { flow, ConfigureDeploymentPanes } = setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes, secretsEnabled: true });
 
     await userEvent.click(screen.getByRole("button", { name: "select provider" }));
     await userEvent.click(screen.getByRole("button", { name: "confirm and deploy" }));
 
-    expect(flow.actions.deploy).toHaveBeenCalledWith(expect.any(String), { secrets: {}, unresolvedSecrets: [] });
+    const previewed = lastPanesProps(ConfigureDeploymentPanes).sdl;
+    expect(flow.actions.deploy).toHaveBeenCalledWith(previewed, { secrets: {}, unresolvedSecrets: [] });
   });
 
   it("tracks a dismissal when the review modal is closed via Back", async () => {
@@ -560,6 +561,10 @@ describe(ConfigureDeploymentForm.name, () => {
 
     expect(ConfigureDeploymentPanes).toHaveBeenCalledWith(expect.objectContaining({ pendingClose, onRetryClose: flow.actions.retryClose }), expect.anything());
   });
+
+  function lastPanesProps(Panes: ReturnType<typeof vi.fn>) {
+    return Panes.mock.calls[Panes.mock.calls.length - 1][0] as ProbePanesProps;
+  }
 
   function setup(input: {
     initialSdl: string | undefined;
