@@ -81,10 +81,16 @@ export class GpuService {
     return response;
   }
 
+  /** The catalog as published, keyed by the pci ids `mapProviderConfig` drops, which is what identifies a card the driver reports. */
+  @Memoize({ ttlInSeconds: minutesToSeconds(2) })
+  async getGpuModelCatalog(): Promise<ProviderConfigGpusType> {
+    const response = await this.httpClient.get<ProviderConfigGpusType>("/gpus.json");
+    return response.data;
+  }
+
   @Memoize({ ttlInSeconds: minutesToSeconds(2) })
   async getGpuModels() {
-    const response = await this.httpClient.get<ProviderConfigGpusType>("/gpus.json");
-    return this.gpuFormattingService.mapProviderConfig(response.data);
+    return this.gpuFormattingService.mapProviderConfig(await this.getGpuModelCatalog());
   }
 
   readonly getGpuBreakdown = memoizeAsync((query: GpuBreakdownQuery) => this.gpuRepository.getGpuBreakdown(query), {
