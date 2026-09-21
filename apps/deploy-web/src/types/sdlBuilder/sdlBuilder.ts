@@ -7,6 +7,7 @@ import { memoryUnits, storageUnits, validationConfig } from "@src/utils/akash/un
 import { ENDPOINT_NAME_VALIDATION_REGEX } from "@src/utils/deploymentData/v1beta3";
 import { kvArrayToObject } from "@src/utils/keyValue/keyValue";
 import { roundDecimal } from "@src/utils/mathHelpers";
+import { isReservedSdlValue, isSdlReference, isValidSecretName } from "@src/utils/sdl/sdlSecrets";
 import { isVmImage } from "@src/utils/sdl/vmImages";
 import { bytesToShrink } from "@src/utils/unitUtils";
 
@@ -76,6 +77,10 @@ export const SSH_PUBKEY_ENV_KEY = "SSH_PUBKEY";
  */
 export const RESERVED_ENV_KEYS = [SSH_PUBKEY_ENV_KEY] as const;
 
+export const RESERVED_ENV_VALUE_MESSAGE = 'Plain values may not start with "ac-", which the console reserves for secret references.';
+
+export const SECRET_NAME_MESSAGE = "A secret name may only contain letters, digits and underscores, cannot start with a digit and is at most 64 characters.";
+
 export const EnvironmentVariableSchema = z
   .object({
     id: z.string().optional(),
@@ -92,6 +97,12 @@ export const EnvironmentVariableSchema = z
         path: ["key"],
         message: `"${env.key}" is a reserved variable name`
       });
+    }
+    if (!env.isSecret && env.value !== undefined && isReservedSdlValue(env.value)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["value"], message: RESERVED_ENV_VALUE_MESSAGE });
+    }
+    if (env.isSecret && !isSdlReference(env.value ?? "") && !isValidSecretName(env.key.trim())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["key"], message: SECRET_NAME_MESSAGE });
     }
   });
 

@@ -16,6 +16,7 @@ import { CPU_ARCHITECTURES, ReclamationMinWindowSchema, RESERVED_ENV_KEYS } from
 import { CustomValidationError } from "../deploymentData";
 import { capitalizeFirstLetter } from "../stringUtils";
 import { defaultHttpOptions } from "./data";
+import { secretNameOf } from "./sdlSecrets";
 
 /** YAML parses unquoted scalars like `0` or `false` into native types, so tokens are stringified instead of filtered as falsy. */
 export const parseSvcCommand = (command?: string | (string | number | boolean)[]): string => {
@@ -125,7 +126,8 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
           const key = separatorIndex === -1 ? e : e.slice(0, separatorIndex);
           const value = separatorIndex === -1 ? undefined : e.slice(separatorIndex + 1);
           const id = (RESERVED_ENV_KEYS as readonly string[]).includes(key) ? key : nanoid();
-          return { id, key, value };
+          const isSecret = value !== undefined && secretNameOf(value) !== null;
+          return isSecret ? { id, key, value, isSecret } : { id, key, value };
         }) || [];
 
       service.expose = [];

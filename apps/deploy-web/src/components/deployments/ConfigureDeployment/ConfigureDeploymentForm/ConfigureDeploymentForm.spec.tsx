@@ -50,6 +50,12 @@ const VALID_SDL = [
   "      count: 1"
 ].join("\n");
 
+/** The valid SDL with a private registry on its service, the password typed in the clear as an upload would carry it. */
+const CREDENTIALS_SDL = VALID_SDL.replace(
+  "    image: nginx:1.0",
+  ["    image: nginx:1.0", "    credentials:", "      host: ghcr.io", "      username: alice", "      password: hunter22"].join("\n")
+);
+
 const TWO_SERVICE_SDL = [
   "version: '2.0'",
   "services:",
@@ -274,6 +280,19 @@ describe(ConfigureDeploymentForm.name, () => {
     await userEvent.click(screen.getByRole("button", { name: "change image" }));
 
     await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), expect.any(String), undefined));
+  });
+
+  it("regenerates a carried-in SDL with its registry credentials as references when the secrets feature is on, so the draft never holds the password", async () => {
+    const { save } = setup({ initialSdl: CREDENTIALS_SDL, secretsEnabled: true });
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("ac-secret://REGISTRY_PASSWORD"), expect.any(String), undefined));
+    expect(save).not.toHaveBeenCalledWith(expect.stringContaining("hunter22"), expect.anything(), expect.anything());
+  });
+
+  it("keeps a carried-in SDL verbatim, credentials included, while the secrets feature is off", async () => {
+    const { save } = setup({ initialSdl: CREDENTIALS_SDL });
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("password: hunter22"), expect.any(String), undefined));
   });
 
   it("clears the configure draft once the deployment is deployed", () => {
@@ -522,6 +541,7 @@ describe(ConfigureDeploymentForm.name, () => {
     vm?: boolean;
     phase?: DeploymentFlow["phase"];
     pendingClose?: DeploymentFlow["pendingClose"];
+    secretsEnabled?: boolean;
   }) {
     const ConfigureDeploymentPanes = vi.fn(
       input.Panes ?? (({ configurationActions }: ProbePanesProps) => <div data-testid="panes-mock">{configurationActions}</div>)
@@ -589,7 +609,8 @@ describe(ConfigureDeploymentForm.name, () => {
       ReviewAndDeployModal: ReviewAndDeployModal as never,
       DeployProgressOverlay: () => null,
       SdlImportExport: SdlImportExport as never,
-      usePlacementsWithBids: () => new Set<string>()
+      usePlacementsWithBids: () => new Set<string>(),
+      useFlag: () => input.secretsEnabled ?? false
     };
 
     render(

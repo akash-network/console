@@ -58,6 +58,30 @@ describe(ImageCard.name, () => {
     expect(getValues().services[0].credentials?.username).toBe("alice");
   });
 
+  it("shows a kept registry credential as a placeholder rather than its reference, so the reference never reads as the value", () => {
+    setup({ image: "nginx:latest", credentials: { host: "ghcr.io", username: "ac-secret://REGISTRY_USERNAME", password: "ac-secret://REGISTRY_PASSWORD" } });
+
+    expect(screen.getByLabelText("Registry username")).toHaveValue("");
+    expect(screen.getByLabelText("Registry username")).toHaveAttribute("placeholder", "Kept from your deployment. Type to replace.");
+    expect(screen.getByLabelText("Registry password")).toHaveValue("");
+    expect(screen.getByLabelText("Registry password")).toHaveAttribute("placeholder", "Kept from your deployment. Type to replace.");
+  });
+
+  it("replaces a kept credential with what the user types", async () => {
+    const { getValues } = setup({ image: "nginx:latest", credentials: { host: "ghcr.io", username: "ac-secret://REGISTRY_USERNAME", password: "hunter22" } });
+
+    await userEvent.type(screen.getByLabelText("Registry username"), "bob");
+
+    expect(getValues().services[0].credentials?.username).toBe("bob");
+  });
+
+  it("shows a typed registry username as typed", () => {
+    setup({ image: "nginx:latest", credentials: { host: "ghcr.io", username: "alice", password: "hunter22" } });
+
+    expect(screen.getByLabelText("Registry username")).toHaveValue("alice");
+    expect(screen.getByLabelText("Registry username")).not.toHaveAttribute("placeholder");
+  });
+
   it("shows a custom registry URL field for a custom host", async () => {
     setup({ hasCredentials: true });
 
@@ -164,11 +188,18 @@ describe(ImageCard.name, () => {
     expect(screen.queryByText("Operating System")).not.toBeInTheDocument();
   });
 
-  function setup(input: { image?: string; hasCredentials?: boolean; resolver?: Resolver<SdlBuilderFormValuesType>; locked?: boolean }) {
+  function setup(input: {
+    image?: string;
+    hasCredentials?: boolean;
+    credentials?: { host: string; username: string; password: string };
+    resolver?: Resolver<SdlBuilderFormValuesType>;
+    locked?: boolean;
+  }) {
+    const hasCredentials = input.hasCredentials ?? !!input.credentials;
     const values = defaultServiceWithPlacement({
       image: input.image ?? "",
-      hasCredentials: input.hasCredentials ?? false,
-      credentials: input.hasCredentials ? { host: "docker.io", username: "", password: "" } : undefined
+      hasCredentials,
+      credentials: hasCredentials ? input.credentials ?? { host: "docker.io", username: "", password: "" } : undefined
     });
 
     let getValues: () => SdlBuilderFormValuesType = () => values;

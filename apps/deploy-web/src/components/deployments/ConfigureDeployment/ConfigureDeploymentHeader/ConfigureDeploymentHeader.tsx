@@ -6,10 +6,13 @@ import { Clock, LoaderCircle } from "lucide-react";
 import { useSnackbar } from "notistack";
 
 import { PriceValue } from "@src/components/shared/PriceValue";
+import { useFlag } from "@src/hooks/useFlag";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { hasTrialBlockedGpu } from "@src/utils/deploymentData/v1beta3";
 import { getAvgCostPerMonth, perBlockToHourly } from "@src/utils/priceUtils";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
+import type { UnresolvedSdlSecret } from "@src/utils/sdl/sdlSecrets";
+import { resolveSdlSecrets } from "@src/utils/sdl/sdlSecrets";
 import { validateGeneratedSdl } from "@src/utils/sdl/validateGeneratedSdl";
 import { useTrialGate } from "../ConfigurationPane/HardwareSection/useTrialGate/useTrialGate";
 import { useDeploymentHasGpu, useDeploymentResourceSummary } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
@@ -28,6 +31,9 @@ export const DEPENDENCIES = {
   generateSdl,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   validateGeneratedSdl,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
+  resolveSdlSecrets,
+  useFlag,
   useDeploymentCost,
   PriceValue,
   useQuoteExpiry,
@@ -50,6 +56,7 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
   const { control, handleSubmit, getValues } = useFormContext<SdlBuilderFormValuesType>();
   const { enqueueSnackbar } = d.useSnackbar();
   const { isRestricted } = d.useTrialGate();
+  const isSecretsEnabled = d.useFlag("ui_deployment_secrets");
   const placements = useWatch({ control, name: "placements" });
   const cost = d.useDeploymentCost({ dseq: flow.dseq, sdl, placements, selections: flow.selections });
   const expiry = d.useQuoteExpiry({ dseq: flow.dseq, enabled: flow.phase === "quoting" });
@@ -77,8 +84,10 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
    * submitted, so validation and creation can never disagree about which spec they acted on.
    */
   const onRequestQuotes = handleSubmit(values => {
-    const sdl = d.generateSdl(values);
+    const sdl = d.generateSdl(values, { sealCredentials: isSecretsEnabled });
     const errors = [...d.validateGeneratedSdl(sdl)];
+    const secrets = isSecretsEnabled ? d.resolveSdlSecrets(values, { sealCredentials: true }) : undefined;
+    secrets?.unresolved.forEach(secret => errors.push(unresolvedSecretMessage(secret)));
     // Load-bearing trial guard: enabling the GPU card leaves the model at the empty default without ever
     // opening the (locked) picker, so the presentational lock alone can't stop an empty-model submission —
     // otherwise the deployment would spin on "Requesting…" with no usable bid (CON-660).
@@ -102,7 +111,7 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
       );
       return;
     }
-    flow.actions.requestQuotes(sdl, deploymentName);
+    flow.actions.requestQuotes(sdl, { name: deploymentName, ...(secrets ? { secrets: secrets.values } : {}) });
   });
 
   return (
@@ -141,7 +150,7 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
           <Button
             type="button"
             disabled={!allPlacementsSelected}
-            onClick={hasDeployError ? () => flow.actions.deploy(d.generateSdl(getValues())) : onDeploy}
+            onClick={hasDeployError ? () => flow.actions.deploy(d.generateSdl(getValues(), { sealCredentials: isSecretsEnabled })) : onDeploy}
             aria-label={hasDeployError ? "Retry" : "Deploy"}
             className="h-9 shrink-0 px-3 md:h-10 md:px-8"
           >
@@ -232,4 +241,8 @@ function QuoteExpiryLine({ expiry, CustomTooltip }: { expiry: QuoteExpiry; Custo
       </div>
     </CustomTooltip>
   );
+}
+
+function unresolvedSecretMessage(secret: UnresolvedSdlSecret): string {
+  return `Secret "${secret.label}" in service "${secret.serviceTitle}" needs a value.`;
 }

@@ -13,6 +13,15 @@ import { buildConfigureUrl, useDeploymentFlow } from "./useDeploymentFlow";
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 
+const SEAL_CONTEXT = {
+  kid: "sdl-secrets.v1",
+  sub: "user-1",
+  jwk: { kty: "RSA", n: "n", e: "AQAB", use: "enc", alg: "RSA-OAEP-256" },
+  requiredClaims: ["kid", "sub", "exp"]
+};
+
+const STALE_KEY_MESSAGE = "Sealed to a key the console no longer holds; refetch the SDL secrets context";
+
 describe(useDeploymentFlow.name, () => {
   it("starts in configuring when there is no dseq", () => {
     const { result } = setup({});
@@ -42,7 +51,7 @@ describe(useDeploymentFlow.name, () => {
     const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
     const { result } = setup({ createMutate });
 
-    act(() => result.current.actions.requestQuotes("sdl-content", "  my-app  "));
+    act(() => result.current.actions.requestQuotes("sdl-content", { name: "  my-app  " }));
 
     await waitFor(() => expect(result.current.phase).toBe("quoting"));
     expect(createMutate).toHaveBeenCalledWith({ data: { sdl: "sdl-content", name: "my-app", deposit: expect.any(Number) } }, expect.any(Object));
@@ -52,7 +61,7 @@ describe(useDeploymentFlow.name, () => {
     const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
     const { result } = setup({ createMutate });
 
-    act(() => result.current.actions.requestQuotes("sdl-content", name));
+    act(() => result.current.actions.requestQuotes("sdl-content", { name }));
 
     await waitFor(() => expect(result.current.phase).toBe("quoting"));
     expect(createMutate.mock.calls[0][0].data).not.toHaveProperty("name");
@@ -188,8 +197,10 @@ describe(useDeploymentFlow.name, () => {
         useListBids: (() => ({ data: { data: bids }, isLoading: false, isError: false })) as never,
         useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: vi.fn(), push: vi.fn() })) as never,
         useQueryClient: (() => mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>()) as never,
+        useFlag: () => false,
         manifestFromSdl: () => "M",
-        deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 })
+        deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 }),
+        sealSdlSecrets: async () => "SEALED"
       };
       const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
       expect(result.current.phase).toBe("quoting");
@@ -372,7 +383,7 @@ describe(useDeploymentFlow.name, () => {
     createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
     const { result, deploymentLocalStorage } = renderFlow({ createDeployment });
 
-    act(() => result.current.actions.requestQuotes("SDL_AT_CREATE", "my-app"));
+    act(() => result.current.actions.requestQuotes("SDL_AT_CREATE", { name: "my-app" }));
 
     expect(deploymentLocalStorage.update).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ name: expect.anything() }));
   });
@@ -792,6 +803,107 @@ describe(useDeploymentFlow.name, () => {
     expect(result.current.selections).toEqual({ "placement-1": "akash1a/555/1/3" });
   });
 
+  describe("when the secrets feature is on", () => {
+    it("seals the typed secrets to the fetched context and sends the seal with the create", async () => {
+      const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+      const { result, sealSdlSecrets } = setup({ secretsEnabled: true, createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl-content", { secrets: { API_KEY: "hunter2" } }));
+
+      await waitFor(() => expect(result.current.phase).toBe("quoting"));
+      expect(sealSdlSecrets).toHaveBeenCalledWith({ context: SEAL_CONTEXT, sdl: "sdl-content", secrets: { API_KEY: "hunter2" } });
+      expect(createMutate).toHaveBeenCalledWith({ data: { sdl: "sdl-content", sealedSecrets: "SEALED", deposit: expect.any(Number) } }, expect.any(Object));
+    });
+
+    it("sends an empty seal when nothing is secret, which is what stops the api protecting every variable", async () => {
+      const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+      const { result, sealSdlSecrets } = setup({ secretsEnabled: true, createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl-content"));
+
+      await waitFor(() => expect(result.current.phase).toBe("quoting"));
+      expect(sealSdlSecrets).toHaveBeenCalledWith({ context: SEAL_CONTEXT, sdl: "sdl-content", secrets: {} });
+      expect(createMutate.mock.calls[0][0].data).toHaveProperty("sealedSecrets", "SEALED");
+    });
+
+    it("counts the sealed secrets on the create_deployment event", async () => {
+      const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+      const { result, analyticsService } = setup({ secretsEnabled: true, createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl-content", { secrets: { A: "1", B: "2" } }));
+
+      await waitFor(() => expect(analyticsService.track).toHaveBeenCalledWith("create_deployment", expect.objectContaining({ dseq: "999", secretCount: 2 })));
+    });
+
+    it("fetches a fresh context and seals again once when the api reports the sealing key stale", async () => {
+      const createMutate = vi
+        .fn()
+        .mockImplementationOnce((_args, { onError }) => onError(new ApiError(409, { message: STALE_KEY_MESSAGE }, "POST /v1/deployments → 409")))
+        .mockImplementationOnce((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+      const { result, sealSdlSecrets, getSdlSecretsContext } = setup({ secretsEnabled: true, createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl-content"));
+
+      await waitFor(() => expect(result.current.phase).toBe("quoting"));
+      expect(getSdlSecretsContext.mutateAsync).toHaveBeenCalledTimes(2);
+      expect(sealSdlSecrets).toHaveBeenCalledTimes(2);
+      expect(createMutate).toHaveBeenCalledTimes(2);
+    });
+
+    it("gives up after one new seal, so a conflict that persists surfaces as a create error", async () => {
+      const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(409, { message: STALE_KEY_MESSAGE }, "POST /v1/deployments → 409")));
+      const { result } = setup({ secretsEnabled: true, createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl-content"));
+
+      await waitFor(() => expect(result.current.phase).toBe("error"));
+      expect(result.current.error).toEqual({ kind: "create", message: STALE_KEY_MESSAGE });
+      expect(createMutate).toHaveBeenCalledTimes(2);
+    });
+
+    it("surfaces a create error and creates nothing when the sealing context cannot be fetched", async () => {
+      const sealContextMutateAsync = vi.fn(async () => {
+        throw new ApiError(503, { message: "Service temporarily unavailable" }, "GET /v1/sdl-secrets-context → 503");
+      });
+      const createMutate = vi.fn();
+      const { result } = setup({ secretsEnabled: true, createMutate, sealContextMutateAsync });
+
+      act(() => result.current.actions.requestQuotes("sdl-content"));
+
+      await waitFor(() => expect(result.current.phase).toBe("error"));
+      expect(result.current.error).toEqual({ kind: "create", message: "Service temporarily unavailable" });
+      expect(createMutate).not.toHaveBeenCalled();
+    });
+
+    it("drops a create whose attempt was cancelled while its secrets were still being sealed", async () => {
+      let finishSealing: (seal: string) => void = () => undefined;
+      const sealSdlSecrets = () =>
+        new Promise<string>(resolve => {
+          finishSealing = resolve;
+        });
+      const createMutate = vi.fn();
+      const { result } = setup({ secretsEnabled: true, createMutate, sealSdlSecrets });
+
+      act(() => result.current.actions.requestQuotes("sdl-content"));
+      act(() => result.current.actions.cancelAndEdit());
+      await act(async () => finishSealing("SEALED"));
+
+      expect(createMutate).not.toHaveBeenCalled();
+      expect(result.current.phase).toBe("configuring");
+    });
+
+    it("sends no seal and fetches no context while the feature is off", async () => {
+      const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+      const { result, getSdlSecretsContext } = setup({ secretsEnabled: false, createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl-content", { secrets: { API_KEY: "hunter2" } }));
+
+      await waitFor(() => expect(result.current.phase).toBe("quoting"));
+      expect(createMutate.mock.calls[0][0].data).not.toHaveProperty("sealedSecrets");
+      expect(getSdlSecretsContext.mutateAsync).not.toHaveBeenCalled();
+    });
+  });
+
   describe("deploy funnel analytics", () => {
     it("tracks create_deployment with the new dseq when the deployment is created", () => {
       const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
@@ -799,7 +911,12 @@ describe(useDeploymentFlow.name, () => {
 
       act(() => result.current.actions.requestQuotes("sdl-content"));
 
-      expect(analyticsService.track).toHaveBeenCalledWith("create_deployment", { category: "deployments", label: "Create deployment in wizard", dseq: "999" });
+      expect(analyticsService.track).toHaveBeenCalledWith("create_deployment", {
+        category: "deployments",
+        label: "Create deployment in wizard",
+        dseq: "999",
+        secretCount: 0
+      });
     });
 
     it("tracks bids_received with the bid count the first time bids arrive", () => {
@@ -1243,20 +1360,27 @@ describe(useDeploymentFlow.name, () => {
     createMutate?: ReturnType<typeof vi.fn>;
     closeMutate?: ReturnType<typeof vi.fn>;
     getDeploymentMutate?: ReturnType<typeof vi.fn>;
+    secretsEnabled?: boolean;
+    sealSdlSecrets?: typeof DEPENDENCIES.sealSdlSecrets;
+    sealContextMutateAsync?: ReturnType<typeof vi.fn>;
   }) {
     const intent = { vm: false, ...(input.intent ?? { sdlStrategy: "edit" as const, bidStrategy: "select" as const, dseq: undefined }) };
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
     const createDeployment = mockMutation(input.createMutate);
     const closeDeployment = mockMutation(input.closeMutate);
     const getDeployment = mockMutation(input.getDeploymentMutate);
-    const services = mockServices({ createDeployment, closeDeployment, getDeployment });
+    const getSdlSecretsContext = mockSealContextMutation(input.sealContextMutateAsync);
+    const sealSdlSecrets = vi.fn(input.sealSdlSecrets ?? (async () => "SEALED"));
+    const services = mockServices({ createDeployment, closeDeployment, getDeployment, getSdlSecretsContext });
     const dependencies: typeof DEPENDENCIES = {
       useServices: (() => services) as never,
       useListBids: (() => ({ data: { data: [] }, isLoading: false, isError: false })) as never,
       useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: (input.replace ?? vi.fn()) as never })) as never,
       useQueryClient: (() => queryClient) as never,
+      useFlag: () => input.secretsEnabled ?? false,
       manifestFromSdl: () => "manifest",
-      deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 })
+      deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 }),
+      sealSdlSecrets
     };
     return {
       services,
@@ -1265,7 +1389,9 @@ describe(useDeploymentFlow.name, () => {
       queryClient,
       createDeployment,
       closeDeployment,
-      getDeployment
+      getDeployment,
+      getSdlSecretsContext,
+      sealSdlSecrets
     };
   }
 
@@ -1293,8 +1419,10 @@ describe(useDeploymentFlow.name, () => {
       useListBids: (() => ({ data: { data: input?.listBids ?? [] }, isLoading: false, isError: false })) as never,
       useRouter: () => router,
       useQueryClient: (() => queryClient) as never,
+      useFlag: () => false,
       manifestFromSdl: input?.manifestFromSdl ?? (() => "M"),
-      deploymentResourcesFromSdl: input?.deploymentResourcesFromSdl ?? (() => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 }))
+      deploymentResourcesFromSdl: input?.deploymentResourcesFromSdl ?? (() => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 })),
+      sealSdlSecrets: async () => "SEALED"
     };
     const utils = renderDeploymentFlow(intent, dependencies);
     return { ...utils, router, queryClient, services, deploymentLocalStorage: services.deploymentLocalStorage, analyticsService: services.analyticsService };
@@ -1304,14 +1432,20 @@ describe(useDeploymentFlow.name, () => {
     return mock<{ mutate: ReturnType<typeof vi.fn> }>({ mutate });
   }
 
+  function mockSealContextMutation(mutateAsync: ReturnType<typeof vi.fn> = vi.fn(async () => ({ data: SEAL_CONTEXT }))) {
+    return mock<{ mutateAsync: ReturnType<typeof vi.fn> }>({ mutateAsync });
+  }
+
   function mockServices(mutations?: {
     createDeployment?: ReturnType<typeof mockMutation>;
     closeDeployment?: ReturnType<typeof mockMutation>;
     createLease?: ReturnType<typeof mockMutation>;
     updateDeployment?: ReturnType<typeof mockMutation>;
     getDeployment?: ReturnType<typeof mockMutation>;
+    getSdlSecretsContext?: ReturnType<typeof mockSealContextMutation>;
   }) {
     const services = mockDeep<ReturnType<typeof DEPENDENCIES.useServices>>();
+    services.api.v1.getSDLSecretsContext.useMutation.mockReturnValue((mutations?.getSdlSecretsContext ?? mockSealContextMutation()) as never);
     services.api.v1.createDeployment.useMutation.mockReturnValue((mutations?.createDeployment ?? mockMutation()) as never);
     services.api.v1.closeDeployment.useMutation.mockReturnValue((mutations?.closeDeployment ?? mockMutation()) as never);
     services.api.v1.createLease.useMutation.mockReturnValue((mutations?.createLease ?? mockMutation()) as never);

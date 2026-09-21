@@ -160,6 +160,23 @@ describe("sdlImport", () => {
       expect(services[0].env).toContainEqual(expect.objectContaining({ key: "TOKEN", value: "YWJjZGVm==" }));
     });
 
+    it("imports an env entry whose value is a secret reference as a secret, keeping the reference as its value", () => {
+      const yml = envSdl(["API_KEY=ac-secret://API_KEY", "PORT=8080"]);
+
+      const { services } = importSimpleSdl(yml);
+
+      expect(services[0].env).toContainEqual(expect.objectContaining({ key: "API_KEY", value: "ac-secret://API_KEY", isSecret: true }));
+      expect(services[0].env?.find(e => e.key === "PORT")).not.toHaveProperty("isSecret");
+    });
+
+    it("leaves a reference of another kind as a plain value for the schema to refuse", () => {
+      const yml = envSdl(["X=ac-vault://X"]);
+
+      const { services } = importSimpleSdl(yml);
+
+      expect(services[0].env?.[0]).not.toHaveProperty("isSecret");
+    });
+
     function sshPubKeySdl(sshPubKey: string) {
       return envSdl([`SSH_PUBKEY=${sshPubKey}`]);
     }

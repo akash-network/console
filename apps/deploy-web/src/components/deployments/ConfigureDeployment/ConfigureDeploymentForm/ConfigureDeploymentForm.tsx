@@ -11,6 +11,7 @@ import { AddCreditsSnackbarContent } from "@src/components/billing-usage/AddCred
 import Layout from "@src/components/layout/Layout";
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import { useServices } from "@src/context/ServicesProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
@@ -46,6 +47,7 @@ export const DEPENDENCIES = {
   usePlacementsWithBids,
   useServices,
   useSnackbar,
+  useFlag,
   Snackbar
 };
 
@@ -65,7 +67,8 @@ type Props = {
 };
 
 export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, intent, flow, dependencies: d = DEPENDENCIES }) => {
-  const [initialState] = useState(() => getInitialState(initialSdl, intent.vm));
+  const isSecretsEnabled = d.useFlag("ui_deployment_secrets");
+  const [initialState] = useState(() => getInitialState(initialSdl, intent.vm, isSecretsEnabled));
   const [liveSdl, setLiveSdl] = useState(initialState.sdl);
   const [previewSdl, setPreviewSdl] = useState(initialState.sdl);
   const [selectedServiceId, setSelectedServiceId] = useState<string>(initialState.selectedServiceId);
@@ -109,12 +112,12 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
 
   useEffect(
     function syncLiveSdl() {
-      const subscription = form.watch(values => setLiveSdl(previous => regenerateSdl(values as SdlBuilderFormValuesType, previous)));
+      const subscription = form.watch(values => setLiveSdl(previous => regenerateSdl(values as SdlBuilderFormValuesType, previous, isSecretsEnabled)));
       return function teardownLiveSync() {
         subscription.unsubscribe();
       };
     },
-    [form]
+    [form, isSecretsEnabled]
   );
 
   useEffect(
@@ -260,10 +263,10 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const applyImportedState = useCallback(
     (state: ImportedDeploymentState) => {
       form.reset(state.values);
-      setLiveSdl(state.sdl);
+      setLiveSdl(sdlOfImportedState(state, isSecretsEnabled));
       setSelectedServiceId(state.selectedServiceId);
     },
-    [form]
+    [form, isSecretsEnabled]
   );
   /** Import is only meaningful while the deployment is still editable; export stays available in every phase. */
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
@@ -347,23 +350,32 @@ interface InitialState {
  * back to a default deployment. This guarantees there is always a service (and placement) to select.
  * A Container-VM entry (`isVm`) seeds an SSH-ready VM service instead of the blank default.
  */
-function getInitialState(carriedInSdl: string | undefined, isVm: boolean): InitialState {
-  if (!carriedInSdl) return defaultInitialState(isVm);
+function getInitialState(carriedInSdl: string | undefined, isVm: boolean, sealCredentials: boolean): InitialState {
+  if (!carriedInSdl) return defaultInitialState(isVm, sealCredentials);
 
   try {
-    return importDeploymentState(carriedInSdl);
+    const imported = importDeploymentState(carriedInSdl);
+    return { ...imported, sdl: sdlOfImportedState(imported, sealCredentials) };
   } catch (error) {
-    if (error instanceof NoVisibleServiceError) return defaultInitialState(isVm);
-    return defaultInitialState(isVm, getImportErrorMessage(error));
+    if (error instanceof NoVisibleServiceError) return defaultInitialState(isVm, sealCredentials);
+    return defaultInitialState(isVm, sealCredentials, getImportErrorMessage(error));
   }
 }
 
+/**
+ * An imported SDL is normally shown verbatim, but a typed registry password inside it would then sit in the draft in
+ * the clear, so with credentials sealed the SDL is regenerated from the imported values and carries references instead.
+ */
+function sdlOfImportedState(state: ImportedDeploymentState, sealCredentials: boolean): string {
+  return sealCredentials ? regenerateSdl(state.values, state.sdl, true) : state.sdl;
+}
+
 /** A fresh default deployment (or SSH-ready VM deployment), optionally annotated with the error that made an import unusable. */
-function defaultInitialState(isVm: boolean, importError?: string): InitialState {
+function defaultInitialState(isVm: boolean, sealCredentials: boolean, importError?: string): InitialState {
   const values = isVm
     ? { ...withDefaultPreset(defaultServiceWithPlacement(vmServiceOverrides())), hasSSHKey: true }
     : withDefaultPreset(defaultServiceWithPlacement());
-  return { values, sdl: regenerateSdl(values, ""), selectedServiceId: seedSelectedServiceId(values), importError };
+  return { values, sdl: regenerateSdl(values, "", sealCredentials), selectedServiceId: seedSelectedServiceId(values), importError };
 }
 
 /** Seeds the fresh deployment's service on the default (small) hardware preset so the screen opens deployable. */
@@ -399,9 +411,9 @@ function flowErrorToastCopy(kind: FlowErrorKind | undefined): { title: string; f
 }
 
 /** Regenerates the preview SDL, keeping the last good output while the form is mid-edit. */
-function regenerateSdl(values: SdlBuilderFormValuesType, previous: string): string {
+function regenerateSdl(values: SdlBuilderFormValuesType, previous: string, sealCredentials: boolean): string {
   try {
-    return generateSdl(values);
+    return generateSdl(values, { sealCredentials });
   } catch {
     return previous;
   }

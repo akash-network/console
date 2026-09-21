@@ -21,6 +21,7 @@ import { BoxIcon, EyeClosedIcon, EyeIcon, MonitorIcon } from "lucide-react";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { CUSTOM_HOST_ID } from "@src/types";
 import { normalizeDockerImage } from "@src/utils/sdl/normalizeDockerImage";
+import { isSdlReference } from "@src/utils/sdl/sdlSecrets";
 import { isVmImage, SSH_VM_IMAGES } from "@src/utils/sdl/vmImages";
 import { dockerImageTooltip, operatingSystemTooltip } from "../cardTooltips";
 import { SELECT_TRUNCATE_VALUE } from "../selectStyles";
@@ -46,6 +47,9 @@ const supportedHosts = [
 ];
 
 const defaultCredentials = { host: "docker.io", username: "", password: "" };
+
+/** Shown in place of a credential the deployment holds as a secret reference, which has no value to show and is replaced by typing. */
+const KEPT_CREDENTIAL_PLACEHOLDER = "Kept from your deployment. Type to replace.";
 
 /**
  * "Docker" card. The container image the deployment runs, pulled to the top of the Configuration
@@ -184,6 +188,8 @@ const CredentialsFields: FC<{ serviceIndex: number }> = ({ serviceIndex }) => {
 
   const [showPassword, setShowPassword] = useState(false);
   const isCustomHost = host.field.value === CUSTOM_HOST_ID || supportedHosts.every(option => option.id !== host.field.value);
+  const isUsernameKept = isSdlReference(username.field.value ?? "");
+  const isPasswordKept = isSdlReference(password.field.value ?? "");
 
   /**
    * `CUSTOM_HOST_ID` is a UI-only sentinel for the "Custom Registry" option; it
@@ -231,7 +237,8 @@ const CredentialsFields: FC<{ serviceIndex: number }> = ({ serviceIndex }) => {
           <Input
             id={`credentials-username-${serviceIndex}`}
             aria-label="Registry username"
-            value={username.field.value ?? ""}
+            value={isUsernameKept ? "" : username.field.value ?? ""}
+            placeholder={isUsernameKept ? KEPT_CREDENTIAL_PLACEHOLDER : undefined}
             onChange={event => username.field.onChange(event.target.value || "")}
             onBlur={username.field.onBlur}
             error={!!username.fieldState.error}
@@ -248,7 +255,8 @@ const CredentialsFields: FC<{ serviceIndex: number }> = ({ serviceIndex }) => {
             id={`credentials-password-${serviceIndex}`}
             aria-label="Registry password"
             type={showPassword ? "text" : "password"}
-            value={password.field.value ?? ""}
+            value={isPasswordKept ? "" : password.field.value ?? ""}
+            placeholder={isPasswordKept ? KEPT_CREDENTIAL_PLACEHOLDER : undefined}
             onChange={event => password.field.onChange(event.target.value || "")}
             onBlur={password.field.onBlur}
             error={!!password.fieldState.error}
