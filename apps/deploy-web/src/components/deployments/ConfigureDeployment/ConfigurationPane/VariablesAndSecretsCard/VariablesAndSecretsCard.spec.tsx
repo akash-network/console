@@ -214,6 +214,32 @@ describe(VariablesAndSecretsCard.name, () => {
       expect(valueValues()).toEqual(["postgres://user:pass@host/db?ssl=true"]);
     });
 
+    it("marks an existing plain variable secret when a secret row pastes its key", async () => {
+      const { getValues } = setup({
+        env: [
+          { key: "API_KEY", value: "" },
+          { key: "", value: "", isSecret: true }
+        ]
+      });
+
+      await pasteIntoKey(2, "API_KEY=hunter2");
+
+      expect(getValues().services[0].env).toEqual([expect.objectContaining({ key: "API_KEY", value: "hunter2", isSecret: true })]);
+    });
+
+    it("leaves an existing secret secret when a plain row pastes its key", async () => {
+      const { getValues } = setup({
+        env: [
+          { key: "API_KEY", value: "old", isSecret: true },
+          { key: "", value: "" }
+        ]
+      });
+
+      await pasteIntoKey(2, "API_KEY=hunter2");
+
+      expect(getValues().services[0].env).toEqual([expect.objectContaining({ key: "API_KEY", value: "hunter2", isSecret: true })]);
+    });
+
     async function pasteIntoKey(visibleIndex: number, text: string) {
       await userEvent.click(screen.getByLabelText(`Environment variable ${visibleIndex} key`));
       await userEvent.paste(text);

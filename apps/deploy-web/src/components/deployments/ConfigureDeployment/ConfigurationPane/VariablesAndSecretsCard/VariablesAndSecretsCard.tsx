@@ -56,7 +56,7 @@ export const VariablesAndSecretsCard: FC<Props> = ({ serviceIndex, locked = fals
     [append]
   );
 
-  /** A pasted key that already exists is updated in place rather than appended a second time. */
+  /** A pasted key that already exists is updated in place, keeping whichever side marked it secret so a paste can never unmask one. */
   const insertPastedEnvVars = useCallback(
     (event: ClipboardEvent<HTMLInputElement>, focusedEnvIndex: number) => {
       const pastedText = event.clipboardData.getData("text")?.trim();
@@ -80,7 +80,8 @@ export const VariablesAndSecretsCard: FC<Props> = ({ serviceIndex, locked = fals
         if (existingEnvIndex === -1) {
           nextEnv.push({ id: nanoid(), key, value, isSecret });
         } else {
-          nextEnv[existingEnvIndex] = { ...nextEnv[existingEnvIndex], value };
+          const existing = nextEnv[existingEnvIndex];
+          nextEnv[existingEnvIndex] = { ...existing, value, isSecret: existing.isSecret || isSecret };
         }
       });
 
