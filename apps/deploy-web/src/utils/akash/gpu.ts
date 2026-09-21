@@ -1,17 +1,9 @@
 import type { AvailableGpuVendor } from "@src/queries/usePlacementOptions";
-import type { GpuVendor } from "@src/types/gpu";
+import type { GpuModel, GpuVendor } from "@src/types/gpu";
 
 export const gpuVendors = [{ id: 1, value: "nvidia", label: "NVIDIA" }];
 
-/**
- * Rebuilds the vendor/model catalog from what online providers currently offer, keeping the catalog's
- * display names where it knows the vendor or model. Driving off availability rather than intersecting
- * means a GPU somebody runs is offered even when the hardware catalog has never heard of it; the catalog
- * still supplies memory sizes and interfaces for a model whose providers report none.
- *
- * An absent or empty availability answer returns the catalog untouched, so a failed fetch leaves the card
- * offering everything rather than nothing.
- */
+/** An absent or empty availability answer returns the catalog untouched, so a failed fetch leaves the card offering everything rather than nothing. */
 export function narrowGpuVendorsToAvailable(catalog: GpuVendor[] | undefined, available: AvailableGpuVendor[] | undefined): GpuVendor[] | undefined {
   if (!available?.length) return catalog;
 
@@ -33,6 +25,52 @@ export function narrowGpuVendorsToAvailable(catalog: GpuVendor[] | undefined, av
       })
     };
   });
+}
+
+export interface PinnedGpu {
+  vendor?: string | null;
+  name?: string | null;
+  memory?: string | null;
+  interface?: string | null;
+}
+
+/** Without this a configuration pinning a vendor or model no provider offers any more would render a blank trigger and an empty, disabled picker. */
+export function withPinnedGpu(vendors: GpuVendor[] | undefined, pinned: PinnedGpu): GpuVendor[] | undefined {
+  if (!vendors || !pinned.vendor) return vendors;
+
+  const index = vendors.findIndex(vendor => vendor.name === pinned.vendor);
+  const existing = index === -1 ? undefined : vendors[index];
+  const entry: GpuVendor = { name: pinned.vendor, displayName: existing?.displayName, models: withPinnedModel(existing?.models ?? [], pinned) };
+
+  const merged = [...vendors];
+  if (index === -1) merged.push(entry);
+  else merged[index] = entry;
+
+  return merged;
+}
+
+function withPinnedModel(models: GpuModel[], pinned: PinnedGpu): GpuModel[] {
+  if (!pinned.name) return models;
+
+  const index = models.findIndex(model => model.name === pinned.name);
+  const existing = index === -1 ? undefined : models[index];
+  const entry: GpuModel = {
+    name: pinned.name,
+    displayName: existing?.displayName,
+    memory: withPinnedValue(existing?.memory ?? [], pinned.memory),
+    interface: withPinnedValue(existing?.interface ?? [], pinned.interface)
+  };
+
+  const merged = [...models];
+  if (index === -1) merged.push(entry);
+  else merged[index] = entry;
+
+  return merged;
+}
+
+function withPinnedValue(values: string[], pinned: string | null | undefined): string[] {
+  if (!pinned || values.includes(pinned)) return values;
+  return [...values, pinned];
 }
 
 /** GPU model-name prefixes (normalized, lowercase) floated to the top of the model picker, most popular first (by network capacity and usage). Prefix-matched, so `pro6000` covers `pro6000se`/`we`/`mq`, `h200` covers `h200nvl`, `rtx5090` covers `rtx5090m`, etc. */

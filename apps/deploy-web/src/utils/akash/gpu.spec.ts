@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AvailableGpuVendor } from "@src/queries/usePlacementOptions";
 import type { GpuVendor } from "@src/types/gpu";
-import { narrowGpuVendorsToAvailable, prioritizeGpuModels } from "./gpu";
+import { narrowGpuVendorsToAvailable, prioritizeGpuModels, withPinnedGpu } from "./gpu";
 
 describe("prioritizeGpuModels", () => {
   it("floats prioritized models to the top in priority order", () => {
@@ -88,4 +88,51 @@ describe(narrowGpuVendorsToAvailable.name, () => {
   function model(name: string, memory: string[], gpuInterface: string[]): AvailableGpuVendor["models"][number] {
     return { name, memory, interface: gpuInterface };
   }
+});
+
+describe(withPinnedGpu.name, () => {
+  const AVAILABLE: GpuVendor[] = [{ name: "nvidia", displayName: "NVIDIA", models: [{ name: "t4", memory: ["16Gi"], interface: ["pcie"] }] }];
+
+  it("adds a pinned vendor and its model that no provider offers", () => {
+    const merged = withPinnedGpu(AVAILABLE, { vendor: "amd", name: "mi300", memory: "192Gi", interface: "pcie" });
+
+    expect(merged).toEqual([
+      ...AVAILABLE,
+      { name: "amd", displayName: undefined, models: [{ name: "mi300", displayName: undefined, memory: ["192Gi"], interface: ["pcie"] }] }
+    ]);
+  });
+
+  it("adds a pinned model to a vendor that is available", () => {
+    const merged = withPinnedGpu(AVAILABLE, { vendor: "nvidia", name: "a100", memory: "80Gi", interface: "sxm" });
+
+    expect(merged?.[0].models.map(model => model.name)).toEqual(["t4", "a100"]);
+    expect(merged?.[0].displayName).toBe("NVIDIA");
+  });
+
+  it("adds a pinned memory size and interface to a model that is available", () => {
+    const merged = withPinnedGpu(AVAILABLE, { vendor: "nvidia", name: "t4", memory: "32Gi", interface: "sxm" });
+
+    expect(merged?.[0].models[0]).toMatchObject({ memory: ["16Gi", "32Gi"], interface: ["pcie", "sxm"] });
+  });
+
+  it("does not duplicate values that are already offered", () => {
+    const merged = withPinnedGpu(AVAILABLE, { vendor: "nvidia", name: "t4", memory: "16Gi", interface: "pcie" });
+
+    expect(merged?.[0].models[0]).toMatchObject({ memory: ["16Gi"], interface: ["pcie"] });
+    expect(merged?.[0].models).toHaveLength(1);
+  });
+
+  it("leaves the list untouched when nothing is pinned", () => {
+    expect(withPinnedGpu(AVAILABLE, {})).toBe(AVAILABLE);
+  });
+
+  it("adds a pinned vendor with no model when only the vendor is set", () => {
+    const merged = withPinnedGpu(AVAILABLE, { vendor: "amd" });
+
+    expect(merged?.[1]).toEqual({ name: "amd", displayName: undefined, models: [] });
+  });
+
+  it("reports no list when there is none to merge into", () => {
+    expect(withPinnedGpu(undefined, { vendor: "amd", name: "mi300" })).toBeUndefined();
+  });
 });

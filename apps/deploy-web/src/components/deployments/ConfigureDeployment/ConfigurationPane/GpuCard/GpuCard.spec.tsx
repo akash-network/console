@@ -373,6 +373,33 @@ describe(GpuCard.name, () => {
       expect(getValues().services[0].profile.gpuModels?.[0]).toMatchObject({ vendor: "amd", name: "mi300" });
     });
 
+    it("still displays a pinned vendor, model, memory and interface that are no longer available", () => {
+      setup({
+        hasGpu: true,
+        gpuModels: [{ vendor: "amd", name: "mi300", memory: "192Gi", interface: "pcie" }],
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4")] }]
+      });
+
+      expect(screen.getByRole("combobox", { name: "GPU vendor" })).toHaveTextContent("amd");
+      expect(screen.getByRole("combobox", { name: "GPU model" })).toHaveTextContent("mi300");
+      expect(screen.getByRole("combobox", { name: "GPU model" })).toBeEnabled();
+      expect(screen.getByRole("combobox", { name: "GPU memory" })).toHaveTextContent("192Gi");
+      expect(screen.getByRole("combobox", { name: "GPU interface" })).toHaveTextContent("pcie");
+    });
+
+    it("offers the available vendors alongside a pinned one that is not available", async () => {
+      const { user } = setup({
+        hasGpu: true,
+        gpuModels: [{ vendor: "amd", name: "mi300", memory: "192Gi", interface: "pcie" }],
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4")] }]
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU vendor" }));
+
+      expect(await screen.findByRole("option", { name: "nvidia" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "amd" })).toBeInTheDocument();
+    });
+
     it("keeps the vendor step while more than one vendor is available", () => {
       setup({
         hasGpu: true,
