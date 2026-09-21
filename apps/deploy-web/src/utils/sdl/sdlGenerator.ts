@@ -3,7 +3,7 @@ import yaml from "js-yaml";
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import type { ExposeType, PlacementType, ProfileGpuModelType, SdlBuilderFormValuesType, ServiceExposeHTTPProxyType, ServiceType } from "@src/types";
 import { defaultHttpOptions } from "./data";
-import { credentialSecretSlotKey, envSecretSlotKey, resolveSdlSecrets } from "./sdlSecrets";
+import { credentialSecretSlotKey, envSecretSlotKey, isSdlReference, resolveSdlSecrets } from "./sdlSecrets";
 
 export interface GenerateSdlOptions {
   /** Emits every secret, env and registry credential alike, as a reference for the create to seal values under, instead of as typed. */
@@ -34,6 +34,13 @@ const buildGpuAttributes = (interconnect: { group?: string } | undefined): Recor
   attributes.vendor = {};
   return attributes;
 };
+
+/** A typed secret with no reference minted for it is blanked rather than written out, because an unsealed document is kept in the draft and offered for export. */
+function plainEnvValueOf(variable: { value?: string; isSecret?: boolean }): string {
+  const value = variable.value?.trim() ?? "";
+  if (!variable.isSecret) return value;
+  return isSdlReference(value) ? value : "";
+}
 
 export const generateSdl = (formValues: SdlBuilderFormValuesType, options: GenerateSdlOptions = {}) => {
   const sdl: Record<string, any> = { version: "2.0", services: {}, profiles: { compute: {}, placement: {} }, deployment: {} };
@@ -143,7 +150,7 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType, options: Gener
 
     if ((service.env?.length || 0) > 0) {
       sdl.services[service.title].env = service.env?.map(
-        (e, envIndex) => `${e.key.trim()}=${secrets.references.get(envSecretSlotKey(serviceIndex, envIndex)) ?? e.value?.trim()}`
+        (e, envIndex) => `${e.key.trim()}=${secrets.references.get(envSecretSlotKey(serviceIndex, envIndex)) ?? plainEnvValueOf(e)}`
       );
     }
 

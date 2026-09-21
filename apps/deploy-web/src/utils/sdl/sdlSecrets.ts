@@ -71,11 +71,7 @@ export function credentialSecretSlotKey(serviceIndex: number, field: CredentialS
   return `${serviceIndex}/credentials/${field}`;
 }
 
-/**
- * Decides, for every secret slot of the form, what reference the SDL carries and what value a create must seal under
- * it. Names are minted from the env key (or a fixed registry name), suffixed on collision and never reusing a name a
- * kept reference already stands on, so the same form always yields the same SDL.
- */
+/** Names are minted deterministically from the env key and never reuse one a kept reference already stands on, so the same form always yields the same SDL. */
 export function resolveSdlSecrets(values: SdlBuilderFormValuesType, options: ResolveSdlSecretsOptions = {}): ResolvedSdlSecrets {
   const taken = namesAlreadyReferencedIn(values.services);
   const held = new Set(options.heldNames ?? []);

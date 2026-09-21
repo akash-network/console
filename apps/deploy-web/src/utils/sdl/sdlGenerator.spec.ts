@@ -260,10 +260,10 @@ describe("sdlGenerator", () => {
       expect(envOf(generateSdl(buildFormValues(service), { sealSecrets: true }))).toEqual(["API_KEY=ac-secret://API_KEY"]);
     });
 
-    it("emits a secret value as typed unless asked to seal it, so the flag-off document is unchanged", () => {
+    it("blanks a secret value rather than writing it out when no reference is minted, so an unsealed document never carries it", () => {
       const service = buildLogCollectorService({ title: "web", image: "nginx", env: [{ id: "k", key: "API_KEY", value: "hunter2", isSecret: true }] });
 
-      expect(envOf(generateSdl(buildFormValues(service)))).toEqual(["API_KEY=hunter2"]);
+      expect(envOf(generateSdl(buildFormValues(service)))).toEqual(["API_KEY="]);
     });
 
     it("emits registry credentials as typed unless asked to seal them", () => {
