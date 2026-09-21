@@ -1726,7 +1726,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret } = await mockUser();
       const dseq = "1234";
 
-      vi.spyOn(deploymentReaderService, "findByWalletAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
+      vi.spyOn(deploymentReaderService, "findByWalletAndDseqWithoutProviderStatus").mockRejectedValueOnce(new NotFound("Deployment not found"));
 
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 

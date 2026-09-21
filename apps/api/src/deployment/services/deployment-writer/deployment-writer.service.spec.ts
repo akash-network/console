@@ -1224,13 +1224,22 @@ describe(DeploymentWriterService.name, () => {
   });
 
   describe("updateByUserIdAndDseq", () => {
+    it("asks no provider for a lease status it discards before sending the manifest", async () => {
+      const { service, deploymentReaderService } = setup();
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
+
+      expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledWith(expect.anything(), "100");
+      expect(deploymentReaderService.findByWalletAndDseq).toHaveBeenCalledTimes(1);
+    });
+
     it("sends update tx when manifest hash differs", async () => {
       const { service, signerService, rpcMessageService, deploymentReaderService } = setup();
       const staleDeployment = {
         ...deploymentData,
         deployment: { ...deploymentData.deployment, hash: "stale-hash" }
       };
-      deploymentReaderService.findByWalletAndDseq.mockResolvedValueOnce(staleDeployment).mockResolvedValueOnce(deploymentData);
+      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue(staleDeployment);
       const updateMsg = { typeUrl: "/update", value: MsgUpdateDeployment.fromPartial({}) };
       rpcMessageService.getUpdateDeploymentMsg.mockReturnValue(updateMsg);
 
@@ -1341,7 +1350,7 @@ describe(DeploymentWriterService.name, () => {
           { ...deploymentData.leases[0], id: { ...deploymentData.leases[0].id, provider: "provider-1" } }
         ]
       };
-      deploymentReaderService.findByWalletAndDseq.mockResolvedValueOnce(deploymentWithMultipleLeases).mockResolvedValueOnce(deploymentData);
+      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue(deploymentWithMultipleLeases);
       providerService.toProviderAuth.mockResolvedValue({ type: "jwt", token: "test-token" });
 
       await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
@@ -1387,7 +1396,7 @@ describe(DeploymentWriterService.name, () => {
 
     it("seals only after everything that could still refuse the update has run", async () => {
       const { service, sdlSecretsService, deploymentReaderService } = setup();
-      deploymentReaderService.findByWalletAndDseq.mockRejectedValue(new NotFound("Deployment not found"));
+      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockRejectedValue(new NotFound("Deployment not found"));
 
       await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS })).rejects.toMatchObject({ status: 404 });
 
@@ -1944,6 +1953,15 @@ describe(DeploymentWriterService.name, () => {
     });
 
     describe("what it commits and pushes", () => {
+      it("asks no provider for a lease status it discards before sending the manifest", async () => {
+        const { service, ability, deploymentReaderService } = setup();
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledWith(expect.anything(), "1234");
+        expect(deploymentReaderService.findByWalletAndDseq).toHaveBeenCalledTimes(1);
+      });
+
       it("broadcasts an update when the patched manifest version differs from the chain's", async () => {
         const { service, ability, signerService } = setup({ chainHash: "SOMETHING_ELSE" });
 
@@ -2401,6 +2419,7 @@ describe(DeploymentWriterService.name, () => {
       value: { manifest: resolvedManifest, manifestVersion: input?.manifestVersion ?? new Uint8Array([4, 5, 6]) }
     } as any);
     deploymentReaderService.findByWalletAndDseq.mockResolvedValue(deploymentData);
+    deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue(deploymentData);
 
     const service = new DeploymentWriterService(
       signerService,
