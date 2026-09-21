@@ -26,6 +26,19 @@ describe(LegacyBuilderRedirect.name, () => {
     expect(replace).toHaveBeenCalledWith("/new-deployment/configure/555");
   });
 
+  it("renders the picker when a builder parameter is present but empty, which names no intent", () => {
+    const { replace } = setup({ query: { step: "", templateId: "", dseq: "" } });
+
+    expect(replace).not.toHaveBeenCalled();
+    expect(screen.getByText("picker")).toBeInTheDocument();
+  });
+
+  it("ignores an empty template id and resumes the deployment the link names", () => {
+    const { replace } = setup({ query: { step: "create-leases", templateId: "", dseq: "555" } });
+
+    expect(replace).toHaveBeenCalledWith("/new-deployment/configure/555");
+  });
+
   it("opens a template link on configure", () => {
     const { replace } = setup({ query: { step: "edit-deployment", templateId: "tpl-1" } });
 

@@ -426,6 +426,12 @@ describe(ManifestUpdate.name, () => {
     expect(dependencies.SDLEditor.mock.calls[0][0].value).toBe("some-manifest");
   });
 
+  it("scrolls the editor inside its panel rather than the page", () => {
+    const { dependencies } = setup({ editedManifest: "some-manifest" });
+
+    expect(dependencies.ViewPanel.mock.calls[0][0].style).toEqual({ overflow: "hidden" });
+  });
+
   it("submits the edited sdl to the console api instead of signing and sending it from the browser", async () => {
     const signAndBroadcastTx = vi.fn(() => Promise.resolve(true));
     const handles = setup({
