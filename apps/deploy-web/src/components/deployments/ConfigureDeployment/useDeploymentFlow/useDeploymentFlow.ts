@@ -15,7 +15,7 @@ import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import type { SdlSecretValues } from "@src/utils/sdl/sdlSecrets";
 import { sealSdlSecrets } from "@src/utils/sdl/sealSdlSecrets";
 import { UrlService } from "@src/utils/urlUtils";
-import { WALLET_PROVISIONING_ERROR_CODE, walletProvisioningRetry } from "@src/utils/walletProvisioning";
+import { isWalletProvisioning, WALLET_PROVISIONING_ERROR_CODE, walletProvisioningRetry } from "@src/utils/walletProvisioning";
 import { aggregateDeploymentResources } from "../DeploymentResourceSummary/deploymentResources";
 import type { BidStrategy, DeploymentIntent } from "./deploymentIntent";
 
@@ -651,8 +651,9 @@ function isPaymentRequired(cause: unknown): boolean {
   return isApiError(cause) && cause.status === HTTP_PAYMENT_REQUIRED;
 }
 
+/** A seal made against a retired key comes back as a bare 409; a wallet still provisioning answers 409 too and has its own retry. */
 function isStaleSealingKey(cause: unknown): boolean {
-  return isApiError(cause) && cause.status === HTTP_CONFLICT;
+  return isApiError(cause) && cause.status === HTTP_CONFLICT && !isWalletProvisioning(cause);
 }
 
 /** Best-effort cache under owner + dseq (the key the detail page reads); failures are swallowed so storage issues never block deploy. */

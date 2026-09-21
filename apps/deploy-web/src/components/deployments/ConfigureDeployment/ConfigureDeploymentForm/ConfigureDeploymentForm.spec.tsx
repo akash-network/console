@@ -289,6 +289,15 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(save).not.toHaveBeenCalledWith(expect.stringContaining("hunter22"), expect.anything(), expect.anything());
   });
 
+  it("seals a carried-in SDL's credentials when the secrets feature turns on mid-session", async () => {
+    const { save, enableSecrets } = setup({ initialSdl: CREDENTIALS_SDL });
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("password: hunter22"), expect.any(String), undefined));
+
+    enableSecrets();
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("ac-secret://REGISTRY_PASSWORD"), expect.any(String), undefined));
+  });
+
   it("keeps a carried-in SDL verbatim, credentials included, while the secrets feature is off", async () => {
     const { save } = setup({ initialSdl: CREDENTIALS_SDL });
 
@@ -613,17 +622,19 @@ describe(ConfigureDeploymentForm.name, () => {
       useFlag: () => input.secretsEnabled ?? false
     };
 
-    render(
+    const formWithSecrets = (secretsEnabled: boolean) => (
       <ConfigureDeploymentForm
         initialSdl={input.initialSdl}
         initialName={input.initialName}
         intent={{ sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, draftId: input.draftId, vm: input.vm ?? false }}
         flow={flow}
-        dependencies={dependencies}
+        dependencies={{ ...dependencies, useFlag: () => secretsEnabled }}
       />
     );
+    const { rerender } = render(formWithSecrets(input.secretsEnabled ?? false));
 
     return {
+      enableSecrets: () => rerender(formWithSecrets(true)),
       ConfigureDeploymentPanes,
       ConfigureDeploymentHeader,
       ReviewAndDeployModal,

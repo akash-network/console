@@ -75,6 +75,39 @@ describe(ImageCard.name, () => {
     expect(getValues().services[0].credentials?.username).toBe("bob");
   });
 
+  it("keeps a registry credential the deployment holds when the user clears the box again", async () => {
+    const { getValues } = setup({
+      image: "nginx:latest",
+      credentials: { host: "ghcr.io", username: "ac-secret://REGISTRY_USERNAME", password: "ac-secret://REGISTRY_PASSWORD" }
+    });
+
+    await userEvent.type(screen.getByLabelText("Registry username"), "bob");
+    await userEvent.clear(screen.getByLabelText("Registry username"));
+
+    expect(getValues().services[0].credentials?.username).toBe("ac-secret://REGISTRY_USERNAME");
+    expect(screen.getByLabelText("Registry username")).toHaveAttribute("placeholder", "Kept from your deployment. Type to replace.");
+  });
+
+  it("keeps a registry password the deployment holds when the user clears the box again", async () => {
+    const { getValues } = setup({
+      image: "nginx:latest",
+      credentials: { host: "ghcr.io", username: "ac-secret://REGISTRY_USERNAME", password: "ac-secret://REGISTRY_PASSWORD" }
+    });
+
+    await userEvent.type(screen.getByLabelText("Registry password"), "hunter22");
+    await userEvent.clear(screen.getByLabelText("Registry password"));
+
+    expect(getValues().services[0].credentials?.password).toBe("ac-secret://REGISTRY_PASSWORD");
+  });
+
+  it("clears a typed registry username the user never kept", async () => {
+    const { getValues } = setup({ image: "nginx:latest", credentials: { host: "ghcr.io", username: "alice", password: "hunter22" } });
+
+    await userEvent.clear(screen.getByLabelText("Registry username"));
+
+    expect(getValues().services[0].credentials?.username).toBe("");
+  });
+
   it("shows a typed registry username as typed", () => {
     setup({ image: "nginx:latest", credentials: { host: "ghcr.io", username: "alice", password: "hunter22" } });
 

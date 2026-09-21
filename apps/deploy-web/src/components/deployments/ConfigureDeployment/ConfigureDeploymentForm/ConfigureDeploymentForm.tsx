@@ -110,6 +110,17 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     [initialState, enqueueSnackbar, d]
   );
 
+  const sealedCredentials = useRef(isSecretsEnabled);
+
+  useEffect(
+    function resealWhenSecretsFlagChanges() {
+      if (sealedCredentials.current === isSecretsEnabled) return;
+      sealedCredentials.current = isSecretsEnabled;
+      setLiveSdl(previous => regenerateSdl(form.getValues(), previous, isSecretsEnabled));
+    },
+    [form, isSecretsEnabled]
+  );
+
   useEffect(
     function syncLiveSdl() {
       const subscription = form.watch(values => setLiveSdl(previous => regenerateSdl(values as SdlBuilderFormValuesType, previous, isSecretsEnabled)));

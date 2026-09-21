@@ -850,6 +850,26 @@ describe(useDeploymentFlow.name, () => {
       expect(createMutate).toHaveBeenCalledTimes(2);
     });
 
+    it("does not seal again when the conflict is a wallet still being provisioned, which the create mutation retries itself", async () => {
+      const createMutate = vi.fn((_args, { onError }) =>
+        onError(
+          new ApiError(
+            409,
+            { message: "Wallet is still being provisioned, please retry shortly", code: "wallet_provisioning" },
+            "POST /v1/deployments \u2192 409"
+          )
+        )
+      );
+      const { result, sealSdlSecrets } = setup({ secretsEnabled: true, createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl-content"));
+
+      await waitFor(() => expect(result.current.phase).toBe("error"));
+      expect(createMutate).toHaveBeenCalledTimes(1);
+      expect(sealSdlSecrets).toHaveBeenCalledTimes(1);
+      expect(result.current.error?.message).toContain("still being set up");
+    });
+
     it("gives up after one new seal, so a conflict that persists surfaces as a create error", async () => {
       const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(409, { message: STALE_KEY_MESSAGE }, "POST /v1/deployments → 409")));
       const { result } = setup({ secretsEnabled: true, createMutate });
