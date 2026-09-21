@@ -35,7 +35,7 @@ export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({ deployme
   const { closeDeploymentConfirm } = d.useManagedDeploymentConfirm();
   const redeploy = d.useRedeploy();
   /** Only once the menu is open, so a page of cards does not each fire a deployment read on mount. */
-  const definition = d.useDeploymentDefinition(isOpen ? deployment.dseq : null);
+  const definition = d.useDeploymentDefinition(isOpen ? deployment.dseq : null, { acceptReferences: true });
   const isResolvingDefinition = definition.source === "resolving";
   const canRedeploy = isResolvingDefinition || isUsableDeploymentDefinition(definition);
 
@@ -64,7 +64,10 @@ export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({ deployme
           Edit name
         </DropdownMenuItem>
         {canRedeploy && (
-          <DropdownMenuItem disabled={isResolvingDefinition} onSelect={() => redeploy({ sdl: definition.sdl, name: definition.name })}>
+          <DropdownMenuItem
+            disabled={isResolvingDefinition}
+            onSelect={() => redeploy({ sdl: definition.sdl, name: definition.name, sourceDseq: deployment.dseq })}
+          >
             <Upload className="mr-2 h-4 w-4" />
             Redeploy
           </DropdownMenuItem>

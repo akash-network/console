@@ -129,6 +129,21 @@ describe(useDeploymentDefinition.name, () => {
     });
   });
 
+  describe("when the caller accepts references, as a redeploy does", () => {
+    it("serves the api's copy even though its values are withheld as references", async () => {
+      const { result } = setup({ apiSdl: WITHHELD_VALUES_SDL, localSdl: LOCAL_SDL, acceptReferences: true });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("api"));
+      expect(result.current.sdl).toBe(WITHHELD_VALUES_SDL);
+    });
+
+    it("still falls back when the api's copy blanks a value away, which no redeploy can restore", async () => {
+      const { result } = setup({ apiSdl: BLANK_ENV_SDL, localSdl: LOCAL_SDL, acceptReferences: true });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("local"));
+    });
+  });
+
   it("asks the api for nothing when there is no dseq", () => {
     const { getDeployment, result } = setup({ dseq: null, localSdl: LOCAL_SDL });
 
@@ -145,6 +160,7 @@ describe(useDeploymentDefinition.name, () => {
     recordedManifestVersion?: string;
     localSdl?: string;
     localName?: string;
+    acceptReferences?: boolean;
   }) {
     const chainManifestVersion = input.chainManifestVersion ?? "on-chain-version";
     const recordedManifestVersion = input.recordedManifestVersion ?? chainManifestVersion;
@@ -179,7 +195,12 @@ describe(useDeploymentDefinition.name, () => {
       useResolvedDeploymentName(dseq, { useServices, useDeploymentNameBackfill: () => undefined });
 
     const { result } = setupQuery(
-      () => useDeploymentDefinition(input.dseq === undefined ? "123" : input.dseq, { useServices, useWallet, useResolvedDeploymentName: useResolvedName }),
+      () =>
+        useDeploymentDefinition(
+          input.dseq === undefined ? "123" : input.dseq,
+          { acceptReferences: input.acceptReferences },
+          { useServices, useWallet, useResolvedDeploymentName: useResolvedName }
+        ),
       {
         services: { api: () => api, deploymentLocalStorage: () => deploymentLocalStorage, queryClient: () => queryClient }
       }

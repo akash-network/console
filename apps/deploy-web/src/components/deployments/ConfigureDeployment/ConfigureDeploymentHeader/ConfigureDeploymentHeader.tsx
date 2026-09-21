@@ -15,6 +15,7 @@ import { resolveSdlSecrets, unresolvedSecretMessage } from "@src/utils/sdl/sdlSe
 import { validateGeneratedSdl } from "@src/utils/sdl/validateGeneratedSdl";
 import { useTrialGate } from "../ConfigurationPane/HardwareSection/useTrialGate/useTrialGate";
 import { useDeploymentHasGpu, useDeploymentResourceSummary } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
+import { useInheritedSecrets } from "../InheritedSecretsProvider/InheritedSecretsProvider";
 import type { DeploymentCost } from "../useDeploymentCost/useDeploymentCost";
 import { useDeploymentCost } from "../useDeploymentCost/useDeploymentCost";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
@@ -33,6 +34,7 @@ export const DEPENDENCIES = {
   // eslint-disable-next-line akash/dependencies-component-or-hook
   resolveSdlSecrets,
   useFlag,
+  useInheritedSecrets,
   useDeploymentCost,
   PriceValue,
   useQuoteExpiry,
@@ -56,6 +58,7 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
   const { enqueueSnackbar } = d.useSnackbar();
   const { isRestricted } = d.useTrialGate();
   const isSecretsEnabled = d.useFlag("ui_deployment_secrets");
+  const inheritedSecrets = d.useInheritedSecrets();
   const placements = useWatch({ control, name: "placements" });
   const cost = d.useDeploymentCost({ dseq: flow.dseq, sdl, placements, selections: flow.selections });
   const expiry = d.useQuoteExpiry({ dseq: flow.dseq, enabled: flow.phase === "quoting" });
@@ -85,7 +88,7 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
   const onRequestQuotes = handleSubmit(values => {
     const sdl = d.generateSdl(values, { sealSecrets: isSecretsEnabled });
     const errors = [...d.validateGeneratedSdl(sdl)];
-    const secrets = isSecretsEnabled ? d.resolveSdlSecrets(values, { sealSecrets: true }) : undefined;
+    const secrets = isSecretsEnabled ? d.resolveSdlSecrets(values, { sealSecrets: true, heldNames: inheritedSecrets?.names }) : undefined;
     secrets?.unresolved.forEach(secret => errors.push(unresolvedSecretMessage(secret)));
     // Load-bearing trial guard: enabling the GPU card leaves the model at the empty default without ever
     // opening the (locked) picker, so the presentational lock alone can't stop an empty-model submission —
@@ -110,7 +113,10 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
       );
       return;
     }
-    flow.actions.requestQuotes(sdl, { name: deploymentName, ...(secrets ? { secrets: secrets.values } : {}) });
+    flow.actions.requestQuotes(sdl, {
+      name: deploymentName,
+      ...(secrets ? { secrets: secrets.values, ...(inheritedSecrets ? { inheritSecretsFrom: inheritedSecrets.sourceDseq } : {}) } : {})
+    });
   });
 
   /** Re-fires the lease request from the current form values; with secrets on, the typed values ride along so a patch can seal them. */

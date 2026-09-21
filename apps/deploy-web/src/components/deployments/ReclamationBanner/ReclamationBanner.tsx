@@ -27,7 +27,7 @@ type Props = {
  * before the grace-period deadline. The terminal (already-closed) case is handled by ReclamationCard.
  */
 export const ReclamationBanner: React.FunctionComponent<Props> = ({ leases, dseq, className, dependencies = DEPENDENCIES }) => {
-  const definition = dependencies.useDeploymentDefinition(dseq);
+  const definition = dependencies.useDeploymentDefinition(dseq, { acceptReferences: true });
   const newDeploymentUrl = dependencies.useNewDeploymentUrl();
   const redeploy = dependencies.useRedeploy();
   const canRedeploy = definition.source === "resolving" || isUsableDeploymentDefinition(definition);
@@ -59,7 +59,7 @@ export const ReclamationBanner: React.FunctionComponent<Props> = ({ leases, dseq
             size="sm"
             className="mt-3"
             disabled={definition.source === "resolving"}
-            onClick={() => redeploy({ sdl: definition.sdl, name: definition.name })}
+            onClick={() => redeploy({ sdl: definition.sdl, name: definition.name, sourceDseq: dseq })}
           >
             Redeploy
           </Button>

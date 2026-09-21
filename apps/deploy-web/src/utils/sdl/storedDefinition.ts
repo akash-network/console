@@ -18,6 +18,12 @@ export function isStoredSdlSelfContained(sdl: string): boolean {
   return document !== null && !carriesReference(document) && blankEnvValuesIn(document).length === 0;
 }
 
+/** Whether a stored SDL can seed Configure for a redeploy: references are fine there, only a value blanked away is lost. */
+export function isStoredSdlRedeployable(sdl: string): boolean {
+  const document = parseSdl(sdl);
+  return document !== null && blankEnvValuesIn(document).length === 0;
+}
+
 /** Named per service, because the same env name can be a withheld secret in one service and a value of the user's own in another. */
 function blankEnvValuesIn(document: unknown): string[] {
   return envEntriesIn(document)

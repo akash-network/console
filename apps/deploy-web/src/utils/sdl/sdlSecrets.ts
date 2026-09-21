@@ -1,3 +1,5 @@
+import yaml from "js-yaml";
+
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 
 /** Mirrors the api's SDL Reference grammar; anchored, so a value merely containing the spelling is not a reference. */
@@ -132,6 +134,40 @@ export function resolveSdlSecrets(values: SdlBuilderFormValuesType, options: Res
   });
 
   return { references, values: secretValues, unresolved };
+}
+
+/** The names of every secret reference an SDL carries in a service's env or registry credentials; none when it does not parse. */
+export function secretReferenceNamesIn(sdl: string): Set<string> {
+  const names = new Set<string>();
+
+  Object.values(servicesOf(sdl)).forEach(service => {
+    if (Array.isArray(service.env)) {
+      service.env.forEach(entry => {
+        if (typeof entry !== "string") return;
+        const separatorAt = entry.indexOf("=");
+        if (separatorAt !== -1) addSecretName(names, entry.slice(separatorAt + 1));
+      });
+    }
+    const credentials = service.credentials;
+    if (credentials && typeof credentials === "object") {
+      CREDENTIAL_SECRET_FIELDS.forEach(field => {
+        const value = (credentials as Record<string, unknown>)[field];
+        if (typeof value === "string") addSecretName(names, value);
+      });
+    }
+  });
+
+  return names;
+}
+
+function servicesOf(sdl: string): Record<string, { env?: unknown; credentials?: unknown }> {
+  try {
+    const document = yaml.load(sdl) as { services?: unknown } | null;
+    const services = document?.services;
+    return services && typeof services === "object" && !Array.isArray(services) ? (services as Record<string, { env?: unknown; credentials?: unknown }>) : {};
+  } catch {
+    return {};
+  }
 }
 
 /** Read in full before any name is minted, so a typed secret can never land on a name a kept reference elsewhere still stands on. */

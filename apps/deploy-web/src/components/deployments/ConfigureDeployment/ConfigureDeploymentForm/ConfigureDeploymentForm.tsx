@@ -18,7 +18,7 @@ import { SdlBuilderFormValuesSchema } from "@src/types";
 import { parseBidId } from "@src/utils/bids/bidId";
 import { defaultServiceWithPlacement, vmServiceOverrides } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
-import { resolveSdlSecrets } from "@src/utils/sdl/sdlSecrets";
+import { resolveSdlSecrets, secretReferenceNamesIn } from "@src/utils/sdl/sdlSecrets";
 import { applyPresetToProfile, DEFAULT_HARDWARE_PRESET } from "../ConfigurationPane/PresetsCard/hardwarePresets";
 import { ConfigureDeploymentBackButton } from "../ConfigureDeploymentBackButton/ConfigureDeploymentBackButton";
 import { ConfigureDeploymentHeader } from "../ConfigureDeploymentHeader/ConfigureDeploymentHeader";
@@ -26,6 +26,8 @@ import { ConfigureDeploymentPanes } from "../ConfigureDeploymentPanes/ConfigureD
 import { DeployProgressOverlay } from "../DeployProgressOverlay/DeployProgressOverlay";
 import type { ImportedDeploymentState } from "../importDeploymentState/importDeploymentState";
 import { importDeploymentState, isKnownSdlParserError, NoVisibleServiceError, seedSelectedServiceId } from "../importDeploymentState/importDeploymentState";
+import type { InheritedSecrets } from "../InheritedSecretsProvider/InheritedSecretsProvider";
+import { InheritedSecretsProvider } from "../InheritedSecretsProvider/InheritedSecretsProvider";
 import { ReviewAndDeployModal } from "../ReviewAndDeployModal/ReviewAndDeployModal";
 import { SdlImportExport } from "../SdlImportExport/SdlImportExport";
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
@@ -82,6 +84,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const { analyticsService } = d.useServices();
   const draft = d.useConfigureDraft(intent);
+  const [inheritedSecrets, setInheritedSecrets] = useState<InheritedSecrets | null>(() => inheritedSecretsOf(draft.persistedInheritSecretsFrom, initialSdl));
   const { name: deploymentName, typedName: typedDeploymentName, setName: setDeploymentName } = d.useDeploymentName({ initialName, dseq: flow.dseq });
   const [runtimeLimitHours, setRuntimeLimitHours] = useState<number | undefined>(() => draft.persistedRuntimeLimitHours);
   const form = useForm<SdlBuilderFormValuesType>({
@@ -211,6 +214,15 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   );
 
   useEffect(
+    function dropUnreadableInheritance() {
+      if (flow.error?.kind !== "inherited-unreadable") return;
+      setInheritedSecrets(null);
+      draft.dropInheritance();
+    },
+    [flow.error, draft]
+  );
+
+  useEffect(
     function clearDraftOnceDeployed() {
       if (flow.deploySucceeded) {
         draft.clear();
@@ -287,67 +299,69 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col">
       <d.NextSeo title="Configure your deployment" />
       <FormProvider {...form}>
-        <div className="relative flex min-h-0 flex-1 flex-col">
-          <div className="px-6 pt-6">
-            <d.ConfigureDeploymentBackButton />
-            <div className="mt-2">
-              <d.ConfigureDeploymentHeader
-                flow={flow}
+        <InheritedSecretsProvider value={inheritedSecrets}>
+          <div className="relative flex min-h-0 flex-1 flex-col">
+            <div className="px-6 pt-6">
+              <d.ConfigureDeploymentBackButton />
+              <div className="mt-2">
+                <d.ConfigureDeploymentHeader
+                  flow={flow}
+                  sdl={liveSdl}
+                  deploymentName={typedDeploymentName}
+                  onDeploy={() => openReview(flow.selections)}
+                  allPlacementsHaveBids={allPlacementsHaveBids}
+                />
+              </div>
+            </div>
+            <div className="relative mt-6 flex min-h-0 flex-1 overflow-x-auto">
+              <d.ConfigureDeploymentPanes
                 sdl={liveSdl}
-                deploymentName={typedDeploymentName}
-                onDeploy={() => openReview(flow.selections)}
-                allPlacementsHaveBids={allPlacementsHaveBids}
+                previewSdl={previewSdl}
+                selectedServiceId={selectedServiceId}
+                selectedPlacementName={selectedPlacement.name}
+                selectedPlacementRegion={selectedPlacement.region}
+                selectedPlacementId={selectedPlacement.id}
+                onSelectService={setSelectedServiceId}
+                phase={flow.phase}
+                dseq={flow.dseq}
+                selections={flow.selections}
+                onSelectProvider={selectProviderAndAdvance}
+                onCancelAndEdit={flow.actions.cancelAndEdit}
+                pendingClose={flow.pendingClose}
+                onRetryClose={flow.actions.retryClose}
+                deploymentName={deploymentName}
+                onDeploymentNameChange={setDeploymentName}
+                configurationActions={<d.SdlImportExport sdl={liveSdl} deploymentName={deploymentName} canImport={isEditable} onImport={applyImportedState} />}
               />
             </div>
+            {flow.phase === "deploying" && (
+              <d.DeployProgressOverlay
+                providerAddress={firstSelectedProviderAddress(flow.selections)}
+                activePhase={flow.deploySucceeded ? "success" : "preparing"}
+                deploymentName={deploymentName}
+              />
+            )}
           </div>
-          <div className="relative mt-6 flex min-h-0 flex-1 overflow-x-auto">
-            <d.ConfigureDeploymentPanes
-              sdl={liveSdl}
-              previewSdl={previewSdl}
-              selectedServiceId={selectedServiceId}
-              selectedPlacementName={selectedPlacement.name}
-              selectedPlacementRegion={selectedPlacement.region}
-              selectedPlacementId={selectedPlacement.id}
-              onSelectService={setSelectedServiceId}
-              phase={flow.phase}
-              dseq={flow.dseq}
-              selections={flow.selections}
-              onSelectProvider={selectProviderAndAdvance}
-              onCancelAndEdit={flow.actions.cancelAndEdit}
-              pendingClose={flow.pendingClose}
-              onRetryClose={flow.actions.retryClose}
-              deploymentName={deploymentName}
-              onDeploymentNameChange={setDeploymentName}
-              configurationActions={<d.SdlImportExport sdl={liveSdl} deploymentName={deploymentName} canImport={isEditable} onImport={applyImportedState} />}
-            />
-          </div>
-          {flow.phase === "deploying" && (
-            <d.DeployProgressOverlay
-              providerAddress={firstSelectedProviderAddress(flow.selections)}
-              activePhase={flow.deploySucceeded ? "success" : "preparing"}
-              deploymentName={deploymentName}
-            />
-          )}
-        </div>
-        <d.ReviewAndDeployModal
-          open={isReviewOpen}
-          dseq={flow.dseq}
-          placements={placements}
-          selections={flow.selections}
-          runtimeLimitHours={runtimeLimitHours}
-          onRuntimeLimitHoursChange={setRuntimeLimitHours}
-          onBack={closeReview}
-          onConfirm={() => {
-            analyticsService.track("review_deploy_confirmed", { category: "deployments", dseq: flow.dseq });
-            setReviewOpen(false);
-            if (isSecretsEnabled) {
-              const secrets = resolveSdlSecrets(form.getValues(), { sealSecrets: true });
-              flow.actions.deploy(liveSdl, { secrets: secrets.values, unresolvedSecrets: secrets.unresolved });
-            } else {
-              flow.actions.deploy(liveSdl);
-            }
-          }}
-        />
+          <d.ReviewAndDeployModal
+            open={isReviewOpen}
+            dseq={flow.dseq}
+            placements={placements}
+            selections={flow.selections}
+            runtimeLimitHours={runtimeLimitHours}
+            onRuntimeLimitHoursChange={setRuntimeLimitHours}
+            onBack={closeReview}
+            onConfirm={() => {
+              analyticsService.track("review_deploy_confirmed", { category: "deployments", dseq: flow.dseq });
+              setReviewOpen(false);
+              if (isSecretsEnabled) {
+                const secrets = resolveSdlSecrets(form.getValues(), { sealSecrets: true });
+                flow.actions.deploy(liveSdl, { secrets: secrets.values, unresolvedSecrets: secrets.unresolved });
+              } else {
+                flow.actions.deploy(liveSdl);
+              }
+            }}
+          />
+        </InheritedSecretsProvider>
       </FormProvider>
     </d.Layout>
   );
@@ -418,6 +432,12 @@ function getImportErrorMessage(error: unknown): string {
  * stranded deployment is not lost: requesting quotes again closes it first, so no manual recovery is needed.
  */
 function flowErrorToastCopy(kind: FlowErrorKind | undefined): { title: string; fallback: string } {
+  if (kind === "inherited-unreadable") {
+    return {
+      title: "The previous deployment's secrets can't be reused",
+      fallback: "Enter a value for each secret, then request quotes again."
+    };
+  }
   if (kind === "close") {
     return {
       title: "Couldn't close the deployment",
@@ -425,6 +445,12 @@ function flowErrorToastCopy(kind: FlowErrorKind | undefined): { title: string; f
     };
   }
   return { title: "Couldn't get provider quotes", fallback: "Something went wrong. Please adjust your deployment and try again." };
+}
+
+/** A redeploy's draft names the deployment whose stored secrets the create may inherit; the references its SDL carries are the names covered. */
+function inheritedSecretsOf(sourceDseq: string | undefined, sdl: string | undefined): InheritedSecrets | null {
+  if (!sourceDseq || !sdl) return null;
+  return { sourceDseq, names: secretReferenceNamesIn(sdl) };
 }
 
 /** Regenerates the preview SDL, keeping the last good output while the form is mid-edit. */

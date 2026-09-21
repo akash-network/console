@@ -7,7 +7,8 @@ import { describe, expect, it } from "vitest";
 import type { EnvironmentVariableType, SdlBuilderFormValuesType } from "@src/types";
 import { RESERVED_ENV_VALUE_MESSAGE, SdlBuilderFormValuesSchema, SECRET_NAME_MESSAGE } from "@src/types/sdlBuilder/sdlBuilder";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
-import { VariablesAndSecretsCard } from "./VariablesAndSecretsCard";
+import type { InheritedSecrets } from "../../InheritedSecretsProvider/InheritedSecretsProvider";
+import { DEPENDENCIES, VariablesAndSecretsCard } from "./VariablesAndSecretsCard";
 
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -103,6 +104,19 @@ describe(VariablesAndSecretsCard.name, () => {
 
     expect(screen.getByLabelText("Environment variable 1 value")).toHaveValue("");
     expect(screen.getByLabelText("Environment variable 1 value")).toHaveAttribute("placeholder", "Kept from the SDL. Type to replace.");
+    expect(screen.getByText("The value was not included. Enter it before requesting quotes.")).toBeInTheDocument();
+  });
+
+  it("shows a secret the redeploy source holds as kept from that deployment, with no missing-value hint", () => {
+    setup({ env: [{ key: "DB_URL", value: "ac-secret://DB_URL", isSecret: true }], inheritedSecrets: { sourceDseq: "123", names: new Set(["DB_URL"]) } });
+
+    expect(screen.getByLabelText("Environment variable 1 value")).toHaveAttribute("placeholder", "Kept from deployment #123. Type to replace.");
+    expect(screen.queryByText("The value was not included. Enter it before requesting quotes.")).not.toBeInTheDocument();
+  });
+
+  it("still asks for a kept secret the redeploy source does not hold", () => {
+    setup({ env: [{ key: "OTHER", value: "ac-secret://OTHER", isSecret: true }], inheritedSecrets: { sourceDseq: "123", names: new Set(["DB_URL"]) } });
+
     expect(screen.getByText("The value was not included. Enter it before requesting quotes.")).toBeInTheDocument();
   });
 
@@ -272,7 +286,7 @@ describe(VariablesAndSecretsCard.name, () => {
     await userEvent.click(await screen.findByRole("menuitem", { name }));
   }
 
-  function setup(input: { env: Array<Partial<EnvironmentVariableType>>; locked?: boolean }) {
+  function setup(input: { env: Array<Partial<EnvironmentVariableType>>; locked?: boolean; inheritedSecrets?: InheritedSecrets }) {
     const env = input.env.map(variable => ({ id: variable.key || "row", key: "", value: "", isSecret: false, ...variable }));
     const values = defaultServiceWithPlacement({ env });
 
@@ -284,7 +298,11 @@ describe(VariablesAndSecretsCard.name, () => {
 
     render(
       <Wrapper>
-        <VariablesAndSecretsCard serviceIndex={0} locked={input.locked} />
+        <VariablesAndSecretsCard
+          serviceIndex={0}
+          locked={input.locked}
+          dependencies={{ ...DEPENDENCIES, useInheritedSecrets: () => input.inheritedSecrets ?? null }}
+        />
       </Wrapper>
     );
 

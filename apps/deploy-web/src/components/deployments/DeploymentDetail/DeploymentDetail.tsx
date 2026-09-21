@@ -94,7 +94,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   });
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = d.useProviderList();
 
-  const definition = d.useDeploymentDefinition(dseq);
+  const definition = d.useDeploymentDefinition(dseq, { acceptReferences: true });
   const deploymentManifest = definition.sdl || "";
   const isActive = deployment?.state === "active" && !!leases?.some(isLeaseLive);
   const isDeploymentNotFound = !!deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found") && !isLoadingDeployment;
@@ -114,7 +114,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
       if (definition.source === "resolving") return;
 
       if (leases && deployment?.state === "active" && leases.length === 0 && !deployment.groups?.some(g => g.state === "paused")) {
-        const draftId = isUsableDeploymentDefinition(definition) ? createConfigureDraft(definition.sdl, definition.name) : undefined;
+        const draftId = isUsableDeploymentDefinition(definition) ? createConfigureDraft(definition.sdl, { name: definition.name }) : undefined;
         router.replace(UrlService.configureDeployment({ dseq, draftId }));
       }
     },
@@ -136,7 +136,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   }
 
   function redeployFromResolvedDefinition() {
-    redeploy({ sdl: definition.sdl, name: definition.name });
+    redeploy({ sdl: definition.sdl, name: definition.name, sourceDseq: dseq });
     analyticsService.track("redeploy_btn_clk", "Amplitude");
   }
 

@@ -15,11 +15,11 @@ describe("DeploymentActionsMenu", () => {
   it("does not read the deployment definition until the menu is opened", async () => {
     const { useDeploymentDefinition } = setup({});
 
-    expect(useDeploymentDefinition).toHaveBeenCalledWith(null);
+    expect(useDeploymentDefinition).toHaveBeenCalledWith(null, { acceptReferences: true });
 
     await openMenu();
 
-    expect(useDeploymentDefinition).toHaveBeenLastCalledWith("100");
+    expect(useDeploymentDefinition).toHaveBeenLastCalledWith("100", { acceptReferences: true });
   });
 
   it("renames the deployment through the local note manager", async () => {
@@ -37,7 +37,7 @@ describe("DeploymentActionsMenu", () => {
     await openMenu();
     await userEvent.click(screen.getByRole("menuitem", { name: /Redeploy/ }));
 
-    expect(redeploy).toHaveBeenCalledWith({ sdl: "version: '2.0'", name: "acme" });
+    expect(redeploy).toHaveBeenCalledWith({ sdl: "version: '2.0'", name: "acme", sourceDseq: expect.any(String) });
   });
 
   it("hides redeploy when no usable definition survives", async () => {

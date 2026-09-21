@@ -304,6 +304,20 @@ describe(ConfigureDeploymentForm.name, () => {
     await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("password: hunter22"), expect.any(String), undefined));
   });
 
+  it("forgets the redeploy source and explains when the console cannot reuse its secrets", () => {
+    const message = "The secrets recorded for the deployment being inherited from can no longer be decrypted";
+    const { dropInheritance, enqueueSnackbar } = setup({
+      initialSdl: VALID_SDL,
+      persistedInheritSecretsFrom: "123",
+      flowError: { kind: "inherited-unreadable", message }
+    });
+
+    expect(dropInheritance).toHaveBeenCalled();
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" }));
+    const toast = enqueueSnackbar.mock.calls[0][0] as { props: { title: string; subTitle: string } };
+    expect(toast.props).toMatchObject({ title: "The previous deployment's secrets can't be reused", subTitle: message });
+  });
+
   it("clears the configure draft once the deployment is deployed", () => {
     const { clear } = setup({ initialSdl: undefined, deploySucceeded: true });
 
@@ -560,6 +574,7 @@ describe(ConfigureDeploymentForm.name, () => {
     phase?: DeploymentFlow["phase"];
     pendingClose?: DeploymentFlow["pendingClose"];
     secretsEnabled?: boolean;
+    persistedInheritSecretsFrom?: string;
   }) {
     const ConfigureDeploymentPanes = vi.fn(
       input.Panes ?? (({ configurationActions }: ProbePanesProps) => <div data-testid="panes-mock">{configurationActions}</div>)
@@ -572,6 +587,7 @@ describe(ConfigureDeploymentForm.name, () => {
     const AddCreditsSnackbarContent = vi.fn((_props: { message?: string; context?: string; onAction?: () => void }) => null);
     const save = vi.fn<(sdl: string, name?: string, runtimeLimitHours?: number) => void>();
     const clear = vi.fn<() => void>();
+    const dropInheritance = vi.fn<() => void>();
     const requestQuotes = vi.fn();
     const setDeploymentName = vi.fn();
     const ReviewAndDeployModal = vi.fn((props: { open: boolean; onBack: () => void; onConfirm: () => void }) =>
@@ -591,7 +607,9 @@ describe(ConfigureDeploymentForm.name, () => {
         draftId: input.draftId ?? "draft-1",
         persistedSdl: undefined,
         persistedRuntimeLimitHours: input.persistedRuntimeLimitHours,
+        persistedInheritSecretsFrom: input.persistedInheritSecretsFrom,
         save,
+        dropInheritance,
         clear
       })
     );
@@ -653,6 +671,7 @@ describe(ConfigureDeploymentForm.name, () => {
       closeSnackbar,
       save,
       clear,
+      dropInheritance,
       requestQuotes,
       analyticsService
     };

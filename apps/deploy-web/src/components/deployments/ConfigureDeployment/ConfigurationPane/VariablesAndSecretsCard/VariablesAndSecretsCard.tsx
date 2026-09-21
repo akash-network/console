@@ -18,9 +18,18 @@ import { nanoid } from "nanoid";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { RESERVED_ENV_KEYS as RESERVED_ENV_KEY_LIST } from "@src/types/sdlBuilder/sdlBuilder";
-import { isSdlReference } from "@src/utils/sdl/sdlSecrets";
+import { isSdlReference, secretNameOf } from "@src/utils/sdl/sdlSecrets";
+import { useInheritedSecrets } from "../../InheritedSecretsProvider/InheritedSecretsProvider";
 
-export const DEPENDENCIES = { CollapsibleCard, CustomNoDivTooltip, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem };
+export const DEPENDENCIES = {
+  CollapsibleCard,
+  CustomNoDivTooltip,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  useInheritedSecrets
+};
 
 const RESERVED_ENV_KEYS = new Set<string>(RESERVED_ENV_KEY_LIST);
 
@@ -177,9 +186,12 @@ const VariableRow: FC<VariableRowProps> = ({ serviceIndex, envIndex, visibleInde
   const key = useController({ control, name: `${basePath}.key` });
   const value = useController({ control, name: `${basePath}.value` });
   const isSecret = useController({ control, name: `${basePath}.isSecret` });
+  const inheritedSecrets = d.useInheritedSecrets();
   const [isRevealed, setRevealed] = useState(false);
   const secret = !!isSecret.field.value;
   const isKept = secret && isSdlReference(value.field.value ?? "");
+  const keptName = isKept ? secretNameOf(value.field.value ?? "") : null;
+  const inheritedFrom = keptName !== null && inheritedSecrets?.names.has(keptName) ? inheritedSecrets.sourceDseq : null;
   const label = `Environment variable ${visibleIndex + 1}`;
 
   /** A kept reference has no value to show as plain text, so turning it into a variable starts from an empty value. */
@@ -226,7 +238,7 @@ const VariableRow: FC<VariableRowProps> = ({ serviceIndex, envIndex, visibleInde
           aria-label={`${label} value`}
           type={secret && !isRevealed ? "password" : "text"}
           autoComplete="off"
-          placeholder={secret ? (isKept ? "Kept from the SDL. Type to replace." : "Secret value") : "value"}
+          placeholder={secret ? keptPlaceholder(isKept, inheritedFrom) : "value"}
           value={isKept ? "" : value.field.value ?? ""}
           onChange={value.field.onChange}
           onBlur={value.field.onBlur}
@@ -252,7 +264,13 @@ const VariableRow: FC<VariableRowProps> = ({ serviceIndex, envIndex, visibleInde
       </div>
       {key.fieldState.error && <p className="pl-1 text-xs text-destructive">{key.fieldState.error.message}</p>}
       {value.fieldState.error && <p className="pl-1 text-xs text-destructive">{value.fieldState.error.message}</p>}
-      {isKept && <p className="pl-1 text-xs text-muted-foreground">The value was not included. Enter it before requesting quotes.</p>}
+      {isKept && inheritedFrom === null && <p className="pl-1 text-xs text-muted-foreground">The value was not included. Enter it before requesting quotes.</p>}
     </div>
   );
 };
+
+function keptPlaceholder(isKept: boolean, inheritedFrom: string | null): string {
+  if (!isKept) return "Secret value";
+  if (inheritedFrom !== null) return `Kept from deployment #${inheritedFrom}. Type to replace.`;
+  return "Kept from the SDL. Type to replace.";
+}

@@ -99,6 +99,23 @@ describe(ConfigureDeploymentHeader.name, () => {
     expect(generateSdl).toHaveBeenCalledWith(expect.anything(), { sealSecrets: true });
   });
 
+  it("treats the redeploy source's secrets as held and names the source on the request", async () => {
+    const requestQuotes = vi.fn();
+    const resolveSdlSecretsSpy = vi.fn(() => ({ references: new Map(), values: {}, unresolved: [] }));
+    setup({
+      phase: "configuring",
+      requestQuotes,
+      secretsEnabled: true,
+      resolveSdlSecrets: resolveSdlSecretsSpy,
+      inheritedSecrets: { sourceDseq: "123", names: new Set(["API_KEY"]) }
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
+
+    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "", secrets: {}, inheritSecretsFrom: "123" }));
+    expect(resolveSdlSecretsSpy).toHaveBeenCalledWith(expect.anything(), { sealSecrets: true, heldNames: new Set(["API_KEY"]) });
+  });
+
   it("refuses to request quotes while a secret still needs a value, naming the secret and its service", async () => {
     const requestQuotes = vi.fn();
     const { enqueueSnackbar } = setup({
@@ -345,6 +362,7 @@ describe(ConfigureDeploymentHeader.name, () => {
     services?: Array<{ profile: { hasGpu?: boolean; gpuModels?: Array<{ vendor: string; name?: string }> } }>;
     secretsEnabled?: boolean;
     resolveSdlSecrets?: typeof DEPENDENCIES.resolveSdlSecrets;
+    inheritedSecrets?: ReturnType<typeof DEPENDENCIES.useInheritedSecrets>;
   }) {
     const flow = mock<DeploymentFlow>({
       phase: input.phase,
@@ -369,6 +387,7 @@ describe(ConfigureDeploymentHeader.name, () => {
       validateGeneratedSdl: () => input.validationErrors ?? [],
       resolveSdlSecrets: input.resolveSdlSecrets ?? resolveSdlSecrets,
       useFlag: () => input.secretsEnabled ?? false,
+      useInheritedSecrets: () => input.inheritedSecrets ?? null,
       useDeploymentCost: useDeploymentCost as typeof DEPENDENCIES.useDeploymentCost,
       PriceValue: ({ value }) => <span data-testid="price">{String(value)}</span>,
       useQuoteExpiry: () => input.expiry ?? null,
