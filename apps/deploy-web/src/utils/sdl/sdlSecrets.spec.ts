@@ -78,7 +78,7 @@ describe("sdlSecrets", () => {
     it("names a typed secret after its env key and collects the value under that name", () => {
       const values = formValues([service("web", { env: [env("API_KEY", "hunter2", true)] })]);
 
-      const resolved = resolveSdlSecrets(values);
+      const resolved = resolveSdlSecrets(values, { sealSecrets: true });
 
       expect(resolved.references.get(envSecretSlotKey(0, 0))).toBe("ac-secret://API_KEY");
       expect(resolved.values).toEqual({ API_KEY: "hunter2" });
@@ -88,7 +88,7 @@ describe("sdlSecrets", () => {
     it("leaves a plain variable out of the references and the values", () => {
       const values = formValues([service("web", { env: [env("PORT", "8080", false)] })]);
 
-      const resolved = resolveSdlSecrets(values);
+      const resolved = resolveSdlSecrets(values, { sealSecrets: true });
 
       expect(resolved.references.size).toBe(0);
       expect(resolved.values).toEqual({});
@@ -97,13 +97,13 @@ describe("sdlSecrets", () => {
     it("keeps a secret value exactly as typed rather than trimming it", () => {
       const values = formValues([service("web", { env: [env("TOKEN", " spaced ", true)] })]);
 
-      expect(resolveSdlSecrets(values).values).toEqual({ TOKEN: " spaced " });
+      expect(resolveSdlSecrets(values, { sealSecrets: true }).values).toEqual({ TOKEN: " spaced " });
     });
 
     it("suffixes the name when another service already claimed the same key", () => {
       const values = formValues([service("web", { env: [env("TOKEN", "a", true)] }), service("api", { env: [env("TOKEN", "b", true)] })]);
 
-      const resolved = resolveSdlSecrets(values);
+      const resolved = resolveSdlSecrets(values, { sealSecrets: true });
 
       expect(resolved.references.get(envSecretSlotKey(0, 0))).toBe("ac-secret://TOKEN");
       expect(resolved.references.get(envSecretSlotKey(1, 0))).toBe("ac-secret://TOKEN_2");
@@ -113,7 +113,7 @@ describe("sdlSecrets", () => {
     it("never mints a name a kept reference already stands on, wherever it stands", () => {
       const values = formValues([service("web", { env: [env("TOKEN", "typed", true)] }), service("api", { env: [env("OTHER", "ac-secret://TOKEN", true)] })]);
 
-      const resolved = resolveSdlSecrets(values);
+      const resolved = resolveSdlSecrets(values, { sealSecrets: true });
 
       expect(resolved.references.get(envSecretSlotKey(0, 0))).toBe("ac-secret://TOKEN_2");
       expect(resolved.values).toEqual({ TOKEN_2: "typed" });
@@ -122,7 +122,7 @@ describe("sdlSecrets", () => {
     it("carries a reference-valued secret through verbatim and reports it as unresolved when nothing holds it", () => {
       const values = formValues([service("web", { env: [env("DB_URL", "ac-secret://DB_URL", true)] })]);
 
-      const resolved = resolveSdlSecrets(values);
+      const resolved = resolveSdlSecrets(values, { sealSecrets: true });
 
       expect(resolved.references.get(envSecretSlotKey(0, 0))).toBe("ac-secret://DB_URL");
       expect(resolved.values).toEqual({});
@@ -132,7 +132,7 @@ describe("sdlSecrets", () => {
     it("does not report a reference-valued secret whose name the caller says is held", () => {
       const values = formValues([service("web", { env: [env("DB_URL", "ac-secret://DB_URL", true)] })]);
 
-      const resolved = resolveSdlSecrets(values, { heldNames: ["DB_URL"] });
+      const resolved = resolveSdlSecrets(values, { sealSecrets: true, heldNames: ["DB_URL"] });
 
       expect(resolved.unresolved).toEqual([]);
     });
@@ -140,7 +140,7 @@ describe("sdlSecrets", () => {
     it("still emits a reference for a secret with no value yet, and reports it as unresolved", () => {
       const values = formValues([service("web", { env: [env("API_KEY", "", true)] })]);
 
-      const resolved = resolveSdlSecrets(values);
+      const resolved = resolveSdlSecrets(values, { sealSecrets: true });
 
       expect(resolved.references.get(envSecretSlotKey(0, 0))).toBe("ac-secret://API_KEY");
       expect(resolved.values).toEqual({});
@@ -150,7 +150,7 @@ describe("sdlSecrets", () => {
     it("seals typed registry credentials under fixed names when asked to", () => {
       const values = formValues([service("web", { hasCredentials: true, credentials: { host: "ghcr.io", username: "alice", password: "hunter22" } })]);
 
-      const resolved = resolveSdlSecrets(values, { sealCredentials: true });
+      const resolved = resolveSdlSecrets(values, { sealSecrets: true });
 
       expect(resolved.references.get(credentialSecretSlotKey(0, "username"))).toBe("ac-secret://REGISTRY_USERNAME");
       expect(resolved.references.get(credentialSecretSlotKey(0, "password"))).toBe("ac-secret://REGISTRY_PASSWORD");
@@ -170,7 +170,7 @@ describe("sdlSecrets", () => {
       const credentials = { host: "ghcr.io", username: "alice", password: "hunter22" };
       const values = formValues([service("web", { hasCredentials: true, credentials }), service("api", { hasCredentials: true, credentials })]);
 
-      const resolved = resolveSdlSecrets(values, { sealCredentials: true });
+      const resolved = resolveSdlSecrets(values, { sealSecrets: true });
 
       expect(resolved.references.get(credentialSecretSlotKey(1, "password"))).toBe("ac-secret://REGISTRY_PASSWORD_2");
     });
@@ -184,7 +184,7 @@ describe("sdlSecrets", () => {
         })
       ]);
 
-      const resolved = resolveSdlSecrets(values, { sealCredentials: true });
+      const resolved = resolveSdlSecrets(values, { sealSecrets: true });
 
       expect(resolved.references.get(credentialSecretSlotKey(0, "password"))).toBe("ac-secret://REGISTRY_PASSWORD_2");
     });
@@ -194,7 +194,7 @@ describe("sdlSecrets", () => {
         service("web", { hasCredentials: true, credentials: { host: "ghcr.io", username: "alice", password: "ac-secret://REGISTRY_PASSWORD" } })
       ]);
 
-      const resolved = resolveSdlSecrets(values, { sealCredentials: true });
+      const resolved = resolveSdlSecrets(values, { sealSecrets: true });
 
       expect(resolved.references.get(credentialSecretSlotKey(0, "password"))).toBe("ac-secret://REGISTRY_PASSWORD");
       expect(resolved.values).toEqual({ REGISTRY_USERNAME: "alice" });
@@ -204,7 +204,7 @@ describe("sdlSecrets", () => {
     it("emits nothing for an empty registry username, which the schema leaves optional", () => {
       const values = formValues([service("web", { hasCredentials: true, credentials: { host: "ghcr.io", username: "", password: "hunter22" } })]);
 
-      const resolved = resolveSdlSecrets(values, { sealCredentials: true });
+      const resolved = resolveSdlSecrets(values, { sealSecrets: true });
 
       expect(resolved.references.has(credentialSecretSlotKey(0, "username"))).toBe(false);
       expect(resolved.values).toEqual({ REGISTRY_PASSWORD: "hunter22" });
@@ -213,7 +213,7 @@ describe("sdlSecrets", () => {
     it("ignores credentials the service has switched off", () => {
       const values = formValues([service("web", { hasCredentials: false, credentials: { host: "ghcr.io", username: "alice", password: "hunter22" } })]);
 
-      const resolved = resolveSdlSecrets(values, { sealCredentials: true });
+      const resolved = resolveSdlSecrets(values, { sealSecrets: true });
 
       expect(resolved.references.size).toBe(0);
     });

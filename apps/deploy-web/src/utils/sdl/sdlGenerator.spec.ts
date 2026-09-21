@@ -238,7 +238,7 @@ describe("sdlGenerator", () => {
         ]
       });
 
-      const sdl = generateSdl(buildFormValues(service));
+      const sdl = generateSdl(buildFormValues(service), { sealSecrets: true });
 
       expect(envOf(sdl)).toEqual(["API_KEY=ac-secret://API_KEY", "PORT=80"]);
       expect(sdl).not.toContain("hunter2");
@@ -257,7 +257,13 @@ describe("sdlGenerator", () => {
     it("emits a reference for a secret with no value yet, so a restored draft still knows it is a secret", () => {
       const service = buildLogCollectorService({ title: "web", image: "nginx", env: [{ id: "k", key: "API_KEY", value: "", isSecret: true }] });
 
-      expect(envOf(generateSdl(buildFormValues(service)))).toEqual(["API_KEY=ac-secret://API_KEY"]);
+      expect(envOf(generateSdl(buildFormValues(service), { sealSecrets: true }))).toEqual(["API_KEY=ac-secret://API_KEY"]);
+    });
+
+    it("emits a secret value as typed unless asked to seal it, so the flag-off document is unchanged", () => {
+      const service = buildLogCollectorService({ title: "web", image: "nginx", env: [{ id: "k", key: "API_KEY", value: "hunter2", isSecret: true }] });
+
+      expect(envOf(generateSdl(buildFormValues(service)))).toEqual(["API_KEY=hunter2"]);
     });
 
     it("emits registry credentials as typed unless asked to seal them", () => {
@@ -275,7 +281,7 @@ describe("sdlGenerator", () => {
         credentials: { host: "ghcr.io", username: "alice", password: "hunter22" }
       });
 
-      const sdl = generateSdl(buildFormValues(service), { sealCredentials: true });
+      const sdl = generateSdl(buildFormValues(service), { sealSecrets: true });
 
       expect(credentialsOf(sdl)).toEqual({ host: "ghcr.io", username: "ac-secret://REGISTRY_USERNAME", password: "ac-secret://REGISTRY_PASSWORD" });
       expect(sdl).not.toContain("hunter22");

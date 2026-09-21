@@ -96,7 +96,7 @@ describe(ConfigureDeploymentHeader.name, () => {
     fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
 
     await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "", secrets: { API_KEY: "hunter2" } }));
-    expect(generateSdl).toHaveBeenCalledWith(expect.anything(), { sealCredentials: true });
+    expect(generateSdl).toHaveBeenCalledWith(expect.anything(), { sealSecrets: true });
   });
 
   it("refuses to request quotes while a secret still needs a value, naming the secret and its service", async () => {
@@ -124,7 +124,7 @@ describe(ConfigureDeploymentHeader.name, () => {
     fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
 
     await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "" }));
-    expect(generateSdl).toHaveBeenCalledWith(expect.anything(), { sealCredentials: false });
+    expect(generateSdl).toHaveBeenCalledWith(expect.anything(), { sealSecrets: false });
   });
 
   it("surfaces SDL validation errors and does not request quotes when the spec is invalid", async () => {

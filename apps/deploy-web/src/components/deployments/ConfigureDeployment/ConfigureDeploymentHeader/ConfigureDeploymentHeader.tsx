@@ -84,9 +84,9 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
    * submitted, so validation and creation can never disagree about which spec they acted on.
    */
   const onRequestQuotes = handleSubmit(values => {
-    const sdl = d.generateSdl(values, { sealCredentials: isSecretsEnabled });
+    const sdl = d.generateSdl(values, { sealSecrets: isSecretsEnabled });
     const errors = [...d.validateGeneratedSdl(sdl)];
-    const secrets = isSecretsEnabled ? d.resolveSdlSecrets(values, { sealCredentials: true }) : undefined;
+    const secrets = isSecretsEnabled ? d.resolveSdlSecrets(values, { sealSecrets: true }) : undefined;
     secrets?.unresolved.forEach(secret => errors.push(unresolvedSecretMessage(secret)));
     // Load-bearing trial guard: enabling the GPU card leaves the model at the empty default without ever
     // opening the (locked) picker, so the presentational lock alone can't stop an empty-model submission —
@@ -150,7 +150,7 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
           <Button
             type="button"
             disabled={!allPlacementsSelected}
-            onClick={hasDeployError ? () => flow.actions.deploy(d.generateSdl(getValues(), { sealCredentials: isSecretsEnabled })) : onDeploy}
+            onClick={hasDeployError ? () => flow.actions.deploy(d.generateSdl(getValues(), { sealSecrets: isSecretsEnabled })) : onDeploy}
             aria-label={hasDeployError ? "Retry" : "Deploy"}
             className="h-9 shrink-0 px-3 md:h-10 md:px-8"
           >

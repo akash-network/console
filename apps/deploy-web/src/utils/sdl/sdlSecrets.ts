@@ -36,8 +36,8 @@ export interface ResolvedSdlSecrets {
 }
 
 export interface ResolveSdlSecretsOptions {
-  /** Whether registry credentials are sealed too; off, they are left for the caller to emit as typed. */
-  sealCredentials?: boolean;
+  /** Withholds every secret value behind a reference; without it the values stay in the document, as a deployment created without a seal needs. */
+  sealSecrets?: boolean;
   /** Names some other holder answers for, such as the deployment being redeployed, so a kept reference to one is not unresolved. */
   heldNames?: Iterable<string>;
 }
@@ -91,7 +91,7 @@ export function resolveSdlSecrets(values: SdlBuilderFormValuesType, options: Res
 
   values.services.forEach((service, serviceIndex) => {
     (service.env ?? []).forEach((variable, envIndex) => {
-      if (!variable.isSecret) return;
+      if (!options.sealSecrets || !variable.isSecret) return;
       const slotKey = envSecretSlotKey(serviceIndex, envIndex);
       const value = variable.value ?? "";
       const location = { serviceTitle: service.title, label: variable.key };
@@ -110,7 +110,7 @@ export function resolveSdlSecrets(values: SdlBuilderFormValuesType, options: Res
       }
     });
 
-    if (!options.sealCredentials || !service.hasCredentials || !service.credentials) return;
+    if (!options.sealSecrets || !service.hasCredentials || !service.credentials) return;
 
     CREDENTIAL_SECRET_FIELDS.forEach(field => {
       const slotKey = credentialSecretSlotKey(serviceIndex, field);

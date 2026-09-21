@@ -6,8 +6,8 @@ import { defaultHttpOptions } from "./data";
 import { credentialSecretSlotKey, envSecretSlotKey, resolveSdlSecrets } from "./sdlSecrets";
 
 export interface GenerateSdlOptions {
-  /** Emits registry credentials as secret references for the create to seal values under, instead of as typed. */
-  sealCredentials?: boolean;
+  /** Emits every secret, env and registry credential alike, as a reference for the create to seal values under, instead of as typed. */
+  sealSecrets?: boolean;
 }
 
 /**
@@ -45,7 +45,7 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType, options: Gener
   }
 
   const placementById = new Map<string, PlacementType>(formValues.placements.map(p => [p.id, p]));
-  const secrets = resolveSdlSecrets(formValues, { sealCredentials: options.sealCredentials });
+  const secrets = resolveSdlSecrets(formValues, { sealSecrets: options.sealSecrets });
 
   formValues.placements.forEach(placement => {
     sdl.profiles.placement[placement.name] = { pricing: {} };
