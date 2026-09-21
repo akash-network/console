@@ -105,7 +105,11 @@ describe(ConfigureDeploymentHeader.name, () => {
       phase: "configuring",
       requestQuotes,
       secretsEnabled: true,
-      resolveSdlSecrets: () => ({ references: new Map(), values: {}, unresolved: [{ serviceTitle: "web", label: "API_KEY", name: "API_KEY" }] })
+      resolveSdlSecrets: () => ({
+        references: new Map(),
+        values: {},
+        unresolved: [{ serviceTitle: "web", label: "API_KEY", name: "API_KEY", isKeptReference: false }]
+      })
     });
 
     fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
@@ -222,7 +226,7 @@ describe(ConfigureDeploymentHeader.name, () => {
 
   it("hands a retry the secrets nothing holds a value for, so the deploy stops instead of leasing them", async () => {
     const deploy = vi.fn();
-    const unresolved = [{ serviceTitle: "web", label: "API_KEY", name: "API_KEY" }];
+    const unresolved = [{ serviceTitle: "web", label: "API_KEY", name: "API_KEY", isKeptReference: false }];
     setup({
       phase: "quoting",
       allPlacementsHaveBids: true,

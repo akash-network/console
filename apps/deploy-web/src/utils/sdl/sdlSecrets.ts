@@ -25,6 +25,8 @@ export interface UnresolvedSdlSecret {
   serviceTitle: string;
   label: string;
   name: string;
+  /** A reference the form carried in, which the api may already hold a value for from the create, unlike a name this form just minted. */
+  isKeptReference: boolean;
 }
 
 export interface ResolvedSdlSecrets {
@@ -87,7 +89,7 @@ export function resolveSdlSecrets(values: SdlBuilderFormValuesType, options: Res
   function keepReference(slotKey: string, reference: string, location: { serviceTitle: string; label: string }) {
     references.set(slotKey, reference);
     const name = secretNameOf(reference);
-    if (name !== null && !held.has(name)) unresolved.push({ ...location, name });
+    if (name !== null && !held.has(name)) unresolved.push({ ...location, name, isKeptReference: true });
   }
 
   values.services.forEach((service, serviceIndex) => {
@@ -105,7 +107,7 @@ export function resolveSdlSecrets(values: SdlBuilderFormValuesType, options: Res
       const name = mintSecretName(variable.key.trim(), taken);
       references.set(slotKey, secretReferenceOf(name));
       if (value === "") {
-        unresolved.push({ ...location, name });
+        unresolved.push({ ...location, name, isKeptReference: false });
       } else {
         secretValues[name] = value;
       }

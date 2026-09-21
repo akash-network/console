@@ -606,9 +606,10 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         setDeployError({ message: NO_SELECTION_MESSAGE });
         return;
       }
-      const unresolvedSecrets = options.unresolvedSecrets ?? [];
-      if (unresolvedSecrets.length > 0) {
-        setDeployError({ message: unresolvedSecrets.map(unresolvedSecretMessage).join(" ") });
+      /** A kept reference may already be sealed against this deployment, which only the api can confirm; a name this form minted is held by nothing. */
+      const mintedWithoutValue = (options.unresolvedSecrets ?? []).filter(secret => !secret.isKeptReference);
+      if (mintedWithoutValue.length > 0) {
+        setDeployError({ message: mintedWithoutValue.map(unresolvedSecretMessage).join(" ") });
         return;
       }
       const activeDseq = dseq;

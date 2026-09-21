@@ -451,13 +451,32 @@ describe(useDeploymentFlow.name, () => {
     act(() =>
       result.current.actions.deploy("sdl", {
         secrets: {},
-        unresolvedSecrets: [{ serviceTitle: "web", label: "API_KEY", name: "API_KEY" }]
+        unresolvedSecrets: [{ serviceTitle: "web", label: "API_KEY", name: "API_KEY", isKeptReference: false }]
       })
     );
 
     expect(result.current.deployError?.message).toBe('Secret "API_KEY" in service "web" needs a value.');
     expect(result.current.phase).toBe("quoting");
     expect(createLease.mutate).not.toHaveBeenCalled();
+  });
+
+  it("leases a kept secret reference the api may already hold rather than demanding it be typed again", () => {
+    const createDeployment = mockMutation();
+    createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
+    const createLease = mockMutation();
+    const { result } = renderFlow({ createDeployment, createLease });
+
+    act(() => result.current.actions.requestQuotes("sdl"));
+    act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+    act(() =>
+      result.current.actions.deploy("sdl", {
+        secrets: {},
+        unresolvedSecrets: [{ serviceTitle: "web", label: "DB_URL", name: "DB_URL", isKeptReference: true }]
+      })
+    );
+
+    expect(result.current.deployError).toBeUndefined();
+    expect(createLease.mutate).toHaveBeenCalled();
   });
 
   it("retry re-fires the same lease request after a failure", () => {
