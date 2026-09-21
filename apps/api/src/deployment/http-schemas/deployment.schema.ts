@@ -225,8 +225,8 @@ export const UpdateDeploymentRequestSchema = z.object({
 type SdlExposeNode = NonNullable<SDLInput["services"][string]["expose"]>[number];
 type SdlNextCase = NonNullable<NonNullable<SdlExposeNode["http_options"]>["next_cases"]>[number];
 
-/** A key carrying `=` would be written as `NAME=REST=value` and read back as a different variable, silently overwriting it and leaving the supplied value unsealed. */
-const ENV_VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+/** Kubernetes' own env var name grammar, which the SDL accepts and a stored `NAME=value` entry can round-trip. */
+const ENV_VARIABLE_NAME = /^[-._a-zA-Z][-._a-zA-Z0-9]*$/;
 
 const PatchEnvSchema = z.record(z.string().regex(ENV_VARIABLE_NAME), z.string().nullable()).openapi({
   description:

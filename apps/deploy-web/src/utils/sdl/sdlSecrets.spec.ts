@@ -126,7 +126,7 @@ describe("sdlSecrets", () => {
 
       expect(resolved.references.get(envSecretSlotKey(0, 0))).toBe("ac-secret://DB_URL");
       expect(resolved.values).toEqual({});
-      expect(resolved.unresolved).toEqual([{ serviceTitle: "web", label: "DB_URL", name: "DB_URL" }]);
+      expect(resolved.unresolved).toEqual([{ serviceTitle: "web", label: "DB_URL", name: "DB_URL", isKeptReference: true }]);
     });
 
     it("does not report a reference-valued secret whose name the caller says is held", () => {
@@ -144,7 +144,7 @@ describe("sdlSecrets", () => {
 
       expect(resolved.references.get(envSecretSlotKey(0, 0))).toBe("ac-secret://API_KEY");
       expect(resolved.values).toEqual({});
-      expect(resolved.unresolved).toEqual([{ serviceTitle: "web", label: "API_KEY", name: "API_KEY" }]);
+      expect(resolved.unresolved).toEqual([{ serviceTitle: "web", label: "API_KEY", name: "API_KEY", isKeptReference: false }]);
     });
 
     it("seals typed registry credentials under fixed names when asked to", () => {
@@ -213,7 +213,7 @@ describe("sdlSecrets", () => {
 
       expect(resolved.references.get(credentialSecretSlotKey(0, "password"))).toBe("ac-secret://REGISTRY_PASSWORD");
       expect(resolved.values).toEqual({ REGISTRY_USERNAME: "alice" });
-      expect(resolved.unresolved).toEqual([{ serviceTitle: "web", label: "registry password", name: "REGISTRY_PASSWORD" }]);
+      expect(resolved.unresolved).toEqual([{ serviceTitle: "web", label: "registry password", name: "REGISTRY_PASSWORD", isKeptReference: true }]);
     });
 
     it("emits nothing for an empty registry username, which the schema leaves optional", () => {

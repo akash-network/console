@@ -25,6 +25,8 @@ export interface UnresolvedSdlSecret {
   serviceTitle: string;
   label: string;
   name: string;
+  /** A reference the form carried in, which the api may already hold a value for from the create, unlike a name this form just minted. */
+  isKeptReference: boolean;
 }
 
 export interface ResolvedSdlSecrets {
@@ -40,6 +42,11 @@ export interface ResolveSdlSecretsOptions {
   sealSecrets?: boolean;
   /** Names some other holder answers for, such as the deployment being redeployed, so a kept reference to one is not unresolved. */
   heldNames?: Iterable<string>;
+}
+
+/** The message naming a secret the SDL references that nothing has a value for, shared by the quote and deploy gates. */
+export function unresolvedSecretMessage(secret: UnresolvedSdlSecret): string {
+  return `Secret "${secret.label}" in service "${secret.serviceTitle}" needs a value.`;
 }
 
 export function isSdlReference(value: string): boolean {
@@ -82,7 +89,7 @@ export function resolveSdlSecrets(values: SdlBuilderFormValuesType, options: Res
   function keepReference(slotKey: string, reference: string, location: { serviceTitle: string; label: string }) {
     references.set(slotKey, reference);
     const name = secretNameOf(reference);
-    if (name !== null && !held.has(name)) unresolved.push({ ...location, name });
+    if (name !== null && !held.has(name)) unresolved.push({ ...location, name, isKeptReference: true });
   }
 
   values.services.forEach((service, serviceIndex) => {
@@ -100,7 +107,7 @@ export function resolveSdlSecrets(values: SdlBuilderFormValuesType, options: Res
       const name = mintSecretName(variable.key.trim(), taken);
       references.set(slotKey, secretReferenceOf(name));
       if (value === "") {
-        unresolved.push({ ...location, name });
+        unresolved.push({ ...location, name, isKeptReference: false });
       } else {
         secretValues[name] = value;
       }

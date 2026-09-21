@@ -18,6 +18,7 @@ import { SdlBuilderFormValuesSchema } from "@src/types";
 import { parseBidId } from "@src/utils/bids/bidId";
 import { defaultServiceWithPlacement, vmServiceOverrides } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
+import { resolveSdlSecrets } from "@src/utils/sdl/sdlSecrets";
 import { applyPresetToProfile, DEFAULT_HARDWARE_PRESET } from "../ConfigurationPane/PresetsCard/hardwarePresets";
 import { ConfigureDeploymentBackButton } from "../ConfigureDeploymentBackButton/ConfigureDeploymentBackButton";
 import { ConfigureDeploymentHeader } from "../ConfigureDeploymentHeader/ConfigureDeploymentHeader";
@@ -339,7 +340,12 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
           onConfirm={() => {
             analyticsService.track("review_deploy_confirmed", { category: "deployments", dseq: flow.dseq });
             setReviewOpen(false);
-            flow.actions.deploy(liveSdl);
+            if (isSecretsEnabled) {
+              const secrets = resolveSdlSecrets(form.getValues(), { sealSecrets: true });
+              flow.actions.deploy(liveSdl, { secrets: secrets.values, unresolvedSecrets: secrets.unresolved });
+            } else {
+              flow.actions.deploy(liveSdl);
+            }
           }}
         />
       </FormProvider>

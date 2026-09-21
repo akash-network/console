@@ -105,7 +105,11 @@ describe(ConfigureDeploymentHeader.name, () => {
       phase: "configuring",
       requestQuotes,
       secretsEnabled: true,
-      resolveSdlSecrets: () => ({ references: new Map(), values: {}, unresolved: [{ serviceTitle: "web", label: "API_KEY", name: "API_KEY" }] })
+      resolveSdlSecrets: () => ({
+        references: new Map(),
+        values: {},
+        unresolved: [{ serviceTitle: "web", label: "API_KEY", name: "API_KEY", isKeptReference: false }]
+      })
     });
 
     fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
@@ -199,7 +203,44 @@ describe(ConfigureDeploymentHeader.name, () => {
     });
     expect(screen.queryByRole("button", { name: "Deploy" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
-    expect(deploy).toHaveBeenCalled();
+    expect(deploy).toHaveBeenCalledWith(GENERATED_SDL);
+  });
+
+  it("re-fires the deploy request with the typed secret values when the secrets feature is on", async () => {
+    const deploy = vi.fn();
+    setup({
+      phase: "quoting",
+      allPlacementsHaveBids: true,
+      placements: [{ id: "p1" }],
+      selections: { p1: "akash1a/1/1/1" },
+      deployError: { message: "boom" },
+      deploy,
+      secretsEnabled: true,
+      resolveSdlSecrets: () => ({ references: new Map(), values: { API_KEY: "hunter2" }, unresolved: [] })
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(deploy).toHaveBeenCalledWith(GENERATED_SDL, { secrets: { API_KEY: "hunter2" }, unresolvedSecrets: [] });
+  });
+
+  it("hands a retry the secrets nothing holds a value for, so the deploy stops instead of leasing them", async () => {
+    const deploy = vi.fn();
+    const unresolved = [{ serviceTitle: "web", label: "API_KEY", name: "API_KEY", isKeptReference: false }];
+    setup({
+      phase: "quoting",
+      allPlacementsHaveBids: true,
+      placements: [{ id: "p1" }],
+      selections: { p1: "akash1a/1/1/1" },
+      deployError: { message: "boom" },
+      deploy,
+      secretsEnabled: true,
+      resolveSdlSecrets: () => ({ references: new Map(), values: {}, unresolved })
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(deploy).toHaveBeenCalledWith(GENERATED_SDL, { secrets: {}, unresolvedSecrets: unresolved });
   });
 
   it("shows a dash for the cost before any bids arrive", () => {

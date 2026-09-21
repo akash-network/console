@@ -12,7 +12,10 @@ import { settingsIdAtom } from "@src/store/settingsStore";
 import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
 import { ManifestYaml } from "@src/utils/deploymentData/helpers";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
-import type { SdlSecretValues } from "@src/utils/sdl/sdlSecrets";
+import type { SdlSecretValues, UnresolvedSdlSecret } from "@src/utils/sdl/sdlSecrets";
+import { unresolvedSecretMessage } from "@src/utils/sdl/sdlSecrets";
+import type { ServicesPatch } from "@src/utils/sdl/sdlServicesPatch";
+import { isEmptyServicesPatch, servicesPatchBetween } from "@src/utils/sdl/sdlServicesPatch";
 import { sealSdlSecrets } from "@src/utils/sdl/sealSdlSecrets";
 import { UrlService } from "@src/utils/urlUtils";
 import { isWalletProvisioning, WALLET_PROVISIONING_ERROR_CODE, walletProvisioningRetry } from "@src/utils/walletProvisioning";
@@ -55,6 +58,13 @@ export interface RequestQuotesOptions {
   secrets?: SdlSecretValues;
 }
 
+export interface DeployOptions {
+  /** Typed secret values keyed by the name their SDL reference carries; sealed into the pre-lease patch while the secrets feature is on. */
+  secrets?: SdlSecretValues;
+  /** Secrets the SDL references that nothing holds a value for, which the api could not resolve once the manifest is sent. */
+  unresolvedSecrets?: UnresolvedSdlSecret[];
+}
+
 export interface DeploymentFlowActions {
   /** Creates the deployment from the given SDL. The caller passes the SDL generated from the just-submitted form
    * values so the request can never lag behind an in-flight edit. */
@@ -71,7 +81,7 @@ export interface DeploymentFlowActions {
   clearSelection: (placementId: string) => void;
   /** Creates the lease(s) and sends the manifest. The caller passes the current SDL so the manifest can be
    * rederived when it wasn't captured in this session (e.g. after a reload that resumed straight into quoting). */
-  deploy: (sdl: string) => void;
+  deploy: (sdl: string, options?: DeployOptions) => void;
 }
 
 export type DeploymentFlow = DeploymentFlowState & { actions: DeploymentFlowActions };
@@ -124,7 +134,9 @@ export const DEPENDENCIES = {
   // eslint-disable-next-line akash/dependencies-component-or-hook
   deploymentResourcesFromSdl,
   // eslint-disable-next-line akash/dependencies-component-or-hook
-  sealSdlSecrets
+  sealSdlSecrets,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
+  servicesPatchBetween
 };
 
 /**
@@ -140,6 +152,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const closeDeployment = api.v1.closeDeployment.useMutation();
   const createLease = api.v1.createLease.useMutation();
   const updateDeployment = api.v1.updateDeployment.useMutation();
+  const patchDeployment = api.v1.patchDeployment.useMutation();
   const getDeployment = api.v1.getDeployment.useMutation();
   const getSdlSecretsContext = api.v1.getSDLSecretsContext.useMutation();
   const isSecretsEnabled = dependencies.useFlag("ui_deployment_secrets");
@@ -152,6 +165,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const [error, setError] = useState<{ message?: string; kind?: FlowErrorKind } | undefined>(undefined);
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [manifest, setManifest] = useState<string | null>(null);
+  /** The SDL the create sent, which a quoting-window edit is diffed against; null on a session that never saw the create. */
+  const [createdSdl, setCreatedSdl] = useState<string | null>(null);
   const [deployError, setDeployError] = useState<{ message?: string } | undefined>(undefined);
   const [deploySucceeded, setDeploySucceeded] = useState(false);
   const [pendingClose, setPendingClose] = useState<PendingClose | null>(null);
@@ -253,6 +268,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     setDseq(null);
     setSelections({});
     setManifest(null);
+    setCreatedSdl(null);
     setDeployError(undefined);
     setDeploySucceeded(false);
   }, []);
@@ -353,6 +369,15 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   /** A deployment this session opened that is known to be still open with no close in flight: the next create closes it first. */
   const strandedDseq = pendingClose?.failed ? pendingClose.dseq : null;
 
+  /** Seals against the console's current key; a create binds the seal to its SDL, a patch binds to none because the api checks it against the stored document. */
+  const sealSecrets = useCallback(
+    async function sealSecrets(secrets: SdlSecretValues, sdl?: string): Promise<string> {
+      const context = await getSdlSecretsContext.mutateAsync();
+      return await dependencies.sealSdlSecrets({ context: context.data, secrets, ...(sdl === undefined ? {} : { sdl }) });
+    },
+    [getSdlSecretsContext, dependencies]
+  );
+
   /**
    * Caches the SDL under the settings id + dseq at create time (the create response omits `owner`) so an in-progress
    * deployment can resume after a reload. A still-open deployment is closed first and a create fired mid-close waits on
@@ -385,6 +410,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         }
         setDseq(result.data.dseq);
         setManifest(result.data.manifest);
+        setCreatedSdl(sdl);
         setSelections({});
         setDeployError(undefined);
         setDeploySucceeded(false);
@@ -427,8 +453,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       async function sealAndSubmit(canResealOnce: boolean) {
         let sealedSecrets: string;
         try {
-          const context = await getSdlSecretsContext.mutateAsync();
-          sealedSecrets = await dependencies.sealSdlSecrets({ context: context.data, sdl, secrets });
+          sealedSecrets = await sealSecrets(secrets, sdl);
         } catch (cause) {
           onCreateFailed(cause);
           return;
@@ -467,9 +492,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     [
       createDeployment,
       closeDeployment,
-      getSdlSecretsContext,
+      sealSecrets,
       isSecretsEnabled,
-      dependencies,
       dseq,
       strandedDseq,
       router,
@@ -566,9 +590,11 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   /**
    * The manifest is derived from the SDL being deployed (not the create-time one) so a quoting-window edit gets leased;
    * when it differs from create the deployment is updated first so the on-chain hash matches before the manifest is sent.
+   * With the secrets feature on, that update is a patch of what changed since the create, because the whole-SDL update
+   * seals every value and cannot resolve a reference.
    */
   const deploy = useCallback(
-    function deploy(sdl: string) {
+    function deploy(sdl: string, options: DeployOptions = {}) {
       if (!dseq) return;
       const nextManifest = dependencies.manifestFromSdl(sdl);
       const leases = Object.values(selections).map(parseBidId);
@@ -580,8 +606,16 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         setDeployError({ message: NO_SELECTION_MESSAGE });
         return;
       }
+      /** A kept reference may already be sealed against this deployment, which only the api can confirm; a name this form minted is held by nothing. */
+      const mintedWithoutValue = (options.unresolvedSecrets ?? []).filter(secret => !secret.isKeptReference);
+      if (mintedWithoutValue.length > 0) {
+        setDeployError({ message: mintedWithoutValue.map(unresolvedSecretMessage).join(" ") });
+        return;
+      }
       const activeDseq = dseq;
       const activeManifest = nextManifest;
+      /** A corrected secret leaves the SDL untouched, because its reference is what the SDL carries, so an unchanged manifest still has to patch. */
+      const hasTypedSecrets = Object.keys(options.secrets ?? {}).length > 0;
       const resources = dependencies.deploymentResourcesFromSdl(sdl);
       setDeployError(undefined);
       setDeploySucceeded(false);
@@ -617,13 +651,89 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         createLease.mutate({ manifest: activeManifest, leases }, { onSuccess: completeDeploy, onError: failDeploy });
       }
 
-      if (activeManifest !== manifest) {
+      function updateWholeSdlAndLease() {
         updateDeployment.mutate({ dseq: activeDseq, data: { sdl } }, { onSuccess: sendManifestAndLease, onError: failDeploy });
-      } else {
+      }
+
+      function submitPatch(services: ServicesPatch | undefined, sealedSecrets: string | undefined, canResealOnce: boolean) {
+        patchDeployment.mutate(
+          { dseq: activeDseq, data: { ...(services === undefined ? {} : { services }), ...(sealedSecrets === undefined ? {} : { sealedSecrets }) } },
+          {
+            onSuccess: sendManifestAndLease,
+            onError: function resealOrFail(cause: unknown) {
+              if (canResealOnce && isStaleSealingKey(cause)) {
+                void sealAndPatch(services, false);
+                return;
+              }
+              failDeploy(cause);
+            }
+          }
+        );
+      }
+
+      async function sealAndPatch(services: ServicesPatch | undefined, canResealOnce: boolean) {
+        try {
+          submitPatch(services, await sealSecrets(options.secrets ?? {}), canResealOnce);
+        } catch (cause) {
+          failDeploy(cause);
+        }
+      }
+
+      /** A session that never saw the create diffs against the stored definition; with none to diff against, the whole SDL goes out as before. */
+      async function patchChangesAndLease() {
+        let services: ServicesPatch | undefined;
+        try {
+          const baselineSdl = createdSdl ?? (await storedSdlOf(activeDseq));
+          if (baselineSdl === null) {
+            updateWholeSdlAndLease();
+            return;
+          }
+          const patched = dependencies.servicesPatchBetween(baselineSdl, sdl);
+          services = isEmptyServicesPatch(patched) ? undefined : patched;
+        } catch (cause) {
+          failDeploy(cause);
+          return;
+        }
+
+        if (services === undefined && !hasTypedSecrets) {
+          sendManifestAndLease();
+        } else if (hasTypedSecrets) {
+          await sealAndPatch(services, true);
+        } else {
+          submitPatch(services, undefined, false);
+        }
+      }
+
+      async function storedSdlOf(dseqToRead: string): Promise<string | null> {
+        const result = await getDeployment.mutateAsync({ dseq: dseqToRead });
+        return result.data.consoleSettings?.sdl ?? null;
+      }
+
+      if (activeManifest === manifest && !hasTypedSecrets) {
         sendManifestAndLease();
+      } else if (isSecretsEnabled) {
+        void patchChangesAndLease();
+      } else {
+        updateWholeSdlAndLease();
       }
     },
-    [createLease, updateDeployment, dseq, manifest, selections, router, dependencies, deploymentLocalStorage, queryClient, analyticsService]
+    [
+      createLease,
+      updateDeployment,
+      patchDeployment,
+      getDeployment,
+      sealSecrets,
+      isSecretsEnabled,
+      createdSdl,
+      dseq,
+      manifest,
+      selections,
+      router,
+      dependencies,
+      deploymentLocalStorage,
+      queryClient,
+      analyticsService
+    ]
   );
 
   return {
