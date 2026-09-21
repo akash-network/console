@@ -3,6 +3,7 @@ import { FormProvider, useForm } from "react-hook-form";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { PlacementOptions } from "@src/queries/usePlacementOptions";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { ApiProviderRegion } from "@src/types/provider";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
@@ -64,10 +65,67 @@ describe("RegionSelect", () => {
     expect(screen.getByRole("option", { name: "na-us-west" })).toBeInTheDocument();
   });
 
-  function setup(input: { regions: ApiProviderRegion[]; region?: string }) {
+  describe("availability", () => {
+    it("offers only the regions an online provider serves", async () => {
+      setup({ regions: REGIONS, availableRegions: ["eu-west"] });
+
+      fireEvent.click(screen.getByRole("combobox", { name: "Region" }));
+
+      expect(await screen.findByRole("option", { name: "eu-west" })).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "eu-central" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "na-us-west" })).not.toBeInTheDocument();
+    });
+
+    it("still offers Any region when no region is available", async () => {
+      setup({ regions: REGIONS, availableRegions: ["as-east"] });
+
+      fireEvent.click(screen.getByRole("combobox", { name: "Region" }));
+
+      expect(await screen.findByRole("option", { name: "Any region" })).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "eu-west" })).not.toBeInTheDocument();
+    });
+
+    it("offers the whole catalog when availability cannot be loaded", async () => {
+      setup({ regions: REGIONS });
+
+      fireEvent.click(screen.getByRole("combobox", { name: "Region" }));
+
+      expect(await screen.findByRole("option", { name: "eu-west" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "eu-central" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "na-us-west" })).toBeInTheDocument();
+    });
+
+    it("offers the whole catalog when no provider is reported online", async () => {
+      setup({ regions: REGIONS, availableRegions: [] });
+
+      fireEvent.click(screen.getByRole("combobox", { name: "Region" }));
+
+      expect(await screen.findByRole("option", { name: "eu-west" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "na-us-west" })).toBeInTheDocument();
+    });
+
+    it("keeps a region the configuration already pins once it stops being offered", async () => {
+      const { getValues } = setup({ regions: REGIONS, region: "na-us-west", availableRegions: ["eu-west"] });
+      const trigger = screen.getByRole("combobox", { name: "Region" });
+
+      expect(trigger).toHaveTextContent("na-us-west");
+      expect(getValues().placements[0].region).toBe("na-us-west");
+
+      fireEvent.click(trigger);
+      expect(await screen.findByRole("option", { name: "na-us-west" })).toBeInTheDocument();
+    });
+  });
+
+  function setup(input: { regions: ApiProviderRegion[]; region?: string; availableRegions?: string[] }) {
     const values = defaultServiceWithPlacement();
     values.placements[0].region = input.region;
-    const useProviderRegions: typeof DEPENDENCIES.useProviderRegions = () => mock<ReturnType<typeof DEPENDENCIES.useProviderRegions>>({ data: input.regions });
+
+    const regionsQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProviderRegions>>(), { data: input.regions });
+    const useProviderRegions: typeof DEPENDENCIES.useProviderRegions = () => regionsQuery;
+
+    const placementOptions: PlacementOptions | undefined = input.availableRegions && { regions: input.availableRegions, gpus: [] };
+    const placementOptionsQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.usePlacementOptions>>(), { data: placementOptions });
+    const usePlacementOptions: typeof DEPENDENCIES.usePlacementOptions = () => placementOptionsQuery;
 
     let getValues: () => SdlBuilderFormValuesType = () => values;
     const Wrapper = ({ children }: PropsWithChildren) => {
@@ -78,7 +136,7 @@ describe("RegionSelect", () => {
 
     render(
       <Wrapper>
-        <RegionSelect placementIndex={0} dependencies={{ useProviderRegions }} />
+        <RegionSelect placementIndex={0} dependencies={{ useProviderRegions, usePlacementOptions }} />
       </Wrapper>
     );
 
