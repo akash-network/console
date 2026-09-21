@@ -11325,6 +11325,101 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/placement-options": {
+      "get": {
+        "operationId": "listPlacementOptions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "gpus": {
+                      "description": "GPUs that online providers have free capacity for, grouped by vendor",
+                      "items": {
+                        "properties": {
+                          "models": {
+                            "items": {
+                              "properties": {
+                                "interface": {
+                                  "description": "Interfaces this model is available with",
+                                  "example": [
+                                    "PCIe",
+                                  ],
+                                  "items": {
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                                "memory": {
+                                  "description": "Memory sizes this model is available with",
+                                  "example": [
+                                    "40Gi",
+                                  ],
+                                  "items": {
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                                "name": {
+                                  "description": "Model as it appears in an SDL GPU attribute",
+                                  "example": "a100",
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "name",
+                                "memory",
+                                "interface",
+                              ],
+                              "type": "object",
+                            },
+                            "type": "array",
+                          },
+                          "vendor": {
+                            "description": "Vendor as it appears in an SDL GPU attribute",
+                            "example": "nvidia",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "vendor",
+                          "models",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "regions": {
+                      "description": "Regions advertised by at least one online provider",
+                      "example": [
+                        "eu-west",
+                        "na-us-west",
+                      ],
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "regions",
+                    "gpus",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns the regions and GPUs available across online providers",
+          },
+        },
+        "security": [],
+        "summary": "List the regions and GPUs online providers can currently serve",
+        "tags": [
+          "Placement Options",
+        ],
+      },
+    },
     "/v1/predicted-block-date/{height}": {
       "get": {
         "parameters": [

@@ -18793,6 +18793,101 @@
         }
       }
     },
+    "/v1/placement-options": {
+      "get": {
+        "operationId": "listPlacementOptions",
+        "summary": "List the regions and GPUs online providers can currently serve",
+        "tags": [
+          "Placement Options"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Returns the regions and GPUs available across online providers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "regions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Regions advertised by at least one online provider",
+                      "example": [
+                        "eu-west",
+                        "na-us-west"
+                      ]
+                    },
+                    "gpus": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "vendor": {
+                            "type": "string",
+                            "description": "Vendor as it appears in an SDL GPU attribute",
+                            "example": "nvidia"
+                          },
+                          "models": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "description": "Model as it appears in an SDL GPU attribute",
+                                  "example": "a100"
+                                },
+                                "memory": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "description": "Memory sizes this model is available with",
+                                  "example": [
+                                    "40Gi"
+                                  ]
+                                },
+                                "interface": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "description": "Interfaces this model is available with",
+                                  "example": [
+                                    "PCIe"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "memory",
+                                "interface"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "vendor",
+                          "models"
+                        ]
+                      },
+                      "description": "GPUs that online providers have free capacity for, grouped by vendor"
+                    }
+                  },
+                  "required": [
+                    "regions",
+                    "gpus"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/confidential-compute/attestation/validate": {
       "post": {
         "operationId": "validateConfidentialComputeAttestation",

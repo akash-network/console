@@ -6336,6 +6336,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/placement-options": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the regions and GPUs online providers can currently serve */
+    get: operations["listPlacementOptions"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/confidential-compute/attestation/validate": {
     parameters: {
       query?: never;
@@ -9613,6 +9630,64 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+    };
+  };
+  listPlacementOptions: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns the regions and GPUs available across online providers */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /**
+             * @description Regions advertised by at least one online provider
+             * @example [
+             *       "eu-west",
+             *       "na-us-west"
+             *     ]
+             */
+            regions: string[];
+            /** @description GPUs that online providers have free capacity for, grouped by vendor */
+            gpus: {
+              /**
+               * @description Vendor as it appears in an SDL GPU attribute
+               * @example nvidia
+               */
+              vendor: string;
+              models: {
+                /**
+                 * @description Model as it appears in an SDL GPU attribute
+                 * @example a100
+                 */
+                name: string;
+                /**
+                 * @description Memory sizes this model is available with
+                 * @example [
+                 *       "40Gi"
+                 *     ]
+                 */
+                memory: string[];
+                /**
+                 * @description Interfaces this model is available with
+                 * @example [
+                 *       "PCIe"
+                 *     ]
+                 */
+                interface: string[];
+              }[];
+            }[];
+          };
+        };
       };
     };
   };

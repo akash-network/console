@@ -154,6 +154,14 @@ export const operations = {
     listBids: { path: "/v1/bids", method: "get", operationId: "listBids", pathParams: [], queryParams: ["dseq"], hasBody: false },
     listGpuPrices: { path: "/v1/gpu-prices", method: "get", operationId: "listGpuPrices", pathParams: [], queryParams: [], hasBody: false },
     screenProviders: { path: "/v1/bid-screening", method: "post", operationId: "screenProviders", pathParams: [], queryParams: [], hasBody: true },
+    listPlacementOptions: {
+      path: "/v1/placement-options",
+      method: "get",
+      operationId: "listPlacementOptions",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
     validateConfidentialComputeAttestation: {
       path: "/v1/confidential-compute/attestation/validate",
       method: "post",
