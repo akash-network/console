@@ -31,3 +31,11 @@ export function createSessionExpiryResponseInterceptor(notifier: SessionExpiryNo
     return Promise.reject(error);
   };
 }
+
+export function createSessionExpiryFetch(notifier: SessionExpiryNotifier, fetchImpl: typeof fetch = fetch): typeof fetch {
+  return async (input, init) => {
+    const response = await fetchImpl(input, init);
+    if (response.status === 401) notifier.notify();
+    return response;
+  };
+}

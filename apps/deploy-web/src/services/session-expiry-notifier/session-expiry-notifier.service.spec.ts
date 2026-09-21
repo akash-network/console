@@ -1,7 +1,7 @@
 import { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
 import { describe, expect, it, vi } from "vitest";
 
-import { createSessionExpiryResponseInterceptor, SessionExpiryNotifier } from "./session-expiry-notifier.service";
+import { createSessionExpiryFetch, createSessionExpiryResponseInterceptor, SessionExpiryNotifier } from "./session-expiry-notifier.service";
 
 describe(SessionExpiryNotifier.name, () => {
   it("notifies every subscribed listener", () => {
@@ -67,6 +67,60 @@ describe(createSessionExpiryResponseInterceptor.name, () => {
     vi.spyOn(notifier, "notify");
     const interceptor = createSessionExpiryResponseInterceptor(notifier);
     return { interceptor, notifier };
+  }
+});
+
+describe(createSessionExpiryFetch.name, () => {
+  it("forwards the request to the wrapped fetch and hands back its response", async () => {
+    const response = new Response(null, { status: 200 });
+    const { fetchWithSessionExpiry, fetchImpl } = setup({ response });
+    const init = { method: "POST", body: "{}" };
+
+    await expect(fetchWithSessionExpiry("/api/proxy/v1/deployments", init)).resolves.toBe(response);
+    expect(fetchImpl).toHaveBeenCalledWith("/api/proxy/v1/deployments", init);
+  });
+
+  it("notifies on a 401 and still hands back the response", async () => {
+    const response = new Response(null, { status: 401 });
+    const { fetchWithSessionExpiry, notifier } = setup({ response });
+
+    await expect(fetchWithSessionExpiry("/api/proxy/v1/deployments")).resolves.toBe(response);
+    expect(notifier.notify).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not notify on a successful response", async () => {
+    const { fetchWithSessionExpiry, notifier } = setup({ response: new Response(null, { status: 200 }) });
+
+    await fetchWithSessionExpiry("/api/proxy/v1/deployments");
+
+    expect(notifier.notify).not.toHaveBeenCalled();
+  });
+
+  it("does not notify on a non-401 error response", async () => {
+    const { fetchWithSessionExpiry, notifier } = setup({ response: new Response(null, { status: 500 }) });
+
+    await fetchWithSessionExpiry("/api/proxy/v1/deployments");
+
+    expect(notifier.notify).not.toHaveBeenCalled();
+  });
+
+  it("rejects without notifying when the wrapped fetch fails", async () => {
+    const failure = new TypeError("network down");
+    const { fetchWithSessionExpiry, notifier } = setup({ failure });
+
+    await expect(fetchWithSessionExpiry("/api/proxy/v1/deployments")).rejects.toBe(failure);
+    expect(notifier.notify).not.toHaveBeenCalled();
+  });
+
+  function setup(input: { response?: Response; failure?: Error }) {
+    const notifier = new SessionExpiryNotifier();
+    vi.spyOn(notifier, "notify");
+    const fetchImpl = vi.fn<typeof fetch>(async () => {
+      if (input.failure) throw input.failure;
+      return input.response ?? new Response(null, { status: 200 });
+    });
+    const fetchWithSessionExpiry = createSessionExpiryFetch(notifier, fetchImpl);
+    return { fetchWithSessionExpiry, fetchImpl, notifier };
   }
 });
 
