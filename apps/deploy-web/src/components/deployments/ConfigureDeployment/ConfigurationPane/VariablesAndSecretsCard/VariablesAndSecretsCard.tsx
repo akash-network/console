@@ -103,7 +103,7 @@ export const VariablesAndSecretsCard: FC<Props> = ({ serviceIndex, locked = fals
   return (
     <d.CollapsibleCard
       locked={locked}
-      title="Environment Variables & Secrets"
+      title="Env Vars & Secrets"
       icon={<KeyRoundIcon className="h-4 w-4" />}
       headerControl={visibleCount > 0 ? <Badge variant="secondary">{visibleCount}</Badge> : undefined}
     >
