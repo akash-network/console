@@ -42,6 +42,11 @@ export interface ResolveSdlSecretsOptions {
   heldNames?: Iterable<string>;
 }
 
+/** The message naming a secret the SDL references that nothing has a value for, shared by the quote and deploy gates. */
+export function unresolvedSecretMessage(secret: UnresolvedSdlSecret): string {
+  return `Secret "${secret.label}" in service "${secret.serviceTitle}" needs a value.`;
+}
+
 export function isSdlReference(value: string): boolean {
   return SDL_REFERENCE_PATTERN.test(value);
 }

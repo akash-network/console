@@ -341,7 +341,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
             analyticsService.track("review_deploy_confirmed", { category: "deployments", dseq: flow.dseq });
             setReviewOpen(false);
             if (isSecretsEnabled) {
-              flow.actions.deploy(liveSdl, { secrets: resolveSdlSecrets(form.getValues(), { sealSecrets: true }).values });
+              const secrets = resolveSdlSecrets(form.getValues(), { sealSecrets: true });
+              flow.actions.deploy(liveSdl, { secrets: secrets.values, unresolvedSecrets: secrets.unresolved });
             } else {
               flow.actions.deploy(liveSdl);
             }

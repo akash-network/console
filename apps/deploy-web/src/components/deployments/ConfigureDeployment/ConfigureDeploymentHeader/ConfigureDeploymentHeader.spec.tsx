@@ -217,7 +217,26 @@ describe(ConfigureDeploymentHeader.name, () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
 
-    expect(deploy).toHaveBeenCalledWith(GENERATED_SDL, { secrets: { API_KEY: "hunter2" } });
+    expect(deploy).toHaveBeenCalledWith(GENERATED_SDL, { secrets: { API_KEY: "hunter2" }, unresolvedSecrets: [] });
+  });
+
+  it("hands a retry the secrets nothing holds a value for, so the deploy stops instead of leasing them", async () => {
+    const deploy = vi.fn();
+    const unresolved = [{ serviceTitle: "web", label: "API_KEY", name: "API_KEY" }];
+    setup({
+      phase: "quoting",
+      allPlacementsHaveBids: true,
+      placements: [{ id: "p1" }],
+      selections: { p1: "akash1a/1/1/1" },
+      deployError: { message: "boom" },
+      deploy,
+      secretsEnabled: true,
+      resolveSdlSecrets: () => ({ references: new Map(), values: {}, unresolved })
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(deploy).toHaveBeenCalledWith(GENERATED_SDL, { secrets: {}, unresolvedSecrets: unresolved });
   });
 
   it("shows a dash for the cost before any bids arrive", () => {

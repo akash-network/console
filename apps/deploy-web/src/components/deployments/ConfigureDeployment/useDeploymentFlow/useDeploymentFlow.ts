@@ -12,7 +12,8 @@ import { settingsIdAtom } from "@src/store/settingsStore";
 import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
 import { ManifestYaml } from "@src/utils/deploymentData/helpers";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
-import type { SdlSecretValues } from "@src/utils/sdl/sdlSecrets";
+import type { SdlSecretValues, UnresolvedSdlSecret } from "@src/utils/sdl/sdlSecrets";
+import { unresolvedSecretMessage } from "@src/utils/sdl/sdlSecrets";
 import type { ServicesPatch } from "@src/utils/sdl/sdlServicesPatch";
 import { isEmptyServicesPatch, servicesPatchBetween } from "@src/utils/sdl/sdlServicesPatch";
 import { sealSdlSecrets } from "@src/utils/sdl/sealSdlSecrets";
@@ -60,6 +61,8 @@ export interface RequestQuotesOptions {
 export interface DeployOptions {
   /** Typed secret values keyed by the name their SDL reference carries; sealed into the pre-lease patch while the secrets feature is on. */
   secrets?: SdlSecretValues;
+  /** Secrets the SDL references that nothing holds a value for, which the api could not resolve once the manifest is sent. */
+  unresolvedSecrets?: UnresolvedSdlSecret[];
 }
 
 export interface DeploymentFlowActions {
@@ -601,6 +604,11 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       }
       if (leases.length === 0) {
         setDeployError({ message: NO_SELECTION_MESSAGE });
+        return;
+      }
+      const unresolvedSecrets = options.unresolvedSecrets ?? [];
+      if (unresolvedSecrets.length > 0) {
+        setDeployError({ message: unresolvedSecrets.map(unresolvedSecretMessage).join(" ") });
         return;
       }
       const activeDseq = dseq;

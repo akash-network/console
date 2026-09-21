@@ -433,7 +433,7 @@ describe(ConfigureDeploymentForm.name, () => {
     await userEvent.click(screen.getByRole("button", { name: "select provider" }));
     await userEvent.click(screen.getByRole("button", { name: "confirm and deploy" }));
 
-    expect(flow.actions.deploy).toHaveBeenCalledWith(expect.any(String), { secrets: {} });
+    expect(flow.actions.deploy).toHaveBeenCalledWith(expect.any(String), { secrets: {}, unresolvedSecrets: [] });
   });
 
   it("tracks a dismissal when the review modal is closed via Back", async () => {

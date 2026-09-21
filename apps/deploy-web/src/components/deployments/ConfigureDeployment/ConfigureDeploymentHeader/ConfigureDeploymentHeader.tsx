@@ -11,8 +11,7 @@ import type { SdlBuilderFormValuesType } from "@src/types";
 import { hasTrialBlockedGpu } from "@src/utils/deploymentData/v1beta3";
 import { getAvgCostPerMonth, perBlockToHourly } from "@src/utils/priceUtils";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
-import type { UnresolvedSdlSecret } from "@src/utils/sdl/sdlSecrets";
-import { resolveSdlSecrets } from "@src/utils/sdl/sdlSecrets";
+import { resolveSdlSecrets, unresolvedSecretMessage } from "@src/utils/sdl/sdlSecrets";
 import { validateGeneratedSdl } from "@src/utils/sdl/validateGeneratedSdl";
 import { useTrialGate } from "../ConfigurationPane/HardwareSection/useTrialGate/useTrialGate";
 import { useDeploymentHasGpu, useDeploymentResourceSummary } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
@@ -119,7 +118,8 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
     const values = getValues();
     const sdl = d.generateSdl(values, { sealSecrets: isSecretsEnabled });
     if (isSecretsEnabled) {
-      flow.actions.deploy(sdl, { secrets: d.resolveSdlSecrets(values, { sealSecrets: true }).values });
+      const secrets = d.resolveSdlSecrets(values, { sealSecrets: true });
+      flow.actions.deploy(sdl, { secrets: secrets.values, unresolvedSecrets: secrets.unresolved });
       return;
     }
     flow.actions.deploy(sdl);
@@ -252,8 +252,4 @@ function QuoteExpiryLine({ expiry, CustomTooltip }: { expiry: QuoteExpiry; Custo
       </div>
     </CustomTooltip>
   );
-}
-
-function unresolvedSecretMessage(secret: UnresolvedSdlSecret): string {
-  return `Secret "${secret.label}" in service "${secret.serviceTitle}" needs a value.`;
 }

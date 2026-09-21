@@ -440,6 +440,26 @@ describe(useDeploymentFlow.name, () => {
     expect(result.current.deployError).toBeDefined();
   });
 
+  it("stops with an actionable error rather than leasing a secret reference nothing holds a value for", () => {
+    const createDeployment = mockMutation();
+    createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
+    const createLease = mockMutation();
+    const { result } = renderFlow({ createDeployment, createLease });
+
+    act(() => result.current.actions.requestQuotes("sdl"));
+    act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+    act(() =>
+      result.current.actions.deploy("sdl", {
+        secrets: {},
+        unresolvedSecrets: [{ serviceTitle: "web", label: "API_KEY", name: "API_KEY" }]
+      })
+    );
+
+    expect(result.current.deployError?.message).toBe('Secret "API_KEY" in service "web" needs a value.');
+    expect(result.current.phase).toBe("quoting");
+    expect(createLease.mutate).not.toHaveBeenCalled();
+  });
+
   it("retry re-fires the same lease request after a failure", () => {
     const createDeployment = mockMutation();
     createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
