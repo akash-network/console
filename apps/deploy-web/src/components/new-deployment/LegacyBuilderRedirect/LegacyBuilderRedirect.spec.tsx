@@ -87,9 +87,7 @@ describe(LegacyBuilderRedirect.name, () => {
   });
 
   function setup(input: { query: Record<string, string> }) {
-    /** Assigned after the mock is built: a nested override would auto-mock the query keys the test leaves out, which never reads as undefined. */
-    const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
-    router.query = input.query;
+    const router = routerWithExactQuery(input.query);
     const replace = router.replace;
     const dependencies: typeof DEPENDENCIES = {
       ...DEPENDENCIES,
@@ -103,3 +101,9 @@ describe(LegacyBuilderRedirect.name, () => {
     return { replace };
   }
 });
+
+function routerWithExactQuery(query: Record<string, string>) {
+  const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
+  router.query = query;
+  return router;
+}
