@@ -28,11 +28,7 @@ interface SdlService {
   credentials?: unknown;
 }
 
-/**
- * The differences between two SDLs Configure generated, limited to what a deployment already on chain can take as a
- * patch before its lease: image, command, args, env and registry credentials. Services present on only one side are
- * structural changes the patch route does not take and are left out.
- */
+/** A service present on only one side is a structural change the patch route does not take, so it is left out. */
 export function servicesPatchBetween(previousSdl: string, nextSdl: string): ServicesPatch {
   const previousServices = servicesOf(previousSdl);
   const nextServices = servicesOf(nextSdl);
