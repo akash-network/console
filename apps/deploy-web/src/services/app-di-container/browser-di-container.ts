@@ -13,6 +13,7 @@ import { BitbucketService } from "../remote-deploy/bitbucket-http.service";
 import { GitHubService } from "../remote-deploy/github-http.service";
 import { GitLabService } from "../remote-deploy/gitlab-http.service";
 import { SDLAnalyzer } from "../sdl-analyzer/sdl-analyzer";
+import { createSessionExpiryFetch } from "../session-expiry-notifier/session-expiry-notifier.service";
 import { createAppRootContainer } from "./app-di-container";
 
 const rootContainer = createAppRootContainer({
@@ -24,7 +25,7 @@ const rootContainer = createAppRootContainer({
 });
 
 export const services = createChildContainer(rootContainer, {
-  api: () => createProxy(createApiSdk({ baseUrl: PROXY_API_BASE_URL })),
+  api: () => createProxy(createApiSdk({ baseUrl: PROXY_API_BASE_URL, fetch: createSessionExpiryFetch(services.sessionExpiryNotifier) })),
   githubService: () =>
     new GitHubService(services.internalApiHttpClient, services.createAxios, {
       githubAppInstallationUrl: services.publicConfig.NEXT_PUBLIC_GITHUB_APP_INSTALLATION_URL,
