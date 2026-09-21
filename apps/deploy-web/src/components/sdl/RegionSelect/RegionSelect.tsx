@@ -48,11 +48,7 @@ export const RegionSelect: FC<Props> = ({ placementIndex, disabled, dependencies
   );
 };
 
-/**
- * Narrows the catalog to the regions online providers advertise. An absent or empty availability answer
- * leaves the catalog untouched, so a failed fetch or an inventory that momentarily knows of no online
- * provider offers too much rather than nothing, and the user can still pick a region and continue.
- */
+/** An absent or empty availability answer leaves the catalog untouched, so a failed fetch offers too much rather than nothing. */
 function filterToAvailable(regions: string[], availableRegions: string[] | undefined): string[] {
   if (!availableRegions?.length) return regions;
   const available = new Set(availableRegions);
