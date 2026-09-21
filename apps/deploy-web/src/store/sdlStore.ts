@@ -4,11 +4,9 @@ import { atomWithStorage } from "jotai/utils";
 import type { TemplateCreation } from "@src/types";
 
 const deploySdl = atom<TemplateCreation | null>(null);
-const selectedSdlEditMode = atom<"yaml" | "builder">("yaml");
 const sdlPreviewOpen = atomWithStorage<boolean>("sdlPreviewPaneOpen", false);
 
 export default {
   deploySdl,
-  selectedSdlEditMode,
   sdlPreviewOpen
 };

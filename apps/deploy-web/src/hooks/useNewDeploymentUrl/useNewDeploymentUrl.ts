@@ -1,24 +1,12 @@
-import type { NewDeploymentParams } from "@src/utils/urlUtils";
 import { UrlService } from "@src/utils/urlUtils";
 
 export const DEPENDENCIES = { UrlService };
 
-/**
- * Resolves the "open the deployment editor" destination. A concrete build intent — a chosen template or the
- * `edit-deployment` step — opens the `/new-deployment/configure` screen. A bare "new deployment" keeps the
- * classic `/new-deployment` deployment-type/template picker so it stays the reachable entry point (its own
- * template picks then route on to configure); repository and redeploy intents are not representable on
- * configure and always keep the classic URL.
- */
+/** Resolves the "new deployment" destination: a chosen template opens Configure directly, a bare intent keeps the `/new-deployment` picker as the entry point. */
 export function useNewDeploymentUrl(dependencies = DEPENDENCIES) {
   const d = dependencies;
 
-  return function newDeploymentUrl(params: NewDeploymentParams = {}) {
-    const isClassicOnly = !!params.redeploy || !!params.gitProvider || !!params.repoUrl;
-    const opensBuilder = params.step === "edit-deployment" || !!params.templateId;
-    if (!isClassicOnly && opensBuilder) {
-      return d.UrlService.configureDeployment({ templateId: params.templateId });
-    }
-    return d.UrlService.newDeployment(params);
+  return function newDeploymentUrl(params: { templateId?: string } = {}) {
+    return params.templateId ? d.UrlService.configureDeployment({ templateId: params.templateId }) : d.UrlService.newDeployment();
   };
 }

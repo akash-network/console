@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
-import { RouteStep } from "@src/types/route-steps.type";
+import { helloWorldTemplate } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
 import type { DEPENDENCIES } from "./TemplateList";
 import { TemplateList } from "./TemplateList";
@@ -12,20 +12,12 @@ import userEvent from "@testing-library/user-event";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(TemplateList.name, () => {
-  it("hides the Build and Deploy card when the flag is disabled", () => {
-    setup({ isBuildAndDeployEnabled: false });
+  it("offers the container-vm and custom container options", () => {
+    setup({});
 
+    expect(screen.getByText("Launch Container-VM")).toBeInTheDocument();
+    expect(screen.getByText("Run Custom Container")).toBeInTheDocument();
     expect(screen.queryByText("Build and Deploy")).not.toBeInTheDocument();
-    expect(screen.getByText("Launch Container-VM")).toBeInTheDocument();
-    expect(screen.getByText("Run Custom Container")).toBeInTheDocument();
-  });
-
-  it("shows the Build and Deploy card when the flag is enabled", () => {
-    setup({ isBuildAndDeployEnabled: true });
-
-    expect(screen.getByText("Build and Deploy")).toBeInTheDocument();
-    expect(screen.getByText("Launch Container-VM")).toBeInTheDocument();
-    expect(screen.getByText("Run Custom Container")).toBeInTheDocument();
   });
 
   it("hides the Agent mode panel when the flag is disabled", () => {
@@ -39,13 +31,12 @@ describe(TemplateList.name, () => {
   });
 
   it("uploads a valid SDL into a configure draft and routes to configure", async () => {
-    const { push, createConfigureDraft, onTemplateSelected, enqueueSnackbar } = setup({});
+    const { push, createConfigureDraft, enqueueSnackbar } = setup({});
 
     await userEvent.upload(screen.getByLabelText("Upload SDL"), sdlFile("deploy: from-file"));
 
     await waitFor(() => expect(createConfigureDraft).toHaveBeenCalledWith("deploy: from-file"));
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ draftId: "draft-xyz" }));
-    expect(onTemplateSelected).not.toHaveBeenCalled();
     expect(enqueueSnackbar).not.toHaveBeenCalled();
   });
 
@@ -60,23 +51,27 @@ describe(TemplateList.name, () => {
   });
 
   it("routes Launch Container-VM straight to a container-vm configure entry", async () => {
-    const { push, analyticsService, onTemplateSelected, setEditedManifest } = setup({});
+    const { push, analyticsService } = setup({});
 
     await userEvent.click(screen.getByText("Launch Container-VM"));
 
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ vm: true }));
     expect(analyticsService.track).toHaveBeenCalledWith("launch_container_vm_btn_clk", "Amplitude");
-    expect(setEditedManifest).toHaveBeenCalledWith("");
-    expect(onTemplateSelected).toHaveBeenCalledWith(null);
   });
 
-  it("routes Run Custom Container to the blank deployment editor", async () => {
+  it("routes Run Custom Container to a blank configure screen", async () => {
     const { push, analyticsService } = setup({});
 
     await userEvent.click(screen.getByText("Run Custom Container"));
 
-    expect(push).toHaveBeenCalledWith(UrlService.newDeployment({ step: RouteStep.editDeployment }));
+    expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({}));
     expect(analyticsService.track).toHaveBeenCalledWith("run_custom_container_btn_clk", "Amplitude");
+  });
+
+  it("links the hello world template to configure", () => {
+    setup({});
+
+    expect(screen.getByRole("link", { name: "Hello World" })).toHaveAttribute("href", UrlService.configureDeployment({ templateId: helloWorldTemplate.code }));
   });
 
   /** A YAML File the mocked FileButton hands to the upload handler, standing in for the browser's file picker. */
@@ -84,10 +79,8 @@ describe(TemplateList.name, () => {
     return new File([content], "deploy.yaml", { type: "application/x-yaml" });
   }
 
-  function setup(input: { isBuildAndDeployEnabled?: boolean; isAgentModeEnabled?: boolean; importSdlThrows?: boolean }) {
+  function setup(input: { isAgentModeEnabled?: boolean; importSdlThrows?: boolean }) {
     const push = vi.fn();
-    const onTemplateSelected = vi.fn();
-    const setEditedManifest = vi.fn();
     const createConfigureDraft = vi.fn(() => "draft-xyz");
     const enqueueSnackbar = vi.fn();
     const importSimpleSdl: typeof DEPENDENCIES.importSimpleSdl = input.importSdlThrows
@@ -111,12 +104,7 @@ describe(TemplateList.name, () => {
     const dependencies: typeof DEPENDENCIES = {
       useTemplates: () => templatesResult,
       useRouter: () => router,
-      useFlag: flagName => {
-        if (flagName === "ui_build_and_deploy") return input.isBuildAndDeployEnabled ?? false;
-        if (flagName === "ui_agent_mode_deploy") return input.isAgentModeEnabled ?? false;
-        return false;
-      },
-      useNewDeploymentUrl: () => params => UrlService.newDeployment(params),
+      useFlag: flagName => flagName === "ui_agent_mode_deploy" && (input.isAgentModeEnabled ?? false),
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       Snackbar: () => null,
       importSimpleSdl,
@@ -126,10 +114,10 @@ describe(TemplateList.name, () => {
 
     render(
       <TestContainerProvider services={{ analyticsService: () => analyticsService }}>
-        <TemplateList onChangeGitProvider={vi.fn()} onTemplateSelected={onTemplateSelected} setEditedManifest={setEditedManifest} dependencies={dependencies} />
+        <TemplateList dependencies={dependencies} />
       </TestContainerProvider>
     );
 
-    return { push, analyticsService, onTemplateSelected, setEditedManifest, createConfigureDraft, enqueueSnackbar };
+    return { push, analyticsService, createConfigureDraft, enqueueSnackbar };
   }
 });

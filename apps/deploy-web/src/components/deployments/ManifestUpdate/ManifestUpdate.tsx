@@ -20,7 +20,6 @@ import { useBalances as useBalancesOriginal } from "@src/queries/useBalancesQuer
 import type { DeploymentDto } from "@src/types/deployment";
 import { deploymentData as deploymentDataOriginal } from "@src/utils/deploymentData";
 import { hasSdlReference, isStoredSdlSelfContained, leavesWithheldEnvValuesBlank } from "@src/utils/sdl/storedDefinition";
-import RemoteDeployUpdate from "../../remote-deploy/update/RemoteDeployUpdate";
 import { SDLEditor } from "../../sdl/SDLEditor/SDLEditor";
 import { DeploymentTabHeader } from "../DeploymentDetail/DeploymentTabHeader";
 
@@ -33,7 +32,6 @@ export const DEPENDENCIES = {
   LinearLoadingSkeleton,
   LinkTo,
   ViewPanel,
-  RemoteDeployUpdate,
   SDLEditor,
   InfoCircle,
   WarningCircle,
@@ -111,7 +109,6 @@ function addCreditsContentOf(refusal: string): { title: string; message?: string
 type Props = {
   deployment: DeploymentDto;
   closeManifestEditor: () => void;
-  isRemoteDeploy: boolean;
   editedManifest: string;
   onManifestChange: (value: string) => void;
   /** Supplied only by the redesigned detail page; the legacy page omits it and renders no Redeploy action. */
@@ -122,7 +119,6 @@ type Props = {
 export const ManifestUpdate: React.FunctionComponent<Props> = ({
   deployment,
   closeManifestEditor,
-  isRemoteDeploy,
   editedManifest,
   onManifestChange,
   onRedeploy,
@@ -380,12 +376,8 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
             <d.LinearLoadingSkeleton isLoading={isUpdating} />
 
-            <d.ViewPanel stickToBottom style={{ overflow: isRemoteDeploy ? "unset" : "hidden" }}>
-              {isRemoteDeploy ? (
-                <d.RemoteDeployUpdate sdlString={editedManifest} onManifestChange={handleManifestChange} />
-              ) : (
-                <d.SDLEditor value={editedManifest} onChange={handleTextChange} onValidate={() => setParsingError(null)} />
-              )}
+            <d.ViewPanel stickToBottom style={{ overflow: "hidden" }}>
+              <d.SDLEditor value={editedManifest} onChange={handleTextChange} onValidate={() => setParsingError(null)} />
             </d.ViewPanel>
           </div>
         </>

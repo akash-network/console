@@ -13,7 +13,6 @@ import Link from "next/link";
 import { AddFundsLink } from "@src/components/user/AddFundsLink";
 import { useWallet } from "@src/context/WalletProvider";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
-import { RouteStep } from "@src/types/route-steps.type";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { UrlService } from "@src/utils/urlUtils";
 import { ExternalLink } from "../shared/ExternalLink";
@@ -171,10 +170,7 @@ export const GetStartedStepper: React.FunctionComponent<{ dependencies?: typeof 
             <ExternalLink href="https://github.com/akash-network/hello-akash-world" text="source code here" />.
           </p>
           <div className="my-4 space-x-2">
-            <Link
-              className={cn("space-x-2", buttonVariants({ variant: "default" }))}
-              href={UrlService.newDeployment({ templateId: "hello-world", step: RouteStep.editDeployment })}
-            >
+            <Link className={cn("space-x-2", buttonVariants({ variant: "default" }))} href={UrlService.configureDeployment({ templateId: "hello-world" })}>
               <Rocket className="rotate-45" />
               <span>Deploy!</span>
             </Link>

@@ -5,7 +5,6 @@ export type FeatureFlag =
   | "maintenance_banner"
   | "auto_credit_reload"
   | "ui_sdl_preview_panel"
-  | "ui_build_and_deploy"
   | "ui_agent_mode_deploy"
   | "hackathons"
   | "deployment_runtime_limit"

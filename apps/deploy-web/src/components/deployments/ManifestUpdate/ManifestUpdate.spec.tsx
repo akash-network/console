@@ -419,18 +419,11 @@ describe(ManifestUpdate.name, () => {
     expect(updateButtonOf(dependencies)?.disabled).toBe(true);
   });
 
-  it("renders SDLEditor when not remote deploy", () => {
-    const { dependencies } = setup({ isRemoteDeploy: false, editedManifest: "some-manifest" });
+  it("renders the SDL editor over the edited manifest", () => {
+    const { dependencies } = setup({ editedManifest: "some-manifest" });
 
     expect(dependencies.SDLEditor).toHaveBeenCalled();
     expect(dependencies.SDLEditor.mock.calls[0][0].value).toBe("some-manifest");
-  });
-
-  it("renders RemoteDeployUpdate when remote deploy", () => {
-    const { dependencies } = setup({ isRemoteDeploy: true, editedManifest: "some-manifest" });
-
-    expect(dependencies.RemoteDeployUpdate).toHaveBeenCalled();
-    expect(dependencies.RemoteDeployUpdate.mock.calls[0][0].sdlString).toBe("some-manifest");
   });
 
   it("submits the edited sdl to the console api instead of signing and sending it from the browser", async () => {
@@ -610,22 +603,6 @@ describe(ManifestUpdate.name, () => {
 
     await act(async () => {
       handles.dependencies.SDLEditor.mock.calls[0][0].onChange?.("version: '2.0'\nfixed: true", editorChangeEvent());
-    });
-
-    expect(screen.queryByText("SDL is not valid YAML: line 3, column 5")).not.toBeInTheDocument();
-    expect(updateButtonOf(handles.dependencies)?.disabled).toBe(false);
-  });
-
-  it("lets the user retry after editing in the remote deploy editor", async () => {
-    const handles = setup({ isRemoteDeploy: true });
-
-    await clickUpdate(handles);
-    await fail(handles, BAD_SDL);
-
-    expect(screen.getByText("SDL is not valid YAML: line 3, column 5")).toBeInTheDocument();
-
-    await act(async () => {
-      handles.dependencies.RemoteDeployUpdate.mock.calls[0][0].onManifestChange("version: '2.0'\nfixed: true");
     });
 
     expect(screen.queryByText("SDL is not valid YAML: line 3, column 5")).not.toBeInTheDocument();
@@ -902,7 +879,6 @@ describe(ManifestUpdate.name, () => {
   function setup(input?: {
     deployment?: Partial<{ dseq: string; state: string; hash: string }>;
     editedManifest?: string;
-    isRemoteDeploy?: boolean;
     storedManifest?: string | null;
     closeManifestEditor?: () => void;
     onManifestChange?: (value: string) => void;
@@ -994,7 +970,6 @@ describe(ManifestUpdate.name, () => {
             } as Parameters<typeof ManifestUpdate>[0]["deployment"]
           }
           closeManifestEditor={closeManifestEditor}
-          isRemoteDeploy={input?.isRemoteDeploy ?? false}
           editedManifest={overrides?.editedManifest ?? input?.editedManifest ?? "version: '2.0'"}
           onManifestChange={onManifestChange}
           onRedeploy={input?.onRedeploy}

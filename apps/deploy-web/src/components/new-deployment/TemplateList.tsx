@@ -3,21 +3,15 @@ import React, { useEffect, useState } from "react";
 import { buttonVariants, Card, CardContent, CardHeader, FileButton, Snackbar } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { OpenNewWindow, Upload } from "iconoir-react";
-import { useAtom } from "jotai";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
 
 import { createConfigureDraft } from "@src/components/deployments/ConfigureDeployment/useConfigureDraft/useConfigureDraft";
-import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
-import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 import type { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
 import { useTemplates } from "@src/queries/useTemplateQuery";
-import sdlStore from "@src/store/sdlStore";
-import type { TemplateCreation } from "@src/types";
-import { RouteStep } from "@src/types/route-steps.type";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { helloWorldTemplate } from "@src/utils/templates";
 import { domainName, UrlService } from "@src/utils/urlUtils";
@@ -45,36 +39,20 @@ const previewTemplateIds = [
 ];
 
 // eslint-disable-next-line akash/dependencies-component-or-hook
-export const DEPENDENCIES = { useTemplates, useRouter, useFlag, useNewDeploymentUrl, useSnackbar, Snackbar, importSimpleSdl, FileButton, createConfigureDraft };
+export const DEPENDENCIES = { useTemplates, useRouter, useFlag, useSnackbar, Snackbar, importSimpleSdl, FileButton, createConfigureDraft };
 
 type Props = {
-  onChangeGitProvider: (gh: boolean) => void;
-  onTemplateSelected: (template: TemplateCreation | null) => void;
-  setEditedManifest: (manifest: string) => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const TemplateList: React.FunctionComponent<Props> = ({
-  onChangeGitProvider,
-  onTemplateSelected,
-  setEditedManifest,
-  dependencies: d = DEPENDENCIES
-}) => {
+/** The deployment-type and template picker. Every option opens the Configure screen, seeded with a template, an uploaded SDL, a container-VM or nothing. */
+export const TemplateList: React.FunctionComponent<Props> = ({ dependencies: d = DEPENDENCIES }) => {
   const { analyticsService } = useServices();
   const { templates } = d.useTemplates();
   const router = d.useRouter();
-  const newDeploymentUrl = d.useNewDeploymentUrl();
   const { enqueueSnackbar } = d.useSnackbar();
   const [previewTemplates, setPreviewTemplates] = useState<TemplateOutputSummaryWithCategory[]>([]);
-  const [, setSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
-  const isBuildAndDeployEnabled = d.useFlag("ui_build_and_deploy");
   const isAgentModeEnabled = d.useFlag("ui_agent_mode_deploy");
-
-  const handleGithubTemplate = async () => {
-    analyticsService.track("build_n_deploy_btn_clk", "Amplitude");
-    onChangeGitProvider(true);
-    router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, gitProvider: "github", templateId: CI_CD_TEMPLATE_ID }));
-  };
 
   useEffect(() => {
     if (templates) {
@@ -85,21 +63,13 @@ export const TemplateList: React.FunctionComponent<Props> = ({
     }
   }, [templates]);
 
-  function startBlankDeployment() {
-    setEditedManifest("");
-    onTemplateSelected(null);
-    setSdlEditMode("builder");
-  }
-
   function onRunCustomContainerClick() {
     analyticsService.track("run_custom_container_btn_clk", "Amplitude");
-    startBlankDeployment();
-    router.push(newDeploymentUrl({ step: RouteStep.editDeployment }));
+    router.push(UrlService.configureDeployment({}));
   }
 
   function onLaunchContainerVmClick() {
     analyticsService.track("launch_container_vm_btn_clk", "Amplitude");
-    startBlankDeployment();
     router.push(UrlService.configureDeployment({ vm: true }));
   }
 
@@ -126,7 +96,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({
 
   return (
     <div className="my-0 pb-8">
-      <CustomNextSeo title="Create Deployment - Template List" url={`${domainName}${UrlService.newDeployment({ step: RouteStep.chooseTemplate })}`} />
+      <CustomNextSeo title="Create Deployment - Template List" url={`${domainName}${UrlService.newDeployment()}`} />
 
       {isAgentModeEnabled && <AgentModePanel />}
 
@@ -142,22 +112,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({
             <span>Upload SDL</span>
           </d.FileButton>
         </CardHeader>
-        <CardContent className={cn("grid grid-cols-1 gap-4", isBuildAndDeployEnabled ? "md:grid-cols-3" : "md:grid-cols-2")}>
-          {isBuildAndDeployEnabled && (
-            <DeployOptionBox
-              title="Build and Deploy"
-              description="Build & Deploy directly from a code repository (VCS)"
-              topIcons={[{ light: "/images/github.png", dark: "/images/github-dark.svg" }, "/images/gitlab.png", "/images/bitbucket.png"]}
-              bottomIcons={[
-                { light: "/images/nextjs.png", dark: "/images/nextjs-dark.svg" },
-                "/images/vuejs.png",
-                { light: "/images/astrojs.png", dark: "/images/astrojs-dark.svg" },
-                "/images/python.png"
-              ]}
-              onClick={handleGithubTemplate}
-            />
-          )}
-
+        <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <DeployOptionBox
             title="Launch Container-VM"
             description="Deploy and work with a plain-linux vm-like container"
@@ -183,7 +138,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({
             <p className="text-sm text-muted-foreground">
               Browse through the marketplace of pre-made solutions with categories like AI & ML, Blockchain nodes and more!{" "}
               <Link
-                href={newDeploymentUrl({ step: RouteStep.editDeployment, templateId: helloWorldTemplate.code })}
+                href={UrlService.configureDeployment({ templateId: helloWorldTemplate.code })}
                 className="text-inherit underline"
                 prefetch={false}
                 aria-label="Hello World"
@@ -199,7 +154,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3" aria-label="Template list">
           {previewTemplates.map(template => (
-            <TemplateBox key={template.id} template={template} linkHref={newDeploymentUrl({ step: RouteStep.editDeployment, templateId: template?.id })} />
+            <TemplateBox key={template.id} template={template} linkHref={UrlService.configureDeployment({ templateId: template.id })} />
           ))}
         </CardContent>
       </Card>
