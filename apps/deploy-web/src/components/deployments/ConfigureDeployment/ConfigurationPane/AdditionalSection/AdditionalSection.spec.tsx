@@ -53,6 +53,26 @@ describe(AdditionalSection.name, () => {
     expect(CommandsCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
   });
 
+  it("renders the Variables & Secrets card in place of the env card while the secrets feature is on", () => {
+    const EnvironmentVariablesCard = vi.fn(() => null);
+    const VariablesAndSecretsCard = vi.fn(() => null);
+
+    setup({ locked: "onchain", dependencies: { EnvironmentVariablesCard, VariablesAndSecretsCard, useFlag: () => true } });
+
+    expect(VariablesAndSecretsCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 0, locked: false }), expect.anything());
+    expect(EnvironmentVariablesCard).not.toHaveBeenCalled();
+  });
+
+  it("keeps the env card while the secrets feature is off", () => {
+    const EnvironmentVariablesCard = vi.fn(() => null);
+    const VariablesAndSecretsCard = vi.fn(() => null);
+
+    setup({ dependencies: { EnvironmentVariablesCard, VariablesAndSecretsCard, useFlag: () => false } });
+
+    expect(EnvironmentVariablesCard).toHaveBeenCalled();
+    expect(VariablesAndSecretsCard).not.toHaveBeenCalled();
+  });
+
   it("omits the commands card for a vm service", () => {
     const CommandsCard = vi.fn(() => null);
     const RuntimeCard = vi.fn(() => null);
