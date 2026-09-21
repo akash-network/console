@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CredentialsSchema,
   EndpointSchema,
+  ENV_KEY_MESSAGE,
   EnvironmentVariableSchema,
   ProfileSchema,
   RESERVED_ENV_VALUE_MESSAGE,
@@ -65,6 +66,28 @@ describe("EnvironmentVariableSchema", () => {
     const result = EnvironmentVariableSchema.safeParse({ id: "user-1", key: "FOO", value: "bar" });
 
     expect(result.success).toBe(true);
+  });
+
+  it("accepts a hyphenated plain key, which the SDL and the api's patch route both take", () => {
+    const result = EnvironmentVariableSchema.safeParse({ id: "user-1", key: "MY-VAR", value: "bar" });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a plain key carrying an equals sign, which the stored entry cannot spell back", () => {
+    const result = EnvironmentVariableSchema.safeParse({ id: "user-1", key: "A=B", value: "bar" });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["key"], message: ENV_KEY_MESSAGE }));
+  });
+
+  it("rejects a plain key carrying a space", () => {
+    const result = EnvironmentVariableSchema.safeParse({ id: "user-1", key: "MY VAR", value: "bar" });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["key"], message: ENV_KEY_MESSAGE }));
   });
 
   it("rejects a plain value that opens with the reference prefix, which the api reserves", () => {

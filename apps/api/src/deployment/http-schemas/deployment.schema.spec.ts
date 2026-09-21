@@ -69,6 +69,28 @@ describe("PatchDeploymentRequestSchema", () => {
     });
   });
 
+  describe("env variable names", () => {
+    it("accepts a hyphenated name, which the SDL carries and Kubernetes takes", () => {
+      expect(parse({ web: { env: { "MY-VAR": "x" } } }).success).toBe(true);
+    });
+
+    it("accepts a dotted name", () => {
+      expect(parse({ web: { env: { "my.var": "x" } } }).success).toBe(true);
+    });
+
+    it("refuses a name carrying an equals sign, which the stored entry cannot spell back", () => {
+      expect(parse({ web: { env: { "A=B": "c" } } }).success).toBe(false);
+    });
+
+    it("refuses a name carrying a space", () => {
+      expect(parse({ web: { env: { "MY VAR": "x" } } }).success).toBe(false);
+    });
+
+    it("refuses a name opening with a digit", () => {
+      expect(parse({ web: { env: { "1VAR": "x" } } }).success).toBe(false);
+    });
+  });
+
   describe("when the seal is an empty string", () => {
     it("refuses it in place of a service patch, which every reader would read as no seal at all", () => {
       expect(parse({ web: {} }, { sealedSecrets: "" }).success).toBe(false);

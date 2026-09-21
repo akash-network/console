@@ -81,6 +81,11 @@ export const RESERVED_ENV_VALUE_MESSAGE = 'Plain values may not start with "ac-"
 
 export const SECRET_NAME_MESSAGE = "A secret name may only contain letters, digits and underscores, cannot start with a digit and is at most 64 characters.";
 
+/** Kubernetes' own env var name grammar, which the api's patch route holds a quoting-window edit to. */
+const ENV_KEY_PATTERN = /^[-._a-zA-Z][-._a-zA-Z0-9]*$/;
+
+export const ENV_KEY_MESSAGE = "A variable name may only contain letters, digits, dots, dashes and underscores, and cannot start with a digit.";
+
 export const EnvironmentVariableSchema = z
   .object({
     id: z.string().optional(),
@@ -101,8 +106,12 @@ export const EnvironmentVariableSchema = z
     if (!env.isSecret && env.value !== undefined && isReservedSdlValue(env.value)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["value"], message: RESERVED_ENV_VALUE_MESSAGE });
     }
-    if (env.isSecret && !isSdlReference(env.value ?? "") && !isValidSecretName(env.key.trim())) {
+    const isCheckedAsSecretName = env.isSecret && !isSdlReference(env.value ?? "");
+    if (isCheckedAsSecretName && !isValidSecretName(env.key.trim())) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["key"], message: SECRET_NAME_MESSAGE });
+    }
+    if (!isCheckedAsSecretName && !ENV_KEY_PATTERN.test(env.key.trim())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["key"], message: ENV_KEY_MESSAGE });
     }
   });
 
