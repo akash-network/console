@@ -166,6 +166,21 @@ describe("sdlSecrets", () => {
       expect(resolved.values).toEqual({});
     });
 
+    it("keeps a suffixed name within the length the api accepts by displacing the tail of a long key", () => {
+      const longKey = "A".repeat(64);
+      const values = formValues([
+        service("web", { env: [{ id: "a", key: longKey, value: "one", isSecret: true }] }),
+        service("api", { env: [{ id: "b", key: longKey, value: "two", isSecret: true }] })
+      ]);
+
+      const resolved = resolveSdlSecrets(values, { sealSecrets: true });
+
+      const names = Object.keys(resolved.values);
+      expect(names).toHaveLength(2);
+      names.forEach(name => expect(name.length).toBeLessThanOrEqual(64));
+      expect(new Set(names).size).toBe(2);
+    });
+
     it("suffixes registry credential names when a second service also has credentials", () => {
       const credentials = { host: "ghcr.io", username: "alice", password: "hunter22" };
       const values = formValues([service("web", { hasCredentials: true, credentials }), service("api", { hasCredentials: true, credentials })]);

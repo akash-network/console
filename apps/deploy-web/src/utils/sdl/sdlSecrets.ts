@@ -144,12 +144,16 @@ function addSecretName(names: Set<string>, value: string | undefined) {
   if (name !== null) names.add(name);
 }
 
+/** The api refuses a name over this, so a suffix has to displace the tail of a long key rather than extend past it. */
+const MAX_SECRET_NAME_LENGTH = 64;
+
 function mintSecretName(preferred: string, taken: Set<string>): string {
-  let candidate = preferred;
+  let candidate = preferred.slice(0, MAX_SECRET_NAME_LENGTH);
   let suffix = 2;
 
   while (taken.has(candidate)) {
-    candidate = `${preferred}_${suffix}`;
+    const marker = `_${suffix}`;
+    candidate = `${preferred.slice(0, MAX_SECRET_NAME_LENGTH - marker.length)}${marker}`;
     suffix++;
   }
 
