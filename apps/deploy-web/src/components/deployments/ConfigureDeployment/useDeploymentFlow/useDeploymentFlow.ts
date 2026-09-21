@@ -13,6 +13,7 @@ import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
 import { ManifestYaml } from "@src/utils/deploymentData/helpers";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import type { SdlSecretValues } from "@src/utils/sdl/sdlSecrets";
+import type { ServicesPatch } from "@src/utils/sdl/sdlServicesPatch";
 import { isEmptyServicesPatch, servicesPatchBetween } from "@src/utils/sdl/sdlServicesPatch";
 import { sealSdlSecrets } from "@src/utils/sdl/sealSdlSecrets";
 import { UrlService } from "@src/utils/urlUtils";
@@ -604,6 +605,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       }
       const activeDseq = dseq;
       const activeManifest = nextManifest;
+      /** A corrected secret leaves the SDL untouched, because its reference is what the SDL carries, so an unchanged manifest still has to patch. */
+      const hasTypedSecrets = Object.keys(options.secrets ?? {}).length > 0;
       const resources = dependencies.deploymentResourcesFromSdl(sdl);
       setDeployError(undefined);
       setDeploySucceeded(false);
@@ -643,29 +646,52 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         updateDeployment.mutate({ dseq: activeDseq, data: { sdl } }, { onSuccess: sendManifestAndLease, onError: failDeploy });
       }
 
+      function submitPatch(services: ServicesPatch | undefined, sealedSecrets: string | undefined, canResealOnce: boolean) {
+        patchDeployment.mutate(
+          { dseq: activeDseq, data: { ...(services === undefined ? {} : { services }), ...(sealedSecrets === undefined ? {} : { sealedSecrets }) } },
+          {
+            onSuccess: sendManifestAndLease,
+            onError: function resealOrFail(cause: unknown) {
+              if (canResealOnce && isStaleSealingKey(cause)) {
+                void sealAndPatch(services, false);
+                return;
+              }
+              failDeploy(cause);
+            }
+          }
+        );
+      }
+
+      async function sealAndPatch(services: ServicesPatch | undefined, canResealOnce: boolean) {
+        try {
+          submitPatch(services, await sealSecrets(options.secrets ?? {}), canResealOnce);
+        } catch (cause) {
+          failDeploy(cause);
+        }
+      }
+
       /** A session that never saw the create diffs against the stored definition; with none to diff against, the whole SDL goes out as before. */
       async function patchChangesAndLease() {
-        const secrets = options.secrets ?? {};
-        const hasSecrets = Object.keys(secrets).length > 0;
+        let services: ServicesPatch | undefined;
         try {
           const baselineSdl = createdSdl ?? (await storedSdlOf(activeDseq));
           if (baselineSdl === null) {
             updateWholeSdlAndLease();
             return;
           }
-          const services = dependencies.servicesPatchBetween(baselineSdl, sdl);
-          const hasChanges = !isEmptyServicesPatch(services);
-          if (!hasChanges && !hasSecrets) {
-            sendManifestAndLease();
-            return;
-          }
-          const sealedSecrets = hasSecrets ? await sealSecrets(secrets) : undefined;
-          patchDeployment.mutate(
-            { dseq: activeDseq, data: { ...(hasChanges ? { services } : {}), ...(sealedSecrets === undefined ? {} : { sealedSecrets }) } },
-            { onSuccess: sendManifestAndLease, onError: failDeploy }
-          );
+          const patched = dependencies.servicesPatchBetween(baselineSdl, sdl);
+          services = isEmptyServicesPatch(patched) ? undefined : patched;
         } catch (cause) {
           failDeploy(cause);
+          return;
+        }
+
+        if (services === undefined && !hasTypedSecrets) {
+          sendManifestAndLease();
+        } else if (hasTypedSecrets) {
+          await sealAndPatch(services, true);
+        } else {
+          submitPatch(services, undefined, false);
         }
       }
 
@@ -674,7 +700,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         return result.data.consoleSettings?.sdl ?? null;
       }
 
-      if (activeManifest === manifest) {
+      if (activeManifest === manifest && !hasTypedSecrets) {
         sendManifestAndLease();
       } else if (isSecretsEnabled) {
         void patchChangesAndLease();

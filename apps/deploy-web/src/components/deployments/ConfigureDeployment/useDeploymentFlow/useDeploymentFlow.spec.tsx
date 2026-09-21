@@ -979,6 +979,85 @@ describe(useDeploymentFlow.name, () => {
       expect(createLease.mutate).toHaveBeenCalled();
     });
 
+    it("patches a corrected secret value even though its reference leaves the manifest unchanged", async () => {
+      const createDeployment = mockMutation(vi.fn((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M1" } })));
+      const patchDeployment = mockMutation(vi.fn((_i, o) => o.onSuccess({})));
+      const createLease = mockMutation();
+      const { result, sealSdlSecrets } = renderFlow({
+        secretsEnabled: true,
+        createDeployment,
+        patchDeployment,
+        createLease,
+        manifestFromSdl: () => "M1",
+        servicesPatchBetween: () => ({})
+      });
+
+      act(() => result.current.actions.requestQuotes("sdl-a"));
+      await waitFor(() => expect(result.current.phase).toBe("quoting"));
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.deploy("sdl-a", { secrets: { API_KEY: "corrected" } }));
+
+      await waitFor(() => expect(patchDeployment.mutate).toHaveBeenCalledWith({ dseq: "555", data: { sealedSecrets: "SEALED" } }, expect.anything()));
+      expect(sealSdlSecrets).toHaveBeenLastCalledWith({ context: SEAL_CONTEXT, secrets: { API_KEY: "corrected" } });
+      expect(createLease.mutate).toHaveBeenCalled();
+    });
+
+    it("fetches a fresh context and seals again once when the api reports the sealing key stale on a patch", async () => {
+      const createDeployment = mockMutation(vi.fn((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M1" } })));
+      const patchDeployment = mockMutation(
+        vi
+          .fn()
+          .mockImplementationOnce((_i, o) => o.onError(new ApiError(409, { message: STALE_KEY_MESSAGE }, "PATCH /v1/deployments/555 \u2192 409")))
+          .mockImplementationOnce((_i, o) => o.onSuccess({}))
+      );
+      const createLease = mockMutation();
+      const { result, sealSdlSecrets, getSdlSecretsContext } = renderFlow({
+        secretsEnabled: true,
+        createDeployment,
+        patchDeployment,
+        createLease,
+        manifestFromSdl: () => "M2",
+        servicesPatchBetween: () => ({ web: { image: "nginx:2" } })
+      });
+
+      act(() => result.current.actions.requestQuotes("sdl-a"));
+      await waitFor(() => expect(result.current.phase).toBe("quoting"));
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      const sealsBeforeDeploy = sealSdlSecrets.mock.calls.length;
+      const contextFetchesBeforeDeploy = getSdlSecretsContext.mutateAsync.mock.calls.length;
+      act(() => result.current.actions.deploy("sdl-b", { secrets: { API_KEY: "x" } }));
+
+      await waitFor(() => expect(createLease.mutate).toHaveBeenCalled());
+      expect(patchDeployment.mutate).toHaveBeenCalledTimes(2);
+      expect(sealSdlSecrets.mock.calls.length - sealsBeforeDeploy).toBe(2);
+      expect(getSdlSecretsContext.mutateAsync.mock.calls.length - contextFetchesBeforeDeploy).toBe(2);
+    });
+
+    it("gives up after one new seal, so a patch conflict that persists surfaces as a deploy error", async () => {
+      const createDeployment = mockMutation(vi.fn((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M1" } })));
+      const patchDeployment = mockMutation(
+        vi.fn((_i, o) => o.onError(new ApiError(409, { message: STALE_KEY_MESSAGE }, "PATCH /v1/deployments/555 \u2192 409")))
+      );
+      const createLease = mockMutation();
+      const { result } = renderFlow({
+        secretsEnabled: true,
+        createDeployment,
+        patchDeployment,
+        createLease,
+        manifestFromSdl: () => "M2",
+        servicesPatchBetween: () => ({ web: { image: "nginx:2" } })
+      });
+
+      act(() => result.current.actions.requestQuotes("sdl-a"));
+      await waitFor(() => expect(result.current.phase).toBe("quoting"));
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.deploy("sdl-b", { secrets: { API_KEY: "x" } }));
+
+      await waitFor(() => expect(result.current.deployError).toEqual({ message: STALE_KEY_MESSAGE }));
+      expect(patchDeployment.mutate).toHaveBeenCalledTimes(2);
+      expect(createLease.mutate).not.toHaveBeenCalled();
+    });
+
     it("leases without any update when nothing patchable changed and no secret was typed", async () => {
       const createDeployment = mockMutation(vi.fn((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M1" } })));
       const updateDeployment = mockMutation();
@@ -1574,6 +1653,7 @@ describe(useDeploymentFlow.name, () => {
     sealSdlSecrets?: typeof DEPENDENCIES.sealSdlSecrets;
     servicesPatchBetween?: typeof DEPENDENCIES.servicesPatchBetween;
   }) {
+    const getSdlSecretsContext = mockSealContextMutation();
     const intent: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, vm: false, ...input?.intent };
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: vi.fn(), push: vi.fn() });
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
@@ -1583,7 +1663,8 @@ describe(useDeploymentFlow.name, () => {
       createLease: input?.createLease,
       updateDeployment: input?.updateDeployment,
       patchDeployment: input?.patchDeployment,
-      getDeployment: input?.getDeployment
+      getDeployment: input?.getDeployment,
+      getSdlSecretsContext
     });
     const sealSdlSecrets = vi.fn(input?.sealSdlSecrets ?? (async () => "SEALED"));
     const dependencies: typeof DEPENDENCIES = {
@@ -1604,6 +1685,7 @@ describe(useDeploymentFlow.name, () => {
       queryClient,
       services,
       sealSdlSecrets,
+      getSdlSecretsContext,
       deploymentLocalStorage: services.deploymentLocalStorage,
       analyticsService: services.analyticsService
     };
