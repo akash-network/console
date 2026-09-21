@@ -20,6 +20,7 @@ import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeleteUnbackedDeploymentSetting } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
+import type { LeaseGpuDetectionJobService } from "@src/deployment/services/lease-gpu-detection-job/lease-gpu-detection-job.service";
 import type { GenerateResolvedManifestResult, SdlManifest, SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
@@ -1292,6 +1293,27 @@ describe(DeploymentWriterService.name, () => {
       expect(probeJobService.restartForUpdatedDeployment).not.toHaveBeenCalled();
     });
 
+    it("reads the gpus again for any wallet once every provider holds the new manifest", async () => {
+      const { service, leaseGpuDetectionJobService, providerService } = setup();
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
+
+      expect(leaseGpuDetectionJobService.restartForUpdatedDeployment).toHaveBeenCalledWith({ walletId: wallet.id, dseq: "100", updatedAt: expect.any(Date) });
+      expect(providerService.sendManifest.mock.invocationCallOrder[0]).toBeLessThan(
+        leaseGpuDetectionJobService.restartForUpdatedDeployment.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("still answers the update when the gpu read cannot be restarted", async () => {
+      const { service, leaseGpuDetectionJobService, logger } = setup();
+      leaseGpuDetectionJobService.restartForUpdatedDeployment.mockRejectedValue(new Error("queue down"));
+
+      const result = await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
+
+      expect(result).toBe(deploymentData);
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "LEASE_GPU_DETECTION_RESTART_FAILED", userId: "user-1", dseq: "100" }));
+    });
+
     it("still answers the update when the probes cannot be restarted", async () => {
       const { service, probeJobService, logger } = setup({ isTrialing: true });
       probeJobService.restartForUpdatedDeployment.mockRejectedValue(new Error("queue down"));
@@ -2288,6 +2310,7 @@ describe(DeploymentWriterService.name, () => {
 
       const sdlReferenceService = new SdlReferenceService();
       const probeJobService = mock<TrialWorkloadProbeJobService>();
+      const leaseGpuDetectionJobService = mock<LeaseGpuDetectionJobService>();
       const ability = mock<AnyAbility>();
       const service = new DeploymentWriterService(
         signerService,
@@ -2308,7 +2331,8 @@ describe(DeploymentWriterService.name, () => {
         new SdlPatchService(),
         sdlReferenceService,
         mock<SdlSecretsInheritanceService>(),
-        probeJobService
+        probeJobService,
+        leaseGpuDetectionJobService
       );
 
       function sealedFor() {
@@ -2328,6 +2352,7 @@ describe(DeploymentWriterService.name, () => {
         logger,
         sdlReferenceService,
         probeJobService,
+        leaseGpuDetectionJobService,
         sealedFor
       };
     }
@@ -2408,6 +2433,7 @@ describe(DeploymentWriterService.name, () => {
 
     walletReaderService.getWalletByUserId.mockResolvedValue(input?.isTrialing ? { ...wallet, isTrialing: true } : wallet);
     const probeJobService = mock<TrialWorkloadProbeJobService>();
+    const leaseGpuDetectionJobService = mock<LeaseGpuDetectionJobService>();
     sdlService.parse.mockReturnValue({ ok: true, value: parsedSdlValue } as any);
     sdlService.generateManifest.mockResolvedValue({ ok: true, value: manifestValue } as any);
     sdlService.generateManifestVersion.mockResolvedValue(new Uint8Array([4, 5, 6]));
@@ -2440,7 +2466,8 @@ describe(DeploymentWriterService.name, () => {
       new SdlPatchService(),
       new SdlReferenceService(),
       sdlSecretsInheritanceService,
-      probeJobService
+      probeJobService,
+      leaseGpuDetectionJobService
     );
 
     function storedSecrets() {
@@ -2467,6 +2494,7 @@ describe(DeploymentWriterService.name, () => {
       sdlSecretsInheritanceService,
       scopedSettingRepository,
       probeJobService,
+      leaseGpuDetectionJobService,
       ability: mock<AnyAbility>(),
       storedSecrets
     };

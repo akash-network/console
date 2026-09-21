@@ -2,6 +2,10 @@ import { addMinutes } from "date-fns";
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, type Job, JOB_NAME, JobQueueService, LOGGER_FACTORY } from "@src/core";
+import type { DryRunOptions } from "@src/core/types/console";
+import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
+import { LeaseGpuRepository } from "@src/deployment/repositories/lease-gpu/lease-gpu.repository";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 
 export class DetectLeaseGpus implements Job {
@@ -35,6 +39,9 @@ export class LeaseGpuDetectionJobService {
 
   constructor(
     private readonly jobQueueService: JobQueueService,
+    private readonly deploymentSettingRepository: DeploymentSettingRepository,
+    private readonly leaseRepository: LeaseRepository,
+    private readonly leaseGpuRepository: LeaseGpuRepository,
     private readonly config: DeploymentConfigService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -64,6 +71,51 @@ export class LeaseGpuDetectionJobService {
 
   async cancelForDeployment(target: DetectLeaseGpusTarget): Promise<void> {
     await this.jobQueueService.cancelCreatedBy({ name: DetectLeaseGpus[JOB_NAME], singletonKey: detectLeaseGpusKeyFor(target) });
+  }
+
+  /**
+   * Backstops the lease event for deployments it never reached, and drops what a closed deployment left behind. Enqueues
+   * only: no provider is dialled here, so the queue's own concurrency paces the reading rather than this sweep.
+   */
+  async reconcile({ dryRun }: DryRunOptions = { dryRun: false }): Promise<{ scheduled: number; alreadyScheduled: number; alreadyRead: number }> {
+    if (!this.#isEnabled()) {
+      this.logger.info({ event: "LEASE_GPU_DETECTION_RECONCILE_DISABLED" });
+      return { scheduled: 0, alreadyScheduled: 0, alreadyRead: 0 };
+    }
+
+    const candidates = await this.deploymentSettingRepository.findLiveManagedDeployments({
+      maxAgeHours: this.config.get("LEASE_GPU_DETECTION_RECONCILE_MAX_AGE_HOURS")
+    });
+    const owners = [...new Set(candidates.map(candidate => candidate.address))];
+    const onGpu = new Set((await this.leaseRepository.findLiveGpuLeaseDeployments(owners)).map(lease => `${lease.owner}.${lease.dseq}`));
+    const pendingKeys = await this.jobQueueService.findPendingSingletonKeys(DetectLeaseGpus[JOB_NAME]);
+
+    let scheduled = 0;
+    let alreadyScheduled = 0;
+    let alreadyRead = 0;
+
+    for (const candidate of candidates) {
+      if (!onGpu.has(`${candidate.address}.${candidate.dseq}`)) continue;
+      if (pendingKeys.has(detectLeaseGpusKeyFor(candidate))) {
+        alreadyScheduled++;
+        continue;
+      }
+
+      const read = await this.leaseGpuRepository.findForDeployments({ userId: candidate.userId, dseqs: [candidate.dseq] });
+      if (read.length) {
+        alreadyRead++;
+        continue;
+      }
+
+      if (!dryRun) await this.#schedule({ walletId: candidate.walletId, dseq: candidate.dseq, attempt: 1, leaseCreatedAt: new Date().toISOString() });
+      scheduled++;
+    }
+
+    if (!dryRun) await this.leaseGpuRepository.deleteForClosedDeployments();
+
+    this.logger.info({ event: "LEASE_GPU_DETECTION_RECONCILED", dryRun, candidates: candidates.length, scheduled, alreadyScheduled, alreadyRead });
+
+    return { scheduled, alreadyScheduled, alreadyRead };
   }
 
   startAfterFor(data: DetectLeaseGpus["data"]): Date {

@@ -13,6 +13,7 @@ import { WalletController } from "@src/billing/controllers/wallet/wallet.control
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/top-up-deployments.controller";
 import { GpuBotController } from "@src/deployment/controllers/gpu-bot/gpu-bot.controller";
+import { LeaseGpuController } from "@src/deployment/controllers/lease-gpu.controller";
 import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
 import { DataKeyRekeyController } from "@src/secret/controllers/data-key-rekey/data-key-rekey.controller";
 import { DataKeyRewrapController } from "@src/secret/controllers/data-key-rewrap/data-key-rewrap.controller";
@@ -101,6 +102,16 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       return container.resolve(WorkloadAbuseController).probeTrialDeployments(options);
+    });
+  });
+
+program
+  .command("detect-lease-gpus")
+  .description("Schedule a gpu read for every live managed gpu deployment that has none pending, and drop what closed ones left behind")
+  .option("-d, --dry-run", "Log which deployments would be read without enqueuing", false)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(LeaseGpuController).detectLeaseGpus(options);
     });
   });
 

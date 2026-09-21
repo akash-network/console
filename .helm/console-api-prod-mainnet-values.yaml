@@ -74,6 +74,14 @@ jobs:
       - ./dist/instrumentation.js
       - ./dist/console.js
       - probe-trial-deployments
+  - name: detect-lease-gpus
+    schedule: "17,47 * * * *" # every 30 minutes
+    command:
+      - node
+      - --require
+      - ./dist/instrumentation.js
+      - ./dist/console.js
+      - detect-lease-gpus
   - name: mint-act
     schedule: "*/10 * * * *" # every 10 minutes
     concurrencyPolicy: Forbid

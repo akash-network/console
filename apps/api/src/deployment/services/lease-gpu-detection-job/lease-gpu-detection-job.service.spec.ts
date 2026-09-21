@@ -4,10 +4,20 @@ import { mock } from "vitest-mock-extended";
 
 import type { CreateLogger } from "@src/core";
 import { JOB_NAME, type JobQueueService } from "@src/core";
+import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import type { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
+import type { LeaseGpuRepository } from "@src/deployment/repositories/lease-gpu/lease-gpu.repository";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { DetectLeaseGpus, detectLeaseGpusKeyFor, LeaseGpuDetectionJobService } from "./lease-gpu-detection-job.service";
 
 const TARGET = { walletId: 7, dseq: "12345" };
+const OWNER = "akash1owner";
+
+type LiveManaged = Awaited<ReturnType<DeploymentSettingRepository["findLiveManagedDeployments"]>>[number];
+
+function liveManaged(): LiveManaged {
+  return { userId: "user-1", dseq: TARGET.dseq, walletId: TARGET.walletId, address: OWNER, createdAt: new Date() };
+}
 
 describe(LeaseGpuDetectionJobService.name, () => {
   describe("scheduleInitial", () => {
@@ -82,6 +92,64 @@ describe(LeaseGpuDetectionJobService.name, () => {
     });
   });
 
+  describe("reconcile", () => {
+    it("schedules a gpu deployment nothing has read yet", async () => {
+      const { service, jobQueueService } = setup({ candidates: [liveManaged()], onGpu: [{ owner: OWNER, dseq: TARGET.dseq }] });
+
+      await expect(service.reconcile()).resolves.toMatchObject({ scheduled: 1 });
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ singletonKey: detectLeaseGpusKeyFor(TARGET) }));
+    });
+
+    it("leaves a deployment holding no gpu lease alone", async () => {
+      const { service, jobQueueService } = setup({ candidates: [liveManaged()], onGpu: [] });
+
+      await expect(service.reconcile()).resolves.toMatchObject({ scheduled: 0 });
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("leaves a deployment whose read is already queued alone", async () => {
+      const { service, jobQueueService } = setup({
+        candidates: [liveManaged()],
+        onGpu: [{ owner: OWNER, dseq: TARGET.dseq }],
+        pending: [detectLeaseGpusKeyFor(TARGET)]
+      });
+
+      await expect(service.reconcile()).resolves.toMatchObject({ scheduled: 0, alreadyScheduled: 1 });
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("leaves a deployment already read alone", async () => {
+      const { service, jobQueueService } = setup({ candidates: [liveManaged()], onGpu: [{ owner: OWNER, dseq: TARGET.dseq }], alreadyRead: true });
+
+      await expect(service.reconcile()).resolves.toMatchObject({ scheduled: 0, alreadyRead: 1 });
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("drops what closed deployments left behind", async () => {
+      const { service, leaseGpuRepository } = setup({ candidates: [], onGpu: [] });
+
+      await service.reconcile();
+
+      expect(leaseGpuRepository.deleteForClosedDeployments).toHaveBeenCalled();
+    });
+
+    it("changes nothing on a dry run", async () => {
+      const { service, jobQueueService, leaseGpuRepository } = setup({ candidates: [liveManaged()], onGpu: [{ owner: OWNER, dseq: TARGET.dseq }] });
+
+      await expect(service.reconcile({ dryRun: true })).resolves.toMatchObject({ scheduled: 1 });
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(leaseGpuRepository.deleteForClosedDeployments).not.toHaveBeenCalled();
+    });
+
+    it("does nothing at all while the feature is off", async () => {
+      const { service, jobQueueService, leaseGpuRepository } = setup({ enabled: false, candidates: [liveManaged()], onGpu: [{ owner: OWNER, dseq: TARGET.dseq }] });
+
+      await expect(service.reconcile()).resolves.toEqual({ scheduled: 0, alreadyScheduled: 0, alreadyRead: 0 });
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(leaseGpuRepository.deleteForClosedDeployments).not.toHaveBeenCalled();
+    });
+  });
+
   describe("startAfterFor", () => {
     it("lands after now for a lease old enough that its rung is already past", () => {
       const { service } = setup({});
@@ -102,18 +170,33 @@ describe(LeaseGpuDetectionJobService.name, () => {
     });
   });
 
-  function setup(input: { enabled?: boolean; delays?: number[] }) {
+  function setup(input: { enabled?: boolean; delays?: number[]; candidates?: LiveManaged[]; onGpu?: Array<{ owner: string; dseq: string }>; pending?: string[]; alreadyRead?: boolean }) {
     const jobQueueService = mock<JobQueueService>();
     jobQueueService.enqueue.mockResolvedValue("job-id");
+    jobQueueService.findPendingSingletonKeys.mockResolvedValue(new Set(input.pending ?? []));
+    const deploymentSettingRepository = mock<DeploymentSettingRepository>();
+    deploymentSettingRepository.findLiveManagedDeployments.mockResolvedValue(input.candidates ?? []);
+    const leaseRepository = mock<LeaseRepository>();
+    leaseRepository.findLiveGpuLeaseDeployments.mockResolvedValue(input.onGpu ?? []);
+    const leaseGpuRepository = mock<LeaseGpuRepository>();
+    leaseGpuRepository.findForDeployments.mockResolvedValue(input.alreadyRead ? [mock<Awaited<ReturnType<LeaseGpuRepository["findForDeployments"]>>[number]>()] : []);
     const config = mock<DeploymentConfigService>();
     config.get.mockImplementation((key: string) => {
       if (key === "LEASE_GPU_DETECTION_ENABLED") return input.enabled === false ? "false" : "true";
       if (key === "LEASE_GPU_DETECTION_DELAYS_MIN") return input.delays ?? [3, 15, 60];
+      if (key === "LEASE_GPU_DETECTION_RECONCILE_MAX_AGE_HOURS") return 720;
       return undefined;
     });
     const logger = mock<ReturnType<CreateLogger>>();
-    const service = new LeaseGpuDetectionJobService(jobQueueService, config, vi.fn<CreateLogger>(() => logger));
+    const service = new LeaseGpuDetectionJobService(
+      jobQueueService,
+      deploymentSettingRepository,
+      leaseRepository,
+      leaseGpuRepository,
+      config,
+      vi.fn<CreateLogger>(() => logger)
+    );
 
-    return { service, jobQueueService, config };
+    return { service, jobQueueService, leaseGpuRepository, config };
   }
 });

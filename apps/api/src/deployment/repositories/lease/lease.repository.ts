@@ -64,6 +64,22 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
     );
   }
 
+  /** The deployments of these owners that hold a live lease on a group asking for a gpu, which is the only set worth reading hardware for. */
+  async findLiveGpuLeaseDeployments(owners: string[]): Promise<Array<{ owner: string; dseq: string }>> {
+    if (owners.length === 0) return [];
+
+    return await this.#chainDb.query<{ owner: string; dseq: string }>(
+      `/* lease:liveGpuDeployments */
+      SELECT DISTINCT l."owner", l."dseq"::text AS "dseq"
+      FROM lease l
+      JOIN "deploymentGroupResource" r ON r."deploymentGroupId" = l."deploymentGroupId"
+      WHERE l."closedHeight" IS NULL
+        AND r."gpuUnits" > 0
+        AND l."owner" IN (:owners)`,
+      { type: QueryTypes.SELECT, replacements: { owners } }
+    );
+  }
+
   /** Every active lease of a single deployment, so a close can re-check that all of them are still dark before it broadcasts. */
   async findActiveLeasesOfDeployment(owner: string, dseq: string): Promise<ActiveLeaseOnProvider[]> {
     return await this.#chainDb.query<ActiveLeaseOnProvider>(

@@ -146,6 +146,8 @@ export const envSchema = z
     /** A handful of csv lines, so far below what the abuse probe collects that a larger answer is not one of ours. */
     LEASE_GPU_DETECTION_MAX_OUTPUT_BYTES: positiveIntegerOrDefault(8_192),
     LEASE_GPU_DETECTION_PROVIDER_JWT_TTL_SECONDS: positiveIntegerOrDefault(120),
+    /** How far back the sweep looks for managed deployments whose gpus were never read; wide because these run for weeks. */
+    LEASE_GPU_DETECTION_RECONCILE_MAX_AGE_HOURS: positiveIntegerOrDefault(720),
     GCP_KMS_AUTH: jsonEnv(gcpKmsAuthSchema),
     GCP_KMS_LOCATION: z.string().optional().default("global"),
     GCP_KMS_KEY_RING: z.string().optional().default("console-api"),

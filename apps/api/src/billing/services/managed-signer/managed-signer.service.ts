@@ -14,6 +14,7 @@ import { inject, singleton } from "tsyringe";
 import { AuthService } from "@src/auth/services/auth.service";
 import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
 import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
+import { ManagedDeploymentLeaseCreated } from "@src/billing/events/managed-deployment-lease-created";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
@@ -24,6 +25,7 @@ import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { LeaseGpuRepository } from "@src/deployment/repositories/lease-gpu/lease-gpu.repository";
 import { RecordDeploymentSetting, recordDeploymentSettingKeyFor } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { UserRepository } from "@src/user/repositories";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
@@ -61,6 +63,7 @@ export class ManagedSignerService {
     private readonly managedUserWalletService: ManagedUserWalletService,
     private readonly trialActivationJobService: TrialActivationJobService,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
+    private readonly leaseGpuRepository: LeaseGpuRepository,
     private readonly depositRefusalCache: DeploymentDepositRefusalCache,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -165,12 +168,19 @@ export class ManagedSignerService {
     }
 
     if (createLeaseMessage) {
+      const leasedDseq = createLeaseMessage.value.bidId!.dseq.toString();
+
       await this.domainEvents.publish(
         new EnableDeploymentAlertCommand({
           userId: userWallet.userId,
           walletAddress: userWallet.address!,
-          dseq: createLeaseMessage.value.bidId!.dseq.toString()
+          dseq: leasedDseq
         })
+      );
+
+      await this.domainEvents.publish(
+        new ManagedDeploymentLeaseCreated({ walletId: userWallet.id, dseq: leasedDseq, createdAt: new Date().toISOString() }),
+        { singletonKey: `${ManagedDeploymentLeaseCreated.name}.${leasedDseq}.${userWallet.id}` }
       );
 
       if (!userWallet.isTrialing) {
@@ -217,6 +227,7 @@ export class ManagedSignerService {
     for (const dseq of this.#findDeploymentDseqs(messages, ".MsgCloseDeployment")) {
       try {
         await this.deploymentSettingRepository.markClosed({ userId: userWallet.userId, dseq: dseq.toString() });
+        await this.leaseGpuRepository.deleteForDeployment({ userId: userWallet.userId, dseq: dseq.toString() });
       } catch (error) {
         this.logger.error({ event: "CLOSED_DEPLOYMENT_RECORD_FAILED", userId: userWallet.userId, dseq: dseq.toString(), error });
       }
