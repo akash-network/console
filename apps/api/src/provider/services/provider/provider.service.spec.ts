@@ -308,7 +308,7 @@ describe(ProviderService.name, () => {
       expect(providerProxyService.request).toHaveBeenCalledTimes(1);
     });
 
-    it.each([502, 503, 504])("answers 503 when provider-proxy reports the provider unreachable with %i", async upstreamStatus => {
+    it.each([502, 503, 504])("passes status %i through so an unreachable provider is not reported as a console fault", async upstreamStatus => {
       const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
 
       const provider = createProviderSeed() as unknown as Provider;
@@ -336,7 +336,7 @@ describe(ProviderService.name, () => {
           auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
         })
       ).rejects.toMatchObject({
-        status: 503,
+        status: upstreamStatus,
         message: unavailableMessage
       });
 
