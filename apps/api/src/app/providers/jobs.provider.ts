@@ -7,6 +7,7 @@ import type { AppInitializer } from "@src/core/providers/app-initializer";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { DeleteUnbackedDeploymentSettingHandler } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
+import { DetectLeaseGpusHandler } from "@src/deployment/services/detect-lease-gpus/detect-lease-gpus.handler";
 import { ReconcileManagedTxHandler } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx.handler";
 import { RecordDeploymentSettingHandler } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { NotificationHandler } from "@src/notifications/services/notification-handler/notification.handler";
@@ -48,6 +49,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(RecordDeploymentSettingHandler),
     container.resolve(ReconcileManagedTxHandler),
     container.resolve(ProbeTrialDeploymentHandler),
+    container.resolve(DetectLeaseGpusHandler),
     container.resolve(EnforceTrialAbuseHandler),
     container.resolve(LockBlockedDomainWalletHandler),
     container.resolve(BlockEmailDomainOfWalletHandler)
