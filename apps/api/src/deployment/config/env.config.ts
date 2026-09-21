@@ -42,6 +42,24 @@ const jsonEnv = <T extends z.ZodTypeAny>(schema: T) =>
     })
     .pipe(schema);
 
+/** Blank reaches a schema as an empty string rather than as absent, which would otherwise beat the default. */
+function blankToUndefined(value: unknown): unknown {
+  return value === "" ? undefined : value;
+}
+
+const DEFAULT_GPU_DETECTION_DELAYS_MIN = "3,15,60";
+
+function parseMinutesList(raw: string, ctx: z.RefinementCtx): number[] {
+  const entries = raw.split(",").map(entry => entry.trim());
+
+  if (entries.some(entry => !/^\d+$/.test(entry))) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "must be a comma-separated list of non-negative integers" });
+    return z.NEVER;
+  }
+
+  return entries.map(Number);
+}
+
 export const envSchema = z
   .object({
     AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: z.number({ coerce: true }).nonnegative().finite().optional().default(24),
@@ -113,6 +131,17 @@ export const envSchema = z
     SDL_SECRETS_MAX_COUNT: z.number({ coerce: true }).int().positive().optional().default(SDL_SECRETS_DEFAULT_MAX_COUNT),
     /** Bytes one secret value may be, measured as UTF-8 rather than as string length, since it is a storage bound and a character is not a byte. */
     SDL_SECRETS_MAX_VALUE_BYTES: z.number({ coerce: true }).int().positive().optional().default(SDL_SECRETS_DEFAULT_MAX_VALUE_BYTES),
+    /** Off until the probe has been watched on a sandbox: it opens a shell into a customer workload, so nothing runs until it is asked for. */
+    LEASE_GPU_DETECTION_ENABLED: z.enum(["true", "false"]).default("false"),
+    /** Minutes after lease creation each attempt waits, sized for a cuda image that can take an hour to pull. */
+    LEASE_GPU_DETECTION_DELAYS_MIN: z.preprocess(blankToUndefined, z.string().default(DEFAULT_GPU_DETECTION_DELAYS_MIN).transform(parseMinutesList)),
+    LEASE_GPU_DETECTION_MAX_LEASES_PER_DEPLOYMENT: z.number({ coerce: true }).int().positive().default(4),
+    LEASE_GPU_DETECTION_MAX_SERVICES_PER_LEASE: z.number({ coerce: true }).int().positive().default(4),
+    LEASE_GPU_DETECTION_IDLE_TIMEOUT_MS: z.number({ coerce: true }).int().positive().default(3_000),
+    LEASE_GPU_DETECTION_HARD_TIMEOUT_MS: z.number({ coerce: true }).int().positive().default(10_000),
+    /** A handful of csv lines, so far below what the abuse probe collects that a larger answer is not one of ours. */
+    LEASE_GPU_DETECTION_MAX_OUTPUT_BYTES: z.number({ coerce: true }).int().positive().default(8_192),
+    LEASE_GPU_DETECTION_PROVIDER_JWT_TTL_SECONDS: z.number({ coerce: true }).int().positive().default(120),
     GCP_KMS_AUTH: jsonEnv(gcpKmsAuthSchema),
     GCP_KMS_LOCATION: z.string().optional().default("global"),
     GCP_KMS_KEY_RING: z.string().optional().default("console-api"),

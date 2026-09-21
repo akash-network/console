@@ -1,0 +1,68 @@
+import { singleton } from "tsyringe";
+
+import { type GpuProbeReading, parseGpuProbeOutput } from "@src/deployment/lib/gpu-probe-output/gpu-probe-output";
+import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
+import { ProviderStreamService, type ProviderStreamStatus } from "@src/workload-abuse/services/provider-stream/provider-stream.service";
+
+/**
+ * Reads the card and nothing running on it: no process listing, no compute-apps query, no filesystem. Both tools ride
+ * one session, so covering amd costs a `command -v` that fails rather than a second round trip.
+ */
+const GPU_COLLECTOR = [
+  "if command -v nvidia-smi >/dev/null 2>&1; then",
+  "echo '--nvidia';",
+  "nvidia-smi --query-gpu=name,memory.total,driver_version,pci.device_id --format=csv,noheader,nounits 2>/dev/null;",
+  "elif command -v rocm-smi >/dev/null 2>&1; then",
+  "echo '--amd';",
+  "rocm-smi --showproductname --showmeminfo vram --showid --csv 2>/dev/null;",
+  "else printf 'gpu: unavailable\\n';",
+  "fi"
+].join(" ");
+
+export type LeaseGpuProbeTarget = {
+  hostUri: string;
+  providerAddress: string;
+  token: string;
+  dseq: string;
+  gseq: number;
+  oseq: number;
+  service: string;
+};
+
+/** A probe that never reached the workload is distinct from one that did and found nothing, because only the second is a reading. */
+export type LeaseGpuProbeResult = { status: "detected"; reading: GpuProbeReading } | { status: ProviderStreamStatus | "unreadable" };
+
+export function buildLeaseGpuProbeUrl(target: LeaseGpuProbeTarget): string {
+  const command = ["sh", "-c", GPU_COLLECTOR].map((part, index) => `cmd${index}=${encodeURIComponent(part)}`).join("&");
+
+  return `${target.hostUri}/lease/${target.dseq}/${target.gseq}/${target.oseq}/shell?stdin=0&tty=0&podIndex=0&${command}&service=${encodeURIComponent(target.service)}`;
+}
+
+@singleton()
+export class LeaseGpuProbeService {
+  constructor(
+    private readonly providerStreamService: ProviderStreamService,
+    private readonly config: DeploymentConfigService
+  ) {}
+
+  async probe(target: LeaseGpuProbeTarget): Promise<LeaseGpuProbeResult> {
+    const result = await this.providerStreamService.collect({
+      url: buildLeaseGpuProbeUrl(target),
+      providerAddress: target.providerAddress,
+      token: target.token,
+      idleTimeoutMs: this.config.get("LEASE_GPU_DETECTION_IDLE_TIMEOUT_MS"),
+      hardTimeoutMs: this.config.get("LEASE_GPU_DETECTION_HARD_TIMEOUT_MS"),
+      maxBytes: this.config.get("LEASE_GPU_DETECTION_MAX_OUTPUT_BYTES")
+    });
+
+    const output = result.frames
+      .filter(frame => frame.kind === "shell" && (frame.stream === "stdout" || frame.stream === "stderr"))
+      .map(frame => frame.payload)
+      .join("");
+
+    const reading = parseGpuProbeOutput(output);
+    if (!reading) return { status: result.status === "completed" ? "unreadable" : result.status };
+
+    return { status: "detected", reading };
+  }
+}
