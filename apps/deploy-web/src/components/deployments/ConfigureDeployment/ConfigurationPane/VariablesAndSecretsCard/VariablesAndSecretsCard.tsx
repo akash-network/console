@@ -31,14 +31,7 @@ const ADD_OPTIONS: Array<{ kind: VariableKind; title: string; description: strin
   { kind: "secret", title: "Secret", description: "Value stays masked, encrypted at rest", Icon: LockIcon }
 ];
 
-const VARIABLE_TOOLTIP = "Variable · plain key/value exposed at runtime. Click to make it a secret.";
-
-const SECRET_TOOLTIP = "Secret · value stays masked and is encrypted at rest. Click to make it a plain variable.";
-
 const EMPTY_STATE = "Nothing set yet. Add a variable for a plain key/value pair, or a secret for a value that should stay masked.";
-
-/** Shown under a secret whose value is a reference carried in from an SDL, which names a value this deployment does not hold yet. */
-const KEPT_SECRET_HINT = "The value was not included. Enter it before requesting quotes.";
 
 type Props = {
   serviceIndex: number;
@@ -193,7 +186,13 @@ const VariableRow: FC<VariableRowProps> = ({ serviceIndex, envIndex, visibleInde
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-start gap-2">
-        <d.CustomNoDivTooltip title={secret ? SECRET_TOOLTIP : VARIABLE_TOOLTIP}>
+        <d.CustomNoDivTooltip
+          title={
+            secret
+              ? "Secret · value stays masked and is encrypted at rest. Click to make it a plain variable."
+              : "Variable · plain key/value exposed at runtime. Click to make it a secret."
+          }
+        >
           <Button
             type="button"
             size="icon"
@@ -247,7 +246,7 @@ const VariableRow: FC<VariableRowProps> = ({ serviceIndex, envIndex, visibleInde
       </div>
       {key.fieldState.error && <p className="pl-1 text-xs text-destructive">{key.fieldState.error.message}</p>}
       {value.fieldState.error && <p className="pl-1 text-xs text-destructive">{value.fieldState.error.message}</p>}
-      {isKept && <p className="pl-1 text-xs text-muted-foreground">{KEPT_SECRET_HINT}</p>}
+      {isKept && <p className="pl-1 text-xs text-muted-foreground">The value was not included. Enter it before requesting quotes.</p>}
     </div>
   );
 };
