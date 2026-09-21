@@ -424,7 +424,16 @@ describe(ConfigureDeploymentForm.name, () => {
     await userEvent.click(screen.getByRole("button", { name: "confirm and deploy" }));
 
     expect(analyticsService.track).toHaveBeenCalledWith("review_deploy_confirmed", expect.objectContaining({ category: "deployments" }));
-    expect(flow.actions.deploy).toHaveBeenCalled();
+    expect(flow.actions.deploy).toHaveBeenCalledWith(expect.any(String));
+  });
+
+  it("hands the typed secret values to the deploy when the secrets feature is on", async () => {
+    const { flow } = setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes, secretsEnabled: true });
+
+    await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+    await userEvent.click(screen.getByRole("button", { name: "confirm and deploy" }));
+
+    expect(flow.actions.deploy).toHaveBeenCalledWith(expect.any(String), { secrets: {} });
   });
 
   it("tracks a dismissal when the review modal is closed via Back", async () => {

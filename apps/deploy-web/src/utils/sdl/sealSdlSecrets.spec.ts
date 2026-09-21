@@ -51,6 +51,14 @@ describe(sealSdlSecrets.name, () => {
     expect(header.sdlHash).toBe(base64url.encode(new Uint8Array(digest)));
   });
 
+  it("binds to no SDL when none is given, for a seal a patch presents against the stored document", async () => {
+    const { context, open } = await setup();
+
+    const { header } = await open(await sealSdlSecrets({ context, secrets: { TOKEN: "t" } }));
+
+    expect(header).not.toHaveProperty("sdlHash");
+  });
+
   async function setup() {
     const keyPair = await crypto.subtle.generateKey(
       { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
@@ -61,6 +69,7 @@ describe(sealSdlSecrets.name, () => {
     const context = { kid: "sdl-secrets.v1", sub: "user-1", jwk: { kty: kty as string, n: n as string, e: e as string, use: "enc", alg: "RSA-OAEP-256" } };
 
     return {
+      context,
       seal: (input: { secrets?: SdlSecretValues; sdl?: string }) => sealSdlSecrets({ context, sdl: input.sdl ?? SDL, secrets: input.secrets ?? {} }),
       open: (token: string) => openCompactJwe(token, keyPair.privateKey)
     };

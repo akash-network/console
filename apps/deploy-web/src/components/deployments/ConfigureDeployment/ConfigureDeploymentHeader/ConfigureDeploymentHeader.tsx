@@ -114,6 +114,17 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
     flow.actions.requestQuotes(sdl, { name: deploymentName, ...(secrets ? { secrets: secrets.values } : {}) });
   });
 
+  /** Re-fires the lease request from the current form values; with secrets on, the typed values ride along so a patch can seal them. */
+  function retryDeploy() {
+    const values = getValues();
+    const sdl = d.generateSdl(values, { sealSecrets: isSecretsEnabled });
+    if (isSecretsEnabled) {
+      flow.actions.deploy(sdl, { secrets: d.resolveSdlSecrets(values, { sealSecrets: true }).values });
+      return;
+    }
+    flow.actions.deploy(sdl);
+  }
+
   return (
     <header className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
       <div className="flex min-w-0 flex-col gap-1 md:gap-2 xl:flex-1">
@@ -150,7 +161,7 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
           <Button
             type="button"
             disabled={!allPlacementsSelected}
-            onClick={hasDeployError ? () => flow.actions.deploy(d.generateSdl(getValues(), { sealSecrets: isSecretsEnabled })) : onDeploy}
+            onClick={hasDeployError ? retryDeploy : onDeploy}
             aria-label={hasDeployError ? "Retry" : "Deploy"}
             className="h-9 shrink-0 px-3 md:h-10 md:px-8"
           >

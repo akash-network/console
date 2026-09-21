@@ -18,15 +18,15 @@ export interface SdlSecretsSealContext {
 
 export interface SealSdlSecretsInput {
   context: SdlSecretsSealContext;
-  /** The exact SDL string the seal travels with, so the api can refuse the seal beside any other document. */
-  sdl: string;
+  /** The exact SDL string a create sends beside the seal, so the api refuses the seal beside any other document; a patch checks against the stored document instead, so it binds to none. */
+  sdl?: string;
   secrets: SdlSecretValues;
 }
 
-/** Seals the typed secret values into the compact JWE a create accepts, bound to the user, the key version and the SDL. */
+/** Seals the typed secret values into the compact JWE the api accepts, bound to the user, the key version and, when given, the SDL. */
 export async function sealSdlSecrets({ context, sdl, secrets }: SealSdlSecretsInput): Promise<string> {
   const sealingKey = await importJWK({ ...context.jwk, alg: SDL_SECRETS_SEAL_ALGORITHM }, SDL_SECRETS_SEAL_ALGORITHM);
-  const sdlHash = base64url.encode(new Uint8Array(await crypto.subtle.digest("SHA-256", utf8BytesOf(sdl))));
+  const binding = sdl === undefined ? {} : { sdlHash: base64url.encode(new Uint8Array(await crypto.subtle.digest("SHA-256", utf8BytesOf(sdl)))) };
 
   return new CompactEncrypt(utf8BytesOf(JSON.stringify(secrets)))
     .setProtectedHeader({
@@ -35,7 +35,7 @@ export async function sealSdlSecrets({ context, sdl, secrets }: SealSdlSecretsIn
       kid: context.kid,
       sub: context.sub,
       exp: Math.floor(Date.now() / 1000) + SDL_SECRETS_SEAL_LIFETIME_SECONDS,
-      sdlHash
+      ...binding
     })
     .encrypt(sealingKey);
 }
