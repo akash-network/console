@@ -39,17 +39,24 @@ const PICKER_STEP = "choose-template";
 export function legacyBuilderDestination(query: ParsedUrlQuery, urlService: typeof UrlService): string | null {
   const step = stringParam(query.step);
   const templateId = stringParam(query.templateId);
-  const redeploy = stringParam(query.redeploy);
-  const dseq = stringParam(query.dseq);
+  const redeploy = deploymentId(query.redeploy);
+  const dseq = deploymentId(query.dseq);
   const gitIntent = [query.gitProvider, query.repoUrl, query.code, query.state].map(stringParam);
   const builderStep = step === PICKER_STEP ? undefined : step;
-  const namesBuilderIntent = [builderStep, templateId, redeploy, dseq, ...gitIntent].some(value => value !== undefined);
+  const named = [builderStep, templateId, stringParam(query.redeploy), stringParam(query.dseq), ...gitIntent];
+  const namesBuilderIntent = named.some(value => value !== undefined);
 
   if (!namesBuilderIntent) return null;
   if (redeploy) return urlService.deploymentDetails(redeploy);
   if (dseq) return urlService.configureDeployment({ dseq });
   if (templateId) return urlService.configureDeployment({ templateId });
   return urlService.configureDeployment({});
+}
+
+/** A dseq is a block height, and both destinations put it in a path segment, so anything else would steer the redirect off its own route. */
+function deploymentId(value: string | string[] | undefined): string | undefined {
+  const candidate = stringParam(value);
+  return candidate !== undefined && /^\d+$/.test(candidate) ? candidate : undefined;
 }
 
 function stringParam(value: string | string[] | undefined): string | undefined {

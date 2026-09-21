@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { DEPENDENCIES, LegacyBuilderRedirect } from "./LegacyBuilderRedirect";
@@ -39,6 +39,18 @@ describe(LegacyBuilderRedirect.name, () => {
     expect(replace).toHaveBeenCalledWith("/new-deployment/configure/555");
   });
 
+  it("refuses a deployment id carrying more than a block height, so a crafted link cannot steer the redirect", () => {
+    const { replace } = setup({ query: { redeploy: "../555" } });
+
+    expect(replace).toHaveBeenCalledWith("/new-deployment/configure");
+  });
+
+  it("refuses a dseq with a path of its own the same way", () => {
+    const { replace } = setup({ query: { step: "create-leases", dseq: "555/../admin" } });
+
+    expect(replace).toHaveBeenCalledWith("/new-deployment/configure");
+  });
+
   it("opens a template link on configure", () => {
     const { replace } = setup({ query: { step: "edit-deployment", templateId: "tpl-1" } });
 
@@ -75,10 +87,13 @@ describe(LegacyBuilderRedirect.name, () => {
   });
 
   function setup(input: { query: Record<string, string> }) {
-    const replace = vi.fn();
+    /** Assigned after the mock is built: a nested override would auto-mock the query keys the test leaves out, which never reads as undefined. */
+    const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
+    router.query = input.query;
+    const replace = router.replace;
     const dependencies: typeof DEPENDENCIES = {
       ...DEPENDENCIES,
-      useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ query: input.query, replace })) as typeof DEPENDENCIES.useRouter
+      useRouter: (() => router) as typeof DEPENDENCIES.useRouter
     };
     render(
       <LegacyBuilderRedirect dependencies={dependencies}>
