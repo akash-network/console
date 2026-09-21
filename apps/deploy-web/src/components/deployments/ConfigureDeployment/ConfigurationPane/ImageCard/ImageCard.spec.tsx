@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
+import { EnvironmentVariablesCard } from "../EnvironmentVariablesCard/EnvironmentVariablesCard";
 import { ImageCard } from "./ImageCard";
 
 import { act, render, screen, waitFor } from "@testing-library/react";
@@ -98,6 +99,28 @@ describe(ImageCard.name, () => {
     await userEvent.clear(screen.getByLabelText("Registry password"));
 
     expect(getValues().services[0].credentials?.password).toBe("ac-secret://REGISTRY_PASSWORD");
+  });
+
+  it("keeps a registry credential the deployment holds after an unrelated environment variables save", async () => {
+    const { getValues, openEnvironmentVariables } = setupWithEnvironmentVariables();
+
+    await userEvent.type(screen.getByLabelText("Registry username"), "bob");
+    await openEnvironmentVariables();
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await userEvent.clear(screen.getByLabelText("Registry username"));
+
+    expect(getValues().services[0].credentials?.username).toBe("ac-secret://REGISTRY_USERNAME");
+  });
+
+  it("keeps a registry credential the deployment holds after an unrelated environment variables cancel", async () => {
+    const { getValues, openEnvironmentVariables } = setupWithEnvironmentVariables();
+
+    await userEvent.type(screen.getByLabelText("Registry username"), "bob");
+    await openEnvironmentVariables();
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await userEvent.clear(screen.getByLabelText("Registry username"));
+
+    expect(getValues().services[0].credentials?.username).toBe("ac-secret://REGISTRY_USERNAME");
   });
 
   it("does not resurrect the previous deployment's credential after an import replaces it", async () => {
@@ -342,6 +365,34 @@ describe(ImageCard.name, () => {
     );
 
     return { getValues: () => getValues() };
+  }
+
+  function setupWithEnvironmentVariables() {
+    const values = defaultServiceWithPlacement({
+      image: "nginx:latest",
+      hasCredentials: true,
+      credentials: { host: "ghcr.io", username: "ac-secret://REGISTRY_USERNAME", password: "ac-secret://REGISTRY_PASSWORD" },
+      env: [{ key: "FOO", value: "bar", isSecret: false }]
+    });
+
+    let getValues: () => SdlBuilderFormValuesType = () => values;
+    const Wrapper = ({ children }: PropsWithChildren) => {
+      const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values, mode: "onChange", resolver: zodResolver(SdlBuilderFormValuesSchema) });
+      getValues = form.getValues;
+      return <FormProvider {...form}>{children}</FormProvider>;
+    };
+
+    render(
+      <Wrapper>
+        <ImageCard serviceIndex={0} />
+        <EnvironmentVariablesCard serviceIndex={0} />
+      </Wrapper>
+    );
+
+    return {
+      getValues: () => getValues(),
+      openEnvironmentVariables: () => userEvent.click(screen.getByText(/^Environment Variables/))
+    };
   }
 
   /** Renders the card under the real resolver so the custom-host URL validation flows to the field state. */

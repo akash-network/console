@@ -50,7 +50,7 @@ export const EnvironmentVariablesCard: FC<Props> = ({ serviceIndex, locked = fal
 
   const handleCancel = useCallback(() => {
     if (snapshot) {
-      reset(snapshot, { keepErrors: true });
+      reset(snapshot, { keepErrors: true, keepDefaultValues: true });
       void trigger(`services.${serviceIndex}.env`);
     }
     setOpen(false);
@@ -60,7 +60,7 @@ export const EnvironmentVariablesCard: FC<Props> = ({ serviceIndex, locked = fal
     const current = getValues();
     const env = current.services[serviceIndex].env ?? [];
     current.services[serviceIndex].env = env.filter(e => e.key.trim() !== "" && !(RESERVED_ENV_KEYS.has(e.key) && e.id !== e.key));
-    reset(current, { keepDirty: true, keepErrors: true });
+    reset(current, { keepDirty: true, keepErrors: true, keepDefaultValues: true });
     void trigger(`services.${serviceIndex}.env`);
     setOpen(false);
   }, [getValues, reset, trigger, serviceIndex]);
