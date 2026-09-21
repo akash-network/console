@@ -22,16 +22,17 @@ import { GpuIcon, LockIcon, PlusIcon, TrashIcon, XIcon } from "lucide-react";
 import { SearchableSelect } from "@src/components/shared/SearchableSelect/SearchableSelect";
 import { useServices } from "@src/context/ServicesProvider";
 import { useGpuModels } from "@src/queries/useGpuQuery";
+import { usePlacementOptions } from "@src/queries/usePlacementOptions";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
-import { gpuVendors as fallbackVendors, prioritizeGpuModels } from "@src/utils/akash/gpu";
+import { gpuVendors as fallbackVendors, narrowGpuVendorsToAvailable, prioritizeGpuModels } from "@src/utils/akash/gpu";
 import { validationConfig } from "@src/utils/akash/units";
 import { defaultGpuModel } from "@src/utils/sdl/data";
 import { gpuTooltip } from "../cardTooltips";
 import { SELECT_TRUNCATE_VALUE } from "../selectStyles";
 import { UnlockGpusButton } from "../UnlockGpusButton/UnlockGpusButton";
 
-export const DEPENDENCIES = { CollapsibleCard, useGpuModels, useFieldError, useServices, GpuModelFields };
+export const DEPENDENCIES = { CollapsibleCard, useGpuModels, usePlacementOptions, useFieldError, useServices, GpuModelFields };
 
 type Props = {
   serviceIndex: number;
@@ -59,6 +60,8 @@ type Props = {
 export const GpuCard: FC<Props> = ({ serviceIndex, locked = false, isBlockedModel = () => false, onUnlock, dependencies: d = DEPENDENCIES }) => {
   const { control, setValue, getValues } = useFormContext<SdlBuilderFormValuesType>();
   const { data: gpuModels, isLoading: isLoadingModels, isError: isModelsError } = d.useGpuModels();
+  const { data: placementOptions } = d.usePlacementOptions();
+  const availableVendors = narrowGpuVendorsToAvailable(gpuModels, placementOptions?.gpus);
 
   const hasGpu = useController({ control, name: `services.${serviceIndex}.profile.hasGpu` });
 
@@ -107,7 +110,7 @@ export const GpuCard: FC<Props> = ({ serviceIndex, locked = false, isBlockedMode
               key={field.id}
               serviceIndex={serviceIndex}
               gpuIndex={index}
-              gpuVendors={gpuModels}
+              gpuVendors={availableVendors}
               isLoading={isLoadingModels}
               isError={isModelsError}
               isBlockedModel={isBlockedModel}
@@ -228,6 +231,12 @@ function GpuModelFields({
       gpuVendors ? gpuVendors.map(v => ({ value: v.name, label: v.displayName ?? v.name })) : fallbackVendors.map(v => ({ value: v.value, label: v.label })),
     [gpuVendors]
   );
+  /**
+   * The vendor question has a single answer while only one vendor is available, so the step is dropped
+   * unless this entry needs it: several vendors to choose from, or a configured vendor that is not the
+   * available one, which an imported SDL keeps rather than having it silently rewritten.
+   */
+  const showVendor = vendorOptions.length !== 1 || vendor.field.value !== vendorOptions[0].value;
   const models = useMemo(() => gpuVendors?.find(v => v.name === vendor.field.value)?.models ?? [], [gpuVendors, vendor.field.value]);
   const selectedModel = useMemo(() => models.find(m => m.name === name.field.value), [models, name.field.value]);
   const memorySizes = selectedModel?.memory ?? [];
@@ -309,23 +318,25 @@ function GpuModelFields({
         )}
       </div>
 
-      <Field className="gap-2">
-        <FieldLabel>Vendor</FieldLabel>
-        <FieldContent>
-          <Select value={vendor.field.value || ""} onValueChange={selectGpuVendor} disabled={locked}>
-            <SelectTrigger aria-label="GPU vendor" className={`h-9 ${SELECT_TRUNCATE_VALUE}`}>
-              <SelectValue placeholder="Select" />
-            </SelectTrigger>
-            <SelectContent>
-              {vendorOptions.map(option => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FieldContent>
-      </Field>
+      {showVendor && (
+        <Field className="gap-2">
+          <FieldLabel>Vendor</FieldLabel>
+          <FieldContent>
+            <Select value={vendor.field.value || ""} onValueChange={selectGpuVendor} disabled={locked}>
+              <SelectTrigger aria-label="GPU vendor" className={`h-9 ${SELECT_TRUNCATE_VALUE}`}>
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                {vendorOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FieldContent>
+        </Field>
+      )}
 
       {isLoading ? (
         <div className="flex items-center gap-2 py-1">
