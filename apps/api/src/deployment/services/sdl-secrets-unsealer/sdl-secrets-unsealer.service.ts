@@ -28,7 +28,7 @@ interface SealRejection {
   isServiceFault?: true;
 }
 
-/** How a hostile or stale client input is reported: every shape failure blames the caller, and only an unreachable key service is our fault. */
+/** How a hostile or stale client input is reported: every shape failure blames the caller, and only a key service that is unreachable or answers with an error is our fault. */
 const SEAL_REJECTIONS: Record<KmsWrappedJweFailure, SealRejection> = {
   MALFORMED: { status: 400, event: "SDL_SECRETS_SEAL_MALFORMED", message: "Sealed secrets must be a compact JWE" },
   HEADER_UNREADABLE: { status: 400, event: "SDL_SECRETS_SEAL_HEADER_UNREADABLE", message: "Sealed secrets carry an unreadable protected header" },
@@ -53,6 +53,12 @@ const SEAL_REJECTIONS: Record<KmsWrappedJweFailure, SealRejection> = {
     status: 503,
     event: "SDL_SECRETS_CEK_UNWRAP_FAILED",
     message: "Unable to reach the SDL secrets key management service",
+    isServiceFault: true
+  },
+  KEY_SERVICE_REFUSED: {
+    status: 503,
+    event: "SDL_SECRETS_CEK_UNWRAP_REFUSED",
+    message: "SDL secrets could not be unsealed",
     isServiceFault: true
   },
   AUTHENTICATION_FAILED: { status: 400, event: "SDL_SECRETS_SEAL_TAMPERED", message: "Sealed secrets failed authentication" }

@@ -332,7 +332,7 @@ The same property is what makes section 2 step 5 load-bearing: destroying a KMS 
 | ------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
 | `USER_DATA_KEY_UNWRAPPED`                         | event, info  | A request unwrapped a user's data key. Carries `userId`, `dataKeyId`, `kid`. The only per-user record of secret access.               |
 | `USER_DATA_KEY_WRAPPED_UNDER_UNKNOWN_KID`         | event, error | A data key names a KMS version the console cannot resolve or the service refuses (disabled, destroyed, unknown). The user gets a 503. |
-| `USER_DATA_KEY_UNWRAP_FAILED`                     | event, error | The key service was unreachable or answered nonsense. Transient; the user gets a 503.                                                 |
+| `USER_DATA_KEY_UNWRAP_FAILED`                     | event, error | The key service was unreachable, answered with an error, or answered nonsense; `failure` says which. The user gets a 503.             |
 | `USER_DATA_KEY_UNREADABLE`                        | event, error | The wrapped key itself is corrupt. Permanent.                                                                                         |
 | `SECRET_DECRYPT_FAILED`                           | event, error | A stored token would not open. Section 5.1.                                                                                           |
 | `SDL_SECRETS_SEALED`, `SDL_SECRETS_STORED_OPENED` | event, info  | A token was written or read for a deployment.                                                                                         |

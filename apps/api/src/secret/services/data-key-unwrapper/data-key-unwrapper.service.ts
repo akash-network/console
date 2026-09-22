@@ -20,6 +20,7 @@ const DATA_ENCRYPTION_KEY_BYTES = 32;
 /** Retrying reaches a key service that has recovered; every other failure means the stored row itself is unusable. */
 const KEY_SERVICE_FAILURES: ReadonlySet<KmsWrappedJweFailure> = new Set([
   "KEY_SERVICE_UNREACHABLE",
+  "KEY_SERVICE_REFUSED",
   "KEY_SERVICE_REQUEST_CORRUPTED",
   "KEY_SERVICE_PLAINTEXT_MISSING",
   "KEY_SERVICE_RESPONSE_CORRUPTED"

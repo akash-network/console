@@ -18,6 +18,7 @@ export type KmsWrappedJweFailure =
   | "ENCRYPTED_KEY_REJECTED"
   | "WRAPPING_VERSION_UNUSABLE"
   | "KEY_SERVICE_UNREACHABLE"
+  | "KEY_SERVICE_REFUSED"
   | "KEY_SERVICE_REQUEST_CORRUPTED"
   | "KEY_SERVICE_PLAINTEXT_MISSING"
   | "KEY_SERVICE_RESPONSE_CORRUPTED"
@@ -71,11 +72,14 @@ const CONTENT_ENCRYPTION_TAG_BYTES = 16;
 
 /** gRPC reports the status of a failed call as a numeric `code` on the rejection. */
 function getGrpcStatus(error: unknown) {
-  return error instanceof Error && "code" in error ? error.code : undefined;
+  return error instanceof Error && "code" in error && typeof error.code === "number" ? error.code : undefined;
 }
 
 /** A version alias is well formed long before it names anything, so only the key service can tell a version that was never created, or was disabled or destroyed, from one that opens. */
 const UNUSABLE_VERSION_STATUSES: ReadonlySet<unknown> = new Set([grpc.status.NOT_FOUND, grpc.status.FAILED_PRECONDITION]);
+
+/** What grpc-js reports for a call that got no answer, so any other status is the key service answering with an error. */
+const UNANSWERED_STATUSES: ReadonlySet<unknown> = new Set([grpc.status.UNAVAILABLE, grpc.status.DEADLINE_EXCEEDED, grpc.status.CANCELLED]);
 
 /** Validates nothing in the header, because what a header must say differs by caller and a wrapped data key carries none of a transport seal's claims — including which version to open under, which the caller resolves and passes in. */
 @singleton()
@@ -219,7 +223,11 @@ export class KmsWrappedJweService {
         throw new KmsWrappedJweError("WRAPPING_VERSION_UNUSABLE", { versionName });
       }
 
-      throw new KmsWrappedJweError("KEY_SERVICE_UNREACHABLE", { versionName, error });
+      if (status === undefined || UNANSWERED_STATUSES.has(status)) {
+        throw new KmsWrappedJweError("KEY_SERVICE_UNREACHABLE", { versionName, error });
+      }
+
+      throw new KmsWrappedJweError("KEY_SERVICE_REFUSED", { versionName, error });
     }
   }
 
