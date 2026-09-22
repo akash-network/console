@@ -16,7 +16,7 @@ import type { ProviderAuth } from "@src/provider/services/provider/provider-prox
 
 const PROVIDER_SCOPES = ["status", "shell"] as const;
 
-export type LeaseGpuDetectionStatus = "read" | "no_gpu_declared" | "no_live_lease" | "nothing_readable";
+export type LeaseGpuDetectionStatus = "read" | "no_gpu_declared" | "no_live_lease" | "nothing_readable" | "chain_unavailable";
 
 export type LeaseGpuDetectionReport = {
   status: LeaseGpuDetectionStatus;
@@ -24,6 +24,10 @@ export type LeaseGpuDetectionReport = {
   /** Every service worth reading answered, so there is nothing left to come back for. */
   complete: boolean;
 };
+
+type LeaseRead = { rows: LeaseGpuInsert[]; complete: boolean };
+
+const CHAIN_UNAVAILABLE: LeaseGpuDetectionReport = { status: "chain_unavailable", rows: [], complete: false };
 
 /** A placement that asks for a gpu, and the sequence of the group that carries it. */
 type GpuPlacement = { gseq: number; name: string };
@@ -50,30 +54,36 @@ export class LeaseGpuDetectionService {
   async detect(input: { wallet: WalletInitialized; dseq: string }): Promise<LeaseGpuDetectionReport> {
     const placements = await this.#findGpuPlacements(input.wallet.address, input.dseq);
 
+    if (!placements) return CHAIN_UNAVAILABLE;
     if (placements.size === 0) return { status: "no_gpu_declared", rows: [], complete: true };
 
     const leases = await this.#findLiveGpuLeases(input.wallet.address, input.dseq, placements);
 
+    if (!leases) return CHAIN_UNAVAILABLE;
     if (leases.length === 0) return { status: "no_live_lease", rows: [], complete: false };
 
     const sdl = await this.#findStoredSdl(input.wallet.userId, input.dseq);
-    const rows: LeaseGpuInsert[] = [];
-    let targeted = 0;
+    const reads: LeaseRead[] = [];
 
     for (const lease of leases) {
-      const read = await this.#readLease({ wallet: input.wallet, lease, placement: placements.get(lease.lease.id.gseq), sdl });
-      targeted += read.targeted;
-      rows.push(...read.rows);
+      reads.push(await this.#readLease({ wallet: input.wallet, lease, placement: placements.get(lease.lease.id.gseq), sdl }));
     }
 
-    return { status: rows.length > 0 ? "read" : "nothing_readable", rows, complete: targeted > 0 && rows.length === targeted };
+    const rows = reads.flatMap(read => read.rows);
+    return { status: rows.length > 0 ? "read" : "nothing_readable", rows, complete: reads.every(read => read.complete) };
   }
 
-  async #findGpuPlacements(owner: string, dseq: string): Promise<Map<number, GpuPlacement>> {
-    const response = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
-    const placements = new Map<number, GpuPlacement>();
+  /** Null when the chain did not answer, which must not read as a deployment that asks for no gpu, since that ends the reads for good. */
+  async #findGpuPlacements(owner: string, dseq: string): Promise<Map<number, GpuPlacement> | null> {
+    const response = await this.#askChain(dseq, () => this.deploymentHttpService.findByOwnerAndDseq(owner, dseq));
+    if (!response) return null;
 
-    if (!("groups" in response)) return placements;
+    if (!("groups" in response)) {
+      this.logger.warn({ event: "LEASE_GPU_DETECTION_CHAIN_UNAVAILABLE", dseq, code: response.code, message: response.message });
+      return null;
+    }
+
+    const placements = new Map<number, GpuPlacement>();
 
     for (const group of response.groups) {
       const declaresGpu = group.group_spec.resources.some(resource => Number(resource.resource.gpu?.units?.val ?? 0) > 0);
@@ -83,8 +93,10 @@ export class LeaseGpuDetectionService {
     return placements;
   }
 
-  async #findLiveGpuLeases(owner: string, dseq: string, placements: Map<number, GpuPlacement>): Promise<RpcLease[]> {
-    const responses = await Promise.all(LIVE_LEASE_STATES.map(state => this.leaseHttpService.list({ owner, dseq, state })));
+  async #findLiveGpuLeases(owner: string, dseq: string, placements: Map<number, GpuPlacement>): Promise<RpcLease[] | null> {
+    const responses = await this.#askChain(dseq, () => Promise.all(LIVE_LEASE_STATES.map(state => this.leaseHttpService.list({ owner, dseq, state }))));
+    if (!responses) return null;
+
     const leases = responses.flatMap(response => response.leases).filter(lease => placements.has(lease.lease.id.gseq));
     const capped = leases.slice(0, this.config.get("LEASE_GPU_DETECTION_MAX_LEASES_PER_DEPLOYMENT"));
 
@@ -93,6 +105,15 @@ export class LeaseGpuDetectionService {
     }
 
     return capped;
+  }
+
+  async #askChain<T>(dseq: string, read: () => Promise<T>): Promise<T | null> {
+    try {
+      return await read();
+    } catch (error) {
+      this.logger.warn({ event: "LEASE_GPU_DETECTION_CHAIN_UNAVAILABLE", dseq, error });
+      return null;
+    }
   }
 
   async #findStoredSdl(userId: string, dseq: string): Promise<SDLInput | undefined> {
@@ -106,18 +127,13 @@ export class LeaseGpuDetectionService {
     return undefined;
   }
 
-  async #readLease(input: {
-    wallet: WalletInitialized;
-    lease: RpcLease;
-    placement?: GpuPlacement;
-    sdl: SDLInput | undefined;
-  }): Promise<{ targeted: number; rows: LeaseGpuInsert[] }> {
+  async #readLease(input: { wallet: WalletInitialized; lease: RpcLease; placement?: GpuPlacement; sdl: SDLInput | undefined }): Promise<LeaseRead> {
     const { provider: providerAddress, dseq, gseq, oseq } = input.lease.lease.id;
     const provider = await this.providerRepository.findActiveByAddress(providerAddress);
 
     if (!provider) {
       this.logger.warn({ event: "LEASE_GPU_DETECTION_PROVIDER_UNKNOWN", dseq, provider: providerAddress });
-      return { targeted: 0, rows: [] };
+      return { rows: [], complete: false };
     }
 
     const auth = await this.providerService.toProviderAuth({ walletId: input.wallet.id, provider: providerAddress }, [...PROVIDER_SCOPES], {
@@ -125,7 +141,7 @@ export class LeaseGpuDetectionService {
     });
     const running = await this.#findRunningServices(providerAddress, dseq, gseq, oseq, auth);
 
-    if (!running?.length) return { targeted: 0, rows: [] };
+    if (!running?.length) return { rows: [], complete: false };
 
     const services = this.#selectGpuServices(running, input.sdl, input.placement, dseq);
     const rows: LeaseGpuInsert[] = [];
@@ -151,7 +167,7 @@ export class LeaseGpuDetectionService {
       });
     }
 
-    return { targeted: services.length, rows };
+    return { rows, complete: services.length > 0 && rows.length === services.length };
   }
 
   /** The sdl names which services asked for a gpu; without one every running service is a candidate, since the provider does not say. */

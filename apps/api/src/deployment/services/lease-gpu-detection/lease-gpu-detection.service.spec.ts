@@ -18,7 +18,11 @@ type LeaseStatus = Awaited<ReturnType<ProviderService["getLeaseStatus"]>>;
 const WALLET = mock<WalletInitialized>({ id: 7, userId: "user-1", address: "akash1owner" });
 const DSEQ = "12345";
 const PROVIDER = "akash1provider";
-const GPU_READING = { source: "nvidia-smi" as const, driverVersion: "550.54.15", gpus: [{ rawName: "NVIDIA H100", pciDeviceId: "0x233010DE", memoryMb: 81559, count: 1 }] };
+const GPU_READING = {
+  source: "nvidia-smi" as const,
+  driverVersion: "550.54.15",
+  gpus: [{ rawName: "NVIDIA H100", pciDeviceId: "0x233010DE", memoryMb: 81559, count: 1 }]
+};
 
 describe(LeaseGpuDetectionService.name, () => {
   it("records what each gpu service reported", async () => {
@@ -29,7 +33,16 @@ describe(LeaseGpuDetectionService.name, () => {
     expect(report.status).toBe("read");
     expect(report.complete).toBe(true);
     expect(report.rows).toEqual([
-      expect.objectContaining({ userId: "user-1", dseq: DSEQ, gseq: 1, oseq: 1, provider: PROVIDER, service: "web", source: "nvidia-smi", gpus: GPU_READING.gpus })
+      expect.objectContaining({
+        userId: "user-1",
+        dseq: DSEQ,
+        gseq: 1,
+        oseq: 1,
+        provider: PROVIDER,
+        service: "web",
+        source: "nvidia-smi",
+        gpus: GPU_READING.gpus
+      })
     ]);
   });
 
@@ -85,7 +98,11 @@ describe(LeaseGpuDetectionService.name, () => {
   });
 
   it("stays incomplete when a service could not be read, so the run comes back for it", async () => {
-    const { service } = setup({ running: ["web", "trainer"], sdl: null, probeResults: [{ status: "detected", reading: GPU_READING }, { status: "idle_timeout" }] });
+    const { service } = setup({
+      running: ["web", "trainer"],
+      sdl: null,
+      probeResults: [{ status: "detected", reading: GPU_READING }, { status: "idle_timeout" }]
+    });
 
     const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
 
@@ -111,6 +128,48 @@ describe(LeaseGpuDetectionService.name, () => {
     expect(probeService.probe).not.toHaveBeenCalled();
   });
 
+  it("stays incomplete while one lease is unread, however fully another answered", async () => {
+    const { service } = setup({ leases: [lease(1), lease(1, { oseq: 2, provider: "akash1dark" })], unknownProviders: ["akash1dark"] });
+
+    const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
+
+    expect(report.status).toBe("read");
+    expect(report.rows).toEqual([expect.objectContaining({ oseq: 1, provider: PROVIDER })]);
+    expect(report.complete).toBe(false);
+  });
+
+  it("comes back later when the gpu service is not running yet, even though another service is", async () => {
+    const { service, probeService } = setup({ running: ["sidecar"] });
+
+    const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
+
+    expect(report).toEqual({ status: "nothing_readable", rows: [], complete: false });
+    expect(probeService.probe).not.toHaveBeenCalled();
+  });
+
+  it("comes back later when the chain answers the deployment read with an error, rather than reading it as no gpu", async () => {
+    const { service, providerRepository, logger } = setup({ deploymentRead: "error_body" });
+
+    const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
+
+    expect(report).toEqual({ status: "chain_unavailable", rows: [], complete: false });
+    expect(providerRepository.findActiveByAddress).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "LEASE_GPU_DETECTION_CHAIN_UNAVAILABLE", dseq: DSEQ, code: 8 }));
+  });
+
+  it.each([
+    { read: "deployment", failure: { deploymentRead: "throws" } },
+    { read: "lease list", failure: { leaseListFails: true } }
+  ] as const)("comes back later when the $read read fails", async ({ failure }) => {
+    const { service, providerRepository, logger } = setup(failure);
+
+    const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
+
+    expect(report).toEqual({ status: "chain_unavailable", rows: [], complete: false });
+    expect(providerRepository.findActiveByAddress).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "LEASE_GPU_DETECTION_CHAIN_UNAVAILABLE", dseq: DSEQ, error: expect.any(Error) }));
+  });
+
   it("comes back later when the provider would not say what is running", async () => {
     const { service } = setup({ statusFails: true });
 
@@ -127,8 +186,8 @@ describe(LeaseGpuDetectionService.name, () => {
     expect(providerService.toProviderAuth).toHaveBeenCalledWith({ walletId: 7, provider: PROVIDER }, ["status", "shell"], { ttl: 120 });
   });
 
-  function lease(gseq: number) {
-    return { lease: { id: { owner: "akash1owner", dseq: DSEQ, gseq, oseq: 1, provider: PROVIDER } } };
+  function lease(gseq: number, overrides: { oseq?: number; provider?: string } = {}) {
+    return { lease: { id: { owner: "akash1owner", dseq: DSEQ, gseq, oseq: overrides.oseq ?? 1, provider: overrides.provider ?? PROVIDER } } };
   }
 
   function setup(input: {
@@ -137,26 +196,37 @@ describe(LeaseGpuDetectionService.name, () => {
     running?: string[];
     sdl?: string | null;
     provider?: { hostUri: string } | null;
+    unknownProviders?: string[];
+    deploymentRead?: "error_body" | "throws";
+    leaseListFails?: boolean;
     statusFails?: boolean;
     probeResults?: LeaseGpuProbeResult[];
   }) {
     const deploymentHttpService = mock<DeploymentHttpService>();
-    deploymentHttpService.findByOwnerAndDseq.mockResolvedValue({
-      groups: [
-        { id: { gseq: 1 }, group_spec: { name: "dcloud", resources: [{ resource: { gpu: { units: { val: String(input.gpuUnits ?? 1) } } } }] } },
-        { id: { gseq: 2 }, group_spec: { name: "cpuonly", resources: [{ resource: { gpu: { units: { val: "0" } } } }] } }
-      ]
-    } as Awaited<ReturnType<DeploymentHttpService["findByOwnerAndDseq"]>>);
+    deploymentHttpService.findByOwnerAndDseq.mockImplementation(async () => {
+      if (input.deploymentRead === "throws") throw new Error("chain node unreachable");
+      if (input.deploymentRead === "error_body") return { code: 8, message: "rate limited", details: [] };
+
+      return {
+        groups: [
+          { id: { gseq: 1 }, group_spec: { name: "dcloud", resources: [{ resource: { gpu: { units: { val: String(input.gpuUnits ?? 1) } } } }] } },
+          { id: { gseq: 2 }, group_spec: { name: "cpuonly", resources: [{ resource: { gpu: { units: { val: "0" } } } }] } }
+        ]
+      } as Awaited<ReturnType<DeploymentHttpService["findByOwnerAndDseq"]>>;
+    });
 
     const leaseHttpService = mock<LeaseHttpService>();
     const leases = input.leases ?? [lease(1)];
-    leaseHttpService.list.mockImplementation(async ({ state }) =>
-      ({ leases: state === "active" ? leases : [] }) as Awaited<ReturnType<LeaseHttpService["list"]>>
-    );
+    leaseHttpService.list.mockImplementation(async ({ state }) => {
+      if (input.leaseListFails) throw new Error("chain node unreachable");
+      return { leases: state === "active" ? leases : [] } as Awaited<ReturnType<LeaseHttpService["list"]>>;
+    });
 
     const providerRepository = mock<ProviderRepository>();
-    providerRepository.findActiveByAddress.mockResolvedValue(
-      input.provider === null ? null : ({ hostUri: "https://provider.example:8443" } as Awaited<ReturnType<ProviderRepository["findActiveByAddress"]>>)
+    providerRepository.findActiveByAddress.mockImplementation(async address =>
+      input.provider === null || input.unknownProviders?.includes(address)
+        ? null
+        : ({ hostUri: "https://provider.example:8443" } as Awaited<ReturnType<ProviderRepository["findActiveByAddress"]>>)
     );
 
     const providerService = mock<ProviderService>();
@@ -204,6 +274,6 @@ describe(LeaseGpuDetectionService.name, () => {
       vi.fn<CreateLogger>(() => logger)
     );
 
-    return { service, probeService, providerRepository, providerService, deploymentHttpService };
+    return { service, probeService, providerRepository, providerService, deploymentHttpService, logger };
   }
 });

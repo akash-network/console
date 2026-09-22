@@ -80,6 +80,17 @@ describe(DetectLeaseGpusHandler.name, () => {
     expect(queued.some(job => job.state === "created")).toBe(true);
   });
 
+  it("comes back rather than failing the job when the chain cannot be read", async () => {
+    const { enqueue, startWorkers, singletonKey } = await setup({ chainFails: true });
+
+    await enqueue();
+    await startWorkers();
+
+    await expectJobCompleted(DetectLeaseGpus[JOB_NAME], { singletonKey, state: "completed" });
+    const queued = await findJobRows(DetectLeaseGpus[JOB_NAME], { singletonKey });
+    expect(queued.some(job => job.state === "created")).toBe(true);
+  });
+
   it("does not come back once every service has answered", async () => {
     const { enqueue, startWorkers, singletonKey } = await setup({});
 
@@ -95,7 +106,7 @@ describe(DetectLeaseGpusHandler.name, () => {
     expect(container.resolve(DetectLeaseGpusHandler).requiresPermission()).toEqual([]);
   });
 
-  async function setup(input: { enabled?: boolean; probeResult?: Awaited<ReturnType<LeaseGpuProbeService["probe"]>> }) {
+  async function setup(input: { enabled?: boolean; chainFails?: boolean; probeResult?: Awaited<ReturnType<LeaseGpuProbeService["probe"]>> }) {
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const leaseGpusTable = resolveTable("LeaseGpus");
     const { user, wallet, address } = await seedUserWithWallet();
@@ -108,14 +119,19 @@ describe(DetectLeaseGpusHandler.name, () => {
       key === "LEASE_GPU_DETECTION_ENABLED" ? (input.enabled === false ? "false" : "true") : readConfig(key)
     );
 
-    vi.spyOn(container.resolve(DeploymentHttpService), "findByOwnerAndDseq").mockResolvedValue({
-      groups: [{ id: { gseq: 1 }, group_spec: { name: "dcloud", resources: [{ resource: { gpu: { units: { val: "1" } } } }] } }]
-    } as Awaited<ReturnType<DeploymentHttpService["findByOwnerAndDseq"]>>);
+    vi.spyOn(container.resolve(DeploymentHttpService), "findByOwnerAndDseq").mockImplementation(async () => {
+      if (input.chainFails) throw new Error("chain node unreachable");
 
-    vi.spyOn(container.resolve(LeaseHttpService), "list").mockImplementation(async ({ state }) =>
-      ({
-        leases: state === "active" ? [{ lease: { id: { owner: address, dseq, gseq: 1, oseq: 1, provider: PROVIDER } } }] : []
-      }) as Awaited<ReturnType<LeaseHttpService["list"]>>
+      return {
+        groups: [{ id: { gseq: 1 }, group_spec: { name: "dcloud", resources: [{ resource: { gpu: { units: { val: "1" } } } }] } }]
+      } as Awaited<ReturnType<DeploymentHttpService["findByOwnerAndDseq"]>>;
+    });
+
+    vi.spyOn(container.resolve(LeaseHttpService), "list").mockImplementation(
+      async ({ state }) =>
+        ({
+          leases: state === "active" ? [{ lease: { id: { owner: address, dseq, gseq: 1, oseq: 1, provider: PROVIDER } } }] : []
+        }) as Awaited<ReturnType<LeaseHttpService["list"]>>
     );
 
     vi.spyOn(container.resolve(ProviderRepository), "findActiveByAddress").mockResolvedValue({
@@ -142,7 +158,11 @@ describe(DetectLeaseGpusHandler.name, () => {
       singletonKey,
       enqueue: () => enqueue(new DetectLeaseGpus({ walletId: wallet.id, dseq, attempt: 1, leaseCreatedAt: new Date().toISOString() }), { singletonKey }),
       startWorkers,
-      findRows: async () => await db.select().from(leaseGpusTable).where(and(eq(leaseGpusTable.userId, user.id), eq(leaseGpusTable.dseq, dseq)))
+      findRows: async () =>
+        await db
+          .select()
+          .from(leaseGpusTable)
+          .where(and(eq(leaseGpusTable.userId, user.id), eq(leaseGpusTable.dseq, dseq)))
     };
   }
 });
