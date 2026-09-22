@@ -19,7 +19,7 @@ export interface ProviderProxyPayload {
   timeout?: number;
   providerIdentity: ProviderIdentity;
   headers?: Record<string, string>;
-  auth: ProviderAuth;
+  auth?: ProviderAuth;
 }
 
 @singleton()
