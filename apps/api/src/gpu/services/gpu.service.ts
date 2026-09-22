@@ -81,6 +81,14 @@ export class GpuService {
     return response;
   }
 
+  /** The catalog as published, keyed by the pci ids `mapProviderConfig` drops, which is what identifies a card the driver reports. */
+  @Memoize({ ttlInSeconds: minutesToSeconds(2) })
+  async getGpuModelCatalog(): Promise<ProviderConfigGpusType> {
+    const response = await this.httpClient.get<ProviderConfigGpusType>("/gpus.json");
+    return response.data;
+  }
+
+  /** Fetches on its own rather than through `getGpuModelCatalog`, since nesting two stale-while-revalidate caches serves a stale list a cycle longer. */
   @Memoize({ ttlInSeconds: minutesToSeconds(2) })
   async getGpuModels() {
     const response = await this.httpClient.get<ProviderConfigGpusType>("/gpus.json");

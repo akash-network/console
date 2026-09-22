@@ -22,6 +22,24 @@ describe(GpuService.name, () => {
       expect(vendor).toMatchObject({ name: "nvidia", displayName: "NVIDIA" });
       expect(vendor.models[0]).toMatchObject({ name: "rtx4090", displayName: "RTX 4090" });
     });
+
+    it("fetches the catalog once across repeated calls", async () => {
+      const { service, httpClient } = setup();
+
+      await service.getGpuModels();
+      await service.getGpuModels();
+
+      expect(httpClient.get).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps its own fetch rather than reading the catalog cache the resolver uses", async () => {
+      const { service, httpClient } = setup();
+
+      await service.getGpuModelCatalog();
+      await service.getGpuModels();
+
+      expect(httpClient.get).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe("getGpuBreakdown", () => {
