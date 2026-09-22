@@ -1,6 +1,6 @@
 "use client";
 import type { FC } from "react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { useAtomValue } from "jotai";
 import { useParams, useSearchParams } from "next/navigation";
@@ -77,6 +77,8 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const hasTemplateFailed =
     (!!fetchedTemplateId && templateQuery.isError) ||
     (!!fetchedUserTemplateId && (userTemplateQuery.isError || (userTemplateQuery.isSuccess && !userTemplateQuery.data?.sdl)));
+  const [hasTemplateEverFailed, setHasTemplateEverFailed] = useState(false);
+  if (hasTemplateFailed && !hasTemplateEverFailed) setHasTemplateEverFailed(true);
 
   useEffect(
     function notifyOnTemplateError() {
@@ -98,17 +100,19 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
 
   /** The auto flow has no way to supply secret values, so an SDL that references any is edited in the form, which does. */
   const needsSecretValues = useMemo(() => isSecretsEnabled && !!initialSdl && secretReferenceNamesIn(initialSdl).size > 0, [isSecretsEnabled, initialSdl]);
+  /** Only the form saves a draft, and a failed template has already handed the session to it, so neither returns to auto when the template loads later. */
+  const isEditedInForm = isDraftRestored || hasTemplateEverFailed;
   const resolvedIntent = useMemo<DeploymentIntent>(
     () => ({
       templateId: intent.templateId,
       userTemplateId: intent.userTemplateId,
-      sdlStrategy: needsSecretValues ? "edit" : intent.sdlStrategy,
+      sdlStrategy: needsSecretValues || isEditedInForm ? "edit" : intent.sdlStrategy,
       bidStrategy: intent.bidStrategy,
       dseq: intent.dseq,
       draftId: draft.draftId,
       vm: intent.vm
     }),
-    [intent.templateId, intent.userTemplateId, intent.sdlStrategy, needsSecretValues, intent.bidStrategy, intent.dseq, draft.draftId, intent.vm]
+    [intent.templateId, intent.userTemplateId, intent.sdlStrategy, needsSecretValues, isEditedInForm, intent.bidStrategy, intent.dseq, draft.draftId, intent.vm]
   );
 
   const isAutoDeploy = resolvedIntent.sdlStrategy === "default" && resolvedIntent.bidStrategy === "auto";

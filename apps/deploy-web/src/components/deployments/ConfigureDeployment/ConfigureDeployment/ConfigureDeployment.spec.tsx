@@ -145,10 +145,10 @@ describe(ConfigureDeployment.name, () => {
 
   it("hands an auto-deploy intent to the manual form as an edit when its SDL references a secret", () => {
     const { AutoDeployFlow, ConfigureDeploymentForm, DeploymentFlowProvider } = setup({
-      templateId: helloWorldTemplate.code,
+      templateId: "tpl-1",
       sdlStrategy: "default",
       bidStrategy: "auto",
-      persistedSdl: SECRET_REFERENCE_SDL,
+      template: { isLoading: false, isError: false, data: mock<TemplateOutput>({ deploy: SECRET_REFERENCE_SDL }) },
       isSecretsEnabled: true
     });
 
@@ -177,15 +177,51 @@ describe(ConfigureDeployment.name, () => {
 
   it("keeps an auto-deploy intent on the auto flow when secrets are off, whatever its SDL references", () => {
     const { AutoDeployFlow, ConfigureDeploymentForm } = setup({
-      templateId: helloWorldTemplate.code,
+      templateId: "tpl-1",
       sdlStrategy: "default",
       bidStrategy: "auto",
-      persistedSdl: SECRET_REFERENCE_SDL,
+      template: { isLoading: false, isError: false, data: mock<TemplateOutput>({ deploy: SECRET_REFERENCE_SDL }) },
       isSecretsEnabled: false
     });
 
     expect(ConfigureDeploymentForm).not.toHaveBeenCalled();
     expect(AutoDeployFlow).toHaveBeenCalledWith(expect.objectContaining({ sdl: SECRET_REFERENCE_SDL }), expect.anything());
+  });
+
+  it("resumes a draft restored under an auto-deploy intent in the manual form as an edit", () => {
+    const { AutoDeployFlow, ConfigureDeploymentForm, DeploymentFlowProvider } = setup({
+      templateId: "tpl-1",
+      sdlStrategy: "default",
+      bidStrategy: "auto",
+      persistedSdl: "restored: sdl"
+    });
+
+    expect(AutoDeployFlow).not.toHaveBeenCalled();
+    expect(DeploymentFlowProvider).toHaveBeenCalledWith(
+      expect.objectContaining({ intent: expect.objectContaining({ sdlStrategy: "edit" }) }),
+      expect.anything()
+    );
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(
+      expect.objectContaining({ initialSdl: "restored: sdl", intent: expect.objectContaining({ sdlStrategy: "edit" }) }),
+      expect.anything()
+    );
+  });
+
+  it("keeps the manual form once an auto-deploy template has failed, even after the template loads", () => {
+    const { AutoDeployFlow, ConfigureDeploymentForm, loadTemplate } = setup({
+      templateId: "tpl-1",
+      sdlStrategy: "default",
+      bidStrategy: "auto",
+      template: { isLoading: false, isError: true }
+    });
+
+    loadTemplate({ isLoading: false, isError: false, data: mock<TemplateOutput>({ deploy: "version: '2.0'" }) });
+
+    expect(AutoDeployFlow).not.toHaveBeenCalled();
+    expect(ConfigureDeploymentForm).toHaveBeenLastCalledWith(
+      expect.objectContaining({ intent: expect.objectContaining({ sdlStrategy: "edit" }) }),
+      expect.anything()
+    );
   });
 
   it("hydrates the form from the fetched user template's SDL and title", () => {
@@ -262,7 +298,8 @@ describe(ConfigureDeployment.name, () => {
     const AutoDeployFlow = vi.fn(() => <div data-testid="auto-mock" />);
     const DeploymentFlowProvider = vi.fn(({ children }) => <>{children({ flow: mock<DeploymentFlow>() })}</>);
     const enqueueSnackbar = vi.fn();
-    const usePublicTemplate = vi.fn(() => mock<ReturnType<typeof DEPENDENCIES.usePublicTemplate>>(input.template as never));
+    let template = input.template;
+    const usePublicTemplate = vi.fn(() => mock<ReturnType<typeof DEPENDENCIES.usePublicTemplate>>(template as never));
     const useUserTemplate = vi.fn(() => mock<ReturnType<typeof DEPENDENCIES.useUserTemplate>>(input.userTemplate as never));
     const save = vi.fn();
     const clear = vi.fn();
@@ -304,12 +341,26 @@ describe(ConfigureDeployment.name, () => {
     const store = createStore();
     store.set(sdlStore.deploySdl, input.deploySdl ?? null);
 
-    render(
+    const renderScreen = () => (
       <JotaiStoreProvider store={store}>
         <ConfigureDeployment dependencies={dependencies} />
       </JotaiStoreProvider>
     );
+    const { rerender } = render(renderScreen());
+    const loadTemplate = (loaded: NonNullable<typeof input.template>) => {
+      template = loaded;
+      rerender(renderScreen());
+    };
 
-    return { ConfigureDeploymentForm, AutoDeployFlow, DeploymentFlowProvider, usePublicTemplate, useUserTemplate, useConfigureDraft, enqueueSnackbar };
+    return {
+      ConfigureDeploymentForm,
+      AutoDeployFlow,
+      DeploymentFlowProvider,
+      usePublicTemplate,
+      useUserTemplate,
+      useConfigureDraft,
+      enqueueSnackbar,
+      loadTemplate
+    };
   }
 });
