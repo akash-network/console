@@ -23,9 +23,6 @@ import { ProviderAttributesSchemaService } from "../provider-attributes-schema/p
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-/** provider-proxy answers with these when it cannot reach the provider at all, which is the provider being down rather than console-api failing. */
-const PROVIDER_UNREACHABLE_STATUSES = new Set([502, 503, 504]);
-
 @singleton()
 export class ProviderService {
   private readonly MANIFEST_SEND_MAX_RETRIES = 3;
@@ -104,10 +101,6 @@ export class ProviderService {
           if (err.response.status === 500) {
             status = 503;
             errorMessage = "Provider service is temporarily unavailable";
-          }
-
-          if (PROVIDER_UNREACHABLE_STATUSES.has(err.response.status)) {
-            status = 503;
           }
 
           throw createError(status, errorMessage, {

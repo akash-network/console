@@ -388,7 +388,7 @@ export class DeploymentWriterService {
     const { sdl, derived } = this.#storedSdlOf(input.sdl, "every-value-sealed", dseq);
 
     const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { isTrialing: !!wallet.isTrialing });
-    const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+    const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
     const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq, secrets: derived });
 
     await this.recordDefinition({ userId: wallet.userId, dseq, sdl, manifestVersion, sealedSecrets, name: input.name });
@@ -438,7 +438,7 @@ export class DeploymentWriterService {
     const merged = this.#mergeAndPrune({ held, supplied, derived }, document);
 
     const { manifestVersion, manifest } = await this.#resolveSdl(patchedSdl, { secrets: merged, isTrialing: !!wallet.isTrialing });
-    const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+    const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
 
     const recordedVersion = Buffer.from(manifestVersion).toString("base64");
     const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId, dseq, secrets: merged });
