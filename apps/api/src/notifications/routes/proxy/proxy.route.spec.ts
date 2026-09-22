@@ -4,9 +4,10 @@ import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletRepository } from "@src/billing/repositories";
+import { DEFAULT_BODY_LIMIT_BYTES } from "@src/core/config/body-limit.config";
 import type { AppContext } from "@src/core/types/app-context";
 import type { NotificationsConfig } from "@src/notifications/config/env.config";
-import { createProxy } from "@src/notifications/routes/proxy/proxy.route";
+import { createProxy, notificationsApiProxy } from "@src/notifications/routes/proxy/proxy.route";
 
 import { createAkashAddress } from "@test/seeders";
 
@@ -114,5 +115,38 @@ describe("createProxy", () => {
       fullUrl,
       body
     };
+  }
+});
+
+describe("notificationsApiProxy", () => {
+  it.each([
+    ["POST", "/v1/notification-channels"],
+    ["PATCH", `/v1/notification-channels/${faker.string.uuid()}`],
+    ["DELETE", `/v1/notification-channels/${faker.string.uuid()}`],
+    ["POST", "/v1/alerts"],
+    ["PATCH", `/v1/alerts/${faker.string.uuid()}`],
+    ["DELETE", `/v1/alerts/${faker.string.uuid()}`],
+    ["POST", "/v1/deployment-alerts"],
+    ["PATCH", `/v1/deployment-alerts/${faker.string.uuid()}`]
+  ])("responds with 413 to %s %s carrying a body over the limit", async (method, path) => {
+    const response = await requestWithBodyOf(DEFAULT_BODY_LIMIT_BYTES + 1, { method, path });
+
+    expect(response.status).toBe(413);
+  });
+
+  it("lets a body within the limit through to the handler", async () => {
+    const response = await requestWithBodyOf(DEFAULT_BODY_LIMIT_BYTES, { method: "POST", path: "/v1/notification-channels" });
+
+    expect(response.status).not.toBe(413);
+  });
+
+  function requestWithBodyOf(sizeInBytes: number, input: { method: string; path: string }) {
+    const body = "x".repeat(sizeInBytes);
+
+    return notificationsApiProxy.request(input.path, {
+      method: input.method,
+      body,
+      headers: { "content-length": String(body.length) }
+    });
   }
 });
