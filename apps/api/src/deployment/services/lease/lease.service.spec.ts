@@ -40,6 +40,16 @@ describe(LeaseService.name, () => {
       expect(result).toBe(deployment);
     });
 
+    it("asks no provider for a lease status before the manifest reaches it", async () => {
+      const { service, deploymentReaderService, wallet } = setup();
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+
+      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId });
+
+      expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledWith(wallet, lease.dseq);
+      expect(deploymentReaderService.findByWalletAndDseq).not.toHaveBeenCalled();
+    });
+
     it("skips lease creation but still sends the manifest when an active lease already exists", async () => {
       const { service, leaseHttpService, signerService, rpcMessageService, providerService, wallet, deployment } = setup();
       const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
@@ -231,7 +241,7 @@ describe(LeaseService.name, () => {
     walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
     leaseHttpService.list.mockResolvedValue({ leases: [], pagination: { next_key: null, total: "0" } });
     providerService.toProviderAuth.mockResolvedValue({ type: "jwt", token: "jwt-token" });
-    deploymentReaderService.findByWalletAndDseq.mockResolvedValue(deployment);
+    deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue(deployment);
 
     const service = new LeaseService(
       signerService,

@@ -52,7 +52,7 @@ export class LeaseService {
       await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, leaseMessages);
     }
 
-    const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+    const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
 
     for (const lease of leases) {
       await this.providerService.sendManifest({
