@@ -8,9 +8,11 @@ import { NextSeo } from "next-seo";
 import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
+import { useFlag } from "@src/hooks/useFlag";
 import { usePublicTemplate, useTemplate } from "@src/queries/useTemplateQuery";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
+import { secretReferenceNamesIn } from "@src/utils/sdl/sdlSecrets";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { AutoDeployFlow } from "../AutoDeployFlow/AutoDeployFlow";
 import { ConfigureDeploymentForm } from "../ConfigureDeploymentForm/ConfigureDeploymentForm";
@@ -33,7 +35,8 @@ export const DEPENDENCIES = {
   useSearchParams,
   useParams,
   useSnackbar,
-  Snackbar
+  Snackbar,
+  useFlag
 };
 
 type Props = {
@@ -58,19 +61,6 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const dseqSegment = Array.isArray(routeParams?.dseq) ? routeParams.dseq[0] : (routeParams?.dseq as string | undefined);
   const intent = parseDeploymentIntent({ dseqSegment, searchParams: new URLSearchParams(searchParams?.toString() ?? "") });
   const draft = d.useConfigureDraft(intent);
-  const resolvedIntent = useMemo<DeploymentIntent>(
-    () => ({
-      templateId: intent.templateId,
-      userTemplateId: intent.userTemplateId,
-      sdlStrategy: intent.sdlStrategy,
-      bidStrategy: intent.bidStrategy,
-      dseq: intent.dseq,
-      draftId: draft.draftId,
-      vm: intent.vm
-    }),
-    [intent.templateId, intent.userTemplateId, intent.sdlStrategy, intent.bidStrategy, intent.dseq, draft.draftId, intent.vm]
-  );
-
   const templateId = intent.templateId;
   const deploySdl = useAtomValue(sdlStore.deploySdl);
   const hardcodedTemplate: TemplateCreation | undefined = templateId ? hardcodedTemplates.find(template => template.code === templateId) : undefined;
@@ -80,6 +70,7 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const templateQuery = d.usePublicTemplate(fetchedTemplateId);
   const userTemplateQuery = d.useUserTemplate(fetchedUserTemplateId);
   const { enqueueSnackbar } = d.useSnackbar();
+  const isSecretsEnabled = d.useFlag("ui_deployment_secrets");
 
   const isFetchingTemplate = !!fetchedTemplateId || !!fetchedUserTemplateId;
   const isTemplateLoading = (!!fetchedTemplateId && templateQuery.isLoading) || (!!fetchedUserTemplateId && userTemplateQuery.isLoading);
@@ -104,6 +95,21 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const carriedInSdl = intent.vm ? undefined : deploySdl?.content;
   const initialSdl = draft.persistedSdl ?? hardcodedTemplate?.content ?? (isFetchingTemplate ? fetchedSdl : carriedInSdl);
   const initialName = draft.persistedName ?? hardcodedTemplate?.name ?? (isFetchingTemplate ? fetchedName : undefined);
+
+  /** The auto flow has no way to supply secret values, so an SDL that references any is edited in the form, which does. */
+  const needsSecretValues = useMemo(() => isSecretsEnabled && !!initialSdl && secretReferenceNamesIn(initialSdl).size > 0, [isSecretsEnabled, initialSdl]);
+  const resolvedIntent = useMemo<DeploymentIntent>(
+    () => ({
+      templateId: intent.templateId,
+      userTemplateId: intent.userTemplateId,
+      sdlStrategy: needsSecretValues ? "edit" : intent.sdlStrategy,
+      bidStrategy: intent.bidStrategy,
+      dseq: intent.dseq,
+      draftId: draft.draftId,
+      vm: intent.vm
+    }),
+    [intent.templateId, intent.userTemplateId, intent.sdlStrategy, needsSecretValues, intent.bidStrategy, intent.dseq, draft.draftId, intent.vm]
+  );
 
   const isAutoDeploy = resolvedIntent.sdlStrategy === "default" && resolvedIntent.bidStrategy === "auto";
   const templateName = templateQuery.data?.name ?? hardcodedTemplate?.title ?? "your deployment";
