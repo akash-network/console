@@ -42,6 +42,7 @@ const tamperAuthenticationTag = (wrappedKey: string) => {
 const FAILING_UNWRAPS = [
   { path: "the row is wrapped under a crypto key that is not the console's", input: { kid: FOREIGN_KID } },
   { path: "the key service is unreachable", input: { keyServiceStatus: grpc.status.UNAVAILABLE } },
+  { path: "the key service answers with an error", input: { keyServiceStatus: grpc.status.INTERNAL } },
   { path: "the key service rejects the encrypted key", input: { keyServiceStatus: grpc.status.INVALID_ARGUMENT } },
   { path: "the wrapped key is missing a segment", input: { mutateWrappedKey: dropAuthenticationTagSegment } },
   { path: "the wrapped key fails authentication", input: { mutateWrappedKey: tamperAuthenticationTag } },
@@ -424,6 +425,16 @@ describe(DataKeyUnwrapperService.name, () => {
 
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ event: "USER_DATA_KEY_UNWRAP_FAILED", failure: "KEY_SERVICE_UNREACHABLE", userId: USER_A })
+    );
+  });
+
+  it("rejects with 503 and names the failure as refused rather than unreachable when the key service answers with an error", async () => {
+    const { service, inRequest, logger } = setup({ keyServiceStatus: grpc.status.INTERNAL });
+
+    await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toMatchObject({ status: 503 }));
+
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "USER_DATA_KEY_UNWRAP_FAILED", failure: "KEY_SERVICE_REFUSED", versionName: sdlSecretsVersionPath("1"), userId: USER_A })
     );
   });
 

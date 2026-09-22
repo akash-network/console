@@ -138,6 +138,20 @@ describe(`${KmsWrappedJweService.name} against Cloud KMS`, () => {
     await expect(openedUnderTheWrongVersion).rejects.toThrow();
   });
 
+  it("reports a wrap the key service answered for but could not open as its answer rather than as an outage", async () => {
+    const { oldVersion, newVersion } = await enabledRotationPair();
+    const { createTestUser, consoleAt } = setup();
+    const user = await createTestUser();
+
+    const beforeRotation = consoleAt(oldVersion);
+    await beforeRotation.warmSealingKey();
+    const row = await beforeRotation.dataKeyService.ensureDataKey(user.id);
+
+    const openedUnderTheWrongVersion = beforeRotation.wrappedJwe.open(beforeRotation.wrappedJwe.parse(row.wrappedKey), versionPath(newVersion));
+
+    await expect(openedUnderTheWrongVersion).rejects.toMatchObject({ failure: expect.stringMatching(/^(KEY_SERVICE_REFUSED|ENCRYPTED_KEY_REJECTED)$/) });
+  });
+
   it("fails closed once the version a stored data key names is disabled", async () => {
     const retiredVersion = await createEnabledVersion();
     const { createTestUser, consoleAt } = setup();
@@ -193,8 +207,7 @@ describe(`${KmsWrappedJweService.name} against Cloud KMS`, () => {
         wrappedJwe,
         dataKeyService,
         warmSealingKey: async () => await sealingKeyService.getSealingKey(),
-        unwrapFor: async (userId: string) =>
-          await executionContextService.runWithContext(async () => await (await unwrapper.getDataKey(userId)).unwrap()),
+        unwrapFor: async (userId: string) => await executionContextService.runWithContext(async () => await (await unwrapper.getDataKey(userId)).unwrap()),
         openSeal: async (user: UserOutput, seal: string) =>
           await executionContextService.runWithContext(async () => {
             authService.currentUser = user;

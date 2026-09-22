@@ -24,6 +24,11 @@ const KEY_SERVICE_FAILURES = [
       kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("14 UNAVAILABLE"), { code: grpc.status.UNAVAILABLE }))
   },
   {
+    failure: "KEY_SERVICE_REFUSED",
+    breakKeyService: (kmsClient: MockProxy<SdlSecretsKmsClient>) =>
+      kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("13 INTERNAL: crypto/rsa: decryption error"), { code: grpc.status.INTERNAL }))
+  },
+  {
     failure: "ENCRYPTED_KEY_REJECTED",
     breakKeyService: (kmsClient: MockProxy<SdlSecretsKmsClient>) =>
       kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("3 INVALID_ARGUMENT"), { code: grpc.status.INVALID_ARGUMENT }))
@@ -227,6 +232,41 @@ describe(KmsWrappedJweService.name, () => {
       failure: "KEY_SERVICE_UNREACHABLE",
       details: { versionName: VERSION_NAME, error: unreachable }
     });
+  });
+
+  it.each([
+    { name: "DEADLINE_EXCEEDED", error: Object.assign(new Error("4 DEADLINE_EXCEEDED"), { code: grpc.status.DEADLINE_EXCEEDED }) },
+    { name: "CANCELLED", error: Object.assign(new Error("1 CANCELLED"), { code: grpc.status.CANCELLED }) },
+    { name: "no gRPC status", error: new Error("socket hang up") },
+    { name: "a socket error code", error: Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }) }
+  ])("reports a call that ended on $name as an unreachable key service", async ({ error }) => {
+    const { service, wrap, kmsClient } = setup();
+    kmsClient.asymmetricDecrypt.mockRejectedValue(error);
+
+    await expectFailure(service.open(service.parse(await wrap(randomBytes(32))), VERSION_NAME), "KEY_SERVICE_UNREACHABLE");
+  });
+
+  it("reports a key service that answered with an error separately from one that is unreachable, and carries the error for the caller to log", async () => {
+    const { service, wrap, kmsClient } = setup();
+    const answered = Object.assign(new Error("13 INTERNAL: crypto/rsa: decryption error"), { code: grpc.status.INTERNAL });
+    kmsClient.asymmetricDecrypt.mockRejectedValue(answered);
+
+    await expect(service.open(service.parse(await wrap(randomBytes(32))), VERSION_NAME)).rejects.toMatchObject({
+      failure: "KEY_SERVICE_REFUSED",
+      details: { versionName: VERSION_NAME, error: answered }
+    });
+  });
+
+  it.each([
+    { name: "UNKNOWN", code: grpc.status.UNKNOWN },
+    { name: "PERMISSION_DENIED", code: grpc.status.PERMISSION_DENIED },
+    { name: "UNAUTHENTICATED", code: grpc.status.UNAUTHENTICATED },
+    { name: "RESOURCE_EXHAUSTED", code: grpc.status.RESOURCE_EXHAUSTED }
+  ])("reports a key service that answered $name as having refused rather than as unreachable", async ({ name, code }) => {
+    const { service, wrap, kmsClient } = setup();
+    kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error(`${code} ${name}`), { code }));
+
+    await expectFailure(service.open(service.parse(await wrap(randomBytes(32))), VERSION_NAME), "KEY_SERVICE_REFUSED");
   });
 
   it("reports a key service that could not verify the request checksum", async () => {

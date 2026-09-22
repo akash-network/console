@@ -293,6 +293,17 @@ describe(SdlSecretsUnsealerService.name, () => {
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SDL_SECRETS_CEK_UNWRAP_FAILED" }));
   });
 
+  it("fails with 503 without claiming KMS is unreachable when KMS answers with an error", async () => {
+    const { open, seal, kmsClient, logger } = setup();
+    const answered = Object.assign(new Error("13 INTERNAL: crypto/rsa: decryption error"), { code: grpc.status.INTERNAL });
+    kmsClient.asymmetricDecrypt.mockRejectedValue(answered);
+
+    const rejection = open(await seal({ TOKEN: "t" }));
+
+    await expect(rejection).rejects.toMatchObject({ status: 503, message: "SDL secrets could not be unsealed" });
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SDL_SECRETS_CEK_UNWRAP_REFUSED", error: answered }));
+  });
+
   it("rejects a seal whose initialization vector is empty without spending an unwrap", async () => {
     const { open, seal, kmsClient } = setup();
     const parts = (await seal({ TOKEN: "t" })).split(".");
@@ -484,7 +495,12 @@ describe(SdlSecretsUnsealerService.name, () => {
     const createLogger: CreateLogger = () => logger;
 
     const kmsTarget = createTestSdlSecretsKmsTarget({ client: kmsClient, version: input?.configuredVersion });
-    const service = new SdlSecretsUnsealerService(kmsTarget, new KmsWrappedJweService(kmsTarget, mock<KmsWrappedJweInstrumentationService>()), authService, createLogger);
+    const service = new SdlSecretsUnsealerService(
+      kmsTarget,
+      new KmsWrappedJweService(kmsTarget, mock<KmsWrappedJweInstrumentationService>()),
+      authService,
+      createLogger
+    );
     const open = (seal: string, sdl = SDL) => service.open({ seal, sdl });
 
     return { open, kmsClient, authService, logger, seal, sealRaw, assembleSeal, privateKey, clientSecrets };
