@@ -466,7 +466,7 @@ describe(ProviderService.name, () => {
       const { service, providerRepository, providerProxyService } = setup();
       providerRepository.findActiveByAddress.mockResolvedValue(null);
 
-      await expect(service.assertReachable("akash1unknown")).rejects.toMatchObject({ status: 404 });
+      await expect(service.assertReachable("akash1unknown")).rejects.toMatchObject({ status: 404, message: "Provider akash1unknown not found" });
       expect(providerProxyService.request).not.toHaveBeenCalled();
     });
 
