@@ -1,6 +1,5 @@
 import type { SDLInput } from "@akashnetwork/chain-sdk";
 import { describe, expect, it } from "vitest";
-import { mock } from "vitest-mock-extended";
 
 import { findGpuServices } from "./sdl-gpu-services";
 
@@ -61,6 +60,6 @@ describe("findGpuServices", () => {
       Object.entries(input.compute).map(([name, profile]) => [name, { resources: profile.gpu === undefined ? {} : { gpu: { units: profile.gpu } } }])
     );
 
-    return mock<SDLInput>({ deployment: input.deployment, profiles: { compute } });
+    return { deployment: input.deployment, profiles: { compute } } as unknown as SDLInput;
   }
 });

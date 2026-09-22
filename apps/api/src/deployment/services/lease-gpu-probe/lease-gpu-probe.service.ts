@@ -4,10 +4,7 @@ import { type GpuProbeReading, parseGpuProbeOutput } from "@src/deployment/lib/g
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { type CollectedFrame, ProviderStreamService, type ProviderStreamStatus } from "@src/workload-abuse/services/provider-stream/provider-stream.service";
 
-/**
- * Reads the card and nothing running on it: no process listing, no compute-apps query, no filesystem. Both tools ride
- * one session, so covering amd costs a `command -v` that fails rather than a second round trip.
- */
+/** Asks the card what it is and never what runs on it, because this shell opens inside a paying customer's workload. */
 const GPU_COLLECTOR = [
   "if command -v nvidia-smi >/dev/null 2>&1; then",
   "echo '--nvidia';",

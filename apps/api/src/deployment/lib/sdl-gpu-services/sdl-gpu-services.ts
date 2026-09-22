@@ -1,9 +1,5 @@
 import type { SDLInput } from "@akashnetwork/chain-sdk";
 
-/**
- * Names the services of one placement whose compute profile asks for a gpu, so a probe opens a shell only where
- * there is hardware to report and a ten service deployment costs one session rather than ten.
- */
 export function findGpuServices(sdl: SDLInput | null | undefined, placement: string): string[] {
   const deployment = sdl?.deployment;
   const computeProfiles = sdl?.profiles?.compute;

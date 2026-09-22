@@ -170,9 +170,9 @@ describe(LeaseGpuProbeService.name, () => {
       chmodSync(path, 0o755);
     }
 
-    const { stdout, status } = spawnSync("sh", ["-c", collectorOf(buildLeaseGpuProbeUrl(TARGET))], {
+    const { stdout, status } = spawnSync("/bin/sh", ["-c", collectorOf(buildLeaseGpuProbeUrl(TARGET))], {
       encoding: "utf8",
-      env: { PATH: `${directory}:/usr/bin:/bin` }
+      env: { PATH: directory }
     });
 
     const output = stdout

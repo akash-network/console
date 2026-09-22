@@ -411,6 +411,10 @@ describe("deployment envSchema", () => {
     it("rejects anything that is neither", () => {
       expect(() => envSchema.parse(setup({ LEASE_GPU_DETECTION_ENABLED: "yes" }))).toThrow();
     });
+
+    it("stays off when the variable is set but blank", () => {
+      expect(envSchema.parse(setup({ LEASE_GPU_DETECTION_ENABLED: "" })).LEASE_GPU_DETECTION_ENABLED).toBe("false");
+    });
   });
 
   describe("LEASE_GPU_DETECTION_DELAYS_MIN", () => {
@@ -440,8 +444,9 @@ describe("deployment envSchema", () => {
       ["LEASE_GPU_DETECTION_HARD_TIMEOUT_MS", 10_000],
       ["LEASE_GPU_DETECTION_MAX_OUTPUT_BYTES", 8_192],
       ["LEASE_GPU_DETECTION_PROVIDER_JWT_TTL_SECONDS", 120]
-    ])("defaults %s to %i", (key, expected) => {
+    ])("defaults %s to %i when it is unset or blank", (key, expected) => {
       expect(envSchema.parse(setup())[key as "LEASE_GPU_DETECTION_MAX_SERVICES_PER_LEASE"]).toBe(expected);
+      expect(envSchema.parse(setup({ [key]: "" }))[key as "LEASE_GPU_DETECTION_MAX_SERVICES_PER_LEASE"]).toBe(expected);
     });
 
     it.each([
