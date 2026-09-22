@@ -2,7 +2,7 @@ import { singleton } from "tsyringe";
 
 import { type GpuProbeReading, parseGpuProbeOutput } from "@src/deployment/lib/gpu-probe-output/gpu-probe-output";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
-import { ProviderStreamService, type ProviderStreamStatus } from "@src/workload-abuse/services/provider-stream/provider-stream.service";
+import { type CollectedFrame, ProviderStreamService, type ProviderStreamStatus } from "@src/workload-abuse/services/provider-stream/provider-stream.service";
 
 /**
  * Reads the card and nothing running on it: no process listing, no compute-apps query, no filesystem. Both tools ride
@@ -29,7 +29,7 @@ export type LeaseGpuProbeTarget = {
   service: string;
 };
 
-/** A probe that never reached the workload is distinct from one that did and found nothing, because only the second is a reading. */
+/** Only a session whose tool ran to a clean exit is a reading, because one cut short or failing lists fewer cards than the host has. */
 export type LeaseGpuProbeResult = { status: "detected"; reading: GpuProbeReading } | { status: ProviderStreamStatus | "unreadable" };
 
 export function buildLeaseGpuProbeUrl(target: LeaseGpuProbeTarget): string {
@@ -55,14 +55,16 @@ export class LeaseGpuProbeService {
       maxBytes: this.config.get("LEASE_GPU_DETECTION_MAX_OUTPUT_BYTES")
     });
 
-    const output = result.frames
-      .filter(frame => frame.kind === "shell" && (frame.stream === "stdout" || frame.stream === "stderr"))
-      .map(frame => frame.payload)
-      .join("");
+    if (result.status !== "completed") return { status: result.status };
 
-    const reading = parseGpuProbeOutput(output);
-    if (!reading) return { status: result.status === "completed" ? "unreadable" : result.status };
-
-    return { status: "detected", reading };
+    const reading = result.exitCode === 0 ? parseGpuProbeOutput(readShellOutput(result.frames)) : null;
+    return reading ? { status: "detected", reading } : { status: "unreadable" };
   }
+}
+
+function readShellOutput(frames: CollectedFrame[]): string {
+  return frames
+    .filter(frame => frame.kind === "shell" && frame.stream === "stdout")
+    .map(frame => frame.payload)
+    .join("");
 }

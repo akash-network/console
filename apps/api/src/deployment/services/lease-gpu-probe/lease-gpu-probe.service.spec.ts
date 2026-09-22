@@ -41,35 +41,60 @@ describe(LeaseGpuProbeService.name, () => {
 
   describe("the collector as a shell program", () => {
     it("reports the cards nvidia-smi lists", () => {
-      const output = runCollector({ "nvidia-smi": `printf '${NVIDIA_LINE}\\n'` });
-
-      expect(output).toEqual(["--nvidia", NVIDIA_LINE]);
+      expect(runCollector({ "nvidia-smi": `printf '${NVIDIA_LINE}\\n'` })).toEqual({ output: ["--nvidia", NVIDIA_LINE], exitCode: 0 });
     });
 
     it("falls through to rocm-smi when only that one is installed", () => {
-      const output = runCollector({ "rocm-smi": "printf 'device,Card Series\\ncard0,Instinct MI100\\n'" });
-
-      expect(output).toEqual(["--amd", "device,Card Series", "card0,Instinct MI100"]);
+      expect(runCollector({ "rocm-smi": "printf 'device,Card Series\\ncard0,Instinct MI100\\n'" })).toEqual({
+        output: ["--amd", "device,Card Series", "card0,Instinct MI100"],
+        exitCode: 0
+      });
     });
 
     it("prefers nvidia-smi when a container carries both", () => {
-      const output = runCollector({ "nvidia-smi": `printf '${NVIDIA_LINE}\\n'`, "rocm-smi": "printf 'unexpected\\n'" });
-
-      expect(output).toEqual(["--nvidia", NVIDIA_LINE]);
+      expect(runCollector({ "nvidia-smi": `printf '${NVIDIA_LINE}\\n'`, "rocm-smi": "printf 'unexpected\\n'" })).toEqual({
+        output: ["--nvidia", NVIDIA_LINE],
+        exitCode: 0
+      });
     });
 
     it("says so when the container has neither", () => {
-      expect(runCollector({})).toEqual(["gpu: unavailable"]);
+      expect(runCollector({})).toEqual({ output: ["gpu: unavailable"], exitCode: 0 });
     });
 
-    it("says so when the only tool present fails", () => {
-      expect(runCollector({ "nvidia-smi": "exit 9" })).toEqual(["--nvidia"]);
+    it("exits with the status of a tool that fails", () => {
+      expect(runCollector({ "nvidia-smi": "exit 9" })).toEqual({ output: ["--nvidia"], exitCode: 9 });
     });
   });
 
   describe("probe", () => {
     it("reads the cards the workload reported", async () => {
-      const { service } = setup({ status: "completed", frames: [{ kind: "shell", stream: "stdout", payload: `--nvidia\n${NVIDIA_LINE}\n` }] });
+      const { service } = setup({ status: "completed", exitCode: 0, frames: [{ kind: "shell", stream: "stdout", payload: `--nvidia\n${NVIDIA_LINE}\n` }] });
+
+      const result = await service.probe(TARGET);
+
+      expect(result).toEqual({
+        status: "detected",
+        reading: {
+          source: "nvidia-smi",
+          driverVersion: "550.54.15",
+          gpus: [{ rawName: "NVIDIA H100 80GB HBM3", pciDeviceId: "0x233010DE", memoryMb: 81559, count: 1 }]
+        }
+      });
+    });
+
+    it("reads stdout alone, so a line the provider split across frames stays whole around anything else on the stream", async () => {
+      const { service } = setup({
+        status: "completed",
+        exitCode: 0,
+        frames: [
+          { kind: "shell", stream: "stdout", payload: "--nvidia\nNVIDIA H100 80GB HBM3, 81559, " },
+          { kind: "shell", stream: "stderr", payload: "sh: warning\n" },
+          { kind: "text", payload: "provider notice" },
+          { kind: "shell", stream: "stdout", payload: "550.54.15, 0x233010DE\n" },
+          { kind: "shell", stream: "result", payload: '{"exit_code":0}' }
+        ]
+      });
 
       const result = await service.probe(TARGET);
 
@@ -84,7 +109,7 @@ describe(LeaseGpuProbeService.name, () => {
     });
 
     it("reads a container without a gpu tool as a reading rather than a failure", async () => {
-      const { service } = setup({ status: "completed", frames: [{ kind: "shell", stream: "stdout", payload: "gpu: unavailable\n" }] });
+      const { service } = setup({ status: "completed", exitCode: 0, frames: [{ kind: "shell", stream: "stdout", payload: "gpu: unavailable\n" }] });
 
       const result = await service.probe(TARGET);
 
@@ -97,8 +122,26 @@ describe(LeaseGpuProbeService.name, () => {
       await expect(service.probe(TARGET)).resolves.toEqual({ status: "invalid_certificate" });
     });
 
+    it.each(["output_capped", "idle_timeout", "hard_timeout"] as const)("reports a session cut short by %s rather than the cards it got to", async status => {
+      const { service } = setup({ status, frames: [{ kind: "shell", stream: "stdout", payload: `--nvidia\n${NVIDIA_LINE}\n` }] });
+
+      await expect(service.probe(TARGET)).resolves.toEqual({ status });
+    });
+
     it("reports a session that completed with nothing it could read", async () => {
-      const { service } = setup({ status: "completed", frames: [{ kind: "shell", stream: "stderr", payload: "sh: 1: not found\n" }] });
+      const { service } = setup({ status: "completed", exitCode: 0, frames: [{ kind: "shell", stream: "stderr", payload: "sh: 1: not found\n" }] });
+
+      await expect(service.probe(TARGET)).resolves.toEqual({ status: "unreadable" });
+    });
+
+    it("reports a tool that failed as unreadable rather than as a host without cards", async () => {
+      const { service } = setup({ status: "completed", exitCode: 9, frames: [{ kind: "shell", stream: "stdout", payload: "--nvidia\n" }] });
+
+      await expect(service.probe(TARGET)).resolves.toEqual({ status: "unreadable" });
+    });
+
+    it("reports a session the provider closed without an exit status as unreadable", async () => {
+      const { service } = setup({ status: "completed", frames: [{ kind: "shell", stream: "stdout", payload: `--nvidia\n${NVIDIA_LINE}\n` }] });
 
       await expect(service.probe(TARGET)).resolves.toEqual({ status: "unreadable" });
     });
@@ -127,15 +170,17 @@ describe(LeaseGpuProbeService.name, () => {
       chmodSync(path, 0o755);
     }
 
-    const { stdout } = spawnSync("sh", ["-c", collectorOf(buildLeaseGpuProbeUrl(TARGET))], {
+    const { stdout, status } = spawnSync("sh", ["-c", collectorOf(buildLeaseGpuProbeUrl(TARGET))], {
       encoding: "utf8",
       env: { PATH: `${directory}:/usr/bin:/bin` }
     });
 
-    return stdout
+    const output = stdout
       .split("\n")
       .filter(line => line.trim())
       .map(line => line.trimEnd());
+
+    return { output, exitCode: status };
   }
 
   function setup(result: ProviderStreamResult) {
