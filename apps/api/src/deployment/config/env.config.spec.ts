@@ -399,6 +399,68 @@ describe("deployment envSchema", () => {
     });
   });
 
+  describe("LEASE_GPU_DETECTION_ENABLED", () => {
+    it("is off unless an environment asks for it", () => {
+      expect(envSchema.parse(setup()).LEASE_GPU_DETECTION_ENABLED).toBe("false");
+    });
+
+    it("accepts being turned on", () => {
+      expect(envSchema.parse(setup({ LEASE_GPU_DETECTION_ENABLED: "true" })).LEASE_GPU_DETECTION_ENABLED).toBe("true");
+    });
+
+    it("rejects anything that is neither", () => {
+      expect(() => envSchema.parse(setup({ LEASE_GPU_DETECTION_ENABLED: "yes" }))).toThrow();
+    });
+
+    it("stays off when the variable is set but blank", () => {
+      expect(envSchema.parse(setup({ LEASE_GPU_DETECTION_ENABLED: "" })).LEASE_GPU_DETECTION_ENABLED).toBe("false");
+    });
+  });
+
+  describe("LEASE_GPU_DETECTION_DELAYS_MIN", () => {
+    it("defaults to a ladder sized for a slow image pull", () => {
+      expect(envSchema.parse(setup()).LEASE_GPU_DETECTION_DELAYS_MIN).toEqual([3, 15, 60]);
+    });
+
+    it("falls back to that ladder when the variable is set but blank", () => {
+      expect(envSchema.parse(setup({ LEASE_GPU_DETECTION_DELAYS_MIN: "" })).LEASE_GPU_DETECTION_DELAYS_MIN).toEqual([3, 15, 60]);
+    });
+
+    it("reads a list of its own", () => {
+      expect(envSchema.parse(setup({ LEASE_GPU_DETECTION_DELAYS_MIN: "1, 2,5" })).LEASE_GPU_DETECTION_DELAYS_MIN).toEqual([1, 2, 5]);
+    });
+
+    it("rejects a list carrying something that is not a whole number of minutes", () => {
+      expectRejected(setup({ LEASE_GPU_DETECTION_DELAYS_MIN: "3,later" }), "LEASE_GPU_DETECTION_DELAYS_MIN");
+      expectRejected(setup({ LEASE_GPU_DETECTION_DELAYS_MIN: "3,-1" }), "LEASE_GPU_DETECTION_DELAYS_MIN");
+    });
+  });
+
+  describe("the bounds one probe run is held to", () => {
+    it.each([
+      ["LEASE_GPU_DETECTION_MAX_LEASES_PER_DEPLOYMENT", 4],
+      ["LEASE_GPU_DETECTION_MAX_SERVICES_PER_LEASE", 4],
+      ["LEASE_GPU_DETECTION_IDLE_TIMEOUT_MS", 3_000],
+      ["LEASE_GPU_DETECTION_HARD_TIMEOUT_MS", 10_000],
+      ["LEASE_GPU_DETECTION_MAX_OUTPUT_BYTES", 8_192],
+      ["LEASE_GPU_DETECTION_PROVIDER_JWT_TTL_SECONDS", 120]
+    ])("defaults %s to %i when it is unset or blank", (key, expected) => {
+      expect(envSchema.parse(setup())[key as "LEASE_GPU_DETECTION_MAX_SERVICES_PER_LEASE"]).toBe(expected);
+      expect(envSchema.parse(setup({ [key]: "" }))[key as "LEASE_GPU_DETECTION_MAX_SERVICES_PER_LEASE"]).toBe(expected);
+    });
+
+    it.each([
+      "LEASE_GPU_DETECTION_MAX_LEASES_PER_DEPLOYMENT",
+      "LEASE_GPU_DETECTION_MAX_SERVICES_PER_LEASE",
+      "LEASE_GPU_DETECTION_IDLE_TIMEOUT_MS",
+      "LEASE_GPU_DETECTION_HARD_TIMEOUT_MS",
+      "LEASE_GPU_DETECTION_MAX_OUTPUT_BYTES",
+      "LEASE_GPU_DETECTION_PROVIDER_JWT_TTL_SECONDS"
+    ])("rejects a %s that would probe nothing", key => {
+      expectRejected(setup({ [key]: "0" }), key);
+    });
+  });
+
   function expectRejected(env: Record<string, unknown>, key: string) {
     const result = envSchema.safeParse(env);
 
