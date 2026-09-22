@@ -294,12 +294,14 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   );
   /** Import is only meaningful while the deployment is still editable; export stays available in every phase. */
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
+  /** Nothing resolves a reference with the feature off, so a kept name has to read as one nothing answers for. */
+  const resolvableInheritedSecrets = isSecretsEnabled ? inheritedSecrets : null;
 
   return (
     <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col">
       <d.NextSeo title="Configure your deployment" />
       <FormProvider {...form}>
-        <InheritedSecretsProvider value={inheritedSecrets}>
+        <InheritedSecretsProvider value={resolvableInheritedSecrets}>
           <div className="relative flex min-h-0 flex-1 flex-col">
             <div className="px-6 pt-6">
               <d.ConfigureDeploymentBackButton />

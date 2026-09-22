@@ -10,6 +10,7 @@ import { defaultService } from "@src/utils/sdl/data";
 import { ConfigurationPane } from "../ConfigurationPane/ConfigurationPane";
 import { usePlacementManager } from "../DeploymentPane/usePlacementManager/usePlacementManager";
 import { importDeploymentState } from "../importDeploymentState/importDeploymentState";
+import { useInheritedSecrets } from "../InheritedSecretsProvider/InheritedSecretsProvider";
 import type { DeploymentFlow, FlowErrorKind } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./ConfigureDeploymentForm";
 import { ConfigureDeploymentForm, firstBidReadyServiceId, nextUndoneServiceId } from "./ConfigureDeploymentForm";
@@ -54,6 +55,12 @@ const VALID_SDL = [
 const CREDENTIALS_SDL = VALID_SDL.replace(
   "    image: nginx:1.0",
   ["    image: nginx:1.0", "    credentials:", "      host: ghcr.io", "      username: alice", "      password: hunter22"].join("\n")
+);
+
+/** The valid SDL as the api records it once a registry password has been sealed away, so it reaches Configure carrying a reference. */
+const INHERITED_REFERENCE_SDL = VALID_SDL.replace(
+  "    image: nginx:1.0",
+  ["    image: nginx:1.0", "    credentials:", "      host: ghcr.io", "      username: alice", "      password: ac-secret://c_password"].join("\n")
 );
 
 const TWO_SERVICE_SDL = [
@@ -316,6 +323,20 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" }));
     const toast = enqueueSnackbar.mock.calls[0][0] as { props: { title: string; subTitle: string } };
     expect(toast.props).toMatchObject({ title: "The previous deployment's secrets can't be reused", subTitle: message });
+  });
+
+  it("offers a redeploy's inherited secret names to the panes while the secrets feature is on", () => {
+    setup({ initialSdl: INHERITED_REFERENCE_SDL, persistedInheritSecretsFrom: "123", secretsEnabled: true, Panes: InheritedSecretsProbePanes });
+
+    expect(screen.getByTestId("inherited-source").textContent).toBe("123");
+    expect(screen.getByTestId("inherited-names").textContent).toBe("c_password");
+  });
+
+  it("offers no inherited secret names while the secrets feature is off, so a kept reference still reads as needing a value", () => {
+    setup({ initialSdl: INHERITED_REFERENCE_SDL, persistedInheritSecretsFrom: "123", Panes: InheritedSecretsProbePanes });
+
+    expect(screen.getByTestId("inherited-source").textContent).toBe("");
+    expect(screen.getByTestId("inherited-names").textContent).toBe("");
   });
 
   it("clears the configure draft once the deployment is deployed", () => {
@@ -862,6 +883,17 @@ function ImportProbePanes({ sdl, selectedServiceId, configurationActions }: Prob
       <div data-testid="sdl">{sdl}</div>
       <div data-testid="selected">{selectedServiceId}</div>
       {configurationActions}
+    </div>
+  );
+}
+
+/** Panes stand-in that reports what the inherited-secrets context hands the configuration cards. */
+function InheritedSecretsProbePanes() {
+  const inherited = useInheritedSecrets();
+  return (
+    <div>
+      <div data-testid="inherited-source">{inherited?.sourceDseq ?? ""}</div>
+      <div data-testid="inherited-names">{[...(inherited?.names ?? [])].join(",")}</div>
     </div>
   );
 }
