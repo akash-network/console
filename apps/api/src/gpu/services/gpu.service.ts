@@ -88,9 +88,11 @@ export class GpuService {
     return response.data;
   }
 
-  /** Not memoized: the catalog fetch it reads is, and stacking two stale-while-revalidate caches on one ttl serves stale models a cycle longer. */
+  /** Fetches on its own rather than through `getGpuModelCatalog`, since nesting two stale-while-revalidate caches serves a stale list a cycle longer. */
+  @Memoize({ ttlInSeconds: minutesToSeconds(2) })
   async getGpuModels() {
-    return this.gpuFormattingService.mapProviderConfig(await this.getGpuModelCatalog());
+    const response = await this.httpClient.get<ProviderConfigGpusType>("/gpus.json");
+    return this.gpuFormattingService.mapProviderConfig(response.data);
   }
 
   readonly getGpuBreakdown = memoizeAsync((query: GpuBreakdownQuery) => this.gpuRepository.getGpuBreakdown(query), {

@@ -31,6 +31,15 @@ describe(GpuService.name, () => {
 
       expect(httpClient.get).toHaveBeenCalledTimes(1);
     });
+
+    it("keeps its own fetch rather than reading the catalog cache the resolver uses", async () => {
+      const { service, httpClient } = setup();
+
+      await service.getGpuModelCatalog();
+      await service.getGpuModels();
+
+      expect(httpClient.get).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe("getGpuBreakdown", () => {

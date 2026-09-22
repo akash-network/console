@@ -31,23 +31,23 @@ const UNRESOLVED: ResolvedGpuModel = { vendor: null, model: null, interface: nul
 /** Brand words a driver prints that no sdl model key carries. */
 const BRAND_TOKENS = /\b(nvidia|tesla|geforce|quadro|amd|radeon|instinct|advanced micro devices)\b/g;
 
-/** Words a vendor adds to a product name that name an architecture or a packaging rather than the model. */
-const MARKETING_TOKENS = /\b(blackwell|hopper|ampere|ada|lovelace|server|edition|graphics|generation)\b/g;
+/** Architecture and packaging words no catalog key carries; `ada` is not one, since the catalog keys its Ada workstation cards on it. */
+const MARKETING_TOKENS = /\b(blackwell|hopper|ampere|lovelace|server|edition|graphics|generation)\b/g;
 
 const MEMORY_TOKENS = /\b(\d+\s?gb|hbm\d*e?|gddr\d*x?)\b/g;
 
-/** `nvl` names a pcie board bridged with nvlink rather than a packaging of its own, and the catalog lists only some of those cards. */
+/** The catalog shortens a SUPER card to an `s` suffix, as in `rtx4080s`. */
+const SUPER_TOKEN = /\bsuper\b/g;
+
 const FORM_FACTORS = [
   { matcher: /\bsxm\d*\b/, name: "sxm" },
   { matcher: /\boam\b/, name: "oam" },
-  { matcher: /\bpcie\b/, name: "pcie" },
-  { matcher: /\bnvl\b/, name: "pcie" }
+  { matcher: /\bpcie\b/, name: "pcie" }
 ] as const;
 
-/** Product names that carry a suffix or a word order the catalog keys do not. */
+/** Cards the catalog keys unlike their siblings, as `a5000` beside `rtxa6000`. */
 const MODEL_ALIASES: Record<string, string> = {
-  rtxpro6000: "pro6000",
-  rtxpro6000se: "pro6000se"
+  rtxa5000: "a5000"
 };
 
 export function buildGpuCatalogIndex(config: ProviderConfigGpusType): GpuCatalogIndex {
@@ -87,15 +87,11 @@ export function resolveGpuModel(identity: DetectedGpuIdentity, index: GpuCatalog
   return entry ? toResolved(entry, formFactor) : UNRESOLVED;
 }
 
+/** Exact or aliased only: stripping a suffix reads an `rtx4080super` as the `rtx4080` the catalog lists as a different card. */
 function findByModelKey(key: string, index: GpuCatalogIndex): GpuCatalogEntry | undefined {
   if (!key) return undefined;
 
-  return (
-    index.byModel.get(key) ??
-    index.byModel.get(MODEL_ALIASES[key]) ??
-    index.byModel.get(key.replace(/[a-z]{2,}$/, "")) ??
-    index.byModel.get(key.replace(/[a-z]$/, ""))
-  );
+  return index.byModel.get(key) ?? index.byModel.get(MODEL_ALIASES[key]);
 }
 
 function toResolved(entry: GpuCatalogEntry, formFactor: string | null): ResolvedGpuModel {
@@ -111,6 +107,7 @@ function toModelKey(rawName: string): { key: string; formFactor: string | null }
     .replace(BRAND_TOKENS, " ")
     .replace(MARKETING_TOKENS, " ")
     .replace(MEMORY_TOKENS, " ")
+    .replace(SUPER_TOKEN, "s")
     .replace(/\bsxm\d*\b|\boam\b|\bpcie\b/g, " ")
     .replace(/[^a-z0-9]/g, "");
 

@@ -14,9 +14,12 @@ const CATALOG: ProviderConfigGpusType = {
       "2335": { name: "h200", memory_size: "141Gi", interface: "SXM5" },
       "233b": { name: "h200nvl", memory_size: "141Gi", interface: "PCIe" },
       "2684": { name: "rtx4090", memory_size: "24Gi", interface: "PCIe" },
-      "26b9": { name: "l40s", memory_size: "48Gi", interface: "PCIe" },
-      "2bb1": { name: "pro6000", memory_size: "96Gi", interface: "PCIe" },
-      "2236": { name: "a10", memory_size: "24Gi", interface: "PCIe" }
+      "2702": { name: "rtx4080s", memory_size: "16Gi", interface: "PCIe" },
+      "2704": { name: "rtx4080", memory_size: "16Gi", interface: "PCIe" },
+      "1eb1": { name: "rtx4000", memory_size: "8Gi", interface: "PCIe" },
+      "27b2": { name: "rtx4000ada", memory_size: "20Gi", interface: "PCIe" },
+      "1e30": { name: "rtx6000", memory_size: "24Gi", interface: "PCIe" },
+      "2231": { name: "a5000", memory_size: "24Gi", interface: "PCIe" }
     }
   },
   "1002": {
@@ -35,16 +38,22 @@ describe("resolveGpuModel", () => {
       ["NVIDIA A100-SXM4-40GB", "a100", "sxm"],
       ["NVIDIA GeForce RTX 4090", "rtx4090", "pcie"],
       ["Tesla T4", "t4", "pcie"],
-      ["NVIDIA L40S", "l40s", "pcie"],
       ["NVIDIA H100 PCIe", "h100", "pcie"],
       ["NVIDIA H200 NVL", "h200nvl", "pcie"],
-      ["NVIDIA H100 NVL", "h100", "pcie"],
-      ["NVIDIA A10G", "a10", "pcie"],
-      ["NVIDIA RTX PRO 6000 Blackwell Server Edition", "pro6000", "pcie"]
+      ["NVIDIA GeForce RTX 4080", "rtx4080", "pcie"],
+      ["NVIDIA GeForce RTX 4080 SUPER", "rtx4080s", "pcie"],
+      ["NVIDIA RTX 4000 Ada Generation", "rtx4000ada", "pcie"],
+      ["NVIDIA RTX A5000", "a5000", "pcie"]
     ])("reads %s as %s", (rawName, model, gpuInterface) => {
       const resolved = resolveGpuModel({ rawName, pciDeviceId: null }, setup());
 
       expect(resolved).toEqual({ vendor: "nvidia", model, interface: gpuInterface });
+    });
+
+    it.each(["NVIDIA H100 NVL", "NVIDIA RTX 6000 Ada Generation"])("leaves %s unresolved rather than reading it as a model the catalog lists", rawName => {
+      const resolved = resolveGpuModel({ rawName, pciDeviceId: null }, setup());
+
+      expect(resolved).toEqual({ vendor: null, model: null, interface: null });
     });
 
     it("resolves an amd product name through the same path", () => {
