@@ -11396,6 +11396,42 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             },
             "description": "Leases created and manifest sent",
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "data": {
+                      "additionalProperties": {
+                        "nullable": true,
+                      },
+                      "type": "object",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "A provider could not be reached. \`provider_unreachable\`: no lease was created, choose another bid. \`manifest_not_delivered\`: the lease exists but its provider did not receive the manifest; send the same request again to retry, or close the deployment",
+          },
         },
         "security": [
           {

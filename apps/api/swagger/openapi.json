@@ -10385,6 +10385,42 @@
                 }
               }
             }
+          },
+          "502": {
+            "description": "A provider could not be reached. `provider_unreachable`: no lease was created, choose another bid. `manifest_not_delivered`: the lease exists but its provider did not receive the manifest; send the same request again to retry, or close the deployment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
           }
         }
       }

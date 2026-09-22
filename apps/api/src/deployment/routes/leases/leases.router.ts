@@ -1,3 +1,4 @@
+import { z } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
@@ -9,6 +10,14 @@ import { CreateLeaseRequestSchema } from "@src/deployment/http-schemas/lease.sch
 import { FallbackLeaseListQuerySchema, FallbackLeaseListResponseSchema } from "@src/deployment/http-schemas/lease-rpc.schema";
 
 export const leasesRouter = new OpenApiHonoHandler();
+
+const ErrorResponseSchema = z.object({
+  error: z.string(),
+  message: z.string(),
+  code: z.string(),
+  type: z.string(),
+  data: z.record(z.string(), z.unknown()).optional()
+});
 
 const createLeaseRoute = createRoute({
   method: "post",
@@ -32,6 +41,15 @@ const createLeaseRoute = createRoute({
       content: {
         "application/json": {
           schema: CreateLeaseResponseSchema
+        }
+      }
+    },
+    502: {
+      description:
+        "A provider could not be reached. `provider_unreachable`: no lease was created, choose another bid. `manifest_not_delivered`: the lease exists but its provider did not receive the manifest; send the same request again to retry, or close the deployment",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
         }
       }
     }

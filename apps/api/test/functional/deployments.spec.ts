@@ -22,6 +22,7 @@ import { CORE_CONFIG } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { deploymentListMaxLimit } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
@@ -42,6 +43,7 @@ import { createDeployment } from "@test/seeders/deployment.seeder";
 import { createDeploymentInfoErrorSeed, createDeploymentInfoGroupSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createManyLeaseApiResponses } from "@test/seeders/lease-api-response.seeder";
 import { createLeaseStatus } from "@test/seeders/lease-status.seeder";
+import { createProvider } from "@test/seeders/provider.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
@@ -125,6 +127,7 @@ describe("Deployments API", () => {
 
     vi.spyOn(providerService, "sendManifest").mockResolvedValue(true);
     vi.spyOn(providerService, "getLeaseStatus").mockResolvedValue(createLeaseStatus());
+    vi.spyOn(providerService, "assertReachable").mockResolvedValue(undefined);
   });
 
   afterEach(async () => {
@@ -2093,6 +2096,27 @@ describe("Deployments API", () => {
       expect(sent.join("")).not.toContain("ac-secret://");
     });
 
+    it("refuses with 502 provider_unreachable and broadcasts nothing when the provider cannot be reached", async () => {
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
+      const dseq = "1234";
+      const provider = createAkashAddress();
+      await createProvider({ owner: provider, deletedHeight: null });
+      vi.mocked(providerService.assertReachable).mockRestore();
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${wallets[0].address}&filters.dseq=${dseq}`)
+        .reply(200, { leases: [], pagination: { next_key: null, total: "0" } });
+      nock(container.resolve(DeploymentConfigService).get("PROVIDER_PROXY_URL"))
+        .post("/", body => (body as { url: string }).url.endsWith("/version"))
+        .reply(502, "Provider is temporarily unavailable");
+
+      const response = await postLeases({ userApiKeySecret, dseq, manifest: CLIENT_MANIFEST, provider });
+
+      expect(response.status).toBe(502);
+      expect(await response.json()).toMatchObject({ code: "provider_unreachable" });
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
     it("falls back on the manifest the request carried for a dseq it recorded nothing for", async () => {
       const { userApiKeySecret, wallets } = await mockPersistedUser();
       const dseq = "1234";
@@ -2249,12 +2273,24 @@ describe("Deployments API", () => {
         .reply(200, createDeploymentInfoSeed({ owner: address!, dseq }));
     }
 
-    function postLeases({ userApiKeySecret, dseq, manifest, providers = 1 }: { userApiKeySecret: string; dseq: string; manifest: string; providers?: number }) {
+    function postLeases({
+      userApiKeySecret,
+      dseq,
+      manifest,
+      providers = 1,
+      provider
+    }: {
+      userApiKeySecret: string;
+      dseq: string;
+      manifest: string;
+      providers?: number;
+      provider?: string;
+    }) {
       return app.request("/v1/leases", {
         method: "POST",
         body: JSON.stringify({
           manifest,
-          leases: Array.from({ length: providers }, (_, index) => ({ dseq, gseq: index + 1, oseq: 1, provider: createAkashAddress() }))
+          leases: Array.from({ length: providers }, (_, index) => ({ dseq, gseq: index + 1, oseq: 1, provider: provider ?? createAkashAddress() }))
         }),
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
       });
