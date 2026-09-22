@@ -1,6 +1,7 @@
 import { LeaseHttpService } from "@akashnetwork/http-sdk";
 import { Trace } from "@akashnetwork/instrumentation";
 import { HTTPException } from "hono/http-exception";
+import createError, { isHttpError } from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { ManagedSignerService, RpcMessageService } from "@src/billing/services";
@@ -39,6 +40,8 @@ export class LeaseService {
     // Leases for all groups are created in one tx, so one existing lease means all exist:
     // skip creation when already on-chain to keep retries idempotent.
     if (!(await this.#hasActiveLease(wallet.address!, dseq))) {
+      await this.#assertProvidersReachable(leases);
+
       const leaseMessages = leases.map(lease =>
         this.rpcMessageService.getCreateLeaseMsg({
           owner: wallet.address!,
@@ -55,15 +58,36 @@ export class LeaseService {
     const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
 
     for (const lease of leases) {
-      await this.providerService.sendManifest({
-        provider: lease.provider,
-        dseq: lease.dseq,
-        manifest: manifests.get(lease.dseq)!,
-        auth: await this.providerService.toProviderAuth({ walletId: wallet.id, provider: lease.provider })
-      });
+      await this.#sendManifest(lease, manifests.get(lease.dseq)!, wallet);
     }
 
     return deployment;
+  }
+
+  async #assertProvidersReachable(leases: CreateLeaseRequest["leases"]): Promise<void> {
+    const providers = [...new Set(leases.map(lease => lease.provider))];
+    await Promise.all(providers.map(provider => this.providerService.assertReachable(provider)));
+  }
+
+  /** The lease is already on chain here, so every failure says so and names the retry that resends only the manifest. */
+  async #sendManifest(lease: CreateLeaseRequest["leases"][number], manifest: string, wallet: { id: number }): Promise<void> {
+    try {
+      await this.providerService.sendManifest({
+        provider: lease.provider,
+        dseq: lease.dseq,
+        manifest,
+        auth: await this.providerService.toProviderAuth({ walletId: wallet.id, provider: lease.provider })
+      });
+    } catch (error) {
+      throw createError(
+        isHttpError(error) ? error.status : 502,
+        `The lease for deployment ${lease.dseq} exists, but provider ${lease.provider} did not receive its manifest. Send this request again to retry, or close the deployment to stop paying for it.`,
+        {
+          errorCode: "manifest_not_delivered",
+          data: { dseq: lease.dseq, provider: lease.provider, reason: error instanceof Error ? error.message : String(error) }
+        }
+      );
+    }
   }
 
   /** Called before anything is broadcast, so a definition the console cannot re-derive costs no lease on chain and no provider a partial send. */
