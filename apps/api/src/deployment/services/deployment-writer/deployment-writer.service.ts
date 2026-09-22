@@ -342,13 +342,13 @@ export class DeploymentWriterService {
    * deployment was already closed, so a caller can tell a close it performed from one that had already happened.
    */
   public async close(wallet: WalletInitialized, dseq: string): Promise<boolean> {
-    const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+    const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
     if (deployment.deployment.state === "closed") return false;
     const message = this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.deployment.id.dseq);
     try {
       await this.signerService.executeDecodedTxByUserWallet(wallet, [message]);
     } catch (error) {
-      const latest = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq).catch(() => null);
+      const latest = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq).catch(() => null);
       if (latest?.deployment.state === "closed") return false;
       throw error;
     }
@@ -359,7 +359,7 @@ export class DeploymentWriterService {
     this.logger.warn({ event: "DEPRECATED_DEPOSIT_DEPLOYMENT_ENDPOINT_USED", userId: options.userId, dseq: options.dseq });
 
     const wallet = await this.walletReaderService.getWalletByUserId(options.userId);
-    const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, options.dseq);
+    const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, options.dseq);
     const deploymentGrantDenom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
 
     const message = this.rpcMessageService.getDepositDeploymentMsg({
