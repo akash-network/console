@@ -164,10 +164,15 @@ function servicesOf(sdl: string): Record<string, { env?: unknown; credentials?: 
   try {
     const document = yaml.load(sdl) as { services?: unknown } | null;
     const services = document?.services;
-    return services && typeof services === "object" && !Array.isArray(services) ? (services as Record<string, { env?: unknown; credentials?: unknown }>) : {};
+    if (!isRecord(services)) return {};
+    return Object.fromEntries(Object.entries(services).filter(([, service]) => isRecord(service))) as Record<string, { env?: unknown; credentials?: unknown }>;
   } catch {
     return {};
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /** Read in full before any name is minted, so a typed secret can never land on a name a kept reference elsewhere still stands on. */

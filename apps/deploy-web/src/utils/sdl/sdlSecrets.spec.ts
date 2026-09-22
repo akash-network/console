@@ -142,6 +142,12 @@ describe("sdlSecrets", () => {
 
       expect(secretReferenceNamesIn(sdl)).toEqual(new Set());
     });
+
+    it("skips a service that is not a mapping and still reads the ones that are", () => {
+      const sdl = 'version: "2.0"\nservices:\n  web: null\n  api:\n    image: nginx\n    env:\n      - "A=ac-secret://A"\n';
+
+      expect(secretReferenceNamesIn(sdl)).toEqual(new Set(["A"]));
+    });
   });
 
   describe(resolveSdlSecrets.name, () => {
