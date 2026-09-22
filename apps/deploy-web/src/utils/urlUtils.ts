@@ -2,22 +2,6 @@ import { UrlReturnToStack } from "@src/hooks/useReturnTo/UrlReturnToStack";
 import type { FaqAnchorType } from "@src/pages/faq";
 import networkStore from "@src/store/networkStore";
 
-export type NewDeploymentParams = {
-  step?: string;
-  dseq?: string | number;
-  redeploy?: string | number;
-  templateId?: string;
-  gitProvider?: string;
-  gitProviderCode?: string | null;
-  repoUrl?: string;
-  branch?: string;
-  buildCommand?: string;
-  startCommand?: string;
-  installCommand?: string;
-  buildDirectory?: string;
-  nodeVersion?: string;
-};
-
 export type ConfigureDeploymentParams = {
   dseq?: string | number;
   templateId?: string;
@@ -101,24 +85,7 @@ export const UrlService = {
   newNotificationChannel: () => "/alerts/notification-channels/new",
   notificationChannelDetails: (id: string) => `/alerts/notification-channels/${id}`,
 
-  newDeployment: (params: NewDeploymentParams = {}) => {
-    const {
-      step,
-      dseq,
-      redeploy,
-      templateId,
-      gitProviderCode,
-      gitProvider,
-      repoUrl,
-      branch,
-      buildCommand,
-      startCommand,
-      installCommand,
-      buildDirectory,
-      nodeVersion
-    } = params;
-    return `/new-deployment${appendSearchParams({ dseq, step, templateId, redeploy, gitProvider, code: gitProviderCode, repoUrl, branch, buildCommand, startCommand, installCommand, buildDirectory, nodeVersion })}`;
-  },
+  newDeployment: () => "/new-deployment",
 
   configureDeployment: (params: ConfigureDeploymentParams = {}) => {
     const { dseq, templateId, userTemplateId, sdlStrategy, bidStrategy, draftId, vm } = params;

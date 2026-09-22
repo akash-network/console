@@ -13,7 +13,6 @@ import Markdown from "@src/components/shared/Markdown";
 import { ViewPanel } from "@src/components/shared/ViewPanel";
 import { useHasInAppHistory } from "@src/hooks/useHasInAppHistory";
 import type { ApiTemplate } from "@src/types";
-import { RouteStep } from "@src/types/route-steps.type";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { SDLEditor } from "../sdl/SDLEditor/SDLEditor";
@@ -72,10 +71,7 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template }) => {
                 </Button>
               </div>
 
-              <Link
-                className={cn(buttonVariants({ variant: "default" }), "ml-4 md:ml-8")}
-                href={UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: template.id })}
-              >
+              <Link className={cn(buttonVariants({ variant: "default" }), "ml-4 md:ml-8")} href={UrlService.configureDeployment({ templateId: template.id })}>
                 Deploy&nbsp;
                 <Rocket className="rotate-45" />
               </Link>

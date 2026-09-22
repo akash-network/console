@@ -71,7 +71,7 @@ export interface DeploymentDetailProps {
 }
 
 export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies: d = DEPENDENCIES }) => {
-  const { sdlAnalyzer, analyticsService } = d.useServices();
+  const { analyticsService } = d.useServices();
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
   const { address } = d.useWallet();
@@ -79,7 +79,6 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
   const [activeTab, setActiveTab] = useState<Tab>("DETAILS");
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
-  const isRemoteDeploy = sdlAnalyzer.hasCiCdImage(editedManifest);
 
   const { data: deployment, isFetching: isLoadingDeployment, refetch: getDeploymentDetail, error: deploymentError } = d.useDeploymentDetail(address, dseq);
   const {
@@ -217,7 +216,6 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                   <d.ManifestUpdate
                     editedManifest={editedManifest as string}
                     onManifestChange={setEditedManifest}
-                    isRemoteDeploy={isRemoteDeploy}
                     deployment={deployment}
                     onRedeploy={isUsableDeploymentDefinition(definition) ? redeployFromResolvedDefinition : undefined}
                     closeManifestEditor={() => {

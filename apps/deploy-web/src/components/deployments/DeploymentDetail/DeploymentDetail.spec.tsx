@@ -192,7 +192,6 @@ describe("DeploymentDetail", () => {
 
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({
-        sdlAnalyzer: mock<ReturnType<typeof DEPENDENCIES.useServices>["sdlAnalyzer"]>({ hasCiCdImage: () => false }),
         analyticsService
       });
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: "akash1test" });

@@ -2,9 +2,9 @@ import { nanoid } from "nanoid";
 
 import { UACT_DENOM } from "@src/config/denom.config";
 import type { EndpointType, ExposeType, PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { SSH_VM_IMAGES, sshVmDistros, sshVmImages } from "./vmImages";
+import { SSH_VM_IMAGES } from "./vmImages";
 
-export { SSH_VM_IMAGES, sshVmDistros, sshVmImages };
+export { SSH_VM_IMAGES };
 
 export const protoTypes = [
   { id: 1, name: "http" },
@@ -148,18 +148,8 @@ export const SSH_EXPOSE = {
 };
 
 /**
- * Overrides applied to a fresh service when the surrounding flow exposes SSH:
- * picks a known SSH-enabled VM image and drops the default HTTP expose.
- */
-export const sshServiceOverrides: Partial<ServiceType> = {
-  image: sshVmDistros[0],
-  expose: []
-};
-
-/**
  * The managed SSH expose row a fresh Container-VM service is seeded with: container port 22 published
- * globally as 22 over tcp. The configure flow generates the SDL straight from form state (no
- * `transformCustomSdlFields` pass), so the row must exist on the model itself.
+ * globally as 22 over tcp. The SDL is generated straight from form state, so the row must exist on the model itself.
  */
 export const vmSshExpose = (): ExposeType => ({
   id: nanoid(),
@@ -172,11 +162,7 @@ export const vmSshExpose = (): ExposeType => ({
   ipName: ""
 });
 
-/**
- * Overrides for a fresh Container-VM service on the configure screen: the real distro image ref
- * (unlike the legacy `sshServiceOverrides`, which stores a display label mapped at generation time),
- * the managed SSH expose, and the single instance VMs run as.
- */
+/** Overrides for a fresh Container-VM service on the configure screen: the real distro image ref, the managed SSH expose, and the single instance VMs run as. */
 export const vmServiceOverrides = (): Partial<ServiceType> => ({
   image: SSH_VM_IMAGES["Ubuntu 24.04"],
   expose: [vmSshExpose()],

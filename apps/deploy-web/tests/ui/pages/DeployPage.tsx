@@ -1,8 +1,6 @@
 import type { BrowserContext as Context, Page } from "@playwright/test";
-import { expect } from "@playwright/test";
 
-import { PROVIDERS_WHITELIST, testEnvConfig } from "../fixture/test-env.config";
-import { DeploymentDetailPage } from "./DeploymentDetailPage";
+import { testEnvConfig } from "../fixture/test-env.config";
 
 export class DeployPage {
   constructor(
@@ -16,64 +14,5 @@ export class DeployPage {
 
   async selectTemplate(name: string) {
     await this.page.getByLabel(name).or(this.page.getByRole("link", { name })).first().click();
-  }
-
-  async fillImageName(name: string) {
-    await this.page.getByLabel(/docker image/i).fill(name);
-  }
-
-  async generateSSHKeys() {
-    const downloadPromise = this.page.waitForEvent("download");
-    await this.page.getByRole("button", { name: /generate new key/i }).click();
-
-    return {
-      download: await downloadPromise,
-      input: this.page.getByLabel(/ssh public key/i)
-    };
-  }
-
-  async openDepositDialog() {
-    await this.page.getByRole("button", { name: /create deployment/i }).click();
-    const dialog = this.page.getByRole("dialog");
-    await expect(dialog).toBeVisible({ timeout: 10_000 });
-    return dialog;
-  }
-
-  async createLease(providerName?: string) {
-    if (providerName) {
-      await this.page.getByLabel(providerName).click();
-    } else {
-      const providers = PROVIDERS_WHITELIST[testEnvConfig.NETWORK_ID];
-      if (!providers.length) {
-        await this.page.getByRole("radio", { checked: false }).first().click();
-      } else {
-        const locator = providers
-          .slice(1)
-          .reduce(
-            (combined, owner) => combined.or(this.page.locator(`[role="radio"][aria-description="${owner}"]`)),
-            this.page.locator(`[role="radio"][aria-description="${providers[0]}"]`)
-          );
-        await locator.first().click({ timeout: 60_000 });
-      }
-    }
-
-    await this.page.getByRole("button", { name: /accept bid/i }).click();
-  }
-
-  async validateLease() {
-    await this.page.waitForURL(new RegExp(`${testEnvConfig.BASE_URL}/deployments/\\d+`));
-    await this.deploymentDetail().expectRunning();
-  }
-
-  async openTab(name: string) {
-    await this.page.getByRole("tab", { name }).click();
-  }
-
-  async closeDeployment() {
-    await this.deploymentDetail().closeDeployment();
-  }
-
-  deploymentDetail() {
-    return new DeploymentDetailPage(this.page);
   }
 }

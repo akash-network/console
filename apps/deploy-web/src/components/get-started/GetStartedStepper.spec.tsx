@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 import { DEPENDENCIES, GetStartedStepper } from "./GetStartedStepper";
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(GetStartedStepper.name, () => {
@@ -47,6 +48,15 @@ describe(GetStartedStepper.name, () => {
     setup({ hasWallet: false });
 
     expect(screen.queryByText("Billing is not set up")).toBeInTheDocument();
+  });
+
+  it("sends the hello world deploy button to configure with that template", async () => {
+    setup();
+
+    await userEvent.click(screen.getAllByRole("button", { name: "Next" })[0]);
+    await userEvent.click(screen.getAllByRole("button", { name: "Next" })[0]);
+
+    expect(screen.getByRole("link", { name: /Deploy!/ })).toHaveAttribute("href", "/new-deployment/configure?templateId=hello-world");
   });
 
   function setup(input?: { hasWallet?: boolean; isTrialing?: boolean; balanceUUSDC?: number; balanceUACT?: number }) {
