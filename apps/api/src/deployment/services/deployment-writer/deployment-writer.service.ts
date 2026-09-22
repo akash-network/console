@@ -348,8 +348,8 @@ export class DeploymentWriterService {
     try {
       await this.signerService.executeDecodedTxByUserWallet(wallet, [message]);
     } catch (error) {
-      const latest = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq).catch(() => null);
-      if (latest?.deployment.state === "closed") return false;
+      const latest = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq).catch(() => deployment);
+      if (latest.deployment.state === "closed") return false;
       throw error;
     }
     return true;
