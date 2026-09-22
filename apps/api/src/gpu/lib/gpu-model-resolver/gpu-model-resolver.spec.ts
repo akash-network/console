@@ -12,6 +12,7 @@ const CATALOG: ProviderConfigGpusType = {
       "2330": { name: "h100", memory_size: "80Gi", interface: "SXM5" },
       "2331": { name: "h100", memory_size: "80Gi", interface: "PCIe" },
       "2335": { name: "h200", memory_size: "141Gi", interface: "SXM5" },
+      "233b": { name: "h200nvl", memory_size: "141Gi", interface: "PCIe" },
       "2684": { name: "rtx4090", memory_size: "24Gi", interface: "PCIe" },
       "26b9": { name: "l40s", memory_size: "48Gi", interface: "PCIe" },
       "2bb1": { name: "pro6000", memory_size: "96Gi", interface: "PCIe" },
@@ -36,7 +37,8 @@ describe("resolveGpuModel", () => {
       ["Tesla T4", "t4", "pcie"],
       ["NVIDIA L40S", "l40s", "pcie"],
       ["NVIDIA H100 PCIe", "h100", "pcie"],
-      ["NVIDIA H200 NVL", "h200", "sxm"],
+      ["NVIDIA H200 NVL", "h200nvl", "pcie"],
+      ["NVIDIA H100 NVL", "h100", "pcie"],
       ["NVIDIA A10G", "a10", "pcie"],
       ["NVIDIA RTX PRO 6000 Blackwell Server Edition", "pro6000", "pcie"]
     ])("reads %s as %s", (rawName, model, gpuInterface) => {

@@ -22,9 +22,7 @@ describe("parseGpuProbeOutput", () => {
     });
 
     it("keeps unlike cards apart", () => {
-      const reading = parseGpuProbeOutput(
-        "--nvidia\nNVIDIA H100 80GB HBM3, 81559, 550.54.15, 0x233010DE\nNVIDIA L40S, 46068, 550.54.15, 0x26B910DE\n"
-      );
+      const reading = parseGpuProbeOutput("--nvidia\nNVIDIA H100 80GB HBM3, 81559, 550.54.15, 0x233010DE\nNVIDIA L40S, 46068, 550.54.15, 0x26B910DE\n");
 
       expect(reading?.gpus.map(gpu => gpu.rawName)).toEqual(["NVIDIA H100 80GB HBM3", "NVIDIA L40S"]);
     });

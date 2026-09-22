@@ -36,10 +36,12 @@ const MARKETING_TOKENS = /\b(blackwell|hopper|ampere|ada|lovelace|server|edition
 
 const MEMORY_TOKENS = /\b(\d+\s?gb|hbm\d*e?|gddr\d*x?)\b/g;
 
+/** `nvl` names a pcie board bridged with nvlink rather than a packaging of its own, and the catalog lists only some of those cards. */
 const FORM_FACTORS = [
   { matcher: /\bsxm\d*\b/, name: "sxm" },
   { matcher: /\boam\b/, name: "oam" },
-  { matcher: /\bpcie\b/, name: "pcie" }
+  { matcher: /\bpcie\b/, name: "pcie" },
+  { matcher: /\bnvl\b/, name: "pcie" }
 ] as const;
 
 /** Product names that carry a suffix or a word order the catalog keys do not. */
@@ -72,10 +74,7 @@ export function buildGpuCatalogIndex(config: ProviderConfigGpusType): GpuCatalog
   return { byPciId, byDeviceId, byModel };
 }
 
-/**
- * Resolves what a card reported about itself to the catalog, preferring the pci ids it gave because those identify a
- * model whoever made it, and never guessing a model key the catalog does not list.
- */
+/** Prefers the pci ids a card reports over the name it prints, because those identify a model whoever made it. */
 export function resolveGpuModel(identity: DetectedGpuIdentity, index: GpuCatalogIndex | null): ResolvedGpuModel {
   if (!index) return UNRESOLVED;
 
@@ -127,7 +126,10 @@ function findByPciId(pciDeviceId: string, index: GpuCatalogIndex): GpuCatalogEnt
 }
 
 function hexKey(value: string): string {
-  return value.toLowerCase().replace(/^0x/, "").replace(/[^0-9a-f]/g, "");
+  return value
+    .toLowerCase()
+    .replace(/^0x/, "")
+    .replace(/[^0-9a-f]/g, "");
 }
 
 function normalizeInterface(gpuInterface: string): string {

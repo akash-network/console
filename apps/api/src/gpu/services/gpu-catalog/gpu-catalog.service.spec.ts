@@ -31,7 +31,10 @@ describe(GpuCatalogService.name, () => {
       getGpuModelCatalog: input.error ? () => Promise.reject(input.error) : () => Promise.resolve(input.catalog ?? {})
     });
     const logger = mock<ReturnType<CreateLogger>>();
-    const service = new GpuCatalogService(gpuService, vi.fn<CreateLogger>(() => logger));
+    const service = new GpuCatalogService(
+      gpuService,
+      vi.fn<CreateLogger>(() => logger)
+    );
 
     return { service, gpuService, logger };
   }
