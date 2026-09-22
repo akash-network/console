@@ -102,6 +102,17 @@ describe(HonoErrorHandlerService.name, () => {
     });
   });
 
+  describe("when an HttpError reports that an upstream is unavailable", () => {
+    it.each([502, 503, 504])("reports a %i as service_unavailable", async status => {
+      const { service, mockContext, body } = setup();
+      const error = createHttpError(status, "Provider is temporarily unavailable");
+
+      await service.handle(error, mockContext);
+
+      expect(body).toHaveBeenCalledWith(expect.stringContaining('"code":"service_unavailable"'), expect.objectContaining({ status }));
+    });
+  });
+
   describe("when error contains non-JSON values", () => {
     it("handles bigint values in http errors", async () => {
       const { service, mockContext, body } = setup();

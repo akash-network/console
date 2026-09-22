@@ -123,6 +123,8 @@ export class HonoErrorHandlerService {
         return "service_unavailable";
       case 503:
         return "service_unavailable";
+      case 504:
+        return "service_unavailable";
       default:
         return "unknown_error";
     }
