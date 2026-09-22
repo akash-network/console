@@ -37,7 +37,7 @@ export const ReclamationCard: React.FunctionComponent<Props> = ({ lease, dseq, o
   const [isClosing, setIsClosing] = useState(false);
 
   const reasonLabel = getLeaseCloseReasonLabel(lease.reclamation?.reason ?? lease.reason);
-  const definition = useDeploymentDefinition(dseq);
+  const definition = useDeploymentDefinition(dseq, { acceptReferences: true });
   const canRedeploy = definition.source === "resolving" || isUsableDeploymentDefinition(definition);
 
   const confirmAndClose = async () => {
@@ -72,7 +72,7 @@ export const ReclamationCard: React.FunctionComponent<Props> = ({ lease, dseq, o
               size="sm"
               className="text-foreground"
               disabled={definition.source === "resolving"}
-              onClick={() => redeploy({ sdl: definition.sdl, name: definition.name })}
+              onClick={() => redeploy({ sdl: definition.sdl, name: definition.name, sourceDseq: dseq })}
             >
               Redeploy
             </Button>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { hasSdlReference, isStoredSdlSelfContained, leavesWithheldEnvValuesBlank } from "./storedDefinition";
+import { hasSdlReference, isStoredSdlRedeployable, isStoredSdlSelfContained, leavesWithheldEnvValuesBlank } from "./storedDefinition";
 
 describe("storedDefinition", () => {
   describe(hasSdlReference.name, () => {
@@ -72,6 +72,24 @@ describe("storedDefinition", () => {
 
     it("is false when the api's record does not parse", () => {
       expect(leavesWithheldEnvValuesBlank(sdlWithEnv(["TOKEN="]), "services: [unclosed")).toBe(false);
+    });
+  });
+
+  describe(isStoredSdlRedeployable.name, () => {
+    it("accepts an sdl whose values are withheld as references, which configure resolves", () => {
+      expect(isStoredSdlRedeployable('version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=ac-secret://s0_e0"\n')).toBe(true);
+    });
+
+    it("accepts an sdl carrying real values", () => {
+      expect(isStoredSdlRedeployable('version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=abc"\n')).toBe(true);
+    });
+
+    it("rejects an sdl whose value was blanked away", () => {
+      expect(isStoredSdlRedeployable('version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN="\n')).toBe(false);
+    });
+
+    it("rejects an sdl that does not parse", () => {
+      expect(isStoredSdlRedeployable("services: [")).toBe(false);
     });
   });
 

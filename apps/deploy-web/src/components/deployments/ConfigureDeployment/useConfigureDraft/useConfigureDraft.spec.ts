@@ -96,6 +96,38 @@ describe(useConfigureDraft.name, () => {
     expect(storedRuntimeLimitHours("draft-1")).toBe(6);
   });
 
+  it("exposes the deployment the draft inherits secrets from", () => {
+    const { result } = setup({
+      intent: { draftId: "draft-1" },
+      rawStored: { "draft-1": JSON.stringify({ sdl: "seeded", inheritSecretsFrom: "123", updatedAt: 1 }) }
+    });
+
+    expect(result.current.persistedInheritSecretsFrom).toBe("123");
+  });
+
+  it("carries the inheritance forward when the sdl is saved again", () => {
+    const { result } = setup({
+      intent: { draftId: "draft-1" },
+      rawStored: { "draft-1": JSON.stringify({ sdl: "seeded", inheritSecretsFrom: "123", updatedAt: 1 }) }
+    });
+
+    result.current.save("version: '2.0'", "my-app");
+
+    expect(storedEntry("draft-1")).toEqual(expect.objectContaining({ sdl: "version: '2.0'", name: "my-app", inheritSecretsFrom: "123" }));
+  });
+
+  it("forgets the inheritance on request and keeps the rest of the draft", () => {
+    const { result } = setup({
+      intent: { draftId: "draft-1" },
+      rawStored: { "draft-1": JSON.stringify({ sdl: "seeded", name: "my-app", inheritSecretsFrom: "123", updatedAt: 1 }) }
+    });
+
+    result.current.dropInheritance();
+
+    expect(storedEntry("draft-1")).toEqual(expect.objectContaining({ sdl: "seeded", name: "my-app" }));
+    expect(storedEntry("draft-1")).not.toHaveProperty("inheritSecretsFrom");
+  });
+
   it("clears the persisted draft", () => {
     const { result } = setup({ intent: { draftId: "draft-1" }, stored: { "draft-1": "version: '2.0'" } });
 
@@ -180,6 +212,11 @@ describe(useConfigureDraft.name, () => {
     return Object.keys(window.localStorage).filter(key => key.startsWith(DRAFT_KEY_PREFIX)).length;
   }
 
+  function storedEntry(draftId: string) {
+    const raw = window.localStorage.getItem(`${DRAFT_KEY_PREFIX}${draftId}`);
+    return raw ? (JSON.parse(raw) as Record<string, unknown>) : undefined;
+  }
+
   function setup(input: {
     intent?: Partial<DeploymentIntent>;
     stored?: Record<string, string>;
@@ -237,9 +274,17 @@ describe(createConfigureDraft.name, () => {
   it("persists the deployment name alongside the sdl when one is given", () => {
     const { create } = setup({ mintedDraftId: "fresh-1" });
 
-    create("version: '2.0'", "my-app");
+    create("version: '2.0'", { name: "my-app" });
 
     expect(readEntry("fresh-1")).toEqual(expect.objectContaining({ sdl: "version: '2.0'", name: "my-app" }));
+  });
+
+  it("persists the deployment to inherit secrets from alongside the sdl when one is given", () => {
+    const { create } = setup({ mintedDraftId: "fresh-1" });
+
+    create("version: '2.0'", { name: "my-app", inheritSecretsFrom: "123" });
+
+    expect(readEntry("fresh-1")).toEqual(expect.objectContaining({ sdl: "version: '2.0'", inheritSecretsFrom: "123" }));
   });
 
   function readSdl(draftId: string) {
@@ -248,7 +293,7 @@ describe(createConfigureDraft.name, () => {
 
   function readEntry(draftId: string) {
     const raw = window.localStorage.getItem(`${DRAFT_KEY_PREFIX}${draftId}`);
-    return raw ? (JSON.parse(raw) as { sdl: string; name?: string }) : undefined;
+    return raw ? (JSON.parse(raw) as { sdl: string; name?: string; inheritSecretsFrom?: string }) : undefined;
   }
 
   function setup(input: { mintedDraftId?: string; getStorage?: typeof DEPENDENCIES.getStorage }) {
@@ -258,6 +303,6 @@ describe(createConfigureDraft.name, () => {
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({}),
       mintDraftId: vi.fn(() => input.mintedDraftId ?? "minted-id")
     };
-    return { create: (sdl: string, name?: string) => createConfigureDraft(sdl, name, dependencies) };
+    return { create: (sdl: string, options?: Parameters<typeof createConfigureDraft>[1]) => createConfigureDraft(sdl, options, dependencies) };
   }
 });

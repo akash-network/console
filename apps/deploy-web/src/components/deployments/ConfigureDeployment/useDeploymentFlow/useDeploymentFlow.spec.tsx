@@ -911,6 +911,17 @@ describe(useDeploymentFlow.name, () => {
       expect(result.current.error?.message).toContain("still being set up");
     });
 
+    it("does not seal again when the create fails with something other than a conflict", async () => {
+      const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(500, { message: "Internal server error" }, "POST /v1/deployments \u2192 500")));
+      const { result, sealSdlSecrets } = setup({ secretsEnabled: true, createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl-content"));
+
+      await waitFor(() => expect(result.current.phase).toBe("error"));
+      expect(createMutate).toHaveBeenCalledTimes(1);
+      expect(sealSdlSecrets).toHaveBeenCalledTimes(1);
+    });
+
     it("gives up after one new seal, so a conflict that persists surfaces as a create error", async () => {
       const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(409, { message: STALE_KEY_MESSAGE }, "POST /v1/deployments → 409")));
       const { result } = setup({ secretsEnabled: true, createMutate });
@@ -953,14 +964,40 @@ describe(useDeploymentFlow.name, () => {
       expect(result.current.phase).toBe("configuring");
     });
 
+    it("names the deployment to inherit secrets from on the create", async () => {
+      const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+      const { result } = setup({ secretsEnabled: true, createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl-content", { inheritSecretsFrom: "123" }));
+
+      await waitFor(() => expect(result.current.phase).toBe("quoting"));
+      expect(createMutate.mock.calls[0][0].data).toHaveProperty("inheritSecretsFrom", "123");
+    });
+
+    it("surfaces an unreadable source as its own error without sealing again, since no retry can help", async () => {
+      const message = "The secrets recorded for the deployment being inherited from can no longer be decrypted";
+      const createMutate = vi.fn((_args, { onError }) =>
+        onError(new ApiError(409, { message, code: "inherited_secrets_unreadable" }, "POST /v1/deployments → 409"))
+      );
+      const { result, sealSdlSecrets } = setup({ secretsEnabled: true, createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl-content", { inheritSecretsFrom: "123" }));
+
+      await waitFor(() => expect(result.current.phase).toBe("error"));
+      expect(result.current.error).toEqual({ kind: "inherited-unreadable", message });
+      expect(sealSdlSecrets).toHaveBeenCalledTimes(1);
+      expect(createMutate).toHaveBeenCalledTimes(1);
+    });
+
     it("sends no seal and fetches no context while the feature is off", async () => {
       const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
       const { result, getSdlSecretsContext } = setup({ secretsEnabled: false, createMutate });
 
-      act(() => result.current.actions.requestQuotes("sdl-content", { secrets: { API_KEY: "hunter2" } }));
+      act(() => result.current.actions.requestQuotes("sdl-content", { secrets: { API_KEY: "hunter2" }, inheritSecretsFrom: "123" }));
 
       await waitFor(() => expect(result.current.phase).toBe("quoting"));
       expect(createMutate.mock.calls[0][0].data).not.toHaveProperty("sealedSecrets");
+      expect(createMutate.mock.calls[0][0].data).not.toHaveProperty("inheritSecretsFrom");
       expect(getSdlSecretsContext.mutateAsync).not.toHaveBeenCalled();
     });
   });

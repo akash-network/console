@@ -64,7 +64,7 @@ describe("ReclamationBanner", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Redeploy" }));
 
-    expect(redeploy).toHaveBeenCalledWith({ sdl: "version: 2.0", name: "my-app" });
+    expect(redeploy).toHaveBeenCalledWith({ sdl: "version: 2.0", name: "my-app", sourceDseq: expect.any(String) });
   });
 
   it("redeploys from the api definition on a device holding no local copy", async () => {
@@ -75,7 +75,7 @@ describe("ReclamationBanner", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Redeploy" }));
 
-    expect(redeploy).toHaveBeenCalledWith({ sdl: "version: 2.0 # from-the-api", name: undefined });
+    expect(redeploy).toHaveBeenCalledWith({ sdl: "version: 2.0 # from-the-api", name: undefined, sourceDseq: expect.any(String) });
   });
 
   it("disables Redeploy while the definition is still resolving", () => {

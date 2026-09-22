@@ -10,6 +10,7 @@ import { defaultService } from "@src/utils/sdl/data";
 import { ConfigurationPane } from "../ConfigurationPane/ConfigurationPane";
 import { usePlacementManager } from "../DeploymentPane/usePlacementManager/usePlacementManager";
 import { importDeploymentState } from "../importDeploymentState/importDeploymentState";
+import { useInheritedSecrets } from "../InheritedSecretsProvider/InheritedSecretsProvider";
 import type { DeploymentFlow, FlowErrorKind } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./ConfigureDeploymentForm";
 import { ConfigureDeploymentForm, firstBidReadyServiceId, nextUndoneServiceId } from "./ConfigureDeploymentForm";
@@ -54,6 +55,12 @@ const VALID_SDL = [
 const CREDENTIALS_SDL = VALID_SDL.replace(
   "    image: nginx:1.0",
   ["    image: nginx:1.0", "    credentials:", "      host: ghcr.io", "      username: alice", "      password: hunter22"].join("\n")
+);
+
+/** The valid SDL as the api records it once a registry password has been sealed away, so it reaches Configure carrying a reference. */
+const INHERITED_REFERENCE_SDL = VALID_SDL.replace(
+  "    image: nginx:1.0",
+  ["    image: nginx:1.0", "    credentials:", "      host: ghcr.io", "      username: alice", "      password: ac-secret://c_password"].join("\n")
 );
 
 const TWO_SERVICE_SDL = [
@@ -304,6 +311,34 @@ describe(ConfigureDeploymentForm.name, () => {
     await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("password: hunter22"), expect.any(String), undefined));
   });
 
+  it("forgets the redeploy source and explains when the console cannot reuse its secrets", () => {
+    const message = "The secrets recorded for the deployment being inherited from can no longer be decrypted";
+    const { dropInheritance, enqueueSnackbar } = setup({
+      initialSdl: VALID_SDL,
+      persistedInheritSecretsFrom: "123",
+      flowError: { kind: "inherited-unreadable", message }
+    });
+
+    expect(dropInheritance).toHaveBeenCalled();
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" }));
+    const toast = enqueueSnackbar.mock.calls[0][0] as { props: { title: string; subTitle: string } };
+    expect(toast.props).toMatchObject({ title: "The previous deployment's secrets can't be reused", subTitle: message });
+  });
+
+  it("offers a redeploy's inherited secret names to the panes while the secrets feature is on", () => {
+    setup({ initialSdl: INHERITED_REFERENCE_SDL, persistedInheritSecretsFrom: "123", secretsEnabled: true, Panes: InheritedSecretsProbePanes });
+
+    expect(screen.getByTestId("inherited-source").textContent).toBe("123");
+    expect(screen.getByTestId("inherited-names").textContent).toBe("c_password");
+  });
+
+  it("offers no inherited secret names while the secrets feature is off, so a kept reference still reads as needing a value", () => {
+    setup({ initialSdl: INHERITED_REFERENCE_SDL, persistedInheritSecretsFrom: "123", Panes: InheritedSecretsProbePanes });
+
+    expect(screen.getByTestId("inherited-source").textContent).toBe("");
+    expect(screen.getByTestId("inherited-names").textContent).toBe("");
+  });
+
   it("clears the configure draft once the deployment is deployed", () => {
     const { clear } = setup({ initialSdl: undefined, deploySucceeded: true });
 
@@ -428,12 +463,13 @@ describe(ConfigureDeploymentForm.name, () => {
   });
 
   it("hands the typed secret values to the deploy when the secrets feature is on", async () => {
-    const { flow } = setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes, secretsEnabled: true });
+    const { flow, ConfigureDeploymentPanes } = setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes, secretsEnabled: true });
 
     await userEvent.click(screen.getByRole("button", { name: "select provider" }));
     await userEvent.click(screen.getByRole("button", { name: "confirm and deploy" }));
 
-    expect(flow.actions.deploy).toHaveBeenCalledWith(expect.any(String), { secrets: {}, unresolvedSecrets: [] });
+    const previewed = lastPanesProps(ConfigureDeploymentPanes).sdl;
+    expect(flow.actions.deploy).toHaveBeenCalledWith(previewed, { secrets: {}, unresolvedSecrets: [] });
   });
 
   it("tracks a dismissal when the review modal is closed via Back", async () => {
@@ -547,6 +583,10 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(ConfigureDeploymentPanes).toHaveBeenCalledWith(expect.objectContaining({ pendingClose, onRetryClose: flow.actions.retryClose }), expect.anything());
   });
 
+  function lastPanesProps(Panes: ReturnType<typeof vi.fn>) {
+    return Panes.mock.calls[Panes.mock.calls.length - 1][0] as ProbePanesProps;
+  }
+
   function setup(input: {
     initialSdl: string | undefined;
     initialName?: string;
@@ -560,6 +600,7 @@ describe(ConfigureDeploymentForm.name, () => {
     phase?: DeploymentFlow["phase"];
     pendingClose?: DeploymentFlow["pendingClose"];
     secretsEnabled?: boolean;
+    persistedInheritSecretsFrom?: string;
   }) {
     const ConfigureDeploymentPanes = vi.fn(
       input.Panes ?? (({ configurationActions }: ProbePanesProps) => <div data-testid="panes-mock">{configurationActions}</div>)
@@ -572,6 +613,7 @@ describe(ConfigureDeploymentForm.name, () => {
     const AddCreditsSnackbarContent = vi.fn((_props: { message?: string; context?: string; onAction?: () => void }) => null);
     const save = vi.fn<(sdl: string, name?: string, runtimeLimitHours?: number) => void>();
     const clear = vi.fn<() => void>();
+    const dropInheritance = vi.fn<() => void>();
     const requestQuotes = vi.fn();
     const setDeploymentName = vi.fn();
     const ReviewAndDeployModal = vi.fn((props: { open: boolean; onBack: () => void; onConfirm: () => void }) =>
@@ -591,7 +633,9 @@ describe(ConfigureDeploymentForm.name, () => {
         draftId: input.draftId ?? "draft-1",
         persistedSdl: undefined,
         persistedRuntimeLimitHours: input.persistedRuntimeLimitHours,
+        persistedInheritSecretsFrom: input.persistedInheritSecretsFrom,
         save,
+        dropInheritance,
         clear
       })
     );
@@ -653,6 +697,7 @@ describe(ConfigureDeploymentForm.name, () => {
       closeSnackbar,
       save,
       clear,
+      dropInheritance,
       requestQuotes,
       analyticsService
     };
@@ -838,6 +883,17 @@ function ImportProbePanes({ sdl, selectedServiceId, configurationActions }: Prob
       <div data-testid="sdl">{sdl}</div>
       <div data-testid="selected">{selectedServiceId}</div>
       {configurationActions}
+    </div>
+  );
+}
+
+/** Panes stand-in that reports what the inherited-secrets context hands the configuration cards. */
+function InheritedSecretsProbePanes() {
+  const inherited = useInheritedSecrets();
+  return (
+    <div>
+      <div data-testid="inherited-source">{inherited?.sourceDseq ?? ""}</div>
+      <div data-testid="inherited-names">{[...(inherited?.names ?? [])].join(",")}</div>
     </div>
   );
 }

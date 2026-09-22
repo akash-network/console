@@ -10,6 +10,7 @@ import {
   isValidSecretName,
   resolveSdlSecrets,
   secretNameOf,
+  secretReferenceNamesIn,
   secretReferenceOf
 } from "./sdlSecrets";
 
@@ -71,6 +72,81 @@ describe("sdlSecrets", () => {
 
     it.each(["1abc", "my.var", "with-dash", "", "A".repeat(65)])("rejects %p", name => {
       expect(isValidSecretName(name)).toBe(false);
+    });
+  });
+
+  describe(secretReferenceNamesIn.name, () => {
+    it("collects the names referenced from env entries and registry credentials across services", () => {
+      const sdl = [
+        'version: "2.0"',
+        "services:",
+        "  web:",
+        "    image: nginx",
+        "    env:",
+        '      - "PORT=80"',
+        '      - "API_KEY=ac-secret://API_KEY"',
+        "    credentials:",
+        "      host: ghcr.io",
+        "      username: ac-secret://REGISTRY_USERNAME",
+        "      password: ac-secret://REGISTRY_PASSWORD",
+        "  api:",
+        "    image: node",
+        "    env:",
+        '      - "DB_URL=ac-secret://DB_URL"',
+        '      - "HOME"'
+      ].join("\n");
+
+      expect(secretReferenceNamesIn(sdl)).toEqual(new Set(["API_KEY", "REGISTRY_USERNAME", "REGISTRY_PASSWORD", "DB_URL"]));
+    });
+
+    it("ignores references of another kind and plain values", () => {
+      const sdl = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "A=ac-vault://A"\n      - "B=plain"\n';
+
+      expect(secretReferenceNamesIn(sdl)).toEqual(new Set());
+    });
+
+    it("is empty for an sdl that does not parse", () => {
+      expect(secretReferenceNamesIn("services: [")).toEqual(new Set());
+    });
+
+    it("is empty for an sdl that parses to nothing", () => {
+      expect(secretReferenceNamesIn("")).toEqual(new Set());
+    });
+
+    it("is empty when services is a sequence rather than a mapping", () => {
+      const sdl = 'version: "2.0"\nservices:\n  - env:\n      - "A=ac-secret://A"\n';
+
+      expect(secretReferenceNamesIn(sdl)).toEqual(new Set());
+    });
+
+    it("ignores an env entry that is not a string", () => {
+      const sdl = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - 42\n';
+
+      expect(secretReferenceNamesIn(sdl)).toEqual(new Set());
+    });
+
+    it("ignores a bare env entry, which names a variable rather than assigning one", () => {
+      const sdl = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "ac-secret://LOOKS_LIKE_ONE"\n';
+
+      expect(secretReferenceNamesIn(sdl)).toEqual(new Set());
+    });
+
+    it("reads a reference assigned to a single character key", () => {
+      const sdl = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "A=ac-secret://SHORT_KEY"\n';
+
+      expect(secretReferenceNamesIn(sdl)).toEqual(new Set(["SHORT_KEY"]));
+    });
+
+    it("ignores credentials that are not a mapping", () => {
+      const sdl = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    credentials: null\n';
+
+      expect(secretReferenceNamesIn(sdl)).toEqual(new Set());
+    });
+
+    it("skips a service that is not a mapping and still reads the ones that are", () => {
+      const sdl = 'version: "2.0"\nservices:\n  web: null\n  api:\n    image: nginx\n    env:\n      - "A=ac-secret://A"\n';
+
+      expect(secretReferenceNamesIn(sdl)).toEqual(new Set(["A"]));
     });
   });
 

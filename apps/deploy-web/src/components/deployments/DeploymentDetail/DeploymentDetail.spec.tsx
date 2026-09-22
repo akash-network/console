@@ -135,7 +135,7 @@ describe("DeploymentDetail", () => {
 
     ManifestUpdate.mock.calls[0][0].onRedeploy?.();
 
-    expect(redeploy).toHaveBeenCalledWith({ sdl: "version: '2.0'", name: "My Storefront" });
+    expect(redeploy).toHaveBeenCalledWith({ sdl: "version: '2.0'", name: "My Storefront", sourceDseq: expect.any(String) });
     expect(analyticsService.track).toHaveBeenCalledWith("redeploy_btn_clk", "Amplitude");
   });
 

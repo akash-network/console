@@ -28,7 +28,7 @@ export type DeploymentFlowPhase = "configuring" | "creating" | "quoting" | "depl
 export type PendingClose = { dseq: string; failed: boolean; message?: string };
 
 /** Which toast the form shows. A close failure reads differently from a failed quote request, and a refusal the user can pay their way out of needs an Add Funds action rather than an apology. */
-export type FlowErrorKind = "create" | "close" | "no-providers" | "needs-funds" | "no-match";
+export type FlowErrorKind = "create" | "close" | "no-providers" | "needs-funds" | "no-match" | "inherited-unreadable";
 
 /** The live bids the flow polls while quoting (react-query-backed). Element shape derived from the shared `listBids` query. */
 export type DeploymentBids = NonNullable<ReturnType<typeof useListBids>["data"]>["data"];
@@ -56,6 +56,8 @@ export interface RequestQuotesOptions {
   name?: string;
   /** Typed secret values keyed by the name their SDL reference carries; sealed ahead of the create while the secrets feature is on. */
   secrets?: SdlSecretValues;
+  /** A deployment of the user's whose stored secret values the new one starts from, sent while the secrets feature is on. */
+  inheritSecretsFrom?: string;
 }
 
 export interface DeployOptions {
@@ -97,6 +99,9 @@ const HTTP_PAYMENT_REQUIRED = 402;
 
 /** A seal made to a key version the console no longer holds; a fresh context and a new seal is the remedy. */
 const HTTP_CONFLICT = 409;
+
+/** The api's code for a source deployment whose stored secrets can no longer be decrypted, which no retry can help. */
+const INHERITED_SECRETS_UNREADABLE_CODE = "inherited_secrets_unreadable";
 
 /** Hold after a successful lease so the deploy overlay's progress bar can fill to 100% and its final step turn green before redirecting. */
 const DEPLOY_SUCCESS_DWELL_MS = 1200;
@@ -433,13 +438,20 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         setPhase("error");
       }
 
+      const inheritance = isSecretsEnabled && options.inheritSecretsFrom ? { inheritSecretsFrom: options.inheritSecretsFrom } : {};
+
       function submitCreate(sealed: { sealedSecrets?: string }, canResealOnce: boolean) {
         createDeployment.mutate(
-          { data: { sdl, ...namePayload(options.name), ...sealed, deposit: DEFAULT_DEPOSIT } },
+          { data: { sdl, ...namePayload(options.name), ...sealed, ...inheritance, deposit: DEFAULT_DEPOSIT } },
           {
             onSuccess: onCreated,
             onError: function retryOrFail(cause: unknown) {
               if (!isCurrentAttempt()) return;
+              if (isInheritedSecretsUnreadable(cause)) {
+                setError({ message: extractApiErrorMessage(cause) ?? undefined, kind: "inherited-unreadable" });
+                setPhase("error");
+                return;
+              }
               if (canResealOnce && isStaleSealingKey(cause)) {
                 void sealAndSubmit(false);
                 return;
@@ -763,7 +775,11 @@ function isPaymentRequired(cause: unknown): boolean {
 
 /** A seal made against a retired key comes back as a bare 409; a wallet still provisioning answers 409 too and has its own retry. */
 function isStaleSealingKey(cause: unknown): boolean {
-  return isApiError(cause) && cause.status === HTTP_CONFLICT && !isWalletProvisioning(cause);
+  return isApiError(cause) && cause.status === HTTP_CONFLICT && !isWalletProvisioning(cause) && !isInheritedSecretsUnreadable(cause);
+}
+
+function isInheritedSecretsUnreadable(cause: unknown): boolean {
+  return extractApiErrorCode(cause) === INHERITED_SECRETS_UNREADABLE_CODE;
 }
 
 /** Best-effort cache under owner + dseq (the key the detail page reads); failures are swallowed so storage issues never block deploy. */
