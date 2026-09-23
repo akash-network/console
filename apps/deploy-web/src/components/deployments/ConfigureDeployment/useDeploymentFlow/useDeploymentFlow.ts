@@ -603,7 +603,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
    * The manifest is derived from the SDL being deployed (not the create-time one) so a quoting-window edit gets leased;
    * when it differs from create the deployment is updated first so the on-chain hash matches before the manifest is sent.
    * With the secrets feature on, that update is a patch of what changed since the create, because the whole-SDL update
-   * seals every value and cannot resolve a reference.
+   * seals every value and cannot resolve a reference. The patch always carries a seal, empty or not, since the api seals
+   * every variable a patch without one writes.
    */
   const deploy = useCallback(
     function deploy(sdl: string, options: DeployOptions = {}) {
@@ -667,9 +668,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         updateDeployment.mutate({ dseq: activeDseq, data: { sdl } }, { onSuccess: sendManifestAndLease, onError: failDeploy });
       }
 
-      function submitPatch(services: ServicesPatch | undefined, sealedSecrets: string | undefined, canResealOnce: boolean) {
+      function submitPatch(services: ServicesPatch | undefined, sealedSecrets: string, canResealOnce: boolean) {
         patchDeployment.mutate(
-          { dseq: activeDseq, data: { ...(services === undefined ? {} : { services }), ...(sealedSecrets === undefined ? {} : { sealedSecrets }) } },
+          { dseq: activeDseq, data: { ...(services === undefined ? {} : { services }), sealedSecrets } },
           {
             onSuccess: sendManifestAndLease,
             onError: function resealOrFail(cause: unknown) {
@@ -709,10 +710,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
         if (services === undefined && !hasTypedSecrets) {
           sendManifestAndLease();
-        } else if (hasTypedSecrets) {
-          await sealAndPatch(services, true);
         } else {
-          submitPatch(services, undefined, false);
+          await sealAndPatch(services, true);
         }
       }
 
