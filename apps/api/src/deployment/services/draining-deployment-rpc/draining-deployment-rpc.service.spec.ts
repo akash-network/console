@@ -4,9 +4,10 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { CreateLogger } from "@src/core";
-import { DrainingDeploymentRpcService } from "./draining-deployment-rpc.service";
+import { DrainingDeploymentRpcService, MAX_DSEQS_FOR_DIRECT_LOOKUP } from "./draining-deployment-rpc.service";
 
 import { createAkashAddress } from "@test/seeders";
+import { createDeploymentInfoErrorSeed } from "@test/seeders/deployment-info.seeder";
 import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
 import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
 
@@ -190,6 +191,64 @@ describe(DrainingDeploymentRpcService.name, () => {
       expect(result).toHaveLength(1);
       expect(result[0].closedHeight).toBe(input.leases[0].closedHeight);
     });
+
+    it("reads a deployment and its leases directly instead of paging the owner's whole history", async () => {
+      const { service, leaseHttpService, deploymentHttpService, owner, dseqs, closureHeight } = setup({
+        inputs: [{ leases: [{ blockRate: 50 }], deployment: {} }]
+      });
+
+      const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
+
+      expect(result).toEqual([expect.objectContaining({ dseq: Number(dseqs[0]), blockRate: 50 })]);
+      expect(deploymentHttpService.findAll).not.toHaveBeenCalled();
+      expect(deploymentHttpService.findByOwnerAndDseq.mock.calls).toEqual([[owner, dseqs[0]]]);
+      expect(leaseHttpService.list.mock.calls.map(([params]) => params.dseq)).toEqual([dseqs[0]]);
+    });
+
+    it("rejects when the chain answers a direct read with an error other than not found", async () => {
+      const { service, deploymentHttpService, owner, dseqs, closureHeight } = setup({
+        inputs: [{ leases: [{ blockRate: 50 }], deployment: {} }]
+      });
+      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue(createDeploymentInfoErrorSeed({ code: 3, message: "invalid owner address" }));
+
+      await expect(service.findManyByDseqAndOwner(closureHeight, owner, dseqs)).rejects.toThrow("invalid owner address");
+    });
+
+    it("reads as many deployments as its direct-read limit allows without paging the owner's history", async () => {
+      const { service, leaseHttpService, deploymentHttpService, owner, dseqs, closureHeight } = setup({
+        inputs: createFundedDeploymentInputs(MAX_DSEQS_FOR_DIRECT_LOOKUP)
+      });
+
+      const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
+
+      expect(result).toHaveLength(MAX_DSEQS_FOR_DIRECT_LOOKUP);
+      expect(deploymentHttpService.findAll).not.toHaveBeenCalled();
+      expect(leaseHttpService.list.mock.calls.map(([params]) => params.dseq)).toEqual(dseqs);
+    });
+
+    it("pages the owner's history once more deployments are requested than it reads directly", async () => {
+      const { service, leaseHttpService, deploymentHttpService, owner, dseqs, closureHeight } = setup({
+        inputs: createFundedDeploymentInputs(MAX_DSEQS_FOR_DIRECT_LOOKUP + 1)
+      });
+
+      const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
+
+      expect(result).toHaveLength(MAX_DSEQS_FOR_DIRECT_LOOKUP + 1);
+      expect(deploymentHttpService.findByOwnerAndDseq).not.toHaveBeenCalled();
+      expect(deploymentHttpService.findAll).toHaveBeenCalledTimes(1);
+      expect(leaseHttpService.list.mock.calls.map(([params]) => params.dseq)).toEqual([undefined]);
+    });
+
+    it("leaves out the owner's other deployments while paging their history", async () => {
+      const { service, owner, dseqs, closureHeight } = setup({
+        inputs: createFundedDeploymentInputs(MAX_DSEQS_FOR_DIRECT_LOOKUP + 2)
+      });
+      const requestedDseqs = dseqs.slice(0, -1);
+
+      const result = await service.findManyByDseqAndOwner(closureHeight, owner, requestedDseqs);
+
+      expect(result.map(deployment => String(deployment.dseq))).toEqual(requestedDseqs);
+    });
   });
 
   it("creates the logger with the service context", () => {
@@ -346,7 +405,46 @@ describe(DrainingDeploymentRpcService.name, () => {
       expect(result).toEqual([]);
       expect(leaseHttpService.list).not.toHaveBeenCalled();
     });
+
+    it("asks the chain for each requested deployment's active leases directly", async () => {
+      const { service, leaseHttpService, owner, dseqs } = setup({
+        inputs: [{ leases: [{ blockRate: 50 }] }, { leases: [{ blockRate: 30 }] }]
+      });
+
+      await service.findActiveLeaseRates(owner, dseqs);
+
+      expect(leaseHttpService.list.mock.calls.map(([params]) => [params.dseq, params.state])).toEqual([
+        [dseqs[0], "active"],
+        [dseqs[1], "active"]
+      ]);
+    });
+
+    it("pages the owner's active leases once more deployments are requested than it reads directly", async () => {
+      const { service, leaseHttpService, owner, dseqs } = setup({
+        inputs: createFundedDeploymentInputs(MAX_DSEQS_FOR_DIRECT_LOOKUP + 1)
+      });
+
+      const result = await service.findActiveLeaseRates(owner, dseqs);
+
+      expect(result).toHaveLength(MAX_DSEQS_FOR_DIRECT_LOOKUP + 1);
+      expect(leaseHttpService.list.mock.calls.map(([params]) => [params.dseq, params.state])).toEqual([[undefined, "active"]]);
+    });
+
+    it("leaves out deployments the caller did not ask about while paging the owner's active leases", async () => {
+      const { service, owner, dseqs } = setup({
+        inputs: createFundedDeploymentInputs(MAX_DSEQS_FOR_DIRECT_LOOKUP + 2)
+      });
+      const requestedDseqs = dseqs.slice(0, -1);
+
+      const result = await service.findActiveLeaseRates(owner, requestedDseqs);
+
+      expect(result.map(leaseRate => leaseRate.dseq)).toEqual(requestedDseqs);
+    });
   });
+
+  function createFundedDeploymentInputs(count: number) {
+    return Array.from({ length: count }, (_, index) => ({ leases: [{ blockRate: 50 }], deployment: { dseq: String(500_000 + index) } }));
+  }
 
   function setup({
     inputs = []
@@ -423,15 +521,21 @@ describe(DrainingDeploymentRpcService.name, () => {
     const leaseList = leases;
     const deploymentList = deployments.flatMap(d => d.deployments);
 
-    leaseHttpService.list.mockResolvedValue({
-      leases: leaseList,
-      pagination: { next_key: null, total: String(leaseList.length) }
+    leaseHttpService.list.mockImplementation(async ({ dseq }) => {
+      const matchingLeases = dseq === undefined ? leaseList : leaseList.filter(lease => lease.lease.id.dseq === dseq);
+      return { leases: matchingLeases, pagination: { next_key: null, total: String(matchingLeases.length) } };
     });
 
     deploymentHttpService.findAll.mockResolvedValue({
       deployments: deploymentList,
       pagination: { next_key: null, total: String(deploymentList.length) }
     } as unknown as DeploymentListResponse);
+
+    deploymentHttpService.findByOwnerAndDseq.mockImplementation(
+      async (_owner, dseq) =>
+        deploymentList.find(deployment => deployment.deployment.id.dseq === dseq) ??
+        createDeploymentInfoErrorSeed({ code: 5, message: "codespace deployment code 4: Deployment not found" })
+    );
 
     const service = new DrainingDeploymentRpcService(leaseHttpService, deploymentHttpService, createLogger);
 
