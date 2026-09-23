@@ -34,6 +34,17 @@ export function parseGpuProbeOutput(output: string): GpuProbeReading | null {
   return null;
 }
 
+/** The pods of one service can land on different hosts, so each is read on its own and their cards add up into the service's reading. */
+export function mergeGpuProbeReadings(readings: GpuProbeReading[]): GpuProbeReading | null {
+  const [first] = readings;
+  if (!first) return null;
+
+  const gpus: DetectedGpuRecord[] = [];
+  for (const card of readings.flatMap(reading => reading.gpus)) fold(gpus, { ...card });
+
+  return { source: first.source, driverVersion: first.driverVersion, gpus };
+}
+
 function splitSections(output: string): Map<string, string[]> {
   const sections = new Map<string, string[]>();
   let current: string[] | null = null;

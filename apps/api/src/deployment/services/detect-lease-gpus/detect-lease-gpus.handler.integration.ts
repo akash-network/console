@@ -141,7 +141,7 @@ describe(DetectLeaseGpusHandler.name, () => {
     const providerService = container.resolve(ProviderService);
     vi.spyOn(providerService, "toProviderAuth").mockResolvedValue({ token: "jwt" } as Awaited<ReturnType<ProviderService["toProviderAuth"]>>);
     vi.spyOn(providerService, "getLeaseStatus").mockResolvedValue(
-      mock<LeaseStatus>({ services: { web: mock<LeaseStatus["services"][string]>({ available: 1 }) } })
+      mock<LeaseStatus>({ services: { web: mock<LeaseStatus["services"][string]>({ available: 1, total: 1 }) } })
     );
 
     vi.spyOn(container.resolve(LeaseGpuProbeService), "probe").mockResolvedValue(input.probeResult ?? { status: "detected", reading: GPU_READING });

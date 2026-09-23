@@ -110,6 +110,75 @@ describe(LeaseGpuDetectionService.name, () => {
     expect(report.complete).toBe(false);
   });
 
+  it("reads every pod of a gpu service, since each may sit on a different host's cards", async () => {
+    const { service, probeService } = setup({ replicas: { web: 3 } });
+
+    await service.detect({ wallet: WALLET, dseq: DSEQ });
+
+    expect(probeService.probe.mock.calls.map(([target]) => target.podIndex)).toEqual([0, 1, 2]);
+  });
+
+  it("records the cards of every pod of a service as one reading", async () => {
+    const a100 = { rawName: "NVIDIA A100-SXM4-80GB", pciDeviceId: "0x20B210DE", memoryMb: 81920, count: 1 };
+    const { service } = setup({
+      replicas: { web: 3 },
+      probeResults: [
+        { status: "detected", reading: GPU_READING },
+        { status: "detected", reading: { ...GPU_READING, gpus: [a100] } },
+        { status: "detected", reading: GPU_READING }
+      ]
+    });
+
+    const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
+
+    expect(report.rows).toEqual([expect.objectContaining({ service: "web", gpus: [{ ...GPU_READING.gpus[0], count: 2 }, a100] })]);
+    expect(report.complete).toBe(true);
+  });
+
+  it("records nothing for a service while one of its pods cannot be read, such as one still starting, and stops opening sessions on it", async () => {
+    const { service, probeService, logger } = setup({
+      replicas: { web: 3 },
+      probeResults: [{ status: "detected", reading: GPU_READING }, { status: "idle_timeout" }]
+    });
+
+    const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
+
+    expect(report).toEqual({ status: "nothing_readable", rows: [], complete: false });
+    expect(probeService.probe).toHaveBeenCalledTimes(2);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "LEASE_GPU_DETECTION_UNREAD", service: "web", podIndex: 1, status: "idle_timeout" })
+    );
+  });
+
+  it("leaves unread a service running more pods than one run may read, rather than reading it in part", async () => {
+    const { service, probeService, logger } = setup({ running: ["web", "sidecar"], replicas: { web: 5 }, sdl: null });
+
+    const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
+
+    expect(probeService.probe.mock.calls.map(([target]) => target.service)).toEqual(["sidecar"]);
+    expect(report.rows).toEqual([expect.objectContaining({ service: "sidecar" })]);
+    expect(report.complete).toBe(true);
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "LEASE_GPU_DETECTION_REPLICAS_CAPPED", service: "web", replicas: 5, max: 4 }));
+  });
+
+  it("reads a service running as many pods as one run may read", async () => {
+    const { service, probeService } = setup({ replicas: { web: 4 } });
+
+    const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
+
+    expect(probeService.probe).toHaveBeenCalledTimes(4);
+    expect(report.complete).toBe(true);
+  });
+
+  it("settles a lease whose only gpu service runs more pods than one run may read, since coming back would read no more of it", async () => {
+    const { service, probeService } = setup({ replicas: { web: 5 } });
+
+    const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
+
+    expect(report).toEqual({ status: "nothing_readable", rows: [], complete: true });
+    expect(probeService.probe).not.toHaveBeenCalled();
+  });
+
   it("records a container without a gpu tool, so nothing comes back for it", async () => {
     const { service } = setup({ probeResults: [{ status: "detected", reading: { source: "none", driverVersion: null, gpus: [] } }] });
 
@@ -200,6 +269,7 @@ describe(LeaseGpuDetectionService.name, () => {
     deploymentRead?: "error_body" | "throws";
     leaseListFails?: boolean;
     statusFails?: boolean;
+    replicas?: Record<string, number>;
     probeResults?: LeaseGpuProbeResult[];
   }) {
     const deploymentHttpService = mock<DeploymentHttpService>();
@@ -234,7 +304,9 @@ describe(LeaseGpuDetectionService.name, () => {
     const running = input.running ?? ["web"];
     providerService.getLeaseStatus.mockImplementation(async () => {
       if (input.statusFails) throw new Error("provider unreachable");
-      return mock<LeaseStatus>({ services: Object.fromEntries(running.map(name => [name, mock<LeaseStatus["services"][string]>({ available: 1 })])) });
+      return mock<LeaseStatus>({
+        services: Object.fromEntries(running.map(name => [name, mock<LeaseStatus["services"][string]>({ available: 1, total: input.replicas?.[name] ?? 1 })]))
+      });
     });
 
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
@@ -257,6 +329,7 @@ describe(LeaseGpuDetectionService.name, () => {
     config.get.mockImplementation((key: string) => {
       if (key === "LEASE_GPU_DETECTION_MAX_LEASES_PER_DEPLOYMENT") return 4;
       if (key === "LEASE_GPU_DETECTION_MAX_SERVICES_PER_LEASE") return 4;
+      if (key === "LEASE_GPU_DETECTION_MAX_REPLICAS_PER_SERVICE") return 4;
       if (key === "LEASE_GPU_DETECTION_PROVIDER_JWT_TTL_SECONDS") return 120;
       return undefined;
     });

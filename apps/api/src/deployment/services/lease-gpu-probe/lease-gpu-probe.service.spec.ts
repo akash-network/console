@@ -11,18 +11,27 @@ import { buildLeaseGpuProbeUrl, LeaseGpuProbeService } from "./lease-gpu-probe.s
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 
-const TARGET = { hostUri: "https://provider.example:8443", providerAddress: "akash1provider", token: "jwt", dseq: "123", gseq: 1, oseq: 2, service: "web app" };
+const TARGET = {
+  hostUri: "https://provider.example:8443",
+  providerAddress: "akash1provider",
+  token: "jwt",
+  dseq: "123",
+  gseq: 1,
+  oseq: 2,
+  service: "web app",
+  podIndex: 0
+};
 const NVIDIA_LINE = "NVIDIA H100 80GB HBM3, 81559, 550.54.15, 0x233010DE";
 
 describe(LeaseGpuProbeService.name, () => {
   describe("buildLeaseGpuProbeUrl", () => {
-    it("runs the collector through sh without stdin or a tty on the first pod of the service", () => {
-      const url = new URL(buildLeaseGpuProbeUrl(TARGET));
+    it("runs the collector through sh without stdin or a tty on the pod it names", () => {
+      const url = new URL(buildLeaseGpuProbeUrl({ ...TARGET, podIndex: 2 }));
 
       expect(url.origin + url.pathname).toBe("https://provider.example:8443/lease/123/1/2/shell");
       expect(url.searchParams.get("stdin")).toBe("0");
       expect(url.searchParams.get("tty")).toBe("0");
-      expect(url.searchParams.get("podIndex")).toBe("0");
+      expect(url.searchParams.get("podIndex")).toBe("2");
       expect(url.searchParams.get("cmd0")).toBe("sh");
       expect(url.searchParams.get("cmd1")).toBe("-c");
       expect(url.searchParams.get("service")).toBe("web app");

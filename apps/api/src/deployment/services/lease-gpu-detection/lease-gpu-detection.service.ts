@@ -4,11 +4,12 @@ import { inject, singleton } from "tsyringe";
 
 import type { WalletInitialized } from "@src/billing/repositories";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { type GpuProbeReading, mergeGpuProbeReadings } from "@src/deployment/lib/gpu-probe-output/gpu-probe-output";
 import { findGpuServices } from "@src/deployment/lib/sdl-gpu-services/sdl-gpu-services";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { LeaseGpuInsert } from "@src/deployment/repositories/lease-gpu/lease-gpu.repository";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
-import { LeaseGpuProbeService } from "@src/deployment/services/lease-gpu-probe/lease-gpu-probe.service";
+import { LeaseGpuProbeService, type LeaseGpuProbeTarget } from "@src/deployment/services/lease-gpu-probe/lease-gpu-probe.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -31,6 +32,8 @@ const CHAIN_UNAVAILABLE: LeaseGpuDetectionReport = { status: "chain_unavailable"
 
 /** A placement that asks for a gpu, and the sequence of the group that carries it. */
 type GpuPlacement = { gseq: number; name: string };
+
+type RunningService = { name: string; replicas: number };
 
 /** Reads which gpus one deployment's leases are running, by asking each gpu service's container through the provider. */
 @singleton()
@@ -143,16 +146,16 @@ export class LeaseGpuDetectionService {
 
     if (!running?.length) return { rows: [], complete: false };
 
-    const services = this.#selectGpuServices(running, input.sdl, input.placement, dseq);
+    const gpuServices = this.#selectGpuServices(running, input.sdl, input.placement, dseq);
+    const services = this.#dropServicesPastReplicaCap(gpuServices, dseq);
     const rows: LeaseGpuInsert[] = [];
 
     for (const service of services) {
-      const result = await this.probeService.probe({ hostUri: provider.hostUri, providerAddress, token: auth.token, dseq, gseq, oseq, service });
-
-      if (result.status !== "detected") {
-        this.logger.warn({ event: "LEASE_GPU_DETECTION_UNREAD", dseq, provider: providerAddress, service, status: result.status });
-        continue;
-      }
+      const reading = await this.#readService(
+        { hostUri: provider.hostUri, providerAddress, token: auth.token, dseq, gseq, oseq, service: service.name },
+        service.replicas
+      );
+      if (!reading) continue;
 
       rows.push({
         userId: input.wallet.userId,
@@ -160,20 +163,45 @@ export class LeaseGpuDetectionService {
         gseq,
         oseq,
         provider: providerAddress,
-        service,
-        gpus: result.reading.gpus,
-        driverVersion: result.reading.driverVersion,
-        source: result.reading.source
+        service: service.name,
+        gpus: reading.gpus,
+        driverVersion: reading.driverVersion,
+        source: reading.source
       });
     }
 
-    return { rows, complete: services.length > 0 && rows.length === services.length };
+    return { rows, complete: gpuServices.length > 0 && rows.length === services.length };
+  }
+
+  /** Every pod or none, since a service read in part lists fewer cards than it runs; stopping at the first unread pod spares the rest a session. */
+  async #readService(target: Omit<LeaseGpuProbeTarget, "podIndex">, replicas: number): Promise<GpuProbeReading | null> {
+    const readings: GpuProbeReading[] = [];
+
+    for (let podIndex = 0; podIndex < replicas; podIndex++) {
+      const result = await this.probeService.probe({ ...target, podIndex });
+
+      if (result.status !== "detected") {
+        this.logger.warn({
+          event: "LEASE_GPU_DETECTION_UNREAD",
+          dseq: target.dseq,
+          provider: target.providerAddress,
+          service: target.service,
+          podIndex,
+          status: result.status
+        });
+        return null;
+      }
+
+      readings.push(result.reading);
+    }
+
+    return mergeGpuProbeReadings(readings);
   }
 
   /** The sdl names which services asked for a gpu; without one every running service is a candidate, since the provider does not say. */
-  #selectGpuServices(running: string[], sdl: SDLInput | undefined, placement: GpuPlacement | undefined, dseq: string): string[] {
+  #selectGpuServices(running: RunningService[], sdl: SDLInput | undefined, placement: GpuPlacement | undefined, dseq: string): RunningService[] {
     const declared = placement ? findGpuServices(sdl, placement.name) : [];
-    const candidates = declared.length ? running.filter(service => declared.includes(service)) : running;
+    const candidates = declared.length ? running.filter(service => declared.includes(service.name)) : running;
     const capped = candidates.slice(0, this.config.get("LEASE_GPU_DETECTION_MAX_SERVICES_PER_LEASE"));
 
     if (capped.length < candidates.length) {
@@ -183,13 +211,26 @@ export class LeaseGpuDetectionService {
     return capped;
   }
 
-  async #findRunningServices(provider: string, dseq: string, gseq: number, oseq: number, auth: ProviderAuth): Promise<string[] | undefined> {
+  /** A service with more pods than one run may read is settled unread, since reading it in part would understate what it runs. */
+  #dropServicesPastReplicaCap(services: RunningService[], dseq: string): RunningService[] {
+    const maxReplicas = this.config.get("LEASE_GPU_DETECTION_MAX_REPLICAS_PER_SERVICE");
+
+    return services.filter(service => {
+      if (service.replicas <= maxReplicas) return true;
+
+      this.logger.warn({ event: "LEASE_GPU_DETECTION_REPLICAS_CAPPED", dseq, service: service.name, replicas: service.replicas, max: maxReplicas });
+      return false;
+    });
+  }
+
+  /** A service counts as many pods as the provider runs for it, ready or not, so a pod still starting is waited for rather than skipped. */
+  async #findRunningServices(provider: string, dseq: string, gseq: number, oseq: number, auth: ProviderAuth): Promise<RunningService[] | undefined> {
     try {
       const status = await this.providerService.getLeaseStatus(provider, dseq, gseq, oseq, auth);
 
       return Object.entries(status.services ?? {})
         .filter(([, service]) => (service?.available ?? 0) > 0)
-        .map(([name]) => name);
+        .map(([name, service]) => ({ name, replicas: service.total }));
     } catch (error) {
       this.logger.warn({ event: "LEASE_GPU_DETECTION_STATUS_UNAVAILABLE", dseq, provider, error });
       return undefined;

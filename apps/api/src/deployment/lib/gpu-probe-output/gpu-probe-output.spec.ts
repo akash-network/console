@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { parseGpuProbeOutput } from "./gpu-probe-output";
+import { type GpuProbeReading, mergeGpuProbeReadings, parseGpuProbeOutput } from "./gpu-probe-output";
+
+const H100 = { rawName: "NVIDIA H100 80GB HBM3", pciDeviceId: "0x233010DE", memoryMb: 81559 };
+const A100 = { rawName: "NVIDIA A100-SXM4-80GB", pciDeviceId: "0x20B210DE", memoryMb: 81920 };
 
 describe("parseGpuProbeOutput", () => {
   describe("nvidia", () => {
@@ -115,4 +118,43 @@ describe("parseGpuProbeOutput", () => {
 
     expect(reading?.source).toBe("nvidia-smi");
   });
+});
+
+describe("mergeGpuProbeReadings", () => {
+  it("adds up identical cards that different pods reported", () => {
+    const merged = mergeGpuProbeReadings([nvidiaReading([{ ...H100, count: 1 }]), nvidiaReading([{ ...H100, count: 2 }])]);
+
+    expect(merged?.gpus).toEqual([{ ...H100, count: 3 }]);
+  });
+
+  it("keeps apart the unlike cards that pods on different hosts reported", () => {
+    const merged = mergeGpuProbeReadings([nvidiaReading([{ ...H100, count: 1 }]), nvidiaReading([{ ...A100, count: 1 }])]);
+
+    expect(merged?.gpus).toEqual([
+      { ...H100, count: 1 },
+      { ...A100, count: 1 }
+    ]);
+  });
+
+  it("names the tool and driver the first pod reported", () => {
+    const merged = mergeGpuProbeReadings([nvidiaReading([{ ...H100, count: 1 }], "550.54.15"), nvidiaReading([{ ...H100, count: 1 }], "570.86.10")]);
+
+    expect(merged).toEqual(expect.objectContaining({ source: "nvidia-smi", driverVersion: "550.54.15" }));
+  });
+
+  it("leaves the readings it merged as they were", () => {
+    const readings = [nvidiaReading([{ ...H100, count: 1 }]), nvidiaReading([{ ...H100, count: 1 }])];
+
+    mergeGpuProbeReadings(readings);
+
+    expect(readings.map(reading => reading.gpus[0].count)).toEqual([1, 1]);
+  });
+
+  it("merges no readings into no reading", () => {
+    expect(mergeGpuProbeReadings([])).toBeNull();
+  });
+
+  function nvidiaReading(gpus: GpuProbeReading["gpus"], driverVersion = "550.54.15"): GpuProbeReading {
+    return { source: "nvidia-smi", driverVersion, gpus };
+  }
 });
