@@ -1,10 +1,11 @@
+import { TooltipProvider } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
 
-import type { DEPENDENCIES } from "./GpuLabel";
-import { GpuLabel } from "./GpuLabel";
+import { DEPENDENCIES, GpuLabel } from "./GpuLabel";
 import type { DetectedGpuSummary } from "./placementModel";
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 describe(GpuLabel.name, () => {
   it("shows each count beside the model it counts", () => {
@@ -28,6 +29,14 @@ describe(GpuLabel.name, () => {
     expect(CustomTooltip).toHaveBeenCalledWith(expect.objectContaining({ title: "2× H100 / A100" }), {});
   });
 
+  it("lets a keyboard reach the whole label", async () => {
+    setup({ gpuAmount: 2, models: ["h100", "a100"], dependencies: DEPENDENCIES });
+
+    await userEvent.tab();
+
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("2× H100 / A100");
+  });
+
   it("shows the count alone when no model is declared", () => {
     const { container } = setup({ gpuAmount: 1, models: ["*"] });
 
@@ -47,9 +56,13 @@ describe(GpuLabel.name, () => {
     expect(container).toHaveTextContent(/^—$/);
   });
 
-  function setup(input: { gpuAmount: number; models: string[]; detected?: DetectedGpuSummary[]; isLoading?: boolean }) {
+  function setup(input: { gpuAmount: number; models: string[]; detected?: DetectedGpuSummary[]; isLoading?: boolean; dependencies?: typeof DEPENDENCIES }) {
     const CustomTooltip = vi.fn<typeof DEPENDENCIES.CustomTooltip>(({ children }) => <>{children}</>);
-    const { container } = render(<GpuLabel {...input} dependencies={{ CustomTooltip }} />);
+    const { container } = render(
+      <TooltipProvider>
+        <GpuLabel {...input} dependencies={input.dependencies ?? { CustomTooltip }} />
+      </TooltipProvider>
+    );
 
     return { container, CustomTooltip };
   }

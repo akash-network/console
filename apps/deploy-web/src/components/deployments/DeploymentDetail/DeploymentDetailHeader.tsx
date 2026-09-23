@@ -177,7 +177,6 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
                 models={getDeploymentGpuModels(deployment.groups)}
                 detected={foldDetectedGpusOfLeases(leases)}
                 isLoading={isLoadingDetectedGpus}
-                dependencies={{ CustomTooltip: d.CustomTooltip }}
               />
             </SummaryItem>
             <SummaryItem label="vCPU">{roundDecimal(deployment.cpuAmount, 2)}</SummaryItem>

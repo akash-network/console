@@ -34,7 +34,7 @@ export const GpuLabel: FC<GpuLabelProps> = ({ gpuAmount, models, detected, isLoa
 
   return (
     <d.CustomTooltip title={formatGpuLabel(gpuAmount, models, detected)} className="p-3">
-      <span className="block max-w-44 truncate">
+      <span className="block max-w-44 truncate" tabIndex={0}>
         {gpus.map(({ count, model }, index) => (
           <Fragment key={`${model}-${index}`}>
             {index > 0 && ", "}
