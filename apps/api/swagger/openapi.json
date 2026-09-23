@@ -5179,7 +5179,7 @@
                                     "type": "integer",
                                     "minimum": 1,
                                     "maximum": 65535,
-                                    "description": "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind on chain (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP."
+                                    "description": "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP."
                                   },
                                   "accept": {
                                     "type": "array",
@@ -5769,7 +5769,7 @@
             }
           },
           "400": {
-            "description": "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, leaves a reference with no value, moves a container port onto one the service already exposes, or moves a port in a way that would change its endpoint kind on chain",
+            "description": "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, leaves a reference with no value, moves a container port onto one the service already exposes, or moves a port in a way that would change its endpoint kind",
             "content": {
               "application/json": {
                 "schema": {

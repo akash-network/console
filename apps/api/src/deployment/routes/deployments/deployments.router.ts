@@ -329,7 +329,7 @@ const patchRoute = createRoute({
     },
     400: {
       description:
-        "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, leaves a reference with no value, moves a container port onto one the service already exposes, or moves a port in a way that would change its endpoint kind on chain",
+        "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, leaves a reference with no value, moves a container port onto one the service already exposes, or moves a port in a way that would change its endpoint kind",
       content: {
         "application/json": {
           schema: ErrorResponseSchema

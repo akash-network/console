@@ -301,7 +301,7 @@ const PatchExposeSchema = z
     }),
     as: PortNumberSchema.openapi({
       description:
-        "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind on chain (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP."
+        "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP."
     }),
     accept: z.array(z.string()).openapi({
       description:

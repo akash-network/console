@@ -8561,7 +8561,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     "type": "array",
                                   },
                                   "as": {
-                                    "description": "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind on chain (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP.",
+                                    "description": "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP.",
                                     "maximum": 65535,
                                     "minimum": 1,
                                     "type": "integer",
@@ -9172,7 +9172,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, leaves a reference with no value, moves a container port onto one the service already exposes, or moves a port in a way that would change its endpoint kind on chain",
+            "description": "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, leaves a reference with no value, moves a container port onto one the service already exposes, or moves a port in a way that would change its endpoint kind",
           },
           "404": {
             "content": {
