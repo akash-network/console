@@ -1,3 +1,4 @@
+import { TooltipProvider } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -213,17 +214,15 @@ describe(DeploymentUpdate.name, () => {
     });
 
     it("names the gpus the console read on a placement's lease", () => {
-      const gpuLease = leaseOn("edge-us", "akash1us");
-      gpuLease.gpuAmount = 2;
-      gpuLease.detectedGpus = {
-        services: [{ service: "web", gpus: [{ vendor: "nvidia", model: null, displayName: "H100", memoryMb: 0, interface: null, count: 2 }] }],
-        driverVersion: null,
-        detectedAt: "2026-09-21T10:00:00.000Z"
-      };
+      setup({ leases: [leaseWithDetectedH100s(), leaseOn("edge-eu", "akash1eu")] });
 
-      setup({ leases: [gpuLease, leaseOn("edge-eu", "akash1eu")] });
+      expect(within(placementCard("edge-us")).getByText("GPU").parentElement).toHaveTextContent("2\u00d7 H100");
+    });
 
-      expect(within(placementCard("edge-us")).getByText("2\u00d7 H100")).toBeInTheDocument();
+    it("holds the gpu model's place while the reading loads", () => {
+      setup({ leases: [leaseWithDetectedH100s(), leaseOn("edge-eu", "akash1eu")], isLoadingDetectedGpus: true });
+
+      expect(within(placementCard("edge-us")).getByTestId("gpu-model-skeleton")).toBeInTheDocument();
     });
 
     it("names the fields that stay locked after deploy", () => {
@@ -713,6 +712,17 @@ describe(DeploymentUpdate.name, () => {
     });
   }
 
+  function leaseWithDetectedH100s() {
+    const lease = leaseOn("edge-us", "akash1us");
+    lease.gpuAmount = 2;
+    lease.detectedGpus = {
+      services: [{ service: "web", gpus: [{ vendor: "nvidia", model: null, displayName: "H100", memoryMb: 0, interface: null, count: 2 }] }],
+      driverVersion: null,
+      detectedAt: "2026-09-21T10:00:00.000Z"
+    };
+    return lease;
+  }
+
   function setup(
     input: {
       definition?: Partial<DeploymentDefinition>;
@@ -720,6 +730,7 @@ describe(DeploymentUpdate.name, () => {
       isUpdating?: boolean;
       sdlRefusal?: string | null;
       leases?: LeaseDto[] | null;
+      isLoadingDetectedGpus?: boolean;
     } = {}
   ) {
     const submit = vi.fn();
@@ -752,6 +763,7 @@ describe(DeploymentUpdate.name, () => {
         deployment={deployment}
         leases={leases}
         providers={providers}
+        isLoadingDetectedGpus={input.isLoadingDetectedGpus}
         definition={definition}
         onUpdated={onUpdated}
         onRedeploy={onRedeploy}
@@ -759,7 +771,7 @@ describe(DeploymentUpdate.name, () => {
         dependencies={{ ...DEPENDENCIES, useDeploymentUpdateSubmit }}
       />
     );
-    const { rerender } = render(tabFor(definitionOf({})));
+    const { rerender } = render(tabFor(definitionOf({})), { wrapper: TooltipProvider });
 
     const showDefinition = (overrides: Partial<DeploymentDefinition>) => rerender(tabFor(definitionOf(overrides)));
     const submitInput = () => {

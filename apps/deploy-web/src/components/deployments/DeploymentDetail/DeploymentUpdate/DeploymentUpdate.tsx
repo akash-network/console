@@ -49,6 +49,7 @@ export interface DeploymentUpdateProps {
   deployment: DeploymentDto;
   leases: LeaseDto[] | null | undefined;
   providers: ApiProviderList[];
+  isLoadingDetectedGpus?: boolean;
   definition: DeploymentDefinition;
   onUpdated: () => void;
   onRedeploy?: () => void;
@@ -61,6 +62,7 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
   deployment,
   leases,
   providers,
+  isLoadingDetectedGpus,
   definition,
   onUpdated,
   onRedeploy,
@@ -174,6 +176,7 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
                 .filter(({ service }) => service.placementId === placement.id)
                 .map(({ service, serviceIndex }) => ({ serviceIndex, title: service.title }))}
               locked={isClosed || isUpdating || isReloading}
+              isLoadingDetectedGpus={isLoadingDetectedGpus}
             />
           );
         })}

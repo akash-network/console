@@ -222,6 +222,12 @@ describe("DeploymentDetail", () => {
       expect(DeploymentUpdate.mock.calls[0][0].providers).toEqual([]);
     });
 
+    it("tells the editor while the gpus the console read are still loading", () => {
+      const { DeploymentUpdate } = setup({ tab: "UPDATE", isUpdateEditorEnabled: true, isLoadingDetectedGpus: true });
+
+      expect(DeploymentUpdate.mock.calls[0][0].isLoadingDetectedGpus).toBe(true);
+    });
+
     it("keeps the raw editor off the page while the structured editor renders", () => {
       setup({ tab: "UPDATE", isUpdateEditorEnabled: true });
 

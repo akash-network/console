@@ -6,8 +6,8 @@ import { MapPin, NavArrowRight, Server } from "iconoir-react";
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { providerDisplayName } from "@src/utils/providerUtils";
-import { buildPlacementStats, foldDetectedGpus, getPlacementGpuModels, getProviderRegion } from "../DeploymentPlacements/placementModel";
-import { PlacementStats } from "../DeploymentPlacements/PlacementStats";
+import { foldDetectedGpus, getPlacementGpuModels, getProviderRegion } from "../DeploymentPlacements/placementModel";
+import { buildPlacementStats, PlacementStats } from "../DeploymentPlacements/PlacementStats";
 import { UpdateServiceSection } from "./UpdateServiceSection";
 
 export interface UpdatePlacementService {
@@ -23,9 +23,10 @@ export interface UpdatePlacementCardProps {
   provider?: ApiProviderList;
   services: UpdatePlacementService[];
   locked: boolean;
+  isLoadingDetectedGpus?: boolean;
 }
 
-export const UpdatePlacementCard: FC<UpdatePlacementCardProps> = ({ position, name, lease, provider, services, locked }) => {
+export const UpdatePlacementCard: FC<UpdatePlacementCardProps> = ({ position, name, lease, provider, services, locked, isLoadingDetectedGpus }) => {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
   const region = getProviderRegion(provider);
   const providerName = provider ? providerDisplayName(provider) : undefined;
@@ -75,12 +76,11 @@ export const UpdatePlacementCard: FC<UpdatePlacementCardProps> = ({ position, na
         {lease && (
           <div className="lg:shrink-0">
             <PlacementStats
-              stats={buildPlacementStats(
-                lease,
-                services.length,
-                lease.gpuAmount ? getPlacementGpuModels(lease.group) : [],
-                foldDetectedGpus(lease.detectedGpus)
-              )}
+              stats={buildPlacementStats(lease, services.length, {
+                models: getPlacementGpuModels(lease.group),
+                detected: foldDetectedGpus(lease.detectedGpus),
+                isLoading: isLoadingDetectedGpus
+              })}
             />
           </div>
         )}

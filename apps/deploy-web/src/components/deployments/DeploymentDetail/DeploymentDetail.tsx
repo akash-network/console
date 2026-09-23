@@ -243,6 +243,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                       deployment={deployment}
                       leases={leases}
                       providers={providers || []}
+                      isLoadingDetectedGpus={isLoadingDetectedGpus}
                       definition={definition}
                       onUpdated={loadDeploymentDetail}
                       onRedeploy={isUsableDeploymentDefinition(definition) ? redeployFromResolvedDefinition : undefined}
