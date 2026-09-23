@@ -22,16 +22,17 @@ import { GpuIcon, LockIcon, PlusIcon, TrashIcon, XIcon } from "lucide-react";
 import { SearchableSelect } from "@src/components/shared/SearchableSelect/SearchableSelect";
 import { useServices } from "@src/context/ServicesProvider";
 import { useGpuModels } from "@src/queries/useGpuQuery";
+import { usePlacementOptions } from "@src/queries/usePlacementOptions";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
-import { gpuVendors as fallbackVendors, prioritizeGpuModels } from "@src/utils/akash/gpu";
+import { gpuVendors as fallbackVendors, narrowGpuVendorsToAvailable, prioritizeGpuModels, withPinnedGpu } from "@src/utils/akash/gpu";
 import { validationConfig } from "@src/utils/akash/units";
 import { defaultGpuModel } from "@src/utils/sdl/data";
 import { gpuTooltip } from "../cardTooltips";
 import { SELECT_TRUNCATE_VALUE } from "../selectStyles";
 import { UnlockGpusButton } from "../UnlockGpusButton/UnlockGpusButton";
 
-export const DEPENDENCIES = { CollapsibleCard, useGpuModels, useFieldError, useServices, GpuModelFields };
+export const DEPENDENCIES = { CollapsibleCard, useGpuModels, usePlacementOptions, useFieldError, useServices, GpuModelFields };
 
 type Props = {
   serviceIndex: number;
@@ -59,6 +60,8 @@ type Props = {
 export const GpuCard: FC<Props> = ({ serviceIndex, locked = false, isBlockedModel = () => false, onUnlock, dependencies: d = DEPENDENCIES }) => {
   const { control, setValue, getValues } = useFormContext<SdlBuilderFormValuesType>();
   const { data: gpuModels, isLoading: isLoadingModels, isError: isModelsError } = d.useGpuModels();
+  const { data: placementOptions } = d.usePlacementOptions();
+  const availableVendors = narrowGpuVendorsToAvailable(gpuModels, placementOptions?.gpus);
 
   const hasGpu = useController({ control, name: `services.${serviceIndex}.profile.hasGpu` });
 
@@ -107,9 +110,9 @@ export const GpuCard: FC<Props> = ({ serviceIndex, locked = false, isBlockedMode
               key={field.id}
               serviceIndex={serviceIndex}
               gpuIndex={index}
-              gpuVendors={gpuModels}
+              gpuVendors={availableVendors}
               isLoading={isLoadingModels}
-              isError={isModelsError}
+              isError={isModelsError && !availableVendors}
               isBlockedModel={isBlockedModel}
               onUnlock={onUnlock}
               locked={locked}
@@ -223,12 +226,27 @@ function GpuModelFields({
   const memory = useController({ control, name: `${basePath}.memory` });
   const gpuInterface = useController({ control, name: `${basePath}.interface` });
 
+  const offeredVendors = useMemo(
+    () =>
+      withPinnedGpu(gpuVendors, {
+        vendor: vendor.field.value,
+        name: name.field.value,
+        memory: memory.field.value,
+        interface: gpuInterface.field.value
+      }),
+    [gpuVendors, vendor.field.value, name.field.value, memory.field.value, gpuInterface.field.value]
+  );
+
   const vendorOptions = useMemo(
     () =>
-      gpuVendors ? gpuVendors.map(v => ({ value: v.name, label: v.displayName ?? v.name })) : fallbackVendors.map(v => ({ value: v.value, label: v.label })),
-    [gpuVendors]
+      offeredVendors
+        ? offeredVendors.map(v => ({ value: v.name, label: v.displayName ?? v.name }))
+        : fallbackVendors.map(v => ({ value: v.value, label: v.label })),
+    [offeredVendors]
   );
-  const models = useMemo(() => gpuVendors?.find(v => v.name === vendor.field.value)?.models ?? [], [gpuVendors, vendor.field.value]);
+  /** The vendor question has a single answer while one vendor is available, so the step only appears when this entry needs it. */
+  const showVendor = vendorOptions.length !== 1 || vendor.field.value !== vendorOptions[0].value;
+  const models = useMemo(() => offeredVendors?.find(v => v.name === vendor.field.value)?.models ?? [], [offeredVendors, vendor.field.value]);
   const selectedModel = useMemo(() => models.find(m => m.name === name.field.value), [models, name.field.value]);
   const memorySizes = selectedModel?.memory ?? [];
   const interfaces = selectedModel?.interface ?? [];
@@ -309,23 +327,25 @@ function GpuModelFields({
         )}
       </div>
 
-      <Field className="gap-2">
-        <FieldLabel>Vendor</FieldLabel>
-        <FieldContent>
-          <Select value={vendor.field.value || ""} onValueChange={selectGpuVendor} disabled={locked}>
-            <SelectTrigger aria-label="GPU vendor" className={`h-9 ${SELECT_TRUNCATE_VALUE}`}>
-              <SelectValue placeholder="Select" />
-            </SelectTrigger>
-            <SelectContent>
-              {vendorOptions.map(option => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FieldContent>
-      </Field>
+      {showVendor && (
+        <Field className="gap-2">
+          <FieldLabel>Vendor</FieldLabel>
+          <FieldContent>
+            <Select value={vendor.field.value || ""} onValueChange={selectGpuVendor} disabled={locked}>
+              <SelectTrigger aria-label="GPU vendor" className={`h-9 ${SELECT_TRUNCATE_VALUE}`}>
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                {vendorOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FieldContent>
+        </Field>
+      )}
 
       {isLoading ? (
         <div className="flex items-center gap-2 py-1">

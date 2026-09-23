@@ -3,6 +3,7 @@ import { FormProvider, useForm } from "react-hook-form";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { AvailableGpuVendor } from "@src/queries/usePlacementOptions";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
@@ -234,7 +235,10 @@ describe(GpuCard.name, () => {
   it("labels the vendor option with its displayName", async () => {
     const { user } = setup({
       hasGpu: true,
-      vendors: [{ name: "nvidia", displayName: "NVIDIA", models: [{ name: "a100", displayName: "A100", memory: ["80Gi"], interface: ["sxm"] }] }]
+      vendors: [
+        { name: "nvidia", displayName: "NVIDIA", models: [{ name: "a100", displayName: "A100", memory: ["80Gi"], interface: ["sxm"] }] },
+        { name: "amd", displayName: "AMD", models: [{ name: "mi300", memory: ["192Gi"], interface: ["pcie"] }] }
+      ]
     });
 
     await user.click(screen.getByRole("combobox", { name: "GPU vendor" }));
@@ -323,6 +327,147 @@ describe(GpuCard.name, () => {
     expect(analyticsService.track).toHaveBeenCalledWith("configure_gpu_count_changed", { category: "deployments", count: 2 });
   });
 
+  describe("availability", () => {
+    it("offers only the models an online provider has free capacity for", async () => {
+      const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }] });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+      expect(await screen.findByRole("option", { name: "t4" })).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "a100" })).not.toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "Any model" })).toBeInTheDocument();
+    });
+
+    it("offers only the memory sizes and interfaces the picked model is available with", async () => {
+      const { user } = setup({
+        hasGpu: true,
+        gpuModels: [{ vendor: "nvidia", name: "a100", memory: "", interface: "" }],
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("a100", ["80Gi"], ["sxm"])] }]
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU memory" }));
+      expect(await screen.findByRole("option", { name: "80Gi" })).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "40Gi" })).not.toBeInTheDocument();
+
+      await user.keyboard("{Escape}");
+      await user.click(screen.getByRole("combobox", { name: "GPU interface" }));
+      expect(await screen.findByRole("option", { name: "sxm" })).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "pcie" })).not.toBeInTheDocument();
+    });
+
+    it("drops the vendor step while one vendor is available and still writes that vendor", () => {
+      const { getValues } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4")] }] });
+
+      expect(screen.queryByRole("combobox", { name: "GPU vendor" })).not.toBeInTheDocument();
+      expect(getValues().services[0].profile.gpuModels?.[0]).toMatchObject({ vendor: "nvidia" });
+    });
+
+    it("keeps the vendor step and the pinned vendor when the configuration names an unavailable one", () => {
+      const { getValues } = setup({
+        hasGpu: true,
+        gpuModels: [{ vendor: "amd", name: "mi300", memory: "192Gi", interface: "pcie" }],
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4")] }]
+      });
+
+      expect(screen.getByRole("combobox", { name: "GPU vendor" })).toBeInTheDocument();
+      expect(getValues().services[0].profile.gpuModels?.[0]).toMatchObject({ vendor: "amd", name: "mi300" });
+    });
+
+    it("still displays a pinned vendor, model, memory and interface that are no longer available", () => {
+      setup({
+        hasGpu: true,
+        gpuModels: [{ vendor: "amd", name: "mi300", memory: "192Gi", interface: "pcie" }],
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4")] }]
+      });
+
+      expect(screen.getByRole("combobox", { name: "GPU vendor" })).toHaveTextContent("amd");
+      expect(screen.getByRole("combobox", { name: "GPU model" })).toHaveTextContent("mi300");
+      expect(screen.getByRole("combobox", { name: "GPU model" })).toBeEnabled();
+      expect(screen.getByRole("combobox", { name: "GPU memory" })).toHaveTextContent("192Gi");
+      expect(screen.getByRole("combobox", { name: "GPU interface" })).toHaveTextContent("pcie");
+    });
+
+    it("offers the available vendors alongside a pinned one that is not available", async () => {
+      const { user } = setup({
+        hasGpu: true,
+        gpuModels: [{ vendor: "amd", name: "mi300", memory: "192Gi", interface: "pcie" }],
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4")] }]
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU vendor" }));
+
+      expect(await screen.findByRole("option", { name: "nvidia" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "amd" })).toBeInTheDocument();
+    });
+
+    it("keeps the vendor step while more than one vendor is available", () => {
+      setup({
+        hasGpu: true,
+        availableGpus: [
+          { vendor: "nvidia", models: [availableModel("t4")] },
+          { vendor: "amd", models: [availableModel("mi300")] }
+        ]
+      });
+
+      expect(screen.getByRole("combobox", { name: "GPU vendor" })).toBeInTheDocument();
+    });
+
+    it("offers the whole catalog when availability cannot be loaded", async () => {
+      const { user } = setup({ hasGpu: true });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+      expect(await screen.findByRole("option", { name: "a100" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "t4" })).toBeInTheDocument();
+      expect(screen.getByRole("combobox", { name: "GPU vendor" })).toBeInTheDocument();
+    });
+
+    it("still sorts the popular models to the top of the shortened list", async () => {
+      const { user } = setup({
+        hasGpu: true,
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4"), availableModel("h100"), availableModel("a100")] }]
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+      expect((await screen.findAllByRole("option")).map(option => option.textContent)).toEqual(["Any model", "h100", "a100", "t4"]);
+    });
+
+    it("adds and removes GPU entries without a vendor step", async () => {
+      const { getValues, user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4")] }] });
+
+      await user.click(screen.getByRole("button", { name: "Add GPU" }));
+
+      expect(getValues().services[0].profile.gpuModels).toHaveLength(2);
+      expect(screen.queryByRole("combobox", { name: "GPU vendor" })).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Remove GPU 2" }));
+
+      expect(getValues().services[0].profile.gpuModels).toHaveLength(1);
+    });
+
+    it("offers the available models when only the hardware catalog fails to load", async () => {
+      const { user } = setup({ hasGpu: true, isError: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4")] }] });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+      expect(await screen.findByRole("option", { name: "t4" })).toBeInTheDocument();
+      expect(screen.queryByText(/failed to load gpu models/i)).not.toBeInTheDocument();
+    });
+
+    it("offers a model the hardware catalog does not list", async () => {
+      const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("b200")] }] });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+      expect(await screen.findByRole("option", { name: "b200" })).toBeInTheDocument();
+    });
+  });
+
+  function availableModel(name: string, memory = ["80Gi"], gpuInterface = ["sxm"]): AvailableGpuVendor["models"][number] {
+    return { name, memory, interface: gpuInterface };
+  }
+
   const StubGpuModelFields: typeof DEPENDENCIES.GpuModelFields = ({ gpuIndex }) => <div role="group" aria-label={`GPU ${gpuIndex + 1}`} />;
 
   function makeGpuModels(count: number): SdlBuilderFormValuesType["services"][number]["profile"]["gpuModels"] {
@@ -334,6 +479,7 @@ describe(GpuCard.name, () => {
     hasGpu?: boolean;
     gpuModels?: SdlBuilderFormValuesType["services"][number]["profile"]["gpuModels"];
     vendors?: GpuVendor[];
+    availableGpus?: AvailableGpuVendor[];
     gpuError?: string;
     isLoading?: boolean;
     isError?: boolean;
@@ -358,6 +504,10 @@ describe(GpuCard.name, () => {
     } as Partial<ReturnType<typeof DEPENDENCIES.useGpuModels>>);
     gpuModelsResult.data = input.isLoading || input.isError ? undefined : input.vendors ?? GPU_VENDORS;
     const useGpuModels: typeof DEPENDENCIES.useGpuModels = () => gpuModelsResult;
+    const placementOptionsQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.usePlacementOptions>>(), {
+      data: input.availableGpus && { regions: [], gpus: input.availableGpus }
+    });
+    const usePlacementOptions: typeof DEPENDENCIES.usePlacementOptions = () => placementOptionsQuery;
     const useFieldError: typeof DEPENDENCIES.useFieldError = () => ({ error: input.gpuError });
     const analyticsService = mock<AnalyticsService>();
     const useServices: typeof DEPENDENCIES.useServices = () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService });
@@ -371,7 +521,11 @@ describe(GpuCard.name, () => {
 
     render(
       <Wrapper>
-        <GpuCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES, useGpuModels, useFieldError, useServices, ...input.dependencies }} />
+        <GpuCard
+          serviceIndex={0}
+          locked={input.locked}
+          dependencies={{ ...DEPENDENCIES, useGpuModels, usePlacementOptions, useFieldError, useServices, ...input.dependencies }}
+        />
       </Wrapper>
     );
 
