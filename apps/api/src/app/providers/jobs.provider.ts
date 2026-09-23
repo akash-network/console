@@ -23,6 +23,7 @@ import { EnableDeploymentAlertHandler } from "../services/enable-deployment-aler
 import { FirstPurchaseBonusGrantedHandler } from "../services/first-purchase-bonus-granted/first-purchase-bonus-granted.handler";
 import { FundDeploymentHandler } from "../services/fund-deployment/fund-deployment.handler";
 import { FundDrainingDeploymentsHandler } from "../services/fund-draining-deployments/fund-draining-deployments.handler";
+import { ManagedDeploymentLeaseCreatedHandler } from "../services/managed-deployment-lease-created/managed-deployment-lease-created.handler";
 import { TrialDeploymentLeaseCreatedHandler } from "../services/trial-deployment-lease-created/trial-deployment-lease-created.handler";
 import { TrialStartedHandler } from "../services/trial-started/trial-started.handler";
 
@@ -50,6 +51,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(ReconcileManagedTxHandler),
     container.resolve(ProbeTrialDeploymentHandler),
     container.resolve(DetectLeaseGpusHandler),
+    container.resolve(ManagedDeploymentLeaseCreatedHandler),
     container.resolve(EnforceTrialAbuseHandler),
     container.resolve(LockBlockedDomainWalletHandler),
     container.resolve(BlockEmailDomainOfWalletHandler)

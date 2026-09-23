@@ -53,6 +53,9 @@ function positiveIntegerOrDefault(fallback: number) {
 
 const DEFAULT_GPU_DETECTION_DELAYS_MIN = "3,15,60";
 
+/** pg-boss deletes a finished job seven days after it finishes, and the sweep reads those jobs to know when a deployment's ladder last ran. */
+const MAX_GPU_DETECTION_RECONCILE_BACKOFF_HOURS = 7 * 24 - 1;
+
 function parseMinutesList(raw: string, ctx: z.RefinementCtx): number[] {
   const entries = raw.split(",").map(entry => entry.trim());
 
@@ -146,6 +149,12 @@ export const envSchema = z
     /** A handful of csv lines, so far below what the abuse probe collects that a larger answer is not one of ours. */
     LEASE_GPU_DETECTION_MAX_OUTPUT_BYTES: positiveIntegerOrDefault(8_192),
     LEASE_GPU_DETECTION_PROVIDER_JWT_TTL_SECONDS: positiveIntegerOrDefault(120),
+    /** How far back the sweep looks for managed deployments whose gpus were never read; wide because these run for weeks. */
+    LEASE_GPU_DETECTION_RECONCILE_MAX_AGE_HOURS: positiveIntegerOrDefault(720),
+    LEASE_GPU_DETECTION_RECONCILE_BACKOFF_HOURS: z.preprocess(
+      blankToUndefined,
+      z.number({ coerce: true }).int().positive().max(MAX_GPU_DETECTION_RECONCILE_BACKOFF_HOURS).default(24)
+    ),
     GCP_KMS_AUTH: jsonEnv(gcpKmsAuthSchema),
     GCP_KMS_LOCATION: z.string().optional().default("global"),
     GCP_KMS_KEY_RING: z.string().optional().default("console-api"),

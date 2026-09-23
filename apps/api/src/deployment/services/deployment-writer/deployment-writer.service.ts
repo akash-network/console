@@ -28,6 +28,7 @@ import {
   unbackedDeploymentSettingKeyFor,
   unbackedDeploymentSettingRetryOptions
 } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
+import { LeaseGpuDetectionJobService } from "@src/deployment/services/lease-gpu-detection-job/lease-gpu-detection-job.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
 import { MAX_ECHOED_REFERENCE_LENGTH, SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
@@ -104,7 +105,8 @@ export class DeploymentWriterService {
     private readonly sdlPatchService: SdlPatchService,
     private readonly sdlReferenceService: SdlReferenceService,
     private readonly sdlSecretsInheritanceService: SdlSecretsInheritanceService,
-    private readonly probeJobService: TrialWorkloadProbeJobService
+    private readonly probeJobService: TrialWorkloadProbeJobService,
+    private readonly leaseGpuDetectionJobService: LeaseGpuDetectionJobService
   ) {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
@@ -397,6 +399,7 @@ export class DeploymentWriterService {
     const auth = { walletId: wallet.id };
     await this.sendManifestToProviders({ auth, dseq, manifest: manifestToSortedJSON(manifest.groups), leases: deployment.leases });
     await this.restartTrialWorkloadProbe(wallet, dseq);
+    await this.restartLeaseGpuDetection(wallet, dseq);
 
     return await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
   }
@@ -474,6 +477,7 @@ export class DeploymentWriterService {
       leases: deployment.leases
     });
     await this.restartTrialWorkloadProbe(wallet, dseq);
+    await this.restartLeaseGpuDetection(wallet, dseq);
 
     const updatedDeployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
 
@@ -488,6 +492,15 @@ export class DeploymentWriterService {
       await this.probeJobService.restartForUpdatedDeployment({ walletId: wallet.id, dseq, updatedAt: new Date() });
     } catch (error) {
       this.logger.error({ event: "TRIAL_WORKLOAD_PROBE_RESTART_FAILED", userId: wallet.userId, dseq, error });
+    }
+  }
+
+  /** Reading a lease's gpus is an extra the update does not depend on, so failing to reschedule it must not fail an update the chain and the providers have already taken. */
+  private async restartLeaseGpuDetection(wallet: UserWalletOutput, dseq: string): Promise<void> {
+    try {
+      await this.leaseGpuDetectionJobService.restartForUpdatedDeployment({ walletId: wallet.id, dseq, updatedAt: new Date() });
+    } catch (error) {
+      this.logger.error({ event: "LEASE_GPU_DETECTION_RESTART_FAILED", userId: wallet.userId, dseq, error });
     }
   }
 

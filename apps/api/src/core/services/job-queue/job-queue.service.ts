@@ -267,6 +267,26 @@ export class JobQueueService implements Disposable {
     return new Set(result.rows.map(row => row.singleton_key));
   }
 
+  /** Singleton keys of the queue's jobs that finished at or after `since`, which reaches back only as far as pg-boss keeps finished jobs. */
+  async findRecentlyFinishedSingletonKeys(query: { name: string; since: Date }): Promise<Set<string>> {
+    const connection = this.txService.getConnection();
+    const db = connection ? this.#toTransactionDb(connection) : await this.pgBoss.getDb();
+    const schema = this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_SCHEMA");
+    const result = (await db.executeSql(
+      `
+        SELECT DISTINCT singleton_key
+        FROM ${schema}.job
+        WHERE name = $1
+          AND state IN ('completed', 'failed')
+          AND completed_on >= $2::timestamptz
+          AND singleton_key IS NOT NULL
+      `,
+      [query.name, query.since.toISOString()]
+    )) as { rows: { singleton_key: string }[] };
+
+    return new Set(result.rows.map(row => row.singleton_key));
+  }
+
   /** Whether a job under this key is still waiting, so `cancelCreatedBy` can call it off, and will not come due before `notDueBefore`. */
   async hasWaitingSingleton(query: { name: string; singletonKey: string; notDueBefore: Date }): Promise<boolean> {
     const connection = this.txService.getConnection();

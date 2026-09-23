@@ -62,6 +62,14 @@ export type DeploymentStoredSecrets = {
 /** A user's stored secrets token with the deployment it is bound to, which re-sealing it under another key has to name. */
 export type DeploymentStoredSecretsOfUser = DeploymentStoredSecrets & { dseq: string };
 
+export type LiveManagedDeployment = {
+  userId: string;
+  dseq: string;
+  walletId: number;
+  address: string;
+  createdAt: Date;
+};
+
 export type LiveTrialDeployment = {
   userId: string;
   dseq: string;
@@ -339,6 +347,32 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .orderBy(desc(this.table.createdAt));
 
     return deployments as LiveTrialDeployment[];
+  }
+
+  /** Every managed deployment the console still believes is open, trialing or not, as candidates a job re-checks on chain. */
+  async findLiveManagedDeployments({ maxAgeHours }: { maxAgeHours: number }): Promise<LiveManagedDeployment[]> {
+    const hours = Math.max(1, Math.trunc(maxAgeHours));
+    const deployments = await this.cursor
+      .select({
+        userId: this.table.userId,
+        dseq: this.table.dseq,
+        walletId: UserWallets.id,
+        address: UserWallets.address,
+        createdAt: this.table.createdAt
+      })
+      .from(this.table)
+      .innerJoin(UserWallets, eq(UserWallets.userId, this.table.userId))
+      .where(
+        and(
+          eq(this.table.closed, false),
+          isNotNull(UserWallets.address),
+          isNull(UserWallets.abuseLockedAt),
+          gt(this.table.createdAt, sql`now() - make_interval(hours => ${sql.raw(String(hours))})`)
+        )
+      )
+      .orderBy(desc(this.table.createdAt));
+
+    return deployments as LiveManagedDeployment[];
   }
 
   /**

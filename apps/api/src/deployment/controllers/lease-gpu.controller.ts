@@ -1,0 +1,13 @@
+import { singleton } from "tsyringe";
+
+import type { DryRunOptions } from "@src/core/types/console";
+import { LeaseGpuDetectionJobService } from "@src/deployment/services/lease-gpu-detection-job/lease-gpu-detection-job.service";
+
+@singleton()
+export class LeaseGpuController {
+  constructor(private readonly detectionJobService: LeaseGpuDetectionJobService) {}
+
+  async detectLeaseGpus(options: DryRunOptions): Promise<void> {
+    await this.detectionJobService.reconcile(options);
+  }
+}
