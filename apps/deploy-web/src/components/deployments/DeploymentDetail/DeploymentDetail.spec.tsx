@@ -179,13 +179,13 @@ describe("DeploymentDetail", () => {
   it("joins the gpus the console read onto the lease they were read from, even when they arrive after the leases", () => {
     const { DeploymentDetailHeader, rerenderWithDetectedGpus } = setup({ leases: [gpuLease()] });
 
-    rerenderWithDetectedGpus(new Map([["1/1/akash1provider", DETECTED_GPUS]]));
+    rerenderWithDetectedGpus({ "1/1/akash1provider": DETECTED_GPUS });
 
     expect(DeploymentDetailHeader.mock.lastCall?.[0].leases).toEqual([expect.objectContaining({ detectedGpus: DETECTED_GPUS })]);
   });
 
   it("hands its views the same leases across a render that changed nothing, so the logs and shell keep the lease picked", () => {
-    const detected = new Map([["1/1/akash1provider", DETECTED_GPUS]]);
+    const detected = { "1/1/akash1provider": DETECTED_GPUS };
     const { DeploymentDetailHeader, rerenderWithDetectedGpus } = setup({ leases: [gpuLease()], detectedGpus: detected });
     const before = DeploymentDetailHeader.mock.lastCall?.[0].leases;
 
@@ -195,7 +195,7 @@ describe("DeploymentDetail", () => {
   });
 
   function gpuLease() {
-    return mock<LeaseDto>({ id: "1", provider: "akash1provider", gseq: 1, oseq: 1, state: "active" });
+    return mock<LeaseDto>({ id: "1", provider: "akash1provider", gseq: 1, oseq: 1, state: "active", gpuAmount: 1 });
   }
 
   function isRenderedBefore(earlier: Element, later: Element) {
@@ -237,7 +237,7 @@ describe("DeploymentDetail", () => {
       isError: input?.isLeasesError ?? false
     });
     const useDeploymentLeaseList: typeof DEPENDENCIES.useDeploymentLeaseList = () => leaseList;
-    let detectedGpus = input?.detectedGpus ?? new Map();
+    let detectedGpus = input?.detectedGpus ?? {};
     const useDetectedLeaseGpus: typeof DEPENDENCIES.useDetectedLeaseGpus = () => detectedGpus;
     const useProviderList: typeof DEPENDENCIES.useProviderList = () =>
       mock<ReturnType<typeof DEPENDENCIES.useProviderList>>({ data: providers, isFetching: false });

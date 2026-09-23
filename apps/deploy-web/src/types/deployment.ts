@@ -272,7 +272,7 @@ export type ListDeploymentsItem = paths["/v1/deployments"]["get"]["responses"][2
 export type DetectedLeaseGpus = NonNullable<ListDeploymentsItem["leases"][number]["detectedGpus"]>;
 
 /** Keyed `gseq/oseq/provider`, the only identity a chain lease and a console lease share. */
-export type DetectedGpusByLease = Map<string, DetectedLeaseGpus>;
+export type DetectedGpusByLease = Partial<Record<string, DetectedLeaseGpus>>;
 
 /** What the console records about a deployment, as a list shows it. Absent for one the console holds no record of. */
 export type ListedDeploymentSettings = ListDeploymentsItem["settings"];

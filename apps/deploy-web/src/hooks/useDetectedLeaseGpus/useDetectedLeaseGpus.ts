@@ -4,7 +4,7 @@ import type { DetectedGpusByLease, DetectedLeaseGpus, LeaseDto } from "@src/type
 
 export const DEPENDENCIES = { useServices };
 
-const EMPTY: DetectedGpusByLease = new Map();
+const EMPTY: DetectedGpusByLease = {};
 
 export function leaseGpuKeyOf(lease: { gseq: number; oseq: number; provider: string }): string {
   return `${lease.gseq}/${lease.oseq}/${lease.provider}`;
@@ -32,12 +32,12 @@ export function useDetectedLeaseGpus(dseq: string | undefined | null, dependenci
 
 type LeaseWithDetectedGpus = { id: { gseq: number; oseq: number; provider: string }; detectedGpus?: DetectedLeaseGpus };
 
-/** Module-level so react-query keeps the map it built until the deployment changes: a fresh one per render would re-key every lease view below it. */
+/** Module-level and a plain object, so react-query hands back the same readings until one of them changes: anything else re-keys every lease view below it. */
 function selectDetectedGpusByLease(response: { data?: { leases?: readonly LeaseWithDetectedGpus[] } } | null): DetectedGpusByLease {
-  const byLease: DetectedGpusByLease = new Map();
+  const byLease: DetectedGpusByLease = {};
 
   for (const lease of response?.data?.leases ?? []) {
-    if (lease.detectedGpus) byLease.set(leaseGpuKeyOf(lease.id), lease.detectedGpus);
+    if (lease.detectedGpus) byLease[leaseGpuKeyOf(lease.id)] = lease.detectedGpus;
   }
 
   return byLease;
@@ -45,10 +45,10 @@ function selectDetectedGpusByLease(response: { data?: { leases?: readonly LeaseW
 
 /** Joins what the console read onto the chain's leases, which carry no hardware of their own. */
 export function withDetectedGpus<T extends LeaseDto[] | null | undefined>(leases: T, byLease: DetectedGpusByLease): T {
-  if (!leases?.length || !byLease.size) return leases;
+  if (!leases?.length || !Object.keys(byLease).length) return leases;
 
   return leases.map(lease => {
-    const detectedGpus = byLease.get(leaseGpuKeyOf(lease));
+    const detectedGpus = byLease[leaseGpuKeyOf(lease)];
 
     return detectedGpus ? { ...lease, detectedGpus } : lease;
   }) as T;
