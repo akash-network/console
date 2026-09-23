@@ -10,6 +10,6 @@ export function hasLiveGpuLease(leases: Pick<LeaseDto, "state" | "gpuAmount">[] 
 }
 
 /** The lease a picker shows once its list changes: the one already picked while it is still listed, as the list now has it, else the first. */
-export function keepSelectedLease<T extends Pick<LeaseDto, "id">>(selected: T | null, leases: T[]): T {
-  return leases.find(lease => lease.id === selected?.id) ?? leases[0];
+export function keepSelectedLease<T extends Pick<LeaseDto, "id">>(selected: T | null, leases: T[]): T | null {
+  return leases.find(lease => lease.id === selected?.id) ?? leases[0] ?? null;
 }

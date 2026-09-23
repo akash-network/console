@@ -42,6 +42,10 @@ describe("leaseUtils", () => {
 
       expect(keepSelectedLease(null, leases)).toBe(leases[0]);
     });
+
+    it("selects nothing from an empty list", () => {
+      expect(keepSelectedLease({ id: "1" }, [])).toBeNull();
+    });
   });
 
   function createLease(overrides: { state?: string; gpuAmount?: number } = {}): LeaseDto {
