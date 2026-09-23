@@ -11,7 +11,7 @@ import { isReservedSdlValue, isSdlReference, isValidSecretName } from "@src/util
 import { isVmImage } from "@src/utils/sdl/vmImages";
 import { bytesToShrink } from "@src/utils/unitUtils";
 
-const VALID_IMAGE_NAME =
+export const VALID_IMAGE_NAME =
   /^(?:(?:[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])(?:(?:\.(?:[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]))+)?(?::[0-9]+)?\/)?[a-z0-9]+(?:(?:(?:[._]|__|[-]*)[a-z0-9]+)+)?(?:\/[a-z0-9]+(?:(?:(?:[._]|__|[-]*)[a-z0-9]+)+)?)*(?::[a-zA-Z0-9_.-]+)?(?:@[a-zA-Z0-9_.:+-]+)?$/;
 
 /**
