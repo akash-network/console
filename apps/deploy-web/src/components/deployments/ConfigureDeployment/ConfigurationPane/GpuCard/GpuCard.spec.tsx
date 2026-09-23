@@ -446,6 +446,15 @@ describe(GpuCard.name, () => {
       expect(getValues().services[0].profile.gpuModels).toHaveLength(1);
     });
 
+    it("offers the available models when only the hardware catalog fails to load", async () => {
+      const { user } = setup({ hasGpu: true, isError: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4")] }] });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+      expect(await screen.findByRole("option", { name: "t4" })).toBeInTheDocument();
+      expect(screen.queryByText(/failed to load gpu models/i)).not.toBeInTheDocument();
+    });
+
     it("offers a model the hardware catalog does not list", async () => {
       const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("b200")] }] });
 

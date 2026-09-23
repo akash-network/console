@@ -112,7 +112,7 @@ export const GpuCard: FC<Props> = ({ serviceIndex, locked = false, isBlockedMode
               gpuIndex={index}
               gpuVendors={availableVendors}
               isLoading={isLoadingModels}
-              isError={isModelsError}
+              isError={isModelsError && !availableVendors}
               isBlockedModel={isBlockedModel}
               onUnlock={onUnlock}
               locked={locked}
