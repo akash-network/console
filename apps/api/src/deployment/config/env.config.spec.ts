@@ -443,7 +443,9 @@ describe("deployment envSchema", () => {
       ["LEASE_GPU_DETECTION_IDLE_TIMEOUT_MS", 3_000],
       ["LEASE_GPU_DETECTION_HARD_TIMEOUT_MS", 10_000],
       ["LEASE_GPU_DETECTION_MAX_OUTPUT_BYTES", 8_192],
-      ["LEASE_GPU_DETECTION_PROVIDER_JWT_TTL_SECONDS", 120]
+      ["LEASE_GPU_DETECTION_PROVIDER_JWT_TTL_SECONDS", 120],
+      ["LEASE_GPU_DETECTION_RECONCILE_MAX_AGE_HOURS", 720],
+      ["LEASE_GPU_DETECTION_RECONCILE_BACKOFF_HOURS", 24]
     ])("defaults %s to %i when it is unset or blank", (key, expected) => {
       expect(envSchema.parse(setup())[key as "LEASE_GPU_DETECTION_MAX_SERVICES_PER_LEASE"]).toBe(expected);
       expect(envSchema.parse(setup({ [key]: "" }))[key as "LEASE_GPU_DETECTION_MAX_SERVICES_PER_LEASE"]).toBe(expected);
@@ -455,7 +457,9 @@ describe("deployment envSchema", () => {
       "LEASE_GPU_DETECTION_IDLE_TIMEOUT_MS",
       "LEASE_GPU_DETECTION_HARD_TIMEOUT_MS",
       "LEASE_GPU_DETECTION_MAX_OUTPUT_BYTES",
-      "LEASE_GPU_DETECTION_PROVIDER_JWT_TTL_SECONDS"
+      "LEASE_GPU_DETECTION_PROVIDER_JWT_TTL_SECONDS",
+      "LEASE_GPU_DETECTION_RECONCILE_MAX_AGE_HOURS",
+      "LEASE_GPU_DETECTION_RECONCILE_BACKOFF_HOURS"
     ])("rejects a %s that would probe nothing", key => {
       expectRejected(setup({ [key]: "0" }), key);
     });

@@ -12,6 +12,7 @@ import { mock } from "vitest-mock-extended";
 import type { AuthService } from "@src/auth/services/auth.service";
 import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
 import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
+import { ManagedDeploymentLeaseCreated } from "@src/billing/events/managed-deployment-lease-created";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
@@ -498,6 +499,44 @@ describe(ManagedSignerService.name, () => {
         dseq: "123"
       });
       expect(options).toEqual({ singletonKey: `FundDeploymentCommand.123.${wallet.id}` });
+    });
+
+    it("publishes a gpu read for the lease it signed, once per deployment and wallet", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: false });
+      const { service, domainEvents } = setup({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(createUser({ userId: "user-123" })),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
+        publish: vi.fn().mockResolvedValue(undefined)
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [leaseMessageFor(123)]);
+
+      const gpuCall = vi.mocked(domainEvents.publish).mock.calls.find(([event]) => event instanceof ManagedDeploymentLeaseCreated);
+      const [event, options] = gpuCall as [ManagedDeploymentLeaseCreated, { singletonKey: string }];
+      expect(event.data).toEqual({ walletId: wallet.id, dseq: "123", createdAt: expect.any(String) });
+      expect(options).toEqual({ singletonKey: `ManagedDeploymentLeaseCreated.123.${wallet.id}` });
+    });
+
+    it("funds and records a landed lease even when its gpu read cannot be published", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: false });
+      const { service, domainEvents, balancesService, logger } = setup({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(createUser({ userId: "user-123" })),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
+        publish: vi.fn<DomainEventsService["publish"]>(async event => {
+          if (event instanceof ManagedDeploymentLeaseCreated) throw new Error("queue unavailable");
+          return "job-id";
+        })
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [leaseMessageFor(123)])).resolves.toMatchObject({ code: 0 });
+
+      expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(FundDeploymentCommand), expect.anything());
+      expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(wallet);
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "LEASE_GPU_DETECTION_PUBLISH_FAILED", dseq: "123" }));
     });
 
     it("records a deployment created by broadcasting its message, so the funding sweep can see it", async () => {
@@ -1307,6 +1346,13 @@ describe(ManagedSignerService.name, () => {
     return {
       typeUrl: MsgCloseDeployment.$type,
       value: MsgCloseDeployment.fromPartial({ id: { owner: "akash1test", dseq } })
+    };
+  }
+
+  function leaseMessageFor(dseq: number): EncodeObject {
+    return {
+      typeUrl: MsgCreateLease.$type,
+      value: MsgCreateLease.fromPartial({ bidId: { dseq, owner: "akash1test", gseq: 1, oseq: 1, provider: "akash1test" } })
     };
   }
 

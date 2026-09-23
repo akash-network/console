@@ -213,6 +213,22 @@ describe(JobQueueService.name, () => {
     await vi.waitFor(async () => expect((await findJobs()).map(job => job.state)).toEqual(["completed", "completed"]), { timeout: 20_000, interval: 250 });
   });
 
+  it("reports the key of a job that finished at or after the instant asked about, and leaves out one still waiting", async () => {
+    const { jobQueue, handler, enqueue, findJob } = await setup({ queueName: "recently-finished" });
+    await jobQueue.registerHandlers([handler]);
+    const before = new Date();
+    await enqueue({ singletonKey: "finished" });
+    await jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 });
+    await waitForJobState(findJob, "completed");
+    await enqueue({ singletonKey: "waiting", startAfter: addMinutes(new Date(), 5).toISOString() });
+
+    const finishedSince = await jobQueue.findRecentlyFinishedSingletonKeys({ name: "recently-finished", since: before });
+    const finishedLater = await jobQueue.findRecentlyFinishedSingletonKeys({ name: "recently-finished", since: addMinutes(new Date(), 1) });
+
+    expect(finishedSince).toEqual(new Set(["finished"]));
+    expect(finishedLater).toEqual(new Set());
+  });
+
   it("reports a job under the key that is waiting on a retry", async () => {
     const singletonKey = "row-1";
     const { jobQueue, handler, enqueue, findJob } = await setup({ queueName: "waiting-retry", handle: vi.fn().mockRejectedValue(new Error("boom")) });

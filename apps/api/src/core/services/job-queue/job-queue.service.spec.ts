@@ -326,6 +326,35 @@ describe(JobQueueService.name, () => {
     });
   });
 
+  describe("findRecentlyFinishedSingletonKeys", () => {
+    it("returns the singleton keys of the queue's jobs that finished since the instant given", async () => {
+      const { service, pgBoss, txService } = setup();
+      txService.getConnection.mockReturnValue(undefined);
+      const executeSql = vi.fn().mockResolvedValue({ rows: [{ singleton_key: "singleton-1" }] });
+      vi.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql });
+
+      await expect(service.findRecentlyFinishedSingletonKeys({ name: "test-job", since: new Date("2026-01-01T00:00:00.000Z") })).resolves.toEqual(
+        new Set(["singleton-1"])
+      );
+
+      expect(executeSql).toHaveBeenCalledWith(expect.stringContaining("state IN ('completed', 'failed')"), ["test-job", "2026-01-01T00:00:00.000Z"]);
+    });
+
+    it("reads the singleton keys on the ambient transaction connection when one is active", async () => {
+      const { service, pgBoss, txService } = setup();
+      const unsafe = vi.fn().mockResolvedValue([{ singleton_key: "singleton-1" }]);
+      txService.getConnection.mockReturnValue({ unsafe } as unknown as Sql);
+      const getDb = vi.spyOn(pgBoss, "getDb");
+
+      await expect(service.findRecentlyFinishedSingletonKeys({ name: "test-job", since: new Date("2026-01-01T00:00:00.000Z") })).resolves.toEqual(
+        new Set(["singleton-1"])
+      );
+
+      expect(unsafe).toHaveBeenCalledWith(expect.stringContaining("completed_on >= $2::timestamptz"), ["test-job", "2026-01-01T00:00:00.000Z"]);
+      expect(getDb).not.toHaveBeenCalled();
+    });
+  });
+
   describe("hasWaitingSingleton", () => {
     it("asks for a job under the key that no worker holds yet and that is not due before the instant given", async () => {
       const { service, pgBoss, txService } = setup();

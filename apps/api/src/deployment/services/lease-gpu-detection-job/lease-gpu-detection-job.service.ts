@@ -1,4 +1,4 @@
-import { addMinutes } from "date-fns";
+import { addMinutes, subHours } from "date-fns";
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, type Job, JOB_NAME, JobQueueService, LOGGER_FACTORY } from "@src/core";
@@ -24,6 +24,8 @@ export class DetectLeaseGpus implements Job {
 }
 
 export type DetectLeaseGpusTarget = { walletId: number; dseq: string };
+
+type ReconcileCounts = { scheduled: number; alreadyScheduled: number; alreadyRead: number; recentlyTried: number; failed: number };
 
 /** A reschedule must land strictly after now whatever the delay ladder says, or pg-boss can archive it before a worker sees it. */
 const MIN_RESCHEDULE_DELAY_MIN = 1;
@@ -77,10 +79,12 @@ export class LeaseGpuDetectionJobService {
    * Backstops the lease event for deployments it never reached, and drops what a closed deployment left behind. Enqueues
    * only: no provider is dialled here, so the queue's own concurrency paces the reading rather than this sweep.
    */
-  async reconcile({ dryRun }: DryRunOptions = { dryRun: false }): Promise<{ scheduled: number; alreadyScheduled: number; alreadyRead: number }> {
+  async reconcile({ dryRun }: DryRunOptions = { dryRun: false }): Promise<ReconcileCounts> {
+    const counts: ReconcileCounts = { scheduled: 0, alreadyScheduled: 0, alreadyRead: 0, recentlyTried: 0, failed: 0 };
+
     if (!this.#isEnabled()) {
       this.logger.info({ event: "LEASE_GPU_DETECTION_RECONCILE_DISABLED" });
-      return { scheduled: 0, alreadyScheduled: 0, alreadyRead: 0 };
+      return counts;
     }
 
     const candidates = await this.deploymentSettingRepository.findLiveManagedDeployments({
@@ -89,33 +93,48 @@ export class LeaseGpuDetectionJobService {
     const owners = [...new Set(candidates.map(candidate => candidate.address))];
     const onGpu = new Set((await this.leaseRepository.findLiveGpuLeaseDeployments(owners)).map(lease => `${lease.owner}.${lease.dseq}`));
     const pendingKeys = await this.jobQueueService.findPendingSingletonKeys(DetectLeaseGpus[JOB_NAME]);
-
-    let scheduled = 0;
-    let alreadyScheduled = 0;
-    let alreadyRead = 0;
+    const recentlyTriedKeys = await this.jobQueueService.findRecentlyFinishedSingletonKeys({
+      name: DetectLeaseGpus[JOB_NAME],
+      since: subHours(new Date(), this.config.get("LEASE_GPU_DETECTION_RECONCILE_BACKOFF_HOURS"))
+    });
 
     for (const candidate of candidates) {
       if (!onGpu.has(`${candidate.address}.${candidate.dseq}`)) continue;
-      if (pendingKeys.has(detectLeaseGpusKeyFor(candidate))) {
-        alreadyScheduled++;
+
+      const key = detectLeaseGpusKeyFor(candidate);
+      if (pendingKeys.has(key)) {
+        counts.alreadyScheduled++;
+        continue;
+      }
+      if (recentlyTriedKeys.has(key)) {
+        counts.recentlyTried++;
         continue;
       }
 
-      const read = await this.leaseGpuRepository.findForDeployments({ userId: candidate.userId, dseqs: [candidate.dseq] });
-      if (read.length) {
-        alreadyRead++;
-        continue;
+      try {
+        await this.#reconcileCandidate(candidate, { dryRun, counts });
+      } catch (error) {
+        this.logger.error({ event: "LEASE_GPU_DETECTION_RECONCILE_FAILED", walletId: candidate.walletId, dseq: candidate.dseq, error });
+        counts.failed++;
       }
-
-      if (!dryRun) await this.#schedule({ walletId: candidate.walletId, dseq: candidate.dseq, attempt: 1, leaseCreatedAt: new Date().toISOString() });
-      scheduled++;
     }
 
     if (!dryRun) await this.leaseGpuRepository.deleteForClosedDeployments();
 
-    this.logger.info({ event: "LEASE_GPU_DETECTION_RECONCILED", dryRun, candidates: candidates.length, scheduled, alreadyScheduled, alreadyRead });
+    this.logger.info({ event: "LEASE_GPU_DETECTION_RECONCILED", dryRun, candidates: candidates.length, ...counts });
 
-    return { scheduled, alreadyScheduled, alreadyRead };
+    return counts;
+  }
+
+  async #reconcileCandidate(candidate: DetectLeaseGpusTarget & { userId: string }, { dryRun, counts }: { dryRun: boolean; counts: ReconcileCounts }) {
+    const read = await this.leaseGpuRepository.findForDeployments({ userId: candidate.userId, dseqs: [candidate.dseq] });
+    if (read.length) {
+      counts.alreadyRead++;
+      return;
+    }
+
+    if (!dryRun) await this.#schedule({ walletId: candidate.walletId, dseq: candidate.dseq, attempt: 1, leaseCreatedAt: new Date().toISOString() });
+    counts.scheduled++;
   }
 
   startAfterFor(data: DetectLeaseGpus["data"]): Date {
