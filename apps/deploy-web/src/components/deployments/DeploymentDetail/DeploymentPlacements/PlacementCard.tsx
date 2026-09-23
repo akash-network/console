@@ -11,19 +11,16 @@ import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { getGroupTeeType } from "@src/utils/confidentialCompute";
 import { isLeaseLive } from "@src/utils/leaseUtils";
-import { roundDecimal } from "@src/utils/mathHelpers";
 import { providerDisplayName } from "@src/utils/providerUtils";
 import { isProviderReclaimed, isReclaiming } from "@src/utils/reclamationUtils";
-import { formatByteSize } from "@src/utils/unitUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ConfidentialComputeResources } from "../../ConfidentialComputeResources";
 import { DownloadAttestationEvidence } from "../../DownloadAttestationEvidence";
 import { ReclamationCard } from "../../ReclamationCard/ReclamationCard";
 import { StatusBadge } from "../DeploymentStatusBadge";
 import type { ManifestServiceDetail } from "./placementModel";
-import { formatGpuLabel, getPlacementGpuModels, getPlacementName, getProviderRegion } from "./placementModel";
+import { buildPlacementStats, getPlacementGpuModels, getPlacementName, getProviderRegion } from "./placementModel";
 import { PlacementServiceRow } from "./PlacementServiceRow";
-import type { PlacementStat } from "./PlacementStats";
 import { PlacementStats } from "./PlacementStats";
 
 export const DEPENDENCIES = {
@@ -175,16 +172,3 @@ export const PlacementCard: FC<PlacementCardProps> = ({
     </div>
   );
 };
-
-function buildPlacementStats(lease: LeaseDto, serviceCount: number, gpuModels: string[]): PlacementStat[] {
-  const stats: PlacementStat[] = [
-    { label: "vCPU", value: roundDecimal(lease.cpuAmount, 2) },
-    { label: "Memory", value: formatByteSize(lease.memoryAmount) },
-    { label: "Storage", value: formatByteSize(lease.storageAmount) }
-  ];
-  if (lease.gpuAmount && lease.gpuAmount > 0) {
-    stats.push({ label: "GPU", value: formatGpuLabel(lease.gpuAmount, gpuModels) });
-  }
-  stats.push({ label: "Services", value: serviceCount });
-  return stats;
-}

@@ -1,0 +1,255 @@
+import { ApiError } from "@akashnetwork/openapi-sdk";
+import { describe, expect, it, vi } from "vitest";
+import { mock, mockDeep } from "vitest-mock-extended";
+
+import { importDeploymentState } from "@src/components/deployments/ConfigureDeployment/importDeploymentState/importDeploymentState";
+import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
+import type { SdlBuilderFormValuesType } from "@src/types";
+import { DEPENDENCIES } from "./useDeploymentUpdateSubmit";
+import { useDeploymentUpdateSubmit } from "./useDeploymentUpdateSubmit";
+
+import { act, waitFor } from "@testing-library/react";
+import { buildWallet } from "@tests/seeders/wallet";
+import { MockComponents } from "@tests/unit/mocks";
+import { setupQuery } from "@tests/unit/query-client";
+
+const STORED_SDL = `
+version: "2.0"
+services:
+  web:
+    image: nginx:1.25
+    env:
+      - MODE=dev
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          - size: 1Gi
+  placement:
+    dcloud:
+      pricing:
+        web:
+          denom: uakt
+          amount: 1000
+deployment:
+  web:
+    dcloud:
+      profile: web
+      count: 1
+`;
+
+const DSEQ = "12345";
+const RECORDED_VERSION = "cmVjb3JkZWQ=";
+const SEAL = "sealed.jwe.aaa.bbb.ccc";
+const DEFINITION_CHANGED = new ApiError(
+  409,
+  { message: "Deployment definition changed concurrently, please retry", code: "deployment_definition_changed" },
+  "PATCH /v1/deployments/{dseq} → 409"
+);
+const STALE_SEAL = new ApiError(409, { message: "The sealing key is no longer current" }, "PATCH /v1/deployments/{dseq} → 409");
+const BAD_SDL = new ApiError(400, { message: "Invalid SDL: the image is not a valid reference" }, "PATCH /v1/deployments/{dseq} → 400");
+const OUT_OF_CREDITS = new ApiError(402, { message: "Insufficient balance: top up to keep deploying" }, "PATCH /v1/deployments/{dseq} → 402");
+const SERVER_FAILURE = new ApiError(500, { message: "The SDL recorded for this deployment cannot be read" }, "PATCH /v1/deployments/{dseq} → 500");
+
+describe(useDeploymentUpdateSubmit.name, () => {
+  it("sends nothing and says so when nothing changed", async () => {
+    const { result, patchMutate, enqueueSnackbar, seed } = setup();
+
+    act(() => result.current.submit(seed, seed));
+
+    expect(patchMutate).not.toHaveBeenCalled();
+    expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarTitled("Nothing to update"), expect.objectContaining({ variant: "info" }));
+  });
+
+  it("patches only what changed, sealed and guarded on the version the form was seeded from", async () => {
+    const { result, patchMutate, sealSdlSecrets, seed } = setup();
+
+    act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+    await waitFor(() => expect(patchMutate).toHaveBeenCalled());
+    expect(patchMutate).toHaveBeenCalledWith(
+      { dseq: DSEQ, data: { services: { web: { image: "nginx:1.27" } }, sealedSecrets: SEAL, ifManifestVersion: RECORDED_VERSION } },
+      expect.any(Object)
+    );
+    expect(sealSdlSecrets).toHaveBeenCalledWith({ context: expect.anything(), secrets: {} });
+  });
+
+  it("reports the update as running until the api answers", async () => {
+    const { result, patchMutate, seed } = setup({ patchOutcome: "pending" });
+
+    act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+    await waitFor(() => expect(patchMutate).toHaveBeenCalled());
+    expect(result.current.isUpdating).toBe(true);
+  });
+
+  describe("when the api accepts the patch", () => {
+    it("refreshes what the api holds for the deployment and tells the page", async () => {
+      const { result, queryClient, api, onUpdated, seed } = setup();
+
+      act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+      await waitFor(() => expect(onUpdated).toHaveBeenCalled());
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.getDeployment.getKey({ dseq: DSEQ }) });
+      expect(result.current.isUpdating).toBe(false);
+    });
+
+    it("confirms the update and counts it", async () => {
+      const { result, enqueueSnackbar, analyticsService, refetchBalances, seed } = setup();
+
+      act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+      await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarTitled("Deployment updated"), expect.objectContaining({ variant: "success" })));
+      expect(analyticsService.track).toHaveBeenCalledWith("update_deployment", { category: "deployments", label: "Update deployment" });
+      expect(refetchBalances).toHaveBeenCalled();
+    });
+  });
+
+  describe("when the definition changed elsewhere since the form loaded", () => {
+    it("reloads the form from what the api now holds", async () => {
+      const { result, onDefinitionChanged, queryClient, api, seed } = setup({ patchOutcome: DEFINITION_CHANGED });
+
+      act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+      await waitFor(() => expect(onDefinitionChanged).toHaveBeenCalled());
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.getDeployment.getKey({ dseq: DSEQ }) });
+    });
+
+    it("explains why, without resealing", async () => {
+      const { result, enqueueSnackbar, sealSdlSecrets, seed } = setup({ patchOutcome: DEFINITION_CHANGED });
+
+      act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+      await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarTitled("Changed elsewhere"), expect.objectContaining({ variant: "warning" })));
+      expect(sealSdlSecrets).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("reseals once when the api refuses a seal made against a retired key", async () => {
+    const { result, patchMutate, sealSdlSecrets, seed } = setup({ patchOutcomes: [STALE_SEAL, "success"] });
+
+    act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+    await waitFor(() => expect(patchMutate).toHaveBeenCalledTimes(2));
+    expect(sealSdlSecrets).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops after one reseal and reports the refusal", async () => {
+    const { result, patchMutate, enqueueSnackbar, seed } = setup({ patchOutcomes: [STALE_SEAL, STALE_SEAL] });
+
+    act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+    await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarTitled("Error"), expect.objectContaining({ variant: "error" })));
+    expect(patchMutate).toHaveBeenCalledTimes(2);
+  });
+
+  it("hands a refusal of the document itself back for the form to show", async () => {
+    const { result, enqueueSnackbar, seed } = setup({ patchOutcome: BAD_SDL });
+
+    act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+    await waitFor(() => expect(result.current.sdlRefusal).toBe("Invalid SDL: the image is not a valid reference"));
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
+  });
+
+  it("offers credits when the account cannot pay for the update", async () => {
+    const { result, enqueueSnackbar, seed } = setup({ patchOutcome: OUT_OF_CREDITS });
+
+    act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+    await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarTitled("Insufficient balance"), expect.objectContaining({ variant: "warning" })));
+  });
+
+  it("keeps any other failure on screen and counts it as a failed transaction", async () => {
+    const { result, enqueueSnackbar, analyticsService, seed } = setup({ patchOutcome: SERVER_FAILURE });
+
+    act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+    await waitFor(() =>
+      expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarTitled("Error"), expect.objectContaining({ variant: "error", autoHideDuration: null }))
+    );
+    expect(analyticsService.track).toHaveBeenCalledWith("failed_tx", { category: "transactions", label: "Failed transaction" });
+  });
+
+  it("leaves a client refusal out of the failed transactions", async () => {
+    const { result, analyticsService, seed } = setup({ patchOutcome: BAD_SDL });
+
+    act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+    await waitFor(() => expect(result.current.sdlRefusal).not.toBeNull());
+    expect(analyticsService.track).not.toHaveBeenCalledWith("failed_tx", expect.anything());
+  });
+
+  it("reports a seal it could not make, and patches nothing", async () => {
+    const { result, patchMutate, enqueueSnackbar, seed } = setup({ sealFailure: new Error("key service unreachable") });
+
+    act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+    await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarTitled("Error"), expect.objectContaining({ variant: "error" })));
+    expect(patchMutate).not.toHaveBeenCalled();
+    expect(result.current.isUpdating).toBe(false);
+  });
+
+  function snackbarTitled(title: string) {
+    return expect.objectContaining({ props: expect.objectContaining({ title }) });
+  }
+
+  function withImage(values: SdlBuilderFormValuesType, image: string): SdlBuilderFormValuesType {
+    const edited = structuredClone(values);
+    edited.services[0].image = image;
+    return edited;
+  }
+
+  function setup(input: { patchOutcome?: ApiError | "success" | "pending"; patchOutcomes?: Array<ApiError | "success">; sealFailure?: Error } = {}) {
+    const seed = importDeploymentState(STORED_SDL).values;
+    const outcomes = [...(input.patchOutcomes ?? [input.patchOutcome ?? "success"])];
+    const patchMutate = vi.fn((_variables: unknown, options?: { onSuccess?: () => void; onError?: (cause: unknown) => void }) => {
+      const outcome = outcomes.length > 1 ? outcomes.shift() : outcomes[0];
+      if (outcome === "pending") return;
+      if (outcome === "success") options?.onSuccess?.();
+      else options?.onError?.(outcome);
+    });
+
+    const api = mockDeep<AppDIContainer["api"]>();
+    api.v1.getDeployment.getKey.mockImplementation(request => ["getDeployment", request?.dseq ?? ""]);
+    api.v1.patchDeployment.useMutation.mockReturnValue(mock<ReturnType<typeof api.v1.patchDeployment.useMutation>>({ mutate: patchMutate as never }));
+    const contextMutateAsync = input.sealFailure
+      ? vi.fn().mockRejectedValue(input.sealFailure)
+      : vi.fn().mockResolvedValue({ data: { kid: "kid", sub: "user" } });
+    api.v1.getSDLSecretsContext.useMutation.mockReturnValue(
+      mock<ReturnType<typeof api.v1.getSDLSecretsContext.useMutation>>({ mutateAsync: contextMutateAsync as never })
+    );
+    const analyticsService = mock<AppDIContainer["analyticsService"]>();
+
+    const enqueueSnackbar = vi.fn();
+    const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
+    const refetchBalances = vi.fn();
+    const sealSdlSecrets = vi.fn().mockResolvedValue(SEAL);
+    const onUpdated = vi.fn();
+    const onDefinitionChanged = vi.fn();
+    const dependencies = MockComponents(DEPENDENCIES, {
+      useWallet: () => buildWallet({ address: "akash1owner" }),
+      useBalances: () => mock<ReturnType<typeof DEPENDENCIES.useBalances>>({ refetch: refetchBalances as never }),
+      useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() }),
+      useQueryClient: () => queryClient,
+      sealSdlSecrets
+    });
+
+    const { result } = setupQuery(
+      () => useDeploymentUpdateSubmit({ dseq: DSEQ, manifestVersion: RECORDED_VERSION, onUpdated, onDefinitionChanged }, dependencies),
+      { services: { api: () => api, analyticsService: () => analyticsService } }
+    );
+
+    return { result, seed, api, patchMutate, sealSdlSecrets, enqueueSnackbar, queryClient, refetchBalances, analyticsService, onUpdated, onDefinitionChanged };
+  }
+});

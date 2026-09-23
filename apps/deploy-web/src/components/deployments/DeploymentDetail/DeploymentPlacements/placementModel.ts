@@ -5,8 +5,10 @@ import type { LeaseServiceStatus } from "@src/queries/useLeaseQuery";
 import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
 import { isLeaseLive } from "@src/utils/leaseUtils";
+import { roundDecimal } from "@src/utils/mathHelpers";
 import { parseSvcCommand } from "@src/utils/sdl/sdlImport";
-import { sizeStringToBytes } from "@src/utils/unitUtils";
+import { formatByteSize, sizeStringToBytes } from "@src/utils/unitUtils";
+import type { PlacementStat } from "./PlacementStats";
 
 export interface ManifestServiceResources {
   cpu?: number;
@@ -258,4 +260,17 @@ function safeLoadYaml(manifest: string | null | undefined): ParsedManifest | und
   } catch {
     return undefined;
   }
+}
+
+export function buildPlacementStats(lease: LeaseDto, serviceCount: number, gpuModels: string[]): PlacementStat[] {
+  const stats: PlacementStat[] = [
+    { label: "vCPU", value: roundDecimal(lease.cpuAmount, 2) },
+    { label: "Memory", value: formatByteSize(lease.memoryAmount) },
+    { label: "Storage", value: formatByteSize(lease.storageAmount) }
+  ];
+  if (lease.gpuAmount && lease.gpuAmount > 0) {
+    stats.push({ label: "GPU", value: formatGpuLabel(lease.gpuAmount, gpuModels) });
+  }
+  stats.push({ label: "Services", value: serviceCount });
+  return stats;
 }

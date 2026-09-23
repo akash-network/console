@@ -12,6 +12,7 @@ import { createConfigureDraft } from "@src/components/deployments/ConfigureDeplo
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { isUsableDeploymentDefinition, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { useFlag } from "@src/hooks/useFlag";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
@@ -26,6 +27,7 @@ import { ManifestUpdate } from "../ManifestUpdate/ManifestUpdate";
 import { ReclamationBanner } from "../ReclamationBanner/ReclamationBanner";
 import { DeploymentPlacements } from "./DeploymentPlacements/DeploymentPlacements";
 import { DeploymentSettings } from "./DeploymentSettings/DeploymentSettings";
+import { DeploymentUpdate } from "./DeploymentUpdate/DeploymentUpdate";
 import { DeploymentDetailHeader } from "./DeploymentDetailHeader";
 
 export const DEPENDENCIES = {
@@ -34,6 +36,7 @@ export const DEPENDENCIES = {
   useRouter,
   useSearchParams,
   useRedeploy,
+  useFlag,
   useDeploymentDefinition,
   useDeploymentDetail,
   useDeploymentLeaseList,
@@ -46,14 +49,15 @@ export const DEPENDENCIES = {
   DeploymentLogs,
   DeploymentLeaseShell,
   ManifestUpdate,
-  DeploymentSettings
+  DeploymentSettings,
+  DeploymentUpdate
 };
 
 /** Matches Layout's default `container p-6` content column so every band lines up with the deployment list and the
  *  other pages. Sits inside each full-bleed wrapper, so the header, tab labels and tab body all share one left edge. */
 const PAGE_BAND = "container px-6";
 
-const TABS = ["DETAILS", "LOGS", "EVENTS", "SHELL", "UPDATE", "SETTINGS"] as const;
+const TABS = ["DETAILS", "UPDATE", "LOGS", "EVENTS", "SHELL", "SETTINGS"] as const;
 type Tab = (typeof TABS)[number];
 
 const TAB_LABELS: Record<Tab, string> = {
@@ -76,6 +80,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const searchParams = d.useSearchParams();
   const { address } = d.useWallet();
   const redeploy = d.useRedeploy();
+  const isUpdateEditorEnabled = d.useFlag("ui_deployment_update_editor");
 
   const [activeTab, setActiveTab] = useState<Tab>("DETAILS");
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
@@ -138,6 +143,19 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
     redeploy({ sdl: definition.sdl, name: definition.name, sourceDseq: dseq });
     analyticsService.track("redeploy_btn_clk", "Amplitude");
   }
+
+  const manifestUpdate = deployment && (
+    <d.ManifestUpdate
+      editedManifest={editedManifest as string}
+      onManifestChange={setEditedManifest}
+      deployment={deployment}
+      onRedeploy={isUsableDeploymentDefinition(definition) ? redeployFromResolvedDefinition : undefined}
+      closeManifestEditor={() => {
+        changeTab("DETAILS");
+        loadDeploymentDetail();
+      }}
+    />
+  );
 
   function changeTab(tab: Tab) {
     setActiveTab(tab);
@@ -212,18 +230,21 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                 {activeTab === "EVENTS" && (isActive ? <d.DeploymentLogs leases={leases} selectedLogsMode="events" /> : <TabInactiveState />)}
                 {activeTab === "SHELL" && (isActive ? <d.DeploymentLeaseShell leases={leases} /> : <TabInactiveState />)}
 
-                {activeTab === "UPDATE" && leases && (
-                  <d.ManifestUpdate
-                    editedManifest={editedManifest as string}
-                    onManifestChange={setEditedManifest}
-                    deployment={deployment}
-                    onRedeploy={isUsableDeploymentDefinition(definition) ? redeployFromResolvedDefinition : undefined}
-                    closeManifestEditor={() => {
-                      changeTab("DETAILS");
-                      loadDeploymentDetail();
-                    }}
-                  />
-                )}
+                {activeTab === "UPDATE" &&
+                  leases &&
+                  (isUpdateEditorEnabled ? (
+                    <d.DeploymentUpdate
+                      deployment={deployment}
+                      leases={leases}
+                      providers={providers || []}
+                      definition={definition}
+                      onUpdated={loadDeploymentDetail}
+                      onRedeploy={isUsableDeploymentDefinition(definition) ? redeployFromResolvedDefinition : undefined}
+                      fallback={manifestUpdate}
+                    />
+                  ) : (
+                    manifestUpdate
+                  ))}
 
                 {activeTab === "SETTINGS" && <d.DeploymentSettings deployment={deployment} leases={leases} onDeploymentChange={loadDeploymentDetail} />}
               </div>

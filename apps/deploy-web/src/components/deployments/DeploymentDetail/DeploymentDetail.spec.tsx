@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
+import type { DeploymentUpdateProps } from "./DeploymentUpdate/DeploymentUpdate";
 import { DEPENDENCIES, DeploymentDetail } from "./DeploymentDetail";
 
 import { render, screen } from "@testing-library/react";
@@ -169,6 +170,53 @@ describe("DeploymentDetail", () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
+  it("orders the tabs with Update right after Details", () => {
+    setup();
+
+    expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Details", "Update", "Logs", "Events", "Shell", "Settings"]);
+  });
+
+  describe("when the structured update editor is on", () => {
+    it("opens the structured editor on the Update tab, with the raw editor as its fallback", () => {
+      const { DeploymentUpdate } = setup({ tab: "UPDATE", isUpdateEditorEnabled: true });
+
+      expect(screen.getByText("structured-update")).toBeInTheDocument();
+      render(<>{DeploymentUpdate.mock.calls[0][0].fallback}</>);
+      expect(screen.getByText("manifest-update")).toBeInTheDocument();
+    });
+
+    it("hands the editor the definition the page resolved", () => {
+      const { DeploymentUpdate } = setup({
+        tab: "UPDATE",
+        isUpdateEditorEnabled: true,
+        definition: { sdl: "version: '2.0'", source: "api", manifestVersion: "cmVjb3JkZWQ=" }
+      });
+
+      expect(DeploymentUpdate.mock.calls[0][0].definition).toMatchObject({ sdl: "version: '2.0'", source: "api", manifestVersion: "cmVjb3JkZWQ=" });
+    });
+
+    it("offers the editor a redeploy of the resolved definition", () => {
+      const { DeploymentUpdate, redeploy } = setup({ tab: "UPDATE", isUpdateEditorEnabled: true, definition: { sdl: "version: '2.0'", source: "api" } });
+
+      DeploymentUpdate.mock.calls[0][0].onRedeploy?.();
+
+      expect(redeploy).toHaveBeenCalledWith(expect.objectContaining({ sdl: "version: '2.0'" }));
+    });
+
+    it("keeps the raw editor off the page while the structured editor renders", () => {
+      setup({ tab: "UPDATE", isUpdateEditorEnabled: true });
+
+      expect(screen.queryByText("manifest-update")).not.toBeInTheDocument();
+    });
+  });
+
+  it("keeps the raw editor on the Update tab while the structured editor is off", () => {
+    const { DeploymentUpdate } = setup({ tab: "UPDATE", isUpdateEditorEnabled: false });
+
+    expect(screen.getByText("manifest-update")).toBeInTheDocument();
+    expect(DeploymentUpdate).not.toHaveBeenCalled();
+  });
+
   function isRenderedBefore(earlier: Element, later: Element) {
     return Boolean(earlier.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING);
   }
@@ -182,6 +230,7 @@ describe("DeploymentDetail", () => {
     tab?: string;
     leaseState?: string;
     definition?: Partial<DeploymentDefinition>;
+    isUpdateEditorEnabled?: boolean;
   }) {
     const deployment = input && "deployment" in input ? input.deployment : mock<DeploymentDto>({ dseq: "1786440078202", state: "active", groups: [] });
     const leases = input && "leases" in input ? input.leases : [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: input?.leaseState ?? "active" })];
@@ -226,6 +275,8 @@ describe("DeploymentDetail", () => {
       </div>
     ));
     const DeploymentSettings = vi.fn(() => <div>settings</div>);
+    const DeploymentUpdate = vi.fn((_props: DeploymentUpdateProps) => <div>structured-update</div>);
+    const useFlag: typeof DEPENDENCIES.useFlag = flag => flag === "ui_deployment_update_editor" && !!input?.isUpdateEditorEnabled;
 
     render(
       <DeploymentDetail
@@ -246,11 +297,13 @@ describe("DeploymentDetail", () => {
           DeploymentLogs,
           DeploymentLeaseShell,
           ManifestUpdate,
-          DeploymentSettings
+          DeploymentSettings,
+          DeploymentUpdate,
+          useFlag
         })}
       />
     );
 
-    return { router, analyticsService, redeploy, ManifestUpdate };
+    return { router, analyticsService, redeploy, ManifestUpdate, DeploymentUpdate };
   }
 });
