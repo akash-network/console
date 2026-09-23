@@ -480,13 +480,12 @@ describe("Managed Wallet API Deployment Flow", () => {
       });
       const withPatchedEnv = await readPatchedService(api, dseq, "web");
       expect(withPatchedEnv.env).toEqual(
-        expect.arrayContaining([
-          "INITIAL_ENV=ac-secret://INITIAL_SECRET",
-          "PATCHED_REFERENCE=ac-secret://PATCHED_SECRET",
-          expect.stringMatching(/^PATCHED_PLAIN=ac-secret:\/\//)
-        ])
+        expect.arrayContaining(["INITIAL_ENV=ac-secret://INITIAL_SECRET", "PATCHED_REFERENCE=ac-secret://PATCHED_SECRET", "PATCHED_PLAIN=patched-value"])
       );
       expect(withPatchedEnv.env).not.toContainEqual(expect.stringMatching(/^REMOVABLE_ENV=/));
+
+      await applyPatch(api, dseq, { services: { web: { env: { UNSEALED_PLAIN: "unsealed-value" } } } });
+      expect((await readPatchedService(api, dseq, "web")).env).toContainEqual(expect.stringMatching(/^UNSEALED_PLAIN=ac-secret:\/\//));
 
       await applyPatch(api, dseq, {
         services: {

@@ -320,7 +320,7 @@ const patchRoute = createRoute({
     },
     400: {
       description:
-        "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, or leaves a reference with no value",
+        "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, leaves a reference with no value, moves a container port onto one the service already exposes, or moves a port in a way that would change its endpoint kind on chain",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -338,7 +338,7 @@ const patchRoute = createRoute({
     },
     409: {
       description:
-        "The deployment definition changed between this patch reading it and writing it. A patch naming no `ifManifestVersion` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds",
+        "The deployment definition changed between this patch reading it and writing it. A patch naming no `ifManifestVersion` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds. `code` is `deployment_definition_changed` for this case, which a reload of the definition cures; a 409 without it answers a seal made against a retired key, which a fresh seal cures",
       content: {
         "application/json": {
           schema: ErrorResponseSchema

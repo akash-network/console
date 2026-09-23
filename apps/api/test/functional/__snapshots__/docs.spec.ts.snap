@@ -8499,7 +8499,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "type": "string",
                       },
                       "sealedSecrets": {
-                        "description": "Compact JWE sealing a flat name-to-value map, as on create, but holding only the names this patch replaces. Omitted names keep the values the deployment already stores.",
+                        "description": "Compact JWE sealing a flat name-to-value map, as on create, but holding only the names this patch replaces. Omitted names keep the values the deployment already stores. Its presence also says which values are secret, as on create: a patch carrying a seal stores the env values it writes as submitted, while one carrying none seals them. A seal of an empty map is how a caller writes plain variables without replacing any secret.",
                         "minLength": 1,
                         "type": "string",
                       },
@@ -8546,7 +8546,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "nullable": true,
                                 "type": "string",
                               },
-                              "description": "Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change.",
+                              "description": "Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. Written values are sealed unless the request carries \`sealedSecrets\`.",
                               "type": "object",
                             },
                             "expose": {
@@ -8558,6 +8558,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                       "type": "string",
                                     },
                                     "type": "array",
+                                  },
+                                  "as": {
+                                    "description": "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind on chain (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP.",
+                                    "maximum": 65535,
+                                    "minimum": 1,
+                                    "type": "integer",
                                   },
                                   "httpOptions": {
                                     "properties": {
@@ -8609,10 +8615,16 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     },
                                     "type": "object",
                                   },
+                                  "port": {
+                                    "description": "Moves the container port the workload listens on. The entry is still addressed by the port it declares today. Refused onto a port the service already exposes, and on an endpoint reached through a leased IP.",
+                                    "maximum": 65535,
+                                    "minimum": 1,
+                                    "type": "integer",
+                                  },
                                 },
                                 "type": "object",
                               },
-                              "description": "Keyed by container port. Only hosts and http options are patchable; endpoint kind and count are fixed at create.",
+                              "description": "Keyed by the container port the stored SDL declares. Port numbers, hosts and http options are patchable; protocol, routing, endpoint kind and count are fixed at create. A random-port endpoint whose numbers change gets a new public port from the provider, and so can the service's other random-port endpoints when a container port move reorders them.",
                               "type": "object",
                             },
                             "image": {
@@ -9159,7 +9171,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, or leaves a reference with no value",
+            "description": "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, leaves a reference with no value, moves a container port onto one the service already exposes, or moves a port in a way that would change its endpoint kind on chain",
           },
           "404": {
             "content": {
@@ -9219,7 +9231,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "The deployment definition changed between this patch reading it and writing it. A patch naming no \`ifManifestVersion\` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds",
+            "description": "The deployment definition changed between this patch reading it and writing it. A patch naming no \`ifManifestVersion\` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds. \`code\` is \`deployment_definition_changed\` for this case, which a reload of the definition cures; a 409 without it answers a seal made against a retired key, which a fresh seal cures",
           },
           "500": {
             "content": {
