@@ -175,7 +175,8 @@ export class DeploymentReaderService {
     if ("code" in deploymentResponse) {
       assert(!deploymentResponse.message?.toLowerCase().includes("deployment not found"), 404, "Deployment not found");
 
-      throw new InternalServerError(deploymentResponse.message);
+      this.logger.error({ event: "DEPLOYMENT_READ_REFUSED", owner, dseq, code: deploymentResponse.code, reason: deploymentResponse.message });
+      throw new InternalServerError("Deployment could not be read, please retry");
     }
 
     const { leases } = await this.getLeaseList({ owner, dseq });

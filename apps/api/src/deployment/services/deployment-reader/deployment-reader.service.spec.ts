@@ -168,6 +168,26 @@ describe(DeploymentReaderService.name, () => {
 
       await expect(service.findByWalletAndDseqWithoutProviderStatus(wallet, "12345")).rejects.toMatchObject({ status: 404 });
     });
+
+    it("answers any other refusal with a neutral 500 and logs what was refused", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentHttpService, logger } = setup();
+
+      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue({ code: 3, message: "rpc error: code = InvalidArgument desc = invalid owner", details: [] });
+
+      await expect(service.findByWalletAndDseqWithoutProviderStatus(wallet, "12345")).rejects.toMatchObject({
+        status: 500,
+        message: "Deployment could not be read, please retry"
+      });
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "DEPLOYMENT_READ_REFUSED",
+          dseq: "12345",
+          code: 3,
+          reason: "rpc error: code = InvalidArgument desc = invalid owner"
+        })
+      );
+    });
   });
 
   describe("findByWalletAndDseq", () => {
