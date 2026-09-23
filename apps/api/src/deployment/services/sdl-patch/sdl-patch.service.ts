@@ -14,6 +14,8 @@ type PatchStorage = NonNullable<PatchService["storage"]>[string];
 
 type PatchTarget = { serviceName: string; shared: Set<object>; written: Set<string> };
 
+type ExposeTarget = { port: string; entry: SdlExposeNode; entryPatch: PatchExpose };
+
 /** A bare `env` entry is its own name, because it asks for the variable to be inherited from the host. */
 function envKeyOf(entry: string): string {
   return readEnvDeclaration(entry)?.key ?? entry;
@@ -47,7 +49,21 @@ function declaresPort(entry: SdlExposeNode | undefined, port: string): boolean {
 }
 
 function assignsExpose(patch: PatchExpose): boolean {
-  return patch.accept !== undefined || assignsHttpOptions(patch);
+  return patch.port !== undefined || patch.as !== undefined || patch.accept !== undefined || assignsHttpOptions(patch);
+}
+
+const SHARED_HTTP_PORT = 80;
+
+type EndpointKind = "shared HTTP" | "random-port";
+
+/** Mirrors chain-sdk's `isIngress`, which derives the group spec's endpoint kind that an update of an existing deployment cannot change; an endpoint reached by no global target puts no endpoint on chain at all. */
+function endpointKindOf(entry: Pick<SdlExposeNode, "port" | "as" | "proto" | "to">): EndpointKind | undefined {
+  if (!entry.to?.some(target => target.global)) return undefined;
+
+  const isTcp = (entry.proto?.toUpperCase() || "TCP") === "TCP";
+  const reachedOn = entry.as || entry.port;
+
+  return isTcp && reachedOn === SHARED_HTTP_PORT ? "shared HTTP" : "random-port";
 }
 
 function assignsStorage(patch: PatchStorage): boolean {
@@ -194,37 +210,75 @@ export class SdlPatchService {
   /**
    * Matched on the container port the endpoint declares, because an endpoint's kind and count are fixed
    * at create; the grammar allows two endpoints to share one port and differ only by `proto` or `as`, so
-   * an address matching more than one is refused rather than resolved to the first.
+   * an address matching more than one is refused rather than resolved to the first. Every address and
+   * every refusal is settled against the document as it was before any entry is written, so a swap of
+   * two ports reads as a swap and a refused patch writes nothing.
    */
   #applyExpose(service: SdlServiceNode, patch: NonNullable<PatchService["expose"]>, at: PatchTarget): void {
     const exposed = Array.isArray(service.expose) ? service.expose : [];
+    const addressed = Object.entries(patch).map(([port, entryPatch]) => ({ port, entryPatch, entry: this.#exposedAt(exposed, port, at) }));
+    const assigning = addressed.filter(({ entryPatch }) => assignsExpose(entryPatch));
 
-    for (const [port, entryPatch] of Object.entries(patch)) {
-      const matches = exposed.filter(candidate => declaresPort(candidate, port));
+    for (const target of assigning) this.#assertExposeWritable(target, at);
 
-      if (matches.length === 0) {
-        throw this.#reject(`service "${echo(at.serviceName)}" exposes no port "${echo(port)}"`);
-      }
+    this.#assertNoContainerPortCollision(exposed, assigning, at);
 
-      if (matches.length > 1) {
-        throw this.#reject(
-          `service "${echo(at.serviceName)}" exposes port "${echo(port)}" ${matches.length} times, so this patch cannot say which endpoint it means`
-        );
-      }
+    for (const { entry, entryPatch } of assigning) this.#applyExposeEntry(entry, entryPatch);
+  }
 
-      if (!assignsExpose(entryPatch)) continue;
+  #exposedAt(exposed: SdlExposeNode[], port: string, at: PatchTarget): SdlExposeNode {
+    const matches = exposed.filter(candidate => declaresPort(candidate, port));
 
-      this.#assertNotShared(matches[0], { ...at, field: `expose on port ${echo(port)}` });
-      this.#applyExposeEntry(matches[0], entryPatch, at, port);
+    if (matches.length === 0) {
+      throw this.#reject(`service "${echo(at.serviceName)}" exposes no port "${echo(port)}"`);
+    }
+
+    if (matches.length > 1) {
+      throw this.#reject(
+        `service "${echo(at.serviceName)}" exposes port "${echo(port)}" ${matches.length} times, so this patch cannot say which endpoint it means`
+      );
+    }
+
+    return matches[0];
+  }
+
+  #assertExposeWritable({ port, entry, entryPatch }: ExposeTarget, at: PatchTarget): void {
+    this.#assertNotShared(entry, { ...at, field: `expose on port ${echo(port)}` });
+
+    if (assignsHttpOptions(entryPatch)) this.#assertNotShared(entry.http_options, { ...at, field: `http options on port ${echo(port)}` });
+
+    const kindBefore = endpointKindOf(entry);
+    const kindAfter = endpointKindOf({ ...entry, port: entryPatch.port ?? entry.port, as: entryPatch.as ?? entry.as });
+
+    if (kindBefore !== kindAfter) {
+      throw this.#reject(
+        `service "${echo(at.serviceName)}" port "${echo(port)}" would change from a ${kindBefore} endpoint to a ${kindAfter} one, which needs a new deployment`
+      );
     }
   }
 
-  #applyExposeEntry(entry: SdlExposeNode, patch: PatchExpose, at: PatchTarget, port: string): void {
+  /** A second endpoint on one container port could never be addressed by a later patch, so a move onto a port the service already exposes is refused. */
+  #assertNoContainerPortCollision(exposed: SdlExposeNode[], assigning: ExposeTarget[], at: PatchTarget): void {
+    const portAfterPatch = (entry: SdlExposeNode) => assigning.find(target => target.entry === entry)?.entryPatch.port ?? entry.port;
+
+    for (const { port, entry, entryPatch } of assigning) {
+      if (entryPatch.port === undefined) continue;
+
+      const isTaken = exposed.some(other => other !== entry && portAfterPatch(other) === entryPatch.port);
+
+      if (isTaken) {
+        throw this.#reject(`service "${echo(at.serviceName)}" already exposes port "${entryPatch.port}", so port "${echo(port)}" cannot move onto it`);
+      }
+    }
+  }
+
+  #applyExposeEntry(entry: SdlExposeNode, patch: PatchExpose): void {
+    if (patch.port !== undefined) entry.port = patch.port;
+    if (patch.as !== undefined) entry.as = patch.as;
     if (patch.accept !== undefined) entry.accept = patch.accept;
 
     if (!assignsHttpOptions(patch)) return;
 
-    this.#assertNotShared(entry.http_options, { ...at, field: `http options on port ${echo(port)}` });
     entry.http_options ??= {};
     this.#applyHttpOptions(entry.http_options, patch.httpOptions!);
   }

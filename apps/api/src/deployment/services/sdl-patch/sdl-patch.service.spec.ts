@@ -274,6 +274,13 @@ describe(SdlPatchService.name, () => {
         /share its definition with another part of the document/
       );
     });
+
+    it.each([{ as: 3001 }, { port: 3100 }])("refuses a port number change %o through the alias", entryPatch => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 3000, as: 3000 }] } }, aliasWebAs: "worker" });
+
+      expect(() => service.apply(document, { web: { expose: { "3000": entryPatch } } })).toThrow(/share its definition with another part of the document/);
+      expect(document.services.worker.expose?.[0]).toEqual({ port: 3000, as: 3000 });
+    });
   });
 
   describe("credentials", () => {
@@ -520,6 +527,141 @@ describe(SdlPatchService.name, () => {
     });
   });
 
+  describe("the numbers an exposed port is reached on", () => {
+    it("moves the external port of the named port", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 3000, as: 3000, to: [{ global: true }] }] } } });
+
+      service.apply(document, { web: { expose: { "3000": { as: 3001 } } } });
+
+      expect(document.services.web.expose?.[0]).toEqual({ port: 3000, as: 3001, to: [{ global: true }] });
+    });
+
+    it("moves the container port, addressed by the port it declared before the patch", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 3000, as: 3000, to: [{ global: true }] }] } } });
+
+      service.apply(document, { web: { expose: { "3000": { port: 3100 } } } });
+
+      expect(document.services.web.expose?.[0]).toEqual({ port: 3100, as: 3000, to: [{ global: true }] });
+    });
+
+    it("moves both numbers of one endpoint in a single sub-patch", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 3000, as: 3000 }] } } });
+
+      service.apply(document, { web: { expose: { "3000": { port: 3100, as: 3101 } } } });
+
+      expect(document.services.web.expose?.[0]).toEqual({ port: 3100, as: 3101 });
+    });
+
+    it("swaps two container ports, reading every address against the document as it was", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 3000 }, { port: 4000 }] } } });
+
+      service.apply(document, { web: { expose: { "3000": { port: 4000 }, "4000": { port: 3000 } } } });
+
+      expect(document.services.web.expose?.map(entry => entry.port)).toEqual([4000, 3000]);
+    });
+
+    it("refuses a container port the service already exposes, naming both", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 3000 }, { port: 4000 }] } } });
+
+      expect(() => service.apply(document, { web: { expose: { "3000": { port: 4000 } } } })).toThrow(
+        'service "web" already exposes port "4000", so port "3000" cannot move onto it'
+      );
+      expect(document.services.web.expose?.map(entry => entry.port)).toEqual([3000, 4000]);
+    });
+
+    it("moves an external port beside an endpoint that declares no container port", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx", expose: [{ port: 3000, as: 3000 }, { accept: ["a.test"] } as SdlExposeEntry] } }
+      });
+
+      service.apply(document, { web: { expose: { "3000": { as: 3001 } } } });
+
+      expect(document.services.web.expose?.[0].as).toBe(3001);
+    });
+
+    it("keeps a container port an endpoint moves onto its own current number", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 3000 }, { port: 4000 }] } } });
+
+      service.apply(document, { web: { expose: { "3000": { port: 3000 } } } });
+
+      expect(document.services.web.expose?.map(entry => entry.port)).toEqual([3000, 4000]);
+    });
+
+    it.each([undefined, "tcp", "TCP"] as const)("refuses moving a public %s endpoint off port 80, which would change its kind on chain", proto => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 80, as: 80, proto, to: [{ global: true }] }] } } });
+
+      expect(() => service.apply(document, { web: { expose: { "80": { as: 8080 } } } })).toThrow(
+        'service "web" port "80" would change from a shared HTTP endpoint to a random-port one, which needs a new deployment'
+      );
+      expect(document.services.web.expose?.[0].as).toBe(80);
+    });
+
+    it("refuses moving a public endpoint onto port 80, which would change its kind on chain", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 3000, as: 3000, to: [{ global: true }] }] } } });
+
+      expect(() => service.apply(document, { web: { expose: { "3000": { as: 80 } } } })).toThrow(
+        'service "web" port "3000" would change from a random-port endpoint to a shared HTTP one, which needs a new deployment'
+      );
+    });
+
+    it("refuses moving the container port of a public endpoint that declares no external port off 80", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 80, to: [{ global: true }] }] } } });
+
+      expect(() => service.apply(document, { web: { expose: { "80": { port: 8080 } } } })).toThrow(/would change from a shared HTTP endpoint/);
+    });
+
+    it("moves the container port of a public endpoint whose external port stays 80", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 3000, as: 80, to: [{ global: true }] }] } } });
+
+      service.apply(document, { web: { expose: { "3000": { port: 3100 } } } });
+
+      expect(document.services.web.expose?.[0]).toEqual({ port: 3100, as: 80, to: [{ global: true }] });
+    });
+
+    it("moves an internal endpoint off port 80, which has no endpoint on chain to change", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 80, as: 80, to: [{ service: "db" }] }] } } });
+
+      service.apply(document, { web: { expose: { "80": { as: 8080 } } } });
+
+      expect(document.services.web.expose?.[0].as).toBe(8080);
+    });
+
+    it("moves a public UDP endpoint off port 80, which is never a shared HTTP endpoint", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 80, as: 80, proto: "udp", to: [{ global: true }] }] } } });
+
+      service.apply(document, { web: { expose: { "80": { as: 8080 } } } });
+
+      expect(document.services.web.expose?.[0].as).toBe(8080);
+    });
+
+    it("writes nothing when a later port in the same patch is refused", () => {
+      const { service, document } = setup({
+        services: {
+          web: {
+            image: "nginx",
+            expose: [
+              { port: 3000, as: 3000 },
+              { port: 80, as: 80, to: [{ global: true }] }
+            ]
+          }
+        }
+      });
+
+      expect(() => service.apply(document, { web: { expose: { "3000": { as: 3001 }, "80": { as: 8080 } } } })).toThrow();
+      expect(document.services.web.expose?.[0].as).toBe(3000);
+    });
+
+    it("refuses to move a port through an endpoint another service shares", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx" }, worker: { image: "busybox" } },
+        shareExpose: [{ port: 3000, as: 3000 }]
+      });
+
+      expect(() => service.apply(document, { web: { expose: { "3000": { as: 3001 } } } })).toThrow(/share its expose on port 3000/);
+      expect(document.services.worker.expose?.[0].as).toBe(3000);
+    });
+  });
+
   describe("storage", () => {
     it("moves the mount point of the named volume", () => {
       const { service, document } = setup({
@@ -640,6 +782,17 @@ describe(SdlPatchService.name, () => {
       });
 
       expect(() => service.apply(document, { web: { expose: { "80": { httpOptions: { readTimeout: 9000 } } } } })).toThrow(/share its http options on port 80/);
+    });
+
+    it("patches the hosts of an endpoint whose http options another service shares, since the hosts are its own", () => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx" }, worker: { image: "busybox" } },
+        shareHttpOptions: { max_body_size: 1024 }
+      });
+
+      service.apply(document, { web: { expose: { "80": { accept: ["b.test"] } } } });
+
+      expect(document.services.web.expose?.[0].accept).toEqual(["b.test"]);
     });
 
     it("leaves the shared options block untouched when it refuses", () => {

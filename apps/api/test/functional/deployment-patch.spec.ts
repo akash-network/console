@@ -44,7 +44,10 @@ const { client: kmsClient, publicKey } = registerFakeSdlSecretsKms();
 const DSEQ = "1234";
 const SEAL_BARRIER_TIMEOUT_MS = 10_000;
 
-function storedSdl(env: string[], image = "nginx") {
+const PUBLIC_ENDPOINT_ON_PORT_80 = { port: 80, as: 80 };
+const PUBLIC_ENDPOINT_ON_PORT_3000 = { port: 3000, as: 3000 };
+
+function storedSdl(env: string[], image = "nginx", expose = PUBLIC_ENDPOINT_ON_PORT_80) {
   return [
     'version: "2.0"',
     "services:",
@@ -53,8 +56,8 @@ function storedSdl(env: string[], image = "nginx") {
     "    env:",
     ...env.map(entry => `      - ${JSON.stringify(entry)}`),
     "    expose:",
-    "      - port: 80",
-    "        as: 80",
+    `      - port: ${expose.port}`,
+    `        as: ${expose.as}`,
     "        to:",
     "          - global: true",
     "profiles:",
@@ -335,6 +338,18 @@ describe("PATCH /v1/deployments/{dseq}", () => {
       expect((await slower).status).toBe(409);
     });
 
+    it("names the refusal with a code a client can tell from a seal made against a retired key", async () => {
+      const { apiKey } = await setup();
+      const { atBarrier, release } = holdTheFirstSeal();
+
+      const slower = patch(apiKey, { services: { web: { image: "nginx:slower" } } });
+      await atBarrier;
+      await patch(apiKey, { services: { web: { image: "nginx:faster" } } });
+      release();
+
+      expect(((await (await slower).json()) as { code: string }).code).toBe("deployment_definition_changed");
+    });
+
     it("keeps what the faster of two concurrent patches wrote", async () => {
       const { apiKey, user } = await setup();
       const { atBarrier, release } = holdTheFirstSeal();
@@ -451,6 +466,52 @@ describe("PATCH /v1/deployments/{dseq}", () => {
       const setting = await settingOf(user);
       expect(setting?.sdl).not.toContain("LOG_LEVEL=trace");
       expect(Object.values(await openStored(user))).toContain("trace");
+    });
+
+    it("stays in the clear when the patch that names it carries a seal, however empty", async () => {
+      const { apiKey, user } = await setup({ env: ["API_TOKEN=ac-secret://s0_e0", "LOG_LEVEL=debug"], secrets: { s0_e0: randomUUID() } });
+
+      const response = await patch(apiKey, { services: { web: { env: { LOG_LEVEL: "trace" } } } }, await sealFor(user, {}));
+
+      expect(response.status).toBe(200);
+      expect((await settingOf(user))?.sdl).toContain("LOG_LEVEL=trace");
+      expect(Object.values(await openStored(user))).not.toContain("trace");
+    });
+  });
+
+  describe("moving an exposed port", () => {
+    it("sends a lease provider a manifest reaching the endpoint on its new external port", async () => {
+      const { apiKey, secrets } = await setup({ expose: PUBLIC_ENDPOINT_ON_PORT_3000 });
+      vi.mocked(providerService.sendManifest).mockClear();
+
+      const response = await patch(apiKey, { services: { web: { expose: { "3000": { as: 3001 } } } } });
+
+      expect(response.status).toBe(200);
+      const expected = await manifestOf(storedSdl([`API_TOKEN=${secrets.s0_e0}`, `DATABASE_URL=${secrets.s0_e1}`], "nginx", { port: 3000, as: 3001 }));
+      expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ manifest: expected }));
+    });
+
+    it("records a new manifest version for the moved container port", async () => {
+      const { apiKey, user } = await setup({ expose: PUBLIC_ENDPOINT_ON_PORT_3000 });
+      const before = await settingOf(user);
+
+      const response = await patch(apiKey, { services: { web: { expose: { "3000": { port: 3100 } } } } });
+
+      expect(response.status).toBe(200);
+      const after = await settingOf(user);
+      expect(after?.sdl).toContain("port: 3100");
+      expect(after?.manifestVersion).not.toBe(before?.manifestVersion);
+    });
+
+    it("refuses moving a public endpoint off port 80, which only a new deployment can do, and records nothing", async () => {
+      const { apiKey, user } = await setup();
+      const before = await settingOf(user);
+
+      const response = await patch(apiKey, { services: { web: { expose: { "80": { as: 8080 } } } } });
+
+      expect(response.status).toBe(400);
+      expect(((await response.json()) as { message: string }).message).toContain("would change from a shared HTTP endpoint to a random-port one");
+      expect(await settingOf(user)).toMatchObject({ sdl: before!.sdl, manifestVersion: before!.manifestVersion });
     });
   });
 
@@ -716,7 +777,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     await createDeployment({ owner: address, dseq: DSEQ });
   }
 
-  async function setup(input: { secrets?: Record<string, string>; env?: string[]; record?: boolean } = {}) {
+  async function setup(input: { secrets?: Record<string, string>; env?: string[]; record?: boolean; expose?: { port: number; as: number } } = {}) {
     const dbUser = await userRepository.create({ userId: faker.string.uuid() });
     const apiKey = faker.string.alphanumeric(24);
     const user = createUser({ id: dbUser.id, userId: dbUser.userId ?? undefined });
@@ -746,7 +807,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     vi.spyOn(providerService, "toProviderAuth").mockResolvedValue(mock());
 
     const env = input.env ?? ["API_TOKEN=ac-secret://s0_e0", "DATABASE_URL=ac-secret://s0_e1"];
-    const sdl = storedSdl(env);
+    const sdl = storedSdl(env, undefined, input.expose);
     const secrets = input.secrets ?? Object.fromEntries(referencedNamesIn(env).map(name => [name, randomUUID()]));
 
     await mockChain(address);

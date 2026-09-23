@@ -51,6 +51,9 @@ const SECRET_REFERENCE_KIND = "secret";
 /** Distinct from the sealed-secret failure so a client can tell which half of the stored state it cannot read, both being permanent. */
 const STORED_SDL_UNREADABLE_ERROR_CODE = "stored_sdl_unreadable";
 
+/** A seal made against a retired key also answers a bare 409, and only this one is cured by reloading the definition rather than resealing. */
+const DEFINITION_CHANGED_ERROR_CODE = "deployment_definition_changed";
+
 /** A deployment the console never recorded an SDL for has nothing to patch, and the SDL is deliberately not accepted from the request. */
 const NOT_PATCHABLE_MESSAGE = "This deployment has no SDL recorded by the console, so there is nothing to patch";
 
@@ -412,6 +415,9 @@ export class DeploymentWriterService {
    * A patch is read-modify-write, so a caller naming no version is still guarded on the version this call
    * read: without that, two concurrent unguarded patches would each build on the same document and the
    * later one would silently discard the earlier. A row recording no version yet cannot be guarded on one.
+   *
+   * A written env value is sealed only when the request carries no seal, the same rule as create: a caller
+   * that seals has already said which values are secret, so the plain ones it writes stay readable.
    */
   public async patchByUserIdAndDseq(
     userId: string,
@@ -431,7 +437,7 @@ export class DeploymentWriterService {
     const document = parsed.document;
 
     const written = this.sdlPatchService.apply(document, input.services ?? {});
-    const derived = this.sdlSecretsDerivationService.derive(document, { includeEnvValues: true, onlyAt: written });
+    const derived = this.sdlSecretsDerivationService.derive(document, { includeEnvValues: !input.sealedSecrets, onlyAt: written });
     const patchedSdl = this.#serialize(parsed, { userId, dseq });
 
     const [supplied, held] = await Promise.all([
@@ -457,7 +463,7 @@ export class DeploymentWriterService {
     });
 
     if (!recorded) {
-      throw createError(409, "Deployment definition changed concurrently, please retry");
+      throw createError(409, "Deployment definition changed concurrently, please retry", { errorCode: DEFINITION_CHANGED_ERROR_CODE });
     }
 
     this.logger.info({

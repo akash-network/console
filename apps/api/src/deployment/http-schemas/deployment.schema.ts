@@ -230,7 +230,7 @@ const ENV_VARIABLE_NAME = /^[-._a-zA-Z][-._a-zA-Z0-9]*$/;
 
 const PatchEnvSchema = z.record(z.string().regex(ENV_VARIABLE_NAME), z.string().nullable()).openapi({
   description:
-    "Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change."
+    "Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. Written values are sealed unless the request carries `sealedSecrets`."
 });
 
 /** Every one of these is a uint32 by the time it reaches the provider. */
@@ -267,8 +267,21 @@ const PatchHttpOptionsSchema = z
   })
   .partial();
 
+const MIN_PORT = 1;
+const MAX_PORT = 65535;
+
+const PortNumberSchema = z.number().int().min(MIN_PORT).max(MAX_PORT);
+
 const PatchExposeSchema = z
   .object({
+    port: PortNumberSchema.openapi({
+      description:
+        "Moves the container port the workload listens on. The entry is still addressed by the port it declares today, and a move onto a port the service already exposes is refused."
+    }),
+    as: PortNumberSchema.openapi({
+      description:
+        "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind on chain, which happens when a public TCP endpoint moves onto or off port 80."
+    }),
     accept: z.array(z.string()).openapi({
       description:
         "Custom domains. Replaces the existing list. Emptying it is rejected by providers that do not generate a hostname of their own, which leaves the patch recorded but undeployed."
@@ -302,7 +315,8 @@ export const PatchServiceSchema = z
       .nullable()
       .openapi({ description: "Private registry pull credentials. Null clears them." }),
     expose: z.record(z.string(), PatchExposeSchema).openapi({
-      description: "Keyed by container port. Only hosts and http options are patchable; endpoint kind and count are fixed at create."
+      description:
+        "Keyed by the container port the stored SDL declares. Port numbers, hosts and http options are patchable; protocol, routing, endpoint kind and count are fixed at create."
     }),
     storage: z.record(z.string(), z.object({ mount: z.string(), readOnly: z.boolean() }).partial()).openapi({
       description: "Keyed by volume name. Mount point and read-only flag only — sizes are fixed at create."
@@ -341,7 +355,7 @@ export const PatchDeploymentRequestSchema = z.object({
       }),
       sealedSecrets: SealedSecretsSchema.optional().openapi({
         description:
-          "Compact JWE sealing a flat name-to-value map, as on create, but holding only the names this patch replaces. Omitted names keep the values the deployment already stores."
+          "Compact JWE sealing a flat name-to-value map, as on create, but holding only the names this patch replaces. Omitted names keep the values the deployment already stores. Its presence also says which values are secret, as on create: a patch carrying a seal stores the env values it writes as submitted, while one carrying none seals them. A seal of an empty map is how a caller writes plain variables without replacing any secret."
       }),
       ifManifestVersion: z.string().min(1).max(MAX_MANIFEST_VERSION_LENGTH).optional().openapi({
         description:
