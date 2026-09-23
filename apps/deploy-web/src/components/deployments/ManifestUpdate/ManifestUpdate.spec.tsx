@@ -844,6 +844,16 @@ describe(ManifestUpdate.name, () => {
       expect(screen.queryByText(STALE_PROVIDER_MESSAGE)).not.toBeInTheDocument();
     });
 
+    it("clears the guidance when the user tries the update again", async () => {
+      const handles = setup();
+
+      await clickUpdate(handles);
+      await fail(handles, STALE_PROVIDER_VERSION);
+      await clickUpdate(handles);
+
+      expect(screen.queryByText(STALE_PROVIDER_MESSAGE)).not.toBeInTheDocument();
+    });
+
     it("keeps the guidance on the deployment it was given for once the user moves to another one", async () => {
       const handles = setup({ deployment: { dseq: "123" } });
 
@@ -864,6 +874,19 @@ describe(ManifestUpdate.name, () => {
       expect(handles.deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "123", { manifest: "version: '2.0'" });
       expect(handles.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["getDeployment", "123"] });
       expect(screen.queryByText(STALE_PROVIDER_MESSAGE)).not.toBeInTheDocument();
+    });
+
+    it("names the deployment in a warning snackbar when the answer arrives after the user moved to another one", async () => {
+      const handles = setup({ deployment: { dseq: "123" } });
+
+      await clickUpdate(handles);
+      handles.rerenderWith({ deployment: { dseq: "456" } });
+      await fail(handles, STALE_PROVIDER_VERSION);
+
+      const [element, options] = handles.enqueueSnackbar.mock.calls[0];
+      expect(element.props.title).toBe("Update to deployment 123 not applied yet");
+      expect(element.props.subTitle).toBe(STALE_PROVIDER_MESSAGE);
+      expect(options).toEqual({ variant: "warning", autoHideDuration: null });
     });
 
     it("falls back to a warning snackbar when the answer arrives after the editor closes", async () => {

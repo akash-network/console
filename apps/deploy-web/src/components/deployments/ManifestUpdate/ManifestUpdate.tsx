@@ -56,7 +56,6 @@ const ADD_CREDITS_TITLE = "Add credits to continue";
 const WITHHELD_VALUES_ERROR = "This configuration still has withheld secret values. Replace them with real values before updating.";
 /** The api answers this code when the chain took the update but the provider still validates manifests against the previous version. */
 const STALE_PROVIDER_VERSION_ERROR_CODE = "provider_manifest_version_stale";
-const STALE_PROVIDER_VERSION_TITLE = "Update not applied yet";
 const STALE_PROVIDER_VERSION_FALLBACK_MESSAGE = "Your update was accepted, but the provider has not picked it up yet. Wait a minute and try again.";
 
 /** The api withholds a value by stripping it, so a copy it served that is still self-contained lost nothing: the chain has merely moved past it. */
@@ -309,12 +308,12 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
     const message = extractApiErrorMessage(cause) ?? STALE_PROVIDER_VERSION_FALLBACK_MESSAGE;
 
-    if (isEditorMounted.current) {
+    if (isEditorMounted.current && submitted.dseq === deployment.dseq) {
       setStaleProviderNotice({ dseq: submitted.dseq, message });
       return;
     }
 
-    enqueueSnackbar(<d.Snackbar title={STALE_PROVIDER_VERSION_TITLE} subTitle={message} iconVariant="warning" />, {
+    enqueueSnackbar(<d.Snackbar title={`Update to deployment ${submitted.dseq} not applied yet`} subTitle={message} iconVariant="warning" />, {
       variant: "warning",
       autoHideDuration: null
     });
