@@ -453,13 +453,14 @@ describe(ProviderService.name, () => {
       });
     });
 
-    it("refuses with provider_unreachable when the dial times out without an answer", async () => {
+    it("lets a failure to get any answer from provider-proxy through unchanged", async () => {
       const { service, providerRepository, providerProxyService } = setup();
       const provider = createProviderSeed() as unknown as Provider;
+      const failure = new AxiosError("connect ECONNREFUSED", "ECONNREFUSED");
       providerRepository.findActiveByAddress.mockResolvedValue(provider);
-      providerProxyService.request.mockRejectedValue(new AxiosError("timeout of 25000ms exceeded", "ECONNABORTED"));
+      providerProxyService.request.mockRejectedValue(failure);
 
-      await expect(service.assertReachable(provider.owner)).rejects.toMatchObject({ status: 502, errorCode: "provider_unreachable" });
+      await expect(service.assertReachable(provider.owner)).rejects.toBe(failure);
     });
 
     it("answers 404 without dialling for a provider it does not know", async () => {

@@ -145,15 +145,13 @@ export class ProviderService {
         timeout: 5_000
       });
     } catch (error) {
-      if (error instanceof AxiosError && (!error.response || UNREACHABLE_DIAL_STATUSES.has(error.response.status))) {
+      if (!(error instanceof AxiosError) || !error.response) throw error;
+
+      if (UNREACHABLE_DIAL_STATUSES.has(error.response.status)) {
         throw createError(502, `Provider ${provider.hostUri} could not be reached, so no lease was created. Choose another bid or try again later.`, {
           errorCode: "provider_unreachable"
         });
       }
-
-      if (error instanceof AxiosError) return;
-
-      throw error;
     }
   }
 
