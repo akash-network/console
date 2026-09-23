@@ -4,6 +4,11 @@ import { describe, expect, it } from "vitest";
 import { addCreditsContentOf, creditsRefusalOf, isClientRefusal, isStaleProviderVersion, sdlRefusalOf } from "./updateDeploymentFailure";
 
 const BAD_SDL = new ApiError(400, { message: "SDL is not valid YAML: line 3, column 5" }, "PATCH /v1/deployments/{dseq} → 400");
+const PATCHED_SDL_TOO_LARGE = new ApiError(
+  400,
+  { message: "The patched SDL is too large: it exceeds the maximum of 131072 characters once stored" },
+  "PATCH /v1/deployments/{dseq} → 400"
+);
 const PROVIDER_BEHIND = new ApiError(
   409,
   { message: "Your update was accepted, but the provider has not picked it up yet.", code: "provider_manifest_version_stale" },
@@ -22,6 +27,10 @@ const SERVER_FAILURE = new ApiError(500, { message: "Invalid SDL: the console co
 describe("sdlRefusalOf", () => {
   it("returns the message of a 400 refusing the document itself", () => {
     expect(sdlRefusalOf(BAD_SDL)).toBe("SDL is not valid YAML: line 3, column 5");
+  });
+
+  it("returns the message of a 400 refusing a patched document too large to store", () => {
+    expect(sdlRefusalOf(PATCHED_SDL_TOO_LARGE)).toBe("The patched SDL is too large: it exceeds the maximum of 131072 characters once stored");
   });
 
   it("returns nothing for a 400 that refuses something other than the document", () => {
