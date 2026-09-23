@@ -48,10 +48,7 @@ function isStaleSeal(cause: unknown): boolean {
   return isApiError(cause) && cause.status === HTTP_CONFLICT && !isDefinitionChanged(cause);
 }
 
-/**
- * Always sends a seal, even of nothing, because the api reads a patch carrying none as one whose caller never said which values are
- * secret and seals every variable it writes.
- */
+/** Always sends a seal, empty or not, because the api seals every variable a patch without one writes. */
 export function useDeploymentUpdateSubmit({ dseq, manifestVersion, onUpdated, onDefinitionChanged }: DeploymentUpdateSubmitInput, d = DEPENDENCIES) {
   const { api, analyticsService } = useServices();
   const { address } = d.useWallet();

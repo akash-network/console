@@ -603,8 +603,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
    * The manifest is derived from the SDL being deployed (not the create-time one) so a quoting-window edit gets leased;
    * when it differs from create the deployment is updated first so the on-chain hash matches before the manifest is sent.
    * With the secrets feature on, that update is a patch of what changed since the create, because the whole-SDL update
-   * seals every value and cannot resolve a reference. The patch always carries a seal, empty or not, since the api seals
-   * every variable a patch without one writes.
+   * seals every value and cannot resolve a reference.
    */
   const deploy = useCallback(
     function deploy(sdl: string, options: DeployOptions = {}) {
