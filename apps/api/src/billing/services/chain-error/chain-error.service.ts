@@ -16,8 +16,8 @@ const FEE_GRANT_REFUSED_MESSAGE = "does not allow to pay fees";
 /** A signer that refused the connection or never resolved carries no response to read a status from, yet it is as much a dependency outage as a 5xx from one. */
 const UNREACHABLE_UPSTREAM_CODES = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "EHOSTUNREACH", "ENETUNREACH"]);
 
-/** Names no host or address, because the error handler echoes `message` to the caller for every `http-errors` instance regardless of `expose`. */
-const UNREACHABLE_UPSTREAM_MESSAGE = "Service temporarily unavailable";
+/** Carries no host, address or upstream text, because the error handler echoes `message` to the caller for every `http-errors` instance regardless of `expose`. */
+const UPSTREAM_FAILURE_MESSAGE = "Service temporarily unavailable";
 
 @singleton()
 export class ChainErrorService {
@@ -112,12 +112,12 @@ export class ChainErrorService {
 
     if (!clue) {
       if (this.isUnreachableUpstreamCause(error)) {
-        return createError(503, UNREACHABLE_UPSTREAM_MESSAGE, { originalError: error });
+        return createError(503, UPSTREAM_FAILURE_MESSAGE, { originalError: error });
       }
 
       const upstreamStatus = this.getUpstreamStatusFromCause(error);
       if (upstreamStatus) {
-        return createError(upstreamStatus, error.message, { originalError: error });
+        return createError(upstreamStatus, UPSTREAM_FAILURE_MESSAGE, { originalError: error });
       }
 
       return error;
