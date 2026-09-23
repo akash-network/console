@@ -152,10 +152,10 @@ export interface DetectedGpuSummary {
   count: number;
 }
 
-/** What the console saw running where it has looked; otherwise the named model(s) asked for, and the count alone when none were. */
+/** What the console saw once its reading accounts for every gpu asked for, since a partial one would understate it; otherwise the named models asked for, or the count alone. */
 export function formatGpuLabel(gpuAmount: number, models: string[], detected?: DetectedGpuSummary[]): string {
   if (!gpuAmount) return "—";
-  if (detected?.length) return detected.map(formatDetectedGpu).join(", ");
+  if (detected?.reduce((total, gpu) => total + gpu.count, 0) === gpuAmount) return detected.map(formatDetectedGpu).join(", ");
 
   const names = models.filter(isNamedGpuModel).map(model => model.toUpperCase());
   return names.length > 0 ? names.join(", ") : String(gpuAmount);
@@ -170,11 +170,9 @@ export function foldDetectedGpus(detected: DetectedLeaseGpus | undefined): Detec
   return foldByDisplayName(gpusOf(detected));
 }
 
-/** What a deployment's live gpu leases are running, and nothing until every one of them has been read, since a partial reading would understate the total. */
-export function foldDetectedGpusOfLeases(leases: Array<Pick<LeaseDto, "state" | "gpuAmount" | "detectedGpus">> | null | undefined): DetectedGpuSummary[] {
-  const readings = leases?.filter(lease => isLeaseLive(lease) && !!lease.gpuAmount).map(lease => gpusOf(lease.detectedGpus)) ?? [];
-
-  return readings.every(gpus => gpus.length > 0) ? foldByDisplayName(readings.flat()) : [];
+/** What a whole deployment is running now, counting live leases only, since a lease that was replaced keeps the reading it had. */
+export function foldDetectedGpusOfLeases(leases: Array<Pick<LeaseDto, "state" | "detectedGpus">> | null | undefined): DetectedGpuSummary[] {
+  return foldByDisplayName(leases?.filter(isLeaseLive).flatMap(lease => gpusOf(lease.detectedGpus)) ?? []);
 }
 
 /** Reads the cards out only where the reading is actually one, since a lease carries this field from the api rather than from the chain. */
