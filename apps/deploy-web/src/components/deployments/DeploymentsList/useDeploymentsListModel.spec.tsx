@@ -1,8 +1,8 @@
-import { createElement } from "react";
 import { createStore, Provider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
 import type { ListedDeploymentDto } from "@src/types/deployment";
@@ -10,6 +10,7 @@ import type { DeploymentsListSource, DeploymentsListSourceInput } from "./useApi
 import { DEFAULT_PAGE_SIZE, DEPENDENCIES, useDeploymentsListModel } from "./useDeploymentsListModel";
 
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(useDeploymentsListModel.name, () => {
   it("asks the source for the first active page at the default size while nobody is searching", () => {
@@ -288,14 +289,38 @@ describe(useDeploymentsListModel.name, () => {
       expect(result.current.selectedItemIds).toEqual([]);
     });
 
+    it("records how many deployments the landed close covered", async () => {
+      const { result, analyticsService } = setup({ active: [deployment("100"), deployment("101")] });
+
+      act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
+      act(() => result.current.selectItem({ id: "101", isShiftPressed: false }));
+      await act(async () => await result.current.closeSelectedDeployments());
+
+      expect(analyticsService.track).toHaveBeenCalledWith("close_deployment", {
+        category: "deployments",
+        label: "Close selected deployments from list",
+        count: 2
+      });
+    });
+
     it("does nothing when the confirmation is declined", async () => {
-      const { result, signAndBroadcastTx } = setup({ active: [deployment("100")], isCloseConfirmed: false });
+      const { result, signAndBroadcastTx, analyticsService } = setup({ active: [deployment("100")], isCloseConfirmed: false });
 
       act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
       await act(async () => await result.current.closeSelectedDeployments());
 
       expect(signAndBroadcastTx).not.toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalled();
       expect(result.current.selectedItemIds).toEqual(["100"]);
+    });
+
+    it("records no close when the transaction does not land", async () => {
+      const { result, analyticsService } = setup({ active: [deployment("100")], broadcastResponse: false });
+
+      act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
+      await act(async () => await result.current.closeSelectedDeployments());
+
+      expect(analyticsService.track).not.toHaveBeenCalled();
     });
 
     it("keeps the selection when the transaction does not land", async () => {
@@ -709,6 +734,7 @@ describe(useDeploymentsListModel.name, () => {
     const refetch = vi.fn();
     const closeDeploymentConfirm = vi.fn(async () => current.isCloseConfirmed ?? true);
     const signAndBroadcastTx = vi.fn(async () => ("broadcastResponse" in current ? (current.broadcastResponse as boolean) : true));
+    const analyticsService = mock<AnalyticsService>();
 
     const useDeploymentsListSource = vi.fn(({ search, pageIndex, pageSize, archivePageIndex }: DeploymentsListSourceInput): DeploymentsListSource => {
       const archived = current.archived ?? [];
@@ -756,7 +782,11 @@ describe(useDeploymentsListModel.name, () => {
 
     const store = createStore();
     const hook = renderHook(() => useDeploymentsListModel(dependencies), {
-      wrapper: ({ children }) => createElement(Provider, { store }, children)
+      wrapper: ({ children }) => (
+        <TestContainerProvider services={{ analyticsService: () => analyticsService }}>
+          <Provider store={store}>{children}</Provider>
+        </TestContainerProvider>
+      )
     });
 
     return {
@@ -769,6 +799,7 @@ describe(useDeploymentsListModel.name, () => {
       refetch,
       closeDeploymentConfirm,
       signAndBroadcastTx,
+      analyticsService,
       useDeploymentsListSource
     };
   }

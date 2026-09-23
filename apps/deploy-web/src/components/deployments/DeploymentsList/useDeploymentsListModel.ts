@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { MIN_PAGE_SIZE } from "@akashnetwork/ui/components";
 import { useAtom } from "jotai";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
@@ -27,6 +28,7 @@ export const DEFAULT_PAGE_SIZE = MIN_PAGE_SIZE;
 /** Owns what the page does with a list of deployments, never where that list comes from. */
 export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
   const d = dependencies;
+  const { analyticsService } = useServices();
   const { address, signAndBroadcastTx, hasWallet } = d.useWallet();
   const { data: providers, isFetching: isLoadingProviders } = d.useProviderList();
   const { closeDeploymentConfirm } = d.useManagedDeploymentConfirm();
@@ -120,7 +122,8 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
 
     refetchDeployments();
     clearSelection();
-  }, [closeDeploymentConfirm, selectedItemIds, address, signAndBroadcastTx, refetchDeployments, clearSelection]);
+    analyticsService.track("close_deployment", { category: "deployments", label: "Close selected deployments from list", count: selectedItemIds.length });
+  }, [closeDeploymentConfirm, selectedItemIds, address, signAndBroadcastTx, refetchDeployments, clearSelection, analyticsService]);
 
   const startNewDeployment = useCallback(() => setDeploySdl(null), [setDeploySdl]);
 
