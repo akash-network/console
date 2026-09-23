@@ -36,6 +36,7 @@ import { deploymentsRouter } from "@src/deployment/routes/deployments/deployment
 import { getSDLSecretsContextRouter } from "@src/deployment/routes/get-sdl-secrets-context/get-sdl-secrets-context.router";
 import { leasesRouter } from "@src/deployment/routes/leases/leases.router";
 import { gpuRouter } from "@src/gpu";
+import { placementOptionsRouter } from "@src/placement-options";
 import { pricingRouter } from "@src/pricing";
 import { proposalsRouter } from "@src/proposal";
 import {
@@ -112,5 +113,6 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   addressRouter,
   blockchainStatusRouter,
   bidScreeningRouter,
+  placementOptionsRouter,
   attestationRouter
 ];
