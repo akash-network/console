@@ -170,9 +170,11 @@ export function foldDetectedGpus(detected: DetectedLeaseGpus | undefined): Detec
   return foldByDisplayName(gpusOf(detected));
 }
 
-/** What a whole deployment is running now, counting live leases only, since a lease that was replaced keeps the reading it had. */
-export function foldDetectedGpusOfLeases(leases: Array<Pick<LeaseDto, "state" | "detectedGpus">> | null | undefined): DetectedGpuSummary[] {
-  return foldByDisplayName(leases?.filter(isLeaseLive).flatMap(lease => gpusOf(lease.detectedGpus)) ?? []);
+/** What a deployment's live gpu leases are running, and nothing until every one of them has been read, since a partial reading would understate the total. */
+export function foldDetectedGpusOfLeases(leases: Array<Pick<LeaseDto, "state" | "gpuAmount" | "detectedGpus">> | null | undefined): DetectedGpuSummary[] {
+  const readings = leases?.filter(lease => isLeaseLive(lease) && !!lease.gpuAmount).map(lease => gpusOf(lease.detectedGpus)) ?? [];
+
+  return readings.every(gpus => gpus.length > 0) ? foldByDisplayName(readings.flat()) : [];
 }
 
 /** Reads the cards out only where the reading is actually one, since a lease carries this field from the api rather than from the chain. */

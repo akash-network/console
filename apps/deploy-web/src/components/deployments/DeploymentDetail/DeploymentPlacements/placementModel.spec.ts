@@ -302,8 +302,8 @@ describe("placementModel", () => {
   describe("foldDetectedGpusOfLeases", () => {
     it("counts a deployment's cards across every lease read", () => {
       const leases = [
-        { state: "active", detectedGpus: buildDetectedLeaseGpus([{ service: "web", gpus: [{ displayName: "H100", count: 1 }] }]) },
-        { state: "active", detectedGpus: buildDetectedLeaseGpus([{ service: "web", gpus: [{ displayName: "H100", count: 2 }] }]) }
+        { state: "active", gpuAmount: 1, detectedGpus: buildDetectedLeaseGpus([{ service: "web", gpus: [{ displayName: "H100", count: 1 }] }]) },
+        { state: "active", gpuAmount: 2, detectedGpus: buildDetectedLeaseGpus([{ service: "web", gpus: [{ displayName: "H100", count: 2 }] }]) }
       ];
 
       expect(foldDetectedGpusOfLeases(leases)).toEqual([{ displayName: "H100", count: 3 }]);
@@ -311,9 +311,9 @@ describe("placementModel", () => {
 
     it("counts only the leases still running, since a lease that was replaced keeps the reading it had", () => {
       const leases = [
-        { state: "closed", detectedGpus: buildDetectedLeaseGpus([{ service: "web", gpus: [{ displayName: "H100", count: 1 }] }]) },
-        { state: "active", detectedGpus: buildDetectedLeaseGpus([{ service: "web", gpus: [{ displayName: "H100", count: 1 }] }]) },
-        { state: "reclaiming", detectedGpus: buildDetectedLeaseGpus([{ service: "web", gpus: [{ displayName: "L40S", count: 1 }] }]) }
+        { state: "closed", gpuAmount: 1, detectedGpus: buildDetectedLeaseGpus([{ service: "web", gpus: [{ displayName: "H100", count: 1 }] }]) },
+        { state: "active", gpuAmount: 1, detectedGpus: buildDetectedLeaseGpus([{ service: "web", gpus: [{ displayName: "H100", count: 1 }] }]) },
+        { state: "reclaiming", gpuAmount: 1, detectedGpus: buildDetectedLeaseGpus([{ service: "web", gpus: [{ displayName: "L40S", count: 1 }] }]) }
       ];
 
       expect(foldDetectedGpusOfLeases(leases)).toEqual([
@@ -322,10 +322,19 @@ describe("placementModel", () => {
       ]);
     });
 
-    it("ignores the leases nothing has been read for", () => {
+    it("reads nothing until every live gpu lease has been read, so the requested models stand in for a partial reading", () => {
       const leases = [
-        { state: "active", detectedGpus: undefined },
-        { state: "active", detectedGpus: buildDetectedLeaseGpus([{ service: "web", gpus: [{ displayName: "L40S", count: 1 }] }]) }
+        { state: "active", gpuAmount: 1, detectedGpus: undefined },
+        { state: "active", gpuAmount: 1, detectedGpus: buildDetectedLeaseGpus([{ service: "web", gpus: [{ displayName: "L40S", count: 1 }] }]) }
+      ];
+
+      expect(foldDetectedGpusOfLeases(leases)).toEqual([]);
+    });
+
+    it("waits on no lease that runs without a gpu", () => {
+      const leases = [
+        { state: "active", gpuAmount: 0, detectedGpus: undefined },
+        { state: "active", gpuAmount: 1, detectedGpus: buildDetectedLeaseGpus([{ service: "web", gpus: [{ displayName: "L40S", count: 1 }] }]) }
       ];
 
       expect(foldDetectedGpusOfLeases(leases)).toEqual([{ displayName: "L40S", count: 1 }]);
