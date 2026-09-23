@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
+import { extractApiErrorCode, extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
 import { Alert, Button, CustomTooltip, Snackbar } from "@akashnetwork/ui/components";
 import { useQueryClient as useQueryClientOriginal } from "@tanstack/react-query";
 import { InfoCircle, Upload, WarningCircle } from "iconoir-react";
@@ -54,6 +54,10 @@ const UPDATE_FAILURE_MESSAGE = "Something went wrong while updating the deployme
 const ADD_CREDITS_TITLE = "Add credits to continue";
 /** Refused rather than submitted: a document whose values are references would commit a manifest whose environment is the reference strings themselves. */
 const WITHHELD_VALUES_ERROR = "This configuration still has withheld secret values. Replace them with real values before updating.";
+/** The api answers this code when the chain took the update but the provider still validates manifests against the previous version. */
+const STALE_PROVIDER_VERSION_ERROR_CODE = "provider_manifest_version_stale";
+const STALE_PROVIDER_VERSION_TITLE = "Update not applied yet";
+const STALE_PROVIDER_VERSION_FALLBACK_MESSAGE = "Your update was accepted, but the provider has not picked it up yet. Wait a minute and try again.";
 
 /** The api withholds a value by stripping it, so a copy it served that is still self-contained lost nothing: the chain has merely moved past it. */
 function isApiRecordComplete(definition: DeploymentDefinition): boolean {
@@ -63,6 +67,10 @@ function isApiRecordComplete(definition: DeploymentDefinition): boolean {
 /** The api serves its own copy only when the chain is already running it, and a copy the api stripped hashes to a manifest the chain never committed. */
 function needsChainVersionCheck(definition: DeploymentDefinition): boolean {
   return definition.source === "local" || isApiRecordComplete(definition);
+}
+
+function isStaleProviderVersion(cause: unknown): boolean {
+  return extractApiErrorCode(cause) === STALE_PROVIDER_VERSION_ERROR_CODE;
 }
 
 function isBadRequest(cause: unknown): boolean {
@@ -126,6 +134,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 }) => {
   const { api, analyticsService, deploymentLocalStorage, logger } = useServices();
   const [parsingError, setParsingError] = useState<string | null>(null);
+  const [staleProviderNotice, setStaleProviderNotice] = useState<string | null>(null);
   const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
   const [dseqWithDismissedNotice, setDseqWithDismissedNotice] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -139,7 +148,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const seededSdl = useRef("");
   const updateDeployment = api.v1.updateDeployment.useMutation({
     onSuccess: (_data, variables) => recordUpdate(variables.data.sdl),
-    onError: reportUpdateFailure
+    onError: (cause, variables) => reportUpdateFailure(cause, variables.data.sdl)
   });
 
   /** The inline alert only exists while the editor is mounted, so a refusal arriving after it closes has to fall back to a snackbar. */
@@ -162,7 +171,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     () => !!editedManifest && (hasSdlReference(editedManifest) || (!!apiRecord && leavesWithheldEnvValuesBlank(editedManifest, apiRecord))),
     [editedManifest, apiRecord]
   );
-  const editorAlertMessage = parsingError ?? (hasWithheldValues ? WITHHELD_VALUES_ERROR : null);
+  const editorAlertMessage = parsingError ?? (hasWithheldValues ? WITHHELD_VALUES_ERROR : null) ?? staleProviderNotice;
 
   useEffect(
     function seedEditorOnceTheDefinitionResolves() {
@@ -208,6 +217,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
   function handleManifestChange(value: string) {
     setParsingError(null);
+    setStaleProviderNotice(null);
     onManifestChange(value);
   }
 
@@ -229,6 +239,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     if (hasWithheldValues) return;
 
     setIsUpdating(true);
+    setStaleProviderNotice(null);
     updateDeployment.mutate({ dseq: deployment.dseq, data: { sdl: editedManifest } }, { onSuccess: closeAfterUpdate, onError: releaseAfterFailure });
   }
 
@@ -262,8 +273,13 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     closeManifestEditor();
   }
 
-  function reportUpdateFailure(cause: unknown) {
+  function reportUpdateFailure(cause: unknown, submittedSdl: string) {
     refetchBalances();
+
+    if (isStaleProviderVersion(cause)) {
+      recordUpdateTheProviderHasYetToApply(submittedSdl, cause);
+      return;
+    }
 
     if (!isClientRefusal(cause)) {
       analyticsService.track("failed_tx", { category: "transactions", label: "Failed transaction" });
@@ -279,6 +295,24 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
     enqueueSnackbar(<d.Snackbar title="Error" subTitle={extractApiErrorMessage(cause) ?? UPDATE_FAILURE_MESSAGE} iconVariant="error" />, {
       variant: "error",
+      autoHideDuration: null
+    });
+  }
+
+  /** The chain and the api already hold this document, so the browser's copy and the header follow them even though the provider has yet to run it. */
+  function recordUpdateTheProviderHasYetToApply(submittedSdl: string, cause: unknown) {
+    cacheSubmittedManifest(submittedSdl);
+    refetchResolvedDefinition();
+
+    const message = extractApiErrorMessage(cause) ?? STALE_PROVIDER_VERSION_FALLBACK_MESSAGE;
+
+    if (isEditorMounted.current) {
+      setStaleProviderNotice(message);
+      return;
+    }
+
+    enqueueSnackbar(<d.Snackbar title={STALE_PROVIDER_VERSION_TITLE} subTitle={message} iconVariant="warning" />, {
+      variant: "warning",
       autoHideDuration: null
     });
   }

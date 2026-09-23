@@ -3,11 +3,13 @@ import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import type { ProviderAttributesSchema } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { AxiosError } from "axios";
+import type { HttpError } from "http-errors";
 import { Ok } from "ts-results";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { cacheEngine } from "@src/caching/helpers";
+import type { CreateLogger } from "@src/core";
 import { AUDITOR } from "@src/deployment/config/provider.config";
 import { createLeaseStatus } from "../../../../test/seeders/lease-status.seeder";
 import { createProviderSeed, createProviderWithAttributeSignatures } from "../../../../test/seeders/provider.seeder";
@@ -314,6 +316,127 @@ describe(ProviderService.name, () => {
       expect(providerProxyService.request).toHaveBeenCalledTimes(1);
     });
 
+    it("retries when the provider has not registered the deployment's version yet and succeeds once it has", async () => {
+      const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
+
+      vi.useFakeTimers();
+
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = createUserWallet();
+
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
+      jwtTokenService.generateJwtToken.mockResolvedValue(Ok(faker.string.alphanumeric(32)));
+      providerProxyService.request.mockRejectedValueOnce(staleVersionRefusal()).mockResolvedValueOnce({ success: true });
+
+      const result = service.sendManifest({
+        provider: provider.owner,
+        dseq: faker.string.numeric(6),
+        manifest: '{"quantity":{"val":"1"}}',
+        auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+      });
+      await vi.runAllTimersAsync();
+
+      await expect(result).resolves.toEqual({ success: true });
+      expect(providerProxyService.request).toHaveBeenCalledTimes(2);
+    });
+
+    it("logs that the provider caught up when a retried push goes through", async () => {
+      const { service, jwtTokenService, providerRepository, providerProxyService, logger } = setup();
+
+      vi.useFakeTimers();
+
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = createUserWallet();
+      const dseq = faker.string.numeric(6);
+
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
+      jwtTokenService.generateJwtToken.mockResolvedValue(Ok(faker.string.alphanumeric(32)));
+      providerProxyService.request.mockRejectedValueOnce(staleVersionRefusal()).mockResolvedValueOnce({ success: true });
+
+      const result = service.sendManifest({
+        provider: provider.owner,
+        dseq,
+        manifest: '{"quantity":{"val":"1"}}',
+        auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+      });
+      await vi.runAllTimersAsync();
+      await result;
+
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "PROVIDER_MANIFEST_VERSION_CAUGHT_UP",
+        provider: provider.owner,
+        hostUri: provider.hostUri,
+        dseq,
+        attempts: 2
+      });
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("answers 409 with guidance and a stable code once the provider keeps refusing the deployment's version", async () => {
+      const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
+
+      vi.useFakeTimers();
+
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = createUserWallet();
+
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
+      jwtTokenService.generateJwtToken.mockResolvedValue(Ok(faker.string.alphanumeric(32)));
+      providerProxyService.request.mockRejectedValue(staleVersionRefusal());
+
+      const result = service
+        .sendManifest({
+          provider: provider.owner,
+          dseq: faker.string.numeric(6),
+          manifest: '{"quantity":{"val":"1"}}',
+          auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+        })
+        .catch(error => ({ error }));
+      await vi.runAllTimersAsync();
+      const { error } = (await result) as { error: HttpError };
+
+      expect(error).toMatchObject({
+        status: 409,
+        errorCode: "provider_manifest_version_stale",
+        message:
+          "Your update was accepted, but the provider has not picked it up yet. Wait a minute and try again. If it keeps failing, change any other value (such as an environment variable) along with your change so the provider receives a fresh update, or contact support."
+      });
+      expect(providerProxyService.request).toHaveBeenCalledTimes(3);
+    });
+
+    it("logs which provider is still on the previous version once the retries run out", async () => {
+      const { service, jwtTokenService, providerRepository, providerProxyService, logger } = setup();
+
+      vi.useFakeTimers();
+
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = createUserWallet();
+      const dseq = faker.string.numeric(6);
+
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
+      jwtTokenService.generateJwtToken.mockResolvedValue(Ok(faker.string.alphanumeric(32)));
+      providerProxyService.request.mockRejectedValue(staleVersionRefusal());
+
+      const result = service
+        .sendManifest({
+          provider: provider.owner,
+          dseq,
+          manifest: '{"quantity":{"val":"1"}}',
+          auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+        })
+        .catch(error => ({ error }));
+      await vi.runAllTimersAsync();
+      await result;
+
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "PROVIDER_MANIFEST_VERSION_STALE",
+        provider: provider.owner,
+        hostUri: provider.hostUri,
+        dseq,
+        attempts: 3
+      });
+    });
+
     it.each([502, 503, 504])("passes status %i through so an unreachable provider is not reported as a console fault", async upstreamStatus => {
       const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
 
@@ -616,6 +739,18 @@ describe(ProviderService.name, () => {
     });
   });
 
+  function staleVersionRefusal() {
+    const axiosError = new AxiosError("Request failed with status code 422");
+    axiosError.response = {
+      status: 422,
+      statusText: "Unprocessable Entity",
+      data: "manifest version validation failed\n",
+      headers: {},
+      config: {} as any
+    };
+    return axiosError;
+  }
+
   function setup() {
     const providerProxyService = mock<ProviderProxyService>();
     const providerRepository = mock<ProviderRepository>();
@@ -625,10 +760,21 @@ describe(ProviderService.name, () => {
       generateJwtToken: vi.fn().mockResolvedValue(Ok("mock-jwt-token"))
     });
 
-    const service = new ProviderService(providerProxyService, providerRepository, providerAttributesSchemaService, auditorsService, jwtTokenService);
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger: CreateLogger = () => logger;
+
+    const service = new ProviderService(
+      providerProxyService,
+      providerRepository,
+      providerAttributesSchemaService,
+      auditorsService,
+      jwtTokenService,
+      createLogger
+    );
 
     return {
       service,
+      logger,
       providerRepository,
       providerAttributesSchemaService,
       auditorsService,

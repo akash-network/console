@@ -38,6 +38,13 @@ const TRIAL_GATED_SDL = new ApiError(
   "PUT /v1/deployments/{dseq} → 400"
 );
 const UNTITLED_OUT_OF_CREDITS = new ApiError(402, { message: "Not enough funds to cover the transaction fee" }, "PUT /v1/deployments/{dseq} → 402");
+const STALE_PROVIDER_MESSAGE =
+  "Your update was accepted, but the provider has not picked it up yet. Wait a minute and try again. If it keeps failing, change any other value (such as an environment variable) along with your change so the provider receives a fresh update, or contact support.";
+const STALE_PROVIDER_VERSION = new ApiError(
+  409,
+  { message: STALE_PROVIDER_MESSAGE, code: "provider_manifest_version_stale" },
+  "PUT /v1/deployments/{dseq} → 409"
+);
 
 const WITHHELD_VALUES_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=ac-secret://s0_e0"\n';
 const BLANK_ENV_VALUES_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN="\n';
@@ -783,6 +790,73 @@ describe(ManifestUpdate.name, () => {
     expect(handles.analyticsService.track).not.toHaveBeenCalledWith("failed_tx", expect.anything());
   });
 
+  describe("when the provider is still on the deployment's previous version", () => {
+    it("shows the guidance inline as a warning and leaves the editor open", async () => {
+      const closeManifestEditor = vi.fn();
+      const handles = setup({ closeManifestEditor });
+
+      await clickUpdate(handles);
+      await fail(handles, STALE_PROVIDER_VERSION);
+
+      expect(screen.getByText(STALE_PROVIDER_MESSAGE)).toBeInTheDocument();
+      expect(closeManifestEditor).not.toHaveBeenCalled();
+      expect(handles.enqueueSnackbar).not.toHaveBeenCalled();
+    });
+
+    it("keeps the update action available so the user can try again once the provider catches up", async () => {
+      const handles = setup();
+
+      await clickUpdate(handles);
+      await fail(handles, STALE_PROVIDER_VERSION);
+
+      expect(updateButtonOf(handles.dependencies)?.disabled).toBe(false);
+    });
+
+    it("records the update the chain and the api already hold", async () => {
+      const handles = setup({ editedManifest: "version: '2.0'", wallet: { address: "akash1abc" }, deployment: { dseq: "456" } });
+
+      await clickUpdate(handles);
+      await fail(handles, STALE_PROVIDER_VERSION);
+
+      expect(handles.deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "456", { manifest: "version: '2.0'" });
+      expect(handles.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["getDeployment", "456"] });
+    });
+
+    it("tracks no failed transaction, since the chain took the update", async () => {
+      const handles = setup();
+
+      await clickUpdate(handles);
+      await fail(handles, STALE_PROVIDER_VERSION);
+
+      expect(handles.analyticsService.track).not.toHaveBeenCalledWith("failed_tx", expect.anything());
+    });
+
+    it("clears the guidance once the user edits the sdl", async () => {
+      const handles = setup();
+
+      await clickUpdate(handles);
+      await fail(handles, STALE_PROVIDER_VERSION);
+
+      await act(async () => {
+        handles.dependencies.SDLEditor.mock.calls[0][0].onChange?.("version: '2.0'\nchanged: true", editorChangeEvent());
+      });
+
+      expect(screen.queryByText(STALE_PROVIDER_MESSAGE)).not.toBeInTheDocument();
+    });
+
+    it("falls back to a warning snackbar when the answer arrives after the editor closes", async () => {
+      const handles = setup();
+
+      await clickUpdate(handles);
+      handles.unmount();
+      await settleAfterClose(handles, { outcome: "failure", cause: STALE_PROVIDER_VERSION });
+
+      const [element, options] = handles.enqueueSnackbar.mock.calls[0];
+      expect(element.props.subTitle).toBe(STALE_PROVIDER_MESSAGE);
+      expect(options).toEqual({ variant: "warning", autoHideDuration: null });
+    });
+  });
+
   it("clears deployment version when text changes in editor", async () => {
     const onManifestChange = vi.fn();
     const { dependencies } = setup({ onManifestChange, definition: { sdl: "version: '2.0'", source: "local" } });
@@ -867,7 +941,7 @@ describe(ManifestUpdate.name, () => {
 
   async function fail(handles: Handles, cause: unknown) {
     await act(async () => {
-      handles.mutationOptions.current?.onError?.(cause);
+      handles.mutationOptions.current?.onError?.(cause, submittedVariablesOf(handles));
       handles.mutate.mock.calls[0][1]?.onError?.(cause);
     });
   }
@@ -878,7 +952,7 @@ describe(ManifestUpdate.name, () => {
         handles.mutationOptions.current?.onSuccess?.({ data: {} }, submittedVariablesOf(handles));
         return;
       }
-      handles.mutationOptions.current?.onError?.(outcome.cause);
+      handles.mutationOptions.current?.onError?.(outcome.cause, submittedVariablesOf(handles));
     });
   }
 
@@ -901,7 +975,10 @@ describe(ManifestUpdate.name, () => {
 
     const mutate = vi.fn();
     const mutationOptions: {
-      current?: { onSuccess?: (data: unknown, variables: { dseq: string; data: { sdl: string } }) => void; onError?: (cause: unknown) => void };
+      current?: {
+        onSuccess?: (data: unknown, variables: { dseq: string; data: { sdl: string } }) => void;
+        onError?: (cause: unknown, variables: { dseq: string; data: { sdl: string } }) => void;
+      };
     } = {};
     const api = mockDeep<AppDIContainer["api"]>();
     api.v1.getDeployment.getKey.mockImplementation(request => ["getDeployment", request?.dseq ?? ""]);
