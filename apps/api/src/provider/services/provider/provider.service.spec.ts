@@ -59,6 +59,12 @@ function axiosErrorWithStatus(status: number) {
 }
 
 describe(ProviderService.name, () => {
+  it("names its logger after the service", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: ProviderService.name });
+  });
+
   describe("sendManifest", () => {
     afterEach(() => {
       vi.useRealTimers();
@@ -316,6 +322,70 @@ describe(ProviderService.name, () => {
       expect(providerProxyService.request).toHaveBeenCalledTimes(1);
     });
 
+    it("logs nothing about the provider's version when the first push goes through", async () => {
+      const { service, providerRepository, providerProxyService, logger } = setup();
+
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = createUserWallet();
+
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
+      providerProxyService.request.mockResolvedValue({ success: true });
+
+      await service.sendManifest({
+        provider: provider.owner,
+        dseq: faker.string.numeric(6),
+        manifest: '{"quantity":{"val":"1"}}',
+        auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+      });
+
+      expect(logger.info).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("keeps a refusal that carries the version text under another status as an ordinary provider error", async () => {
+      const { service, providerRepository, providerProxyService, logger } = setup();
+
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = createUserWallet();
+
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
+      providerProxyService.request.mockRejectedValue(staleVersionRefusal({ status: 400 }));
+
+      await expect(
+        service.sendManifest({
+          provider: provider.owner,
+          dseq: faker.string.numeric(6),
+          manifest: '{"quantity":{"val":"1"}}',
+          auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+        })
+      ).rejects.toMatchObject({ status: 400 });
+
+      expect(providerProxyService.request).toHaveBeenCalledTimes(1);
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("rethrows a request that got no answer from the provider unchanged", async () => {
+      const { service, providerRepository, providerProxyService } = setup();
+
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = createUserWallet();
+      const unanswered = new AxiosError("socket hang up");
+
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
+      providerProxyService.request.mockRejectedValue(unanswered);
+
+      await expect(
+        service.sendManifest({
+          provider: provider.owner,
+          dseq: faker.string.numeric(6),
+          manifest: '{"quantity":{"val":"1"}}',
+          auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+        })
+      ).rejects.toBe(unanswered);
+
+      expect(providerProxyService.request).toHaveBeenCalledTimes(1);
+    });
+
     it("retries when the provider has not registered the deployment's version yet and succeeds once it has", async () => {
       const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
 
@@ -402,6 +472,30 @@ describe(ProviderService.name, () => {
           "Your update was accepted, but the provider has not picked it up yet. Wait a minute and try again. If it keeps failing, change any other value (such as an environment variable) along with your change so the provider receives a fresh update, or contact support."
       });
       expect(providerProxyService.request).toHaveBeenCalledTimes(3);
+    });
+
+    it("logs the provider catching up once when it goes on answering pushes with an empty body", async () => {
+      const { service, providerRepository, providerProxyService, logger } = setup();
+
+      vi.useFakeTimers();
+
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = createUserWallet();
+
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
+      providerProxyService.request.mockRejectedValueOnce(staleVersionRefusal()).mockResolvedValue("");
+
+      const result = service.sendManifest({
+        provider: provider.owner,
+        dseq: faker.string.numeric(6),
+        manifest: '{"quantity":{"val":"1"}}',
+        auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+      });
+      await vi.runAllTimersAsync();
+      await result;
+
+      expect(providerProxyService.request).toHaveBeenCalledTimes(3);
+      expect(logger.info).toHaveBeenCalledTimes(1);
     });
 
     it("logs which provider is still on the previous version once the retries run out", async () => {
@@ -739,10 +833,11 @@ describe(ProviderService.name, () => {
     });
   });
 
-  function staleVersionRefusal() {
-    const axiosError = new AxiosError("Request failed with status code 422");
+  function staleVersionRefusal(input?: { status?: number }) {
+    const status = input?.status ?? 422;
+    const axiosError = new AxiosError(`Request failed with status code ${status}`);
     axiosError.response = {
-      status: 422,
+      status,
       statusText: "Unprocessable Entity",
       data: "manifest version validation failed\n",
       headers: {},
@@ -761,7 +856,7 @@ describe(ProviderService.name, () => {
     });
 
     const logger = mock<ReturnType<CreateLogger>>();
-    const createLogger: CreateLogger = () => logger;
+    const createLogger = vi.fn<CreateLogger>(() => logger);
 
     const service = new ProviderService(
       providerProxyService,
@@ -775,6 +870,7 @@ describe(ProviderService.name, () => {
     return {
       service,
       logger,
+      createLogger,
       providerRepository,
       providerAttributesSchemaService,
       auditorsService,

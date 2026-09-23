@@ -34,19 +34,17 @@ export const PROVIDER_MANIFEST_VERSION_STALE_ERROR_CODE = "provider_manifest_ver
 export const PROVIDER_MANIFEST_VERSION_STALE_MESSAGE =
   "Your update was accepted, but the provider has not picked it up yet. Wait a minute and try again. If it keeps failing, change any other value (such as an environment variable) along with your change so the provider receives a fresh update, or contact support.";
 
-function providerMessageOf(err: AxiosError<unknown>): string | undefined {
-  const data = err.response?.data;
-  const message = typeof data === "object" && data !== null && "message" in data ? data.message : data;
-
-  return typeof message === "string" ? message : undefined;
-}
-
 function isLeaseNotFoundRefusal(err: unknown): boolean {
-  return err instanceof Error && !!err.message?.includes(PROVIDER_LEASE_NOT_FOUND_MARK);
+  return err instanceof Error && err.message.includes(PROVIDER_LEASE_NOT_FOUND_MARK);
 }
 
-function isStaleVersionRefusal(err: unknown): err is AxiosError {
-  return err instanceof AxiosError && err.response?.status === 422 && !!providerMessageOf(err)?.includes(PROVIDER_MANIFEST_VERSION_STALE_MARK);
+/** The provider answers this refusal as a plain-text body, not the JSON the proxy uses for its own errors. */
+function isStaleVersionRefusal(err: unknown): boolean {
+  if (!(err instanceof AxiosError) || err.response?.status !== 422) return false;
+
+  const body: unknown = err.response.data;
+
+  return typeof body === "string" && body.includes(PROVIDER_MANIFEST_VERSION_STALE_MARK);
 }
 
 @singleton()
