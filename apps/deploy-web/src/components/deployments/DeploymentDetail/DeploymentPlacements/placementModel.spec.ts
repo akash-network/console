@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { LeaseServiceStatus } from "@src/queries/useLeaseQuery";
-import type { DeploymentGroup } from "@src/types/deployment";
+import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
+import { formatByteSize } from "@src/utils/unitUtils";
 import {
+  buildPlacementStats,
   formatGpuLabel,
   formatReplicaCount,
   getDeploymentGpuModels,
@@ -275,6 +277,26 @@ describe("placementModel", () => {
 
     it("is omitted when replica totals are not numeric", () => {
       expect(formatReplicaCount(mock<LeaseServiceStatus>({ available: 1 }))).toBeUndefined();
+    });
+  });
+
+  describe("buildPlacementStats", () => {
+    it("lists the placement's vCPU, memory, storage and service count", () => {
+      const lease = mock<LeaseDto>({ cpuAmount: 2.345, memoryAmount: 4 * 1024 ** 3, storageAmount: 20 * 1024 ** 3, gpuAmount: 0 });
+
+      expect(buildPlacementStats(lease, 3, [])).toEqual([
+        { label: "vCPU", value: 2.35 },
+        { label: "Memory", value: formatByteSize(4 * 1024 ** 3) },
+        { label: "Storage", value: formatByteSize(20 * 1024 ** 3) },
+        { label: "Services", value: 3 }
+      ]);
+    });
+
+    it("adds the GPU before the service count when the lease holds one", () => {
+      const lease = mock<LeaseDto>({ cpuAmount: 1, memoryAmount: 1024 ** 3, storageAmount: 1024 ** 3, gpuAmount: 2 });
+
+      expect(buildPlacementStats(lease, 1, ["a100"]).map(stat => stat.label)).toEqual(["vCPU", "Memory", "Storage", "GPU", "Services"]);
+      expect(buildPlacementStats(lease, 1, ["a100"])[3]).toEqual({ label: "GPU", value: "A100" });
     });
   });
 });

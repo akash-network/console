@@ -71,6 +71,13 @@ describe(useDeploymentUpdateSubmit.name, () => {
     expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarTitled("Nothing to update"), expect.objectContaining({ variant: "info" }));
   });
 
+  it("reports nothing running before anything is submitted", () => {
+    const { result } = setup();
+
+    expect(result.current.isUpdating).toBe(false);
+    expect(result.current.sdlRefusal).toBeNull();
+  });
+
   it("patches only what changed, sealed and guarded on the version the form was seeded from", async () => {
     const { result, patchMutate, sealSdlSecrets, seed } = setup();
 
@@ -111,6 +118,7 @@ describe(useDeploymentUpdateSubmit.name, () => {
 
       await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarTitled("Deployment updated"), expect.objectContaining({ variant: "success" })));
       expect(analyticsService.track).toHaveBeenCalledWith("update_deployment", { category: "deployments", label: "Update deployment" });
+      expect(analyticsService.track).toHaveBeenCalledWith("successful_tx", { category: "transactions", label: "Successful transaction" });
       expect(refetchBalances).toHaveBeenCalled();
     });
   });
@@ -160,6 +168,47 @@ describe(useDeploymentUpdateSubmit.name, () => {
 
     await waitFor(() => expect(result.current.sdlRefusal).toBe("Invalid SDL: the image is not a valid reference"));
     expect(enqueueSnackbar).not.toHaveBeenCalled();
+  });
+
+  it("clears a refusal the form showed once the next update is submitted", async () => {
+    const { result, seed } = setup({ patchOutcomes: [BAD_SDL, "pending"] });
+    act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+    await waitFor(() => expect(result.current.sdlRefusal).not.toBeNull());
+
+    act(() => result.current.submit(seed, withImage(seed, "nginx:1.28")));
+
+    expect(result.current.sdlRefusal).toBeNull();
+  });
+
+  it("refreshes the balances after a failed update, which may still have spent a fee", async () => {
+    const { result, refetchBalances, seed } = setup({ patchOutcome: SERVER_FAILURE });
+
+    act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+    await waitFor(() => expect(refetchBalances).toHaveBeenCalled());
+  });
+
+  it("falls back to a general message for a failure the api did not explain", async () => {
+    const { result, enqueueSnackbar, seed } = setup({ patchOutcome: new ApiError(500, {}, "PATCH /v1/deployments/{dseq} → 500") });
+
+    act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+    await waitFor(() =>
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({ props: expect.objectContaining({ subTitle: "Something went wrong while updating the deployment. Please try again." }) }),
+        expect.anything()
+      )
+    );
+  });
+
+  it("dismisses the credits offer once its action is taken", async () => {
+    const { result, enqueueSnackbar, closeSnackbar, seed } = setup({ patchOutcome: OUT_OF_CREDITS });
+
+    act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+    await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalled());
+    enqueueSnackbar.mock.calls[0][0].props.subTitle.props.onAction();
+
+    expect(closeSnackbar).toHaveBeenCalledWith("snackbar-key");
   });
 
   it("offers credits when the account cannot pay for the update", async () => {
@@ -231,7 +280,8 @@ describe(useDeploymentUpdateSubmit.name, () => {
     );
     const analyticsService = mock<AppDIContainer["analyticsService"]>();
 
-    const enqueueSnackbar = vi.fn();
+    const enqueueSnackbar = vi.fn().mockReturnValue("snackbar-key");
+    const closeSnackbar = vi.fn();
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
     const refetchBalances = vi.fn();
     const sealSdlSecrets = vi.fn().mockResolvedValue(SEAL);
@@ -240,7 +290,7 @@ describe(useDeploymentUpdateSubmit.name, () => {
     const dependencies = MockComponents(DEPENDENCIES, {
       useWallet: () => buildWallet({ address: "akash1owner" }),
       useBalances: () => mock<ReturnType<typeof DEPENDENCIES.useBalances>>({ refetch: refetchBalances as never }),
-      useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() }),
+      useSnackbar: () => ({ enqueueSnackbar, closeSnackbar }),
       useQueryClient: () => queryClient,
       sealSdlSecrets
     });
@@ -250,6 +300,19 @@ describe(useDeploymentUpdateSubmit.name, () => {
       { services: { api: () => api, analyticsService: () => analyticsService } }
     );
 
-    return { result, seed, api, patchMutate, sealSdlSecrets, enqueueSnackbar, queryClient, refetchBalances, analyticsService, onUpdated, onDefinitionChanged };
+    return {
+      result,
+      seed,
+      api,
+      patchMutate,
+      sealSdlSecrets,
+      enqueueSnackbar,
+      closeSnackbar,
+      queryClient,
+      refetchBalances,
+      analyticsService,
+      onUpdated,
+      onDefinitionChanged
+    };
   }
 });

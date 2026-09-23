@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { LOG_COLLECTOR_IMAGE } from "@src/config/log-collector.config";
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { DeploymentDto, DeploymentGroup, LeaseDto } from "@src/types/deployment";
@@ -96,6 +97,69 @@ deployment:
       count: 1
 `;
 
+const SINGLE_SERVICE_SDL = `
+version: "2.0"
+services:
+  web:
+    image: nginx:1.25
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          - size: 1Gi
+  placement:
+    edge-us:
+      pricing:
+        web:
+          denom: uakt
+          amount: 1000
+deployment:
+  web:
+    edge-us:
+      profile: web
+      count: 1
+`;
+
+const SDL_WITH_LOG_COLLECTOR = SINGLE_SERVICE_SDL.replace(
+  "profiles:",
+  `  web-log-collector:
+    image: ${LOG_COLLECTOR_IMAGE}
+profiles:`
+)
+  .replace(
+    "  placement:",
+    `    web-log-collector:
+      resources:
+        cpu:
+          units: 0.1
+        memory:
+          size: 128Mi
+        storage:
+          - size: 128Mi
+  placement:`
+  )
+  .replace(
+    "deployment:",
+    `        web-log-collector:
+          denom: uakt
+          amount: 1000
+deployment:
+  web-log-collector:
+    edge-us:
+      profile: web-log-collector
+      count: 1`
+  );
+
 const RECORDED_VERSION = "cmVjb3JkZWQ=";
 
 describe(DeploymentUpdate.name, () => {
@@ -113,6 +177,31 @@ describe(DeploymentUpdate.name, () => {
       setup();
 
       expect(screen.getByText("2 placements · 3 services")).toBeInTheDocument();
+    });
+
+    it("counts a single placement and service in the singular", () => {
+      setup({ definition: { sdl: SINGLE_SERVICE_SDL } });
+
+      expect(screen.getByText("1 placement · 1 service")).toBeInTheDocument();
+    });
+
+    it("leaves the log collector out, since it is managed for the user", () => {
+      setup({ definition: { sdl: SDL_WITH_LOG_COLLECTOR } });
+
+      expect(screen.getByText("1 placement · 1 service")).toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "web-log-collector" })).not.toBeInTheDocument();
+    });
+
+    it.each([
+      { named: "no lease at all", leases: [] },
+      { named: "no lease list", leases: null }
+    ])("names a placement backed by $named without a provider or totals", ({ leases }) => {
+      setup({ leases });
+
+      const edgeUs = placementCard("edge-us");
+      expect(within(edgeUs).getByRole("heading", { name: "edge-us" })).toBeInTheDocument();
+      expect(within(edgeUs).queryByText("Mariner Cloud")).not.toBeInTheDocument();
+      expect(within(edgeUs).queryByText("Storage")).not.toBeInTheDocument();
     });
 
     it("names the region and provider a placement runs on", () => {
@@ -153,10 +242,11 @@ describe(DeploymentUpdate.name, () => {
   });
 
   describe("updating", () => {
-    it("keeps Update deployment disabled until something changes", async () => {
+    it("keeps Update deployment and Discard changes disabled until something changes", async () => {
       setup();
 
       expect(updateButton()).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Discard changes" })).toBeDisabled();
 
       await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-hotfix");
 
@@ -187,6 +277,15 @@ describe(DeploymentUpdate.name, () => {
       expect(submit).not.toHaveBeenCalled();
     });
 
+    it("points out an emptied image as soon as the field is left", async () => {
+      setup();
+
+      await userEvent.clear(within(serviceSection("web")).getByLabelText("Image"));
+      await userEvent.tab();
+
+      expect(await within(serviceSection("web")).findByText("Docker image name is required.")).toBeInTheDocument();
+    });
+
     it("discards the edits back to what the deployment runs", async () => {
       setup();
 
@@ -200,7 +299,7 @@ describe(DeploymentUpdate.name, () => {
     it("shows the refusal the api gave for the document", () => {
       setup({ sdlRefusal: "Invalid SDL: the image is not a valid reference" });
 
-      expect(screen.getByText("Invalid SDL: the image is not a valid reference")).toBeInTheDocument();
+      expect(screen.getByRole("alert")).toHaveTextContent("Invalid SDL: the image is not a valid reference");
     });
 
     it("holds the form while an update runs", () => {
@@ -243,6 +342,19 @@ describe(DeploymentUpdate.name, () => {
       showDefinition({ sdl: STORED_SDL.replace("storefront-web:2.8.1", "storefront-web:3.0.0") });
 
       expect(within(serviceSection("web")).getByLabelText("Image")).toHaveValue("ghcr.io/acme/storefront-web:3.0.0");
+    });
+
+    it("diffs a later edit against the definition the form reloaded", async () => {
+      const { submit, submitInput, showDefinition } = setup();
+      act(() => submitInput().onUpdated());
+      showDefinition({ sdl: STORED_SDL.replace("storefront-web:2.8.1", "storefront-web:3.0.0"), manifestVersion: "bmV3" });
+
+      await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-hotfix");
+      await userEvent.click(updateButton());
+
+      const [seed] = submit.mock.calls[0] as [SdlBuilderFormValuesType];
+      expect(serviceIn(seed, "web").image).toBe("ghcr.io/acme/storefront-web:3.0.0");
+      expect(submitInput().manifestVersion).toBe("bmV3");
     });
 
     it("keeps unsaved edits when the definition refreshes on its own", async () => {
@@ -400,6 +512,16 @@ describe(DeploymentUpdate.name, () => {
       expect(screen.queryByText("2 placements · 3 services")).not.toBeInTheDocument();
     });
 
+    it.each([
+      { named: "no sdl", definition: { sdl: undefined } },
+      { named: "no manifest version to guard on", definition: { manifestVersion: undefined } }
+    ])("falls back to the raw editor for an api copy with $named", ({ definition }) => {
+      setup({ definition });
+
+      expect(screen.getByText("raw-editor")).toBeInTheDocument();
+      expect(screen.getByText(/has no up-to-date copy/)).toBeInTheDocument();
+    });
+
     it("falls back to the raw editor when the stored copy cannot be read into the form", () => {
       setup({ definition: { sdl: "services: [not, a, map" } });
 
@@ -450,7 +572,15 @@ describe(DeploymentUpdate.name, () => {
     });
   }
 
-  function setup(input: { definition?: Partial<DeploymentDefinition>; deploymentState?: string; isUpdating?: boolean; sdlRefusal?: string | null } = {}) {
+  function setup(
+    input: {
+      definition?: Partial<DeploymentDefinition>;
+      deploymentState?: string;
+      isUpdating?: boolean;
+      sdlRefusal?: string | null;
+      leases?: LeaseDto[] | null;
+    } = {}
+  ) {
     const submit = vi.fn();
     let capturedSubmitInput: DeploymentUpdateSubmitInput | undefined;
     const useDeploymentUpdateSubmit: typeof DEPENDENCIES.useDeploymentUpdateSubmit = submitInput => {
@@ -460,7 +590,7 @@ describe(DeploymentUpdate.name, () => {
     const onUpdated = vi.fn();
     const onRedeploy = vi.fn();
     const deployment = mock<DeploymentDto>({ dseq: "1234", state: input.deploymentState ?? "active" });
-    const leases = [leaseOn("edge-us", "akash1us"), leaseOn("edge-eu", "akash1eu")];
+    const leases = input.leases === undefined ? [leaseOn("edge-us", "akash1us"), leaseOn("edge-eu", "akash1eu")] : input.leases;
     const providers = [
       mock<ApiProviderList>({ owner: "akash1us", organization: "Mariner Cloud", attributes: [{ key: "region", value: "us-east" }] }),
       mock<ApiProviderList>({ owner: "akash1eu", organization: "Harbor Compute", attributes: [{ key: "region", value: "eu-west" }] })

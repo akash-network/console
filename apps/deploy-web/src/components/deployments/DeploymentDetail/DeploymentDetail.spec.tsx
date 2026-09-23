@@ -203,11 +203,31 @@ describe("DeploymentDetail", () => {
       expect(redeploy).toHaveBeenCalledWith(expect.objectContaining({ sdl: "version: '2.0'" }));
     });
 
+    it("hands the editor the providers the page loaded", () => {
+      const { DeploymentUpdate } = setup({ tab: "UPDATE", isUpdateEditorEnabled: true });
+
+      expect(DeploymentUpdate.mock.calls[0][0].providers.map(provider => provider.owner)).toEqual(["akash1provider"]);
+    });
+
+    it("hands the editor no providers until they load", () => {
+      const { DeploymentUpdate } = setup({ tab: "UPDATE", isUpdateEditorEnabled: true, providers: null });
+
+      expect(DeploymentUpdate.mock.calls[0][0].providers).toEqual([]);
+    });
+
     it("keeps the raw editor off the page while the structured editor renders", () => {
       setup({ tab: "UPDATE", isUpdateEditorEnabled: true });
 
       expect(screen.queryByText("manifest-update")).not.toBeInTheDocument();
     });
+  });
+
+  it("reloads the deployment once the raw editor closes", async () => {
+    const { refetchDeployment } = setup({ tab: "UPDATE" });
+
+    await userEvent.click(screen.getByRole("button", { name: "close-manifest-editor" }));
+
+    expect(refetchDeployment).toHaveBeenCalled();
   });
 
   it("keeps the raw editor on the Update tab while the structured editor is off", () => {
@@ -231,10 +251,12 @@ describe("DeploymentDetail", () => {
     leaseState?: string;
     definition?: Partial<DeploymentDefinition>;
     isUpdateEditorEnabled?: boolean;
+    providers?: ApiProviderList[] | null;
   }) {
     const deployment = input && "deployment" in input ? input.deployment : mock<DeploymentDto>({ dseq: "1786440078202", state: "active", groups: [] });
     const leases = input && "leases" in input ? input.leases : [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: input?.leaseState ?? "active" })];
-    const providers = [mock<ApiProviderList>({ owner: "akash1provider" })];
+    const providers = input && "providers" in input ? input.providers : [mock<ApiProviderList>({ owner: "akash1provider" })];
+    const refetchDeployment = vi.fn();
 
     const analyticsService = mock<ReturnType<typeof DEPENDENCIES.useServices>["analyticsService"]>();
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
@@ -248,7 +270,12 @@ describe("DeploymentDetail", () => {
     const searchParams = new URLSearchParams(input?.tab ? `tab=${input.tab}` : "");
     const useSearchParams: typeof DEPENDENCIES.useSearchParams = () => searchParams as unknown as ReturnType<typeof DEPENDENCIES.useSearchParams>;
     const useDeploymentDetail: typeof DEPENDENCIES.useDeploymentDetail = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useDeploymentDetail>>({ data: deployment, isFetching: false, error: input?.error ?? null });
+      mock<ReturnType<typeof DEPENDENCIES.useDeploymentDetail>>({
+        data: deployment,
+        isFetching: false,
+        error: input?.error ?? null,
+        refetch: refetchDeployment
+      });
     const useDeploymentLeaseList: typeof DEPENDENCIES.useDeploymentLeaseList = () =>
       mock<ReturnType<typeof DEPENDENCIES.useDeploymentLeaseList>>({
         data: leases,
@@ -304,6 +331,6 @@ describe("DeploymentDetail", () => {
       />
     );
 
-    return { router, analyticsService, redeploy, ManifestUpdate, DeploymentUpdate };
+    return { router, analyticsService, redeploy, ManifestUpdate, DeploymentUpdate, refetchDeployment };
   }
 });

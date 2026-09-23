@@ -39,6 +39,18 @@ describe("creditsRefusalOf", () => {
   it("returns nothing for any other refusal", () => {
     expect(creditsRefusalOf(BAD_SDL)).toBeNull();
   });
+
+  it("returns an empty refusal for a 402 that carries no message", () => {
+    expect(creditsRefusalOf(new ApiError(402, {}, "PATCH /v1/deployments/{dseq} → 402"))).toBe("");
+  });
+
+  it("reads a trial gate only off a 400", () => {
+    expect(creditsRefusalOf(new ApiError(500, { message: "GPU deployments are not available on free trial" }, "PATCH → 500"))).toBeNull();
+  });
+
+  it("returns nothing for a 400 that carries no message", () => {
+    expect(creditsRefusalOf(new ApiError(400, {}, "PATCH → 400"))).toBeNull();
+  });
 });
 
 describe("addCreditsContentOf", () => {

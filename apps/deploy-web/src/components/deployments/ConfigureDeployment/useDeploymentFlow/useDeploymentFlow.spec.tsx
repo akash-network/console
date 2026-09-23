@@ -1075,6 +1075,7 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.deploy("sdl-b", { secrets: { API_KEY: "x" } }));
 
       await waitFor(() => expect(patchDeployment.mutate).toHaveBeenCalledWith({ dseq: "555", data: { sealedSecrets: "SEALED" } }, expect.anything()));
+      expect(patchDeployment.mutate.mock.calls[0][0].data).not.toHaveProperty("services");
       expect(sealSdlSecrets).toHaveBeenLastCalledWith({ context: SEAL_CONTEXT, secrets: { API_KEY: "x" } });
       expect(createLease.mutate).toHaveBeenCalled();
     });
