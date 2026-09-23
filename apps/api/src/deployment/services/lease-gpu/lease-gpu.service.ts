@@ -1,6 +1,7 @@
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { type LeaseGpuOutput, LeaseGpuRepository } from "@src/deployment/repositories/lease-gpu/lease-gpu.repository";
 import { resolveGpuModel } from "@src/gpu/lib/gpu-model-resolver/gpu-model-resolver";
 import { GpuCatalogService } from "@src/gpu/services/gpu-catalog/gpu-catalog.service";
@@ -46,14 +47,29 @@ function groupByDeploymentAndLease(rows: LeaseGpuOutput[]): Map<string, Map<stri
 /** Turns the raw readings a probe stored into what a deployment read serves, resolving the model catalog once per request. */
 @singleton()
 export class LeaseGpuService {
+  private readonly logger: ReturnType<CreateLogger>;
+
   constructor(
     private readonly leaseGpuRepository: LeaseGpuRepository,
     private readonly gpuCatalogService: GpuCatalogService,
     private readonly gpuFormattingService: GpuFormattingService,
-    private readonly authService: AuthService
-  ) {}
+    private readonly authService: AuthService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.logger = createLogger({ context: LeaseGpuService.name });
+  }
 
-  async findForDeployments({ userId, dseqs }: { userId: string; dseqs: string[] }): Promise<Map<string, DetectedGpusByLease>> {
+  /** A reading the console cannot load leaves the field off rather than failing the deployment read it decorates. */
+  async findForDeployments(input: { userId: string; dseqs: string[] }): Promise<Map<string, DetectedGpusByLease>> {
+    try {
+      return await this.#findForDeployments(input);
+    } catch (error) {
+      this.logger.warn({ event: "LEASE_GPU_READ_FAILED", userId: input.userId, dseqs: input.dseqs, error });
+      return new Map();
+    }
+  }
+
+  async #findForDeployments({ userId, dseqs }: { userId: string; dseqs: string[] }): Promise<Map<string, DetectedGpusByLease>> {
     if (!dseqs.length) return new Map();
 
     const rows = await this.leaseGpuRepository.accessibleBy(this.authService.ability, "read").findForDeployments({ userId, dseqs });

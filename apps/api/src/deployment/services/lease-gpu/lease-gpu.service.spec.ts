@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
+import type { CreateLogger } from "@src/core";
 import type { LeaseGpuOutput, LeaseGpuRepository } from "@src/deployment/repositories/lease-gpu/lease-gpu.repository";
 import { buildGpuCatalogIndex } from "@src/gpu/lib/gpu-model-resolver/gpu-model-resolver";
 import type { GpuCatalogService } from "@src/gpu/services/gpu-catalog/gpu-catalog.service";
@@ -112,6 +113,22 @@ describe(LeaseGpuService.name, () => {
     expect(detected?.services[0].gpus[0]).toMatchObject({ model: null, displayName: "NVIDIA H100 80GB HBM3" });
   });
 
+  it("leaves the field off rather than failing the deployment read when the readings cannot be loaded", async () => {
+    const { service, scoped, logger } = setup({ rows: [] });
+    scoped.findForDeployments.mockRejectedValue(new Error("connection terminated"));
+
+    await expect(service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] })).resolves.toEqual(new Map());
+
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "LEASE_GPU_READ_FAILED", userId: "user-1", dseqs: [DSEQ] }));
+  });
+
+  it("leaves the field off when a stored reading cannot be resolved", async () => {
+    const malformed = row({ gpus: [{ rawName: null as unknown as string, pciDeviceId: null, memoryMb: 0, count: 1 }] });
+    const { service } = setup({ rows: [malformed] });
+
+    await expect(service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] })).resolves.toEqual(new Map());
+  });
+
   it("reads nothing for an empty deployment list", async () => {
     const { service, leaseGpuRepository } = setup({ rows: [] });
 
@@ -135,8 +152,15 @@ describe(LeaseGpuService.name, () => {
     const gpuCatalogService = mock<GpuCatalogService>();
     gpuCatalogService.getIndex.mockResolvedValue(input.index === null ? null : buildGpuCatalogIndex(CATALOG));
     const authService = mock<AuthService>({ ability: mock<AuthService["ability"]>() });
-    const service = new LeaseGpuService(leaseGpuRepository, gpuCatalogService, new GpuFormattingService(), authService);
+    const logger = mock<ReturnType<CreateLogger>>();
+    const service = new LeaseGpuService(
+      leaseGpuRepository,
+      gpuCatalogService,
+      new GpuFormattingService(),
+      authService,
+      vi.fn<CreateLogger>(() => logger)
+    );
 
-    return { service, leaseGpuRepository, authService };
+    return { service, leaseGpuRepository, scoped, authService, logger };
   }
 });
