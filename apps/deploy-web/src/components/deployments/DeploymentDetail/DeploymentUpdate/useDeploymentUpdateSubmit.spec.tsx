@@ -252,16 +252,28 @@ describe(useDeploymentUpdateSubmit.name, () => {
       );
     });
 
-    it("refreshes the definition while the form keeps its edits for a resubmit", async () => {
-      const { result, enqueueSnackbar, queryClient, api, onUpdated, onDefinitionChanged, seed } = setup({ patchOutcome: PROVIDER_BEHIND });
+    it("reloads the form from the definition the update left behind, without saying it changed elsewhere", async () => {
+      const { result, enqueueSnackbar, queryClient, onUpdated, onDefinitionChanged, seed } = setup({ patchOutcome: PROVIDER_BEHIND });
 
       act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
 
-      await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalled());
-      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.getDeployment.getKey({ dseq: DSEQ }) });
+      await waitFor(() => expect(onDefinitionChanged).toHaveBeenCalled());
+      await act(async () => undefined);
+
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["getDeployment", DSEQ] }, { throwOnError: true });
+      expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
+      expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarTitled(`Update to deployment ${DSEQ} not applied yet`), expect.anything());
       expect(onUpdated).not.toHaveBeenCalled();
-      expect(onDefinitionChanged).not.toHaveBeenCalled();
       expect(result.current.isUpdating).toBe(false);
+    });
+
+    it("lets the form go when that reload fails", async () => {
+      const { result, onDefinitionReloadFailed, queryClient, seed } = setup({ patchOutcome: PROVIDER_BEHIND });
+      queryClient.invalidateQueries.mockRejectedValue(new Error("getDeployment 503"));
+
+      act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+      await waitFor(() => expect(onDefinitionReloadFailed).toHaveBeenCalled());
     });
 
     it("refreshes the balances but leaves the update out of the failed transactions", async () => {

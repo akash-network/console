@@ -118,12 +118,17 @@ export function useDeploymentUpdateSubmit(
     onUpdated({ values, manifestVersion });
   }
 
-  async function reloadTheChangedDefinition() {
+  async function reloadTheDefinition(): Promise<boolean> {
     const isReloaded = await queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq }) }, { throwOnError: true }).then(
       () => true,
       () => false
     );
     if (!isReloaded) onDefinitionReloadFailed();
+    return isReloaded;
+  }
+
+  async function reloadTheChangedDefinition() {
+    const isReloaded = await reloadTheDefinition();
     enqueueSnackbar(
       <d.Snackbar title="Changed elsewhere" subTitle={isReloaded ? DEFINITION_CHANGED_MESSAGE : DEFINITION_RELOAD_FAILED_MESSAGE} iconVariant="warning" />,
       { variant: "warning" }
@@ -167,9 +172,10 @@ export function useDeploymentUpdateSubmit(
     });
   }
 
-  /** The chain already took this update, so the form keeps its edits for a resubmit that pushes the same patch to the provider again. */
+  /** The api already recorded this update, so the form reloads from it rather than guarding its next patch on the version it replaced. */
   function reportUpdateTheProviderHasYetToApply(cause: unknown) {
-    refetchDefinition();
+    void reloadTheDefinition();
+    onDefinitionChanged();
     enqueueSnackbar(
       <d.Snackbar
         title={`Update to deployment ${dseq} not applied yet`}
