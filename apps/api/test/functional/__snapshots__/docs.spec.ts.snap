@@ -11889,11 +11889,17 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   "example": "a100",
                                   "type": "string",
                                 },
+                                "providerCount": {
+                                  "description": "Online providers with free capacity on a node holding this model",
+                                  "example": 3,
+                                  "type": "integer",
+                                },
                               },
                               "required": [
                                 "name",
                                 "memory",
                                 "interface",
+                                "providerCount",
                               ],
                               "type": "object",
                             },
@@ -11913,6 +11919,17 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       },
                       "type": "array",
                     },
+                    "regionProviderCounts": {
+                      "additionalProperties": {
+                        "type": "integer",
+                      },
+                      "description": "Online providers advertising each region, keyed by region",
+                      "example": {
+                        "eu-west": 2,
+                        "na-us-west": 5,
+                      },
+                      "type": "object",
+                    },
                     "regions": {
                       "description": "Regions advertised by at least one online provider",
                       "example": [
@@ -11927,6 +11944,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   },
                   "required": [
                     "regions",
+                    "regionProviderCounts",
                     "gpus",
                   ],
                   "type": "object",

@@ -465,7 +465,7 @@ describe(GpuCard.name, () => {
   });
 
   function availableModel(name: string, memory = ["80Gi"], gpuInterface = ["sxm"]): AvailableGpuVendor["models"][number] {
-    return { name, memory, interface: gpuInterface };
+    return { name, memory, interface: gpuInterface, providerCount: 1 };
   }
 
   const StubGpuModelFields: typeof DEPENDENCIES.GpuModelFields = ({ gpuIndex }) => <div role="group" aria-label={`GPU ${gpuIndex + 1}`} />;

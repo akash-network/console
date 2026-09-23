@@ -6,6 +6,7 @@ type GpuVendorOption = PlacementOptionsResponse["gpus"][number];
 interface ModelValues {
   memory: Set<string>;
   interface: Set<string>;
+  owners: Set<string>;
 }
 
 /** Memory and interface are collected per model rather than as pairs, so the wider set never hides a GPU somebody could lease. */
@@ -21,16 +22,22 @@ export function mapToGpuVendorOptions(gpus: AvailableGpu[]): GpuVendorOption[] {
 
     let values = models.get(gpu.model);
     if (!values) {
-      values = { memory: new Set(), interface: new Set() };
+      values = { memory: new Set(), interface: new Set(), owners: new Set() };
       models.set(gpu.model, values);
     }
 
     if (gpu.memory) values.memory.add(gpu.memory);
     if (gpu.interface) values.interface.add(gpu.interface);
+    values.owners.add(gpu.owner);
   }
 
   return [...vendors].map(([vendor, models]) => ({
     vendor,
-    models: [...models].map(([name, values]) => ({ name, memory: [...values.memory], interface: [...values.interface] }))
+    models: [...models].map(([name, values]) => ({
+      name,
+      memory: [...values.memory],
+      interface: [...values.interface],
+      providerCount: values.owners.size
+    }))
   }));
 }

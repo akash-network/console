@@ -13,8 +13,15 @@ export class PlacementOptionsController {
   }
 
   async getPlacementOptions(): Promise<PlacementOptionsResponse> {
-    const [regions, gpus] = await Promise.all([this.#placementOptionsRepository.findOnlineRegions(), this.#placementOptionsRepository.findAvailableGpus()]);
+    const [onlineRegions, gpus] = await Promise.all([
+      this.#placementOptionsRepository.findOnlineRegions(),
+      this.#placementOptionsRepository.findAvailableGpus()
+    ]);
 
-    return { regions, gpus: mapToGpuVendorOptions(gpus) };
+    return {
+      regions: onlineRegions.map(({ region }) => region),
+      regionProviderCounts: Object.fromEntries(onlineRegions.map(({ region, providerCount }) => [region, providerCount])),
+      gpus: mapToGpuVendorOptions(gpus)
+    };
   }
 }
