@@ -208,20 +208,35 @@ describe(ConfigureDeployment.name, () => {
   });
 
   it("keeps the manual form once an auto-deploy template has failed, even after the template loads", () => {
-    const { AutoDeployFlow, ConfigureDeploymentForm, loadTemplate } = setup({
+    const { AutoDeployFlow, ConfigureDeploymentForm, rerenderWithTemplate } = setup({
       templateId: "tpl-1",
       sdlStrategy: "default",
       bidStrategy: "auto",
       template: { isLoading: false, isError: true }
     });
 
-    loadTemplate({ isLoading: false, isError: false, data: mock<TemplateOutput>({ deploy: "version: '2.0'" }) });
+    rerenderWithTemplate({ isLoading: false, isError: false, data: mock<TemplateOutput>({ deploy: "version: '2.0'" }) });
 
     expect(AutoDeployFlow).not.toHaveBeenCalled();
     expect(ConfigureDeploymentForm).toHaveBeenLastCalledWith(
       expect.objectContaining({ intent: expect.objectContaining({ sdlStrategy: "edit" }) }),
       expect.anything()
     );
+  });
+
+  it("keeps the auto flow when a loaded template's background refetch fails", () => {
+    const loaded = mock<TemplateOutput>({ deploy: "version: '2.0'" });
+    const { AutoDeployFlow, ConfigureDeploymentForm, rerenderWithTemplate } = setup({
+      templateId: "tpl-1",
+      sdlStrategy: "default",
+      bidStrategy: "auto",
+      template: { isLoading: false, isError: false, data: loaded }
+    });
+
+    rerenderWithTemplate({ isLoading: false, isError: true, data: loaded });
+
+    expect(ConfigureDeploymentForm).not.toHaveBeenCalled();
+    expect(AutoDeployFlow).toHaveBeenLastCalledWith(expect.objectContaining({ sdl: "version: '2.0'" }), expect.anything());
   });
 
   it("hydrates the form from the fetched user template's SDL and title", () => {
@@ -347,8 +362,8 @@ describe(ConfigureDeployment.name, () => {
       </JotaiStoreProvider>
     );
     const { rerender } = render(renderScreen());
-    const loadTemplate = (loaded: NonNullable<typeof input.template>) => {
-      template = loaded;
+    const rerenderWithTemplate = (next: NonNullable<typeof input.template>) => {
+      template = next;
       rerender(renderScreen());
     };
 
@@ -360,7 +375,7 @@ describe(ConfigureDeployment.name, () => {
       useUserTemplate,
       useConfigureDraft,
       enqueueSnackbar,
-      loadTemplate
+      rerenderWithTemplate
     };
   }
 });

@@ -77,8 +77,6 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const hasTemplateFailed =
     (!!fetchedTemplateId && templateQuery.isError) ||
     (!!fetchedUserTemplateId && (userTemplateQuery.isError || (userTemplateQuery.isSuccess && !userTemplateQuery.data?.sdl)));
-  const [hasTemplateEverFailed, setHasTemplateEverFailed] = useState(false);
-  if (hasTemplateFailed && !hasTemplateEverFailed) setHasTemplateEverFailed(true);
 
   useEffect(
     function notifyOnTemplateError() {
@@ -97,11 +95,13 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const carriedInSdl = intent.vm ? undefined : deploySdl?.content;
   const initialSdl = draft.persistedSdl ?? hardcodedTemplate?.content ?? (isFetchingTemplate ? fetchedSdl : carriedInSdl);
   const initialName = draft.persistedName ?? hardcodedTemplate?.name ?? (isFetchingTemplate ? fetchedName : undefined);
+  const [hasFallenBackToForm, setHasFallenBackToForm] = useState(false);
+  if (hasTemplateFailed && !initialSdl && !hasFallenBackToForm) setHasFallenBackToForm(true);
 
   /** The auto flow has no way to supply secret values, so an SDL that references any is edited in the form, which does. */
   const needsSecretValues = useMemo(() => isSecretsEnabled && !!initialSdl && secretReferenceNamesIn(initialSdl).size > 0, [isSecretsEnabled, initialSdl]);
-  /** Only the form saves a draft, and a failed template has already handed the session to it, so neither returns to auto when the template loads later. */
-  const isEditedInForm = isDraftRestored || hasTemplateEverFailed;
+  /** Only the form saves a draft, and a template that failed with nothing to start from has handed the session to it, so neither returns to auto later. */
+  const isEditedInForm = isDraftRestored || hasFallenBackToForm;
   const resolvedIntent = useMemo<DeploymentIntent>(
     () => ({
       templateId: intent.templateId,
