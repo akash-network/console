@@ -78,8 +78,9 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
   const { submit, isUpdating, sdlRefusal } = d.useDeploymentUpdateSubmit({
     dseq: deployment.dseq,
     manifestVersion: baseline?.manifestVersion,
-    onUpdated: function reloadOnceTheUpdateLands() {
-      reloadOverEdits.current = true;
+    onUpdated: function takeTheLandedUpdateAsTheBaseline(update) {
+      setBaseline(current => current && { ...current, values: update.values, manifestVersion: update.manifestVersion ?? current.manifestVersion });
+      form.reset(update.values);
       onUpdated();
     },
     onDefinitionChanged: function reloadOverTheStaleEdits() {
@@ -99,15 +100,7 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
     [seed, form]
   );
 
-  if (seed.kind === "resolving") {
-    return (
-      <div data-testid="deployment-update-resolving">
-        <Skeleton className="h-64 w-full rounded-xl" />
-      </div>
-    );
-  }
-
-  if (seed.kind !== "ready" || !baseline) {
+  if (seed.kind === "unavailable" || seed.kind === "unreadable") {
     return (
       <div className="flex flex-col gap-4">
         <Alert>
@@ -116,6 +109,14 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
             : UNAVAILABLE_NOTICE}
         </Alert>
         {fallback}
+      </div>
+    );
+  }
+
+  if (seed.kind === "resolving" || !baseline) {
+    return (
+      <div data-testid="deployment-update-resolving">
+        <Skeleton className="h-64 w-full rounded-xl" />
       </div>
     );
   }

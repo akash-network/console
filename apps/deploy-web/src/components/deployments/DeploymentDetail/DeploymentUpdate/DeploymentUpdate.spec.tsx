@@ -315,19 +315,56 @@ describe(DeploymentUpdate.name, () => {
       expect(submitInput()).toMatchObject({ dseq: "1234", manifestVersion: RECORDED_VERSION });
     });
 
-    it("tells the page once an update lands", () => {
-      const { submitInput, onUpdated } = setup();
+    it("tells the page once an update lands", async () => {
+      const { submit, submitInput, onUpdated } = setup();
+      await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-hotfix");
+      await userEvent.click(updateButton());
 
-      act(() => submitInput().onUpdated());
+      act(() => submitInput().onUpdated({ values: submittedValues(submit), manifestVersion: "bmV3" }));
 
       expect(onUpdated).toHaveBeenCalled();
     });
 
-    it("reloads the form from the new definition once an update lands, leaving nothing to discard", async () => {
-      const { submitInput, showDefinition } = setup();
+    it("takes a landed update as the new baseline before the definition refetches", async () => {
+      const { submit, submitInput } = setup();
       await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-hotfix");
+      await userEvent.click(updateButton());
 
-      act(() => submitInput().onUpdated());
+      act(() => submitInput().onUpdated({ values: submittedValues(submit), manifestVersion: "bmV3" }));
+
+      expect(within(serviceSection("web")).getByLabelText("Image")).toHaveValue("ghcr.io/acme/storefront-web:2.8.1-hotfix");
+      expect(updateButton()).toBeDisabled();
+      expect(submitInput().manifestVersion).toBe("bmV3");
+    });
+
+    it("keeps guarding on the version it had when the api answers an update without one", async () => {
+      const { submit, submitInput } = setup();
+      await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-hotfix");
+      await userEvent.click(updateButton());
+
+      act(() => submitInput().onUpdated({ values: submittedValues(submit), manifestVersion: undefined }));
+
+      expect(submitInput().manifestVersion).toBe(RECORDED_VERSION);
+    });
+
+    it("keeps edits made after an update landed when its refetch arrives", async () => {
+      const { submit, submitInput, showDefinition } = setup();
+      await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-hotfix");
+      await userEvent.click(updateButton());
+      act(() => submitInput().onUpdated({ values: submittedValues(submit), manifestVersion: "bmV3" }));
+
+      await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-2");
+      showDefinition({ sdl: STORED_SDL.replace("storefront-web:2.8.1", "storefront-web:2.8.1-hotfix"), manifestVersion: "bmV3" });
+
+      expect(within(serviceSection("web")).getByLabelText("Image")).toHaveValue("ghcr.io/acme/storefront-web:2.8.1-hotfix-2");
+    });
+
+    it("reloads the form from the new definition once an update lands, leaving nothing to discard", async () => {
+      const { submit, submitInput, showDefinition } = setup();
+      await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-hotfix");
+      await userEvent.click(updateButton());
+
+      act(() => submitInput().onUpdated({ values: submittedValues(submit), manifestVersion: "bmV3" }));
       showDefinition({ sdl: STORED_SDL.replace("storefront-web:2.8.1", "storefront-web:2.8.1-hotfix") });
 
       expect(within(serviceSection("web")).getByLabelText("Image")).toHaveValue("ghcr.io/acme/storefront-web:2.8.1-hotfix");
@@ -346,7 +383,6 @@ describe(DeploymentUpdate.name, () => {
 
     it("diffs a later edit against the definition the form reloaded", async () => {
       const { submit, submitInput, showDefinition } = setup();
-      act(() => submitInput().onUpdated());
       showDefinition({ sdl: STORED_SDL.replace("storefront-web:2.8.1", "storefront-web:3.0.0"), manifestVersion: "bmV3" });
 
       await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-hotfix");
@@ -397,11 +433,17 @@ describe(DeploymentUpdate.name, () => {
       const web = serviceSection("web");
 
       await userEvent.click(within(web).getByRole("button", { name: "Remove MODE" }));
-      await userEvent.click(within(web).getByRole("button", { name: "Remove API_TOKEN" }));
       await userEvent.click(updateButton());
 
       const [, current] = submit.mock.calls[0] as [SdlBuilderFormValuesType, SdlBuilderFormValuesType];
-      expect(serviceIn(current, "web").env).toEqual([]);
+      expect(serviceIn(current, "web").env?.map(variable => variable.key)).toEqual(["API_TOKEN"]);
+    });
+
+    it("keeps a secret's removal for when secrets can be edited, since nothing here could add it back", async () => {
+      setup();
+      await openTab("web", /Vars & secrets/);
+
+      expect(within(serviceSection("web")).getByRole("button", { name: "Remove API_TOKEN" })).toBeDisabled();
     });
 
     it("adds a variable from the Add menu", async () => {
@@ -529,6 +571,15 @@ describe(DeploymentUpdate.name, () => {
       expect(screen.getByText(/could not be read into the form/)).toBeInTheDocument();
     });
 
+    it("never mounts the raw editor while the definition arrives", () => {
+      const { showDefinition, rawEditorRenders } = setup({ definition: { source: "resolving", sdl: undefined, manifestVersion: undefined } });
+
+      showDefinition({ source: "api", sdl: STORED_SDL, manifestVersion: RECORDED_VERSION });
+
+      expect(screen.getByText("2 placements · 3 services")).toBeInTheDocument();
+      expect(rawEditorRenders()).toBe(0);
+    });
+
     it("waits for the definition before showing anything", () => {
       setup({ definition: { source: "resolving", sdl: undefined } });
 
@@ -551,6 +602,10 @@ describe(DeploymentUpdate.name, () => {
 
   async function openTab(service: string, tab: RegExp) {
     await userEvent.click(within(serviceSection(service)).getByRole("tab", { name: tab }));
+  }
+
+  function submittedValues(submit: ReturnType<typeof vi.fn>) {
+    return (submit.mock.calls[0] as [SdlBuilderFormValuesType, SdlBuilderFormValuesType])[1];
   }
 
   function serviceIn(values: SdlBuilderFormValuesType, title: string) {
@@ -589,6 +644,7 @@ describe(DeploymentUpdate.name, () => {
     };
     const onUpdated = vi.fn();
     const onRedeploy = vi.fn();
+    const RawEditor = vi.fn(() => <div>raw-editor</div>);
     const deployment = mock<DeploymentDto>({ dseq: "1234", state: input.deploymentState ?? "active" });
     const leases = input.leases === undefined ? [leaseOn("edge-us", "akash1us"), leaseOn("edge-eu", "akash1eu")] : input.leases;
     const providers = [
@@ -613,7 +669,7 @@ describe(DeploymentUpdate.name, () => {
         definition={definition}
         onUpdated={onUpdated}
         onRedeploy={onRedeploy}
-        fallback={<div>raw-editor</div>}
+        fallback={<RawEditor />}
         dependencies={{ ...DEPENDENCIES, useDeploymentUpdateSubmit }}
       />
     );
@@ -625,6 +681,6 @@ describe(DeploymentUpdate.name, () => {
       return capturedSubmitInput;
     };
 
-    return { submit, onUpdated, onRedeploy, showDefinition, submitInput };
+    return { submit, onUpdated, onRedeploy, showDefinition, submitInput, rawEditorRenders: () => RawEditor.mock.calls.length };
   }
 });

@@ -53,7 +53,7 @@ export const UpdateVariablesPanel: FC<UpdateVariablesPanelProps> = ({ serviceInd
       {secrets.length > 0 && (
         <RowGroup title="Secrets" icon={<LockIcon className="h-4 w-4" aria-hidden="true" />}>
           {secrets.map((row: EnvRow, position) => (
-            <SecretRow key={row.fieldId} serviceIndex={serviceIndex} envIndex={row.envIndex} position={position + 1} onRemove={() => remove(row.envIndex)} />
+            <SecretRow key={row.fieldId} serviceIndex={serviceIndex} envIndex={row.envIndex} position={position + 1} />
           ))}
         </RowGroup>
       )}
@@ -162,7 +162,8 @@ const VariableRow: FC<RowProps> = ({ serviceIndex, envIndex, position, onRemove 
   );
 };
 
-const SecretRow: FC<RowProps> = ({ serviceIndex, envIndex, position, onRemove }) => {
+/** Removing a secret prunes its stored value for good, so it waits for secret editing, which can also add one back. */
+const SecretRow: FC<Omit<RowProps, "onRemove">> = ({ serviceIndex, envIndex, position }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const name = useWatch({ control, name: `services.${serviceIndex}.env.${envIndex}.key` }) ?? "";
 
@@ -171,7 +172,7 @@ const SecretRow: FC<RowProps> = ({ serviceIndex, envIndex, position, onRemove })
       <Input aria-label={`Secret ${position} name`} value={name} readOnly inputClassName="h-10 font-mono" className="flex-1" />
       <Input aria-label={`${name} value`} placeholder={REPLACE_SECRET_PLACEHOLDER} value="" disabled readOnly inputClassName="h-10" className="flex-[2]" />
       <span aria-hidden="true" className="w-[5.5rem] shrink-0" />
-      <Button type="button" size="icon" variant="outline" className="h-10 w-10 shrink-0" aria-label={`Remove ${name}`} onClick={onRemove}>
+      <Button type="button" size="icon" variant="outline" className="h-10 w-10 shrink-0" aria-label={`Remove ${name}`} disabled>
         <XIcon className="h-4 w-4" />
       </Button>
     </div>

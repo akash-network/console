@@ -31,11 +31,16 @@ const DEFINITION_CHANGED_ERROR_CODE = "deployment_definition_changed";
 const NOTHING_TO_UPDATE_MESSAGE = "Nothing has changed since this deployment was loaded.";
 const DEFINITION_CHANGED_MESSAGE = "This deployment was updated elsewhere, so the form now shows its current configuration. Make your changes again.";
 
+export interface LandedDeploymentUpdate {
+  values: SdlBuilderFormValuesType;
+  manifestVersion: string | undefined;
+}
+
 export interface DeploymentUpdateSubmitInput {
   dseq: string;
   /** The version the form was seeded from, so an update made elsewhere since then is refused rather than overwritten. */
   manifestVersion: string | undefined;
-  onUpdated: () => void;
+  onUpdated: (update: LandedDeploymentUpdate) => void;
   onDefinitionChanged: () => void;
 }
 
@@ -69,7 +74,7 @@ export function useDeploymentUpdateSubmit({ dseq, manifestVersion, onUpdated, on
     return await d.sealSdlSecrets({ context: context.data, secrets: {} });
   }
 
-  async function sealAndPatch(services: ServicesPatch, canResealOnce: boolean) {
+  async function sealAndPatch(services: ServicesPatch, current: SdlBuilderFormValuesType, canResealOnce: boolean) {
     let sealedSecrets: string;
     try {
       sealedSecrets = await sealNothing();
@@ -81,10 +86,10 @@ export function useDeploymentUpdateSubmit({ dseq, manifestVersion, onUpdated, on
     patchDeployment.mutate(
       { dseq, data: { services, sealedSecrets, ifManifestVersion: manifestVersion } },
       {
-        onSuccess: completeUpdate,
+        onSuccess: response => completeUpdate(current, response.data.manifestVersion),
         onError: function resealOrReport(cause: unknown) {
           if (canResealOnce && isStaleSeal(cause)) {
-            void sealAndPatch(services, false);
+            void sealAndPatch(services, current, false);
             return;
           }
           reportFailure(cause);
@@ -93,7 +98,7 @@ export function useDeploymentUpdateSubmit({ dseq, manifestVersion, onUpdated, on
     );
   }
 
-  function completeUpdate() {
+  function completeUpdate(values: SdlBuilderFormValuesType, manifestVersion: string | undefined) {
     setIsUpdating(false);
     refetchDefinition();
     analyticsService.track("update_deployment", { category: "deployments", label: "Update deployment" });
@@ -102,7 +107,7 @@ export function useDeploymentUpdateSubmit({ dseq, manifestVersion, onUpdated, on
     enqueueSnackbar(<d.Snackbar title="Deployment updated" subTitle="The new configuration is being applied to your deployment." iconVariant="success" />, {
       variant: "success"
     });
-    onUpdated();
+    onUpdated({ values, manifestVersion });
   }
 
   function reportFailure(cause: unknown) {
@@ -155,7 +160,7 @@ export function useDeploymentUpdateSubmit({ dseq, manifestVersion, onUpdated, on
 
     setSdlRefusal(null);
     setIsUpdating(true);
-    void sealAndPatch(services, true);
+    void sealAndPatch(services, current, true);
   }
 
   return { submit, isUpdating, sdlRefusal };

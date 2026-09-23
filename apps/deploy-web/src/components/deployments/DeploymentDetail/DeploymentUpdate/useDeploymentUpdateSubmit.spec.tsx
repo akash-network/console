@@ -107,6 +107,7 @@ describe(useDeploymentUpdateSubmit.name, () => {
       act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
 
       await waitFor(() => expect(onUpdated).toHaveBeenCalled());
+      expect(onUpdated).toHaveBeenCalledWith({ values: withImage(seed, "nginx:1.27"), manifestVersion: "bmV3" });
       expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.getDeployment.getKey({ dseq: DSEQ }) });
       expect(result.current.isUpdating).toBe(false);
     });
@@ -264,10 +265,10 @@ describe(useDeploymentUpdateSubmit.name, () => {
   ) {
     const seed = importDeploymentState(STORED_SDL).values;
     const outcomes = [...(input.patchOutcomes ?? [input.patchOutcome ?? "success"])];
-    const patchMutate = vi.fn((_variables: unknown, options?: { onSuccess?: () => void; onError?: (cause: unknown) => void }) => {
+    const patchMutate = vi.fn((_variables: unknown, options?: { onSuccess?: (response: unknown) => void; onError?: (cause: unknown) => void }) => {
       const outcome = outcomes.length > 1 ? outcomes.shift() : outcomes[0];
       if (outcome === "pending") return;
-      if (outcome === "success") options?.onSuccess?.();
+      if (outcome === "success") options?.onSuccess?.({ data: { manifestVersion: "bmV3" } });
       else options?.onError?.(outcome);
     });
 
