@@ -30,13 +30,13 @@ export interface DeploymentDefinitionOptions {
   acceptReferences?: boolean;
 }
 
-/** A deployment's SDL, from the console API when that copy is the one the chain is running, and from this browser otherwise. */
 /** A server fault is reported like any other; a refusal or an offline browser is neither a bug nor a reason to fail the view. */
 export function catchDeploymentReadError(error: Error): null {
   if (error instanceof ApiError && error.status >= 500) throw error;
   return null;
 }
 
+/** A deployment's SDL, from the console API when that copy is the one the chain is running, and from this browser otherwise. */
 export function useDeploymentDefinition(
   dseq: string | undefined | null,
   options: DeploymentDefinitionOptions = {},
