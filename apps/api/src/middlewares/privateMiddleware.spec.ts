@@ -5,36 +5,9 @@ import { mock } from "vitest-mock-extended";
 
 import type { CoreConfig } from "@src/core/providers/config.provider";
 import { CORE_CONFIG } from "@src/core/providers/config.provider";
-import { privateMiddleware, requirePrivateToken } from "./privateMiddleware";
+import { requirePrivateToken } from "./privateMiddleware";
 
-describe("privateMiddleware", () => {
-  it("lets the request through when the token matches", async () => {
-    const { c, next } = setup({ secretToken: "secret", queryToken: "secret" });
-
-    await privateMiddleware(c, next);
-
-    expect(next).toHaveBeenCalledTimes(1);
-  });
-
-  it("rejects a mismatched token", async () => {
-    const { c, next, text } = setup({ secretToken: "secret", queryToken: "wrong" });
-
-    await privateMiddleware(c, next);
-
-    expect(next).not.toHaveBeenCalled();
-    expect(text).toHaveBeenCalledWith("Unauthorized", 401);
-  });
-
-  it("lets the request through when no secret is configured", async () => {
-    const { c, next } = setup({ secretToken: undefined, queryToken: undefined });
-
-    await privateMiddleware(c, next);
-
-    expect(next).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("requirePrivateToken", () => {
+describe(requirePrivateToken.name, () => {
   it("lets the request through when the token matches", async () => {
     const { c, next } = setup({ secretToken: "secret", queryToken: "secret" });
 
@@ -60,14 +33,14 @@ describe("requirePrivateToken", () => {
     expect(next).not.toHaveBeenCalled();
     expect(text).toHaveBeenCalledWith("Unauthorized", 401);
   });
+
+  function setup(input: { secretToken?: string; queryToken?: string }) {
+    container.registerInstance(CORE_CONFIG, mock<CoreConfig>({ SECRET_TOKEN: input.secretToken }));
+
+    const text = vi.fn();
+    const c = { req: { query: vi.fn().mockReturnValue(input.queryToken) }, text } as unknown as Context;
+    const next = vi.fn<Next>();
+
+    return { c, next, text };
+  }
 });
-
-function setup(input: { secretToken?: string; queryToken?: string }) {
-  container.registerInstance(CORE_CONFIG, mock<CoreConfig>({ SECRET_TOKEN: input.secretToken }));
-
-  const text = vi.fn();
-  const c = { req: { query: vi.fn().mockReturnValue(input.queryToken) }, text } as unknown as Context;
-  const next = vi.fn<Next>();
-
-  return { c, next, text };
-}

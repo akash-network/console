@@ -4,7 +4,7 @@ import { container } from "tsyringe";
 
 import { stripHiddenOperations } from "@src/core/lib/create-route/create-route";
 import { CORE_CONFIG } from "@src/core/providers/config.provider";
-import { privateMiddleware } from "@src/middlewares/privateMiddleware";
+import { requirePrivateToken } from "@src/middlewares/privateMiddleware";
 import routes, { internalOpenApiHonoHandlers } from "../routes/internal";
 
 export const internalRouter = new OpenAPIHono();
@@ -28,7 +28,7 @@ const swaggerInstance = swaggerUI({ url: `/internal/doc` });
 
 internalRouter.get(`/swagger`, swaggerInstance);
 
-internalRouter.use("/financial", privateMiddleware);
+internalRouter.use("/financial", requirePrivateToken);
 
 routes.forEach(route => internalRouter.route(`/`, route));
 internalOpenApiHonoHandlers.forEach(handler => internalRouter.route(`/`, handler));
