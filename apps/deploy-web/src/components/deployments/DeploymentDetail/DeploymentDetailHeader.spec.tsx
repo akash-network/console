@@ -253,7 +253,7 @@ describe(DeploymentDetailHeader.name, () => {
       ]
     });
 
-    expect(screen.getByText("H100")).toBeInTheDocument();
+    expect(screen.getByText("1× H100")).toBeInTheDocument();
   });
 
   it("shows an em dash for gpu when the deployment has none", () => {

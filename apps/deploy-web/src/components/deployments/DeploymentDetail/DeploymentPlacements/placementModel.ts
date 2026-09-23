@@ -152,17 +152,19 @@ export interface DetectedGpuSummary {
   count: number;
 }
 
-/** What the console saw once its reading accounts for every gpu asked for, since a partial one would understate it; otherwise the named models asked for, or the count alone. */
+/** What the console saw once its reading accounts for every gpu asked for, since a partial one would understate it; otherwise the named models asked for under one count, or the count alone. */
 export function formatGpuLabel(gpuAmount: number, models: string[], detected?: DetectedGpuSummary[]): string {
   if (!gpuAmount) return "—";
-  if (detected?.reduce((total, gpu) => total + gpu.count, 0) === gpuAmount) return detected.map(formatDetectedGpu).join(", ");
+  if (detected?.reduce((total, gpu) => total + gpu.count, 0) === gpuAmount) {
+    return detected.map(({ displayName, count }) => formatCountedGpu(count, displayName)).join(", ");
+  }
 
   const names = models.filter(isNamedGpuModel).map(model => model.toUpperCase());
-  return names.length > 0 ? names.join(", ") : String(gpuAmount);
+  return names.length > 0 ? formatCountedGpu(gpuAmount, names.join(" / ")) : String(gpuAmount);
 }
 
-function formatDetectedGpu({ displayName, count }: DetectedGpuSummary): string {
-  return count > 1 ? `${count}\u00d7 ${displayName}` : displayName;
+function formatCountedGpu(count: number, name: string): string {
+  return `${count}\u00d7 ${name}`;
 }
 
 /** Identical cards across a lease's services are one entry, because a lease reports each of its services separately. */

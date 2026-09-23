@@ -47,7 +47,7 @@ describe(PlacementCard.name, () => {
       })
     });
 
-    expect(screen.getByText("H100")).toBeInTheDocument();
+    expect(screen.getByText("1× H100")).toBeInTheDocument();
   });
 
   it("expands every service when Expand all is clicked", async () => {
