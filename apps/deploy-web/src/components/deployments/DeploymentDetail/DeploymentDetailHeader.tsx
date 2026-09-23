@@ -27,6 +27,7 @@ import { getRuntimeLimitCountdown } from "@src/utils/runtimeLimitUtils";
 import { formatByteSize } from "@src/utils/unitUtils";
 import {
   countPlacementServices,
+  foldDetectedGpusOfLeases,
   formatGpuLabel,
   getDeploymentGpuModels,
   parseManifestServices,
@@ -163,7 +164,9 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
             )}
           </div>
           <div className="grid grid-cols-4 gap-x-10">
-            <SummaryItem label="GPU">{formatGpuLabel(deployment.gpuAmount ?? 0, getDeploymentGpuModels(deployment.groups))}</SummaryItem>
+            <SummaryItem label="GPU">
+              {formatGpuLabel(deployment.gpuAmount ?? 0, getDeploymentGpuModels(deployment.groups), foldDetectedGpusOfLeases(leases))}
+            </SummaryItem>
             <SummaryItem label="vCPU">{roundDecimal(deployment.cpuAmount, 2)}</SummaryItem>
             <SummaryItem label="MEMORY">{formatByteSize(deployment.memoryAmount)}</SummaryItem>
             <SummaryItem label="STORAGE">{formatByteSize(deployment.storageAmount)}</SummaryItem>

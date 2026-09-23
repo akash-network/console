@@ -1139,6 +1139,25 @@ describe(DeploymentWriterService.name, () => {
   });
 
   describe("close", () => {
+    it("asks no provider for a lease status when deciding whether to close", async () => {
+      const { service, deploymentReaderService } = setup();
+
+      await service.close(wallet, "100");
+
+      expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledWith(wallet, "100");
+      expect(deploymentReaderService.findByWalletAndDseq).not.toHaveBeenCalled();
+    });
+
+    it("asks no provider for a lease status when re-reading a failed close", async () => {
+      const { service, signerService, deploymentReaderService } = setup();
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(new Error("close boom"));
+
+      await expect(service.close(wallet, "100")).rejects.toThrow("close boom");
+
+      expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledTimes(2);
+      expect(deploymentReaderService.findByWalletAndDseq).not.toHaveBeenCalled();
+    });
+
     it("closes deployment by wallet and dseq", async () => {
       const { service, signerService, rpcMessageService } = setup();
       const closeMsg = { typeUrl: "/close", value: MsgCloseDeployment.fromPartial({}) };
@@ -1152,7 +1171,7 @@ describe(DeploymentWriterService.name, () => {
 
     it("does not broadcast a close tx when the deployment is already closed", async () => {
       const { service, signerService, rpcMessageService, deploymentReaderService } = setup();
-      deploymentReaderService.findByWalletAndDseq.mockResolvedValue({
+      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue({
         ...deploymentData,
         deployment: { ...deploymentData.deployment, state: "closed" }
       });
@@ -1166,7 +1185,7 @@ describe(DeploymentWriterService.name, () => {
     it("reports a close it did not make when a re-read shows the deployment already closed", async () => {
       const { service, signerService, deploymentReaderService } = setup();
       signerService.executeDecodedTxByUserWallet.mockRejectedValue(new Error("deployment already closed"));
-      deploymentReaderService.findByWalletAndDseq
+      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus
         .mockResolvedValueOnce(deploymentData)
         .mockResolvedValueOnce({ ...deploymentData, deployment: { ...deploymentData.deployment, state: "closed" } });
 
@@ -1177,7 +1196,7 @@ describe(DeploymentWriterService.name, () => {
       const { service, signerService, deploymentReaderService } = setup();
       const closeError = new Error("close boom");
       signerService.executeDecodedTxByUserWallet.mockRejectedValue(closeError);
-      deploymentReaderService.findByWalletAndDseq.mockResolvedValue(deploymentData);
+      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue(deploymentData);
 
       await expect(service.close(wallet, "100")).rejects.toBe(closeError);
     });
@@ -1186,7 +1205,9 @@ describe(DeploymentWriterService.name, () => {
       const { service, signerService, deploymentReaderService } = setup();
       const closeError = new Error("close boom");
       signerService.executeDecodedTxByUserWallet.mockRejectedValue(closeError);
-      deploymentReaderService.findByWalletAndDseq.mockResolvedValueOnce(deploymentData).mockRejectedValueOnce(new Error("indexer unavailable"));
+      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus
+        .mockResolvedValueOnce(deploymentData)
+        .mockRejectedValueOnce(new Error("indexer unavailable"));
 
       await expect(service.close(wallet, "100")).rejects.toBe(closeError);
     });
@@ -1211,6 +1232,15 @@ describe(DeploymentWriterService.name, () => {
       });
       expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledWith("user-1", [depositMsg]);
       expect(result).toBe(updatedDeployment);
+    });
+
+    it("asks a provider for lease statuses only for the deployment it answers with", async () => {
+      const { service, deploymentReaderService } = setup();
+
+      await service.deposit({ userId: "user-1", dseq: "100", amount: 3 });
+
+      expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledWith(wallet, "100");
+      expect(deploymentReaderService.findByWalletAndDseq).toHaveBeenCalledTimes(1);
     });
 
     it("logs a deprecation warning on every deposit", async () => {

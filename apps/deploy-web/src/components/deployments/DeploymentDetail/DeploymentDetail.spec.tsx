@@ -1,8 +1,9 @@
+import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
-import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
+import type { DeploymentDto, DetectedGpusByLease, DetectedLeaseGpus, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import type { DeploymentUpdateProps } from "./DeploymentUpdate/DeploymentUpdate";
 import { DEPENDENCIES, DeploymentDetail } from "./DeploymentDetail";
@@ -10,6 +11,12 @@ import { DEPENDENCIES, DeploymentDetail } from "./DeploymentDetail";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
+
+const DETECTED_GPUS: DetectedLeaseGpus = {
+  services: [{ service: "web", gpus: [{ vendor: "nvidia", model: "h100", displayName: "H100", memoryMb: 81559, interface: "sxm", count: 1 }] }],
+  driverVersion: "550.54.15",
+  detectedAt: "2026-09-21T10:00:00.000Z"
+};
 
 describe("DeploymentDetail", () => {
   afterEach(function restoreUrlMutatedByTabNavigation() {
@@ -236,6 +243,27 @@ describe("DeploymentDetail", () => {
     expect(screen.getByText("manifest-update")).toBeInTheDocument();
     expect(DeploymentUpdate).not.toHaveBeenCalled();
   });
+  it("joins the gpus the console read onto the lease they were read from, even when they arrive after the leases", () => {
+    const { DeploymentDetailHeader, rerenderWithDetectedGpus } = setup({ leases: [gpuLease()] });
+
+    rerenderWithDetectedGpus({ "1/1/akash1provider": DETECTED_GPUS });
+
+    expect(DeploymentDetailHeader.mock.lastCall?.[0].leases).toEqual([expect.objectContaining({ detectedGpus: DETECTED_GPUS })]);
+  });
+
+  it("hands its views the same leases across a render that changed nothing, so the logs and shell keep the lease picked", () => {
+    const detected = { "1/1/akash1provider": DETECTED_GPUS };
+    const { DeploymentDetailHeader, rerenderWithDetectedGpus } = setup({ leases: [gpuLease()], detectedGpus: detected });
+    const before = DeploymentDetailHeader.mock.lastCall?.[0].leases;
+
+    rerenderWithDetectedGpus(detected);
+
+    expect(DeploymentDetailHeader.mock.lastCall?.[0].leases).toBe(before);
+  });
+
+  function gpuLease() {
+    return mock<LeaseDto>({ id: "1", provider: "akash1provider", gseq: 1, oseq: 1, state: "active", gpuAmount: 1 });
+  }
 
   function isRenderedBefore(earlier: Element, later: Element) {
     return Boolean(earlier.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING);
@@ -252,6 +280,7 @@ describe("DeploymentDetail", () => {
     definition?: Partial<DeploymentDefinition>;
     isUpdateEditorEnabled?: boolean;
     providers?: ApiProviderList[];
+    detectedGpus?: DetectedGpusByLease;
   }) {
     const deployment = input && "deployment" in input ? input.deployment : mock<DeploymentDto>({ dseq: "1786440078202", state: "active", groups: [] });
     const leases = input && "leases" in input ? input.leases : [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: input?.leaseState ?? "active" })];
@@ -276,13 +305,15 @@ describe("DeploymentDetail", () => {
         error: input?.error ?? null,
         refetch: refetchDeployment
       });
-    const useDeploymentLeaseList: typeof DEPENDENCIES.useDeploymentLeaseList = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useDeploymentLeaseList>>({
-        data: leases,
-        isLoading: false,
-        isSuccess: input?.isLeasesLoaded ?? true,
-        isError: input?.isLeasesError ?? false
-      });
+    const leaseList = mock<ReturnType<typeof DEPENDENCIES.useDeploymentLeaseList>>({
+      data: leases,
+      isLoading: false,
+      isSuccess: input?.isLeasesLoaded ?? true,
+      isError: input?.isLeasesError ?? false
+    });
+    const useDeploymentLeaseList: typeof DEPENDENCIES.useDeploymentLeaseList = () => leaseList;
+    let detectedGpus = input?.detectedGpus ?? {};
+    const useDetectedLeaseGpus: typeof DEPENDENCIES.useDetectedLeaseGpus = () => detectedGpus;
     const useProviderList: typeof DEPENDENCIES.useProviderList = () =>
       mock<ReturnType<typeof DEPENDENCIES.useProviderList>>({ data: providers, isFetching: false });
     const redeploy = vi.fn();
@@ -290,7 +321,7 @@ describe("DeploymentDetail", () => {
     const definition: DeploymentDefinition = { sdl: "version: '2.0'", name: undefined, source: "local", ...input?.definition };
     const useDeploymentDefinition: typeof DEPENDENCIES.useDeploymentDefinition = () => definition;
 
-    const DeploymentDetailHeader = vi.fn(() => <div>detail-header</div>);
+    const DeploymentDetailHeader = vi.fn<(props: { leases?: LeaseDto[] | null }) => ReactElement>(() => <div>detail-header</div>);
     const ReclamationBanner = vi.fn(() => <div>reclamation-banner</div>);
     const DeploymentPlacements = vi.fn(() => <div>placements</div>);
     const DeploymentLogs = vi.fn(() => <div>logs</div>);
@@ -305,32 +336,41 @@ describe("DeploymentDetail", () => {
     const DeploymentUpdate = vi.fn((_props: DeploymentUpdateProps) => <div>structured-update</div>);
     const useFlag: typeof DEPENDENCIES.useFlag = flag => flag === "ui_deployment_update_editor" && !!input?.isUpdateEditorEnabled;
 
-    render(
-      <DeploymentDetail
-        dseq="1786440078202"
-        dependencies={MockComponents(DEPENDENCIES, {
-          useServices,
-          useWallet,
-          useRouter,
-          useSearchParams,
-          useRedeploy,
-          useDeploymentDefinition,
-          useDeploymentDetail,
-          useDeploymentLeaseList,
-          useProviderList,
-          DeploymentDetailHeader,
-          ReclamationBanner,
-          DeploymentPlacements,
-          DeploymentLogs,
-          DeploymentLeaseShell,
-          ManifestUpdate,
-          DeploymentSettings,
-          DeploymentUpdate,
-          useFlag
-        })}
-      />
-    );
+    const dependencies = MockComponents(DEPENDENCIES, {
+      useServices,
+      useWallet,
+      useRouter,
+      useSearchParams,
+      useRedeploy,
+      useDeploymentDefinition,
+      useDeploymentDetail,
+      useDeploymentLeaseList,
+      useDetectedLeaseGpus,
+      useProviderList,
+      DeploymentDetailHeader,
+      ReclamationBanner,
+      DeploymentPlacements,
+      DeploymentLogs,
+      DeploymentLeaseShell,
+      ManifestUpdate,
+      DeploymentSettings,
+      DeploymentUpdate,
+      useFlag
+    });
+    const { rerender } = render(<DeploymentDetail dseq="1786440078202" dependencies={dependencies} />);
 
-    return { router, analyticsService, redeploy, ManifestUpdate, DeploymentUpdate, refetchDeployment };
+    return {
+      router,
+      analyticsService,
+      redeploy,
+      ManifestUpdate,
+      DeploymentUpdate,
+      refetchDeployment,
+      DeploymentDetailHeader,
+      rerenderWithDetectedGpus(next: DetectedGpusByLease) {
+        detectedGpus = next;
+        rerender(<DeploymentDetail dseq="1786440078202" dependencies={dependencies} />);
+      }
+    };
   }
 });

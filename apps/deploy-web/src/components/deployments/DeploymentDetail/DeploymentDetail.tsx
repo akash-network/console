@@ -1,6 +1,6 @@
 "use client";
 import type { FC } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { buttonVariants, Skeleton, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { ArrowLeft } from "iconoir-react";
@@ -12,6 +12,7 @@ import { createConfigureDraft } from "@src/components/deployments/ConfigureDeplo
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { isUsableDeploymentDefinition, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { useDetectedLeaseGpus, withDetectedGpus } from "@src/hooks/useDetectedLeaseGpus/useDetectedLeaseGpus";
 import { useFlag } from "@src/hooks/useFlag";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
@@ -40,6 +41,7 @@ export const DEPENDENCIES = {
   useDeploymentDefinition,
   useDeploymentDetail,
   useDeploymentLeaseList,
+  useDetectedLeaseGpus,
   useProviderList,
   NextSeo,
   Layout,
@@ -87,7 +89,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
   const { data: deployment, isFetching: isLoadingDeployment, refetch: getDeploymentDetail, error: deploymentError } = d.useDeploymentDetail(address, dseq);
   const {
-    data: leases,
+    data: chainLeases,
     isLoading: isLoadingLeases,
     refetch: getLeases,
     isSuccess: isLeasesLoaded,
@@ -96,6 +98,9 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
     enabled: deployment?.state === "active",
     refetchOnWindowFocus: false
   });
+  /** The chain does not know what is running inside a lease, so what the console read is joined on here once for every view below. */
+  const detectedGpus = d.useDetectedLeaseGpus(dseq);
+  const leases = useMemo(() => withDetectedGpus(chainLeases, detectedGpus), [chainLeases, detectedGpus]);
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = d.useProviderList();
 
   const definition = d.useDeploymentDefinition(dseq, { acceptReferences: true });

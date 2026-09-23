@@ -3,6 +3,7 @@ import { FormProvider, useForm } from "react-hook-form";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { AvailableGpuVendor } from "@src/queries/usePlacementOptions";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
@@ -67,7 +68,24 @@ describe("GpuCard trial gate", () => {
     expect(await screen.findByRole("option", { name: /any model/i })).not.toHaveAttribute("aria-disabled", "true");
   });
 
-  function setup(input: { isBlockedModel?: (vendor?: string | null, model?: string | null) => boolean; onUnlock?: () => void }) {
+  it("keeps a blocked model visible and locked when it is the only one available", async () => {
+    const user = setup({ isBlockedModel: (_vendor, model) => model === "h100", availableGpus: [{ vendor: "nvidia", models: [availableModel("h100")] }] });
+
+    await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+    expect(await screen.findByRole("option", { name: /h100/ })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.queryByRole("option", { name: /t4/ })).not.toBeInTheDocument();
+  });
+
+  function availableModel(name: string): AvailableGpuVendor["models"][number] {
+    return { name, memory: ["80Gi"], interface: ["sxm"] };
+  }
+
+  function setup(input: {
+    isBlockedModel?: (vendor?: string | null, model?: string | null) => boolean;
+    onUnlock?: () => void;
+    availableGpus?: AvailableGpuVendor[];
+  }) {
     const values = defaultServiceWithPlacement({
       profile: {
         cpu: 0.5,
@@ -89,6 +107,11 @@ describe("GpuCard trial gate", () => {
     };
     const useFieldError: typeof DEPENDENCIES.useFieldError = () => ({ error: undefined });
 
+    const placementOptionsQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.usePlacementOptions>>(), {
+      data: input.availableGpus && { regions: [], gpus: input.availableGpus }
+    });
+    const usePlacementOptions: typeof DEPENDENCIES.usePlacementOptions = () => placementOptionsQuery;
+
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values, mode: "onChange" });
       return <FormProvider {...form}>{children}</FormProvider>;
@@ -100,7 +123,7 @@ describe("GpuCard trial gate", () => {
           serviceIndex={0}
           isBlockedModel={input.isBlockedModel}
           onUnlock={input.onUnlock}
-          dependencies={{ ...DEPENDENCIES, useGpuModels, useFieldError }}
+          dependencies={{ ...DEPENDENCIES, useGpuModels, useFieldError, usePlacementOptions }}
         />
       </Wrapper>
     );

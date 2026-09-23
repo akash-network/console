@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { LeaseServiceStatus } from "@src/queries/useLeaseQuery";
-import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
+import type { DeploymentGroup, DetectedLeaseGpus, LeaseDto } from "@src/types/deployment";
 import { formatByteSize } from "@src/utils/unitUtils";
 import {
   buildPlacementStats,
+  foldDetectedGpus,
+  foldDetectedGpusOfLeases,
   formatGpuLabel,
   formatReplicaCount,
   getDeploymentGpuModels,
@@ -233,6 +235,118 @@ describe("placementModel", () => {
     it("shows an em dash when the deployment has no gpu", () => {
       expect(formatGpuLabel(0, ["h100"])).toBe("—");
     });
+
+    it("shows what the console read where it has looked, over what was asked for", () => {
+      expect(formatGpuLabel(1, ["*"], [{ displayName: "H100", count: 1 }])).toBe("H100");
+      expect(formatGpuLabel(1, ["a100"], [{ displayName: "H100", count: 1 }])).toBe("H100");
+    });
+
+    it("counts identical cards rather than repeating them", () => {
+      expect(formatGpuLabel(8, ["*"], [{ displayName: "H100", count: 8 }])).toBe("8× H100");
+    });
+
+    it("joins unlike cards", () => {
+      expect(
+        formatGpuLabel(
+          3,
+          [],
+          [
+            { displayName: "H100", count: 2 },
+            { displayName: "L40S", count: 1 }
+          ]
+        )
+      ).toBe("2× H100, L40S");
+    });
+
+    it("keeps to what was asked for while the reading accounts for fewer gpus, since part of the lease went unread", () => {
+      expect(formatGpuLabel(2, ["h100"], [{ displayName: "H100", count: 1 }])).toBe("H100");
+      expect(formatGpuLabel(2, ["*"], [{ displayName: "H100", count: 1 }])).toBe("2");
+    });
+
+    it("keeps to what was asked for when the reading holds more gpus than that", () => {
+      expect(formatGpuLabel(1, ["*"], [{ displayName: "H100", count: 2 }])).toBe("1");
+    });
+
+    it("falls back to what was asked for when nothing has been read", () => {
+      expect(formatGpuLabel(1, ["h100"], [])).toBe("H100");
+      expect(formatGpuLabel(1, ["*"], [])).toBe("1");
+      expect(formatGpuLabel(1, ["*"], undefined)).toBe("1");
+    });
+
+    it("still shows an em dash for a deployment with no gpu, whatever was read", () => {
+      expect(formatGpuLabel(0, [], [{ displayName: "H100", count: 1 }])).toBe("—");
+    });
+  });
+
+  describe("foldDetectedGpus", () => {
+    it("counts identical cards across a lease's services as one entry", () => {
+      const detected = buildDetectedLeaseGpus([
+        { service: "web", gpus: [{ displayName: "H100", count: 2 }] },
+        { service: "trainer", gpus: [{ displayName: "H100", count: 1 }] }
+      ]);
+
+      expect(foldDetectedGpus(detected)).toEqual([{ displayName: "H100", count: 3 }]);
+    });
+
+    it("keeps unlike cards apart", () => {
+      const detected = buildDetectedLeaseGpus([
+        {
+          service: "web",
+          gpus: [
+            { displayName: "H100", count: 1 },
+            { displayName: "L40S", count: 2 }
+          ]
+        }
+      ]);
+
+      expect(foldDetectedGpus(detected)).toEqual([
+        { displayName: "H100", count: 1 },
+        { displayName: "L40S", count: 2 }
+      ]);
+    });
+
+    it("reads nothing from a lease the console has not looked inside", () => {
+      expect(foldDetectedGpus(undefined)).toEqual([]);
+    });
+  });
+
+  describe("foldDetectedGpusOfLeases", () => {
+    it("counts a deployment's cards across every lease read", () => {
+      const leases = [
+        { state: "active", detectedGpus: buildDetectedLeaseGpus([{ service: "web", gpus: [{ displayName: "H100", count: 1 }] }]) },
+        { state: "active", detectedGpus: buildDetectedLeaseGpus([{ service: "web", gpus: [{ displayName: "H100", count: 2 }] }]) }
+      ];
+
+      expect(foldDetectedGpusOfLeases(leases)).toEqual([{ displayName: "H100", count: 3 }]);
+    });
+
+    it("counts only the leases still running, since a lease that was replaced keeps the reading it had", () => {
+      const leases = [
+        { state: "closed", detectedGpus: buildDetectedLeaseGpus([{ service: "web", gpus: [{ displayName: "H100", count: 1 }] }]) },
+        { state: "active", detectedGpus: buildDetectedLeaseGpus([{ service: "web", gpus: [{ displayName: "H100", count: 1 }] }]) },
+        { state: "reclaiming", detectedGpus: buildDetectedLeaseGpus([{ service: "web", gpus: [{ displayName: "L40S", count: 1 }] }]) }
+      ];
+
+      expect(foldDetectedGpusOfLeases(leases)).toEqual([
+        { displayName: "H100", count: 1 },
+        { displayName: "L40S", count: 1 }
+      ]);
+    });
+
+    it("ignores the leases nothing has been read for", () => {
+      const leases = [
+        { state: "active", detectedGpus: undefined },
+        { state: "active", detectedGpus: buildDetectedLeaseGpus([{ service: "web", gpus: [{ displayName: "L40S", count: 1 }] }]) }
+      ];
+
+      expect(foldDetectedGpusOfLeases(leases)).toEqual([{ displayName: "L40S", count: 1 }]);
+    });
+
+    it("reads nothing from a deployment with no leases", () => {
+      expect(foldDetectedGpusOfLeases(undefined)).toEqual([]);
+      expect(foldDetectedGpusOfLeases(null)).toEqual([]);
+      expect(foldDetectedGpusOfLeases([])).toEqual([]);
+    });
   });
 
   describe("getServiceStatus", () => {
@@ -337,4 +451,15 @@ function buildGroup(input: { name?: string; attributes?: { key: string; value: s
 
 function buildService(input: { available: number; total?: number; ready_replicas?: number }) {
   return mock<LeaseServiceStatus>({ available: input.available, total: input.total ?? 1, ready_replicas: input.ready_replicas ?? input.available });
+}
+
+function buildDetectedLeaseGpus(services: Array<{ service: string; gpus: Array<{ displayName: string; count: number }> }>): DetectedLeaseGpus {
+  return {
+    services: services.map(entry => ({
+      service: entry.service,
+      gpus: entry.gpus.map(gpu => ({ vendor: "nvidia", model: null, displayName: gpu.displayName, memoryMb: 0, interface: null, count: gpu.count }))
+    })),
+    driverVersion: null,
+    detectedAt: "2026-09-21T10:00:00.000Z"
+  };
 }

@@ -16,6 +16,7 @@ import type { ReceivedShellMessage } from "@src/services/provider-proxy/provider
 import type { LeaseDto } from "@src/types/deployment";
 import { LeaseShellCode } from "@src/types/shell";
 import { forEachGeneratedItem } from "@src/utils/array";
+import { keepSelectedLease } from "@src/utils/leaseUtils";
 import { LeaseSelect } from "./LeaseSelect";
 import { ProviderAuthFallback } from "./ProviderAuthGate";
 import { ServiceSelect } from "./ServiceSelect";
@@ -68,7 +69,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   useEffect(() => {
     if (!leases || leases.length === 0) return;
 
-    setSelectedLease(leases[0]);
+    setSelectedLease(selected => keepSelectedLease(selected, leases));
   }, [leases]);
 
   useEffect(() => {

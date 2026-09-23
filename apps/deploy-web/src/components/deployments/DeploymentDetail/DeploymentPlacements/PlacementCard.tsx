@@ -19,7 +19,7 @@ import { DownloadAttestationEvidence } from "../../DownloadAttestationEvidence";
 import { ReclamationCard } from "../../ReclamationCard/ReclamationCard";
 import { StatusBadge } from "../DeploymentStatusBadge";
 import type { ManifestServiceDetail } from "./placementModel";
-import { buildPlacementStats, getPlacementGpuModels, getPlacementName, getProviderRegion } from "./placementModel";
+import { buildPlacementStats, foldDetectedGpus, getPlacementGpuModels, getPlacementName, getProviderRegion } from "./placementModel";
 import { PlacementServiceRow } from "./PlacementServiceRow";
 import { PlacementStats } from "./PlacementStats";
 
@@ -70,6 +70,7 @@ export const PlacementCard: FC<PlacementCardProps> = ({
   const name = getPlacementName(lease.group, index);
   const region = getProviderRegion(provider);
   const gpuModels = getPlacementGpuModels(lease.group);
+  const detectedGpus = foldDetectedGpus(lease.detectedGpus);
   const services = placementServices ?? manifestServices;
   const serviceNames = leaseStatus ? Object.keys(leaseStatus.services) : Object.keys(services);
   const providerName = provider ? providerDisplayName(provider) : undefined;
@@ -122,7 +123,7 @@ export const PlacementCard: FC<PlacementCardProps> = ({
           )}
         </div>
         <div className="lg:shrink-0">
-          <PlacementStats stats={buildPlacementStats(lease, serviceNames.length, gpuModels)} />
+          <PlacementStats stats={buildPlacementStats(lease, serviceNames.length, gpuModels, detectedGpus)} />
         </div>
       </div>
 

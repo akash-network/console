@@ -3,10 +3,11 @@ import { Controller, useFormContext } from "react-hook-form";
 import { MapPin } from "iconoir-react";
 
 import { SearchableSelect } from "@src/components/shared/SearchableSelect/SearchableSelect";
+import { usePlacementOptions } from "@src/queries/usePlacementOptions";
 import { useProviderRegions } from "@src/queries/useProvidersQuery";
 import type { SdlBuilderFormValuesType } from "@src/types";
 
-export const DEPENDENCIES = { useProviderRegions };
+export const DEPENDENCIES = { useProviderRegions, usePlacementOptions };
 
 type Props = {
   placementIndex: number;
@@ -18,7 +19,11 @@ type Props = {
 export const RegionSelect: FC<Props> = ({ placementIndex, disabled, dependencies: d = DEPENDENCIES }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const { data: regions } = d.useProviderRegions();
-  const options = (regions ?? []).map(region => ({ value: region.key, label: region.key }));
+  const { data: placementOptions } = d.usePlacementOptions();
+  const offeredRegions = filterToAvailable(
+    (regions ?? []).map(region => region.key),
+    placementOptions?.regions
+  );
 
   return (
     <Controller
@@ -28,7 +33,7 @@ export const RegionSelect: FC<Props> = ({ placementIndex, disabled, dependencies
         <SearchableSelect
           value={field.value ?? ""}
           onChange={field.onChange}
-          options={options}
+          options={withSelected(offeredRegions, field.value).map(region => ({ value: region, label: region }))}
           ariaLabel="Region"
           searchLabel="Search regions"
           searchPlaceholder="Search regions..."
@@ -42,3 +47,16 @@ export const RegionSelect: FC<Props> = ({ placementIndex, disabled, dependencies
     />
   );
 };
+
+/** An absent or empty availability answer leaves the catalog untouched, so a failed fetch offers too much rather than nothing. */
+function filterToAvailable(regions: string[], availableRegions: string[] | undefined): string[] {
+  if (!availableRegions?.length) return regions;
+  const available = new Set(availableRegions);
+  return regions.filter(region => available.has(region));
+}
+
+/** Keeps a region a draft or an imported SDL already pins selectable, even once no online provider offers it. */
+function withSelected(regions: string[], selected: string | undefined): string[] {
+  if (!selected || regions.includes(selected)) return regions;
+  return [...regions, selected];
+}
