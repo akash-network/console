@@ -440,7 +440,7 @@ describe(ProviderService.name, () => {
       await expect(service.assertReachable(provider.owner)).resolves.toBeUndefined();
     });
 
-    it.each([502, 503, 504])("refuses with provider_unreachable when provider-proxy answers %i", async status => {
+    it.each([400, 495, 502, 503, 504])("refuses with provider_unreachable when provider-proxy answers %i", async status => {
       const { service, providerRepository, providerProxyService } = setup();
       const provider = createProviderSeed() as unknown as Provider;
       providerRepository.findActiveByAddress.mockResolvedValue(provider);

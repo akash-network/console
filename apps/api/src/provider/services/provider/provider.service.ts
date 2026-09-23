@@ -23,7 +23,8 @@ import { ProviderAttributesSchemaService } from "../provider-attributes-schema/p
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-const UNREACHABLE_DIAL_STATUSES = new Set([502, 503, 504]);
+/** provider-proxy's verdicts on a dial it could not complete or trust, which a manifest sent to the same host would meet too. */
+const UNREACHABLE_DIAL_STATUSES = new Set([400, 495, 502, 503, 504]);
 
 @singleton()
 export class ProviderService {
