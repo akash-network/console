@@ -10879,6 +10879,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/leases": {
       "post": {
+        "description": "Creates the leases on chain, then sends each provider its manifest. If a provider refuses the manifest once its lease exists, the error carries code \`manifest_not_delivered\` and the status the provider path produced. Send the same request again to retry the manifest, or close the deployment to stop paying for it.",
         "operationId": "createLease",
         "requestBody": {
           "content": {
@@ -11395,6 +11396,42 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               },
             },
             "description": "Leases created and manifest sent",
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "data": {
+                      "additionalProperties": {
+                        "nullable": true,
+                      },
+                      "type": "object",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "A provider could not be reached. With code \`provider_unreachable\` no lease was created, so choose another bid. With code \`manifest_not_delivered\` the lease exists, as described above.",
           },
         },
         "security": [

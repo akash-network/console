@@ -23,6 +23,9 @@ import { ProviderAttributesSchemaService } from "../provider-attributes-schema/p
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+/** provider-proxy's verdicts on a dial it could not complete or trust, which a manifest sent to the same host would meet too. */
+const UNREACHABLE_DIAL_STATUSES = new Set([400, 495, 502, 503, 504]);
+
 @singleton()
 export class ProviderService {
   private readonly MANIFEST_SEND_MAX_RETRIES = 3;
@@ -128,6 +131,28 @@ export class ProviderService {
       providerIdentity,
       timeout: 15000
     });
+  }
+
+  /** Dials the same host, port and TLS a manifest send uses, so a provider refused here would also have refused its manifest. */
+  async assertReachable(providerAddress: string): Promise<void> {
+    const provider = await this.providerRepository.findActiveByAddress(providerAddress);
+    assert(provider, 404, `Provider ${providerAddress} not found`);
+
+    try {
+      await this.providerProxy.request("/version", {
+        method: "GET",
+        providerIdentity: { owner: providerAddress, hostUri: provider.hostUri },
+        timeout: 5_000
+      });
+    } catch (error) {
+      if (!(error instanceof AxiosError) || !error.response) throw error;
+
+      if (UNREACHABLE_DIAL_STATUSES.has(error.response.status)) {
+        throw createError(502, `Provider ${provider.hostUri} could not be reached, so no lease was created. Choose another bid or try again later.`, {
+          errorCode: "provider_unreachable"
+        });
+      }
+    }
   }
 
   @Memoize({ ttlInSeconds: 60 })

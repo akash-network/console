@@ -9858,6 +9858,7 @@
     "/v1/leases": {
       "post": {
         "summary": "Create leases and send manifest",
+        "description": "Creates the leases on chain, then sends each provider its manifest. If a provider refuses the manifest once its lease exists, the error carries code `manifest_not_delivered` and the status the provider path produced. Send the same request again to retry the manifest, or close the deployment to stop paying for it.",
         "operationId": "createLease",
         "tags": [
           "Leases"
@@ -10381,6 +10382,42 @@
                   },
                   "required": [
                     "data"
+                  ]
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "A provider could not be reached. With code `provider_unreachable` no lease was created, so choose another bid. With code `manifest_not_delivered` the lease exists, as described above.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
                   ]
                 }
               }

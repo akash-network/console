@@ -50,6 +50,12 @@ const providerAttributeSchemaStub: ProviderAttributesSchema = {
   "feat-endpoint-custom-domain": schemaDetail
 };
 
+function axiosErrorWithStatus(status: number) {
+  const error = new AxiosError(`Request failed with status code ${status}`);
+  error.response = { status, statusText: "", data: "", headers: {}, config: {} as any };
+  return error;
+}
+
 describe(ProviderService.name, () => {
   describe("sendManifest", () => {
     afterEach(() => {
@@ -406,6 +412,73 @@ describe(ProviderService.name, () => {
       await expect(
         service.getLeaseStatus(provider.owner, dseq, gseq, oseq, await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner }))
       ).rejects.toThrow(`Provider ${provider.owner} not found`);
+    });
+  });
+
+  describe("assertReachable", () => {
+    it("dials the provider's public version endpoint without credentials", async () => {
+      const { service, providerRepository, providerProxyService } = setup();
+      const provider = createProviderSeed() as unknown as Provider;
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
+      providerProxyService.request.mockResolvedValue({});
+
+      await service.assertReachable(provider.owner);
+
+      expect(providerProxyService.request).toHaveBeenCalledWith("/version", {
+        method: "GET",
+        providerIdentity: { owner: provider.owner, hostUri: provider.hostUri },
+        timeout: 5_000
+      });
+    });
+
+    it("treats an answer the provider gave, even a 404, as reachable", async () => {
+      const { service, providerRepository, providerProxyService } = setup();
+      const provider = createProviderSeed() as unknown as Provider;
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
+      providerProxyService.request.mockRejectedValue(axiosErrorWithStatus(404));
+
+      await expect(service.assertReachable(provider.owner)).resolves.toBeUndefined();
+    });
+
+    it.each([400, 495, 502, 503, 504])("refuses with provider_unreachable when provider-proxy answers %i", async status => {
+      const { service, providerRepository, providerProxyService } = setup();
+      const provider = createProviderSeed() as unknown as Provider;
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
+      providerProxyService.request.mockRejectedValue(axiosErrorWithStatus(status));
+
+      await expect(service.assertReachable(provider.owner)).rejects.toMatchObject({
+        status: 502,
+        errorCode: "provider_unreachable",
+        message: `Provider ${provider.hostUri} could not be reached, so no lease was created. Choose another bid or try again later.`
+      });
+    });
+
+    it("lets a failure to get any answer from provider-proxy through unchanged", async () => {
+      const { service, providerRepository, providerProxyService } = setup();
+      const provider = createProviderSeed() as unknown as Provider;
+      const failure = new AxiosError("connect ECONNREFUSED", "ECONNREFUSED");
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
+      providerProxyService.request.mockRejectedValue(failure);
+
+      await expect(service.assertReachable(provider.owner)).rejects.toBe(failure);
+    });
+
+    it("answers 404 without dialling for a provider it does not know", async () => {
+      const { service, providerRepository, providerProxyService } = setup();
+      providerRepository.findActiveByAddress.mockResolvedValue(null);
+
+      await expect(service.assertReachable("akash1unknown")).rejects.toMatchObject({ status: 404, message: "Provider akash1unknown not found" });
+      expect(providerProxyService.request).not.toHaveBeenCalled();
+    });
+
+    it("lets an error that is not a dial failure through unchanged", async () => {
+      const { service, providerRepository, providerProxyService } = setup();
+      const provider = createProviderSeed() as unknown as Provider;
+      const failure = new Error("boom");
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
+      providerProxyService.request.mockRejectedValue(failure);
+
+      await expect(service.assertReachable(provider.owner)).rejects.toBe(failure);
     });
   });
 
