@@ -6,6 +6,7 @@ import { SearchableSelect } from "@src/components/shared/SearchableSelect/Search
 import { usePlacementOptions } from "@src/queries/usePlacementOptions";
 import { useProviderRegions } from "@src/queries/useProvidersQuery";
 import type { SdlBuilderFormValuesType } from "@src/types";
+import { formatProviderCount } from "@src/utils/providerUtils";
 
 export const DEPENDENCIES = { useProviderRegions, usePlacementOptions };
 
@@ -20,42 +21,45 @@ export const RegionSelect: FC<Props> = ({ placementIndex, disabled, dependencies
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const { data: regions } = d.useProviderRegions();
   const { data: placementOptions } = d.usePlacementOptions();
-  const offeredRegions = filterToAvailable(
-    (regions ?? []).map(region => region.key),
-    placementOptions?.regions
-  );
+  const catalogRegions = (regions ?? []).map(region => region.key);
 
   return (
     <Controller
       control={control}
       name={`placements.${placementIndex}.region`}
-      render={({ field }) => (
-        <SearchableSelect
-          value={field.value ?? ""}
-          onChange={field.onChange}
-          options={withSelected(offeredRegions, field.value).map(region => ({ value: region, label: region }))}
-          ariaLabel="Region"
-          searchLabel="Search regions"
-          searchPlaceholder="Search regions..."
-          notFoundMessage="No regions found."
-          emptyOption={{ value: "", label: "Any region" }}
-          leadingIcon={<MapPin aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
-          disabled={disabled}
-          triggerClassName="h-8 px-3 text-xs"
-        />
-      )}
+      render={({ field }) => {
+        const { offered, unavailable } = splitByAvailability(withSelected(catalogRegions, field.value), placementOptions?.regions);
+
+        return (
+          <SearchableSelect
+            value={field.value ?? ""}
+            onChange={field.onChange}
+            options={offered.map(region => ({ value: region, label: region, hint: formatProviderCount(placementOptions?.regionProviderCounts?.[region]) }))}
+            unavailableOptions={unavailable.map(region => ({ value: region, label: region }))}
+            ariaLabel="Region"
+            searchLabel="Search regions"
+            searchPlaceholder="Search regions..."
+            notFoundMessage="No regions found."
+            emptyOption={{ value: "", label: "Any region" }}
+            leadingIcon={<MapPin aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+            disabled={disabled}
+            triggerClassName="h-8 px-3 text-xs"
+          />
+        );
+      }}
     />
   );
 };
 
-/** An absent or empty availability answer leaves the catalog untouched, so a failed fetch offers too much rather than nothing. */
-function filterToAvailable(regions: string[], availableRegions: string[] | undefined): string[] {
-  if (!availableRegions?.length) return regions;
+/** An absent or empty availability answer offers every region, so a failed fetch offers too much rather than nothing. */
+function splitByAvailability(regions: string[], availableRegions: string[] | undefined): { offered: string[]; unavailable: string[] } {
+  if (!availableRegions?.length) return { offered: regions, unavailable: [] };
+
   const available = new Set(availableRegions);
-  return regions.filter(region => available.has(region));
+  return { offered: regions.filter(region => available.has(region)), unavailable: regions.filter(region => !available.has(region)) };
 }
 
-/** Keeps a region a draft or an imported SDL already pins selectable, even once no online provider offers it. */
+/** Keeps a region a draft or an imported SDL already pins in the list, even when the catalog does not carry it. */
 function withSelected(regions: string[], selected: string | undefined): string[] {
   if (!selected || regions.includes(selected)) return regions;
   return [...regions, selected];
