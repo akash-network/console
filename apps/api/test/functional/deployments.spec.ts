@@ -37,6 +37,7 @@ import { deploymentVersion, marketVersion } from "@src/utils/constants";
 import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createApiKey } from "@test/seeders/api-key.seeder";
+import { seedLeaseGpu } from "@test/seeders/db/lease-gpu.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
 import { createDeploymentInfoErrorSeed, createDeploymentInfoGroupSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createManyLeaseApiResponses } from "@test/seeders/lease-api-response.seeder";
@@ -247,7 +248,7 @@ describe("Deployments API", () => {
       .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.state=active`)
       .reply(200, { leases });
 
-    return defaultDeploymentInfo;
+    return { deploymentInfo: defaultDeploymentInfo, leases };
   }
 
   function setupDeploymentListMock(wallets: UserWalletOutput[], count: number = 2, state: string = "active") {
@@ -303,6 +304,48 @@ describe("Deployments API", () => {
         name: null,
         consoleSettings: null
       });
+    });
+
+    it("returns the gpus the console read for the lease it read them from", async () => {
+      const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const { leases } = await setupDeploymentInfoMock(wallets, dseq);
+      const { id } = leases[0].lease;
+      await seedLeaseGpu({ userId: user.id, dseq, gseq: id.gseq, oseq: id.oseq, provider: id.provider });
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: { leases: Array<{ id: { gseq: number }; detectedGpus?: unknown }> } };
+      const read = result.data.leases.find(lease => lease.id.gseq === id.gseq);
+      const unread = result.data.leases.find(lease => lease.id.gseq !== id.gseq);
+
+      expect(read?.detectedGpus).toEqual({
+        services: [{ service: "web", gpus: [{ vendor: "nvidia", model: "h100", displayName: "H100", memoryMb: 81559, interface: "sxm", count: 1 }] }],
+        driverVersion: "550.54.15",
+        detectedAt: expect.any(String)
+      });
+      expect(unread).not.toHaveProperty("detectedGpus");
+    });
+
+    it("does not return another user's gpu readings", async () => {
+      const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
+      const { leases } = await setupDeploymentInfoMock(wallets, dseq);
+      const other = await mockPersistedUser();
+      const { id } = leases[0].lease;
+      await seedLeaseGpu({ userId: other.user.id, dseq, gseq: id.gseq, oseq: id.oseq, provider: id.provider });
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      const result = (await response.json()) as { data: { leases: Array<{ detectedGpus?: unknown }> } };
+      expect(result.data.leases.every(lease => !("detectedGpus" in lease))).toBe(true);
     });
 
     it("returns what the console recorded for the deployment", async () => {

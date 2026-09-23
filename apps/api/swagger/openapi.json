@@ -4089,6 +4089,85 @@
                                 },
                                 "description": "Present only on a lease its provider has flagged for reclamation. `deadline` is unix seconds; `reason` is a `lease_closed_reason_*` enum name."
                               },
+                              "detectedGpus": {
+                                "type": "object",
+                                "properties": {
+                                  "services": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "service": {
+                                          "type": "string"
+                                        },
+                                        "gpus": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "vendor": {
+                                                "type": "string",
+                                                "nullable": true,
+                                                "description": "Canonical vendor key, e.g. `nvidia`. Null for a card the console's model catalog does not list."
+                                              },
+                                              "model": {
+                                                "type": "string",
+                                                "nullable": true,
+                                                "description": "Canonical SDL model key, e.g. `h100`. Null for a card the console's model catalog does not list."
+                                              },
+                                              "displayName": {
+                                                "type": "string",
+                                                "description": "Marketing-correct label, e.g. `H100`, falling back to what the driver reported for an unlisted card."
+                                              },
+                                              "memoryMb": {
+                                                "type": "integer",
+                                                "description": "Per-card memory as the driver reports it, in MiB."
+                                              },
+                                              "interface": {
+                                                "type": "string",
+                                                "nullable": true,
+                                                "description": "`sxm` or `pcie` when the catalog names one, else null."
+                                              },
+                                              "count": {
+                                                "type": "integer",
+                                                "minimum": 0,
+                                                "exclusiveMinimum": true,
+                                                "description": "Identical cards folded into one entry."
+                                              }
+                                            },
+                                            "required": [
+                                              "vendor",
+                                              "model",
+                                              "displayName",
+                                              "memoryMb",
+                                              "interface",
+                                              "count"
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "service",
+                                        "gpus"
+                                      ]
+                                    }
+                                  },
+                                  "driverVersion": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "detectedAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": [
+                                  "services",
+                                  "driverVersion",
+                                  "detectedAt"
+                                ],
+                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside."
+                              },
                               "status": {
                                 "type": "object",
                                 "nullable": true,
@@ -4623,6 +4702,85 @@
                                   }
                                 },
                                 "description": "Present only on a lease its provider has flagged for reclamation. `deadline` is unix seconds; `reason` is a `lease_closed_reason_*` enum name."
+                              },
+                              "detectedGpus": {
+                                "type": "object",
+                                "properties": {
+                                  "services": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "service": {
+                                          "type": "string"
+                                        },
+                                        "gpus": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "vendor": {
+                                                "type": "string",
+                                                "nullable": true,
+                                                "description": "Canonical vendor key, e.g. `nvidia`. Null for a card the console's model catalog does not list."
+                                              },
+                                              "model": {
+                                                "type": "string",
+                                                "nullable": true,
+                                                "description": "Canonical SDL model key, e.g. `h100`. Null for a card the console's model catalog does not list."
+                                              },
+                                              "displayName": {
+                                                "type": "string",
+                                                "description": "Marketing-correct label, e.g. `H100`, falling back to what the driver reported for an unlisted card."
+                                              },
+                                              "memoryMb": {
+                                                "type": "integer",
+                                                "description": "Per-card memory as the driver reports it, in MiB."
+                                              },
+                                              "interface": {
+                                                "type": "string",
+                                                "nullable": true,
+                                                "description": "`sxm` or `pcie` when the catalog names one, else null."
+                                              },
+                                              "count": {
+                                                "type": "integer",
+                                                "minimum": 0,
+                                                "exclusiveMinimum": true,
+                                                "description": "Identical cards folded into one entry."
+                                              }
+                                            },
+                                            "required": [
+                                              "vendor",
+                                              "model",
+                                              "displayName",
+                                              "memoryMb",
+                                              "interface",
+                                              "count"
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "service",
+                                        "gpus"
+                                      ]
+                                    }
+                                  },
+                                  "driverVersion": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "detectedAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": [
+                                  "services",
+                                  "driverVersion",
+                                  "detectedAt"
+                                ],
+                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside."
                               },
                               "status": {
                                 "type": "object",
@@ -5216,6 +5374,85 @@
                                   }
                                 },
                                 "description": "Present only on a lease its provider has flagged for reclamation. `deadline` is unix seconds; `reason` is a `lease_closed_reason_*` enum name."
+                              },
+                              "detectedGpus": {
+                                "type": "object",
+                                "properties": {
+                                  "services": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "service": {
+                                          "type": "string"
+                                        },
+                                        "gpus": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "vendor": {
+                                                "type": "string",
+                                                "nullable": true,
+                                                "description": "Canonical vendor key, e.g. `nvidia`. Null for a card the console's model catalog does not list."
+                                              },
+                                              "model": {
+                                                "type": "string",
+                                                "nullable": true,
+                                                "description": "Canonical SDL model key, e.g. `h100`. Null for a card the console's model catalog does not list."
+                                              },
+                                              "displayName": {
+                                                "type": "string",
+                                                "description": "Marketing-correct label, e.g. `H100`, falling back to what the driver reported for an unlisted card."
+                                              },
+                                              "memoryMb": {
+                                                "type": "integer",
+                                                "description": "Per-card memory as the driver reports it, in MiB."
+                                              },
+                                              "interface": {
+                                                "type": "string",
+                                                "nullable": true,
+                                                "description": "`sxm` or `pcie` when the catalog names one, else null."
+                                              },
+                                              "count": {
+                                                "type": "integer",
+                                                "minimum": 0,
+                                                "exclusiveMinimum": true,
+                                                "description": "Identical cards folded into one entry."
+                                              }
+                                            },
+                                            "required": [
+                                              "vendor",
+                                              "model",
+                                              "displayName",
+                                              "memoryMb",
+                                              "interface",
+                                              "count"
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "service",
+                                        "gpus"
+                                      ]
+                                    }
+                                  },
+                                  "driverVersion": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "detectedAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": [
+                                  "services",
+                                  "driverVersion",
+                                  "detectedAt"
+                                ],
+                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside."
                               },
                               "status": {
                                 "type": "object",
@@ -6215,6 +6452,85 @@
                                         }
                                       },
                                       "description": "Present only on a lease its provider has flagged for reclamation. `deadline` is unix seconds; `reason` is a `lease_closed_reason_*` enum name."
+                                    },
+                                    "detectedGpus": {
+                                      "type": "object",
+                                      "properties": {
+                                        "services": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "service": {
+                                                "type": "string"
+                                              },
+                                              "gpus": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "vendor": {
+                                                      "type": "string",
+                                                      "nullable": true,
+                                                      "description": "Canonical vendor key, e.g. `nvidia`. Null for a card the console's model catalog does not list."
+                                                    },
+                                                    "model": {
+                                                      "type": "string",
+                                                      "nullable": true,
+                                                      "description": "Canonical SDL model key, e.g. `h100`. Null for a card the console's model catalog does not list."
+                                                    },
+                                                    "displayName": {
+                                                      "type": "string",
+                                                      "description": "Marketing-correct label, e.g. `H100`, falling back to what the driver reported for an unlisted card."
+                                                    },
+                                                    "memoryMb": {
+                                                      "type": "integer",
+                                                      "description": "Per-card memory as the driver reports it, in MiB."
+                                                    },
+                                                    "interface": {
+                                                      "type": "string",
+                                                      "nullable": true,
+                                                      "description": "`sxm` or `pcie` when the catalog names one, else null."
+                                                    },
+                                                    "count": {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "exclusiveMinimum": true,
+                                                      "description": "Identical cards folded into one entry."
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "vendor",
+                                                    "model",
+                                                    "displayName",
+                                                    "memoryMb",
+                                                    "interface",
+                                                    "count"
+                                                  ]
+                                                }
+                                              }
+                                            },
+                                            "required": [
+                                              "service",
+                                              "gpus"
+                                            ]
+                                          }
+                                        },
+                                        "driverVersion": {
+                                          "type": "string",
+                                          "nullable": true
+                                        },
+                                        "detectedAt": {
+                                          "type": "string",
+                                          "format": "date-time"
+                                        }
+                                      },
+                                      "required": [
+                                        "services",
+                                        "driverVersion",
+                                        "detectedAt"
+                                      ],
+                                      "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside."
                                     }
                                   },
                                   "required": [
@@ -7000,6 +7316,85 @@
                                   }
                                 },
                                 "description": "Present only on a lease its provider has flagged for reclamation. `deadline` is unix seconds; `reason` is a `lease_closed_reason_*` enum name."
+                              },
+                              "detectedGpus": {
+                                "type": "object",
+                                "properties": {
+                                  "services": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "service": {
+                                          "type": "string"
+                                        },
+                                        "gpus": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "vendor": {
+                                                "type": "string",
+                                                "nullable": true,
+                                                "description": "Canonical vendor key, e.g. `nvidia`. Null for a card the console's model catalog does not list."
+                                              },
+                                              "model": {
+                                                "type": "string",
+                                                "nullable": true,
+                                                "description": "Canonical SDL model key, e.g. `h100`. Null for a card the console's model catalog does not list."
+                                              },
+                                              "displayName": {
+                                                "type": "string",
+                                                "description": "Marketing-correct label, e.g. `H100`, falling back to what the driver reported for an unlisted card."
+                                              },
+                                              "memoryMb": {
+                                                "type": "integer",
+                                                "description": "Per-card memory as the driver reports it, in MiB."
+                                              },
+                                              "interface": {
+                                                "type": "string",
+                                                "nullable": true,
+                                                "description": "`sxm` or `pcie` when the catalog names one, else null."
+                                              },
+                                              "count": {
+                                                "type": "integer",
+                                                "minimum": 0,
+                                                "exclusiveMinimum": true,
+                                                "description": "Identical cards folded into one entry."
+                                              }
+                                            },
+                                            "required": [
+                                              "vendor",
+                                              "model",
+                                              "displayName",
+                                              "memoryMb",
+                                              "interface",
+                                              "count"
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "service",
+                                        "gpus"
+                                      ]
+                                    }
+                                  },
+                                  "driverVersion": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "detectedAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": [
+                                  "services",
+                                  "driverVersion",
+                                  "detectedAt"
+                                ],
+                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside."
                               },
                               "status": {
                                 "type": "object",
@@ -9649,6 +10044,85 @@
                                   }
                                 },
                                 "description": "Present only on a lease its provider has flagged for reclamation. `deadline` is unix seconds; `reason` is a `lease_closed_reason_*` enum name."
+                              },
+                              "detectedGpus": {
+                                "type": "object",
+                                "properties": {
+                                  "services": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "service": {
+                                          "type": "string"
+                                        },
+                                        "gpus": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "vendor": {
+                                                "type": "string",
+                                                "nullable": true,
+                                                "description": "Canonical vendor key, e.g. `nvidia`. Null for a card the console's model catalog does not list."
+                                              },
+                                              "model": {
+                                                "type": "string",
+                                                "nullable": true,
+                                                "description": "Canonical SDL model key, e.g. `h100`. Null for a card the console's model catalog does not list."
+                                              },
+                                              "displayName": {
+                                                "type": "string",
+                                                "description": "Marketing-correct label, e.g. `H100`, falling back to what the driver reported for an unlisted card."
+                                              },
+                                              "memoryMb": {
+                                                "type": "integer",
+                                                "description": "Per-card memory as the driver reports it, in MiB."
+                                              },
+                                              "interface": {
+                                                "type": "string",
+                                                "nullable": true,
+                                                "description": "`sxm` or `pcie` when the catalog names one, else null."
+                                              },
+                                              "count": {
+                                                "type": "integer",
+                                                "minimum": 0,
+                                                "exclusiveMinimum": true,
+                                                "description": "Identical cards folded into one entry."
+                                              }
+                                            },
+                                            "required": [
+                                              "vendor",
+                                              "model",
+                                              "displayName",
+                                              "memoryMb",
+                                              "interface",
+                                              "count"
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "service",
+                                        "gpus"
+                                      ]
+                                    }
+                                  },
+                                  "driverVersion": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "detectedAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": [
+                                  "services",
+                                  "driverVersion",
+                                  "detectedAt"
+                                ],
+                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside."
                               },
                               "status": {
                                 "type": "object",

@@ -33,6 +33,7 @@ import {
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DeploymentSettingRepository, type ListedDeploymentSetting } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
+import { type DetectedGpusByLease, leaseGpuKeyOf, LeaseGpuService } from "@src/deployment/services/lease-gpu/lease-gpu.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderList } from "@src/types/provider";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
@@ -74,6 +75,7 @@ export class DeploymentReaderService {
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly deploymentRepository: DeploymentRepository,
     private readonly authService: AuthService,
+    private readonly leaseGpuService: LeaseGpuService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: DeploymentReaderService.name });
@@ -81,9 +83,13 @@ export class DeploymentReaderService {
 
   public async findByUserIdAndDseq(userId: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
-    const [deployment, recorded] = await Promise.all([this.findByWalletAndDseq(wallet, dseq), this.findRecorded(userId, dseq)]);
+    const [deployment, recorded, detectedGpus] = await Promise.all([
+      this.findByWalletAndDseq(wallet, dseq),
+      this.findRecorded(userId, dseq),
+      this.leaseGpuService.findForDeployments({ userId, dseqs: [dseq] })
+    ]);
 
-    return { ...deployment, ...recorded };
+    return { ...deployment, ...recorded, leases: withDetectedGpus(deployment.leases, detectedGpus.get(dseq)) };
   }
 
   /**
@@ -242,7 +248,7 @@ export class DeploymentReaderService {
       ? await this.#findMatchingPage({ owner, userId: query.userId, state, skip, limit, reverse, search })
       : await this.#findPage({ owner, userId: query.userId, state, skip, limit, reverse });
 
-    const [{ results: leaseResults }, settings] = await Promise.all([
+    const [{ results: leaseResults }, settings, detectedGpus] = await Promise.all([
       PromisePool.withConcurrency(100)
         .for(page)
         .useCorrespondingResults()
@@ -250,7 +256,8 @@ export class DeploymentReaderService {
           throw error;
         })
         .process(async deployment => this.getLeaseList({ owner, dseq: deployment.deployment.id.dseq })),
-      pendingSettings
+      pendingSettings,
+      this.leaseGpuService.findForDeployments({ userId: query.userId, dseqs: page.map(deployment => deployment.deployment.id.dseq) })
     ]);
 
     const deployments = page.map((deployment, index) => {
@@ -259,7 +266,10 @@ export class DeploymentReaderService {
       return {
         deployment: deployment.deployment,
         groups: deployment.groups,
-        leases: this.#fetchedLeasesAt(leaseResults, index).map(({ lease }) => lease),
+        leases: withDetectedGpus(
+          this.#fetchedLeasesAt(leaseResults, index).map(({ lease }) => lease),
+          detectedGpus.get(deployment.deployment.id.dseq)
+        ),
         escrow_account: deployment.escrow_account,
         name: recorded?.name ?? null,
         settings: recorded ? toListedSettings(recorded) : null
@@ -649,4 +659,15 @@ function totalCovering({ countedTotal, skip, pageLength }: { countedTotal: numbe
 
 function toListedSettings(setting: ListedDeploymentSetting) {
   return { ...setting, runtimeEndsAt: setting.runtimeEndsAt?.toISOString() ?? null };
+}
+
+/** A lease the console has never looked inside carries no `detectedGpus` at all, rather than an empty one that would read as "no gpu". */
+function withDetectedGpus<T extends { id: { gseq: number; oseq: number; provider: string } }>(leases: T[], byLease: DetectedGpusByLease | undefined): T[] {
+  if (!byLease?.size) return leases;
+
+  return leases.map(lease => {
+    const detectedGpus = byLease.get(leaseGpuKeyOf(lease.id));
+
+    return detectedGpus ? { ...lease, detectedGpus } : lease;
+  });
 }

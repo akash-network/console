@@ -15,6 +15,7 @@ import type {
 } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { FallbackDeploymentReaderService } from "@src/deployment/services/fallback-deployment-reader/fallback-deployment-reader.service";
 import type { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
+import type { DetectedGpusByLease, LeaseGpuService } from "@src/deployment/services/lease-gpu/lease-gpu.service";
 import type { MessageService } from "@src/deployment/services/message-service/message.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import { DeploymentReaderService, MAX_SEARCHABLE_DEPLOYMENTS } from "./deployment-reader.service";
@@ -32,6 +33,28 @@ describe(DeploymentReaderService.name, () => {
       const result = await service.findByUserIdAndDseq(wallet.userId, "12345");
 
       expect(result.consoleSettings).toEqual({ sdl: "version: '2.0'", manifestVersion: "BAUG" });
+    });
+
+    it("attaches the gpus the console read to the lease it read them from", async () => {
+      const lease = createLeaseApiResponse({ dseq: "12345", state: "active" });
+      const { id } = lease.lease;
+      const detected = { services: [{ service: "web", gpus: [] }], driverVersion: "550.54.15", detectedAt: "2026-09-21T10:00:00.000Z" };
+      const { service, wallet } = setup({
+        leases: [lease],
+        detectedGpus: new Map([["12345", new Map([[`${id.gseq}/${id.oseq}/${id.provider}`, detected]])]])
+      });
+
+      const result = await service.findByUserIdAndDseq(wallet.userId, "12345");
+
+      expect(result.leases[0]).toMatchObject({ detectedGpus: detected });
+    });
+
+    it("leaves a lease the console has never looked inside without the field at all", async () => {
+      const { service, wallet } = setup({ leases: [createLeaseApiResponse({ dseq: "12345", state: "active" })] });
+
+      const result = await service.findByUserIdAndDseq(wallet.userId, "12345");
+
+      expect(result.leases[0]).not.toHaveProperty("detectedGpus");
     });
 
     it("returns no console settings when nothing was recorded for the deployment", async () => {
@@ -850,6 +873,7 @@ describe(DeploymentReaderService.name, () => {
       nextKey?: string | null;
       chainTotal?: string;
       deploymentCount?: number;
+      detectedGpus?: Map<string, DetectedGpusByLease>;
     } = {}
   ) {
     const defaultWallet = createUserWallet() as WalletInitialized;
@@ -925,6 +949,8 @@ describe(DeploymentReaderService.name, () => {
       countByOwnerAndState: vi.fn().mockResolvedValue(input.deploymentCount ?? input.listedDseqs?.length ?? 0)
     });
     const authService = mock<AuthService>({ ability: mock<AuthService["ability"]>() });
+    const leaseGpuService = mock<LeaseGpuService>();
+    leaseGpuService.findForDeployments.mockResolvedValue(input.detectedGpus ?? new Map());
     const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
 
     const service = new DeploymentReaderService(
@@ -938,9 +964,20 @@ describe(DeploymentReaderService.name, () => {
       deploymentSettingRepository,
       deploymentRepository,
       authService,
+      leaseGpuService,
       createLogger
     );
 
-    return { service, createLogger, ...mocks, wallet, deploymentSettingRepository, scopedDeploymentSettingRepository, deploymentRepository, authService };
+    return {
+      service,
+      createLogger,
+      ...mocks,
+      wallet,
+      deploymentSettingRepository,
+      scopedDeploymentSettingRepository,
+      deploymentRepository,
+      authService,
+      leaseGpuService
+    };
   }
 });

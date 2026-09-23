@@ -8048,6 +8048,29 @@ export interface operations {
                   deadline?: string;
                   reason?: string;
                 };
+                /** @description GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside. */
+                detectedGpus?: {
+                  services: {
+                    service: string;
+                    gpus: {
+                      /** @description Canonical vendor key, e.g. `nvidia`. Null for a card the console's model catalog does not list. */
+                      vendor: string | null;
+                      /** @description Canonical SDL model key, e.g. `h100`. Null for a card the console's model catalog does not list. */
+                      model: string | null;
+                      /** @description Marketing-correct label, e.g. `H100`, falling back to what the driver reported for an unlisted card. */
+                      displayName: string;
+                      /** @description Per-card memory as the driver reports it, in MiB. */
+                      memoryMb: number;
+                      /** @description `sxm` or `pcie` when the catalog names one, else null. */
+                      interface: string | null;
+                      /** @description Identical cards folded into one entry. */
+                      count: number;
+                    }[];
+                  }[];
+                  driverVersion: string | null;
+                  /** Format: date-time */
+                  detectedAt: string;
+                };
                 status: {
                   forwarded_ports: {
                     [key: string]: {
@@ -8185,6 +8208,29 @@ export interface operations {
                   started_at?: string;
                   deadline?: string;
                   reason?: string;
+                };
+                /** @description GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside. */
+                detectedGpus?: {
+                  services: {
+                    service: string;
+                    gpus: {
+                      /** @description Canonical vendor key, e.g. `nvidia`. Null for a card the console's model catalog does not list. */
+                      vendor: string | null;
+                      /** @description Canonical SDL model key, e.g. `h100`. Null for a card the console's model catalog does not list. */
+                      model: string | null;
+                      /** @description Marketing-correct label, e.g. `H100`, falling back to what the driver reported for an unlisted card. */
+                      displayName: string;
+                      /** @description Per-card memory as the driver reports it, in MiB. */
+                      memoryMb: number;
+                      /** @description `sxm` or `pcie` when the catalog names one, else null. */
+                      interface: string | null;
+                      /** @description Identical cards folded into one entry. */
+                      count: number;
+                    }[];
+                  }[];
+                  driverVersion: string | null;
+                  /** Format: date-time */
+                  detectedAt: string;
                 };
                 status: {
                   forwarded_ports: {
@@ -8385,6 +8431,29 @@ export interface operations {
                   started_at?: string;
                   deadline?: string;
                   reason?: string;
+                };
+                /** @description GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside. */
+                detectedGpus?: {
+                  services: {
+                    service: string;
+                    gpus: {
+                      /** @description Canonical vendor key, e.g. `nvidia`. Null for a card the console's model catalog does not list. */
+                      vendor: string | null;
+                      /** @description Canonical SDL model key, e.g. `h100`. Null for a card the console's model catalog does not list. */
+                      model: string | null;
+                      /** @description Marketing-correct label, e.g. `H100`, falling back to what the driver reported for an unlisted card. */
+                      displayName: string;
+                      /** @description Per-card memory as the driver reports it, in MiB. */
+                      memoryMb: number;
+                      /** @description `sxm` or `pcie` when the catalog names one, else null. */
+                      interface: string | null;
+                      /** @description Identical cards folded into one entry. */
+                      count: number;
+                    }[];
+                  }[];
+                  driverVersion: string | null;
+                  /** Format: date-time */
+                  detectedAt: string;
                 };
                 status: {
                   forwarded_ports: {
@@ -8623,6 +8692,29 @@ export interface operations {
                     started_at?: string;
                     deadline?: string;
                     reason?: string;
+                  };
+                  /** @description GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside. */
+                  detectedGpus?: {
+                    services: {
+                      service: string;
+                      gpus: {
+                        /** @description Canonical vendor key, e.g. `nvidia`. Null for a card the console's model catalog does not list. */
+                        vendor: string | null;
+                        /** @description Canonical SDL model key, e.g. `h100`. Null for a card the console's model catalog does not list. */
+                        model: string | null;
+                        /** @description Marketing-correct label, e.g. `H100`, falling back to what the driver reported for an unlisted card. */
+                        displayName: string;
+                        /** @description Per-card memory as the driver reports it, in MiB. */
+                        memoryMb: number;
+                        /** @description `sxm` or `pcie` when the catalog names one, else null. */
+                        interface: string | null;
+                        /** @description Identical cards folded into one entry. */
+                        count: number;
+                      }[];
+                    }[];
+                    driverVersion: string | null;
+                    /** Format: date-time */
+                    detectedAt: string;
                   };
                 }[];
                 escrow_account: {
@@ -8968,6 +9060,29 @@ export interface operations {
                   deadline?: string;
                   reason?: string;
                 };
+                /** @description GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside. */
+                detectedGpus?: {
+                  services: {
+                    service: string;
+                    gpus: {
+                      /** @description Canonical vendor key, e.g. `nvidia`. Null for a card the console's model catalog does not list. */
+                      vendor: string | null;
+                      /** @description Canonical SDL model key, e.g. `h100`. Null for a card the console's model catalog does not list. */
+                      model: string | null;
+                      /** @description Marketing-correct label, e.g. `H100`, falling back to what the driver reported for an unlisted card. */
+                      displayName: string;
+                      /** @description Per-card memory as the driver reports it, in MiB. */
+                      memoryMb: number;
+                      /** @description `sxm` or `pcie` when the catalog names one, else null. */
+                      interface: string | null;
+                      /** @description Identical cards folded into one entry. */
+                      count: number;
+                    }[];
+                  }[];
+                  driverVersion: string | null;
+                  /** Format: date-time */
+                  detectedAt: string;
+                };
                 status: {
                   forwarded_ports: {
                     [key: string]: {
@@ -9147,6 +9262,29 @@ export interface operations {
                   started_at?: string;
                   deadline?: string;
                   reason?: string;
+                };
+                /** @description GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside. */
+                detectedGpus?: {
+                  services: {
+                    service: string;
+                    gpus: {
+                      /** @description Canonical vendor key, e.g. `nvidia`. Null for a card the console's model catalog does not list. */
+                      vendor: string | null;
+                      /** @description Canonical SDL model key, e.g. `h100`. Null for a card the console's model catalog does not list. */
+                      model: string | null;
+                      /** @description Marketing-correct label, e.g. `H100`, falling back to what the driver reported for an unlisted card. */
+                      displayName: string;
+                      /** @description Per-card memory as the driver reports it, in MiB. */
+                      memoryMb: number;
+                      /** @description `sxm` or `pcie` when the catalog names one, else null. */
+                      interface: string | null;
+                      /** @description Identical cards folded into one entry. */
+                      count: number;
+                    }[];
+                  }[];
+                  driverVersion: string | null;
+                  /** Format: date-time */
+                  detectedAt: string;
                 };
                 status: {
                   forwarded_ports: {

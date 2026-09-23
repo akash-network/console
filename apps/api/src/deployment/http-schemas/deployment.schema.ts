@@ -10,6 +10,26 @@ import { AkashAddressSchema, DseqSchema } from "@src/utils/schema";
 import { LeaseStatusResponseSchema } from "./lease.schema";
 import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "./runtime-limit";
 
+const DetectedGpuSchema = z.object({
+  vendor: z.string().nullable().openapi({ description: "Canonical vendor key, e.g. `nvidia`. Null for a card the console's model catalog does not list." }),
+  model: z.string().nullable().openapi({ description: "Canonical SDL model key, e.g. `h100`. Null for a card the console's model catalog does not list." }),
+  displayName: z.string().openapi({ description: "Marketing-correct label, e.g. `H100`, falling back to what the driver reported for an unlisted card." }),
+  memoryMb: z.number().int().openapi({ description: "Per-card memory as the driver reports it, in MiB." }),
+  interface: z.string().nullable().openapi({ description: "`sxm` or `pcie` when the catalog names one, else null." }),
+  count: z.number().int().positive().openapi({ description: "Identical cards folded into one entry." })
+});
+
+const DetectedLeaseGpusSchema = z
+  .object({
+    services: z.array(z.object({ service: z.string(), gpus: z.array(DetectedGpuSchema) })),
+    driverVersion: z.string().nullable(),
+    detectedAt: z.string().datetime()
+  })
+  .openapi({
+    description:
+      "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside."
+  });
+
 const DeploymentLeaseSchema = z.object({
   id: z.object({
     owner: z.string(),
@@ -39,6 +59,7 @@ const DeploymentLeaseSchema = z.object({
       description:
         "Present only on a lease its provider has flagged for reclamation. `deadline` is unix seconds; `reason` is a `lease_closed_reason_*` enum name."
     }),
+  detectedGpus: DetectedLeaseGpusSchema.optional(),
   status: z.nullable(LeaseStatusResponseSchema)
 });
 

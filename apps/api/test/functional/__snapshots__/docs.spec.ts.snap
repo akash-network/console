@@ -7279,6 +7279,85 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     "created_at": {
                                       "type": "string",
                                     },
+                                    "detectedGpus": {
+                                      "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside.",
+                                      "properties": {
+                                        "detectedAt": {
+                                          "format": "date-time",
+                                          "type": "string",
+                                        },
+                                        "driverVersion": {
+                                          "nullable": true,
+                                          "type": "string",
+                                        },
+                                        "services": {
+                                          "items": {
+                                            "properties": {
+                                              "gpus": {
+                                                "items": {
+                                                  "properties": {
+                                                    "count": {
+                                                      "description": "Identical cards folded into one entry.",
+                                                      "exclusiveMinimum": true,
+                                                      "minimum": 0,
+                                                      "type": "integer",
+                                                    },
+                                                    "displayName": {
+                                                      "description": "Marketing-correct label, e.g. \`H100\`, falling back to what the driver reported for an unlisted card.",
+                                                      "type": "string",
+                                                    },
+                                                    "interface": {
+                                                      "description": "\`sxm\` or \`pcie\` when the catalog names one, else null.",
+                                                      "nullable": true,
+                                                      "type": "string",
+                                                    },
+                                                    "memoryMb": {
+                                                      "description": "Per-card memory as the driver reports it, in MiB.",
+                                                      "type": "integer",
+                                                    },
+                                                    "model": {
+                                                      "description": "Canonical SDL model key, e.g. \`h100\`. Null for a card the console's model catalog does not list.",
+                                                      "nullable": true,
+                                                      "type": "string",
+                                                    },
+                                                    "vendor": {
+                                                      "description": "Canonical vendor key, e.g. \`nvidia\`. Null for a card the console's model catalog does not list.",
+                                                      "nullable": true,
+                                                      "type": "string",
+                                                    },
+                                                  },
+                                                  "required": [
+                                                    "vendor",
+                                                    "model",
+                                                    "displayName",
+                                                    "memoryMb",
+                                                    "interface",
+                                                    "count",
+                                                  ],
+                                                  "type": "object",
+                                                },
+                                                "type": "array",
+                                              },
+                                              "service": {
+                                                "type": "string",
+                                              },
+                                            },
+                                            "required": [
+                                              "service",
+                                              "gpus",
+                                            ],
+                                            "type": "object",
+                                          },
+                                          "type": "array",
+                                        },
+                                      },
+                                      "required": [
+                                        "services",
+                                        "driverVersion",
+                                        "detectedAt",
+                                      ],
+                                      "type": "object",
+                                    },
                                     "id": {
                                       "properties": {
                                         "bseq": {
@@ -8066,6 +8145,85 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "created_at": {
                                 "type": "string",
                               },
+                              "detectedGpus": {
+                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside.",
+                                "properties": {
+                                  "detectedAt": {
+                                    "format": "date-time",
+                                    "type": "string",
+                                  },
+                                  "driverVersion": {
+                                    "nullable": true,
+                                    "type": "string",
+                                  },
+                                  "services": {
+                                    "items": {
+                                      "properties": {
+                                        "gpus": {
+                                          "items": {
+                                            "properties": {
+                                              "count": {
+                                                "description": "Identical cards folded into one entry.",
+                                                "exclusiveMinimum": true,
+                                                "minimum": 0,
+                                                "type": "integer",
+                                              },
+                                              "displayName": {
+                                                "description": "Marketing-correct label, e.g. \`H100\`, falling back to what the driver reported for an unlisted card.",
+                                                "type": "string",
+                                              },
+                                              "interface": {
+                                                "description": "\`sxm\` or \`pcie\` when the catalog names one, else null.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                              "memoryMb": {
+                                                "description": "Per-card memory as the driver reports it, in MiB.",
+                                                "type": "integer",
+                                              },
+                                              "model": {
+                                                "description": "Canonical SDL model key, e.g. \`h100\`. Null for a card the console's model catalog does not list.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                              "vendor": {
+                                                "description": "Canonical vendor key, e.g. \`nvidia\`. Null for a card the console's model catalog does not list.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                            },
+                                            "required": [
+                                              "vendor",
+                                              "model",
+                                              "displayName",
+                                              "memoryMb",
+                                              "interface",
+                                              "count",
+                                            ],
+                                            "type": "object",
+                                          },
+                                          "type": "array",
+                                        },
+                                        "service": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "service",
+                                        "gpus",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                },
+                                "required": [
+                                  "services",
+                                  "driverVersion",
+                                  "detectedAt",
+                                ],
+                                "type": "object",
+                              },
                               "id": {
                                 "properties": {
                                   "bseq": {
@@ -8665,6 +8823,85 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               },
                               "created_at": {
                                 "type": "string",
+                              },
+                              "detectedGpus": {
+                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside.",
+                                "properties": {
+                                  "detectedAt": {
+                                    "format": "date-time",
+                                    "type": "string",
+                                  },
+                                  "driverVersion": {
+                                    "nullable": true,
+                                    "type": "string",
+                                  },
+                                  "services": {
+                                    "items": {
+                                      "properties": {
+                                        "gpus": {
+                                          "items": {
+                                            "properties": {
+                                              "count": {
+                                                "description": "Identical cards folded into one entry.",
+                                                "exclusiveMinimum": true,
+                                                "minimum": 0,
+                                                "type": "integer",
+                                              },
+                                              "displayName": {
+                                                "description": "Marketing-correct label, e.g. \`H100\`, falling back to what the driver reported for an unlisted card.",
+                                                "type": "string",
+                                              },
+                                              "interface": {
+                                                "description": "\`sxm\` or \`pcie\` when the catalog names one, else null.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                              "memoryMb": {
+                                                "description": "Per-card memory as the driver reports it, in MiB.",
+                                                "type": "integer",
+                                              },
+                                              "model": {
+                                                "description": "Canonical SDL model key, e.g. \`h100\`. Null for a card the console's model catalog does not list.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                              "vendor": {
+                                                "description": "Canonical vendor key, e.g. \`nvidia\`. Null for a card the console's model catalog does not list.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                            },
+                                            "required": [
+                                              "vendor",
+                                              "model",
+                                              "displayName",
+                                              "memoryMb",
+                                              "interface",
+                                              "count",
+                                            ],
+                                            "type": "object",
+                                          },
+                                          "type": "array",
+                                        },
+                                        "service": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "service",
+                                        "gpus",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                },
+                                "required": [
+                                  "services",
+                                  "driverVersion",
+                                  "detectedAt",
+                                ],
+                                "type": "object",
                               },
                               "id": {
                                 "properties": {
@@ -9279,6 +9516,85 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "created_at": {
                                 "type": "string",
                               },
+                              "detectedGpus": {
+                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside.",
+                                "properties": {
+                                  "detectedAt": {
+                                    "format": "date-time",
+                                    "type": "string",
+                                  },
+                                  "driverVersion": {
+                                    "nullable": true,
+                                    "type": "string",
+                                  },
+                                  "services": {
+                                    "items": {
+                                      "properties": {
+                                        "gpus": {
+                                          "items": {
+                                            "properties": {
+                                              "count": {
+                                                "description": "Identical cards folded into one entry.",
+                                                "exclusiveMinimum": true,
+                                                "minimum": 0,
+                                                "type": "integer",
+                                              },
+                                              "displayName": {
+                                                "description": "Marketing-correct label, e.g. \`H100\`, falling back to what the driver reported for an unlisted card.",
+                                                "type": "string",
+                                              },
+                                              "interface": {
+                                                "description": "\`sxm\` or \`pcie\` when the catalog names one, else null.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                              "memoryMb": {
+                                                "description": "Per-card memory as the driver reports it, in MiB.",
+                                                "type": "integer",
+                                              },
+                                              "model": {
+                                                "description": "Canonical SDL model key, e.g. \`h100\`. Null for a card the console's model catalog does not list.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                              "vendor": {
+                                                "description": "Canonical vendor key, e.g. \`nvidia\`. Null for a card the console's model catalog does not list.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                            },
+                                            "required": [
+                                              "vendor",
+                                              "model",
+                                              "displayName",
+                                              "memoryMb",
+                                              "interface",
+                                              "count",
+                                            ],
+                                            "type": "object",
+                                          },
+                                          "type": "array",
+                                        },
+                                        "service": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "service",
+                                        "gpus",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                },
+                                "required": [
+                                  "services",
+                                  "driverVersion",
+                                  "detectedAt",
+                                ],
+                                "type": "object",
+                              },
                               "id": {
                                 "properties": {
                                   "bseq": {
@@ -9721,6 +10037,85 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               },
                               "created_at": {
                                 "type": "string",
+                              },
+                              "detectedGpus": {
+                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside.",
+                                "properties": {
+                                  "detectedAt": {
+                                    "format": "date-time",
+                                    "type": "string",
+                                  },
+                                  "driverVersion": {
+                                    "nullable": true,
+                                    "type": "string",
+                                  },
+                                  "services": {
+                                    "items": {
+                                      "properties": {
+                                        "gpus": {
+                                          "items": {
+                                            "properties": {
+                                              "count": {
+                                                "description": "Identical cards folded into one entry.",
+                                                "exclusiveMinimum": true,
+                                                "minimum": 0,
+                                                "type": "integer",
+                                              },
+                                              "displayName": {
+                                                "description": "Marketing-correct label, e.g. \`H100\`, falling back to what the driver reported for an unlisted card.",
+                                                "type": "string",
+                                              },
+                                              "interface": {
+                                                "description": "\`sxm\` or \`pcie\` when the catalog names one, else null.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                              "memoryMb": {
+                                                "description": "Per-card memory as the driver reports it, in MiB.",
+                                                "type": "integer",
+                                              },
+                                              "model": {
+                                                "description": "Canonical SDL model key, e.g. \`h100\`. Null for a card the console's model catalog does not list.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                              "vendor": {
+                                                "description": "Canonical vendor key, e.g. \`nvidia\`. Null for a card the console's model catalog does not list.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                            },
+                                            "required": [
+                                              "vendor",
+                                              "model",
+                                              "displayName",
+                                              "memoryMb",
+                                              "interface",
+                                              "count",
+                                            ],
+                                            "type": "object",
+                                          },
+                                          "type": "array",
+                                        },
+                                        "service": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "service",
+                                        "gpus",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                },
+                                "required": [
+                                  "services",
+                                  "driverVersion",
+                                  "detectedAt",
+                                ],
+                                "type": "object",
                               },
                               "id": {
                                 "properties": {
@@ -10703,6 +11098,85 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               },
                               "created_at": {
                                 "type": "string",
+                              },
+                              "detectedGpus": {
+                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside.",
+                                "properties": {
+                                  "detectedAt": {
+                                    "format": "date-time",
+                                    "type": "string",
+                                  },
+                                  "driverVersion": {
+                                    "nullable": true,
+                                    "type": "string",
+                                  },
+                                  "services": {
+                                    "items": {
+                                      "properties": {
+                                        "gpus": {
+                                          "items": {
+                                            "properties": {
+                                              "count": {
+                                                "description": "Identical cards folded into one entry.",
+                                                "exclusiveMinimum": true,
+                                                "minimum": 0,
+                                                "type": "integer",
+                                              },
+                                              "displayName": {
+                                                "description": "Marketing-correct label, e.g. \`H100\`, falling back to what the driver reported for an unlisted card.",
+                                                "type": "string",
+                                              },
+                                              "interface": {
+                                                "description": "\`sxm\` or \`pcie\` when the catalog names one, else null.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                              "memoryMb": {
+                                                "description": "Per-card memory as the driver reports it, in MiB.",
+                                                "type": "integer",
+                                              },
+                                              "model": {
+                                                "description": "Canonical SDL model key, e.g. \`h100\`. Null for a card the console's model catalog does not list.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                              "vendor": {
+                                                "description": "Canonical vendor key, e.g. \`nvidia\`. Null for a card the console's model catalog does not list.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                            },
+                                            "required": [
+                                              "vendor",
+                                              "model",
+                                              "displayName",
+                                              "memoryMb",
+                                              "interface",
+                                              "count",
+                                            ],
+                                            "type": "object",
+                                          },
+                                          "type": "array",
+                                        },
+                                        "service": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "service",
+                                        "gpus",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                },
+                                "required": [
+                                  "services",
+                                  "driverVersion",
+                                  "detectedAt",
+                                ],
+                                "type": "object",
                               },
                               "id": {
                                 "properties": {
