@@ -319,9 +319,9 @@ describe("Deployments API", () => {
       });
 
       expect(response.status).toBe(200);
-      const result = (await response.json()) as { data: { leases: Array<{ id: { gseq: number }; detectedGpus?: unknown }> } };
-      const read = result.data.leases.find(lease => lease.id.gseq === id.gseq);
-      const unread = result.data.leases.find(lease => lease.id.gseq !== id.gseq);
+      const result = (await response.json()) as { data: { leases: Array<{ id: { provider: string }; detectedGpus?: unknown }> } };
+      const read = result.data.leases.find(lease => lease.id.provider === id.provider);
+      const unread = result.data.leases.find(lease => lease.id.provider !== id.provider);
 
       expect(read?.detectedGpus).toEqual({
         services: [{ service: "web", gpus: [{ vendor: "nvidia", model: "h100", displayName: "H100", memoryMb: 81559, interface: "sxm", count: 1 }] }],
