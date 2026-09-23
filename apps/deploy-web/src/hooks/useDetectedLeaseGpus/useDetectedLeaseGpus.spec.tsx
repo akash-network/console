@@ -26,6 +26,16 @@ describe(useDetectedLeaseGpus.name, () => {
     expect(result.current.get(`1/2/${PROVIDER}`)).toEqual(DETECTED);
   });
 
+  it("hands back the same map on every render until the deployment changes, so the lease views keyed on it keep their selection", async () => {
+    const { result, rerender } = setup({ leases: [{ id: { gseq: 1, oseq: 2, provider: PROVIDER }, detectedGpus: DETECTED }] });
+    await vi.waitFor(() => expect(result.current.size).toBe(1));
+    const first = result.current;
+
+    rerender();
+
+    expect(result.current).toBe(first);
+  });
+
   it("holds nothing for a lease the console has not looked inside", async () => {
     const { result, getDeployment } = setup({ leases: [{ id: { gseq: 1, oseq: 2, provider: PROVIDER } }] });
 
@@ -46,7 +56,11 @@ describe(useDetectedLeaseGpus.name, () => {
     expect(getDeployment).not.toHaveBeenCalled();
   });
 
-  function setup(input: { leases?: Array<{ id: { gseq: number; oseq: number; provider: string }; detectedGpus?: typeof DETECTED }>; apiError?: Error; dseq?: string | null }) {
+  function setup(input: {
+    leases?: Array<{ id: { gseq: number; oseq: number; provider: string }; detectedGpus?: typeof DETECTED }>;
+    apiError?: Error;
+    dseq?: string | null;
+  }) {
     const getDeployment = vi.fn(() => {
       if (input.apiError) return Promise.reject(input.apiError);
       return Promise.resolve({ data: { leases: input.leases ?? [] } });
@@ -55,11 +69,11 @@ describe(useDetectedLeaseGpus.name, () => {
     const services = { api } satisfies Partial<ReturnType<typeof DEPENDENCIES.useServices>>;
     const useServices: typeof DEPENDENCIES.useServices = () => services as unknown as ReturnType<typeof DEPENDENCIES.useServices>;
 
-    const { result } = setupQuery(() => useDetectedLeaseGpus(input.dseq === undefined ? "12345" : input.dseq, { useServices }), {
+    const { result, rerender } = setupQuery(() => useDetectedLeaseGpus(input.dseq === undefined ? "12345" : input.dseq, { useServices }), {
       services: { api: () => api }
     });
 
-    return { result, getDeployment };
+    return { result, rerender, getDeployment };
   }
 });
 

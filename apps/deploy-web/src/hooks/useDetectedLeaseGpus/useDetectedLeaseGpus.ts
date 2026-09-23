@@ -27,7 +27,7 @@ export function useDetectedLeaseGpus(dseq: string | undefined | null, dependenci
         if (error instanceof ApiError && error.status >= 500) throw error;
         return null;
       },
-      select: response => toDetectedGpusByLease(response?.data?.leases)
+      select: selectDetectedGpusByLease
     }
   );
 
@@ -36,10 +36,11 @@ export function useDetectedLeaseGpus(dseq: string | undefined | null, dependenci
 
 type LeaseWithDetectedGpus = { id: { gseq: number; oseq: number; provider: string }; detectedGpus?: DetectedLeaseGpus };
 
-function toDetectedGpusByLease(leases: readonly LeaseWithDetectedGpus[] | undefined): DetectedGpusByLease {
+/** Module-level so react-query keeps the map it built until the deployment changes: a fresh one per render would re-key every lease view below it. */
+function selectDetectedGpusByLease(response: { data?: { leases?: readonly LeaseWithDetectedGpus[] } } | null): DetectedGpusByLease {
   const byLease: DetectedGpusByLease = new Map();
 
-  for (const lease of leases ?? []) {
+  for (const lease of response?.data?.leases ?? []) {
     if (lease.detectedGpus) byLease.set(leaseGpuKeyOf(lease.id), lease.detectedGpus);
   }
 
