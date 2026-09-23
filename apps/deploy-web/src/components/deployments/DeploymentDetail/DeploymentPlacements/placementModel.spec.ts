@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 import type { LeaseServiceStatus } from "@src/queries/useLeaseQuery";
 import type { DeploymentGroup, DetectedLeaseGpus } from "@src/types/deployment";
 import {
+  describeGpus,
   foldDetectedGpus,
   foldDetectedGpusOfLeases,
   formatGpuLabel,
@@ -273,6 +274,36 @@ describe("placementModel", () => {
 
     it("still shows an em dash for a deployment with no gpu, whatever was read", () => {
       expect(formatGpuLabel(0, [], [{ displayName: "H100", count: 1 }])).toBe("—");
+    });
+  });
+
+  describe("describeGpus", () => {
+    it("counts each card the console read under its own model", () => {
+      expect(
+        describeGpus(
+          3,
+          ["*"],
+          [
+            { displayName: "H100", count: 2 },
+            { displayName: "L40S", count: 1 }
+          ]
+        )
+      ).toEqual([
+        { count: 2, model: "H100" },
+        { count: 1, model: "L40S" }
+      ]);
+    });
+
+    it("puts every declared model under the one count asked for while no reading covers it", () => {
+      expect(describeGpus(2, ["h100", "a100"], [{ displayName: "H100", count: 1 }])).toEqual([{ count: 2, model: "H100 / A100" }]);
+    });
+
+    it("leaves the model out when none is declared", () => {
+      expect(describeGpus(1, ["*"])).toEqual([{ count: 1, model: null }]);
+    });
+
+    it("describes nothing for a deployment with no gpu", () => {
+      expect(describeGpus(0, ["h100"], [{ displayName: "H100", count: 1 }])).toEqual([]);
     });
   });
 

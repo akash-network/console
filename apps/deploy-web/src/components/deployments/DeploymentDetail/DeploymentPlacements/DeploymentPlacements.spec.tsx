@@ -32,6 +32,13 @@ describe(DeploymentPlacements.name, () => {
     expect(PlacementCard.mock.calls[0][0]).toEqual(expect.objectContaining({ provider: providers[0] }));
   });
 
+  it("tells each card while the gpus the console read are still loading", () => {
+    const PlacementCard = vi.fn((_props: PlacementCardProps) => <div>placement-card</div>);
+    setup({ leases: [buildLease("a")], isLoadingDetectedGpus: true, dependencies: { PlacementCard } });
+
+    expect(PlacementCard.mock.calls[0][0]).toEqual(expect.objectContaining({ isLoadingDetectedGpus: true }));
+  });
+
   it("summarizes placement and service counts from the manifest", () => {
     const manifest = yaml.dump({ services: { web: {}, api: {}, worker: {} } });
     setup({ leases: [buildLease("a"), buildLease("b")], deploymentManifest: manifest });
@@ -64,13 +71,20 @@ describe(DeploymentPlacements.name, () => {
     return mock<LeaseDto>({ id, provider: "akash1prov", group: mock<DeploymentGroup>({ group_spec: { name: placementName } } as Partial<DeploymentGroup>) });
   }
 
-  function setup(input: { leases: LeaseDto[]; providers?: ApiProviderList[]; deploymentManifest?: string; dependencies?: Partial<typeof DEPENDENCIES> }) {
+  function setup(input: {
+    leases: LeaseDto[];
+    providers?: ApiProviderList[];
+    deploymentManifest?: string;
+    isLoadingDetectedGpus?: boolean;
+    dependencies?: Partial<typeof DEPENDENCIES>;
+  }) {
     return render(
       <DeploymentPlacements
         leases={input.leases}
         providers={input.providers ?? []}
         deploymentManifest={input.deploymentManifest ?? ""}
         dseq="123"
+        isLoadingDetectedGpus={input.isLoadingDetectedGpus}
         onClosed={vi.fn()}
         dependencies={MockComponents(DEPENDENCIES, input.dependencies)}
       />

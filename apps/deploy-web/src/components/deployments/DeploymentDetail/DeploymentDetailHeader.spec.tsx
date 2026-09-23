@@ -253,7 +253,13 @@ describe(DeploymentDetailHeader.name, () => {
       ]
     });
 
-    expect(screen.getByText("1× H100")).toBeInTheDocument();
+    expect(screen.getByText("GPU").parentElement).toHaveTextContent("1× H100");
+  });
+
+  it("holds the gpu model's place while the reading loads", () => {
+    setup({ gpuAmount: 1, isLoadingDetectedGpus: true });
+
+    expect(screen.getByTestId("gpu-model-skeleton")).toBeInTheDocument();
   });
 
   it("shows an em dash for gpu when the deployment has none", () => {
@@ -300,6 +306,7 @@ describe(DeploymentDetailHeader.name, () => {
     providers?: ApiProviderList[];
     gpuAmount?: number;
     groups?: DeploymentGroup[];
+    isLoadingDetectedGpus?: boolean;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const changeDeploymentName = vi.fn();
@@ -360,7 +367,15 @@ describe(DeploymentDetailHeader.name, () => {
       DeploymentVisitControl,
       ...input.dependencies
     });
-    const renderHeader = () => <DeploymentDetailHeader deployment={deployment} leases={leases} providers={providers} dependencies={dependencies} />;
+    const renderHeader = () => (
+      <DeploymentDetailHeader
+        deployment={deployment}
+        leases={leases}
+        providers={providers}
+        isLoadingDetectedGpus={input.isLoadingDetectedGpus}
+        dependencies={dependencies}
+      />
+    );
 
     const { rerender } = render(renderHeader());
 

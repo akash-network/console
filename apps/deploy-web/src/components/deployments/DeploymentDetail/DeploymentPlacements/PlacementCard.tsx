@@ -20,8 +20,9 @@ import { ConfidentialComputeResources } from "../../ConfidentialComputeResources
 import { DownloadAttestationEvidence } from "../../DownloadAttestationEvidence";
 import { ReclamationCard } from "../../ReclamationCard/ReclamationCard";
 import { StatusBadge } from "../DeploymentStatusBadge";
+import { GpuLabel, type GpuLabelProps } from "./GpuLabel";
 import type { ManifestServiceDetail } from "./placementModel";
-import { type DetectedGpuSummary, foldDetectedGpus, formatGpuLabel, getPlacementGpuModels, getPlacementName, getProviderRegion } from "./placementModel";
+import { foldDetectedGpus, getPlacementGpuModels, getPlacementName, getProviderRegion } from "./placementModel";
 import { PlacementServiceRow } from "./PlacementServiceRow";
 import type { PlacementStat } from "./PlacementStats";
 import { PlacementStats } from "./PlacementStats";
@@ -42,6 +43,7 @@ export interface PlacementCardProps {
   manifestServices: Record<string, ManifestServiceDetail>;
   placementServices?: Record<string, ManifestServiceDetail>;
   dseq: string;
+  isLoadingDetectedGpus?: boolean;
   onClosed: () => void;
   dependencies?: typeof DEPENDENCIES;
 }
@@ -53,6 +55,7 @@ export const PlacementCard: FC<PlacementCardProps> = ({
   manifestServices,
   placementServices,
   dseq,
+  isLoadingDetectedGpus = false,
   onClosed,
   dependencies: d = DEPENDENCIES
 }) => {
@@ -126,7 +129,9 @@ export const PlacementCard: FC<PlacementCardProps> = ({
           )}
         </div>
         <div className="lg:shrink-0">
-          <PlacementStats stats={buildPlacementStats(lease, serviceNames.length, gpuModels, detectedGpus)} />
+          <PlacementStats
+            stats={buildPlacementStats(lease, serviceNames.length, { models: gpuModels, detected: detectedGpus, isLoading: isLoadingDetectedGpus })}
+          />
         </div>
       </div>
 
@@ -177,14 +182,14 @@ export const PlacementCard: FC<PlacementCardProps> = ({
   );
 };
 
-function buildPlacementStats(lease: LeaseDto, serviceCount: number, gpuModels: string[], detectedGpus: DetectedGpuSummary[]): PlacementStat[] {
+function buildPlacementStats(lease: LeaseDto, serviceCount: number, gpu: Omit<GpuLabelProps, "gpuAmount">): PlacementStat[] {
   const stats: PlacementStat[] = [
     { label: "vCPU", value: roundDecimal(lease.cpuAmount, 2) },
     { label: "Memory", value: formatByteSize(lease.memoryAmount) },
     { label: "Storage", value: formatByteSize(lease.storageAmount) }
   ];
   if (lease.gpuAmount && lease.gpuAmount > 0) {
-    stats.push({ label: "GPU", value: formatGpuLabel(lease.gpuAmount, gpuModels, detectedGpus) });
+    stats.push({ label: "GPU", value: <GpuLabel gpuAmount={lease.gpuAmount} {...gpu} /> });
   }
   stats.push({ label: "Services", value: serviceCount });
   return stats;
