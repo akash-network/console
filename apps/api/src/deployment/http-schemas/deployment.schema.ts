@@ -276,11 +276,11 @@ const PatchExposeSchema = z
   .object({
     port: PortNumberSchema.openapi({
       description:
-        "Moves the container port the workload listens on. The entry is still addressed by the port it declares today, and a move onto a port the service already exposes is refused."
+        "Moves the container port the workload listens on. The entry is still addressed by the port it declares today. Refused onto a port the service already exposes, and on an endpoint reached through a leased IP."
     }),
     as: PortNumberSchema.openapi({
       description:
-        "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind on chain, which happens when a public TCP endpoint moves onto or off port 80."
+        "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind on chain (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP."
     }),
     accept: z.array(z.string()).openapi({
       description:
@@ -316,7 +316,7 @@ export const PatchServiceSchema = z
       .openapi({ description: "Private registry pull credentials. Null clears them." }),
     expose: z.record(z.string(), PatchExposeSchema).openapi({
       description:
-        "Keyed by the container port the stored SDL declares. Port numbers, hosts and http options are patchable; protocol, routing, endpoint kind and count are fixed at create."
+        "Keyed by the container port the stored SDL declares. Port numbers, hosts and http options are patchable; protocol, routing, endpoint kind and count are fixed at create. A random-port endpoint whose numbers change gets a new public port from the provider, and so can the service's other random-port endpoints when a container port move reorders them."
     }),
     storage: z.record(z.string(), z.object({ mount: z.string(), readOnly: z.boolean() }).partial()).openapi({
       description: "Keyed by volume name. Mount point and read-only flag only — sizes are fixed at create."

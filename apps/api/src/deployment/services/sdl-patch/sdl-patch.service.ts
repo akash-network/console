@@ -61,9 +61,17 @@ function endpointKindOf(entry: Pick<SdlExposeNode, "port" | "as" | "proto" | "to
   if (!entry.to?.some(target => target.global)) return undefined;
 
   const isTcp = (entry.proto?.toUpperCase() || "TCP") === "TCP";
-  const reachedOn = entry.as || entry.port;
 
-  return isTcp && reachedOn === SHARED_HTTP_PORT ? "shared HTTP" : "random-port";
+  return isTcp && externalPortOf(entry) === SHARED_HTTP_PORT ? "shared HTTP" : "random-port";
+}
+
+function externalPortOf(entry: Pick<SdlExposeNode, "port" | "as">): number | undefined {
+  return entry.as || entry.port;
+}
+
+/** A provider names a leased IP's declaration after its external port and never re-declares one that exists, so an update can neither move the port nor retire the old one. */
+function leasedIpOf(entry: Pick<SdlExposeNode, "to">): string | undefined {
+  return entry.to?.find(target => !!target.ip)?.ip;
 }
 
 function assignsStorage(patch: PatchStorage): boolean {
@@ -220,6 +228,7 @@ export class SdlPatchService {
     for (const target of assigning) this.#assertExposeWritable(target, at);
 
     this.#assertNoContainerPortCollision(exposed, assigning, at);
+    this.#assertNoExternalPortCollision(exposed, assigning, at);
 
     for (const { entry, entryPatch } of assigning) this.#applyExposeEntry(entry, entryPatch);
   }
@@ -245,12 +254,22 @@ export class SdlPatchService {
 
     if (assignsHttpOptions(entryPatch)) this.#assertNotShared(entry.http_options, { ...at, field: `http options on port ${echo(port)}` });
 
+    const moved = { ...entry, port: entryPatch.port ?? entry.port, as: entryPatch.as ?? entry.as };
     const kindBefore = endpointKindOf(entry);
-    const kindAfter = endpointKindOf({ ...entry, port: entryPatch.port ?? entry.port, as: entryPatch.as ?? entry.as });
+    const kindAfter = endpointKindOf(moved);
 
     if (kindBefore !== kindAfter) {
       throw this.#reject(
         `service "${echo(at.serviceName)}" port "${echo(port)}" would change from a ${kindBefore} endpoint to a ${kindAfter} one, which needs a new deployment`
+      );
+    }
+
+    const leasedIp = leasedIpOf(entry);
+    const movesANumber = moved.port !== entry.port || externalPortOf(moved) !== externalPortOf(entry);
+
+    if (leasedIp && movesANumber) {
+      throw this.#reject(
+        `service "${echo(at.serviceName)}" port "${echo(port)}" is reached through leased IP "${echo(leasedIp)}", which a provider keeps on the ports it was declared with, so moving it needs a new deployment`
       );
     }
   }
@@ -266,6 +285,25 @@ export class SdlPatchService {
 
       if (isTaken) {
         throw this.#reject(`service "${echo(at.serviceName)}" already exposes port "${entryPatch.port}", so port "${echo(port)}" cannot move onto it`);
+      }
+    }
+  }
+
+  /** A provider builds one Kubernetes port per external port of a service, so an endpoint moved onto one another endpoint uses would never be reached. */
+  #assertNoExternalPortCollision(exposed: SdlExposeNode[], assigning: ExposeTarget[], at: PatchTarget): void {
+    const externalPortAfterPatch = (entry: SdlExposeNode) => {
+      const entryPatch = assigning.find(target => target.entry === entry)?.entryPatch;
+      return externalPortOf({ port: entryPatch?.port ?? entry.port, as: entryPatch?.as ?? entry.as });
+    };
+
+    for (const { port, entry } of assigning) {
+      const externalPort = externalPortAfterPatch(entry);
+      if (externalPort === externalPortOf(entry)) continue;
+
+      const isTaken = exposed.some(other => other !== entry && externalPortAfterPatch(other) === externalPort);
+
+      if (isTaken) {
+        throw this.#reject(`service "${echo(at.serviceName)}" already uses external port "${externalPort}", so port "${echo(port)}" cannot move onto it`);
       }
     }
   }

@@ -569,6 +569,91 @@ describe(SdlPatchService.name, () => {
       expect(document.services.web.expose?.map(entry => entry.port)).toEqual([3000, 4000]);
     });
 
+    it("refuses moving an external port onto one another endpoint of the service already uses", () => {
+      const { service, document } = setup({
+        services: {
+          web: {
+            image: "nginx",
+            expose: [
+              { port: 3000, as: 3000 },
+              { port: 4000, as: 4000 }
+            ]
+          }
+        }
+      });
+
+      expect(() => service.apply(document, { web: { expose: { "3000": { as: 4000 } } } })).toThrow(
+        'service "web" already uses external port "4000", so port "3000" cannot move onto it'
+      );
+      expect(document.services.web.expose?.[0].as).toBe(3000);
+    });
+
+    it("refuses moving a container port that doubles as the external port onto an external port already in use", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 3000 }, { port: 4000, as: 5000 }] } } });
+
+      expect(() => service.apply(document, { web: { expose: { "3000": { port: 5000 } } } })).toThrow(
+        'service "web" already uses external port "5000", so port "3000" cannot move onto it'
+      );
+    });
+
+    it("refuses moving two external ports onto the same number, reading each against the other's move", () => {
+      const { service, document } = setup({
+        services: {
+          web: {
+            image: "nginx",
+            expose: [
+              { port: 3000, as: 3000 },
+              { port: 4000, as: 4000 }
+            ]
+          }
+        }
+      });
+
+      expect(() => service.apply(document, { web: { expose: { "3000": { as: 5000 }, "4000": { as: 5000 } } } })).toThrow(
+        'service "web" already uses external port "5000", so port "3000" cannot move onto it'
+      );
+    });
+
+    it("moves a container port whose external port another endpoint already shared, since the move adds no collision", () => {
+      const { service, document } = setup({
+        services: {
+          web: {
+            image: "nginx",
+            expose: [
+              { port: 3000, as: 5000 },
+              { port: 3001, as: 5000 }
+            ]
+          }
+        }
+      });
+
+      service.apply(document, { web: { expose: { "3000": { port: 3100 } } } });
+
+      expect(document.services.web.expose?.[0]).toEqual({ port: 3100, as: 5000 });
+    });
+
+    it.each([
+      { named: "container port", patch: { port: 4430 } },
+      { named: "external port", patch: { as: 8443 } }
+    ])("refuses moving the $named of an endpoint reached through a leased IP, which a provider does not move", ({ patch }) => {
+      const { service, document } = setup({
+        services: { web: { image: "nginx", expose: [{ port: 443, as: 443, to: [{ service: "api" }, { global: true, ip: "edge" }] }] } }
+      });
+
+      expect(() => service.apply(document, { web: { expose: { "443": patch } } })).toThrow(
+        'service "web" port "443" is reached through leased IP "edge", which a provider keeps on the ports it was declared with, so moving it needs a new deployment'
+      );
+      expect(document.services.web.expose?.[0]).toEqual({ port: 443, as: 443, to: [{ service: "api" }, { global: true, ip: "edge" }] });
+    });
+
+    it("accepts the numbers an endpoint reached through a leased IP already has", () => {
+      const { service, document } = setup({ services: { web: { image: "nginx", expose: [{ port: 443, to: [{ global: true, ip: "edge" }] }] } } });
+
+      service.apply(document, { web: { expose: { "443": { port: 443, as: 443 } } } });
+
+      expect(document.services.web.expose?.[0]).toEqual({ port: 443, as: 443, to: [{ global: true, ip: "edge" }] });
+    });
+
     it("moves an external port beside an endpoint that declares no container port", () => {
       const { service, document } = setup({
         services: { web: { image: "nginx", expose: [{ port: 3000, as: 3000 }, { accept: ["a.test"] } as SdlExposeEntry] } }

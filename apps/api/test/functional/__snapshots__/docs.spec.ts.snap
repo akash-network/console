@@ -8402,7 +8402,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     "type": "array",
                                   },
                                   "as": {
-                                    "description": "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind on chain, which happens when a public TCP endpoint moves onto or off port 80.",
+                                    "description": "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind on chain (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP.",
                                     "maximum": 65535,
                                     "minimum": 1,
                                     "type": "integer",
@@ -8458,7 +8458,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     "type": "object",
                                   },
                                   "port": {
-                                    "description": "Moves the container port the workload listens on. The entry is still addressed by the port it declares today, and a move onto a port the service already exposes is refused.",
+                                    "description": "Moves the container port the workload listens on. The entry is still addressed by the port it declares today. Refused onto a port the service already exposes, and on an endpoint reached through a leased IP.",
                                     "maximum": 65535,
                                     "minimum": 1,
                                     "type": "integer",
@@ -8466,7 +8466,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 },
                                 "type": "object",
                               },
-                              "description": "Keyed by the container port the stored SDL declares. Port numbers, hosts and http options are patchable; protocol, routing, endpoint kind and count are fixed at create.",
+                              "description": "Keyed by the container port the stored SDL declares. Port numbers, hosts and http options are patchable; protocol, routing, endpoint kind and count are fixed at create. A random-port endpoint whose numbers change gets a new public port from the provider, and so can the service's other random-port endpoints when a container port move reorders them.",
                               "type": "object",
                             },
                             "image": {
