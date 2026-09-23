@@ -31,6 +31,18 @@ export function leaseGpuKeyOf(lease: { gseq: number; oseq: number; provider: str
   return `${lease.gseq}/${lease.oseq}/${lease.provider}`;
 }
 
+function groupByDeploymentAndLease(rows: LeaseGpuOutput[]): Map<string, Map<string, LeaseGpuOutput[]>> {
+  const grouped = new Map<string, Map<string, LeaseGpuOutput[]>>();
+
+  for (const row of rows) {
+    const byLease = grouped.get(row.dseq) ?? new Map<string, LeaseGpuOutput[]>();
+    grouped.set(row.dseq, byLease);
+    byLease.set(leaseGpuKeyOf(row), [...(byLease.get(leaseGpuKeyOf(row)) ?? []), row]);
+  }
+
+  return grouped;
+}
+
 /** Turns the raw readings a probe stored into what a deployment read serves, resolving the model catalog once per request. */
 @singleton()
 export class LeaseGpuService {
@@ -50,18 +62,23 @@ export class LeaseGpuService {
     const index = await this.gpuCatalogService.getIndex();
     const byDeployment = new Map<string, DetectedGpusByLease>();
 
-    for (const row of rows) {
-      const byLease = byDeployment.get(row.dseq) ?? new Map<string, DetectedLeaseGpus>();
-      byDeployment.set(row.dseq, byLease);
-
-      const key = leaseGpuKeyOf(row);
-      const detected = byLease.get(key) ?? { services: [], driverVersion: row.driverVersion, detectedAt: row.detectedAt.toISOString() };
-      detected.services.push({ service: row.service, gpus: this.#resolve(row, index) });
-      detected.driverVersion ??= row.driverVersion;
-      byLease.set(key, detected);
+    for (const [dseq, rowsByLease] of groupByDeploymentAndLease(rows)) {
+      byDeployment.set(dseq, new Map([...rowsByLease].map(([key, leaseRows]) => [key, this.#summarize(leaseRows, index)])));
     }
 
     return byDeployment;
+  }
+
+  /** Reports when the lease was last read, since its services are read one at a time and the rows come back in no particular order. */
+  #summarize(leaseRows: LeaseGpuOutput[], index: Awaited<ReturnType<GpuCatalogService["getIndex"]>>): DetectedLeaseGpus {
+    const newestFirst = [...leaseRows].sort((a, b) => b.detectedAt.getTime() - a.detectedAt.getTime());
+    const byService = [...leaseRows].sort((a, b) => a.service.localeCompare(b.service));
+
+    return {
+      services: byService.map(row => ({ service: row.service, gpus: this.#resolve(row, index) })),
+      driverVersion: newestFirst.find(row => row.driverVersion)?.driverVersion ?? null,
+      detectedAt: newestFirst[0].detectedAt.toISOString()
+    };
   }
 
   #resolve(row: LeaseGpuOutput, index: Awaited<ReturnType<GpuCatalogService["getIndex"]>>): DetectedGpu[] {

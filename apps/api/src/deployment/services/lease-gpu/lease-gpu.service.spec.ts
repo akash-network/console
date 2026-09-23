@@ -68,12 +68,32 @@ describe(LeaseGpuService.name, () => {
     expect(detected?.services[0].gpus[0].displayName).toHaveLength(48);
   });
 
-  it("groups every service of one lease under that lease", async () => {
+  it("groups every service of one lease under that lease, in name order whatever order the rows came back in", async () => {
     const { service } = setup({ rows: [row(), row({ service: "trainer" })] });
 
     const detected = (await service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] })).get(DSEQ)?.get(`1/1/${PROVIDER}`);
 
-    expect(detected?.services.map(entry => entry.service)).toEqual(["web", "trainer"]);
+    expect(detected?.services.map(entry => entry.service)).toEqual(["trainer", "web"]);
+  });
+
+  it("dates a lease by its most recent reading and reports that reading's driver", async () => {
+    const older = row({ service: "web", driverVersion: "550.54.15", detectedAt: new Date("2026-09-21T10:00:00.000Z") });
+    const newer = row({ service: "trainer", driverVersion: "560.28.03", detectedAt: new Date("2026-09-21T12:00:00.000Z") });
+    const { service } = setup({ rows: [older, newer] });
+
+    const detected = (await service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] })).get(DSEQ)?.get(`1/1/${PROVIDER}`);
+
+    expect(detected).toMatchObject({ detectedAt: "2026-09-21T12:00:00.000Z", driverVersion: "560.28.03" });
+  });
+
+  it("falls back to an older reading's driver when the most recent one reported none", async () => {
+    const older = row({ service: "web", driverVersion: "550.54.15", detectedAt: new Date("2026-09-21T10:00:00.000Z") });
+    const newer = row({ service: "trainer", driverVersion: null, detectedAt: new Date("2026-09-21T12:00:00.000Z") });
+    const { service } = setup({ rows: [newer, older] });
+
+    const detected = (await service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] })).get(DSEQ)?.get(`1/1/${PROVIDER}`);
+
+    expect(detected).toMatchObject({ detectedAt: "2026-09-21T12:00:00.000Z", driverVersion: "550.54.15" });
   });
 
   it("keeps the leases of one deployment apart", async () => {
