@@ -26,6 +26,21 @@ describe(useDetectedLeaseGpus.name, () => {
     expect(result.current.get(`1/2/${PROVIDER}`)).toEqual(DETECTED);
   });
 
+  it("asks for the deployment it was given", async () => {
+    const { getDeployment } = setup({ leases: [] });
+
+    await vi.waitFor(() => expect(getDeployment).toHaveBeenCalledWith({ dseq: "12345" }));
+  });
+
+  it("keys only the leases the console has looked inside", async () => {
+    const { result } = setup({
+      leases: [{ id: { gseq: 1, oseq: 1, provider: PROVIDER } }, { id: { gseq: 1, oseq: 2, provider: PROVIDER }, detectedGpus: DETECTED }]
+    });
+
+    await vi.waitFor(() => expect(result.current.get(leaseGpuKeyOf({ gseq: 1, oseq: 2, provider: PROVIDER }))).toEqual(DETECTED));
+    expect([...result.current.keys()]).toEqual([leaseGpuKeyOf({ gseq: 1, oseq: 2, provider: PROVIDER })]);
+  });
+
   it("hands back the same map on every render until the deployment changes, so the lease views keyed on it keep their selection", async () => {
     const { result, rerender } = setup({ leases: [{ id: { gseq: 1, oseq: 2, provider: PROVIDER }, detectedGpus: DETECTED }] });
     await vi.waitFor(() => expect(result.current.size).toBe(1));
@@ -44,7 +59,7 @@ describe(useDetectedLeaseGpus.name, () => {
   });
 
   it("holds nothing when the deployment is not one the caller can read", async () => {
-    const { result } = setup({ apiError: new ApiError({} as never, { status: 404 } as never, "not found") });
+    const { result } = setup({ apiError: new ApiError(404, {}, "not found") });
 
     await vi.waitFor(() => expect(result.current.size).toBe(0));
   });

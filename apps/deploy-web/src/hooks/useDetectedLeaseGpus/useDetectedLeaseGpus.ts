@@ -1,6 +1,5 @@
-import { ApiError } from "@akashnetwork/openapi-sdk";
-
 import { useServices } from "@src/context/ServicesProvider";
+import { catchDeploymentReadError } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { DetectedGpusByLease, DetectedLeaseGpus, LeaseDto } from "@src/types/deployment";
 
 export const DEPENDENCIES = { useServices };
@@ -22,11 +21,8 @@ export function useDetectedLeaseGpus(dseq: string | undefined | null, dependenci
     { dseq: dseq ?? "" },
     {
       enabled: !!dseq,
-      /** Kept identical to `useDeploymentDefinition`'s, so the two provably share one query rather than racing two. */
-      catchError(error) {
-        if (error instanceof ApiError && error.status >= 500) throw error;
-        return null;
-      },
+      /** Shared with `useDeploymentDefinition`, since whichever of the two fetches first decides how this query's errors resolve for both. */
+      catchError: catchDeploymentReadError,
       select: selectDetectedGpusByLease
     }
   );

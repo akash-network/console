@@ -170,16 +170,16 @@ export function foldDetectedGpus(detected: DetectedLeaseGpus | undefined): Detec
   return foldByDisplayName(gpusOf(detected));
 }
 
-/** What a whole deployment is running, across every lease the console has read. */
-export function foldDetectedGpusOfLeases(leases: Array<Pick<LeaseDto, "detectedGpus">> | null | undefined): DetectedGpuSummary[] {
-  return foldByDisplayName((leases ?? []).flatMap(lease => gpusOf(lease.detectedGpus)));
+/** What a whole deployment is running now, counting live leases only, since a lease that was replaced keeps the reading it had. */
+export function foldDetectedGpusOfLeases(leases: Array<Pick<LeaseDto, "state" | "detectedGpus">> | null | undefined): DetectedGpuSummary[] {
+  return foldByDisplayName(leases?.filter(isLeaseLive).flatMap(lease => gpusOf(lease.detectedGpus)) ?? []);
 }
 
 /** Reads the cards out only where the reading is actually one, since a lease carries this field from the api rather than from the chain. */
 function gpusOf(detected: DetectedLeaseGpus | undefined): DetectedGpuSummary[] {
   if (!Array.isArray(detected?.services)) return [];
 
-  return detected.services.flatMap(service => (Array.isArray(service?.gpus) ? service.gpus : []));
+  return detected.services.flatMap(service => service.gpus);
 }
 
 function foldByDisplayName(gpus: Array<{ displayName: string; count: number }>): DetectedGpuSummary[] {
