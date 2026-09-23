@@ -89,6 +89,13 @@ describe("DeploymentUpdateFormSchema", () => {
     expect(issuesOf(values)).toEqual([{ path: "services.0.env.1.key", message: "This service already has a variable named MODE." }]);
   });
 
+  it("puts a variable renamed onto a secret's name in the wrong, since the secret's row cannot be renamed", () => {
+    const { values } = setup();
+    values.services[0].env = values.services[0].env?.map(variable => (variable.key === "MODE" ? { ...variable, key: "API_TOKEN" } : variable));
+
+    expect(issuesOf(values)).toEqual([{ path: "services.0.env.0.key", message: "This service already has a secret named API_TOKEN." }]);
+  });
+
   it("lets two services each use the same variable name", () => {
     const { values } = setup();
     values.services[0].env = [{ id: "first", key: "MODE", value: "dev" }];

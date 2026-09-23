@@ -524,6 +524,19 @@ describe(DeploymentUpdate.name, () => {
       expect(serviceIn(current, "web").env?.map(variable => variable.key)).toEqual(["API_TOKEN"]);
     });
 
+    it("shows a variable renamed onto a secret's name as the clash, and sends nothing", async () => {
+      const { submit } = setup();
+      await openTab("web", /Vars & secrets/);
+      const web = serviceSection("web");
+
+      await userEvent.clear(within(web).getByLabelText("Variable 1 name"));
+      await userEvent.type(within(web).getByLabelText("Variable 1 name"), "API_TOKEN");
+      await userEvent.click(updateButton());
+
+      expect(await within(web).findByText("This service already has a secret named API_TOKEN.")).toBeInTheDocument();
+      expect(submit).not.toHaveBeenCalled();
+    });
+
     it("keeps a secret's removal for when secrets can be edited, since nothing here could add it back", async () => {
       setup();
       await openTab("web", /Vars & secrets/);
