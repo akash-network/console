@@ -1682,6 +1682,41 @@ describe(DeploymentWriterService.name, () => {
       });
     });
 
+    describe("a plaintext value the patch writes beside a seal", () => {
+      it("stays in the clear, because a caller that seals has said which values are secret, as on create", async () => {
+        const { service, ability, deploymentSettingRepository } = setup({ sdl: STORED_SDL_WITH_PLAINTEXT, held: { s0_e0: "token" } });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { worker: { env: { LOG_LEVEL: "trace" } } }, sealedSecrets: CLIENT_SEAL }, ability);
+
+        const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
+        expect(sdl).toContain("LOG_LEVEL=trace");
+      });
+
+      it("is not pulled into the token", async () => {
+        const { service, ability, sealedFor } = setup({ sdl: STORED_SDL_WITH_PLAINTEXT, held: { s0_e0: "token" } });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { worker: { env: { LOG_LEVEL: "trace" } } }, sealedSecrets: CLIENT_SEAL }, ability);
+
+        expect(sealedFor()).toEqual({ s0_e0: "token" });
+      });
+
+      it("still takes written registry credentials out of the sdl, which are secret whoever sends them", async () => {
+        const { service, ability, deploymentSettingRepository, sealedFor } = setup({ sdl: STORED_SDL_WITH_PLAINTEXT, held: { s0_e0: "token" } });
+
+        await service.patchByUserIdAndDseq(
+          "user-1",
+          "1234",
+          { services: { worker: { credentials: { host: "ghcr.io", username: REGISTRY_USERNAME, password: REGISTRY_PASSWORD } } }, sealedSecrets: CLIENT_SEAL },
+          ability
+        );
+
+        const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
+        expect(sdl).not.toContain(REGISTRY_USERNAME);
+        expect(sdl).not.toContain(REGISTRY_PASSWORD);
+        expect(Object.values(sealedFor())).toEqual(expect.arrayContaining([REGISTRY_USERNAME, REGISTRY_PASSWORD]));
+      });
+    });
+
     describe("the name a re-supplied value ends up stored under", () => {
       it("gives a patched variable a different derived name, since names need only be unique", async () => {
         const { service, ability, sealedFor } = setup({ held: { s0_e0: "token", s0_e1: "kept" } });
@@ -1923,6 +1958,16 @@ describe(DeploymentWriterService.name, () => {
           service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } }, ifManifestVersion: "STALE" }, ability)
         ).rejects.toMatchObject({
           status: 409
+        });
+      });
+
+      it("names the conflict with a code a client can tell from a seal made against a retired key", async () => {
+        const { service, ability } = setup({ written: undefined });
+
+        await expect(
+          service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } }, ifManifestVersion: "STALE" }, ability)
+        ).rejects.toMatchObject({
+          errorCode: "deployment_definition_changed"
         });
       });
 

@@ -14,6 +14,8 @@ type PatchStorage = NonNullable<PatchService["storage"]>[string];
 
 type PatchTarget = { serviceName: string; shared: Set<object>; written: Set<string> };
 
+type ExposeTarget = { port: string; entry: SdlExposeNode; entryPatch: PatchExpose };
+
 /** A bare `env` entry is its own name, because it asks for the variable to be inherited from the host. */
 function envKeyOf(entry: string): string {
   return readEnvDeclaration(entry)?.key ?? entry;
@@ -47,7 +49,29 @@ function declaresPort(entry: SdlExposeNode | undefined, port: string): boolean {
 }
 
 function assignsExpose(patch: PatchExpose): boolean {
-  return patch.accept !== undefined || assignsHttpOptions(patch);
+  return patch.port !== undefined || patch.as !== undefined || patch.accept !== undefined || assignsHttpOptions(patch);
+}
+
+const SHARED_HTTP_PORT = 80;
+
+type EndpointKind = "shared HTTP" | "random-port";
+
+/** Mirrors chain-sdk's `isIngress`, which derives the group spec's endpoint kind that an update of an existing deployment cannot change; an endpoint reached by no global target puts no endpoint on chain at all. */
+function endpointKindOf(entry: Pick<SdlExposeNode, "port" | "as" | "proto" | "to">): EndpointKind | undefined {
+  if (!entry.to?.some(target => target.global)) return undefined;
+
+  const isTcp = (entry.proto?.toUpperCase() || "TCP") === "TCP";
+
+  return isTcp && externalPortOf(entry) === SHARED_HTTP_PORT ? "shared HTTP" : "random-port";
+}
+
+function externalPortOf(entry: Pick<SdlExposeNode, "port" | "as">): number | undefined {
+  return entry.as || entry.port;
+}
+
+/** A provider names a leased IP's declaration after its external port and never re-declares one that exists, so an update can neither move the port nor retire the old one. */
+function leasedIpOf(entry: Pick<SdlExposeNode, "to">): string | undefined {
+  return entry.to?.find(target => !!target.ip)?.ip;
 }
 
 function assignsStorage(patch: PatchStorage): boolean {
@@ -198,33 +222,99 @@ export class SdlPatchService {
    */
   #applyExpose(service: SdlServiceNode, patch: NonNullable<PatchService["expose"]>, at: PatchTarget): void {
     const exposed = Array.isArray(service.expose) ? service.expose : [];
+    const addressed = Object.entries(patch).map(([port, entryPatch]) => ({ port, entryPatch, entry: this.#exposedAt(exposed, port, at) }));
+    const assigning = addressed.filter(({ entryPatch }) => assignsExpose(entryPatch));
 
-    for (const [port, entryPatch] of Object.entries(patch)) {
-      const matches = exposed.filter(candidate => declaresPort(candidate, port));
+    for (const target of assigning) this.#assertExposeWritable(target, at);
 
-      if (matches.length === 0) {
-        throw this.#reject(`service "${echo(at.serviceName)}" exposes no port "${echo(port)}"`);
-      }
+    this.#assertNoContainerPortCollision(exposed, assigning, at);
+    this.#assertNoExternalPortCollision(exposed, assigning, at);
 
-      if (matches.length > 1) {
-        throw this.#reject(
-          `service "${echo(at.serviceName)}" exposes port "${echo(port)}" ${matches.length} times, so this patch cannot say which endpoint it means`
-        );
-      }
+    for (const { entry, entryPatch } of assigning) this.#applyExposeEntry(entry, entryPatch);
+  }
 
-      if (!assignsExpose(entryPatch)) continue;
+  #exposedAt(exposed: SdlExposeNode[], port: string, at: PatchTarget): SdlExposeNode {
+    const matches = exposed.filter(candidate => declaresPort(candidate, port));
 
-      this.#assertNotShared(matches[0], { ...at, field: `expose on port ${echo(port)}` });
-      this.#applyExposeEntry(matches[0], entryPatch, at, port);
+    if (matches.length === 0) {
+      throw this.#reject(`service "${echo(at.serviceName)}" exposes no port "${echo(port)}"`);
+    }
+
+    if (matches.length > 1) {
+      throw this.#reject(
+        `service "${echo(at.serviceName)}" exposes port "${echo(port)}" ${matches.length} times, so this patch cannot say which endpoint it means`
+      );
+    }
+
+    return matches[0];
+  }
+
+  #assertExposeWritable({ port, entry, entryPatch }: ExposeTarget, at: PatchTarget): void {
+    this.#assertNotShared(entry, { ...at, field: `expose on port ${echo(port)}` });
+
+    if (assignsHttpOptions(entryPatch)) this.#assertNotShared(entry.http_options, { ...at, field: `http options on port ${echo(port)}` });
+
+    const moved = { ...entry, port: entryPatch.port ?? entry.port, as: entryPatch.as ?? entry.as };
+    const kindBefore = endpointKindOf(entry);
+    const kindAfter = endpointKindOf(moved);
+
+    if (kindBefore !== kindAfter) {
+      throw this.#reject(
+        `service "${echo(at.serviceName)}" port "${echo(port)}" would change from a ${kindBefore} endpoint to a ${kindAfter} one, which needs a new deployment`
+      );
+    }
+
+    const leasedIp = leasedIpOf(entry);
+    const movesANumber = moved.port !== entry.port || externalPortOf(moved) !== externalPortOf(entry);
+
+    if (leasedIp && movesANumber) {
+      throw this.#reject(
+        `service "${echo(at.serviceName)}" port "${echo(port)}" is reached through leased IP "${echo(leasedIp)}", which a provider keeps on the ports it was declared with, so moving it needs a new deployment`
+      );
     }
   }
 
-  #applyExposeEntry(entry: SdlExposeNode, patch: PatchExpose, at: PatchTarget, port: string): void {
+  /** A second endpoint on one container port could never be addressed by a later patch, so a move onto a port the service already exposes is refused. */
+  #assertNoContainerPortCollision(exposed: SdlExposeNode[], assigning: ExposeTarget[], at: PatchTarget): void {
+    const portAfterPatch = (entry: SdlExposeNode) => assigning.find(target => target.entry === entry)?.entryPatch.port ?? entry.port;
+
+    for (const { port, entry, entryPatch } of assigning) {
+      if (entryPatch.port === undefined) continue;
+
+      const isTaken = exposed.some(other => other !== entry && portAfterPatch(other) === entryPatch.port);
+
+      if (isTaken) {
+        throw this.#reject(`service "${echo(at.serviceName)}" already exposes port "${entryPatch.port}", so port "${echo(port)}" cannot move onto it`);
+      }
+    }
+  }
+
+  /** A provider builds one Kubernetes port per external port of a service, so an endpoint moved onto one another endpoint uses would never be reached. */
+  #assertNoExternalPortCollision(exposed: SdlExposeNode[], assigning: ExposeTarget[], at: PatchTarget): void {
+    const externalPortAfterPatch = (entry: SdlExposeNode) => {
+      const entryPatch = assigning.find(target => target.entry === entry)?.entryPatch;
+      return externalPortOf({ port: entryPatch?.port ?? entry.port, as: entryPatch?.as ?? entry.as });
+    };
+
+    for (const { port, entry } of assigning) {
+      const externalPort = externalPortAfterPatch(entry);
+      if (externalPort === externalPortOf(entry)) continue;
+
+      const isTaken = exposed.some(other => other !== entry && externalPortAfterPatch(other) === externalPort);
+
+      if (isTaken) {
+        throw this.#reject(`service "${echo(at.serviceName)}" already uses external port "${externalPort}", so port "${echo(port)}" cannot move onto it`);
+      }
+    }
+  }
+
+  #applyExposeEntry(entry: SdlExposeNode, patch: PatchExpose): void {
+    if (patch.port !== undefined) entry.port = patch.port;
+    if (patch.as !== undefined) entry.as = patch.as;
     if (patch.accept !== undefined) entry.accept = patch.accept;
 
     if (!assignsHttpOptions(patch)) return;
 
-    this.#assertNotShared(entry.http_options, { ...at, field: `http options on port ${echo(port)}` });
     entry.http_options ??= {};
     this.#applyHttpOptions(entry.http_options, patch.httpOptions!);
   }

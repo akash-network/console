@@ -1,5 +1,6 @@
 import type { LeaseHttpService } from "@akashnetwork/http-sdk";
 import type { LoggerService } from "@akashnetwork/logging";
+import createError from "http-errors";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -38,6 +39,98 @@ describe(LeaseService.name, () => {
       expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
       expect(providerService.sendManifest).toHaveBeenCalledTimes(1);
       expect(result).toBe(deployment);
+    });
+
+    it("asks no provider for a lease status before the manifest reaches it", async () => {
+      const { service, deploymentReaderService, wallet } = setup();
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+
+      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId });
+
+      expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledWith(wallet, lease.dseq);
+      expect(deploymentReaderService.findByWalletAndDseq).not.toHaveBeenCalled();
+    });
+
+    it("checks each provider once before broadcasting, however many of its placements are leased", async () => {
+      const { service, providerService, signerService, wallet } = setup();
+      const provider = createAkashAddress();
+      const other = createAkashAddress();
+      const leases = [
+        { dseq: "100", gseq: 1, oseq: 1, provider },
+        { dseq: "100", gseq: 2, oseq: 1, provider },
+        { dseq: "100", gseq: 3, oseq: 1, provider: other }
+      ];
+
+      await service.createLeasesAndSendManifest({ leases, manifest: MANIFEST, userId: wallet.userId });
+
+      expect(vi.mocked(providerService.assertReachable).mock.calls).toEqual([[provider], [other]]);
+      expect(providerService.assertReachable.mock.invocationCallOrder[1]).toBeLessThan(
+        signerService.executeDerivedDecodedTxByUserId.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("broadcasts nothing and sends no manifest when any provider is unreachable", async () => {
+      const { service, providerService, signerService, wallet } = setup();
+      const reachable = createAkashAddress();
+      const unreachable = createAkashAddress();
+      const refusal = createError(502, "unreachable", { errorCode: "provider_unreachable" });
+      providerService.assertReachable.mockImplementation(async provider => {
+        if (provider === unreachable) throw refusal;
+      });
+      const leases = [
+        { dseq: "100", gseq: 1, oseq: 1, provider: reachable },
+        { dseq: "100", gseq: 2, oseq: 1, provider: unreachable }
+      ];
+
+      await expect(service.createLeasesAndSendManifest({ leases, manifest: MANIFEST, userId: wallet.userId })).rejects.toBe(refusal);
+
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("skips the check when the lease already exists, so a retry goes straight to the manifest", async () => {
+      const { service, providerService, leaseHttpService, wallet } = setup();
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      leaseHttpService.list.mockResolvedValue({
+        leases: [createLeaseApiResponse({ owner: wallet.address, dseq: lease.dseq, state: "active" })],
+        pagination: { next_key: null, total: "1" }
+      });
+
+      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId });
+
+      expect(providerService.assertReachable).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports the lease exists when the provider it names did not receive the manifest", async () => {
+      const { service, providerService, wallet } = setup();
+      const delivered = createAkashAddress();
+      const undelivered = createAkashAddress();
+      providerService.sendManifest.mockImplementation(async ({ provider }) => {
+        if (provider === undelivered) throw createError(503, "Provider service is temporarily unavailable");
+        return true;
+      });
+      const leases = [
+        { dseq: "100", gseq: 1, oseq: 1, provider: delivered },
+        { dseq: "100", gseq: 2, oseq: 1, provider: undelivered }
+      ];
+
+      await expect(service.createLeasesAndSendManifest({ leases, manifest: MANIFEST, userId: wallet.userId })).rejects.toMatchObject({
+        status: 503,
+        errorCode: "manifest_not_delivered",
+        message: `The lease for deployment 100 exists, but provider ${undelivered} did not receive its manifest. Send this request again to retry, or close the deployment to stop paying for it.`,
+        data: { dseq: "100", provider: undelivered, reason: "Provider service is temporarily unavailable" },
+        originalError: expect.objectContaining({ status: 503, message: "Provider service is temporarily unavailable" })
+      });
+    });
+
+    it("lets a failure that is not an http error through unchanged", async () => {
+      const { service, providerService, wallet } = setup();
+      const failure = new Error("jwt signing failed");
+      providerService.sendManifest.mockRejectedValue(failure);
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+
+      await expect(service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId })).rejects.toBe(failure);
     });
 
     it("skips lease creation but still sends the manifest when an active lease already exists", async () => {
@@ -231,7 +324,7 @@ describe(LeaseService.name, () => {
     walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
     leaseHttpService.list.mockResolvedValue({ leases: [], pagination: { next_key: null, total: "0" } });
     providerService.toProviderAuth.mockResolvedValue({ type: "jwt", token: "jwt-token" });
-    deploymentReaderService.findByWalletAndDseq.mockResolvedValue(deployment);
+    deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue(deployment);
 
     const service = new LeaseService(
       signerService,

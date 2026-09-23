@@ -8362,7 +8362,7 @@ export interface operations {
                 image?: string;
                 command?: string[] | null;
                 args?: string[] | null;
-                /** @description Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. */
+                /** @description Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. Written values are sealed unless the request carries `sealedSecrets`. */
                 env?: {
                   [key: string]: string | null;
                 };
@@ -8372,9 +8372,13 @@ export interface operations {
                   username: string;
                   password: string;
                 } | null;
-                /** @description Keyed by container port. Only hosts and http options are patchable; endpoint kind and count are fixed at create. */
+                /** @description Keyed by the container port the stored SDL declares. Port numbers, hosts and http options are patchable; protocol, routing, endpoint kind and count are fixed at create. A random-port endpoint whose numbers change gets a new public port from the provider, and so can the service's other random-port endpoints when a container port move reorders them. */
                 expose?: {
                   [key: string]: {
+                    /** @description Moves the container port the workload listens on. The entry is still addressed by the port it declares today. Refused onto a port the service already exposes, and on an endpoint reached through a leased IP. */
+                    port?: number;
+                    /** @description Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind on chain (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP. */
+                    as?: number;
                     /** @description Custom domains. Replaces the existing list. Emptying it is rejected by providers that do not generate a hostname of their own, which leaves the patch recorded but undeployed. */
                     accept?: string[];
                     httpOptions?: {
@@ -8399,7 +8403,7 @@ export interface operations {
             };
             /** @description Renames the deployment. Supplied on its own it is the only patch that touches no definition, so it works on a deployment the console holds no SDL for and neither broadcasts nor pushes a manifest. */
             name?: string;
-            /** @description Compact JWE sealing a flat name-to-value map, as on create, but holding only the names this patch replaces. Omitted names keep the values the deployment already stores. */
+            /** @description Compact JWE sealing a flat name-to-value map, as on create, but holding only the names this patch replaces. Omitted names keep the values the deployment already stores. Its presence also says which values are secret, as on create: a patch carrying a seal stores the env values it writes as submitted, while one carrying none seals them. A seal of an empty map is how a caller writes plain variables without replacing any secret. */
             sealedSecrets?: string;
             /** @description Base64 manifest version this patch expects to be current. Rejected with 409 if the deployment has moved on, unless it moved on to the version this very patch produces, which makes a retry of it succeed. Omitting this does not turn the guard off: the patch is then guarded on the version it read for itself, so a concurrent patch still answers 409 rather than overwriting it. */
             ifManifestVersion?: string;
@@ -8540,7 +8544,7 @@ export interface operations {
           };
         };
       };
-      /** @description The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, or leaves a reference with no value */
+      /** @description The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, leaves a reference with no value, moves a container port onto one the service already exposes, or moves a port in a way that would change its endpoint kind on chain */
       400: {
         headers: {
           [name: string]: unknown;
@@ -8568,7 +8572,7 @@ export interface operations {
           };
         };
       };
-      /** @description The deployment definition changed between this patch reading it and writing it. A patch naming no `ifManifestVersion` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds */
+      /** @description The deployment definition changed between this patch reading it and writing it. A patch naming no `ifManifestVersion` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds. `code` is `deployment_definition_changed` for this case, which a reload of the definition cures; a 409 without it answers a seal made against a retired key, which a fresh seal cures */
       409: {
         headers: {
           [name: string]: unknown;

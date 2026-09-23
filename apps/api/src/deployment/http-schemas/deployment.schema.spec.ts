@@ -91,6 +91,33 @@ describe("PatchDeploymentRequestSchema", () => {
     });
   });
 
+  describe("the numbers an exposed port is reached on", () => {
+    it("keeps an external port change", () => {
+      expect(parseExpose({ as: 8080 }).data?.data.services?.web.expose?.["80"]).toEqual({ as: 8080 });
+    });
+
+    it("keeps a container port change", () => {
+      expect(parseExpose({ port: 3000 }).data?.data.services?.web.expose?.["80"]).toEqual({ port: 3000 });
+    });
+
+    it.each([
+      { field: "as", value: 0 },
+      { field: "as", value: 65536 },
+      { field: "as", value: 80.5 },
+      { field: "as", value: "8080" },
+      { field: "port", value: 0 },
+      { field: "port", value: 65536 },
+      { field: "port", value: 80.5 },
+      { field: "port", value: "3000" }
+    ])("refuses $field $value, which no port can be", ({ field, value }) => {
+      expect(parseExpose({ [field]: value }).success).toBe(false);
+    });
+
+    it.each([1, 65535])("accepts %i, the edge of the port range", value => {
+      expect(parseExpose({ as: value, port: value }).success).toBe(true);
+    });
+  });
+
   describe("when the seal is an empty string", () => {
     it("refuses it in place of a service patch, which every reader would read as no seal at all", () => {
       expect(parse({ web: {} }, { sealedSecrets: "" }).success).toBe(false);
@@ -173,5 +200,9 @@ describe("PatchDeploymentRequestSchema", () => {
 
   function parseHttpOptions(httpOptions: Record<string, unknown>) {
     return parse({ web: { expose: { "80": { httpOptions } } } });
+  }
+
+  function parseExpose(expose: Record<string, unknown>) {
+    return parse({ web: { expose: { "80": expose } } });
   }
 });
