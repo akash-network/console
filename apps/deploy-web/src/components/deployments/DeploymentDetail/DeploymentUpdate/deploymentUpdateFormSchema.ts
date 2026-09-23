@@ -14,11 +14,14 @@ function refuseRepeatedVariableNames(service: { env?: Array<{ key: string }> }, 
   });
 }
 
+/** The password is always kept from the stored copy here, so a length the create form asks for is not one the user could meet. */
+const KeptCredentialsSchema = CredentialsSchema.unwrap().extend({ password: z.string().optional() }).optional();
+
 const UpdatableServiceSchema = z
   .object({
     image: z.string().min(1, { message: "Docker image name is required." }).regex(VALID_IMAGE_NAME, { message: "Invalid docker image name." }),
     hasCredentials: z.boolean().optional(),
-    credentials: CredentialsSchema,
+    credentials: KeptCredentialsSchema,
     env: z.array(EnvironmentVariableSchema).optional(),
     command: CommandSchema.optional()
   })

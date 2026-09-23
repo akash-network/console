@@ -30,6 +30,8 @@ const HTTP_CONFLICT = 409;
 const DEFINITION_CHANGED_ERROR_CODE = "deployment_definition_changed";
 const NOTHING_TO_UPDATE_MESSAGE = "Nothing has changed since this deployment was loaded.";
 const DEFINITION_CHANGED_MESSAGE = "This deployment was updated elsewhere, so the form now shows its current configuration. Make your changes again.";
+const DEFINITION_RELOAD_FAILED_MESSAGE =
+  "This deployment was updated elsewhere, and its current configuration could not be loaded. Reload the page before making changes.";
 
 export interface LandedDeploymentUpdate {
   values: SdlBuilderFormValuesType;
@@ -108,12 +110,23 @@ export function useDeploymentUpdateSubmit(
     onUpdated({ values, manifestVersion });
   }
 
+  async function reloadTheChangedDefinition() {
+    const isReloaded = await queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq }) }, { throwOnError: true }).then(
+      () => true,
+      () => false
+    );
+    if (!isReloaded) onDefinitionReloadFailed();
+    enqueueSnackbar(
+      <d.Snackbar title="Changed elsewhere" subTitle={isReloaded ? DEFINITION_CHANGED_MESSAGE : DEFINITION_RELOAD_FAILED_MESSAGE} iconVariant="warning" />,
+      { variant: "warning" }
+    );
+  }
+
   function reportFailure(cause: unknown) {
     setIsUpdating(false);
 
     if (isDefinitionChanged(cause)) {
-      queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq }) }, { throwOnError: true }).catch(onDefinitionReloadFailed);
-      enqueueSnackbar(<d.Snackbar title="Changed elsewhere" subTitle={DEFINITION_CHANGED_MESSAGE} iconVariant="warning" />, { variant: "warning" });
+      void reloadTheChangedDefinition();
       onDefinitionChanged();
       return;
     }

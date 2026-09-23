@@ -97,6 +97,22 @@ describe("DeploymentUpdateFormSchema", () => {
     expect(issuesOf(values)).toEqual([]);
   });
 
+  it("accepts a kept registry password the create form would refuse, since the password cannot be changed here", () => {
+    const { values } = setup();
+    values.services[0].hasCredentials = true;
+    values.services[0].credentials = { host: "ghcr.io", username: "acme", password: "abc" };
+
+    expect(issuesOf(values)).toEqual([]);
+  });
+
+  it("passes the kept registry password on untouched", () => {
+    const { values } = setup();
+    values.services[0].hasCredentials = true;
+    values.services[0].credentials = { host: "ghcr.io", username: "acme", password: "abc" };
+
+    expect(DeploymentUpdateFormSchema.parse(values).services[0].credentials).toEqual({ host: "ghcr.io", username: "acme", password: "abc" });
+  });
+
   function issuesOf(values: SdlBuilderFormValuesType) {
     const result = DeploymentUpdateFormSchema.safeParse(values);
     return result.success ? [] : result.error.issues.map(issue => ({ path: issue.path.join("."), message: issue.message }));

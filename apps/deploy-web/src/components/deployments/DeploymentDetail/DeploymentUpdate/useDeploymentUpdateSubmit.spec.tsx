@@ -165,6 +165,37 @@ describe(useDeploymentUpdateSubmit.name, () => {
       expect(onDefinitionReloadFailed).not.toHaveBeenCalled();
     });
 
+    it("waits for the reload before saying the form shows the current configuration", async () => {
+      const { result, enqueueSnackbar, queryClient, onDefinitionChanged, seed } = setup({ patchOutcome: DEFINITION_CHANGED });
+      let landReload: () => void = () => undefined;
+      queryClient.invalidateQueries.mockReturnValue(new Promise<void>(resolve => (landReload = resolve)));
+
+      act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+      await waitFor(() => expect(onDefinitionChanged).toHaveBeenCalled());
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+      await act(async () => landReload());
+
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        snackbarSaying("This deployment was updated elsewhere, so the form now shows its current configuration. Make your changes again."),
+        expect.objectContaining({ variant: "warning" })
+      );
+    });
+
+    it("says the current configuration could not be loaded when the reload fails", async () => {
+      const { result, enqueueSnackbar, queryClient, seed } = setup({ patchOutcome: DEFINITION_CHANGED });
+      queryClient.invalidateQueries.mockRejectedValue(new Error("getDeployment 503"));
+
+      act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+      await waitFor(() =>
+        expect(enqueueSnackbar).toHaveBeenCalledWith(
+          snackbarSaying("This deployment was updated elsewhere, and its current configuration could not be loaded. Reload the page before making changes."),
+          expect.objectContaining({ variant: "warning" })
+        )
+      );
+      expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
+    });
+
     it("explains why, without resealing", async () => {
       const { result, enqueueSnackbar, sealSdlSecrets, seed } = setup({ patchOutcome: DEFINITION_CHANGED });
 
@@ -283,6 +314,10 @@ describe(useDeploymentUpdateSubmit.name, () => {
 
   function snackbarTitled(title: string) {
     return expect.objectContaining({ props: expect.objectContaining({ title }) });
+  }
+
+  function snackbarSaying(subTitle: string) {
+    return expect.objectContaining({ props: expect.objectContaining({ title: "Changed elsewhere", subTitle }) });
   }
 
   function withImage(values: SdlBuilderFormValuesType, image: string): SdlBuilderFormValuesType {
