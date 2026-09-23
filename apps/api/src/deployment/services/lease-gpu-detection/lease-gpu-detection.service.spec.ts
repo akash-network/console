@@ -118,6 +118,15 @@ describe(LeaseGpuDetectionService.name, () => {
     expect(probeService.probe.mock.calls.map(([target]) => target.podIndex)).toEqual([0, 1, 2]);
   });
 
+  it("opens each session on a token of its own, since one lease's sessions can outlast a single token", async () => {
+    const { service, probeService, providerService } = setup({ replicas: { web: 2 } });
+
+    await service.detect({ wallet: WALLET, dseq: DSEQ });
+
+    expect(providerService.getLeaseStatus).toHaveBeenCalledWith(PROVIDER, DSEQ, 1, 1, { token: "jwt-0" });
+    expect(probeService.probe.mock.calls.map(([target]) => target.token)).toEqual(["jwt-1", "jwt-2"]);
+  });
+
   it("records the cards of every pod of a service as one reading", async () => {
     const a100 = { rawName: "NVIDIA A100-SXM4-80GB", pciDeviceId: "0x20B210DE", memoryMb: 81920, count: 1 };
     const { service } = setup({
@@ -300,7 +309,8 @@ describe(LeaseGpuDetectionService.name, () => {
     );
 
     const providerService = mock<ProviderService>();
-    providerService.toProviderAuth.mockResolvedValue({ token: "jwt" } as Awaited<ReturnType<ProviderService["toProviderAuth"]>>);
+    let minted = 0;
+    providerService.toProviderAuth.mockImplementation(async () => ({ token: `jwt-${minted++}` }) as Awaited<ReturnType<ProviderService["toProviderAuth"]>>);
     const running = input.running ?? ["web"];
     providerService.getLeaseStatus.mockImplementation(async () => {
       if (input.statusFails) throw new Error("provider unreachable");

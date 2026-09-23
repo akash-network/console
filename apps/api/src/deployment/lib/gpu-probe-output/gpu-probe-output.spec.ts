@@ -4,6 +4,7 @@ import { type GpuProbeReading, mergeGpuProbeReadings, parseGpuProbeOutput } from
 
 const H100 = { rawName: "NVIDIA H100 80GB HBM3", pciDeviceId: "0x233010DE", memoryMb: 81559 };
 const A100 = { rawName: "NVIDIA A100-SXM4-80GB", pciDeviceId: "0x20B210DE", memoryMb: 81920 };
+const NO_TOOL_READING: GpuProbeReading = { source: "none", driverVersion: null, gpus: [] };
 
 describe("parseGpuProbeOutput", () => {
   describe("nvidia", () => {
@@ -140,6 +141,16 @@ describe("mergeGpuProbeReadings", () => {
     const merged = mergeGpuProbeReadings([nvidiaReading([{ ...H100, count: 1 }], "550.54.15"), nvidiaReading([{ ...H100, count: 1 }], "570.86.10")]);
 
     expect(merged).toEqual(expect.objectContaining({ source: "nvidia-smi", driverVersion: "550.54.15" }));
+  });
+
+  it("names the tool and driver of the first pod that listed cards, since a pod whose host mounted no tool has neither", () => {
+    const merged = mergeGpuProbeReadings([NO_TOOL_READING, nvidiaReading([{ ...H100, count: 1 }], "570.86.10")]);
+
+    expect(merged).toEqual({ source: "nvidia-smi", driverVersion: "570.86.10", gpus: [{ ...H100, count: 1 }] });
+  });
+
+  it("names no tool when no pod had one", () => {
+    expect(mergeGpuProbeReadings([NO_TOOL_READING, NO_TOOL_READING])).toEqual(NO_TOOL_READING);
   });
 
   it("leaves the readings it merged as they were", () => {

@@ -139,9 +139,7 @@ export class LeaseGpuDetectionService {
       return { rows: [], complete: false };
     }
 
-    const auth = await this.providerService.toProviderAuth({ walletId: input.wallet.id, provider: providerAddress }, [...PROVIDER_SCOPES], {
-      ttl: this.config.get("LEASE_GPU_DETECTION_PROVIDER_JWT_TTL_SECONDS")
-    });
+    const auth = await this.#authorize(input.wallet.id, providerAddress);
     const running = await this.#findRunningServices(providerAddress, dseq, gseq, oseq, auth);
 
     if (!running?.length) return { rows: [], complete: false };
@@ -151,10 +149,11 @@ export class LeaseGpuDetectionService {
     const rows: LeaseGpuInsert[] = [];
 
     for (const service of services) {
-      const reading = await this.#readService(
-        { hostUri: provider.hostUri, providerAddress, token: auth.token, dseq, gseq, oseq, service: service.name },
-        service.replicas
-      );
+      const reading = await this.#readService({
+        target: { hostUri: provider.hostUri, providerAddress, dseq, gseq, oseq, service: service.name },
+        replicas: service.replicas,
+        walletId: input.wallet.id
+      });
       if (!reading) continue;
 
       rows.push({
@@ -174,11 +173,13 @@ export class LeaseGpuDetectionService {
   }
 
   /** Every pod or none, since a service read in part lists fewer cards than it runs; stopping at the first unread pod spares the rest a session. */
-  async #readService(target: Omit<LeaseGpuProbeTarget, "podIndex">, replicas: number): Promise<GpuProbeReading | null> {
+  async #readService(input: { target: Omit<LeaseGpuProbeTarget, "podIndex" | "token">; replicas: number; walletId: number }): Promise<GpuProbeReading | null> {
+    const { target, replicas, walletId } = input;
     const readings: GpuProbeReading[] = [];
 
     for (let podIndex = 0; podIndex < replicas; podIndex++) {
-      const result = await this.probeService.probe({ ...target, podIndex });
+      const { token } = await this.#authorize(walletId, target.providerAddress);
+      const result = await this.probeService.probe({ ...target, token, podIndex });
 
       if (result.status !== "detected") {
         this.logger.warn({
@@ -196,6 +197,13 @@ export class LeaseGpuDetectionService {
     }
 
     return mergeGpuProbeReadings(readings);
+  }
+
+  /** Asked for as each session opens rather than once per lease, since one lease's sessions run back to back and can outlast a single token. */
+  #authorize(walletId: number, provider: string): Promise<ProviderAuth> {
+    return this.providerService.toProviderAuth({ walletId, provider }, [...PROVIDER_SCOPES], {
+      ttl: this.config.get("LEASE_GPU_DETECTION_PROVIDER_JWT_TTL_SECONDS")
+    });
   }
 
   /** The sdl names which services asked for a gpu; without one every running service is a candidate, since the provider does not say. */

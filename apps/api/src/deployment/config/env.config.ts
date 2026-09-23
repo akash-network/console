@@ -144,7 +144,7 @@ export const envSchema = z
     LEASE_GPU_DETECTION_DELAYS_MIN: z.preprocess(blankToUndefined, z.string().default(DEFAULT_GPU_DETECTION_DELAYS_MIN).transform(parseMinutesList)),
     LEASE_GPU_DETECTION_MAX_LEASES_PER_DEPLOYMENT: positiveIntegerOrDefault(4),
     LEASE_GPU_DETECTION_MAX_SERVICES_PER_LEASE: positiveIntegerOrDefault(4),
-    /** Multiplies with the two caps above into the sessions one run may open, which must all fit inside pg-boss's 15-minute job expiry. */
+    /** Raising it lengthens a run, whose sessions must all fit inside pg-boss's 15-minute job expiry. */
     LEASE_GPU_DETECTION_MAX_REPLICAS_PER_SERVICE: positiveIntegerOrDefault(4),
     LEASE_GPU_DETECTION_IDLE_TIMEOUT_MS: positiveIntegerOrDefault(3_000),
     LEASE_GPU_DETECTION_HARD_TIMEOUT_MS: positiveIntegerOrDefault(10_000),
