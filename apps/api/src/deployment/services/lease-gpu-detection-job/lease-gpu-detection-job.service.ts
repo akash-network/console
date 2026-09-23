@@ -75,10 +75,7 @@ export class LeaseGpuDetectionJobService {
     await this.jobQueueService.cancelCreatedBy({ name: DetectLeaseGpus[JOB_NAME], singletonKey: detectLeaseGpusKeyFor(target) });
   }
 
-  /**
-   * Backstops the lease event for deployments it never reached, and drops what a closed deployment left behind. Enqueues
-   * only: no provider is dialled here, so the queue's own concurrency paces the reading rather than this sweep.
-   */
+  /** Only enqueues and never dials a provider, so the queue's concurrency rather than this sweep paces the reading. */
   async reconcile({ dryRun }: DryRunOptions = { dryRun: false }): Promise<ReconcileCounts> {
     const counts: ReconcileCounts = { scheduled: 0, alreadyScheduled: 0, alreadyRead: 0, recentlyTried: 0, failed: 0 };
 
