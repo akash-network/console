@@ -1,0 +1,119 @@
+{
+  "deployment": "accelerator-bound-single-upstream",
+  "snapshots": [
+    {
+      "shellStatus": "completed",
+      "accelerator": [
+        {
+          "name": "accelerator-0",
+          "utilPct": 100,
+          "memUsedMb": 9728,
+          "memTotalMb": 16384,
+          "processes": [
+            {
+              "pid": 2048,
+              "name": "worker",
+              "vramMb": 9200
+            }
+          ]
+        }
+      ],
+      "artifacts": [
+        {
+          "path": "/opt/worker/worker",
+          "sizeBytes": 12582912
+        }
+      ],
+      "netShape": {
+        "listenPorts": [
+          22
+        ],
+        "connections": [
+          {
+            "localPort": 40210,
+            "remoteIp": "203.0.113.40",
+            "remotePort": 443,
+            "count": 1,
+            "state": "established"
+          }
+        ]
+      }
+    },
+    {
+      "shellStatus": "completed",
+      "accelerator": [
+        {
+          "name": "accelerator-0",
+          "utilPct": 99,
+          "memUsedMb": 9728,
+          "memTotalMb": 16384,
+          "processes": [
+            {
+              "pid": 2048,
+              "name": "worker",
+              "vramMb": 9200
+            }
+          ]
+        }
+      ],
+      "artifacts": [
+        {
+          "path": "/opt/worker/worker",
+          "sizeBytes": 12582912
+        }
+      ],
+      "netShape": {
+        "listenPorts": [
+          22
+        ],
+        "connections": [
+          {
+            "localPort": 40210,
+            "remoteIp": "203.0.113.40",
+            "remotePort": 443,
+            "count": 1,
+            "state": "established"
+          }
+        ]
+      }
+    },
+    {
+      "shellStatus": "completed",
+      "accelerator": [
+        {
+          "name": "accelerator-0",
+          "utilPct": 100,
+          "memUsedMb": 9728,
+          "memTotalMb": 16384,
+          "processes": [
+            {
+              "pid": 2048,
+              "name": "worker",
+              "vramMb": 9200
+            }
+          ]
+        }
+      ],
+      "artifacts": [
+        {
+          "path": "/opt/worker/worker",
+          "sizeBytes": 12582912
+        }
+      ],
+      "netShape": {
+        "listenPorts": [
+          22
+        ],
+        "connections": [
+          {
+            "localPort": 40210,
+            "remoteIp": "203.0.113.40",
+            "remotePort": 443,
+            "count": 1,
+            "state": "established"
+          }
+        ]
+      }
+    }
+  ]
+}
