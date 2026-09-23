@@ -328,14 +328,64 @@ describe(GpuCard.name, () => {
   });
 
   describe("availability", () => {
-    it("offers only the models an online provider has free capacity for", async () => {
+    it("offers the models an online provider has free capacity for and lists the rest of the catalog as unavailable", async () => {
       const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }] });
 
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+      const unavailable = within(await screen.findByRole("group", { name: "Unavailable" }));
 
-      expect(await screen.findByRole("option", { name: "t4" })).toBeInTheDocument();
-      expect(screen.queryByRole("option", { name: "a100" })).not.toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "t4" })).toHaveAttribute("aria-disabled", "false");
+      expect(unavailable.getByRole("option", { name: "a100" })).toHaveAttribute("aria-disabled", "true");
       expect(screen.getByRole("option", { name: "Any model" })).toBeInTheDocument();
+    });
+
+    it("shows how many providers have free capacity for each offered model", async () => {
+      const { user } = setup({
+        hasGpu: true,
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"], 4), availableModel("a100", ["80Gi"], ["sxm"], 1)] }]
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+      expect(await screen.findByRole("option", { name: "t4" })).toHaveAccessibleDescription("4 providers");
+      expect(screen.getByRole("option", { name: "a100" })).toHaveAccessibleDescription("1 provider");
+    });
+
+    it("finds an unavailable model with the search box", async () => {
+      const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }] });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+      await user.type(await screen.findByRole("combobox", { name: "Search GPU models" }), "a1");
+
+      expect(screen.getByRole("option", { name: "a100" })).toHaveAttribute("aria-disabled", "true");
+      expect(screen.queryByText("No models found.")).not.toBeInTheDocument();
+    });
+
+    it("lists a pinned model nobody offers as unavailable while the card still shows it", async () => {
+      const { user } = setup({
+        hasGpu: true,
+        gpuModels: [{ vendor: "nvidia", name: "a100", memory: "80Gi", interface: "sxm" }],
+        vendors: [
+          {
+            name: "nvidia",
+            models: [
+              { name: "a100", displayName: "A100", memory: ["40Gi", "80Gi"], interface: ["pcie", "sxm"] },
+              { name: "t4", displayName: "T4", memory: ["16Gi"], interface: ["pcie"] }
+            ]
+          }
+        ],
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }]
+      });
+
+      expect(screen.getByRole("combobox", { name: "GPU model" })).toHaveTextContent("A100");
+      expect(screen.getByRole("combobox", { name: "GPU memory" })).toHaveTextContent("80Gi");
+      expect(screen.getByRole("combobox", { name: "GPU interface" })).toHaveTextContent("sxm");
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+      const unavailable = within(await screen.findByRole("group", { name: "Unavailable" }));
+
+      expect(unavailable.getByRole("option", { name: "A100" })).toHaveAttribute("aria-disabled", "true");
+      expect(screen.getByRole("option", { name: "T4" })).toHaveAttribute("aria-disabled", "false");
     });
 
     it("offers only the memory sizes and interfaces the picked model is available with", async () => {
@@ -420,6 +470,7 @@ describe(GpuCard.name, () => {
       expect(await screen.findByRole("option", { name: "a100" })).toBeInTheDocument();
       expect(screen.getByRole("option", { name: "t4" })).toBeInTheDocument();
       expect(screen.getByRole("combobox", { name: "GPU vendor" })).toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: "Unavailable" })).not.toBeInTheDocument();
     });
 
     it("still sorts the popular models to the top of the shortened list", async () => {
@@ -430,7 +481,7 @@ describe(GpuCard.name, () => {
 
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
 
-      expect((await screen.findAllByRole("option")).map(option => option.textContent)).toEqual(["Any model", "h100", "a100", "t4"]);
+      expect(await screen.findAllByRole("option")).toEqual(["Any model", "h100", "a100", "t4"].map(name => screen.getByRole("option", { name })));
     });
 
     it("adds and removes GPU entries without a vendor step", async () => {
@@ -464,8 +515,8 @@ describe(GpuCard.name, () => {
     });
   });
 
-  function availableModel(name: string, memory = ["80Gi"], gpuInterface = ["sxm"]): AvailableGpuVendor["models"][number] {
-    return { name, memory, interface: gpuInterface, providerCount: 1 };
+  function availableModel(name: string, memory = ["80Gi"], gpuInterface = ["sxm"], providerCount = 1): AvailableGpuVendor["models"][number] {
+    return { name, memory, interface: gpuInterface, providerCount };
   }
 
   const StubGpuModelFields: typeof DEPENDENCIES.GpuModelFields = ({ gpuIndex }) => <div role="group" aria-label={`GPU ${gpuIndex + 1}`} />;

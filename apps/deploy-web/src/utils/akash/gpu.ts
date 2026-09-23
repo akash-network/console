@@ -20,7 +20,8 @@ export function narrowGpuVendorsToAvailable(catalog: GpuVendor[] | undefined, av
           name: availableModel.name,
           displayName: catalogModel?.displayName,
           memory: availableModel.memory.length ? availableModel.memory : catalogModel?.memory ?? [],
-          interface: availableModel.interface.length ? availableModel.interface : catalogModel?.interface ?? []
+          interface: availableModel.interface.length ? availableModel.interface : catalogModel?.interface ?? [],
+          providerCount: availableModel.providerCount
         };
       })
     };
@@ -71,6 +72,22 @@ function withPinnedModel(models: GpuModel[], pinned: PinnedGpu): GpuModel[] {
 function withPinnedValue(values: string[], pinned: string | null | undefined): string[] {
   if (!pinned || values.includes(pinned)) return values;
   return [...values, pinned];
+}
+
+/** Empty while availability is absent or empty, so a failed fetch keeps every model selectable. */
+export function findUnavailableGpuModels(catalog: GpuVendor[] | undefined, available: AvailableGpuVendor[] | undefined, pinned: PinnedGpu): GpuModel[] {
+  if (!available?.length || !pinned.vendor) return [];
+
+  const offeredNames = new Set(available.find(vendor => vendor.vendor === pinned.vendor)?.models.map(model => model.name));
+  const catalogModels = catalog?.find(vendor => vendor.name === pinned.vendor)?.models ?? [];
+  const unavailable = catalogModels.filter(model => !offeredNames.has(model.name));
+
+  const pinnedName = pinned.name;
+  if (pinnedName && !offeredNames.has(pinnedName) && !catalogModels.some(model => model.name === pinnedName)) {
+    return [{ name: pinnedName, memory: [], interface: [] }, ...unavailable];
+  }
+
+  return unavailable;
 }
 
 /** GPU model-name prefixes (normalized, lowercase) floated to the top of the model picker, most popular first (by network capacity and usage). Prefix-matched, so `pro6000` covers `pro6000se`/`we`/`mq`, `h200` covers `h200nvl`, `rtx5090` covers `rtx5090m`, etc. */

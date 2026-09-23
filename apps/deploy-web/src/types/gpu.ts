@@ -11,4 +11,6 @@ export interface GpuModel {
   displayName?: string;
   memory: string[];
   interface: string[];
+  /** Online providers with free capacity for the model, set only on models narrowed to what providers offer. */
+  providerCount?: number;
 }
