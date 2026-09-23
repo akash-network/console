@@ -415,9 +415,6 @@ export class DeploymentWriterService {
    * A patch is read-modify-write, so a caller naming no version is still guarded on the version this call
    * read: without that, two concurrent unguarded patches would each build on the same document and the
    * later one would silently discard the earlier. A row recording no version yet cannot be guarded on one.
-   *
-   * A written env value is sealed only when the request carries no seal, the same rule as create: a caller
-   * that seals has already said which values are secret, so the plain ones it writes stay readable.
    */
   public async patchByUserIdAndDseq(
     userId: string,
@@ -437,7 +434,8 @@ export class DeploymentWriterService {
     const document = parsed.document;
 
     const written = this.sdlPatchService.apply(document, input.services ?? {});
-    const derived = this.sdlSecretsDerivationService.derive(document, { includeEnvValues: !input.sealedSecrets, onlyAt: written });
+    const callerSaidWhichValuesAreSecret = !!input.sealedSecrets;
+    const derived = this.sdlSecretsDerivationService.derive(document, { includeEnvValues: !callerSaidWhichValuesAreSecret, onlyAt: written });
     const patchedSdl = this.#serialize(parsed, { userId, dseq });
 
     const [supplied, held] = await Promise.all([

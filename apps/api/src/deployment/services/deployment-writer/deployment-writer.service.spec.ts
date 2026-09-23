@@ -1676,14 +1676,14 @@ describe(DeploymentWriterService.name, () => {
         await service.patchByUserIdAndDseq(
           "user-1",
           "1234",
-          { services: { worker: { credentials: { host: "ghcr.io", username: "registry-user", password: "registry-password" } } }, sealedSecrets: CLIENT_SEAL },
+          { services: { worker: { credentials: { host: "ghcr.io", username: REGISTRY_USERNAME, password: REGISTRY_PASSWORD } } }, sealedSecrets: CLIENT_SEAL },
           ability
         );
 
         const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
-        expect(sdl).not.toContain("registry-user");
-        expect(sdl).not.toContain("registry-password");
-        expect(Object.values(sealedFor())).toEqual(expect.arrayContaining(["registry-user", "registry-password"]));
+        expect(sdl).not.toContain(REGISTRY_USERNAME);
+        expect(sdl).not.toContain(REGISTRY_PASSWORD);
+        expect(Object.values(sealedFor())).toEqual(expect.arrayContaining([REGISTRY_USERNAME, REGISTRY_PASSWORD]));
       });
     });
 

@@ -210,9 +210,7 @@ export class SdlPatchService {
   /**
    * Matched on the container port the endpoint declares, because an endpoint's kind and count are fixed
    * at create; the grammar allows two endpoints to share one port and differ only by `proto` or `as`, so
-   * an address matching more than one is refused rather than resolved to the first. Every address and
-   * every refusal is settled against the document as it was before any entry is written, so a swap of
-   * two ports reads as a swap and a refused patch writes nothing.
+   * an address matching more than one is refused rather than resolved to the first.
    */
   #applyExpose(service: SdlServiceNode, patch: NonNullable<PatchService["expose"]>, at: PatchTarget): void {
     const exposed = Array.isArray(service.expose) ? service.expose : [];
