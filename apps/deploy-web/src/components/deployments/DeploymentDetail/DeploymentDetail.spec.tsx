@@ -210,7 +210,7 @@ describe("DeploymentDetail", () => {
     });
 
     it("hands the editor no providers until they load", () => {
-      const { DeploymentUpdate } = setup({ tab: "UPDATE", isUpdateEditorEnabled: true, providers: null });
+      const { DeploymentUpdate } = setup({ tab: "UPDATE", isUpdateEditorEnabled: true, providers: undefined });
 
       expect(DeploymentUpdate.mock.calls[0][0].providers).toEqual([]);
     });
@@ -251,7 +251,7 @@ describe("DeploymentDetail", () => {
     leaseState?: string;
     definition?: Partial<DeploymentDefinition>;
     isUpdateEditorEnabled?: boolean;
-    providers?: ApiProviderList[] | null;
+    providers?: ApiProviderList[];
   }) {
     const deployment = input && "deployment" in input ? input.deployment : mock<DeploymentDto>({ dseq: "1786440078202", state: "active", groups: [] });
     const leases = input && "leases" in input ? input.leases : [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: input?.leaseState ?? "active" })];

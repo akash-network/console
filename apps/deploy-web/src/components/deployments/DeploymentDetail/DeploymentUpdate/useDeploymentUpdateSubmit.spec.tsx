@@ -259,7 +259,9 @@ describe(useDeploymentUpdateSubmit.name, () => {
     return edited;
   }
 
-  function setup(input: { patchOutcome?: ApiError | "success" | "pending"; patchOutcomes?: Array<ApiError | "success">; sealFailure?: Error } = {}) {
+  function setup(
+    input: { patchOutcome?: ApiError | "success" | "pending"; patchOutcomes?: Array<ApiError | "success" | "pending">; sealFailure?: Error } = {}
+  ) {
     const seed = importDeploymentState(STORED_SDL).values;
     const outcomes = [...(input.patchOutcomes ?? [input.patchOutcome ?? "success"])];
     const patchMutate = vi.fn((_variables: unknown, options?: { onSuccess?: () => void; onError?: (cause: unknown) => void }) => {
