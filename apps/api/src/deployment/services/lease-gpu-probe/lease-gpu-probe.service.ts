@@ -24,6 +24,7 @@ export type LeaseGpuProbeTarget = {
   gseq: number;
   oseq: number;
   service: string;
+  podIndex: number;
 };
 
 /** Only a session whose tool ran to a clean exit is a reading, because one cut short or failing lists fewer cards than the host has. */
@@ -32,7 +33,7 @@ export type LeaseGpuProbeResult = { status: "detected"; reading: GpuProbeReading
 export function buildLeaseGpuProbeUrl(target: LeaseGpuProbeTarget): string {
   const command = ["sh", "-c", GPU_COLLECTOR].map((part, index) => `cmd${index}=${encodeURIComponent(part)}`).join("&");
 
-  return `${target.hostUri}/lease/${target.dseq}/${target.gseq}/${target.oseq}/shell?stdin=0&tty=0&podIndex=0&${command}&service=${encodeURIComponent(target.service)}`;
+  return `${target.hostUri}/lease/${target.dseq}/${target.gseq}/${target.oseq}/shell?stdin=0&tty=0&podIndex=${target.podIndex}&${command}&service=${encodeURIComponent(target.service)}`;
 }
 
 @singleton()
