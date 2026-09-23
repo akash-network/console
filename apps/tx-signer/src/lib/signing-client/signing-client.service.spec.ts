@@ -88,6 +88,103 @@ describe(SigningClientService.name, () => {
     }
   });
 
+  it("sends the same signed bytes again when the node never answered the broadcast, so a dropped connection does not lose the transaction", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 10_000 });
+      client.broadcastTxSync.mockRejectedValueOnce(new Error("Bad status on response: 500"));
+      client.getTx.mockImplementation(async hash => (client.broadcastTxSync.mock.calls.length > 1 ? mock<IndexedTx>({ hash, code: 0, height: 100 }) : null));
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      const result = await promise;
+      const [[firstTxBytes], [resentTxBytes]] = client.broadcastTxSync.mock.calls;
+      expect(resentTxBytes).toEqual(firstTxBytes);
+      expect(result.hash).toBe(toHex(sha256(firstTxBytes)).toUpperCase());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps sending the transaction while the node stays unreachable", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 10_000 });
+      client.broadcastTxSync
+        .mockRejectedValueOnce(new Error("Bad status on response: 500"))
+        .mockRejectedValueOnce(new Error("Bad status on response: 502"))
+        .mockRejectedValueOnce(Object.assign(new Error("The operation was aborted due to timeout"), { name: "TimeoutError" }));
+      client.getTx.mockImplementation(async hash => (client.broadcastTxSync.mock.calls.length > 3 ? mock<IndexedTx>({ hash, code: 0, height: 100 }) : null));
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      await expect(promise).resolves.toMatchObject({ code: 0 });
+      expect(client.broadcastTxSync).toHaveBeenCalledTimes(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stops sending the transaction once the node accepts it", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 10_000 });
+      client.broadcastTxSync.mockRejectedValueOnce(new Error("Bad status on response: 500"));
+      client.getTx.mockImplementation(async hash => (client.getTx.mock.calls.length > 3 ? mock<IndexedTx>({ hash, code: 0, height: 100 }) : null));
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      await expect(promise).resolves.toMatchObject({ code: 0 });
+      expect(client.broadcastTxSync).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stops sending the transaction once the node refuses it, and still settles on a copy the node already holds", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 10_000 });
+      client.broadcastTxSync
+        .mockRejectedValueOnce(new Error("Bad status on response: 500"))
+        .mockRejectedValueOnce(new BroadcastTxError(19, "sdk", "tx already in mempool"));
+      client.getTx.mockImplementation(async hash => (client.getTx.mock.calls.length > 3 ? mock<IndexedTx>({ hash, code: 0, height: 100 }) : null));
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      await expect(promise).resolves.toMatchObject({ code: 0 });
+      expect(client.broadcastTxSync).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not send again a transaction the node already holds in its cache", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, client } = setup({ ttlMs: 10_000 });
+      client.broadcastTxSync.mockRejectedValueOnce(new Error("tx already exists in cache: ..."));
+      client.getTx.mockImplementation(async hash => (client.getTx.mock.calls.length > 2 ? mock<IndexedTx>({ hash, code: 0, height: 100 }) : null));
+
+      const promise = service.signAndBroadcast(createMessages(1));
+      promise.catch(() => {});
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      await expect(promise).resolves.toMatchObject({ code: 0 });
+      expect(client.broadcastTxSync).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not let a failing transaction affect the others", async () => {
     const { service, client } = setup();
     client.signUnordered.mockImplementation(async messages => {
@@ -144,6 +241,7 @@ describe(SigningClientService.name, () => {
       await expect(promise).rejects.toBeInstanceOf(TxNotIncludedError);
       await expect(promise).rejects.toMatchObject({ status: 502, data: { outcome: "not_included", txHash: "broadcast-hash" } });
       expect(client.getTx).toHaveBeenCalledTimes(7);
+      expect(client.broadcastTxSync).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
