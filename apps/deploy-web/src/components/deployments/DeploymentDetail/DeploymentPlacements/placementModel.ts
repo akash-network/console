@@ -302,7 +302,7 @@ function safeLoadYaml(manifest: string | null | undefined): ParsedManifest | und
   }
 }
 
-export function buildPlacementStats(lease: LeaseDto, serviceCount: number, gpuModels: string[], detectedGpus: DetectedGpuSummary[] = []): PlacementStat[] {
+export function buildPlacementStats(lease: LeaseDto, serviceCount: number, gpuModels: string[], detectedGpus: DetectedGpuSummary[]): PlacementStat[] {
   const stats: PlacementStat[] = [
     { label: "vCPU", value: roundDecimal(lease.cpuAmount, 2) },
     { label: "Memory", value: formatByteSize(lease.memoryAmount) },

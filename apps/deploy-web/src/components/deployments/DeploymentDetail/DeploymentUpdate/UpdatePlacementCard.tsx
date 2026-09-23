@@ -6,7 +6,7 @@ import { MapPin, NavArrowRight, Server } from "iconoir-react";
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { providerDisplayName } from "@src/utils/providerUtils";
-import { buildPlacementStats, getPlacementGpuModels, getProviderRegion } from "../DeploymentPlacements/placementModel";
+import { buildPlacementStats, foldDetectedGpus, getPlacementGpuModels, getProviderRegion } from "../DeploymentPlacements/placementModel";
 import { PlacementStats } from "../DeploymentPlacements/PlacementStats";
 import { UpdateServiceSection } from "./UpdateServiceSection";
 
@@ -74,7 +74,14 @@ export const UpdatePlacementCard: FC<UpdatePlacementCardProps> = ({ position, na
         </div>
         {lease && (
           <div className="lg:shrink-0">
-            <PlacementStats stats={buildPlacementStats(lease, services.length, lease.gpuAmount ? getPlacementGpuModels(lease.group) : [])} />
+            <PlacementStats
+              stats={buildPlacementStats(
+                lease,
+                services.length,
+                lease.gpuAmount ? getPlacementGpuModels(lease.group) : [],
+                foldDetectedGpus(lease.detectedGpus)
+              )}
+            />
           </div>
         )}
       </div>

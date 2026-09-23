@@ -212,6 +212,20 @@ describe(DeploymentUpdate.name, () => {
       expect(within(edgeUs).getByText("Mariner Cloud")).toBeInTheDocument();
     });
 
+    it("names the gpus the console read on a placement's lease", () => {
+      const gpuLease = leaseOn("edge-us", "akash1us");
+      gpuLease.gpuAmount = 2;
+      gpuLease.detectedGpus = {
+        services: [{ service: "web", gpus: [{ vendor: "nvidia", model: null, displayName: "H100", memoryMb: 0, interface: null, count: 2 }] }],
+        driverVersion: null,
+        detectedAt: "2026-09-21T10:00:00.000Z"
+      };
+
+      setup({ leases: [gpuLease, leaseOn("edge-eu", "akash1eu")] });
+
+      expect(within(placementCard("edge-us")).getByText("2\u00d7 H100")).toBeInTheDocument();
+    });
+
     it("names the fields that stay locked after deploy", () => {
       setup();
 
