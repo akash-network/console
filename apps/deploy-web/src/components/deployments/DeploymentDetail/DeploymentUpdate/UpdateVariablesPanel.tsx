@@ -170,6 +170,7 @@ const SecretRow: FC<RowProps> = ({ serviceIndex, envIndex, position, onRemove })
     <div className="flex items-start gap-2">
       <Input aria-label={`Secret ${position} name`} value={name} readOnly inputClassName="h-10 font-mono" className="flex-1" />
       <Input aria-label={`${name} value`} placeholder={REPLACE_SECRET_PLACEHOLDER} value="" disabled readOnly inputClassName="h-10" className="flex-[2]" />
+      <span aria-hidden="true" className="w-[5.5rem] shrink-0" />
       <Button type="button" size="icon" variant="outline" className="h-10 w-10 shrink-0" aria-label={`Remove ${name}`} onClick={onRemove}>
         <XIcon className="h-4 w-4" />
       </Button>
