@@ -78,25 +78,26 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
     (!!fetchedTemplateId && templateQuery.isError) ||
     (!!fetchedUserTemplateId && (userTemplateQuery.isError || (userTemplateQuery.isSuccess && !userTemplateQuery.data?.sdl)));
 
+  const fetchedSdl = fetchedTemplateId ? templateQuery.data?.deploy : userTemplateQuery.data?.sdl;
+  const fetchedName = fetchedTemplateId ? templateQuery.data?.name : userTemplateQuery.data?.title;
+  const carriedInSdl = intent.vm ? undefined : deploySdl?.content;
+  const initialSdl = draft.persistedSdl ?? hardcodedTemplate?.content ?? (isFetchingTemplate ? fetchedSdl : carriedInSdl);
+  const initialName = draft.persistedName ?? hardcodedTemplate?.name ?? (isFetchingTemplate ? fetchedName : undefined);
+  const isStartingFromDefault = hasTemplateFailed && !initialSdl;
+  const [hasFallenBackToForm, setHasFallenBackToForm] = useState(false);
+  if (isStartingFromDefault && !hasFallenBackToForm) setHasFallenBackToForm(true);
+
   useEffect(
     function notifyOnTemplateError() {
-      if (!hasTemplateFailed) {
+      if (!isStartingFromDefault) {
         return;
       }
       enqueueSnackbar(<d.Snackbar title="Couldn't load the template" subTitle="Starting from a default deployment instead." iconVariant="error" />, {
         variant: "error"
       });
     },
-    [hasTemplateFailed, enqueueSnackbar, d]
+    [isStartingFromDefault, enqueueSnackbar, d]
   );
-
-  const fetchedSdl = fetchedTemplateId ? templateQuery.data?.deploy : userTemplateQuery.data?.sdl;
-  const fetchedName = fetchedTemplateId ? templateQuery.data?.name : userTemplateQuery.data?.title;
-  const carriedInSdl = intent.vm ? undefined : deploySdl?.content;
-  const initialSdl = draft.persistedSdl ?? hardcodedTemplate?.content ?? (isFetchingTemplate ? fetchedSdl : carriedInSdl);
-  const initialName = draft.persistedName ?? hardcodedTemplate?.name ?? (isFetchingTemplate ? fetchedName : undefined);
-  const [hasFallenBackToForm, setHasFallenBackToForm] = useState(false);
-  if (hasTemplateFailed && !initialSdl && !hasFallenBackToForm) setHasFallenBackToForm(true);
 
   /** The auto flow has no way to supply secret values, so an SDL that references any is edited in the form, which does. */
   const needsSecretValues = useMemo(() => isSecretsEnabled && !!initialSdl && secretReferenceNamesIn(initialSdl).size > 0, [isSecretsEnabled, initialSdl]);

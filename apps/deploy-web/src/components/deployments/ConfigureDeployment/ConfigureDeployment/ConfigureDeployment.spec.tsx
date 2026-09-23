@@ -239,6 +239,24 @@ describe(ConfigureDeployment.name, () => {
     expect(AutoDeployFlow).toHaveBeenLastCalledWith(expect.objectContaining({ sdl: "version: '2.0'" }), expect.anything());
   });
 
+  it("announces the fallback when a template that was loading fails", () => {
+    const { enqueueSnackbar, ConfigureDeploymentForm, rerenderWithTemplate } = setup({ templateId: "tpl-1", template: { isLoading: true, isError: false } });
+
+    rerenderWithTemplate({ isLoading: false, isError: true, data: undefined });
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" }));
+    expect(ConfigureDeploymentForm).toHaveBeenLastCalledWith(expect.objectContaining({ initialSdl: undefined, initialName: undefined }), expect.anything());
+  });
+
+  it("does not announce a fallback when a loaded template's background refetch fails", () => {
+    const loaded = mock<TemplateOutput>({ deploy: "version: '2.0'" });
+    const { enqueueSnackbar, rerenderWithTemplate } = setup({ templateId: "tpl-1", template: { isLoading: false, isError: false, data: loaded } });
+
+    rerenderWithTemplate({ isLoading: false, isError: true, data: loaded });
+
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
+  });
+
   it("hydrates the form from the fetched user template's SDL and title", () => {
     const { ConfigureDeploymentForm, useUserTemplate } = setup({
       userTemplateId: "user-1",
