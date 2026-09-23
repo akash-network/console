@@ -371,6 +371,44 @@ describe(DeploymentUpdate.name, () => {
       expect(updateButton()).toBeDisabled();
     });
 
+    it("holds the form while it reloads after a change made elsewhere, so nothing typed meanwhile is lost", async () => {
+      const { submitInput, showDefinition } = setup();
+      await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-mine");
+
+      act(() => submitInput().onDefinitionChanged());
+
+      expect(within(serviceSection("web")).getByLabelText("Image")).toBeDisabled();
+      expect(updateButton()).toBeDisabled();
+
+      showDefinition({ sdl: STORED_SDL.replace("storefront-web:2.8.1", "storefront-web:3.0.0"), manifestVersion: "bmV3" });
+
+      expect(within(serviceSection("web")).getByLabelText("Image")).toBeEnabled();
+    });
+
+    it("reloads at once from a definition that arrived while the form was being edited", async () => {
+      const { submitInput, showDefinition } = setup();
+      await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-mine");
+      showDefinition({ sdl: STORED_SDL.replace("storefront-web:2.8.1", "storefront-web:3.0.0"), manifestVersion: "bmV3" });
+
+      act(() => submitInput().onDefinitionChanged());
+
+      expect(within(serviceSection("web")).getByLabelText("Image")).toHaveValue("ghcr.io/acme/storefront-web:3.0.0");
+      expect(within(serviceSection("web")).getByLabelText("Image")).toBeEnabled();
+      expect(submitInput().manifestVersion).toBe("bmV3");
+    });
+
+    it("ignores a late copy of the definition a landed update replaced", async () => {
+      const { submit, submitInput, showDefinition } = setup();
+      await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-hotfix");
+      await userEvent.click(updateButton());
+      act(() => submitInput().onUpdated({ values: submittedValues(submit), manifestVersion: "bmV3" }));
+
+      showDefinition({ sdl: STORED_SDL, manifestVersion: RECORDED_VERSION, name: "renamed-meanwhile" });
+
+      expect(within(serviceSection("web")).getByLabelText("Image")).toHaveValue("ghcr.io/acme/storefront-web:2.8.1-hotfix");
+      expect(submitInput().manifestVersion).toBe("bmV3");
+    });
+
     it("reloads over unsaved edits once the api reports the deployment changed elsewhere", async () => {
       const { submitInput, showDefinition } = setup();
       await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-mine");

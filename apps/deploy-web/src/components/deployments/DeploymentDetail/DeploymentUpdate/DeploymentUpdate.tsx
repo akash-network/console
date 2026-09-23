@@ -69,6 +69,10 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
   const seed = useMemo(() => seedOf(definition), [definition]);
   const [baseline, setBaseline] = useState<ReadySeed | null>(seed.kind === "ready" ? seed : null);
   const reloadOverEdits = useRef(false);
+  const supersededVersion = useRef<string | undefined>(undefined);
+  const [isReloading, setIsReloading] = useState(false);
+  const latestSeed = useRef(seed);
+  latestSeed.current = seed;
   const form = useForm<SdlBuilderFormValuesType>({
     defaultValues: baseline?.values,
     mode: "onTouched",
@@ -79,21 +83,33 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
     dseq: deployment.dseq,
     manifestVersion: baseline?.manifestVersion,
     onUpdated: function takeTheLandedUpdateAsTheBaseline(update) {
+      supersededVersion.current = baseline?.manifestVersion;
       setBaseline(current => current && { ...current, values: update.values, manifestVersion: update.manifestVersion ?? current.manifestVersion });
       form.reset(update.values);
       onUpdated();
     },
     onDefinitionChanged: function reloadOverTheStaleEdits() {
+      const current = latestSeed.current;
+      if (current.kind === "ready" && current.manifestVersion !== baseline?.manifestVersion) {
+        setBaseline(current);
+        form.reset(current.values);
+        return;
+      }
+
       reloadOverEdits.current = true;
+      setIsReloading(true);
     }
   });
 
   useEffect(
     function reseedFromTheDefinition() {
-      if (seed.kind !== "ready") return;
-      if (form.formState.isDirty && !reloadOverEdits.current) return;
-
+      const isReloadingOverEdits = reloadOverEdits.current;
       reloadOverEdits.current = false;
+      setIsReloading(false);
+
+      if (seed.kind !== "ready" || seed.manifestVersion === supersededVersion.current) return;
+      if (form.formState.isDirty && !isReloadingOverEdits) return;
+
       setBaseline(seed);
       form.reset(seed.values);
     },
@@ -154,7 +170,7 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
               services={visibleServices
                 .filter(({ service }) => service.placementId === placement.id)
                 .map(({ service, serviceIndex }) => ({ serviceIndex, title: service.title }))}
-              locked={isClosed || isUpdating}
+              locked={isClosed || isUpdating || isReloading}
             />
           );
         })}
@@ -173,10 +189,10 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
             </>
           ) : (
             <>
-              <Button type="button" variant="outline" disabled={!isDirty || isUpdating} onClick={() => form.reset(baseline.values)}>
+              <Button type="button" variant="outline" disabled={!isDirty || isUpdating || isReloading} onClick={() => form.reset(baseline.values)}>
                 Discard changes
               </Button>
-              <Button type="submit" disabled={!isDirty || isUpdating}>
+              <Button type="submit" disabled={!isDirty || isUpdating || isReloading}>
                 {isUpdating ? "Updating…" : "Update deployment"}
               </Button>
             </>

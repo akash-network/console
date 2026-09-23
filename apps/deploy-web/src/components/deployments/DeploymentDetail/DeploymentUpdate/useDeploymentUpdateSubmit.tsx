@@ -74,28 +74,22 @@ export function useDeploymentUpdateSubmit({ dseq, manifestVersion, onUpdated, on
     return await d.sealSdlSecrets({ context: context.data, secrets: {} });
   }
 
+  /** Awaited rather than given per-call callbacks, which react-query drops once the tab unmounts mid-update. */
   async function sealAndPatch(services: ServicesPatch, current: SdlBuilderFormValuesType, canResealOnce: boolean) {
-    let sealedSecrets: string;
+    let response: Awaited<ReturnType<typeof patchDeployment.mutateAsync>>;
     try {
-      sealedSecrets = await sealNothing();
+      const sealedSecrets = await sealNothing();
+      response = await patchDeployment.mutateAsync({ dseq, data: { services, sealedSecrets, ifManifestVersion: manifestVersion } });
     } catch (cause) {
+      if (canResealOnce && isStaleSeal(cause)) {
+        await sealAndPatch(services, current, false);
+        return;
+      }
       reportFailure(cause);
       return;
     }
 
-    patchDeployment.mutate(
-      { dseq, data: { services, sealedSecrets, ifManifestVersion: manifestVersion } },
-      {
-        onSuccess: response => completeUpdate(current, response.data.manifestVersion),
-        onError: function resealOrReport(cause: unknown) {
-          if (canResealOnce && isStaleSeal(cause)) {
-            void sealAndPatch(services, current, false);
-            return;
-          }
-          reportFailure(cause);
-        }
-      }
-    );
+    completeUpdate(current, response.data.manifestVersion);
   }
 
   function completeUpdate(values: SdlBuilderFormValuesType, manifestVersion: string | undefined) {

@@ -84,11 +84,23 @@ describe(useDeploymentUpdateSubmit.name, () => {
     act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
 
     await waitFor(() => expect(patchMutate).toHaveBeenCalled());
-    expect(patchMutate).toHaveBeenCalledWith(
-      { dseq: DSEQ, data: { services: { web: { image: "nginx:1.27" } }, sealedSecrets: SEAL, ifManifestVersion: RECORDED_VERSION } },
-      expect.any(Object)
-    );
+    expect(patchMutate).toHaveBeenCalledWith({
+      dseq: DSEQ,
+      data: { services: { web: { image: "nginx:1.27" } }, sealedSecrets: SEAL, ifManifestVersion: RECORDED_VERSION }
+    });
     expect(sealSdlSecrets).toHaveBeenCalledWith({ context: expect.anything(), secrets: {} });
+  });
+
+  it("still reports an update that lands after the tab has closed", async () => {
+    const { result, patchMutate, enqueueSnackbar, onUpdated, unmount, landPatch, seed } = setup({ patchOutcome: "deferred" });
+    act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+    await waitFor(() => expect(patchMutate).toHaveBeenCalled());
+
+    unmount();
+    await act(async () => landPatch());
+
+    await waitFor(() => expect(onUpdated).toHaveBeenCalled());
+    expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarTitled("Deployment updated"), expect.objectContaining({ variant: "success" }));
   });
 
   it("reports the update as running until the api answers", async () => {
@@ -261,20 +273,26 @@ describe(useDeploymentUpdateSubmit.name, () => {
   }
 
   function setup(
-    input: { patchOutcome?: ApiError | "success" | "pending"; patchOutcomes?: Array<ApiError | "success" | "pending">; sealFailure?: Error } = {}
+    input: {
+      patchOutcome?: ApiError | "success" | "pending" | "deferred";
+      patchOutcomes?: Array<ApiError | "success" | "pending" | "deferred">;
+      sealFailure?: Error;
+    } = {}
   ) {
     const seed = importDeploymentState(STORED_SDL).values;
     const outcomes = [...(input.patchOutcomes ?? [input.patchOutcome ?? "success"])];
-    const patchMutate = vi.fn((_variables: unknown, options?: { onSuccess?: (response: unknown) => void; onError?: (cause: unknown) => void }) => {
+    let settleLanded: (() => void) | undefined;
+    const patchMutate = vi.fn((_variables: unknown) => {
       const outcome = outcomes.length > 1 ? outcomes.shift() : outcomes[0];
-      if (outcome === "pending") return;
-      if (outcome === "success") options?.onSuccess?.({ data: { manifestVersion: "bmV3" } });
-      else options?.onError?.(outcome);
+      if (outcome === "pending") return new Promise(() => undefined);
+      if (outcome === "deferred") return new Promise(resolve => (settleLanded = () => resolve({ data: { manifestVersion: "bmV3" } })));
+      if (outcome === "success") return Promise.resolve({ data: { manifestVersion: "bmV3" } });
+      return Promise.reject(outcome);
     });
 
     const api = mockDeep<AppDIContainer["api"]>();
     api.v1.getDeployment.getKey.mockImplementation(request => ["getDeployment", request?.dseq ?? ""]);
-    api.v1.patchDeployment.useMutation.mockReturnValue(mock<ReturnType<typeof api.v1.patchDeployment.useMutation>>({ mutate: patchMutate as never }));
+    api.v1.patchDeployment.useMutation.mockReturnValue(mock<ReturnType<typeof api.v1.patchDeployment.useMutation>>({ mutateAsync: patchMutate as never }));
     const contextMutateAsync = input.sealFailure
       ? vi.fn().mockRejectedValue(input.sealFailure)
       : vi.fn().mockResolvedValue({ data: { kid: "kid", sub: "user" } });
@@ -298,13 +316,15 @@ describe(useDeploymentUpdateSubmit.name, () => {
       sealSdlSecrets
     });
 
-    const { result } = setupQuery(
+    const { result, unmount } = setupQuery(
       () => useDeploymentUpdateSubmit({ dseq: DSEQ, manifestVersion: RECORDED_VERSION, onUpdated, onDefinitionChanged }, dependencies),
       { services: { api: () => api, analyticsService: () => analyticsService } }
     );
 
     return {
       result,
+      unmount,
+      landPatch: () => settleLanded?.(),
       seed,
       api,
       patchMutate,

@@ -79,6 +79,24 @@ describe("DeploymentUpdateFormSchema", () => {
     expect(issuesOf(values)).toContainEqual({ path: "services.0.env.0.key", message: expect.stringContaining("cannot start with a digit") });
   });
 
+  it("refuses a variable name the service already uses, which the patch would fold into one", () => {
+    const { values } = setup();
+    values.services[0].env = [
+      { id: "first", key: "MODE", value: "dev" },
+      { id: "second", key: "MODE", value: "prod" }
+    ];
+
+    expect(issuesOf(values)).toEqual([{ path: "services.0.env.1.key", message: "This service already has a variable named MODE." }]);
+  });
+
+  it("lets two services each use the same variable name", () => {
+    const { values } = setup();
+    values.services[0].env = [{ id: "first", key: "MODE", value: "dev" }];
+    values.services.push({ ...values.services[0], id: "other", title: "other", env: [{ id: "second", key: "MODE", value: "prod" }] });
+
+    expect(issuesOf(values)).toEqual([]);
+  });
+
   function issuesOf(values: SdlBuilderFormValuesType) {
     const result = DeploymentUpdateFormSchema.safeParse(values);
     return result.success ? [] : result.error.issues.map(issue => ({ path: issue.path.join("."), message: issue.message }));
