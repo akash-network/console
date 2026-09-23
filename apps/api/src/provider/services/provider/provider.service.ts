@@ -5,9 +5,10 @@ import { add } from "date-fns";
 import assert from "http-assert";
 import createError from "http-errors";
 import { Op } from "sequelize";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
 import type { Auditor } from "@src/provider/http-schemas/auditor.schema";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
@@ -26,18 +27,42 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 /** provider-proxy's verdicts on a dial it could not complete or trust, which a manifest sent to the same host would meet too. */
 const UNREACHABLE_DIAL_STATUSES = new Set([400, 495, 502, 503, 504]);
 
+const PROVIDER_LEASE_NOT_FOUND_MARK = "no lease for deployment";
+/** The provider validates a pushed manifest against the last deployment update it saw on chain, so this refusal is the provider lagging the chain rather than a bad manifest. */
+const PROVIDER_MANIFEST_VERSION_STALE_MARK = "manifest version validation failed";
+export const PROVIDER_MANIFEST_VERSION_STALE_ERROR_CODE = "provider_manifest_version_stale";
+export const PROVIDER_MANIFEST_VERSION_STALE_MESSAGE =
+  "Your update was accepted, but the provider has not picked it up yet. Wait a minute and try again. If it keeps failing, change any other value (such as an environment variable) along with your change so the provider receives a fresh update, or contact support.";
+
+function isLeaseNotFoundRefusal(err: unknown): boolean {
+  return err instanceof Error && err.message.includes(PROVIDER_LEASE_NOT_FOUND_MARK);
+}
+
+/** The provider answers this refusal as a plain-text body, not the JSON the proxy uses for its own errors. */
+function isStaleVersionRefusal(err: unknown): boolean {
+  if (!(err instanceof AxiosError) || err.response?.status !== 422) return false;
+
+  const body: unknown = err.response.data;
+
+  return typeof body === "string" && body.includes(PROVIDER_MANIFEST_VERSION_STALE_MARK);
+}
+
 @singleton()
 export class ProviderService {
   private readonly MANIFEST_SEND_MAX_RETRIES = 3;
   private readonly MANIFEST_SEND_RETRY_DELAY = 6000;
+  private readonly logger: ReturnType<CreateLogger>;
 
   constructor(
     private readonly providerProxy: ProviderProxyService,
     private readonly providerRepository: ProviderRepository,
     private readonly providerAttributesSchemaService: ProviderAttributesSchemaService,
     private readonly auditorsService: AuditorService,
-    private readonly jwtTokenService: ProviderJwtTokenService
-  ) {}
+    private readonly jwtTokenService: ProviderJwtTokenService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.logger = createLogger({ context: ProviderService.name });
+  }
 
   async sendManifest(options: { provider: string; dseq: string; manifest: string; auth: ProviderAuth }) {
     const provider = await this.providerRepository.findActiveByAddress(options.provider);
@@ -74,7 +99,10 @@ export class ProviderService {
   }
 
   private async sendManifestToProvider(options: { dseq: string; manifest: string; auth: ProviderAuth; providerIdentity: ProviderIdentity }) {
-    for (let i = 1; i <= this.MANIFEST_SEND_MAX_RETRIES; i++) {
+    const push = { provider: options.providerIdentity.owner, hostUri: options.providerIdentity.hostUri, dseq: options.dseq };
+    let providerWasBehindTheChain = false;
+
+    for (let attempt = 1; attempt <= this.MANIFEST_SEND_MAX_RETRIES; attempt++) {
       try {
         const result = await this.providerProxy.request(`/deployment/${options.dseq}/manifest`, {
           method: "PUT",
@@ -84,11 +112,24 @@ export class ProviderService {
           timeout: 15_000
         });
 
+        if (providerWasBehindTheChain) {
+          this.logger.info({ event: "PROVIDER_MANIFEST_VERSION_CAUGHT_UP", ...push, attempts: attempt });
+          providerWasBehindTheChain = false;
+        }
+
         if (result) return result;
       } catch (err) {
-        if (err instanceof Error && err.message?.includes("no lease for deployment") && i < this.MANIFEST_SEND_MAX_RETRIES) {
+        const isStaleVersion = isStaleVersionRefusal(err);
+        providerWasBehindTheChain ||= isStaleVersion;
+
+        if ((isStaleVersion || isLeaseNotFoundRefusal(err)) && attempt < this.MANIFEST_SEND_MAX_RETRIES) {
           await delay(this.MANIFEST_SEND_RETRY_DELAY);
           continue;
+        }
+
+        if (isStaleVersion) {
+          this.logger.warn({ event: "PROVIDER_MANIFEST_VERSION_STALE", ...push, attempts: attempt });
+          throw createError(409, PROVIDER_MANIFEST_VERSION_STALE_MESSAGE, { errorCode: PROVIDER_MANIFEST_VERSION_STALE_ERROR_CODE, originalError: err });
         }
 
         if (err instanceof AxiosError && err.response) {

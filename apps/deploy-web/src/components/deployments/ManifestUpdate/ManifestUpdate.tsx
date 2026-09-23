@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
+import { extractApiErrorCode, extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
 import { Alert, Button, CustomTooltip, Snackbar } from "@akashnetwork/ui/components";
 import { useQueryClient as useQueryClientOriginal } from "@tanstack/react-query";
 import { InfoCircle, Upload, WarningCircle } from "iconoir-react";
@@ -54,6 +54,9 @@ const UPDATE_FAILURE_MESSAGE = "Something went wrong while updating the deployme
 const ADD_CREDITS_TITLE = "Add credits to continue";
 /** Refused rather than submitted: a document whose values are references would commit a manifest whose environment is the reference strings themselves. */
 const WITHHELD_VALUES_ERROR = "This configuration still has withheld secret values. Replace them with real values before updating.";
+/** The api answers this code when the chain took the update but the provider still validates manifests against the previous version. */
+const STALE_PROVIDER_VERSION_ERROR_CODE = "provider_manifest_version_stale";
+const STALE_PROVIDER_VERSION_FALLBACK_MESSAGE = "Your update was accepted, but the provider has not picked it up yet. Wait a minute and try again.";
 
 /** The api withholds a value by stripping it, so a copy it served that is still self-contained lost nothing: the chain has merely moved past it. */
 function isApiRecordComplete(definition: DeploymentDefinition): boolean {
@@ -63,6 +66,10 @@ function isApiRecordComplete(definition: DeploymentDefinition): boolean {
 /** The api serves its own copy only when the chain is already running it, and a copy the api stripped hashes to a manifest the chain never committed. */
 function needsChainVersionCheck(definition: DeploymentDefinition): boolean {
   return definition.source === "local" || isApiRecordComplete(definition);
+}
+
+function isStaleProviderVersion(cause: unknown): boolean {
+  return extractApiErrorCode(cause) === STALE_PROVIDER_VERSION_ERROR_CODE;
 }
 
 function isBadRequest(cause: unknown): boolean {
@@ -98,6 +105,8 @@ function creditsRefusalOf(cause: unknown): string | null {
   return isPaymentRequired(cause) ? extractApiErrorMessage(cause) ?? "" : trialGateRefusalOf(cause);
 }
 
+type SubmittedUpdate = { dseq: string; sdl: string };
+
 function addCreditsContentOf(refusal: string): { title: string; message?: string } {
   const separatorAt = refusal.indexOf(": ");
 
@@ -126,6 +135,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 }) => {
   const { api, analyticsService, deploymentLocalStorage, logger } = useServices();
   const [parsingError, setParsingError] = useState<string | null>(null);
+  const [staleProviderNotice, setStaleProviderNotice] = useState<{ dseq: string; message: string } | null>(null);
   const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
   const [dseqWithDismissedNotice, setDseqWithDismissedNotice] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -138,8 +148,8 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const seededDseq = useRef<string | undefined>(undefined);
   const seededSdl = useRef("");
   const updateDeployment = api.v1.updateDeployment.useMutation({
-    onSuccess: (_data, variables) => recordUpdate(variables.data.sdl),
-    onError: reportUpdateFailure
+    onSuccess: (_data, variables) => recordUpdate({ dseq: variables.dseq, sdl: variables.data.sdl }),
+    onError: (cause, variables) => reportUpdateFailure(cause, { dseq: variables.dseq, sdl: variables.data.sdl })
   });
 
   /** The inline alert only exists while the editor is mounted, so a refusal arriving after it closes has to fall back to a snackbar. */
@@ -162,7 +172,8 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     () => !!editedManifest && (hasSdlReference(editedManifest) || (!!apiRecord && leavesWithheldEnvValuesBlank(editedManifest, apiRecord))),
     [editedManifest, apiRecord]
   );
-  const editorAlertMessage = parsingError ?? (hasWithheldValues ? WITHHELD_VALUES_ERROR : null);
+  const staleProviderMessage = staleProviderNotice?.dseq === deployment.dseq ? staleProviderNotice.message : null;
+  const editorAlertMessage = parsingError ?? (hasWithheldValues ? WITHHELD_VALUES_ERROR : null) ?? staleProviderMessage;
 
   useEffect(
     function seedEditorOnceTheDefinitionResolves() {
@@ -208,6 +219,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
   function handleManifestChange(value: string) {
     setParsingError(null);
+    setStaleProviderNotice(null);
     onManifestChange(value);
   }
 
@@ -229,12 +241,13 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     if (hasWithheldValues) return;
 
     setIsUpdating(true);
+    setStaleProviderNotice(null);
     updateDeployment.mutate({ dseq: deployment.dseq, data: { sdl: editedManifest } }, { onSuccess: closeAfterUpdate, onError: releaseAfterFailure });
   }
 
-  function recordUpdate(submittedSdl: string) {
-    cacheSubmittedManifest(submittedSdl);
-    refetchResolvedDefinition();
+  function recordUpdate(submitted: SubmittedUpdate) {
+    cacheSubmittedManifest(submitted);
+    refetchResolvedDefinition(submitted.dseq);
     analyticsService.track("update_deployment", { category: "deployments", label: "Update deployment" });
     analyticsService.track("successful_tx", { category: "transactions", label: "Successful transaction" });
     refetchBalances();
@@ -244,14 +257,14 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   }
 
   /** The resolved definition also feeds the header's service count and the placement cards, which would otherwise keep describing the document this update replaced. */
-  function refetchResolvedDefinition() {
-    queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq: deployment.dseq }) });
+  function refetchResolvedDefinition(dseq: string) {
+    queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq }) });
   }
 
   /** A full or corrupted browser storage must not turn an update the api already accepted into a reported failure. */
-  function cacheSubmittedManifest(manifest: string) {
+  function cacheSubmittedManifest({ dseq, sdl: manifest }: SubmittedUpdate) {
     try {
-      deploymentLocalStorage.update(address, deployment.dseq, { manifest });
+      deploymentLocalStorage.update(address, dseq, { manifest });
     } catch (error) {
       logger.error({ event: "DEPLOYMENT_MANIFEST_CACHE_FAILED", error });
     }
@@ -262,8 +275,13 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     closeManifestEditor();
   }
 
-  function reportUpdateFailure(cause: unknown) {
+  function reportUpdateFailure(cause: unknown, submitted: SubmittedUpdate) {
     refetchBalances();
+
+    if (isStaleProviderVersion(cause)) {
+      recordUpdateTheProviderHasYetToApply(submitted, cause);
+      return;
+    }
 
     if (!isClientRefusal(cause)) {
       analyticsService.track("failed_tx", { category: "transactions", label: "Failed transaction" });
@@ -279,6 +297,24 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
     enqueueSnackbar(<d.Snackbar title="Error" subTitle={extractApiErrorMessage(cause) ?? UPDATE_FAILURE_MESSAGE} iconVariant="error" />, {
       variant: "error",
+      autoHideDuration: null
+    });
+  }
+
+  /** The chain and the api already hold this document, so the browser's copy and the header follow them even though the provider has yet to run it. */
+  function recordUpdateTheProviderHasYetToApply(submitted: SubmittedUpdate, cause: unknown) {
+    cacheSubmittedManifest(submitted);
+    refetchResolvedDefinition(submitted.dseq);
+
+    const message = extractApiErrorMessage(cause) ?? STALE_PROVIDER_VERSION_FALLBACK_MESSAGE;
+
+    if (isEditorMounted.current && submitted.dseq === deployment.dseq) {
+      setStaleProviderNotice({ dseq: submitted.dseq, message });
+      return;
+    }
+
+    enqueueSnackbar(<d.Snackbar title={`Update to deployment ${submitted.dseq} not applied yet`} subTitle={message} iconVariant="warning" />, {
+      variant: "warning",
       autoHideDuration: null
     });
   }
