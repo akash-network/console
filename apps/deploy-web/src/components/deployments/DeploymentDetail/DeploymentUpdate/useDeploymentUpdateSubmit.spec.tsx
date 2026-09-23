@@ -143,7 +143,26 @@ describe(useDeploymentUpdateSubmit.name, () => {
       act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
 
       await waitFor(() => expect(onDefinitionChanged).toHaveBeenCalled());
-      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.getDeployment.getKey({ dseq: DSEQ }) });
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.getDeployment.getKey({ dseq: DSEQ }) }, { throwOnError: true });
+    });
+
+    it("lets the form go when the reload itself fails", async () => {
+      const { result, onDefinitionReloadFailed, queryClient, seed } = setup({ patchOutcome: DEFINITION_CHANGED });
+      queryClient.invalidateQueries.mockRejectedValue(new Error("getDeployment 503"));
+
+      act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+      await waitFor(() => expect(onDefinitionReloadFailed).toHaveBeenCalled());
+    });
+
+    it("keeps the form waiting for a reload that succeeds", async () => {
+      const { result, onDefinitionChanged, onDefinitionReloadFailed, queryClient, seed } = setup({ patchOutcome: DEFINITION_CHANGED });
+
+      act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+      await waitFor(() => expect(onDefinitionChanged).toHaveBeenCalled());
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["getDeployment", DSEQ] }, { throwOnError: true });
+      expect(onDefinitionReloadFailed).not.toHaveBeenCalled();
     });
 
     it("explains why, without resealing", async () => {
@@ -304,10 +323,12 @@ describe(useDeploymentUpdateSubmit.name, () => {
     const enqueueSnackbar = vi.fn().mockReturnValue("snackbar-key");
     const closeSnackbar = vi.fn();
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
+    queryClient.invalidateQueries.mockResolvedValue(undefined);
     const refetchBalances = vi.fn();
     const sealSdlSecrets = vi.fn().mockResolvedValue(SEAL);
     const onUpdated = vi.fn();
     const onDefinitionChanged = vi.fn();
+    const onDefinitionReloadFailed = vi.fn();
     const dependencies = MockComponents(DEPENDENCIES, {
       useWallet: () => buildWallet({ address: "akash1owner" }),
       useBalances: () => mock<ReturnType<typeof DEPENDENCIES.useBalances>>({ refetch: refetchBalances as never }),
@@ -317,7 +338,8 @@ describe(useDeploymentUpdateSubmit.name, () => {
     });
 
     const { result, unmount } = setupQuery(
-      () => useDeploymentUpdateSubmit({ dseq: DSEQ, manifestVersion: RECORDED_VERSION, onUpdated, onDefinitionChanged }, dependencies),
+      () =>
+        useDeploymentUpdateSubmit({ dseq: DSEQ, manifestVersion: RECORDED_VERSION, onUpdated, onDefinitionChanged, onDefinitionReloadFailed }, dependencies),
       { services: { api: () => api, analyticsService: () => analyticsService } }
     );
 
@@ -335,7 +357,8 @@ describe(useDeploymentUpdateSubmit.name, () => {
       refetchBalances,
       analyticsService,
       onUpdated,
-      onDefinitionChanged
+      onDefinitionChanged,
+      onDefinitionReloadFailed
     };
   }
 });

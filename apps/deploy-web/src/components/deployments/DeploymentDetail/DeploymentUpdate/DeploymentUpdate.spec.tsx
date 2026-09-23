@@ -397,6 +397,40 @@ describe(DeploymentUpdate.name, () => {
       expect(submitInput().manifestVersion).toBe("bmV3");
     });
 
+    it("lets go of the form when the reload after a conflict fails, keeping what was typed", async () => {
+      const { submitInput } = setup();
+      await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-mine");
+      act(() => submitInput().onDefinitionChanged());
+
+      act(() => submitInput().onDefinitionReloadFailed());
+
+      expect(within(serviceSection("web")).getByLabelText("Image")).toBeEnabled();
+      expect(within(serviceSection("web")).getByLabelText("Image")).toHaveValue("ghcr.io/acme/storefront-web:2.8.1-mine");
+    });
+
+    it("does not reload over later edits once a failed reload has let go of the form", async () => {
+      const { submitInput, showDefinition } = setup();
+      act(() => submitInput().onDefinitionChanged());
+      act(() => submitInput().onDefinitionReloadFailed());
+      await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-later");
+
+      showDefinition({ sdl: STORED_SDL.replace("storefront-web:2.8.1", "storefront-web:3.0.0"), manifestVersion: "bmV3" });
+
+      expect(within(serviceSection("web")).getByLabelText("Image")).toHaveValue("ghcr.io/acme/storefront-web:2.8.1-later");
+    });
+
+    it("keeps the services the user collapsed when its own update comes back", async () => {
+      const { submit, submitInput, showDefinition } = setup();
+      await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-hotfix");
+      await userEvent.click(updateButton());
+      await userEvent.click(within(placementCard("edge-us")).getByRole("button", { name: "Collapse all" }));
+      act(() => submitInput().onUpdated({ values: submittedValues(submit), manifestVersion: "bmV3" }));
+
+      showDefinition({ sdl: STORED_SDL.replace("storefront-web:2.8.1", "storefront-web:2.8.1-hotfix"), manifestVersion: "bmV3" });
+
+      expect(screen.queryByRole("region", { name: "web" })).not.toBeInTheDocument();
+    });
+
     it("ignores a late copy of the definition a landed update replaced", async () => {
       const { submit, submitInput, showDefinition } = setup();
       await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-hotfix");
@@ -414,7 +448,7 @@ describe(DeploymentUpdate.name, () => {
       await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-mine");
 
       act(() => submitInput().onDefinitionChanged());
-      showDefinition({ sdl: STORED_SDL.replace("storefront-web:2.8.1", "storefront-web:3.0.0") });
+      showDefinition({ sdl: STORED_SDL.replace("storefront-web:2.8.1", "storefront-web:3.0.0"), manifestVersion: "bmV3" });
 
       expect(within(serviceSection("web")).getByLabelText("Image")).toHaveValue("ghcr.io/acme/storefront-web:3.0.0");
     });

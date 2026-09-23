@@ -73,6 +73,8 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
   const [isReloading, setIsReloading] = useState(false);
   const latestSeed = useRef(seed);
   latestSeed.current = seed;
+  const heldVersion = useRef(baseline?.manifestVersion);
+  heldVersion.current = baseline?.manifestVersion;
   const form = useForm<SdlBuilderFormValuesType>({
     defaultValues: baseline?.values,
     mode: "onTouched",
@@ -98,6 +100,10 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
 
       reloadOverEdits.current = true;
       setIsReloading(true);
+    },
+    onDefinitionReloadFailed: function letGoOfTheForm() {
+      reloadOverEdits.current = false;
+      setIsReloading(false);
     }
   });
 
@@ -107,7 +113,7 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
       reloadOverEdits.current = false;
       setIsReloading(false);
 
-      if (seed.kind !== "ready" || seed.manifestVersion === supersededVersion.current) return;
+      if (seed.kind !== "ready" || seed.manifestVersion === supersededVersion.current || seed.manifestVersion === heldVersion.current) return;
       if (form.formState.isDirty && !isReloadingOverEdits) return;
 
       setBaseline(seed);
@@ -162,7 +168,7 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
           const lease = leases?.find((candidate, index) => getPlacementName(candidate.group, index) === placement.name);
           return (
             <UpdatePlacementCard
-              key={placement.id}
+              key={placement.name}
               position={position}
               name={placement.name}
               lease={lease}

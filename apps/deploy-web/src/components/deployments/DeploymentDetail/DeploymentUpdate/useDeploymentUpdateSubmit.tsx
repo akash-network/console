@@ -42,6 +42,7 @@ export interface DeploymentUpdateSubmitInput {
   manifestVersion: string | undefined;
   onUpdated: (update: LandedDeploymentUpdate) => void;
   onDefinitionChanged: () => void;
+  onDefinitionReloadFailed: () => void;
 }
 
 function isDefinitionChanged(cause: unknown): boolean {
@@ -54,7 +55,10 @@ function isStaleSeal(cause: unknown): boolean {
 }
 
 /** Always sends a seal, empty or not, because the api seals every variable a patch without one writes. */
-export function useDeploymentUpdateSubmit({ dseq, manifestVersion, onUpdated, onDefinitionChanged }: DeploymentUpdateSubmitInput, d = DEPENDENCIES) {
+export function useDeploymentUpdateSubmit(
+  { dseq, manifestVersion, onUpdated, onDefinitionChanged, onDefinitionReloadFailed }: DeploymentUpdateSubmitInput,
+  d = DEPENDENCIES
+) {
   const { api, analyticsService } = useServices();
   const { address } = d.useWallet();
   const { refetch: refetchBalances } = d.useBalances(address);
@@ -108,7 +112,7 @@ export function useDeploymentUpdateSubmit({ dseq, manifestVersion, onUpdated, on
     setIsUpdating(false);
 
     if (isDefinitionChanged(cause)) {
-      refetchDefinition();
+      queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq }) }, { throwOnError: true }).catch(onDefinitionReloadFailed);
       enqueueSnackbar(<d.Snackbar title="Changed elsewhere" subTitle={DEFINITION_CHANGED_MESSAGE} iconVariant="warning" />, { variant: "warning" });
       onDefinitionChanged();
       return;
