@@ -143,6 +143,19 @@ describe("deploymentDetailUtils", () => {
 
       expect(listed.leases?.[0].cpuAmount).toBe(1);
     });
+
+    it("carries what the console read inside each lease", () => {
+      const item = listedItem();
+      const detectedGpus = {
+        services: [{ service: "web", gpus: [{ vendor: "nvidia", model: "h100", displayName: "H100", memoryMb: 81559, interface: "sxm", count: 1 }] }],
+        driverVersion: "550.54.15",
+        detectedAt: "2026-09-21T10:00:00.000Z"
+      };
+
+      const listed = listedDeploymentToDto({ ...item, leases: [{ ...item.leases[0], detectedGpus }] });
+
+      expect(listed.leases?.[0].detectedGpus).toEqual(detectedGpus);
+    });
   });
 
   describe("deploymentToDto", () => {

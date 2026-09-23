@@ -69,7 +69,9 @@ export function listedDeploymentToDto(item: ListDeploymentsItem): ListedDeployme
   return {
     ...deploymentToDto(item as RpcDeployment),
     name: item.name,
-    leases: item.leases.map(lease => leaseToDto({ lease } as Pick<RpcLease, "lease">, item as Pick<RpcDeployment, "groups">)),
+    leases: item.leases.map(lease =>
+      leaseToDto({ lease: lease as RpcLease["lease"], detectedGpus: lease.detectedGpus }, item as Pick<RpcDeployment, "groups">)
+    ),
     settings: item.settings
   };
 }
