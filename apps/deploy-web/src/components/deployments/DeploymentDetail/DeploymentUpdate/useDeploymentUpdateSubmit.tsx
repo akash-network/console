@@ -12,7 +12,15 @@ import type { SdlBuilderFormValuesType } from "@src/types";
 import type { ServicesPatch } from "@src/utils/sdl/sdlServicesPatch";
 import { isEmptyServicesPatch } from "@src/utils/sdl/sdlServicesPatch";
 import { sealSdlSecrets } from "@src/utils/sdl/sealSdlSecrets";
-import { addCreditsContentOf, creditsRefusalOf, isClientRefusal, sdlRefusalOf, UPDATE_FAILURE_MESSAGE } from "@src/utils/updateDeploymentFailure";
+import {
+  addCreditsContentOf,
+  creditsRefusalOf,
+  isClientRefusal,
+  isStaleProviderVersion,
+  sdlRefusalOf,
+  STALE_PROVIDER_VERSION_FALLBACK_MESSAGE,
+  UPDATE_FAILURE_MESSAGE
+} from "@src/utils/updateDeploymentFailure";
 import { servicesPatchOf } from "./deploymentUpdatePatch";
 
 export const DEPENDENCIES = {
@@ -51,9 +59,9 @@ function isDefinitionChanged(cause: unknown): boolean {
   return isApiError(cause) && cause.status === HTTP_CONFLICT && extractApiErrorCode(cause) === DEFINITION_CHANGED_ERROR_CODE;
 }
 
-/** Only the definition conflict is named; every other 409 on this route answers a seal made against a retired key. */
+/** Only the definition and stale-provider conflicts are named; every other 409 on this route answers a seal made against a retired key. */
 function isStaleSeal(cause: unknown): boolean {
-  return isApiError(cause) && cause.status === HTTP_CONFLICT && !isDefinitionChanged(cause);
+  return isApiError(cause) && cause.status === HTTP_CONFLICT && !isDefinitionChanged(cause) && !isStaleProviderVersion(cause);
 }
 
 /** Always sends a seal, empty or not, because the api seals every variable a patch without one writes. */
@@ -132,6 +140,11 @@ export function useDeploymentUpdateSubmit(
     }
 
     refetchBalances();
+    if (isStaleProviderVersion(cause)) {
+      reportUpdateTheProviderHasYetToApply(cause);
+      return;
+    }
+
     if (!isClientRefusal(cause)) {
       analyticsService.track("failed_tx", { category: "transactions", label: "Failed transaction" });
     }
@@ -152,6 +165,19 @@ export function useDeploymentUpdateSubmit(
       variant: "error",
       autoHideDuration: null
     });
+  }
+
+  /** The chain already took this update, so the form keeps its edits for a resubmit that pushes the same patch to the provider again. */
+  function reportUpdateTheProviderHasYetToApply(cause: unknown) {
+    refetchDefinition();
+    enqueueSnackbar(
+      <d.Snackbar
+        title={`Update to deployment ${dseq} not applied yet`}
+        subTitle={extractApiErrorMessage(cause) ?? STALE_PROVIDER_VERSION_FALLBACK_MESSAGE}
+        iconVariant="warning"
+      />,
+      { variant: "warning", autoHideDuration: null }
+    );
   }
 
   function offerCredits(refusal: string) {

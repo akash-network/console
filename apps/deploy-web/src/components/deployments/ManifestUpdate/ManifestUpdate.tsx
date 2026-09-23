@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { extractApiErrorCode, extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
+import { extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
 import { Alert, Button, CustomTooltip, Snackbar } from "@akashnetwork/ui/components";
 import { useQueryClient as useQueryClientOriginal } from "@tanstack/react-query";
 import { InfoCircle, Upload, WarningCircle } from "iconoir-react";
@@ -20,7 +20,15 @@ import { useBalances as useBalancesOriginal } from "@src/queries/useBalancesQuer
 import type { DeploymentDto } from "@src/types/deployment";
 import { deploymentData as deploymentDataOriginal } from "@src/utils/deploymentData";
 import { hasSdlReference, isStoredSdlSelfContained, leavesWithheldEnvValuesBlank } from "@src/utils/sdl/storedDefinition";
-import { addCreditsContentOf, creditsRefusalOf, isClientRefusal, sdlRefusalOf, UPDATE_FAILURE_MESSAGE } from "@src/utils/updateDeploymentFailure";
+import {
+  addCreditsContentOf,
+  creditsRefusalOf,
+  isClientRefusal,
+  isStaleProviderVersion,
+  sdlRefusalOf,
+  STALE_PROVIDER_VERSION_FALLBACK_MESSAGE,
+  UPDATE_FAILURE_MESSAGE
+} from "@src/utils/updateDeploymentFailure";
 import { SDLEditor } from "../../sdl/SDLEditor/SDLEditor";
 import { DeploymentTabHeader } from "../DeploymentDetail/DeploymentTabHeader";
 
@@ -49,9 +57,6 @@ export const DEPENDENCIES = {
 
 /** Refused rather than submitted: a document whose values are references would commit a manifest whose environment is the reference strings themselves. */
 const WITHHELD_VALUES_ERROR = "This configuration still has withheld secret values. Replace them with real values before updating.";
-/** The api answers this code when the chain took the update but the provider still validates manifests against the previous version. */
-const STALE_PROVIDER_VERSION_ERROR_CODE = "provider_manifest_version_stale";
-const STALE_PROVIDER_VERSION_FALLBACK_MESSAGE = "Your update was accepted, but the provider has not picked it up yet. Wait a minute and try again.";
 
 /** The api withholds a value by stripping it, so a copy it served that is still self-contained lost nothing: the chain has merely moved past it. */
 function isApiRecordComplete(definition: DeploymentDefinition): boolean {
@@ -61,10 +66,6 @@ function isApiRecordComplete(definition: DeploymentDefinition): boolean {
 /** The api serves its own copy only when the chain is already running it, and a copy the api stripped hashes to a manifest the chain never committed. */
 function needsChainVersionCheck(definition: DeploymentDefinition): boolean {
   return definition.source === "local" || isApiRecordComplete(definition);
-}
-
-function isStaleProviderVersion(cause: unknown): boolean {
-  return extractApiErrorCode(cause) === STALE_PROVIDER_VERSION_ERROR_CODE;
 }
 
 type SubmittedUpdate = { dseq: string; sdl: string };

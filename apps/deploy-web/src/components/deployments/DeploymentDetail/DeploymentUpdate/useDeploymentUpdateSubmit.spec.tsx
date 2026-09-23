@@ -56,6 +56,9 @@ const DEFINITION_CHANGED = new ApiError(
   { message: "Deployment definition changed concurrently, please retry", code: "deployment_definition_changed" },
   "PATCH /v1/deployments/{dseq} → 409"
 );
+const STALE_PROVIDER_MESSAGE =
+  "Your update was accepted, but the provider has not picked it up yet. Wait a minute and try again. If it keeps failing, change any other value (such as an environment variable) along with your change so the provider receives a fresh update, or contact support.";
+const PROVIDER_BEHIND = new ApiError(409, { message: STALE_PROVIDER_MESSAGE, code: "provider_manifest_version_stale" }, "PATCH /v1/deployments/{dseq} → 409");
 const STALE_SEAL = new ApiError(409, { message: "The sealing key is no longer current" }, "PATCH /v1/deployments/{dseq} → 409");
 const BAD_SDL = new ApiError(400, { message: "Invalid SDL: the image is not a valid reference" }, "PATCH /v1/deployments/{dseq} → 400");
 const OUT_OF_CREDITS = new ApiError(402, { message: "Insufficient balance: top up to keep deploying" }, "PATCH /v1/deployments/{dseq} → 402");
@@ -203,6 +206,72 @@ describe(useDeploymentUpdateSubmit.name, () => {
 
       await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarTitled("Changed elsewhere"), expect.objectContaining({ variant: "warning" })));
       expect(sealSdlSecrets).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("when the chain took the update but the provider has yet to apply it", () => {
+    it("sends the patch once, without resealing", async () => {
+      const { result, patchMutate, sealSdlSecrets, enqueueSnackbar, seed } = setup({ patchOutcome: PROVIDER_BEHIND });
+
+      act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+      await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalled());
+      expect(patchMutate).toHaveBeenCalledTimes(1);
+      expect(sealSdlSecrets).toHaveBeenCalledTimes(1);
+    });
+
+    it("warns in the api's words until the warning is dismissed", async () => {
+      const { result, enqueueSnackbar, seed } = setup({ patchOutcome: PROVIDER_BEHIND });
+
+      act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+      await waitFor(() =>
+        expect(enqueueSnackbar).toHaveBeenCalledWith(
+          expect.objectContaining({
+            props: expect.objectContaining({ title: `Update to deployment ${DSEQ} not applied yet`, subTitle: STALE_PROVIDER_MESSAGE, iconVariant: "warning" })
+          }),
+          { variant: "warning", autoHideDuration: null }
+        )
+      );
+    });
+
+    it("falls back to a general notice when the api gave no guidance", async () => {
+      const { result, enqueueSnackbar, seed } = setup({
+        patchOutcome: new ApiError(409, { code: "provider_manifest_version_stale" }, "PATCH /v1/deployments/{dseq} → 409")
+      });
+
+      act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+      await waitFor(() =>
+        expect(enqueueSnackbar).toHaveBeenCalledWith(
+          expect.objectContaining({
+            props: expect.objectContaining({ subTitle: "Your update was accepted, but the provider has not picked it up yet. Wait a minute and try again." })
+          }),
+          expect.anything()
+        )
+      );
+    });
+
+    it("refreshes the definition while the form keeps its edits for a resubmit", async () => {
+      const { result, enqueueSnackbar, queryClient, api, onUpdated, onDefinitionChanged, seed } = setup({ patchOutcome: PROVIDER_BEHIND });
+
+      act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+      await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalled());
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.getDeployment.getKey({ dseq: DSEQ }) });
+      expect(onUpdated).not.toHaveBeenCalled();
+      expect(onDefinitionChanged).not.toHaveBeenCalled();
+      expect(result.current.isUpdating).toBe(false);
+    });
+
+    it("refreshes the balances but leaves the update out of the failed transactions", async () => {
+      const { result, enqueueSnackbar, analyticsService, refetchBalances, seed } = setup({ patchOutcome: PROVIDER_BEHIND });
+
+      act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+      await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalled());
+      expect(refetchBalances).toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalledWith("failed_tx", expect.anything());
     });
   });
 
