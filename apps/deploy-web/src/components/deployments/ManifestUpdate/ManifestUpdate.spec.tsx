@@ -844,6 +844,28 @@ describe(ManifestUpdate.name, () => {
       expect(screen.queryByText(STALE_PROVIDER_MESSAGE)).not.toBeInTheDocument();
     });
 
+    it("keeps the guidance on the deployment it was given for once the user moves to another one", async () => {
+      const handles = setup({ deployment: { dseq: "123" } });
+
+      await clickUpdate(handles);
+      await fail(handles, STALE_PROVIDER_VERSION);
+      handles.rerenderWith({ deployment: { dseq: "456" } });
+
+      expect(screen.queryByText(STALE_PROVIDER_MESSAGE)).not.toBeInTheDocument();
+    });
+
+    it("records the update under the deployment it was submitted for when the answer arrives after the user moved on", async () => {
+      const handles = setup({ editedManifest: "version: '2.0'", wallet: { address: "akash1abc" }, deployment: { dseq: "123" } });
+
+      await clickUpdate(handles);
+      handles.rerenderWith({ deployment: { dseq: "456" } });
+      await fail(handles, STALE_PROVIDER_VERSION);
+
+      expect(handles.deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "123", { manifest: "version: '2.0'" });
+      expect(handles.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["getDeployment", "123"] });
+      expect(screen.queryByText(STALE_PROVIDER_MESSAGE)).not.toBeInTheDocument();
+    });
+
     it("falls back to a warning snackbar when the answer arrives after the editor closes", async () => {
       const handles = setup();
 

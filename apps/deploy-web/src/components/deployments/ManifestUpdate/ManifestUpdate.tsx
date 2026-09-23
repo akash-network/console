@@ -106,6 +106,8 @@ function creditsRefusalOf(cause: unknown): string | null {
   return isPaymentRequired(cause) ? extractApiErrorMessage(cause) ?? "" : trialGateRefusalOf(cause);
 }
 
+type SubmittedUpdate = { dseq: string; sdl: string };
+
 function addCreditsContentOf(refusal: string): { title: string; message?: string } {
   const separatorAt = refusal.indexOf(": ");
 
@@ -134,7 +136,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 }) => {
   const { api, analyticsService, deploymentLocalStorage, logger } = useServices();
   const [parsingError, setParsingError] = useState<string | null>(null);
-  const [staleProviderNotice, setStaleProviderNotice] = useState<string | null>(null);
+  const [staleProviderNotice, setStaleProviderNotice] = useState<{ dseq: string; message: string } | null>(null);
   const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
   const [dseqWithDismissedNotice, setDseqWithDismissedNotice] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -147,8 +149,8 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const seededDseq = useRef<string | undefined>(undefined);
   const seededSdl = useRef("");
   const updateDeployment = api.v1.updateDeployment.useMutation({
-    onSuccess: (_data, variables) => recordUpdate(variables.data.sdl),
-    onError: (cause, variables) => reportUpdateFailure(cause, variables.data.sdl)
+    onSuccess: (_data, variables) => recordUpdate({ dseq: variables.dseq, sdl: variables.data.sdl }),
+    onError: (cause, variables) => reportUpdateFailure(cause, { dseq: variables.dseq, sdl: variables.data.sdl })
   });
 
   /** The inline alert only exists while the editor is mounted, so a refusal arriving after it closes has to fall back to a snackbar. */
@@ -171,7 +173,8 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     () => !!editedManifest && (hasSdlReference(editedManifest) || (!!apiRecord && leavesWithheldEnvValuesBlank(editedManifest, apiRecord))),
     [editedManifest, apiRecord]
   );
-  const editorAlertMessage = parsingError ?? (hasWithheldValues ? WITHHELD_VALUES_ERROR : null) ?? staleProviderNotice;
+  const staleProviderMessage = staleProviderNotice?.dseq === deployment.dseq ? staleProviderNotice.message : null;
+  const editorAlertMessage = parsingError ?? (hasWithheldValues ? WITHHELD_VALUES_ERROR : null) ?? staleProviderMessage;
 
   useEffect(
     function seedEditorOnceTheDefinitionResolves() {
@@ -243,9 +246,9 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     updateDeployment.mutate({ dseq: deployment.dseq, data: { sdl: editedManifest } }, { onSuccess: closeAfterUpdate, onError: releaseAfterFailure });
   }
 
-  function recordUpdate(submittedSdl: string) {
-    cacheSubmittedManifest(submittedSdl);
-    refetchResolvedDefinition();
+  function recordUpdate(submitted: SubmittedUpdate) {
+    cacheSubmittedManifest(submitted);
+    refetchResolvedDefinition(submitted.dseq);
     analyticsService.track("update_deployment", { category: "deployments", label: "Update deployment" });
     analyticsService.track("successful_tx", { category: "transactions", label: "Successful transaction" });
     refetchBalances();
@@ -255,14 +258,14 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   }
 
   /** The resolved definition also feeds the header's service count and the placement cards, which would otherwise keep describing the document this update replaced. */
-  function refetchResolvedDefinition() {
-    queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq: deployment.dseq }) });
+  function refetchResolvedDefinition(dseq: string) {
+    queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq }) });
   }
 
   /** A full or corrupted browser storage must not turn an update the api already accepted into a reported failure. */
-  function cacheSubmittedManifest(manifest: string) {
+  function cacheSubmittedManifest({ dseq, sdl: manifest }: SubmittedUpdate) {
     try {
-      deploymentLocalStorage.update(address, deployment.dseq, { manifest });
+      deploymentLocalStorage.update(address, dseq, { manifest });
     } catch (error) {
       logger.error({ event: "DEPLOYMENT_MANIFEST_CACHE_FAILED", error });
     }
@@ -273,11 +276,11 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     closeManifestEditor();
   }
 
-  function reportUpdateFailure(cause: unknown, submittedSdl: string) {
+  function reportUpdateFailure(cause: unknown, submitted: SubmittedUpdate) {
     refetchBalances();
 
     if (isStaleProviderVersion(cause)) {
-      recordUpdateTheProviderHasYetToApply(submittedSdl, cause);
+      recordUpdateTheProviderHasYetToApply(submitted, cause);
       return;
     }
 
@@ -300,14 +303,14 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   }
 
   /** The chain and the api already hold this document, so the browser's copy and the header follow them even though the provider has yet to run it. */
-  function recordUpdateTheProviderHasYetToApply(submittedSdl: string, cause: unknown) {
-    cacheSubmittedManifest(submittedSdl);
-    refetchResolvedDefinition();
+  function recordUpdateTheProviderHasYetToApply(submitted: SubmittedUpdate, cause: unknown) {
+    cacheSubmittedManifest(submitted);
+    refetchResolvedDefinition(submitted.dseq);
 
     const message = extractApiErrorMessage(cause) ?? STALE_PROVIDER_VERSION_FALLBACK_MESSAGE;
 
     if (isEditorMounted.current) {
-      setStaleProviderNotice(message);
+      setStaleProviderNotice({ dseq: submitted.dseq, message });
       return;
     }
 
