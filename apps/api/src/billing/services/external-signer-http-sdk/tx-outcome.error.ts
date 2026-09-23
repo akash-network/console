@@ -27,14 +27,14 @@ class TxOutcomeError extends Error {
 /** The signer proved the transaction did not land: it was never included and its `timeoutTimestamp` has passed. */
 export class TxNotIncludedError extends TxOutcomeError {
   constructor(txHash?: string) {
-    super(502, "tx_not_included", "The transaction was not included in a block and can no longer land", txHash);
+    super(502, "tx_not_included", "The request expired and can no longer complete", txHash);
   }
 }
 
 /** May or may not have landed, so nothing may be retried on it until the chain has been asked which happened. */
 export class TxOutcomeUnknownError extends TxOutcomeError {
   constructor(txHash?: string) {
-    super(504, "tx_outcome_unknown", "Your transaction is still being processed. Check whether it went through before sending it again.", txHash);
+    super(504, "tx_outcome_unknown", "Your request is still being processed. Check whether it went through before sending it again.", txHash);
   }
 }
 

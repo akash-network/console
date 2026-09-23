@@ -161,7 +161,7 @@ describe("Tx Sign", () => {
       expect(await res.json()).toMatchObject({
         error: "TxOutcomeUnknownError",
         code: "tx_outcome_unknown",
-        message: "Your transaction is still being processed. Check whether it went through before sending it again.",
+        message: "Your request is still being processed. Check whether it went through before sending it again.",
         data: { txHash: "SOME_HASH" }
       });
     });
