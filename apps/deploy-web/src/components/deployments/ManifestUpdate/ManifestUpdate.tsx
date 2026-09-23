@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
+import { extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
 import { Alert, Button, CustomTooltip, Snackbar } from "@akashnetwork/ui/components";
 import { useQueryClient as useQueryClientOriginal } from "@tanstack/react-query";
 import { InfoCircle, Upload, WarningCircle } from "iconoir-react";
@@ -20,6 +20,7 @@ import { useBalances as useBalancesOriginal } from "@src/queries/useBalancesQuer
 import type { DeploymentDto } from "@src/types/deployment";
 import { deploymentData as deploymentDataOriginal } from "@src/utils/deploymentData";
 import { hasSdlReference, isStoredSdlSelfContained, leavesWithheldEnvValuesBlank } from "@src/utils/sdl/storedDefinition";
+import { addCreditsContentOf, creditsRefusalOf, isClientRefusal, sdlRefusalOf, UPDATE_FAILURE_MESSAGE } from "@src/utils/updateDeploymentFailure";
 import { SDLEditor } from "../../sdl/SDLEditor/SDLEditor";
 import { DeploymentTabHeader } from "../DeploymentDetail/DeploymentTabHeader";
 
@@ -46,12 +47,6 @@ export const DEPENDENCIES = {
   deploymentData: deploymentDataOriginal
 };
 
-/** The api answers 400 for provider-credential and schema failures too, and only a refusal of the document itself belongs in the editor's inline alert. */
-const SDL_REFUSAL_PREFIXES = ["Invalid SDL:", "SDL is not valid YAML", "SDL is too large"];
-/** The api wraps trial fair-use gating in the same "Invalid SDL:" 400 as document refusals, yet only adding credits resolves it. */
-const TRIAL_GATE_MARK = "not available on free trial";
-const UPDATE_FAILURE_MESSAGE = "Something went wrong while updating the deployment. Please try again.";
-const ADD_CREDITS_TITLE = "Add credits to continue";
 /** Refused rather than submitted: a document whose values are references would commit a manifest whose environment is the reference strings themselves. */
 const WITHHELD_VALUES_ERROR = "This configuration still has withheld secret values. Replace them with real values before updating.";
 
@@ -63,47 +58,6 @@ function isApiRecordComplete(definition: DeploymentDefinition): boolean {
 /** The api serves its own copy only when the chain is already running it, and a copy the api stripped hashes to a manifest the chain never committed. */
 function needsChainVersionCheck(definition: DeploymentDefinition): boolean {
   return definition.source === "local" || isApiRecordComplete(definition);
-}
-
-function isBadRequest(cause: unknown): boolean {
-  return isApiError(cause) && cause.status === 400;
-}
-
-function isPaymentRequired(cause: unknown): boolean {
-  return isApiError(cause) && cause.status === 402;
-}
-
-/** Mirrors signAndBroadcast, which keeps client-side refusals out of the failed_tx metric. */
-function isClientRefusal(cause: unknown): boolean {
-  return isBadRequest(cause) || isPaymentRequired(cause);
-}
-
-function sdlRefusalOf(cause: unknown): string | null {
-  if (!isBadRequest(cause) || trialGateRefusalOf(cause) !== null) return null;
-
-  const message = extractApiErrorMessage(cause);
-
-  return message && SDL_REFUSAL_PREFIXES.some(prefix => message.startsWith(prefix)) ? message : null;
-}
-
-function trialGateRefusalOf(cause: unknown): string | null {
-  if (!isBadRequest(cause)) return null;
-
-  const message = extractApiErrorMessage(cause);
-
-  return message?.includes(TRIAL_GATE_MARK) ? message.replace(/^Invalid SDL: /, "") : null;
-}
-
-function creditsRefusalOf(cause: unknown): string | null {
-  return isPaymentRequired(cause) ? extractApiErrorMessage(cause) ?? "" : trialGateRefusalOf(cause);
-}
-
-function addCreditsContentOf(refusal: string): { title: string; message?: string } {
-  const separatorAt = refusal.indexOf(": ");
-
-  if (separatorAt === -1) return { title: ADD_CREDITS_TITLE, message: refusal || undefined };
-
-  return { title: refusal.slice(0, separatorAt), message: refusal.slice(separatorAt + 2) };
 }
 
 type Props = {
