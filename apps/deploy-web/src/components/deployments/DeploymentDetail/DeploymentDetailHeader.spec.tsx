@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { TooltipProvider } from "@akashnetwork/ui/components";
 import yaml from "js-yaml";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -244,16 +245,23 @@ describe(DeploymentDetailHeader.name, () => {
   });
 
   it("shows the gpu count and model in the summary", () => {
-    setup({
-      gpuAmount: 1,
-      groups: [
-        mock<DeploymentGroup>({
-          group_spec: { resources: [{ resource: { gpu: { attributes: [{ key: "vendor/nvidia/model/h100", value: "true" }] } } }] }
-        } as Partial<DeploymentGroup>)
-      ]
-    });
+    setup({ gpuAmount: 1, groups: [buildGroupRequestingGpu("h100")] });
 
-    expect(screen.getByText("H100")).toBeInTheDocument();
+    expect(screen.getByText("GPU").parentElement).toHaveTextContent("1× H100");
+  });
+
+  it("offers the whole gpu label on hover", async () => {
+    setup({ gpuAmount: 1, groups: [buildGroupRequestingGpu("h100")] });
+
+    await userEvent.hover(screen.getByText("H100"));
+
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("1× H100");
+  });
+
+  it("holds the gpu model's place while the reading loads", () => {
+    setup({ gpuAmount: 1, isLoadingDetectedGpus: true });
+
+    expect(screen.getByTestId("gpu-model-skeleton")).toBeInTheDocument();
   });
 
   it("shows an em dash for gpu when the deployment has none", () => {
@@ -271,6 +279,12 @@ describe(DeploymentDetailHeader.name, () => {
       gpuAmount: input.gpuAmount,
       price: { denom: "uact", amount: input.amount }
     });
+  }
+
+  function buildGroupRequestingGpu(model: string) {
+    return mock<DeploymentGroup>({
+      group_spec: { resources: [{ resource: { gpu: { attributes: [{ key: `vendor/nvidia/model/${model}`, value: "true" }] } } }] }
+    } as Partial<DeploymentGroup>);
   }
 
   function buildLeaseInPlacement(id: string, placementName: string) {
@@ -300,6 +314,7 @@ describe(DeploymentDetailHeader.name, () => {
     providers?: ApiProviderList[];
     gpuAmount?: number;
     groups?: DeploymentGroup[];
+    isLoadingDetectedGpus?: boolean;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const changeDeploymentName = vi.fn();
@@ -360,9 +375,17 @@ describe(DeploymentDetailHeader.name, () => {
       DeploymentVisitControl,
       ...input.dependencies
     });
-    const renderHeader = () => <DeploymentDetailHeader deployment={deployment} leases={leases} providers={providers} dependencies={dependencies} />;
+    const renderHeader = () => (
+      <DeploymentDetailHeader
+        deployment={deployment}
+        leases={leases}
+        providers={providers}
+        isLoadingDetectedGpus={input.isLoadingDetectedGpus}
+        dependencies={dependencies}
+      />
+    );
 
-    const { rerender } = render(renderHeader());
+    const { rerender } = render(renderHeader(), { wrapper: TooltipProvider });
 
     return {
       changeDeploymentName,

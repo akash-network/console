@@ -194,6 +194,13 @@ describe("DeploymentDetail", () => {
     expect(DeploymentDetailHeader.mock.lastCall?.[0].leases).toBe(before);
   });
 
+  it("tells the header and the placements while the gpus the console read are still loading", () => {
+    const { DeploymentDetailHeader, DeploymentPlacements } = setup({ isLoadingDetectedGpus: true });
+
+    expect(DeploymentDetailHeader.mock.lastCall?.[0].isLoadingDetectedGpus).toBe(true);
+    expect(DeploymentPlacements.mock.lastCall?.[0].isLoadingDetectedGpus).toBe(true);
+  });
+
   function gpuLease() {
     return mock<LeaseDto>({ id: "1", provider: "akash1provider", gseq: 1, oseq: 1, state: "active", gpuAmount: 1 });
   }
@@ -212,6 +219,7 @@ describe("DeploymentDetail", () => {
     leaseState?: string;
     definition?: Partial<DeploymentDefinition>;
     detectedGpus?: DetectedGpusByLease;
+    isLoadingDetectedGpus?: boolean;
   }) {
     const deployment = input && "deployment" in input ? input.deployment : mock<DeploymentDto>({ dseq: "1786440078202", state: "active", groups: [] });
     const leases = input && "leases" in input ? input.leases : [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: input?.leaseState ?? "active" })];
@@ -238,7 +246,7 @@ describe("DeploymentDetail", () => {
     });
     const useDeploymentLeaseList: typeof DEPENDENCIES.useDeploymentLeaseList = () => leaseList;
     let detectedGpus = input?.detectedGpus ?? {};
-    const useDetectedLeaseGpus: typeof DEPENDENCIES.useDetectedLeaseGpus = () => detectedGpus;
+    const useDetectedLeaseGpus: typeof DEPENDENCIES.useDetectedLeaseGpus = () => ({ byLease: detectedGpus, isLoading: input?.isLoadingDetectedGpus ?? false });
     const useProviderList: typeof DEPENDENCIES.useProviderList = () =>
       mock<ReturnType<typeof DEPENDENCIES.useProviderList>>({ data: providers, isFetching: false });
     const redeploy = vi.fn();
@@ -246,9 +254,11 @@ describe("DeploymentDetail", () => {
     const definition: DeploymentDefinition = { sdl: "version: '2.0'", name: undefined, source: "local", ...input?.definition };
     const useDeploymentDefinition: typeof DEPENDENCIES.useDeploymentDefinition = () => definition;
 
-    const DeploymentDetailHeader = vi.fn<(props: { leases?: LeaseDto[] | null }) => ReactElement>(() => <div>detail-header</div>);
+    const DeploymentDetailHeader = vi.fn<(props: { leases?: LeaseDto[] | null; isLoadingDetectedGpus?: boolean }) => ReactElement>(() => (
+      <div>detail-header</div>
+    ));
     const ReclamationBanner = vi.fn(() => <div>reclamation-banner</div>);
-    const DeploymentPlacements = vi.fn(() => <div>placements</div>);
+    const DeploymentPlacements = vi.fn<(props: { isLoadingDetectedGpus?: boolean }) => ReactElement>(() => <div>placements</div>);
     const DeploymentLogs = vi.fn(() => <div>logs</div>);
     const DeploymentLeaseShell = vi.fn(() => <div>shell</div>);
     const ManifestUpdate = vi.fn(({ closeManifestEditor }: { closeManifestEditor: () => void; onRedeploy?: () => void }) => (
@@ -286,6 +296,7 @@ describe("DeploymentDetail", () => {
       redeploy,
       ManifestUpdate,
       DeploymentDetailHeader,
+      DeploymentPlacements,
       rerenderWithDetectedGpus(next: DetectedGpusByLease) {
         detectedGpus = next;
         rerender(<DeploymentDetail dseq="1786440078202" dependencies={dependencies} />);

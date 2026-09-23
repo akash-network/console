@@ -16,7 +16,7 @@ describe("DeploymentSpecSummary", () => {
     expect(screen.getByLabelText("Storage")).toHaveTextContent("40 GB");
   });
 
-  it("names the GPU model rather than counting anonymous GPUs", () => {
+  it("names the GPU model alongside how many were asked for", () => {
     setup({
       gpuAmount: 1,
       groups: [
@@ -24,7 +24,7 @@ describe("DeploymentSpecSummary", () => {
       ] as DeploymentDto["groups"]
     });
 
-    expect(screen.getByLabelText("GPU")).toHaveTextContent("H100");
+    expect(screen.getByLabelText("GPU")).toHaveTextContent("1× H100");
   });
 
   it("keeps a truncated GPU model list readable on hover", () => {
@@ -43,7 +43,7 @@ describe("DeploymentSpecSummary", () => {
       layout: "columns"
     });
 
-    expect(screen.getByText("GPU: H100, A100")).toBeInTheDocument();
+    expect(screen.getByText("GPU: 2× H100 / A100")).toBeInTheDocument();
   });
 
   it("omits the GPU entry for a deployment without one", () => {

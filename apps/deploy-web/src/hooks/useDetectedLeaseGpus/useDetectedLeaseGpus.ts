@@ -14,7 +14,7 @@ export function leaseGpuKeyOf(lease: { gseq: number; oseq: number; provider: str
  * The gpus the console read inside this deployment's leases. Reads the same query `useDeploymentDefinition` already
  * runs, so the detail page pays for no extra request.
  */
-export function useDetectedLeaseGpus(dseq: string | undefined | null, dependencies = DEPENDENCIES): DetectedGpusByLease {
+export function useDetectedLeaseGpus(dseq: string | undefined | null, dependencies = DEPENDENCIES): { byLease: DetectedGpusByLease; isLoading: boolean } {
   const { api } = dependencies.useServices();
 
   const query = api.v1.getDeployment.useQuery(
@@ -27,7 +27,7 @@ export function useDetectedLeaseGpus(dseq: string | undefined | null, dependenci
     }
   );
 
-  return query.data ?? EMPTY;
+  return { byLease: query.data ?? EMPTY, isLoading: query.isLoading };
 }
 
 type LeaseWithDetectedGpus = { id: { gseq: number; oseq: number; provider: string }; detectedGpus?: DetectedLeaseGpus };

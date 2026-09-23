@@ -25,10 +25,10 @@ import { isLeaseLive } from "@src/utils/leaseUtils";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { getRuntimeLimitCountdown } from "@src/utils/runtimeLimitUtils";
 import { formatByteSize } from "@src/utils/unitUtils";
+import { GpuLabel } from "./DeploymentPlacements/GpuLabel";
 import {
   countPlacementServices,
   foldDetectedGpusOfLeases,
-  formatGpuLabel,
   getDeploymentGpuModels,
   parseManifestServices,
   parseServicesByPlacement
@@ -65,10 +65,17 @@ export interface DeploymentDetailHeaderProps {
   deployment: DeploymentDto;
   leases: LeaseDto[] | null | undefined;
   providers: ApiProviderList[];
+  isLoadingDetectedGpus?: boolean;
   dependencies?: typeof DEPENDENCIES;
 }
 
-export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deployment, leases, providers, dependencies: d = DEPENDENCIES }) => {
+export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
+  deployment,
+  leases,
+  providers,
+  isLoadingDetectedGpus = false,
+  dependencies: d = DEPENDENCIES
+}) => {
   const { changeDeploymentName } = d.useLocalNotes();
   const { isTrialing } = d.useWallet();
   const { denom } = d.useDeploymentEscrowBalance({ deployment, leases });
@@ -164,7 +171,14 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({ deploy
             )}
           </div>
           <div className="grid grid-cols-4 gap-x-10">
-            <SummaryItem label="GPU">{formatGpuLabel(deployment.gpuAmount ?? 0, getDeploymentGpuModels(deployment.groups), foldDetectedGpusOfLeases(leases))}</SummaryItem>
+            <SummaryItem label="GPU">
+              <GpuLabel
+                gpuAmount={deployment.gpuAmount ?? 0}
+                models={getDeploymentGpuModels(deployment.groups)}
+                detected={foldDetectedGpusOfLeases(leases)}
+                isLoading={isLoadingDetectedGpus}
+              />
+            </SummaryItem>
             <SummaryItem label="vCPU">{roundDecimal(deployment.cpuAmount, 2)}</SummaryItem>
             <SummaryItem label="MEMORY">{formatByteSize(deployment.memoryAmount)}</SummaryItem>
             <SummaryItem label="STORAGE">{formatByteSize(deployment.storageAmount)}</SummaryItem>

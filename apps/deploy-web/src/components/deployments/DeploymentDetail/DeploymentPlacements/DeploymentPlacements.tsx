@@ -15,6 +15,7 @@ export interface DeploymentPlacementsProps {
   providers: ApiProviderList[];
   deploymentManifest: string;
   dseq: string;
+  isLoadingDetectedGpus?: boolean;
   onClosed: () => void;
   dependencies?: typeof DEPENDENCIES;
 }
@@ -24,6 +25,7 @@ export const DeploymentPlacements: FC<DeploymentPlacementsProps> = ({
   providers,
   deploymentManifest,
   dseq,
+  isLoadingDetectedGpus,
   onClosed,
   dependencies: d = DEPENDENCIES
 }) => {
@@ -57,6 +59,7 @@ export const DeploymentPlacements: FC<DeploymentPlacementsProps> = ({
             manifestServices={manifestServices}
             placementServices={servicesByPlacement[getPlacementName(lease.group, index)]}
             dseq={dseq}
+            isLoadingDetectedGpus={isLoadingDetectedGpus}
             onClosed={onClosed}
           />
         ))}

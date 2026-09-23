@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 import type { LeaseServiceStatus } from "@src/queries/useLeaseQuery";
 import type { DeploymentGroup, DetectedLeaseGpus } from "@src/types/deployment";
 import {
+  describeGpus,
   foldDetectedGpus,
   foldDetectedGpusOfLeases,
   formatGpuLabel,
@@ -216,13 +217,13 @@ describe("placementModel", () => {
   });
 
   describe("formatGpuLabel", () => {
-    it("formats the model name when one is declared", () => {
-      expect(formatGpuLabel(1, ["h100"])).toBe("H100");
-      expect(formatGpuLabel(2, ["a100"])).toBe("A100");
+    it("counts the gpus asked for in front of the declared model", () => {
+      expect(formatGpuLabel(1, ["h100"])).toBe("1× H100");
+      expect(formatGpuLabel(2, ["a100"])).toBe("2× A100");
     });
 
-    it("joins multiple models", () => {
-      expect(formatGpuLabel(2, ["h100", "a100"])).toBe("H100, A100");
+    it("puts every declared model under the one count, since how the gpus split between them is unknown", () => {
+      expect(formatGpuLabel(2, ["h100", "a100"])).toBe("2× H100 / A100");
     });
 
     it("falls back to the count when no model is declared", () => {
@@ -235,15 +236,15 @@ describe("placementModel", () => {
     });
 
     it("shows what the console read where it has looked, over what was asked for", () => {
-      expect(formatGpuLabel(1, ["*"], [{ displayName: "H100", count: 1 }])).toBe("H100");
-      expect(formatGpuLabel(1, ["a100"], [{ displayName: "H100", count: 1 }])).toBe("H100");
+      expect(formatGpuLabel(1, ["*"], [{ displayName: "H100", count: 1 }])).toBe("1× H100");
+      expect(formatGpuLabel(1, ["a100"], [{ displayName: "H100", count: 1 }])).toBe("1× H100");
     });
 
     it("counts identical cards rather than repeating them", () => {
       expect(formatGpuLabel(8, ["*"], [{ displayName: "H100", count: 8 }])).toBe("8× H100");
     });
 
-    it("joins unlike cards", () => {
+    it("counts each of unlike cards", () => {
       expect(
         formatGpuLabel(
           3,
@@ -253,11 +254,11 @@ describe("placementModel", () => {
             { displayName: "L40S", count: 1 }
           ]
         )
-      ).toBe("2× H100, L40S");
+      ).toBe("2× H100, 1× L40S");
     });
 
     it("keeps to what was asked for while the reading accounts for fewer gpus, since part of the lease went unread", () => {
-      expect(formatGpuLabel(2, ["h100"], [{ displayName: "H100", count: 1 }])).toBe("H100");
+      expect(formatGpuLabel(2, ["h100"], [{ displayName: "H100", count: 1 }])).toBe("2× H100");
       expect(formatGpuLabel(2, ["*"], [{ displayName: "H100", count: 1 }])).toBe("2");
     });
 
@@ -266,13 +267,43 @@ describe("placementModel", () => {
     });
 
     it("falls back to what was asked for when nothing has been read", () => {
-      expect(formatGpuLabel(1, ["h100"], [])).toBe("H100");
+      expect(formatGpuLabel(1, ["h100"], [])).toBe("1× H100");
       expect(formatGpuLabel(1, ["*"], [])).toBe("1");
       expect(formatGpuLabel(1, ["*"], undefined)).toBe("1");
     });
 
     it("still shows an em dash for a deployment with no gpu, whatever was read", () => {
       expect(formatGpuLabel(0, [], [{ displayName: "H100", count: 1 }])).toBe("—");
+    });
+  });
+
+  describe("describeGpus", () => {
+    it("counts each card the console read under its own model", () => {
+      expect(
+        describeGpus(
+          3,
+          ["*"],
+          [
+            { displayName: "H100", count: 2 },
+            { displayName: "L40S", count: 1 }
+          ]
+        )
+      ).toEqual([
+        { count: 2, model: "H100" },
+        { count: 1, model: "L40S" }
+      ]);
+    });
+
+    it("puts every declared model under the one count asked for while no reading covers it", () => {
+      expect(describeGpus(2, ["h100", "a100"], [{ displayName: "H100", count: 1 }])).toEqual([{ count: 2, model: "H100 / A100" }]);
+    });
+
+    it("leaves the model out when none is declared", () => {
+      expect(describeGpus(1, ["*"])).toEqual([{ count: 1, model: null }]);
+    });
+
+    it("describes nothing for a deployment with no gpu", () => {
+      expect(describeGpus(0, ["h100"], [{ displayName: "H100", count: 1 }])).toEqual([]);
     });
   });
 

@@ -24,8 +24,8 @@ describe(useDetectedLeaseGpus.name, () => {
   it("keys what it read by the identity a chain lease and a console lease share", async () => {
     const { result } = setup({ leases: [{ id: { gseq: 1, oseq: 2, provider: PROVIDER }, detectedGpus: DETECTED }] });
 
-    await vi.waitFor(() => expect(Object.keys(result.current)).toHaveLength(1));
-    expect(result.current[`1/2/${PROVIDER}`]).toEqual(DETECTED);
+    await vi.waitFor(() => expect(Object.keys(result.current.byLease)).toHaveLength(1));
+    expect(result.current.byLease[`1/2/${PROVIDER}`]).toEqual(DETECTED);
   });
 
   it("asks for the deployment it was given", async () => {
@@ -39,49 +39,56 @@ describe(useDetectedLeaseGpus.name, () => {
       leases: [{ id: { gseq: 1, oseq: 1, provider: PROVIDER } }, { id: { gseq: 1, oseq: 2, provider: PROVIDER }, detectedGpus: DETECTED }]
     });
 
-    await vi.waitFor(() => expect(result.current[leaseGpuKeyOf({ gseq: 1, oseq: 2, provider: PROVIDER })]).toEqual(DETECTED));
-    expect(Object.keys(result.current)).toEqual([leaseGpuKeyOf({ gseq: 1, oseq: 2, provider: PROVIDER })]);
+    await vi.waitFor(() => expect(result.current.byLease[leaseGpuKeyOf({ gseq: 1, oseq: 2, provider: PROVIDER })]).toEqual(DETECTED));
+    expect(Object.keys(result.current.byLease)).toEqual([leaseGpuKeyOf({ gseq: 1, oseq: 2, provider: PROVIDER })]);
   });
 
   it("hands back the same readings on every render, so the lease views keyed on them keep their selection", async () => {
     const { result, rerender } = setup({ leases: [{ id: { gseq: 1, oseq: 2, provider: PROVIDER }, detectedGpus: DETECTED }] });
-    await vi.waitFor(() => expect(Object.keys(result.current)).toHaveLength(1));
-    const first = result.current;
+    await vi.waitFor(() => expect(Object.keys(result.current.byLease)).toHaveLength(1));
+    const first = result.current.byLease;
 
     rerender();
 
-    expect(result.current).toBe(first);
+    expect(result.current.byLease).toBe(first);
   });
 
   it("hands back the same readings after a refetch that changed nothing about them", async () => {
     const { result, rerender, queryClient, getDeployment } = setup({ leases: [{ id: { gseq: 1, oseq: 2, provider: PROVIDER }, detectedGpus: DETECTED }] });
-    await vi.waitFor(() => expect(Object.keys(result.current)).toHaveLength(1));
-    const first = result.current;
+    await vi.waitFor(() => expect(Object.keys(result.current.byLease)).toHaveLength(1));
+    const first = result.current.byLease;
 
     await act(() => queryClient.refetchQueries());
     rerender();
 
     expect(getDeployment).toHaveBeenCalledTimes(2);
-    expect(result.current).toBe(first);
+    expect(result.current.byLease).toBe(first);
   });
 
   it("holds nothing for a lease the console has not looked inside", async () => {
     const { result, getDeployment } = setup({ leases: [{ id: { gseq: 1, oseq: 2, provider: PROVIDER } }] });
 
     await vi.waitFor(() => expect(getDeployment).toHaveBeenCalled());
-    expect(result.current).toEqual({});
+    expect(result.current.byLease).toEqual({});
   });
 
   it("holds nothing when the deployment is not one the caller can read", async () => {
     const { result } = setup({ apiError: new ApiError(404, {}, "not found") });
 
-    await vi.waitFor(() => expect(result.current).toEqual({}));
+    await vi.waitFor(() => expect(result.current.byLease).toEqual({}));
+  });
+
+  it("reports loading until the deployment read answers", async () => {
+    const { result } = setup({ leases: [{ id: { gseq: 1, oseq: 2, provider: PROVIDER }, detectedGpus: DETECTED }] });
+
+    expect(result.current.isLoading).toBe(true);
+    await vi.waitFor(() => expect(result.current.isLoading).toBe(false));
   });
 
   it("asks for nothing without a dseq", () => {
     const { result, getDeployment } = setup({ dseq: null });
 
-    expect(result.current).toEqual({});
+    expect(result.current).toEqual({ byLease: {}, isLoading: false });
     expect(getDeployment).not.toHaveBeenCalled();
   });
 

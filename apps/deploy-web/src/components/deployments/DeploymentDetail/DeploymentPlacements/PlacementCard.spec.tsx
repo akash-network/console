@@ -47,7 +47,16 @@ describe(PlacementCard.name, () => {
       })
     });
 
-    expect(screen.getByText("H100")).toBeInTheDocument();
+    expect(screen.getByText("GPU").parentElement).toHaveTextContent("1× H100");
+  });
+
+  it("holds the gpu model's place while the reading loads", () => {
+    setup({
+      lease: buildLease({ gpuAmount: 1, gpuAttributes: [{ key: "vendor/nvidia/model/h100", value: "true" }] }),
+      isLoadingDetectedGpus: true
+    });
+
+    expect(screen.getByTestId("gpu-model-skeleton")).toBeInTheDocument();
   });
 
   it("expands every service when Expand all is clicked", async () => {
@@ -238,6 +247,7 @@ describe(PlacementCard.name, () => {
     isLeaseStatusPending?: boolean;
     manifestServices?: Record<string, ManifestServiceDetail>;
     placementServices?: Record<string, ManifestServiceDetail>;
+    isLoadingDetectedGpus?: boolean;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const leaseStatus = input && "leaseStatus" in input ? input.leaseStatus : buildStatus(["web"]);
@@ -259,6 +269,7 @@ describe(PlacementCard.name, () => {
           manifestServices={input?.manifestServices ?? {}}
           placementServices={input?.placementServices}
           dseq="123"
+          isLoadingDetectedGpus={input?.isLoadingDetectedGpus}
           onClosed={vi.fn()}
           dependencies={MockComponents(DEPENDENCIES, { useLeaseStatus, useTeeResourceCarveouts, ...input?.dependencies })}
         />
