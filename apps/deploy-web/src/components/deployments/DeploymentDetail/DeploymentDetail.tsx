@@ -99,7 +99,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
     refetchOnWindowFocus: false
   });
   /** The chain does not know what is running inside a lease, so what the console read is joined on here once for every view below. */
-  const detectedGpus = d.useDetectedLeaseGpus(dseq);
+  const { byLease: detectedGpus, isLoading: isLoadingDetectedGpus } = d.useDetectedLeaseGpus(dseq);
   const leases = useMemo(() => withDetectedGpus(chainLeases, detectedGpus), [chainLeases, detectedGpus]);
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = d.useProviderList();
 
@@ -196,7 +196,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
       {!showsPageSkeleton && deployment && isLeasesLoaded && (
         <>
           <div className={PAGE_BAND}>
-            <d.DeploymentDetailHeader deployment={deployment} leases={leases} providers={providers || []} />
+            <d.DeploymentDetailHeader deployment={deployment} leases={leases} providers={providers || []} isLoadingDetectedGpus={isLoadingDetectedGpus} />
 
             <d.ReclamationBanner leases={leases} dseq={dseq} className="mb-6" />
           </div>
@@ -227,6 +227,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                       providers={providers || []}
                       deploymentManifest={deploymentManifest}
                       dseq={dseq}
+                      isLoadingDetectedGpus={isLoadingDetectedGpus}
                       onClosed={loadDeploymentDetail}
                     />
                   ))}
