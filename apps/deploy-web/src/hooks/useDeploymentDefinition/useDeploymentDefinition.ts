@@ -30,6 +30,12 @@ export interface DeploymentDefinitionOptions {
   acceptReferences?: boolean;
 }
 
+/** A server fault is reported like any other; a refusal or an offline browser is neither a bug nor a reason to fail the view. */
+export function catchDeploymentReadError(error: Error): null {
+  if (error instanceof ApiError && error.status >= 500) throw error;
+  return null;
+}
+
 /** A deployment's SDL, from the console API when that copy is the one the chain is running, and from this browser otherwise. */
 export function useDeploymentDefinition(
   dseq: string | undefined | null,
@@ -43,11 +49,7 @@ export function useDeploymentDefinition(
     { dseq: dseq ?? "" },
     {
       enabled: !!dseq,
-      /** A server fault is reported like any other; a refusal or an offline browser is neither a bug nor a reason to fail the view. */
-      catchError(error) {
-        if (error instanceof ApiError && error.status >= 500) throw error;
-        return null;
-      },
+      catchError: catchDeploymentReadError,
       /** Selects the cached object as-is: building a new one here would hand react-query a fresh identity every render. */
       select: response => response?.data ?? null
     }

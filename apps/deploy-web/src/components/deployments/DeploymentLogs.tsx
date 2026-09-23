@@ -23,6 +23,7 @@ import { useProviderCredentials } from "@src/hooks/useProviderCredentials/usePro
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import type { LeaseDto } from "@src/types/deployment";
+import { keepSelectedLease } from "@src/utils/leaseUtils";
 import { LeaseSelect } from "./LeaseSelect";
 import { LogStreamDisconnectedBar, LogStreamPlaceholder } from "./LogStreamPlaceholder";
 import { ProviderAuthFallback } from "./ProviderAuthGate";
@@ -107,7 +108,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   useEffect(() => {
     if (!leases || leases.length === 0) return;
 
-    setSelectedLease(leases[0]);
+    setSelectedLease(selected => keepSelectedLease(selected, leases));
   }, [leases]);
 
   useEffect(() => {

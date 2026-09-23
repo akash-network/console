@@ -268,6 +268,12 @@ export interface DeploymentDto {
 
 export type ListDeploymentsItem = paths["/v1/deployments"]["get"]["responses"][200]["content"]["application/json"]["data"]["deployments"][number];
 
+/** What the console observed running inside a lease's containers, as distinct from the model its group requested on chain. */
+export type DetectedLeaseGpus = NonNullable<ListDeploymentsItem["leases"][number]["detectedGpus"]>;
+
+/** Keyed `gseq/oseq/provider`, the only identity a chain lease and a console lease share. */
+export type DetectedGpusByLease = Partial<Record<string, DetectedLeaseGpus>>;
+
 /** What the console records about a deployment, as a list shows it. Absent for one the console holds no record of. */
 export type ListedDeploymentSettings = ListDeploymentsItem["settings"];
 
@@ -299,6 +305,8 @@ export interface LeaseDto {
   storageAmount: number;
   // Optional: leaseToDto leaves it undefined when no group matches the lease's gseq.
   group?: DeploymentGroup;
+  /** Present only where the console has looked inside and found a gpu; absent is "not looked", never "no gpu". */
+  detectedGpus?: DetectedLeaseGpus;
   reason?: string;
   closedOn?: string;
   reclamation?: {

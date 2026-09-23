@@ -8,3 +8,8 @@ export { isLeaseLive, LIVE_LEASE_STATES } from "@akashnetwork/http-sdk";
 export function hasLiveGpuLease(leases: Pick<LeaseDto, "state" | "gpuAmount">[] | null | undefined): boolean {
   return !!leases?.some(lease => isLeaseLive(lease) && !!lease.gpuAmount && lease.gpuAmount > 0);
 }
+
+/** The lease a picker shows once its list changes: the one already picked while it is still listed, as the list now has it, else the first. */
+export function keepSelectedLease<T extends Pick<LeaseDto, "id">>(selected: T | null, leases: T[]): T | null {
+  return leases.find(lease => lease.id === selected?.id) ?? leases[0] ?? null;
+}

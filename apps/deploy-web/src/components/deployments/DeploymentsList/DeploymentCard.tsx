@@ -7,6 +7,7 @@ import Link from "next/link";
 import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
+import { foldDetectedGpusOfLeases } from "../DeploymentDetail/DeploymentPlacements/placementModel";
 import { DeploymentStatusBadge } from "../DeploymentDetail/DeploymentStatusBadge";
 import { DeploymentActionsMenu } from "./DeploymentActionsMenu";
 import { DeploymentBadges } from "./DeploymentBadges";
@@ -75,7 +76,7 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
       </div>
 
       <div className="flex items-center justify-between gap-3 border-t px-5 py-2">
-        <d.DeploymentSpecSummary deployment={deployment} className="min-w-0 flex-1" />
+        <d.DeploymentSpecSummary deployment={deployment} detectedGpus={foldDetectedGpusOfLeases(deployment.leases)} className="min-w-0 flex-1" />
 
         <div className="flex shrink-0 items-center gap-1">
           {isSelectable && (
