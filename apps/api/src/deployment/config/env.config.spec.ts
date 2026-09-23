@@ -465,6 +465,16 @@ describe("deployment envSchema", () => {
     });
   });
 
+  describe("LEASE_GPU_DETECTION_RECONCILE_BACKOFF_HOURS", () => {
+    it("accepts a backoff just inside the week pg-boss keeps a finished job", () => {
+      expect(envSchema.parse(setup({ LEASE_GPU_DETECTION_RECONCILE_BACKOFF_HOURS: "167" })).LEASE_GPU_DETECTION_RECONCILE_BACKOFF_HOURS).toBe(167);
+    });
+
+    it("rejects a backoff that would outlive the finished jobs it reads", () => {
+      expectRejected(setup({ LEASE_GPU_DETECTION_RECONCILE_BACKOFF_HOURS: "168" }), "LEASE_GPU_DETECTION_RECONCILE_BACKOFF_HOURS");
+    });
+  });
+
   function expectRejected(env: Record<string, unknown>, key: string) {
     const result = envSchema.safeParse(env);
 
