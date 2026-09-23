@@ -69,7 +69,7 @@ export class LeaseService {
     await Promise.all(providers.map(provider => this.providerService.assertReachable(provider)));
   }
 
-  /** The lease is already on chain here, so every failure says so and names the retry that resends only the manifest. */
+  /** The lease is already on chain here, so a provider's refusal says so; any other failure is ours and propagates as it is. */
   async #sendManifest(lease: CreateLeaseRequest["leases"][number], manifest: string, wallet: { id: number }): Promise<void> {
     try {
       await this.providerService.sendManifest({
@@ -79,13 +79,12 @@ export class LeaseService {
         auth: await this.providerService.toProviderAuth({ walletId: wallet.id, provider: lease.provider })
       });
     } catch (error) {
+      if (!isHttpError(error)) throw error;
+
       throw createError(
-        isHttpError(error) ? error.status : 502,
+        error.status,
         `The lease for deployment ${lease.dseq} exists, but provider ${lease.provider} did not receive its manifest. Send this request again to retry, or close the deployment to stop paying for it.`,
-        {
-          errorCode: "manifest_not_delivered",
-          data: { dseq: lease.dseq, provider: lease.provider, reason: error instanceof Error ? error.message : String(error) }
-        }
+        { errorCode: "manifest_not_delivered", data: { dseq: lease.dseq, provider: lease.provider, reason: error.message }, originalError: error }
       );
     }
   }

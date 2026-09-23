@@ -119,20 +119,18 @@ describe(LeaseService.name, () => {
         status: 503,
         errorCode: "manifest_not_delivered",
         message: `The lease for deployment 100 exists, but provider ${undelivered} did not receive its manifest. Send this request again to retry, or close the deployment to stop paying for it.`,
-        data: { dseq: "100", provider: undelivered, reason: "Provider service is temporarily unavailable" }
+        data: { dseq: "100", provider: undelivered, reason: "Provider service is temporarily unavailable" },
+        originalError: expect.objectContaining({ status: 503, message: "Provider service is temporarily unavailable" })
       });
     });
 
-    it("answers 502 for a manifest failure that carries no status", async () => {
+    it("lets a failure that is not an http error through unchanged", async () => {
       const { service, providerService, wallet } = setup();
-      providerService.sendManifest.mockRejectedValue(new Error("socket hang up"));
+      const failure = new Error("jwt signing failed");
+      providerService.sendManifest.mockRejectedValue(failure);
       const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
 
-      await expect(service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId })).rejects.toMatchObject({
-        status: 502,
-        errorCode: "manifest_not_delivered",
-        data: { reason: "socket hang up" }
-      });
+      await expect(service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId })).rejects.toBe(failure);
     });
 
     it("skips lease creation but still sends the manifest when an active lease already exists", async () => {
