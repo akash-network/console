@@ -640,7 +640,7 @@ describe(DeploymentUpdate.name, () => {
       setup({ definition: { sdl: "services: [not, a, map" } });
 
       expect(screen.getByText("raw-editor")).toBeInTheDocument();
-      expect(screen.getByText(/could not be read into the form/)).toBeInTheDocument();
+      expect(screen.getByText("The configuration the console stored could not be read into the form, so it is shown as raw SDL.")).toBeInTheDocument();
     });
 
     it("never mounts the raw editor while the definition arrives", () => {

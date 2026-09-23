@@ -22,12 +22,13 @@ export const DEPENDENCIES = { useDeploymentUpdateSubmit };
 
 const UNAVAILABLE_NOTICE =
   "The console has no up-to-date copy of this deployment's configuration, so it can only be updated as raw SDL here. Once it holds one, this tab shows each service's settings instead.";
+const UNREADABLE_NOTICE = "The configuration the console stored could not be read into the form, so it is shown as raw SDL.";
 const CLOSED_NOTICE = "This deployment is closed, so its configuration can only be reused in a new deployment.";
 
 type DeploymentUpdateSeed =
   | { kind: "resolving" }
   | { kind: "unavailable" }
-  | { kind: "unreadable"; reason: string }
+  | { kind: "unreadable" }
   | { kind: "ready"; values: SdlBuilderFormValuesType; manifestVersion: string };
 
 type ReadySeed = Extract<DeploymentUpdateSeed, { kind: "ready" }>;
@@ -39,8 +40,8 @@ function seedOf(definition: DeploymentDefinition): DeploymentUpdateSeed {
 
   try {
     return { kind: "ready", values: importDeploymentState(definition.sdl).values, manifestVersion: definition.manifestVersion };
-  } catch (error) {
-    return { kind: "unreadable", reason: error instanceof Error ? error.message : String(error) };
+  } catch {
+    return { kind: "unreadable" };
   }
 }
 
@@ -125,11 +126,7 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
   if (seed.kind === "unavailable" || seed.kind === "unreadable") {
     return (
       <div className="flex flex-col gap-4">
-        <Alert>
-          {seed.kind === "unreadable"
-            ? `The configuration the console stored could not be read into the form (${seed.reason}), so it is shown as raw SDL.`
-            : UNAVAILABLE_NOTICE}
-        </Alert>
+        <Alert>{seed.kind === "unreadable" ? UNREADABLE_NOTICE : UNAVAILABLE_NOTICE}</Alert>
         {fallback}
       </div>
     );

@@ -12,7 +12,6 @@ import { copyTextToClipboard } from "@src/utils/copyClipboard";
 
 const RESERVED_ENV_KEYS = new Set<string>(RESERVED_ENV_KEY_LIST);
 const EMPTY_STATE = "No variables or secrets yet. Add a variable for a plain key/value pair.";
-const REPLACE_SECRET_PLACEHOLDER = "Enter new value to update";
 
 export interface UpdateVariablesPanelProps {
   serviceIndex: number;
@@ -170,7 +169,7 @@ const SecretRow: FC<Omit<RowProps, "onRemove">> = ({ serviceIndex, envIndex, pos
   return (
     <div className="flex items-start gap-2">
       <Input aria-label={`Secret ${position} name`} value={name} readOnly inputClassName="h-10 font-mono" className="flex-1" />
-      <Input aria-label={`${name} value`} placeholder={REPLACE_SECRET_PLACEHOLDER} value="" disabled readOnly inputClassName="h-10" className="flex-[2]" />
+      <Input aria-label={`${name} value`} placeholder="Enter new value to update" value="" disabled readOnly inputClassName="h-10" className="flex-[2]" />
       <span aria-hidden="true" className="w-[5.5rem] shrink-0" />
       <Button type="button" size="icon" variant="outline" className="h-10 w-10 shrink-0" aria-label={`Remove ${name}`} disabled>
         <XIcon className="h-4 w-4" />
