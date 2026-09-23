@@ -7,19 +7,19 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 
 const blockchainStatusResponseSchema = z.object({
-  isBlockchainReachable: z.boolean()
+  isBlockchainReachable: z.boolean().openapi({ description: "Whether the console can reach the Akash Network right now." })
 });
 
 const route = createRoute({
   method: "get",
   path: "/v1/blockchain-status",
-  summary: "Get blockchain reachability status",
-  tags: ["Chain"],
+  summary: "Get Akash Network reachability status",
+  tags: ["Network"],
   security: SECURITY_NONE,
   request: {},
   responses: {
     200: {
-      description: "Returns blockchain reachability status",
+      description: "Returns whether the Akash Network is reachable",
       content: {
         "application/json": {
           schema: blockchainStatusResponseSchema
