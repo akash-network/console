@@ -20,7 +20,7 @@ import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mock
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
-import { createDeploymentInfoErrorSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
+import { createDeploymentInfoErrorSeed, createDeploymentInfoGroupsFromSdl, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
 import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
 import { createLeaseStatus } from "@test/seeders/lease-status.seeder";
@@ -309,7 +309,12 @@ describe("PATCH /v1/deployments/{dseq} route wiring", () => {
       .persist()
       .get(`/akash/deployment/${deploymentVersion}/deployments/info`)
       .query({ "id.owner": address, "id.dseq": DSEQ })
-      .reply(200, holdsDeployment ? createDeploymentInfoSeed({ owner: address, dseq: DSEQ }) : createDeploymentInfoErrorSeed())
+      .reply(
+        200,
+        holdsDeployment
+          ? createDeploymentInfoSeed({ owner: address, dseq: DSEQ, groups: createDeploymentInfoGroupsFromSdl({ sdl: STORED_SDL, owner: address, dseq: DSEQ }) })
+          : createDeploymentInfoErrorSeed()
+      )
       .get(`/akash/market/${marketVersion}/leases/list`)
       .query(query => query["filters.owner"] === address && query["filters.dseq"] === DSEQ)
       .reply(200, { leases })

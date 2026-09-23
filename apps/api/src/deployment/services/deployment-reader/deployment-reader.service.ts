@@ -34,11 +34,12 @@ import { DeploymentRepository } from "@src/deployment/repositories/deployment/de
 import { DeploymentSettingRepository, type ListedDeploymentSetting } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import { type DetectedGpusByLease, leaseGpuKeyOf, LeaseGpuService } from "@src/deployment/services/lease-gpu/lease-gpu.service";
+import type { OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderList } from "@src/types/provider";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import { averageBlockCountInAMonth } from "@src/utils/constants";
-import { FallbackDeploymentReaderService } from "../fallback-deployment-reader/fallback-deployment-reader.service";
+import { FallbackDeploymentReaderService, UNKNOWN_DB_PLACEHOLDER } from "../fallback-deployment-reader/fallback-deployment-reader.service";
 import { MessageService } from "../message-service/message.service";
 
 /** One page of the key-paged sweep a search makes, matching the default the chain client uses for an unpaginated read. */
@@ -163,9 +164,20 @@ export class DeploymentReaderService {
    * still refuse a dseq the owner does not hold, so the 404 a write depends on is unchanged.
    */
   public async findByWalletAndDseqWithoutProviderStatus(wallet: WalletInitialized, dseq: string): Promise<DeploymentResponse> {
-    const { deployment, leases, escrow_account } = await this.#findOnChain(wallet.address, dseq);
+    const { deployment } = await this.findWithGroupSpecsByWalletAndDseq(wallet, dseq);
 
-    return { deployment, leases: leases.map(lease => ({ ...lease, status: null })), escrow_account };
+    return deployment;
+  }
+
+  /** The group specs are null when only the database fallback answered, because it rebuilds them without names, endpoints or storage classes. */
+  public async findWithGroupSpecsByWalletAndDseq(
+    wallet: WalletInitialized,
+    dseq: string
+  ): Promise<{ deployment: DeploymentResponse; groupSpecs: OnChainGroupSpec[] | null }> {
+    const { deployment, leases, escrow_account, groups } = await this.#findOnChain(wallet.address, dseq);
+    const groupSpecs = deployment.hash === UNKNOWN_DB_PLACEHOLDER ? null : groups.map(group => group.group_spec);
+
+    return { deployment: { deployment, leases: leases.map(lease => ({ ...lease, status: null })), escrow_account }, groupSpecs };
   }
 
   async #findOnChain(owner: string, dseq: string) {
@@ -183,7 +195,8 @@ export class DeploymentReaderService {
     return {
       deployment: deploymentResponse.deployment,
       leases: leases.map(({ lease }) => lease),
-      escrow_account: deploymentResponse.escrow_account
+      escrow_account: deploymentResponse.escrow_account,
+      groups: deploymentResponse.groups
     };
   }
 
