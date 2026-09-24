@@ -1,4 +1,4 @@
-import { DeploymentHttpService, LeaseHttpService, type LeaseState, type RpcLease } from "@akashnetwork/http-sdk";
+import { DeploymentHttpService, type DeploymentInfo, LeaseHttpService, type LeaseListParams, type LeaseState, type RpcLease } from "@akashnetwork/http-sdk";
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
@@ -7,6 +7,9 @@ import { ActiveLeaseRate, DrainingDeploymentLeaseSource, RpcDeploymentInfo } fro
 
 /** The chain rejects a deposit into any escrow account that is not open, so every other state means closed to us. */
 const OPEN_ESCROW_ACCOUNT_STATE = "open";
+
+/** Each deployment read directly costs two chain requests, so larger sets page the owner's history instead. */
+export const MAX_DSEQS_FOR_DIRECT_LOOKUP = 10;
 
 @singleton()
 export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSource {
@@ -81,18 +84,25 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
    * @returns Array of RPC lease data
    */
   async #fetchLeases(owner: string, dseqSet: Set<string>, state?: LeaseState): Promise<RpcLease[]> {
+    if (dseqSet.size <= MAX_DSEQS_FOR_DIRECT_LOOKUP) {
+      const leasesByDseq = await Promise.all(Array.from(dseqSet, dseq => this.#listLeases({ owner, dseq, state })));
+      return leasesByDseq.flat();
+    }
+
+    return await this.#listLeases({ owner, state }, lease => dseqSet.has(lease.lease.id.dseq));
+  }
+
+  async #listLeases(filters: Omit<LeaseListParams, "pagination">, isRequested: (lease: RpcLease) => boolean = () => true): Promise<RpcLease[]> {
     const allItems: RpcLease[] = [];
     let nextKey: string | null = null;
 
     do {
       const response = await this.leaseHttpService.list({
-        owner,
-        state,
+        ...filters,
         pagination: { limit: 1000, key: nextKey || undefined }
       });
 
-      const filteredItems = response.leases.filter(lease => dseqSet.has(lease.lease.id.dseq));
-      allItems.push(...filteredItems);
+      allItems.push(...response.leases.filter(isRequested));
       nextKey = response.pagination.next_key;
     } while (nextKey);
 
@@ -108,6 +118,11 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
    * @returns Array of RPC deployment info with escrow balances
    */
   async #fetchDeployments(owner: string, dseqSet: Set<string>): Promise<RpcDeploymentInfo[]> {
+    if (dseqSet.size <= MAX_DSEQS_FOR_DIRECT_LOOKUP) {
+      const deployments = await Promise.all(Array.from(dseqSet, dseq => this.#findDeployment(owner, dseq)));
+      return deployments.filter(deployment => deployment !== undefined).map(deployment => this.#toRpcDeploymentInfo(deployment));
+    }
+
     const allItems: RpcDeploymentInfo[] = [];
     let nextKey: string | null = null;
 
@@ -119,20 +134,39 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
 
       const filteredItems = response.deployments
         .filter(deployment => dseqSet.has(deployment.deployment.id.dseq))
-        .map(deployment => ({
-          dseq: deployment.deployment.id.dseq,
-          owner: deployment.deployment.id.owner,
-          denom: deployment.escrow_account.state.funds[0]?.denom ?? deployment.escrow_account.state.transferred[0]?.denom ?? "",
-          createdHeight: Number(deployment.deployment.created_at),
-          escrowBalance: this.#sumAmounts(deployment.escrow_account.state.funds) + this.#sumAmounts(deployment.escrow_account.state.transferred),
-          isEscrowOpen: deployment.escrow_account.state.state === OPEN_ESCROW_ACCOUNT_STATE
-        }));
+        .map(deployment => this.#toRpcDeploymentInfo(deployment));
 
       allItems.push(...filteredItems);
       nextKey = response.pagination.next_key;
     } while (nextKey);
 
     return allItems;
+  }
+
+  /** Any other error must fail the read rather than pass as absent, so the caller falls back to the database instead of skipping the deployment. */
+  async #findDeployment(owner: string, dseq: string): Promise<DeploymentInfo | undefined> {
+    const response = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
+
+    if (!("code" in response)) {
+      return response;
+    }
+
+    if (response.message.toLowerCase().includes("deployment not found")) {
+      return undefined;
+    }
+
+    throw new Error(response.message);
+  }
+
+  #toRpcDeploymentInfo(deployment: DeploymentInfo): RpcDeploymentInfo {
+    return {
+      dseq: deployment.deployment.id.dseq,
+      owner: deployment.deployment.id.owner,
+      denom: deployment.escrow_account.state.funds[0]?.denom ?? deployment.escrow_account.state.transferred[0]?.denom ?? "",
+      createdHeight: Number(deployment.deployment.created_at),
+      escrowBalance: this.#sumAmounts(deployment.escrow_account.state.funds) + this.#sumAmounts(deployment.escrow_account.state.transferred),
+      isEscrowOpen: deployment.escrow_account.state.state === OPEN_ESCROW_ACCOUNT_STATE
+    };
   }
 
   /**

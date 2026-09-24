@@ -1,4 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
+import { groupBy } from "lodash";
 import nock from "nock";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -697,21 +698,37 @@ describe(TopUpManagedDeploymentsService.name, () => {
     }
 
     function mockLeasesForOwner(owner: string, leases: ReturnType<typeof createLeaseApiResponse>[], options?: { persist?: boolean }) {
-      const scope = nock(apiNodeUrl);
-      if (options?.persist) scope.persist();
-      scope
+      mockChain(options)
         .get("/akash/market/v1beta5/leases/list")
-        .query(query => query["filters.owner"] === owner)
+        .query(query => query["filters.owner"] === owner && query["filters.dseq"] === undefined)
         .reply(200, { leases, pagination: { next_key: null, total: String(leases.length) } });
+
+      for (const [dseq, deploymentLeases] of Object.entries(groupBy(leases, lease => lease.lease.id.dseq))) {
+        mockChain(options)
+          .get("/akash/market/v1beta5/leases/list")
+          .query(query => query["filters.owner"] === owner && query["filters.dseq"] === dseq)
+          .reply(200, { leases: deploymentLeases, pagination: { next_key: null, total: String(deploymentLeases.length) } });
+      }
     }
 
     function mockDeploymentsForOwner(owner: string, deployments: ReturnType<typeof createDeploymentInfoSeed>[], options?: { persist?: boolean }) {
-      const scope = nock(apiNodeUrl);
-      if (options?.persist) scope.persist();
-      scope
+      mockChain(options)
         .get("/akash/deployment/v1beta4/deployments/list")
         .query(query => String(query["filters.owner"]) === owner)
         .reply(200, { deployments, pagination: { next_key: null, total: String(deployments.length) } });
+
+      for (const deployment of deployments) {
+        mockChain(options)
+          .get("/akash/deployment/v1beta4/deployments/info")
+          .query({ "id.owner": owner, "id.dseq": deployment.deployment.id.dseq })
+          .reply(200, deployment);
+      }
+    }
+
+    function mockChain(options?: { persist?: boolean }) {
+      const scope = nock(apiNodeUrl);
+      if (options?.persist) scope.persist();
+      return scope;
     }
 
     function stubGetFreshLimits(balanceByAddress: Record<string, number>) {
