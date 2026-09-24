@@ -1,5 +1,5 @@
 import type { GenerateManifestResult, Manifest, SDLInput, ValidationError } from "@akashnetwork/chain-sdk";
-import { generateManifest, generateManifestVersion, yaml } from "@akashnetwork/chain-sdk";
+import { generateManifestVersion, yaml } from "@akashnetwork/chain-sdk";
 import { YAMLException } from "js-yaml";
 import { inject, singleton } from "tsyringe";
 
@@ -12,6 +12,7 @@ import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/s
 import { sdlRequestsGpuInterconnect } from "@src/deployment/utils/gpu-interconnect/gpu-interconnect";
 import { findTrialResourceViolation } from "@src/deployment/utils/group-resources/group-resources";
 import { restatePricesInGrantDenom } from "@src/deployment/utils/price-denom/price-denom";
+import { generateManifestReportingInvalidSizes } from "@src/deployment/utils/sdl-sizes/sdl-sizes";
 
 export type SdlParseResult = { ok: true; value: SDLInput } | { ok: false; value: ValidationError[] };
 export type SdlManifest = Extract<GenerateManifestResult, { ok: true }>["value"];
@@ -151,7 +152,7 @@ export class SdlService {
       }
     }
 
-    const result = generateManifest(potentiallyInvalidSDL);
+    const result = generateManifestReportingInvalidSizes(potentiallyInvalidSDL);
     if (!result.ok) return result;
 
     if (options.isTrialing) {
