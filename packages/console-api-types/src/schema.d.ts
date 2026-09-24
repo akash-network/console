@@ -9832,7 +9832,7 @@ export interface operations {
                 /**
                  * @description Interfaces this model is available with
                  * @example [
-                 *       "PCIe"
+                 *       "pcie"
                  *     ]
                  */
                 interface: string[];

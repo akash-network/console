@@ -9,6 +9,7 @@ export interface ParsedGPUAttributes {
 
 const SXM_PATTERN = /^sxm\d*$/i;
 
+/** An SDL only carries `pcie` or `sxm` as a GPU interface, so every SXM revision collapses to `sxm` and the rest is lowercased. */
 export function normalizeGPUInterface(iface: string): string {
   if (SXM_PATTERN.test(iface)) {
     return "sxm";

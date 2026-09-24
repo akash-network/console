@@ -1,4 +1,5 @@
 import type { PlacementOptionsResponse } from "@src/http-schemas/placement-options.schema";
+import { normalizeGPUInterface } from "@src/mappers/gpu-attribute-parser/gpu-attribute-parser";
 import type { AvailableGpu } from "@src/repositories/placement-options/placement-options.repository";
 
 type GpuVendorOption = PlacementOptionsResponse["gpus"][number];
@@ -27,7 +28,7 @@ export function mapToGpuVendorOptions(gpus: AvailableGpu[]): GpuVendorOption[] {
     }
 
     if (gpu.memory) values.memory.add(gpu.memory);
-    if (gpu.interface) values.interface.add(gpu.interface);
+    if (gpu.interface) values.interface.add(normalizeGPUInterface(gpu.interface));
     values.owners.add(gpu.owner);
   }
 
