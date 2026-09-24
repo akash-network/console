@@ -10,7 +10,7 @@ interface ModelValues {
   owners: Set<string>;
 }
 
-/** Memory and interface are collected per model rather than as pairs, so the wider set never hides a GPU somebody could lease; the interface is normalized because an SDL only carries `pcie` or `sxm`. */
+/** Memory and interface are collected per model rather than as pairs, so the wider set never hides a GPU somebody could lease. */
 export function mapToGpuVendorOptions(gpus: AvailableGpu[]): GpuVendorOption[] {
   const vendors = new Map<string, Map<string, ModelValues>>();
 

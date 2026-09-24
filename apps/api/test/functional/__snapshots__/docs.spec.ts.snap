@@ -11958,7 +11958,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "interface": {
                                   "description": "Interfaces this model is available with",
                                   "example": [
-                                    "PCIe",
+                                    "pcie",
                                   ],
                                   "items": {
                                     "type": "string",

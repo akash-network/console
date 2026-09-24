@@ -19482,7 +19482,7 @@
                                   },
                                   "description": "Interfaces this model is available with",
                                   "example": [
-                                    "PCIe"
+                                    "pcie"
                                   ]
                                 },
                                 "providerCount": {

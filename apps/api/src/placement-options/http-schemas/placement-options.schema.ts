@@ -3,7 +3,7 @@ import { z } from "@hono/zod-openapi";
 const GpuModelOptionSchema = z.object({
   name: z.string().openapi({ description: "Model as it appears in an SDL GPU attribute", example: "a100" }),
   memory: z.array(z.string()).openapi({ description: "Memory sizes this model is available with", example: ["40Gi"] }),
-  interface: z.array(z.string()).openapi({ description: "Interfaces this model is available with", example: ["PCIe"] }),
+  interface: z.array(z.string()).openapi({ description: "Interfaces this model is available with", example: ["pcie"] }),
   providerCount: z.number().int().openapi({ description: "Online providers with free capacity on a node holding this model", example: 3 })
 });
 
