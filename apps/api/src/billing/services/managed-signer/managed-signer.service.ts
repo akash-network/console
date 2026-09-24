@@ -25,7 +25,6 @@ import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import { LeaseGpuRepository } from "@src/deployment/repositories/lease-gpu/lease-gpu.repository";
 import { RecordDeploymentSetting, recordDeploymentSettingKeyFor } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { UserRepository } from "@src/user/repositories";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
@@ -63,7 +62,6 @@ export class ManagedSignerService {
     private readonly managedUserWalletService: ManagedUserWalletService,
     private readonly trialActivationJobService: TrialActivationJobService,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
-    private readonly leaseGpuRepository: LeaseGpuRepository,
     private readonly depositRefusalCache: DeploymentDepositRefusalCache,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -235,7 +233,6 @@ export class ManagedSignerService {
     for (const dseq of this.#findDeploymentDseqs(messages, ".MsgCloseDeployment")) {
       try {
         await this.deploymentSettingRepository.markClosed({ userId: userWallet.userId, dseq: dseq.toString() });
-        await this.leaseGpuRepository.deleteForDeployment({ userId: userWallet.userId, dseq: dseq.toString() });
       } catch (error) {
         this.logger.error({ event: "CLOSED_DEPLOYMENT_RECORD_FAILED", userId: userWallet.userId, dseq: dseq.toString(), error });
       }

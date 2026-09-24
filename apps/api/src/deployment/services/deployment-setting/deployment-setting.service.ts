@@ -26,7 +26,14 @@ type DeploymentSettingChange = Pick<DeploymentSettingsInput, "runtimeLimitHours"
 
 type DeploymentSettingWithEstimatedTopUpAmount = Omit<
   DeploymentSettingsOutput,
-  "lastFundedAt" | "runtimeEndingNotifiedFor" | "providerUnreachableNotifiedFor" | "sealedSecrets" | "manifestVersion" | "name" | "runtimeEndsAt"
+  | "lastFundedAt"
+  | "runtimeEndingNotifiedFor"
+  | "providerUnreachableNotifiedFor"
+  | "sealedSecrets"
+  | "manifestVersion"
+  | "name"
+  | "runtimeEndsAt"
+  | "detectedGpus"
 > & {
   estimatedTopUpAmount: number;
   topUpFrequencyMs: number;
@@ -315,7 +322,8 @@ export class DeploymentSettingService {
    * out of the API payload. So do `sdl`, `sealedSecrets` and `manifestVersion`: they are what the console remembers a
    * deployment by, not something it hands back, and the response schema is types only — whatever this returns is
    * what ships. `sealedSecrets` is ciphertext rather than a value, but it is the one field here no response has any
-   * reason to carry, so it is dropped by the same rule rather than by a weaker one.
+   * reason to carry, so it is dropped by the same rule rather than by a weaker one. `detectedGpus` is served on the
+   * deployment read, next to the lease it describes.
    */
   async withEstimatedTopUpAmount(params: DeploymentSettingsOutput): Promise<DeploymentSettingWithEstimatedTopUpAmount>;
   async withEstimatedTopUpAmount(params: undefined): Promise<undefined>;
@@ -324,8 +332,18 @@ export class DeploymentSettingService {
       return undefined;
     }
 
-    const { lastFundedAt, runtimeEndingNotifiedFor, providerUnreachableNotifiedFor, sdl, sealedSecrets, manifestVersion, name, runtimeEndsAt, ...rest } =
-      params;
+    const {
+      lastFundedAt,
+      runtimeEndingNotifiedFor,
+      providerUnreachableNotifiedFor,
+      sdl,
+      sealedSecrets,
+      manifestVersion,
+      name,
+      runtimeEndsAt,
+      detectedGpus,
+      ...rest
+    } = params;
     const setting = { ...rest, runtimeEndsAt: runtimeEndsAt?.toISOString() ?? null };
 
     if (!setting.autoTopUpEnabled) {

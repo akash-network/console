@@ -2,7 +2,8 @@ import { inject, singleton } from "tsyringe";
 
 import { isWalletInitialized, UserWalletRepository } from "@src/billing/repositories";
 import { type CreateLogger, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
-import { LeaseGpuRepository } from "@src/deployment/repositories/lease-gpu/lease-gpu.repository";
+import type { LeaseGpuReading } from "@src/deployment/model-schemas";
+import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { LeaseGpuDetectionService } from "@src/deployment/services/lease-gpu-detection/lease-gpu-detection.service";
 import { DetectLeaseGpus, LeaseGpuDetectionJobService } from "@src/deployment/services/lease-gpu-detection-job/lease-gpu-detection-job.service";
@@ -26,7 +27,7 @@ export class DetectLeaseGpusHandler implements JobHandler<DetectLeaseGpus> {
     private readonly userWalletRepository: UserWalletRepository,
     private readonly detectionService: LeaseGpuDetectionService,
     private readonly jobService: LeaseGpuDetectionJobService,
-    private readonly leaseGpuRepository: LeaseGpuRepository,
+    private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly config: DeploymentConfigService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -51,19 +52,26 @@ export class DetectLeaseGpusHandler implements JobHandler<DetectLeaseGpus> {
     }
 
     const report = await this.detectionService.detect({ wallet, dseq });
-
-    if (report.rows.length) await this.leaseGpuRepository.upsertMany(report.rows);
+    const recorded = await this.#record({ userId: wallet.userId, dseq, readings: report.readings });
 
     this.logger.info({
       event: "LEASE_GPU_DETECTION_RAN",
       ...context,
       status: report.status,
-      rows: report.rows.length,
+      readings: report.readings.length,
+      recorded,
       complete: report.complete
     });
 
-    if (report.complete) return;
+    if (report.complete && recorded) return;
 
     await this.jobService.scheduleNext(payload);
+  }
+
+  /** A deployment the console holds no settings row for has nowhere to keep a reading, so the job comes back for it rather than settling. */
+  async #record(input: { userId: string; dseq: string; readings: LeaseGpuReading[] }): Promise<boolean> {
+    if (!input.readings.length) return true;
+
+    return await this.deploymentSettingRepository.mergeGpuReadings(input);
   }
 }

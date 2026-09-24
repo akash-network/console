@@ -33,22 +33,29 @@ describe(DetectLeaseGpusHandler.name, () => {
     vi.restoreAllMocks();
   });
 
-  it("records the gpus a lease is running, run the way a worker runs it", async () => {
-    const { walletId, dseq, singletonKey, enqueue, startWorkers, findRows } = await setup({});
+  it("records the gpus a lease is running on the deployment's settings, run the way a worker runs it", async () => {
+    const { singletonKey, enqueue, startWorkers, findReadings } = await setup({});
 
     await enqueue();
     await startWorkers();
 
     await expectJobCompleted(DetectLeaseGpus[JOB_NAME], { singletonKey });
-    const rows = await findRows();
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ dseq, gseq: 1, oseq: 1, provider: PROVIDER, service: "web", source: "nvidia-smi", driverVersion: "550.54.15" });
-    expect(rows[0].gpus).toEqual(GPU_READING.gpus);
-    expect(walletId).toBeGreaterThan(0);
+    await expect(findReadings()).resolves.toEqual([
+      {
+        gseq: 1,
+        oseq: 1,
+        provider: PROVIDER,
+        service: "web",
+        source: "nvidia-smi",
+        driverVersion: "550.54.15",
+        gpus: GPU_READING.gpus,
+        detectedAt: expect.any(String)
+      }
+    ]);
   });
 
   it("replaces the previous reading when it runs again", async () => {
-    const { enqueue, startWorkers, findRows, handler, payload, singletonKey } = await setup({});
+    const { enqueue, startWorkers, findReadings, handler, payload, singletonKey } = await setup({});
 
     await enqueue();
     await startWorkers();
@@ -56,17 +63,28 @@ describe(DetectLeaseGpusHandler.name, () => {
 
     await handler.handle(payload);
 
-    await expect(findRows()).resolves.toHaveLength(1);
+    await expect(findReadings()).resolves.toHaveLength(1);
   });
 
   it("records nothing while the feature is off", async () => {
-    const { enqueue, startWorkers, findRows, singletonKey } = await setup({ enabled: false });
+    const { enqueue, startWorkers, findReadings, singletonKey } = await setup({ enabled: false });
 
     await enqueue();
     await startWorkers();
 
     await expectJobCompleted(DetectLeaseGpus[JOB_NAME], { singletonKey });
-    await expect(findRows()).resolves.toEqual([]);
+    await expect(findReadings()).resolves.toBeNull();
+  });
+
+  it("comes back for a deployment the console holds no settings for yet, rather than settling on a reading it could not keep", async () => {
+    const { enqueue, startWorkers, singletonKey } = await setup({ withoutSetting: true });
+
+    await enqueue();
+    await startWorkers();
+
+    await expectJobCompleted(DetectLeaseGpus[JOB_NAME], { singletonKey, state: "completed" });
+    const queued = await findJobRows(DetectLeaseGpus[JOB_NAME], { singletonKey });
+    expect(queued.some(job => job.state === "created")).toBe(true);
   });
 
   it("comes back for a service it could not read", async () => {
@@ -106,12 +124,17 @@ describe(DetectLeaseGpusHandler.name, () => {
     expect(container.resolve(DetectLeaseGpusHandler).requiresPermission()).toEqual([]);
   });
 
-  async function setup(input: { enabled?: boolean; chainFails?: boolean; probeResult?: Awaited<ReturnType<LeaseGpuProbeService["probe"]>> }) {
+  async function setup(input: {
+    enabled?: boolean;
+    chainFails?: boolean;
+    withoutSetting?: boolean;
+    probeResult?: Awaited<ReturnType<LeaseGpuProbeService["probe"]>>;
+  }) {
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
-    const leaseGpusTable = resolveTable("LeaseGpus");
+    const deploymentSettingsTable = resolveTable("DeploymentSettings");
     const { user, wallet, address } = await seedUserWithWallet();
     const dseq = createDseq();
-    await seedDeploymentSetting({ userId: user.id, dseq, sdl: null });
+    if (!input.withoutSetting) await seedDeploymentSetting({ userId: user.id, dseq, sdl: null });
 
     const config = container.resolve(DeploymentConfigService);
     const readConfig = config.get.bind(config);
@@ -153,16 +176,17 @@ describe(DetectLeaseGpusHandler.name, () => {
     return {
       handler: container.resolve(DetectLeaseGpusHandler),
       payload,
-      walletId: wallet.id,
-      dseq,
       singletonKey,
       enqueue: () => enqueue(new DetectLeaseGpus({ walletId: wallet.id, dseq, attempt: 1, leaseCreatedAt: new Date().toISOString() }), { singletonKey }),
       startWorkers,
-      findRows: async () =>
-        await db
-          .select()
-          .from(leaseGpusTable)
-          .where(and(eq(leaseGpusTable.userId, user.id), eq(leaseGpusTable.dseq, dseq)))
+      findReadings: async () => {
+        const [setting] = await db
+          .select({ detectedGpus: deploymentSettingsTable.detectedGpus })
+          .from(deploymentSettingsTable)
+          .where(and(eq(deploymentSettingsTable.userId, user.id), eq(deploymentSettingsTable.dseq, dseq)));
+
+        return setting.detectedGpus;
+      }
     };
   }
 });

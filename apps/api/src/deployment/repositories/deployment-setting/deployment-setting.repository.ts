@@ -6,6 +6,8 @@ import { assertBatchSize } from "@src/core/lib/batch-size/batch-size";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
+import { mergeLeaseGpuReadings } from "@src/deployment/lib/lease-gpu-readings/lease-gpu-readings";
+import type { LeaseGpuReading } from "@src/deployment/model-schemas";
 import { Users } from "@src/user/model-schemas";
 
 type Table = ApiPgTables["DeploymentSettings"];
@@ -68,6 +70,7 @@ export type LiveManagedDeployment = {
   walletId: number;
   address: string;
   createdAt: Date;
+  hasDetectedGpus: boolean;
 };
 
 export type LiveTrialDeployment = {
@@ -166,6 +169,40 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs))));
 
     return new Map(rows.map(({ dseq, ...setting }) => [dseq, setting]));
+  }
+
+  /** Keyed by dseq and absent for a deployment never read, under the same double scoping as {@link findNamesByDseqs}. */
+  async findGpuReadings({ userId, dseqs }: { userId: string; dseqs: string[] }): Promise<Map<string, LeaseGpuReading[]>> {
+    if (dseqs.length === 0) {
+      return new Map();
+    }
+
+    const rows = await this.cursor
+      .select({ dseq: this.table.dseq, detectedGpus: this.table.detectedGpus })
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs), isNotNull(this.table.detectedGpus))));
+
+    return new Map(rows.map(row => [row.dseq, row.detectedGpus ?? []]));
+  }
+
+  /** Merges under a row lock so a reading lands on what is stored now, and returns false when the deployment has no row to hold it. */
+  async mergeGpuReadings({ userId, dseq, readings }: { userId: string; dseq: string; readings: LeaseGpuReading[] }): Promise<boolean> {
+    const ofDeployment = and(eq(this.table.userId, userId), eq(this.table.dseq, dseq));
+
+    return await this.ensureTransaction(async tx => {
+      const [row] = await tx.select({ detectedGpus: this.table.detectedGpus }).from(this.table).where(ofDeployment).for("update");
+
+      if (!row) {
+        return false;
+      }
+
+      await tx
+        .update(this.table)
+        .set({ detectedGpus: mergeLeaseGpuReadings(row.detectedGpus ?? [], readings), updatedAt: sql`now()` })
+        .where(ofDeployment);
+
+      return true;
+    });
   }
 
   /** Reads every owner in one query, because the per-owner lookup this used to repeat selects from the same tables under the same filters. */
@@ -358,7 +395,8 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         dseq: this.table.dseq,
         walletId: UserWallets.id,
         address: UserWallets.address,
-        createdAt: this.table.createdAt
+        createdAt: this.table.createdAt,
+        hasDetectedGpus: sql<boolean>`${this.table.detectedGpus} is not null`
       })
       .from(this.table)
       .innerJoin(UserWallets, eq(UserWallets.userId, this.table.userId))

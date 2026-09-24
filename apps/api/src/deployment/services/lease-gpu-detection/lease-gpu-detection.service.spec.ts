@@ -32,17 +32,17 @@ describe(LeaseGpuDetectionService.name, () => {
 
     expect(report.status).toBe("read");
     expect(report.complete).toBe(true);
-    expect(report.rows).toEqual([
-      expect.objectContaining({
-        userId: "user-1",
-        dseq: DSEQ,
+    expect(report.readings).toEqual([
+      {
         gseq: 1,
         oseq: 1,
         provider: PROVIDER,
         service: "web",
         source: "nvidia-smi",
-        gpus: GPU_READING.gpus
-      })
+        driverVersion: GPU_READING.driverVersion,
+        gpus: GPU_READING.gpus,
+        detectedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+      }
     ]);
   });
 
@@ -51,7 +51,7 @@ describe(LeaseGpuDetectionService.name, () => {
 
     const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
 
-    expect(report).toEqual({ status: "no_gpu_declared", rows: [], complete: true });
+    expect(report).toEqual({ status: "no_gpu_declared", readings: [], complete: true });
     expect(providerRepository.findActiveByAddress).not.toHaveBeenCalled();
   });
 
@@ -60,7 +60,7 @@ describe(LeaseGpuDetectionService.name, () => {
 
     const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
 
-    expect(report).toEqual({ status: "no_live_lease", rows: [], complete: false });
+    expect(report).toEqual({ status: "no_live_lease", readings: [], complete: false });
   });
 
   it("ignores a lease of a group that asks for no gpu", async () => {
@@ -106,7 +106,7 @@ describe(LeaseGpuDetectionService.name, () => {
 
     const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
 
-    expect(report.rows).toHaveLength(1);
+    expect(report.readings).toHaveLength(1);
     expect(report.complete).toBe(false);
   });
 
@@ -140,7 +140,7 @@ describe(LeaseGpuDetectionService.name, () => {
 
     const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
 
-    expect(report.rows).toEqual([expect.objectContaining({ service: "web", gpus: [{ ...GPU_READING.gpus[0], count: 2 }, a100] })]);
+    expect(report.readings).toEqual([expect.objectContaining({ service: "web", gpus: [{ ...GPU_READING.gpus[0], count: 2 }, a100] })]);
     expect(report.complete).toBe(true);
   });
 
@@ -152,7 +152,7 @@ describe(LeaseGpuDetectionService.name, () => {
 
     const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
 
-    expect(report).toEqual({ status: "nothing_readable", rows: [], complete: false });
+    expect(report).toEqual({ status: "nothing_readable", readings: [], complete: false });
     expect(probeService.probe).toHaveBeenCalledTimes(2);
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ event: "LEASE_GPU_DETECTION_UNREAD", service: "web", podIndex: 1, status: "idle_timeout" })
@@ -165,7 +165,7 @@ describe(LeaseGpuDetectionService.name, () => {
     const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
 
     expect(probeService.probe.mock.calls.map(([target]) => target.service)).toEqual(["sidecar"]);
-    expect(report.rows).toEqual([expect.objectContaining({ service: "sidecar" })]);
+    expect(report.readings).toEqual([expect.objectContaining({ service: "sidecar" })]);
     expect(report.complete).toBe(true);
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "LEASE_GPU_DETECTION_REPLICAS_CAPPED", service: "web", replicas: 5, max: 4 }));
   });
@@ -184,7 +184,7 @@ describe(LeaseGpuDetectionService.name, () => {
 
     const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
 
-    expect(report).toEqual({ status: "nothing_readable", rows: [], complete: true });
+    expect(report).toEqual({ status: "nothing_readable", readings: [], complete: true });
     expect(probeService.probe).not.toHaveBeenCalled();
   });
 
@@ -193,7 +193,7 @@ describe(LeaseGpuDetectionService.name, () => {
 
     const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
 
-    expect(report.rows).toEqual([expect.objectContaining({ source: "none", gpus: [] })]);
+    expect(report.readings).toEqual([expect.objectContaining({ source: "none", gpus: [] })]);
     expect(report.complete).toBe(true);
   });
 
@@ -202,7 +202,7 @@ describe(LeaseGpuDetectionService.name, () => {
 
     const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
 
-    expect(report).toEqual({ status: "nothing_readable", rows: [], complete: false });
+    expect(report).toEqual({ status: "nothing_readable", readings: [], complete: false });
     expect(probeService.probe).not.toHaveBeenCalled();
   });
 
@@ -212,7 +212,7 @@ describe(LeaseGpuDetectionService.name, () => {
     const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
 
     expect(report.status).toBe("read");
-    expect(report.rows).toEqual([expect.objectContaining({ oseq: 1, provider: PROVIDER })]);
+    expect(report.readings).toEqual([expect.objectContaining({ oseq: 1, provider: PROVIDER })]);
     expect(report.complete).toBe(false);
   });
 
@@ -221,7 +221,7 @@ describe(LeaseGpuDetectionService.name, () => {
 
     const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
 
-    expect(report).toEqual({ status: "nothing_readable", rows: [], complete: false });
+    expect(report).toEqual({ status: "nothing_readable", readings: [], complete: false });
     expect(probeService.probe).not.toHaveBeenCalled();
   });
 
@@ -230,7 +230,7 @@ describe(LeaseGpuDetectionService.name, () => {
 
     const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
 
-    expect(report).toEqual({ status: "chain_unavailable", rows: [], complete: false });
+    expect(report).toEqual({ status: "chain_unavailable", readings: [], complete: false });
     expect(providerRepository.findActiveByAddress).not.toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "LEASE_GPU_DETECTION_CHAIN_UNAVAILABLE", dseq: DSEQ, code: 8 }));
   });
@@ -243,7 +243,7 @@ describe(LeaseGpuDetectionService.name, () => {
 
     const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
 
-    expect(report).toEqual({ status: "chain_unavailable", rows: [], complete: false });
+    expect(report).toEqual({ status: "chain_unavailable", readings: [], complete: false });
     expect(providerRepository.findActiveByAddress).not.toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "LEASE_GPU_DETECTION_CHAIN_UNAVAILABLE", dseq: DSEQ, error: expect.any(Error) }));
   });
@@ -253,7 +253,7 @@ describe(LeaseGpuDetectionService.name, () => {
 
     const report = await service.detect({ wallet: WALLET, dseq: DSEQ });
 
-    expect(report).toEqual({ status: "nothing_readable", rows: [], complete: false });
+    expect(report).toEqual({ status: "nothing_readable", readings: [], complete: false });
   });
 
   it("asks the provider for no more than it needs to open a shell", async () => {

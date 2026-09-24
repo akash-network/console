@@ -15,6 +15,7 @@ import type { DrainingDeploymentService } from "../draining-deployment/draining-
 import { DeploymentSettingService } from "./deployment-setting.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
+import { createLeaseGpuReading } from "@test/seeders/lease-gpu-reading.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(DeploymentSettingService.name, () => {
@@ -38,13 +39,16 @@ describe(DeploymentSettingService.name, () => {
       const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
 
       deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, name: "web", sealedSecrets: "seal" }));
+      deploymentSettingRepository.findOneBy.mockResolvedValue(
+        createDeploymentSettingsOutput({ ...params, name: "web", sealedSecrets: "seal", detectedGpus: [createLeaseGpuReading()] })
+      );
 
       const result = await service.findByUserIdAndDseq(params);
 
       expect(result).not.toHaveProperty("name");
       expect(result).not.toHaveProperty("sealedSecrets");
       expect(result).not.toHaveProperty("manifestVersion");
+      expect(result).not.toHaveProperty("detectedGpus");
     });
 
     it("returns undefined and writes no row when nothing is stored for the deployment", async () => {
@@ -548,6 +552,7 @@ describe(DeploymentSettingService.name, () => {
       runtimeEndsAt: null,
       runtimeEndingNotifiedFor: null,
       providerUnreachableNotifiedFor: null,
+      detectedGpus: null,
       createdAt: faker.date.past().toISOString(),
       updatedAt: faker.date.past().toISOString(),
       ...overrides
