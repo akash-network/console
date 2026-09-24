@@ -138,7 +138,7 @@ export class ClusterInventoryMatcherService {
     };
   }
 
-  /** The provider keeps one alternative per model, the last in key order, and holds later replicas to the matched model with only the memory and interface the order asked for. */
+  /** Must stay a copy of the provider's tryAdjustGPU, quirks included, or screening lists providers that never bid on the order. */
   #tryAdjustGPU(node: NodeState, requestedUnits: bigint, gpuSpecs: ParsedGPUAttributes[]): { ok: boolean; resolved?: ParsedGPUAttributes } {
     if (!node.gpu?.info || node.gpu.info.length === 0) return GPU_CHECK_FAIL;
 
