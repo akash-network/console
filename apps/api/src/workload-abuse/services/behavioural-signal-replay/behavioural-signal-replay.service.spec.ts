@@ -15,7 +15,7 @@ import { BehaviouralSignalReplayService } from "./behavioural-signal-replay.serv
 import { mockConfigService } from "@test/mocks/config-service.mock";
 
 describe(BehaviouralSignalReplayService.name, () => {
-  it("flags the accelerator-bound shape that carries nothing on disk and talks to nobody", async () => {
+  it("flags the accelerator-bound shape that carries nothing large on disk and talks to nobody", async () => {
     const { service } = setup();
 
     const summary = await service.replay({ bundledFixtures: true });
@@ -31,7 +31,7 @@ describe(BehaviouralSignalReplayService.name, () => {
     });
   });
 
-  it("flags the accelerator-bound shape that carries nothing on disk and holds a single conversation", async () => {
+  it("flags the accelerator-bound shape that carries nothing large on disk and holds a single conversation", async () => {
     const { service } = setup();
 
     const summary = await service.replay({ bundledFixtures: true });
