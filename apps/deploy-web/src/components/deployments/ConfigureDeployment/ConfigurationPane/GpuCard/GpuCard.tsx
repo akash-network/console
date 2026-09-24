@@ -202,9 +202,8 @@ type GpuModelFieldsProps = {
 
 /**
  * A single GPU collection: vendor, model, memory and interface selects. Picking
- * a vendor resets the downstream selections, and picking a model preselects the
- * memory/interface when the model offers only one option (mirroring the legacy
- * GPU control). Memory and interface stay disabled until a model is picked.
+ * a vendor or a model resets the downstream selections, and memory and interface
+ * stay disabled until a model is picked.
  *
  * While the GPU model catalog is loading a spinner replaces the selects, and a
  * failed fetch shows a short retryless message, so the model/memory/interface
@@ -278,32 +277,17 @@ function GpuModelFields({
     [vendor.field, setValue, basePath]
   );
 
-  const selectGpuModel = useCallback(
-    (value: string) => {
-      const picked = models.find(m => m.name === value);
-      name.field.onChange(value);
-      setValue(`${basePath}.memory`, onlyOption(picked?.memory), { shouldValidate: true, shouldDirty: true });
-      setValue(`${basePath}.interface`, onlyOption(picked?.interface), { shouldValidate: true, shouldDirty: true });
-      analyticsService.track("configure_gpu_type_selected", { category: "deployments", model: value, vendor: vendor.field.value });
-    },
-    [models, name.field, setValue, basePath, analyticsService, vendor.field.value]
-  );
-
-  const clearModel = useCallback(() => {
-    name.field.onChange("");
-    setValue(`${basePath}.memory`, "", { shouldValidate: true, shouldDirty: true });
-    setValue(`${basePath}.interface`, "", { shouldValidate: true, shouldDirty: true });
-  }, [name.field, setValue, basePath]);
-
+  /** A provider bids only on a GPU key it advertises verbatim, so memory and interface stay unpinned until the user asks for them. */
   const selectModel = useCallback(
     (value: string) => {
+      name.field.onChange(value);
+      setValue(`${basePath}.memory`, "", { shouldValidate: true, shouldDirty: true });
+      setValue(`${basePath}.interface`, "", { shouldValidate: true, shouldDirty: true });
       if (value) {
-        selectGpuModel(value);
-      } else {
-        clearModel();
+        analyticsService.track("configure_gpu_type_selected", { category: "deployments", model: value, vendor: vendor.field.value });
       }
     },
-    [selectGpuModel, clearModel]
+    [name.field, setValue, basePath, analyticsService, vendor.field.value]
   );
 
   /**
@@ -493,8 +477,3 @@ const ClearableSelect: FC<ClearableSelectProps> = ({ onClear, clearLabel, childr
     )}
   </div>
 );
-
-/** Returns the single available option (so it can be preselected), otherwise an empty value. */
-function onlyOption(options: string[] | undefined): string {
-  return options?.length === 1 ? options[0] : "";
-}

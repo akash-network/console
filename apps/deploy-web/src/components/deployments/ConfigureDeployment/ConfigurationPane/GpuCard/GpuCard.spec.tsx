@@ -104,22 +104,22 @@ describe(GpuCard.name, () => {
     expect(screen.getByRole("button", { name: "Add GPU" })).toBeDisabled();
   });
 
-  it("writes the picked model and preselects its sole memory and interface", async () => {
+  it("writes the picked model and leaves its sole memory and interface for the user to pin", async () => {
     const { getValues, user } = setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] });
 
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
     await user.click(await screen.findByRole("option", { name: "t4" }));
 
-    expect(getValues().services[0].profile.gpuModels?.[0]).toMatchObject({ vendor: "nvidia", name: "t4", memory: "16Gi", interface: "pcie" });
+    expect(getValues().services[0].profile.gpuModels?.[0]).toEqual({ vendor: "nvidia", name: "t4", memory: "", interface: "" });
   });
 
-  it("does not preselect memory or interface when the model offers several options", async () => {
-    const { getValues, user } = setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] });
+  it("drops a pinned memory and interface when another model is picked", async () => {
+    const { getValues, user } = setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "a100", memory: "40Gi", interface: "pcie" }] });
 
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-    await user.click(await screen.findByRole("option", { name: "a100" }));
+    await user.click(await screen.findByRole("option", { name: "t4" }));
 
-    expect(getValues().services[0].profile.gpuModels?.[0]).toMatchObject({ memory: "", interface: "" });
+    expect(getValues().services[0].profile.gpuModels?.[0]).toEqual({ vendor: "nvidia", name: "t4", memory: "", interface: "" });
   });
 
   it("resets model, memory, and interface when the vendor changes", async () => {
