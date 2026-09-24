@@ -141,7 +141,7 @@ describe(findUnavailableGpuModels.name, () => {
 });
 
 describe(withPinnedGpu.name, () => {
-  const AVAILABLE: GpuVendor[] = [{ name: "nvidia", displayName: "NVIDIA", models: [{ name: "t4", memory: ["16Gi"], interface: ["pcie"] }] }];
+  const AVAILABLE: GpuVendor[] = [{ name: "nvidia", displayName: "NVIDIA", models: [{ name: "t4", memory: ["16Gi"], interface: ["pcie"], providerCount: 2 }] }];
 
   it("adds a pinned vendor and its model that no provider offers", () => {
     const merged = withPinnedGpu(AVAILABLE, { vendor: "amd", name: "mi300", memory: "192Gi", interface: "pcie" });
@@ -163,6 +163,12 @@ describe(withPinnedGpu.name, () => {
     const merged = withPinnedGpu(AVAILABLE, { vendor: "nvidia", name: "t4", memory: "32Gi", interface: "sxm" });
 
     expect(merged?.[0].models[0]).toMatchObject({ memory: ["16Gi", "32Gi"], interface: ["pcie", "sxm"] });
+  });
+
+  it("keeps the provider count of a pinned model that is available", () => {
+    const merged = withPinnedGpu(AVAILABLE, { vendor: "nvidia", name: "t4", memory: "16Gi", interface: "pcie" });
+
+    expect(merged?.[0].models[0].providerCount).toBe(2);
   });
 
   it("does not duplicate values that are already offered", () => {

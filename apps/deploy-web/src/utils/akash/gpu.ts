@@ -56,8 +56,8 @@ function withPinnedModel(models: GpuModel[], pinned: PinnedGpu): GpuModel[] {
   const index = models.findIndex(model => model.name === pinned.name);
   const existing = index === -1 ? undefined : models[index];
   const entry: GpuModel = {
+    ...existing,
     name: pinned.name,
-    displayName: existing?.displayName,
     memory: withPinnedValue(existing?.memory ?? [], pinned.memory),
     interface: withPinnedValue(existing?.interface ?? [], pinned.interface)
   };

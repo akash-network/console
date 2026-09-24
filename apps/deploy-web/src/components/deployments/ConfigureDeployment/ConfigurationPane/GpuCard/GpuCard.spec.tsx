@@ -351,6 +351,16 @@ describe(GpuCard.name, () => {
       expect(screen.getByRole("option", { name: "a100" })).toHaveAccessibleDescription("1 provider");
     });
 
+    it("keeps the provider count on a model once it is picked", async () => {
+      const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"], 4)] }] });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+      await user.click(await screen.findByRole("option", { name: "t4" }));
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+      expect(await screen.findByRole("option", { name: "t4" })).toHaveAccessibleDescription("4 providers");
+    });
+
     it("finds an unavailable model with the search box", async () => {
       const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }] });
 
